@@ -17,6 +17,7 @@ import requests
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import Environment
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +25,23 @@ logger = logging.getLogger("line_middleware")
 
 app = FastAPI(title="LINE OA Webhook Middleware")
 templates = Jinja2Templates(directory="templates")
+
+# สร้างสภาพแวดล้อม Jinja2 และเพิ่มฟิลเตอร์ strftime
+def format_datetime(value, format_string="%Y-%m-%d %H:%M:%S"):
+    """
+    Custom Jinja2 filter to format datetime objects.
+    Note: Jinja2 doesn't have strftime by default.
+    """
+    if isinstance(value, datetime):
+        return value.strftime(format_string)
+    # If a string like "now" is passed, return the current time
+    if value == "now":
+        return datetime.now().strftime(format_string)
+    return value
+
+# สร้าง environment ใหม่สำหรับ templates และเพิ่ม filter
+# จากนั้นกำหนดให้ Jinja2Templates ใช้งาน environment นี้
+templates.env.filters['strftime'] = format_datetime
 
 # Storage configuration with multiple backends
 STORAGE_PATH = os.path.join(os.path.dirname(__file__), "storage.json")
@@ -187,7 +205,7 @@ def load_from_database() -> bool:
         return False
         
     try:
-        conn = sqliteite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Load config
@@ -966,6 +984,9 @@ async def admin_home(request: Request):
     webhook_url = f"{base_url}/line/webhook"
     slip_url = f"{base_url}/bot/slip"
     
+    # ส่งค่าเวลาที่จัดรูปแบบแล้วไปยังเทมเพลต
+    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     return templates.TemplateResponse(
         "admin_home.html", 
         {
@@ -975,7 +996,8 @@ async def admin_home(request: Request):
             "slip_webhook_url": slip_url,
             "virtual_channels_count": len([c for c in virtual_channels if c.get("status") == "active"]),
             "total_chat_history": len(chat_history),
-            "storage_backend": "Database + JSON" if USE_DATABASE else "JSON only"
+            "storage_backend": "Database + JSON" if USE_DATABASE else "JSON only",
+            "last_updated_time": current_time_str
         }
     )
 
