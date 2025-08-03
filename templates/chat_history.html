@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Chat History</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { margin-bottom: 10px; }
+        nav a { margin-right: 15px; }
+        table { border-collapse: collapse; width: 100%; }
+        table, th, td { border: 1px solid #ccc; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>ประวัติการแชท</h1>
+    <nav>
+        <a href="/admin">กลับไปหน้าแดชบอร์ด</a>
+    </nav>
+    <table>
+        <tr>
+            <th>เวลา (UTC)</th>
+            <th>User ID</th>
+            <th>ทิศทาง</th>
+            <th>ข้อความ/ข้อมูล</th>
+        </tr>
+        {% for entry in chat_history %}
+        <tr>
+            <td>{{ entry.timestamp }}</td>
+            <td>{{ entry.user_id }}</td>
+            <td>{{ 'รับ' if entry.direction == 'in' else 'ส่ง' }}</td>
+            <td>
+                {% if entry.message.type == 'text' %}
+                    {{ entry.message.text }}
+                {% else %}
+                    {{ entry.message.type }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
