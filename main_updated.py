@@ -1,44 +1,3 @@
-"""
-Simple LINE OA Webhook Middleware implemented with FastAPI.
-
-This application demonstrates how to receive webhook events from LINE's Messaging API,
-verify their signatures, dispatch them to sub‑services (e.g. slip checking,
-chatbot, top‑up), and offer a minimal web interface for monitoring and
-configuration. It is intended as a starting point for further development and
-should not be used as‑is in production without additional security,
-error‑handling, persistence and authentication.
-
-Features:
-  * Receives LINE webhook events on `/line/webhook`.
-  * Verifies the `x‑line‑signature` header using the channel secret to ensure
-    authenticity (see LINE docs: verifying the webhook signature is important
-    【294202361817782†L63-L67】).
-  * Dispatches events to placeholder sub‑services: slip checker, chatbot
-    (using ChatGPT API via HTTP), and wallet top‑up.
-  * Stores chat history in memory for review and provides a simple admin
-    interface to view logs and add/update endpoints and API keys.
-  * Persistent configuration using Heroku environment variables.
-  * Virtual Channels for external bot integration.
-  * Data persistence with fallback storage options.
-
-Requirements:
-  * Python 3.11 or later.
-  * fastapi, uvicorn and requests are available in this environment.
-  * Set the following environment variables before running:
-      LINE_CHANNEL_SECRET – your LINE channel secret for signature verification.
-      LINE_CHANNEL_ACCESS_TOKEN – your LINE channel access token to reply to users.
-      OPENAI_API_KEY – your OpenAI API key (optional; if not set, chatbot will
-        echo the received message instead of calling the API).
-      WALLET_PHONE_NUMBER – phone number for wallet top-up (optional).
-
-Running the app:
-    uvicorn main_updated:app --host 0.0.0.0 --port 8000
-
-Access admin page at http://localhost:8000/admin
-
-Note: This example uses multiple storage backends for maximum persistence.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -228,7 +187,7 @@ def load_from_database() -> bool:
         return False
         
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqliteite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Load config
@@ -811,343 +770,343 @@ async def virtual_channel_webhook(channel_id: str, request: Request) -> JSONResp
     virtual_channel = get_virtual_channel_by_id(channel_id)
     
     if not virtual_channel or virtual_channel.get("status") != "active":
-       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Virtual channel not found or inactive")
-   
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-   
-   logger.info(f"Received webhook from virtual channel {channel_id}: {data}")
-   
-   message_data = {
-       "timestamp": datetime.utcnow().isoformat(),
-       "virtual_channel_id": channel_id,
-       "channel_name": virtual_channel.get("name", ""),
-       "direction": "in",
-       "data": data,
-       "sender": "virtual_bot"
-   }
-   
-   chat_history.append(message_data)
-   save_storage()
-   
-   return JSONResponse(content={"status": "ok"})
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Virtual channel not found or inactive")
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    logger.info(f"Received webhook from virtual channel {channel_id}: {data}")
+    
+    message_data = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "virtual_channel_id": channel_id,
+        "channel_name": virtual_channel.get("name", ""),
+        "direction": "in",
+        "data": data,
+        "sender": "virtual_bot"
+    }
+    
+    chat_history.append(message_data)
+    save_storage()
+    
+    return JSONResponse(content={"status": "ok"})
 
 
 @app.post("/virtual-api/v2/bot/message/push")
 async def virtual_push_message(request: Request) -> JSONResponse:
-   """Virtual LINE Push API for external bots."""
-   auth_header = request.headers.get("authorization", "")
-   if not auth_header.startswith("Bearer "):
-       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
-   
-   access_token = auth_header[7:]
-   virtual_channel = get_virtual_channel_by_token(access_token)
-   
-   if not virtual_channel or virtual_channel.get("status") != "active":
-       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
-   
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-   
-   to_user = data.get("to")
-   messages = data.get("messages", [])
-   
-   if not to_user or not messages:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
-   
-   # Send message via real LINE API
-   for message in messages:
-       if message.get("type") == "text":
-           send_line_push(to_user, message.get("text", ""))
-   
-   # Log virtual channel outbound message
-   chat_history.append({
-       "timestamp": datetime.utcnow().isoformat(),
-       "user_id": to_user,
-       "virtual_channel_id": virtual_channel.get("channel_id"),
-       "channel_name": virtual_channel.get("name", ""),
-       "direction": "out",
-       "message": messages[0] if messages else {},
-       "sender": "virtual_bot"
-   })
-   save_storage()
-   
-   logger.info(f"Virtual channel {virtual_channel.get('channel_id')} sent message to {to_user}")
-   
-   return JSONResponse(content={"status": "ok"})
+    """Virtual LINE Push API for external bots."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+    
+    access_token = auth_header[7:]
+    virtual_channel = get_virtual_channel_by_token(access_token)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    to_user = data.get("to")
+    messages = data.get("messages", [])
+    
+    if not to_user or not messages:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
+    
+    # Send message via real LINE API
+    for message in messages:
+        if message.get("type") == "text":
+            send_line_push(to_user, message.get("text", ""))
+    
+    # Log virtual channel outbound message
+    chat_history.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": to_user,
+        "virtual_channel_id": virtual_channel.get("channel_id"),
+        "channel_name": virtual_channel.get("name", ""),
+        "direction": "out",
+        "message": messages[0] if messages else {},
+        "sender": "virtual_bot"
+    })
+    save_storage()
+    
+    logger.info(f"Virtual channel {virtual_channel.get('channel_id')} sent message to {to_user}")
+    
+    return JSONResponse(content={"status": "ok"})
 
 
 @app.post("/virtual-api/v2/bot/message/reply")
 async def virtual_reply_message(request: Request) -> JSONResponse:
-   """Virtual LINE Reply API for external bots."""
-   auth_header = request.headers.get("authorization", "")
-   if not auth_header.startswith("Bearer "):
-       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
-   
-   access_token = auth_header[7:]
-   virtual_channel = get_virtual_channel_by_token(access_token)
-   
-   if not virtual_channel or virtual_channel.get("status") != "active":
-       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
-   
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-   
-   reply_token = data.get("replyToken")
-   messages = data.get("messages", [])
-   
-   if not reply_token or not messages:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
-   
-   # Send message via real LINE API
-   for message in messages:
-       if message.get("type") == "text":
-           send_line_reply(reply_token, message.get("text", ""))
-   
-   # Log virtual channel reply message
-   chat_history.append({
-       "timestamp": datetime.utcnow().isoformat(),
-       "reply_token": reply_token,
-       "virtual_channel_id": virtual_channel.get("channel_id"),
-       "channel_name": virtual_channel.get("name", ""),
-       "direction": "out",
-       "message": messages[0] if messages else {},
-       "sender": "virtual_bot"
-   })
-   save_storage()
-   
-   logger.info(f"Virtual channel {virtual_channel.get('channel_id')} replied with token {reply_token}")
-   
-   return JSONResponse(content={"status": "ok"})
+    """Virtual LINE Reply API for external bots."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+    
+    access_token = auth_header[7:]
+    virtual_channel = get_virtual_channel_by_token(access_token)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    reply_token = data.get("replyToken")
+    messages = data.get("messages", [])
+    
+    if not reply_token or not messages:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
+    
+    # Send message via real LINE API
+    for message in messages:
+        if message.get("type") == "text":
+            send_line_reply(reply_token, message.get("text", ""))
+    
+    # Log virtual channel reply message
+    chat_history.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "reply_token": reply_token,
+        "virtual_channel_id": virtual_channel.get("channel_id"),
+        "channel_name": virtual_channel.get("name", ""),
+        "direction": "out",
+        "message": messages[0] if messages else {},
+        "sender": "virtual_bot"
+    })
+    save_storage()
+    
+    logger.info(f"Virtual channel {virtual_channel.get('channel_id')} replied with token {reply_token}")
+    
+    return JSONResponse(content={"status": "ok"})
 
 
 @app.get("/virtual-api/v2/bot/message/{message_id}/content")
 async def virtual_get_content(message_id: str, request: Request):
-   """Virtual LINE Content API for external bots."""
-   auth_header = request.headers.get("authorization", "")
-   if not auth_header.startswith("Bearer "):
-       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
-   
-   access_token = auth_header[7:]
-   virtual_channel = get_virtual_channel_by_token(access_token)
-   
-   if not virtual_channel or virtual_channel.get("status") != "active":
-       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
-   
-   # Proxy request to real LINE API
-   real_access_token = config_store.get("line_channel_access_token")
-   if not real_access_token:
-       raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Real LINE API not configured")
-   
-   try:
-       real_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
-       headers = {"Authorization": f"Bearer {real_access_token}"}
-       
-       response = requests.get(real_url, headers=headers, timeout=30, stream=True)
-       response.raise_for_status()
-       
-       def iterfile():
-           for chunk in response.iter_content(chunk_size=8192):
-               yield chunk
-       
-       return StreamingResponse(
-           iterfile(),
-           media_type=response.headers.get("Content-Type", "application/octet-stream"),
-           headers={
-               "Content-Length": response.headers.get("Content-Length", ""),
-               "Content-Disposition": response.headers.get("Content-Disposition", "")
-           }
-       )
-       
-   except Exception as e:
-       logger.error(f"Failed to get content from LINE API: {e}")
-       raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve content")
+    """Virtual LINE Content API for external bots."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+    
+    access_token = auth_header[7:]
+    virtual_channel = get_virtual_channel_by_token(access_token)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
+    
+    # Proxy request to real LINE API
+    real_access_token = config_store.get("line_channel_access_token")
+    if not real_access_token:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Real LINE API not configured")
+    
+    try:
+        real_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        headers = {"Authorization": f"Bearer {real_access_token}"}
+        
+        response = requests.get(real_url, headers=headers, timeout=30, stream=True)
+        response.raise_for_status()
+        
+        def iterfile():
+            for chunk in response.iter_content(chunk_size=8192):
+                yield chunk
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type=response.headers.get("Content-Type", "application/octet-stream"),
+            headers={
+                "Content-Length": response.headers.get("Content-Length", ""),
+                "Content-Disposition": response.headers.get("Content-Disposition", "")
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get content from LINE API: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve content")
 
 
 # ===== WEB ROUTES =====
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-   """Redirect root path to admin page."""
-   return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
+    """Redirect root path to admin page."""
+    return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
 
 
 @app.post("/line/webhook")
 async def line_webhook(request: Request) -> JSONResponse:
-   """Endpoint to receive LINE webhook events."""
-   body = await request.body()
-   signature = request.headers.get("x-line-signature", "")
-   channel_secret = config_store.get("line_channel_secret", "")
-   
-   if not verify_line_signature(body, signature, channel_secret):
-       raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
-   
-   try:
-       payload = json.loads(body.decode("utf-8"))
-   except json.JSONDecodeError:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-   
-   events = payload.get("events", [])
-   for event in events:
-       threading.Thread(target=dispatch_event, args=(event,), daemon=True).start()
-   
-   return JSONResponse(content={"status": "ok"})
+    """Endpoint to receive LINE webhook events."""
+    body = await request.body()
+    signature = request.headers.get("x-line-signature", "")
+    channel_secret = config_store.get("line_channel_secret", "")
+    
+    if not verify_line_signature(body, signature, channel_secret):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+    
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    events = payload.get("events", [])
+    for event in events:
+        threading.Thread(target=dispatch_event, args=(event,), daemon=True).start()
+    
+    return JSONResponse(content={"status": "ok"})
 
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_home(request: Request):
-   """Admin home page showing simple menu and current configuration."""
-   base_url = str(request.base_url).rstrip('/')
-   webhook_url = f"{base_url}/line/webhook"
-   slip_url = f"{base_url}/bot/slip"
-   
-   return templates.TemplateResponse(
-       "admin_home.html", 
-       {
-           "request": request, 
-           "config": config_store,
-           "webhook_url": webhook_url,
-           "slip_webhook_url": slip_url,
-           "virtual_channels_count": len([c for c in virtual_channels if c.get("status") == "active"]),
-           "total_chat_history": len(chat_history),
-           "storage_backend": "Database + JSON" if USE_DATABASE else "JSON only"
-       }
-   )
+    """Admin home page showing simple menu and current configuration."""
+    base_url = str(request.base_url).rstrip('/')
+    webhook_url = f"{base_url}/line/webhook"
+    slip_url = f"{base_url}/bot/slip"
+    
+    return templates.TemplateResponse(
+        "admin_home.html", 
+        {
+            "request": request, 
+            "config": config_store,
+            "webhook_url": webhook_url,
+            "slip_webhook_url": slip_url,
+            "virtual_channels_count": len([c for c in virtual_channels if c.get("status") == "active"]),
+            "total_chat_history": len(chat_history),
+            "storage_backend": "Database + JSON" if USE_DATABASE else "JSON only"
+        }
+    )
 
 
 @app.get("/admin/chat", response_class=HTMLResponse)
 async def admin_chat(request: Request):
-   """View chat history in a table."""
-   return templates.TemplateResponse("chat_history.html", {"request": request, "chat_history": chat_history})
+    """View chat history in a table."""
+    return templates.TemplateResponse("chat_history.html", {"request": request, "chat_history": chat_history})
 
 
 @app.get("/admin/forwarding", response_class=HTMLResponse)
 async def admin_forwarding(request: Request):
-   """Display and manage external forwarding endpoints."""
-   return templates.TemplateResponse(
-       "forwarding.html", {
-           "request": request,
-           "endpoints": forward_endpoints,
-       }
-   )
+    """Display and manage external forwarding endpoints."""
+    return templates.TemplateResponse(
+        "forwarding.html", {
+            "request": request,
+            "endpoints": forward_endpoints,
+        }
+    )
 
 
 @app.post("/admin/forwarding/add")
 async def add_forwarding(request: Request) -> RedirectResponse:
-   """Add a new forwarding endpoint."""
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
-   
-   url = data.get("url", "").strip()
-   if not url:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL cannot be empty")
-   
-   next_id = 1
-   if forward_endpoints:
-       next_id = max(ep.get("id", 0) for ep in forward_endpoints) + 1
-   
-   forward_endpoints.append({"id": next_id, "url": url})
-   save_storage()
-   
-   return RedirectResponse(url=app.url_path_for("admin_forwarding"), status_code=status.HTTP_302_FOUND)
+    """Add a new forwarding endpoint."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
+    
+    url = data.get("url", "").strip()
+    if not url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL cannot be empty")
+    
+    next_id = 1
+    if forward_endpoints:
+        next_id = max(ep.get("id", 0) for ep in forward_endpoints) + 1
+    
+    forward_endpoints.append({"id": next_id, "url": url})
+    save_storage()
+    
+    return RedirectResponse(url=app.url_path_for("admin_forwarding"), status_code=status.HTTP_302_FOUND)
 
 
 @app.post("/admin/forwarding/delete")
 async def delete_forwarding(request: Request) -> RedirectResponse:
-   """Delete a forwarding endpoint by id."""
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
-   
-   try:
-       remove_id = int(data.get("id"))
-   except (TypeError, ValueError):
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid id")
-   
-   global forward_endpoints
-   forward_endpoints = [ep for ep in forward_endpoints if ep.get("id") != remove_id]
-   save_storage()
-   
-   return RedirectResponse(url=app.url_path_for("admin_forwarding"), status_code=status.HTTP_302_FOUND)
+    """Delete a forwarding endpoint by id."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
+    
+    try:
+        remove_id = int(data.get("id"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid id")
+    
+    global forward_endpoints
+    forward_endpoints = [ep for ep in forward_endpoints if ep.get("id") != remove_id]
+    save_storage()
+    
+    return RedirectResponse(url=app.url_path_for("admin_forwarding"), status_code=status.HTTP_302_FOUND)
 
 
 @app.post("/bot/slip")
 async def slip_bot_webhook(request: Request) -> JSONResponse:
-   """Endpoint for the slip‑checking bot to send results back to the middleware."""
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
-   
-   text = data.get("text", "").strip()
-   reply_token = data.get("reply_token")
-   user_id = data.get("user_id")
-   
-   if not text:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Text is required")
-   
-   if reply_token:
-       send_line_reply(reply_token, text)
-   elif user_id:
-       send_line_push(user_id, text)
-       chat_history.append({
-           "timestamp": datetime.utcnow().isoformat(),
-           "user_id": user_id,
-           "direction": "out",
-           "message": {"type": "text", "text": text},
-           "sender": "slip_bot"
-       })
-       save_storage()
-   else:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Either reply_token or user_id must be provided")
-   
-   return JSONResponse(content={"status": "sent"})
+    """Endpoint for the slip‑checking bot to send results back to the middleware."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
+    
+    text = data.get("text", "").strip()
+    reply_token = data.get("reply_token")
+    user_id = data.get("user_id")
+    
+    if not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Text is required")
+    
+    if reply_token:
+        send_line_reply(reply_token, text)
+    elif user_id:
+        send_line_push(user_id, text)
+        chat_history.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "user_id": user_id,
+            "direction": "out",
+            "message": {"type": "text", "text": text},
+            "sender": "slip_bot"
+        })
+        save_storage()
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Either reply_token or user_id must be provided")
+    
+    return JSONResponse(content={"status": "sent"})
 
 
 @app.get("/admin/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request):
-   """Display configuration form for updating tokens and settings."""
-   return templates.TemplateResponse("settings.html", {"request": request, "config": config_store})
+    """Display configuration form for updating tokens and settings."""
+    return templates.TemplateResponse("settings.html", {"request": request, "config": config_store})
 
 
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
-   """Update configuration based on JSON payload from the settings page."""
-   try:
-       data = await request.json()
-   except Exception:
-       raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
-   
-   updated_keys = []
-   for key in [
-       "line_channel_secret",
-       "line_channel_access_token", 
-       "openai_api_key",
-       "wallet_phone_number",
-   ]:
-       if key in data:
-           old_value = config_store.get(key, "")
-           new_value = str(data[key]).strip()
-           config_store[key] = new_value
-           if old_value != new_value:
-               updated_keys.append(key)
-   
-   save_storage()
-   
-   if updated_keys:
-       logger.info(f"Updated config keys: {updated_keys}")
-   
-   return JSONResponse(content={
-       "status": "success", 
-       "message": "การตั้งค่าถูกอัปเดตแล้ว! หากต้องการให้การตั้งค่าคงอยู่หลัง restart ให้อัปเดต Config Vars ใน Heroku Dashboard ด้วย",
-       "updated_keys": updated_keys
-   })
+    """Update configuration based on JSON payload from the settings page."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
+    
+    updated_keys = []
+    for key in [
+        "line_channel_secret",
+        "line_channel_access_token", 
+        "openai_api_key",
+        "wallet_phone_number",
+    ]:
+        if key in data:
+            old_value = config_store.get(key, "")
+            new_value = str(data[key]).strip()
+            config_store[key] = new_value
+            if old_value != new_value:
+                updated_keys.append(key)
+    
+    save_storage()
+    
+    if updated_keys:
+        logger.info(f"Updated config keys: {updated_keys}")
+    
+    return JSONResponse(content={
+        "status": "success", 
+        "message": "การตั้งค่าถูกอัปเดตแล้ว! หากต้องการให้การตั้งค่าคงอยู่หลัง restart ให้อัปเดต Config Vars ใน Heroku Dashboard ด้วย",
+        "updated_keys": updated_keys
+    })
