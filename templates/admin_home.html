@@ -37,6 +37,14 @@
         <tr>
             <td>{{ key }}</td>
             <td>{{ value if value else '—' }}</td>
+            <tr>
+    <th>ระบบจัดเก็บข้อมูล</th>
+    <th>{{ storage_backend }}</th>
+</tr>
+<tr>
+    <th>จำนวนประวัติการแชท</th>
+    <th>{{ total_chat_history }} รายการ</th>
+</tr>
         </tr>
         {% endfor %}
     </table>
