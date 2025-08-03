@@ -507,6 +507,52 @@ async def create_virtual_channel(request: Request) -> JSONResponse:
         }
     })
 
+@app.post("/admin/virtual-channels/import-line")
+async def import_line_credentials(request: Request) -> JSONResponse:
+    """Import existing LINE channel credentials into virtual channel."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
+    line_channel_id = data.get("line_channel_id", "").strip()
+    line_channel_secret = data.get("line_channel_secret", "").strip()
+    
+    if not all([name, line_channel_id, line_channel_secret]):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
+    
+    # Generate access token for API calls
+    access_token = f"VT{secrets.token_urlsafe(40)}"
+    
+    # Create virtual channel with LINE credentials
+    virtual_channel = {
+        "id": len(virtual_channels) + 1,
+        "channel_id": line_channel_id,  # Use real LINE Channel ID
+        "channel_secret": line_channel_secret,  # Use real LINE Channel Secret
+        "access_token": access_token,  # Generated token for our API
+        "name": name,
+        "description": description,
+        "created_at": datetime.utcnow().isoformat(),
+        "status": "active",
+        "type": "line_import"  # Mark as imported from LINE
+    }
+    
+    virtual_channels.append(virtual_channel)
+    save_storage()
+    
+    base_url = f"https://{request.headers.get('host', 'localhost')}"
+    
+    return JSONResponse(content={
+        "status": "success",
+        "channel": virtual_channel,
+        "webhook_urls": {
+            "messaging_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/webhook",
+            "content_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/content",
+            "push_api": f"{base_url}/virtual-api/v2/bot/message/push"
+        }
+    })
 
 @app.get("/admin/virtual-channels", response_class=HTMLResponse)
 async def admin_virtual_channels(request: Request):
