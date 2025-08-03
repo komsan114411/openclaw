@@ -6,6 +6,10 @@ from config import config_store
 logger = logging.getLogger("slip_checker_service")
 
 def verify_slip_with_thunder(message_id: str) -> str:
+    """
+    Handle slip image messages by sending the image to the Thunder API
+    for verification and replying with the result.
+    """
     api_token = config_store.get("THUNDER_API_TOKEN")
     line_access_token = config_store.get("line_channel_access_token")
 
@@ -28,19 +32,24 @@ def verify_slip_with_thunder(message_id: str) -> str:
 
     # 2. Call Thunder API to verify
     try:
-        thunder_api_url = "https://api.thunder.in.th/v1/verify-slip"
+        thunder_api_url = "https://api.thunder.in.th/v1/verify"
         headers = {
             "Authorization": f"Bearer {api_token}",
-            "Content-Type": "image/jpeg"
         }
-        api_resp = requests.post(thunder_api_url, headers=headers, data=image_data, timeout=15)
+        
+        files = {
+            'file': ('slip.jpg', image_data, 'image/jpeg')
+        }
+        
+        api_resp = requests.post(thunder_api_url, headers=headers, files=files, timeout=15)
         api_resp.raise_for_status()
         verification_result = api_resp.json()
 
-        if verification_result.get("status") == "success":
+        if verification_result.get("status") == 200:
+            data = verification_result.get("data", {})
             message_text = "สลิปถูกต้อง ✅\n"
-            message_text += f"ยอดเงิน: {verification_result.get('amount')} บาท\n"
-            message_text += f"วันที่: {verification_result.get('date')}"
+            message_text += f"ยอดเงิน: {data.get('amount', {}).get('amount')} บาท\n"
+            message_text += f"วันที่: {data.get('date')[:10]}"
         else:
             message_text = "สลิปไม่ถูกต้อง ❌\n"
             message_text += f"ข้อผิดพลาด: {verification_result.get('message')}"
