@@ -6,11 +6,7 @@ from config import config_store
 logger = logging.getLogger("slip_checker_service")
 
 def verify_slip_with_thunder(message_id: str) -> str:
-    """
-    Handle slip image messages by sending the image to the Thunder API
-    for verification and replying with the result.
-    """
-    api_token = config_store.get("THUNDER_API_TOKEN")
+    api_token = config_store.get("thunder_api_token")      # ใช้คีย์ตรงกับ config.py
     line_access_token = config_store.get("line_channel_access_token")
 
     if not config_store.get("slip_enabled"):
@@ -18,8 +14,8 @@ def verify_slip_with_thunder(message_id: str) -> str:
 
     if not api_token or not line_access_token:
         return "ขออภัย ระบบตรวจสอบสลิปยังไม่ได้ตั้งค่า API Token"
-    
-    # 1. Get image content from LINE API
+
+    # 1. ดาวน์โหลดรูปสลิปจาก LINE
     try:
         line_content_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
         headers = {"Authorization": f"Bearer {line_access_token}"}
@@ -30,31 +26,21 @@ def verify_slip_with_thunder(message_id: str) -> str:
         logger.error(f"Failed to get image content from LINE: {e}")
         return "ขออภัย เกิดข้อผิดพลาดในการดาวน์โหลดรูปภาพสลิป"
 
-    # 2. Call Thunder API to verify
+    # 2. ส่งไปยัง Thunder API
     try:
-        thunder_api_url = "https://api.thunder.in.th/v1/verify"
+        thunder_api_url = "https://api.thunder.in.th/v1/verify-slip"
         headers = {
             "Authorization": f"Bearer {api_token}",
+            "Content-Type": "image/jpeg"
         }
-        
-        files = {
-            'file': ('slip.jpg', image_data, 'image/jpeg')
-        }
-        
-        api_resp = requests.post(thunder_api_url, headers=headers, files=files, timeout=15)
+        api_resp = requests.post(thunder_api_url, headers=headers, data=image_data, timeout=15)
         api_resp.raise_for_status()
-        verification_result = api_resp.json()
+        result = api_resp.json()
 
-        if verification_result.get("status") == 200:
-            data = verification_result.get("data", {})
-            message_text = "สลิปถูกต้อง ✅\n"
-            message_text += f"ยอดเงิน: {data.get('amount', {}).get('amount')} บาท\n"
-            message_text += f"วันที่: {data.get('date')[:10]}"
+        if result.get("status") == "success":
+            return f"สลิปถูกต้อง ✅\nยอดเงิน: {result.get('amount')} บาท\nวันที่: {result.get('date')}"
         else:
-            message_text = "สลิปไม่ถูกต้อง ❌\n"
-            message_text += f"ข้อผิดพลาด: {verification_result.get('message')}"
-        
-        return message_text
+            return f"สลิปไม่ถูกต้อง ❌\nข้อผิดพลาด: {result.get('message')}"
     except Exception as e:
         logger.error(f"Failed to call Thunder API: {e}")
         return "ขออภัย ไม่สามารถตรวจสอบสลิปได้ในขณะนี้"
