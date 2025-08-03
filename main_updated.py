@@ -5,6 +5,8 @@ import hashlib
 import base64
 import threading
 import logging
+import os
+from datetime import datetime
 from typing import Dict, Any
 
 import requests
@@ -38,7 +40,7 @@ init_database()
 def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> bool:
     """ตรวจสอบลายเซ็นของ webhook จาก LINE"""
     if not channel_secret:
-        return True  # ไม่ตรวจหากไม่มี secret
+        return True
     h = hmac.new(channel_secret.encode(), body, hashlib.sha256).digest()
     computed = base64.b64encode(h).decode()
     return hmac.compare_digest(computed, signature)
@@ -271,9 +273,8 @@ async def admin_settings(request: Request):
             "config": config_manager.config,
         },
     )
-# เพิ่มส่วนนี้ลงใน main_updated.py หลังจาก line webhook route
 
-# ====================== Missing Admin Routes ======================
+# ====================== Admin API Endpoints ======================
 
 @app.get("/admin/status")
 async def admin_status():
@@ -292,7 +293,6 @@ async def show_current_config():
 async def reset_settings():
     """รีเซ็ตการตั้งค่ากลับเป็นค่าเริ่มต้น"""
     try:
-        # ลบไฟล์ config เพื่อให้โหลดค่า default ใหม่
         if os.path.exists("app_config.json"):
             os.remove("app_config.json")
         config_manager.reload_config()
@@ -311,7 +311,6 @@ async def test_ai_prompt(request: Request):
         import time
         start_time = time.time()
         
-        # จำลองการทดสอบ AI (ใช้ get_chat_response function)
         response = get_chat_response(test_message, "test_user")
         
         response_time = round(time.time() - start_time, 2)
@@ -328,7 +327,6 @@ async def test_ai_prompt(request: Request):
 @app.get("/admin/debug/config")
 async def debug_config():
     """Debug configuration"""
-    import os
     try:
         config_from_file = {}
         file_exists = os.path.exists("app_config.json")
@@ -359,12 +357,12 @@ async def reload_config():
         })
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)})
+
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
     """บันทึกการตั้งค่าจากหน้า Admin"""
     data = await request.json()
     updates = {}
-    # อัปเดตค่าแต่ละคีย์
     for key in [
         "line_channel_secret",
         "line_channel_access_token",
@@ -375,10 +373,8 @@ async def update_settings(request: Request) -> JSONResponse:
     ]:
         if key in data:
             updates[key] = data[key].strip()
-    # บันทึกเปิด/ปิดระบบ
     updates["ai_enabled"] = bool(data.get("ai_enabled"))
     updates["slip_enabled"] = bool(data.get("slip_enabled"))
 
-    # update multiple config
     config_manager.update_multiple(updates)
     return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
