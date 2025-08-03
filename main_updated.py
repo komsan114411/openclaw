@@ -56,6 +56,7 @@ if 'DYNO' in os.environ:
     # Try to use Heroku Postgres if available
     DATABASE_URL = os.getenv("DATABASE_URL")
     if DATABASE_URL:
+        
         # Parse PostgreSQL URL for production use
         logger.info("PostgreSQL database detected, but using SQLite for simplicity")
 
