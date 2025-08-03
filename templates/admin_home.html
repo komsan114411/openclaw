@@ -1,52 +1,161 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <meta charset="utf-8" />
-    <title>Admin1 Dashboard</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { margin-bottom: 10px; }
-        nav a { margin-right: 15px; }
-        table { border-collapse: collapse; width: 100%; max-width: 600px; margin-top: 20px; }
-        table, th, td { border: 1px solid #ccc; }
-        th, td { padding: 8px; text-align: left; }
-        th { background-color: #f5f5f5; }
-    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin1 Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --light-bg: #f8f9fa;
+            --dark-bg: #e9ecef;
+            --border-color: #dee2e6;
+            --text-color: #343a40;
+        }
+
+        body { 
+            font-family: 'Kanit', sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .webhook-info {
+            background-color: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .webhook-info p {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+        }
+
+        .webhook-info code {
+            display: block;
+            background-color: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px dashed var(--secondary-color);
+            word-break: break-all;
+        }
+
+        nav {
+            margin-bottom: 25px;
+        }
+
+        nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: var(--primary-color);
+            font-weight: 600;
+            padding: 5px 0;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #0056b3;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        table, th, td {
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--dark-bg);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--light-bg);
+        }
+
+        .status-table th {
+            width: 50%;
+        }
+
+        .status-table td {
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Admin1 Dashboard</h1>
-    <p>
-        <strong>Webhook URL สำหรับ LINE:</strong>
-        <code>{{ webhook_url }}</code>
-    </p>
-    <p>
-        <strong>Webhook URL สำหรับบอทตรวจสลิป:</strong>
-        <code>{{ slip_webhook_url }}</code>
-    </p>
-    <nav>
-        <a href="/admin/chat">📝 ดูประวัติการแชท</a>
-        <a href="/admin/settings">⚙️ ตั้งค่าระบบ</a>
-        <a href="/admin/forwarding">🔀 จัดการ Forwarding Webhooks</a>
-        <a href="/admin/virtual-channels">🔗 จัดการ Virtual Channels ({{ virtual_channels_count }})</a>
-        <a href="/admin/data-info" target="_blank">💾 ข้อมูลการจัดเก็บ</a>
-    </nav>
-    <h2>การตั้งค่าปัจจุบัน</h2>
-    <table>
-        <tr><th>คีย์</th><th>ค่า</th></tr>
-        {% for key, value in config.items() %}
-        <tr>
-            <td>{{ key }}</td>
-            <td>{{ value if value else '—' }}</td>
-        </tr>
-        {% endfor %}
-        <tr>
-            <th>ระบบจัดเก็บข้อมูล</th>
-            <td>{{ storage_backend }}</td>
-        </tr>
-        <tr>
-            <th>จำนวนประวัติการแชท</th>
-            <td>{{ total_chat_history }} รายการ</td>
-        </tr>
-    </table>
+    <div class="container">
+        <h1>Admin1 Dashboard 🤖</h1>
+        <div class="webhook-info">
+            <p><strong>Webhook URL สำหรับ LINE:</strong></p>
+            <code>{{ webhook_url }}</code>
+            <p><strong>Webhook URL สำหรับบอทตรวจสลิป:</strong></p>
+            <code>{{ slip_webhook_url }}</code>
+        </div>
+        
+        <nav>
+            <a href="/admin/chat">📝 ดูประวัติการแชท</a>
+            <a href="/admin/settings">⚙️ ตั้งค่าระบบ</a>
+            <a href="/admin/forwarding">🔀 จัดการ Forwarding Webhooks</a>
+            <a href="/admin/virtual-channels">🔗 จัดการ Virtual Channels ({{ virtual_channels_count }})</a>
+            <a href="/admin/data-info" target="_blank">💾 ข้อมูลการจัดเก็บ</a>
+        </nav>
+
+        <h2>การตั้งค่าปัจจุบัน</h2>
+        <table>
+            <tr>
+                <th>คีย์</th>
+                <th>ค่า</th>
+            </tr>
+            {% for key, value in config.items() %}
+            <tr>
+                <td>{{ key }}</td>
+                <td>{{ value if value else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <br>
+        <h2>สถานะระบบ</h2>
+        <table class="status-table">
+            <tr>
+                <th>ระบบจัดเก็บข้อมูล</th>
+                <td>{{ storage_backend }}</td>
+            </tr>
+            <tr>
+                <th>จำนวนประวัติการแชท</th>
+                <td>{{ total_chat_history }} รายการ</td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>
