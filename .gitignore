@@ -1,0 +1,16 @@
+# ไฟล์ config ที่มี sensitive data
+config_persistent.json
+*.db
+*.log
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
