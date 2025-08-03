@@ -179,7 +179,7 @@ async def api_status_check():
         token = config_manager.get("thunder_api_token")
         if token:
             status["thunder"]["configured"] = True
-            r = requests.get("https://api.thunder.in.th/v1/user", headers={"Authorization": f"Bearer {token}"}, timeout=5)
+            r = requests.get("https://api.thunder.in.th/v1/", headers={"Authorization": f"Bearer {token}"}, timeout=5)
             status["thunder"]["connected"] = True
             status["thunder"]["balance"] = r.json().get("balance", 0)
     except Exception as e:
