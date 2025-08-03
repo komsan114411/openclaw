@@ -5,17 +5,23 @@
     <title>ตั้งค่าระบบ</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #00B900; border-bottom: 3px solid #00B900; padding-bottom: 10px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; }
         input[type="text"], input[type="password"], textarea {
             width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box;
         }
-        textarea { height: 120px; }
-        button { background: linear-gradient(135deg, #007bff, #0056b3); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .ai-prompt-textarea { height: 200px; font-family: 'Courier New', monospace; }
+        .small-textarea { height: 80px; }
+        button { background: linear-gradient(135deg, #007bff, #0056b3); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 10px; }
         button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,123,255,0.3); }
+        button.danger { background: linear-gradient(135deg, #dc3545, #c82333); }
         .switch-group { margin-bottom: 15px; }
+        .prompt-examples { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .prompt-examples h4 { margin: 0 0 10px 0; color: #495057; }
+        .prompt-examples p { margin: 5px 0; font-size: 13px; color: #6c757d; }
+        .current-config { background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
     </style>
     <script>
         function submitSettings(event) {
@@ -31,59 +37,127 @@
                 ai_enabled: form.ai_enabled.checked,
                 slip_enabled: form.slip_enabled.checked
             };
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '💾 กำลังบันทึก...';
+            submitBtn.disabled = true;
+            
             fetch('/admin/settings/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
-            }).then(resp => {
-                if (resp.ok) {
-                    alert('✅ บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+            }).then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
                 } else {
-                    alert('❌ เกิดข้อผิดพลาดในการบันทึก');
+                    alert('❌ ' + data.message);
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            }).finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+            return false;
+        }
+        
+        function resetSettings() {
+            if (!confirm('⚠️ ต้องการรีเซ็ตการตั้งค่าทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?\n(การกระทำนี้ไม่สามารถย้อนกลับได้)')) {
+                return;
+            }
+            
+            fetch('/admin/settings/reset', {
+                method: 'POST'
+            }).then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + data.message);
                 }
             }).catch(err => {
                 console.error(err);
                 alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
             });
-            return false;
+        }
+        
+        function useExample(exampleText) {
+            document.getElementById('ai_prompt').value = exampleText;
         }
     </script>
 </head>
 <body>
 <div class="container">
     <h1>⚙️ ตั้งค่าระบบ</h1>
+    
+    <div class="current-config">
+        <h3>📊 สถานะปัจจุบัน</h3>
+        <p><strong>AI Chatbot:</strong> {{ 'เปิดใช้งาน ✅' if config.ai_enabled else 'ปิดใช้งาน ❌' }}</p>
+        <p><strong>ตรวจสอบสลิป:</strong> {{ 'เปิดใช้งาน ✅' if config.slip_enabled else 'ปิดใช้งาน ❌' }}</p>
+        <p><strong>การจัดเก็บ:</strong> ข้อมูลจะถูกบันทึกลงไฟล์ config_persistent.json</p>
+    </div>
+    
     <form onsubmit="submitSettings(event)">
+        <h2>🔐 API Credentials</h2>
+        
         <div class="form-group">
             <label>LINE Channel Secret</label>
             <input type="password" name="line_channel_secret" value="{{ config.line_channel_secret }}">
         </div>
+        
         <div class="form-group">
             <label>LINE Channel Access Token</label>
             <input type="password" name="line_channel_access_token" value="{{ config.line_channel_access_token }}">
         </div>
+        
         <div class="form-group">
             <label>Thunder API Token</label>
             <input type="password" name="thunder_api_token" value="{{ config.thunder_api_token }}">
         </div>
+        
         <div class="form-group">
             <label>OpenAI API Key</label>
             <input type="password" name="openai_api_key" value="{{ config.openai_api_key }}">
         </div>
-        <div class="form-group">
-            <label>AI Prompt (ข้อความแนะนำสำหรับ AI)</label>
-            <textarea name="ai_prompt">{{ config.ai_prompt }}</textarea>
+        
+        <h2>🤖 AI Configuration</h2>
+        
+        <div class="prompt-examples">
+            <h4>📝 ตัวอย่าง AI Prompt สำเร็จรูป:</h4>
+            <p><button type="button" onclick="useExample('คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง')">🏪 ร้านค้าทั่วไป</button></p>
+            <p><button type="button" onclick="useExample('คุณเป็นพนักงานแคชเชียร์ของร้านอาหารที่เชี่ยวชาญเรื่องการรับชำระเงินและตรวจสอบสลิปโอนเงิน ให้ความช่วยเหลือลูกค้าเรื่องการชำระเงินเท่านั้น ตอบด้วยน้ำเสียงเป็นกันเองและอบอุ่น')">🍕 ร้านอาหาร</button></p>
+            <p><button type="button" onclick="useExample('คุณเป็นผู้ช่วยขายของร้านออนไลน์ที่เชี่ยวชาญเรื่องการตรวจสอบการชำระเงินและสลิปโอนเงิน ให้ข้อมูลเกี่ยวกับการสั่งซื้อและการชำระเงินเท่านั้น ห้ามคุยเรื่องอื่นที่ไม่เกี่ยวข้องกับสินค้าและการขาย')">🛒 ร้านออนไลน์</button></p>
         </div>
+        
+        <div class="form-group">
+            <label>AI Prompt (คำแนะนำสำหรับ AI) - สามารถแก้ไขได้ตามต้องการ:</label>
+            <textarea id="ai_prompt" name="ai_prompt" class="ai-prompt-textarea" placeholder="ใส่คำแนะนำสำหรับ AI ว่าควรตอบอย่างไร...">{{ config.ai_prompt }}</textarea>
+            <small style="color: #6c757d;">💡 เคล็ดลับ: ระบุให้ชัดเจนว่าต้องการให้ AI ตอบเรื่องอะไรบ้าง และห้ามตอบเรื่องอะไร</small>
+        </div>
+        
         <div class="switch-group">
             <label><input type="checkbox" name="ai_enabled" {% if config.ai_enabled %}checked{% endif %}> เปิดใช้งาน AI Chatbot</label>
         </div>
+        
         <div class="switch-group">
             <label><input type="checkbox" name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป</label>
         </div>
+        
+        <h2>💳 Payment Configuration</h2>
+        
         <div class="form-group">
             <label>เบอร์วอลเลท (Wallet Phone Number)</label>
-            <input type="text" name="wallet_phone_number" value="{{ config.wallet_phone_number }}">
+            <input type="text" name="wallet_phone_number" value="{{ config.wallet_phone_number }}" placeholder="เช่น 0812345678">
         </div>
-        <button type="submit">💾 บันทึกการตั้งค่า</button>
+        
+        <div style="margin-top: 30px;">
+            <button type="submit">💾 บันทึกการตั้งค่า</button>
+            <button type="button" class="danger" onclick="resetSettings()">🔄 รีเซ็ตเป็นค่าเริ่มต้น</button>
+        </div>
     </form>
 </div>
 </body>
