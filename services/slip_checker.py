@@ -10,8 +10,10 @@ def verify_slip_with_thunder(message_id: str) -> Dict[str, Any]:
     api_token = config_store.get("thunder_api_token")
     line_token = config_store.get("line_channel_access_token")
     wallet_phone = config_store.get("wallet_phone_number", "")
+    
     if not config_store.get("slip_enabled"):
         return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดอยู่"}
+    
     if not api_token or not line_token:
         return {"status": "error", "message": "ยังไม่ได้ตั้งค่า API Token"}
 
@@ -26,48 +28,46 @@ def verify_slip_with_thunder(message_id: str) -> Dict[str, Any]:
         logger.error("LINE image download error: %s", e)
         return {"status": "error", "message": "ดาวน์โหลดรูปสลิปไม่สำเร็จ"}
 
-    # 2. เลือก endpoint Thunder
-    if wallet_phone:
-        verify_url = "https://api.thunder.in.th/v1/verify/truewallet"
-    else:
-        verify_url = "https://api.thunder.in.th/v1/verify"
-    headers = {"Authorization": f"Bearer {api_token}"}
-    files = {"file": ("slip.jpg", image_data, "image/jpeg")}
+    # 2. ตรวจสอบกับ Thunder API (อัปเดต endpoint ใหม่)
     try:
-        resp = requests.post(verify_url, headers=headers, files=files, timeout=15)
+        # ใช้ endpoint ที่ถูกต้องตาม Thunder documentation
+        verify_url = "https://slip-api.thunder.in.th/api/v1/verify-slip"
+        
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "multipart/form-data"
+        }
+        
+        files = {"slip_image": ("slip.jpg", image_data, "image/jpeg")}
+        
+        # เพิ่มข้อมูลเพิ่มเติมถ้ามี
+        data = {}
+        if wallet_phone:
+            data["wallet_phone"] = wallet_phone
+            
+        resp = requests.post(verify_url, headers=headers, files=files, data=data, timeout=15)
         resp.raise_for_status()
-        data = resp.json()
+        result = resp.json()
+        
     except Exception as e:
         logger.error("Thunder API error: %s", e)
-        return {"status": "error", "message": "ตรวจสอบสลิปไม่ได้ในขณะนี้"}
+        return {"status": "error", "message": "เชื่อมต่อ Thunder API ไม่ได้ กรุณาตรวจสอบ Token"}
 
     # 3. วิเคราะห์ผลลัพธ์
-    if data.get("status") != 200:
-        # ตัวอย่าง error: invalid_image, invalid_qr_code ฯลฯ
-        return {"status": "error", "message": "สลิปไม่ถูกต้อง ❌"}
-    # สำเร็จ
-    result = data.get("data", {})
-    if wallet_phone:
+    if result.get("success") == True:
+        slip_data = result.get("data", {})
         return {
             "status": "success",
-            "type": "wallet",
             "data": {
-                "amount": result.get("amount"),
-                "date": result.get("date"),
-                "sender": result.get("sender", {}).get("name", ""),
-                "receiver_name": result.get("receiver", {}).get("name", ""),
-                "receiver_phone": result.get("receiver", {}).get("phone", ""),
+                "amount": slip_data.get("amount", "0"),
+                "date": slip_data.get("transaction_date", ""),
+                "sender": slip_data.get("sender_name", ""),
+                "receiver_name": slip_data.get("receiver_name", ""),
+                "receiver_phone": slip_data.get("receiver_phone", wallet_phone),
+                "bank_from": slip_data.get("bank_from", ""),
+                "bank_to": slip_data.get("bank_to", ""),
             },
         }
     else:
-        amount = result.get("amount", {}).get("amount", 0)
-        return {
-            "status": "success",
-            "type": "bank",
-            "data": {
-                "amount": amount,
-                "date": result.get("date", ""),
-                "sender_bank": result.get("sender", {}).get("bank", {}).get("short", ""),
-                "receiver_bank": result.get("receiver", {}).get("bank", {}).get("short", ""),
-            },
-        }
+        error_msg = result.get("message", "สลิปไม่ถูกต้อง")
+        return {"status": "error", "message": f"❌ {error_msg}"}
