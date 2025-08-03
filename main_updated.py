@@ -275,7 +275,47 @@ async def admin_settings(request: Request):
     )
 
 # ====================== Admin API Endpoints ======================
+# เพิ่มใน main.py
 
+@app.post("/admin/test-thunder")
+async def test_thunder_api(request: Request):
+    """ทดสอบการเชื่อมต่อ Thunder API"""
+    try:
+        api_token = config_manager.get("thunder_api_token")
+        if not api_token:
+            return JSONResponse(content={
+                "status": "error", 
+                "message": "ยังไม่ได้ตั้งค่า Thunder API Token"
+            })
+        
+        # ทดสอบเรียก API endpoint พื้นฐาน
+        headers = {"Authorization": f"Bearer {api_token}"}
+        response = requests.get(
+            "https://api.thunder.in.th/v1/user", 
+            headers=headers, 
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            return JSONResponse(content={
+                "status": "success",
+                "message": "เชื่อมต่อ Thunder API สำเร็จ",
+                "user": user_data.get("name", "Unknown"),
+                "balance": user_data.get("balance", 0)
+            })
+        else:
+            return JSONResponse(content={
+                "status": "error",
+                "message": f"Thunder API Error: {response.status_code}",
+                "details": response.text
+            })
+            
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"Connection error: {str(e)}"
+        })
 @app.get("/admin/status")
 async def admin_status():
     """API endpoint สำหรับ refresh สถานะ"""
