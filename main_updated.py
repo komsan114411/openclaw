@@ -2,22 +2,22 @@
 Simple LINE OA Webhook Middleware implemented with FastAPI.
 
 This application demonstrates how to receive webhook events from LINE's Messaging API,
-verify their signatures, dispatch them to sub-services (e.g. slip checking,
-chatbot, top-up), and offer a minimal web interface for monitoring and
+verify their signatures, dispatch them to sub‑services (e.g. slip checking,
+chatbot, top‑up), and offer a minimal web interface for monitoring and
 configuration. It is intended as a starting point for further development and
-should not be used as-is in production without additional security,
-error-handling, persistence and authentication.
+should not be used as‑is in production without additional security,
+error‑handling, persistence and authentication.
 
 Features:
   * Receives LINE webhook events on `/line/webhook`.
-  * Verifies the `x-line-signature` header using the channel secret to ensure
+  * Verifies the `x‑line‑signature` header using the channel secret to ensure
     authenticity (see LINE docs: verifying the webhook signature is important
-   ).
-  * Dispatches events to placeholder sub-services: slip checker, chatbot
-    (using ChatGPT API via HTTP), and wallet top-up.
+    【294202361817782†L63-L67】).
+  * Dispatches events to placeholder sub‑services: slip checker, chatbot
+    (using ChatGPT API via HTTP), and wallet top‑up.
   * Stores chat history in memory for review and provides a simple admin
     interface to view logs and add/update endpoints and API keys.
-  * NEW: Added a new endpoint to test forwarding webhooks and display results.
+  * Persistent configuration using Heroku environment variables.
 
 Requirements:
   * Python 3.11 or later.
@@ -27,13 +27,14 @@ Requirements:
       LINE_CHANNEL_ACCESS_TOKEN – your LINE channel access token to reply to users.
       OPENAI_API_KEY – your OpenAI API key (optional; if not set, chatbot will
         echo the received message instead of calling the API).
+      WALLET_PHONE_NUMBER – phone number for wallet top-up (optional).
 
 Running the app:
-    uvicorn main:app --host 0.0.0.0 --port 8000
+    uvicorn main_updated:app --host 0.0.0.0 --port 8000
 
 Access admin page at http://localhost:8000/admin
 
-Note: This example uses in-memory storage for simplicity. In a real system you
+Note: This example uses in‑memory storage for simplicity. In a real system you
 would likely persist configurations and chat logs to a database and add
 authentication for admin endpoints.
 """
@@ -51,7 +52,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 import requests
-from fastapi import FastAPI, Request, HTTPException, status, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -67,9 +68,15 @@ templates = Jinja2Templates(directory="templates")
 # will be created with default values.
 STORAGE_PATH = os.path.join(os.path.dirname(__file__), "storage.json")
 
+# Check if running on Heroku
+if 'DYNO' in os.environ:
+    # Use temporary storage on Heroku
+    STORAGE_PATH = "/tmp/storage.json"
+
 config_store: Dict[str, str] = {}
 chat_history: List[Dict[str, Any]] = []
 forward_endpoints: List[Dict[str, Any]] = []
+
 
 def load_storage() -> None:
     """Load configuration and data from storage file."""
@@ -81,27 +88,27 @@ def load_storage() -> None:
             config_store = data.get("config_store", {})
             chat_history = data.get("chat_history", [])
             forward_endpoints = data.get("forward_endpoints", [])
-            # Ensure defaults exist
-            for key, default in {
-                "line_channel_secret": os.getenv("LINE_CHANNEL_SECRET", ""),
-                "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
-                "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
-                "wallet_phone_number": "",
-            }.items():
-                config_store.setdefault(key, default)
         except Exception as e:
             logger.error("Failed to load storage: %s", e)
+            config_store = {}
+            chat_history = []
+            forward_endpoints = []
     else:
-        # Initialize defaults and save
-        config_store = {
-            "line_channel_secret": os.getenv("LINE_CHANNEL_SECRET", ""),
-            "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
-            "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
-            "wallet_phone_number": "",
-        }
+        # Initialize defaults
+        config_store = {}
         chat_history = []
         forward_endpoints = []
-        save_storage()
+
+    # Always prioritize environment variables over stored values
+    config_store.update({
+        "line_channel_secret": os.getenv("LINE_CHANNEL_SECRET", config_store.get("line_channel_secret", "")),
+        "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", config_store.get("line_channel_access_token", "")),
+        "openai_api_key": os.getenv("OPENAI_API_KEY", config_store.get("openai_api_key", "")),
+        "wallet_phone_number": os.getenv("WALLET_PHONE_NUMBER", config_store.get("wallet_phone_number", "")),
+    })
+    
+    save_storage()
+
 
 def save_storage() -> None:
     """Persist configuration and data to storage file."""
@@ -116,15 +123,16 @@ def save_storage() -> None:
     except Exception as e:
         logger.error("Failed to save storage: %s", e)
 
+
 # Load existing data on application start
 load_storage()
 
 def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> bool:
-    """Verify LINE webhook signature using HMAC-SHA256.
+    """Verify LINE webhook signature using HMAC‑SHA256.
 
     Args:
         body: Raw request body (bytes).
-        signature: Value of `x-line-signature` header.
+        signature: Value of `x‑line‑signature` header.
         channel_secret: Channel secret string.
 
     Returns:
@@ -138,11 +146,12 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
     computed = base64.b64encode(hash_digest).decode()
     valid = hmac.compare_digest(computed, signature)
     if not valid:
-        logger.error("Invalid x-line-signature: computed %s but received %s", computed, signature)
+        logger.error("Invalid x‑line‑signature: computed %s but received %s", computed, signature)
     return valid
 
+
 def dispatch_event(event: Dict[str, Any]) -> None:
-    """Dispatch a single LINE webhook event to appropriate sub-services.
+    """Dispatch a single LINE webhook event to appropriate sub‑services.
 
     For demonstration, this function handles three event types:
     message (calls slip checker and/or chatbot),
@@ -165,6 +174,7 @@ def dispatch_event(event: Dict[str, Any]) -> None:
             "user_id": user_id,
             "direction": "in",
             "message": message,
+            "sender": "user"
         })
         save_storage()
         # Check if the message contains image (slip)
@@ -173,13 +183,14 @@ def dispatch_event(event: Dict[str, Any]) -> None:
         elif message.get("type") == "text":
             handle_chat_message(event)
     elif event_type == "postback":
-        # Example: handle postback data for top-up etc.
+        # Example: handle postback data for top‑up etc.
         logger.info("Received postback: %s", event.get("postback"))
     else:
         logger.info("Unhandled event type: %s", event_type)
 
     # After internal processing, forward the event to all registered endpoints
     forward_event_to_external(event)
+
 
 def handle_slip_message(event: Dict[str, Any]) -> None:
     """Placeholder slip checking handler.
@@ -197,6 +208,7 @@ def handle_slip_message(event: Dict[str, Any]) -> None:
     reply_token = event.get("replyToken")
     reply_text = "ได้รับสลิปแล้ว กำลังตรวจสอบ..."
     send_line_reply(reply_token, reply_text)
+
 
 def handle_chat_message(event: Dict[str, Any]) -> None:
     """Handle normal text messages using ChatGPT or echo back.
@@ -245,11 +257,13 @@ def handle_chat_message(event: Dict[str, Any]) -> None:
         "user_id": user_id,
         "direction": "out",
         "message": {"type": "text", "text": response_text},
+        "sender": "bot"
     })
     save_storage()
 
     # Send reply back to LINE user
     send_line_reply(reply_token, response_text)
+
 
 def send_line_reply(reply_token: str, text: str) -> None:
     """Send a reply message to the user via LINE's reply API.
@@ -283,6 +297,7 @@ def send_line_reply(reply_token: str, text: str) -> None:
     except Exception as e:
         logger.error("Failed to reply to LINE: %s", e)
 
+
 def send_line_push(user_id: str, text: str) -> None:
     """Send a push message to the user via LINE's push API.
 
@@ -315,6 +330,7 @@ def send_line_push(user_id: str, text: str) -> None:
     except Exception as e:
         logger.error("Failed to push message to LINE: %s", e)
 
+
 def forward_event_to_external(event: Dict[str, Any]) -> None:
     """Forward the event to all registered external webhook endpoints.
 
@@ -336,6 +352,36 @@ def forward_event_to_external(event: Dict[str, Any]) -> None:
             logger.info("Forwarded event to %s", url)
         except Exception as e:
             logger.error("Failed to forward event to %s: %s", url, e)
+
+
+@app.post("/admin/send-message")
+async def send_admin_message(request: Request) -> JSONResponse:
+    """Send message from admin to user via API and store in chat history."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    user_id = data.get("user_id", "").strip()
+    text = data.get("text", "").strip()
+    
+    if not user_id or not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id and text are required")
+    
+    # Send message via LINE API
+    send_line_push(user_id, text)
+    
+    # Store admin message to chat history
+    chat_history.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": user_id,
+        "direction": "out",
+        "message": {"type": "text", "text": text},
+        "sender": "admin"  # Mark as admin sent
+    })
+    save_storage()
+    
+    return JSONResponse(content={"status": "sent", "message": "Message sent successfully"})
 
 
 # ===== WEB ROUTES =====
@@ -369,34 +415,6 @@ async def line_webhook(request: Request) -> JSONResponse:
         threading.Thread(target=dispatch_event, args=(event,), daemon=True).start()
     return JSONResponse(content={"status": "ok"})
 
-@app.post("/admin/send-message")
-async def send_admin_message(request: Request) -> JSONResponse:
-    """Send message from admin to user via API and store in chat history."""
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-    
-    user_id = data.get("user_id", "").strip()
-    text = data.get("text", "").strip()
-    
-    if not user_id or not text:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id and text are required")
-    
-    # Send message via LINE API
-    send_line_push(user_id, text)
-    
-    # Store admin message to chat history
-    chat_history.append({
-        "timestamp": datetime.utcnow().isoformat(),
-        "user_id": user_id,
-        "direction": "out",
-        "message": {"type": "text", "text": text},
-        "sender": "admin"  # Mark as admin sent
-    })
-    save_storage()
-    
-    return JSONResponse(content={"status": "sent", "message": "Message sent successfully"})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_home(request: Request):
@@ -480,7 +498,7 @@ async def delete_forwarding(request: Request) -> RedirectResponse:
 
 @app.post("/bot/slip")
 async def slip_bot_webhook(request: Request) -> JSONResponse:
-    """Endpoint for the slip-checking bot to send results back to the middleware.
+    """Endpoint for the slip‑checking bot to send results back to the middleware.
 
     Accepts JSON payload with either a reply_token or user_id and a text
     message. The middleware will send the message to the appropriate LINE user
@@ -502,6 +520,15 @@ async def slip_bot_webhook(request: Request) -> JSONResponse:
         send_line_reply(reply_token, text)
     elif user_id:
         send_line_push(user_id, text)
+        # Store slip bot message to chat history
+        chat_history.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "user_id": user_id,
+            "direction": "out",
+            "message": {"type": "text", "text": text},
+            "sender": "slip_bot"
+        })
+        save_storage()
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Either reply_token or user_id must be provided")
     return JSONResponse(content={"status": "sent"})
@@ -514,73 +541,40 @@ async def admin_settings(request: Request):
 
 
 @app.post("/admin/settings/update")
-async def update_settings(request: Request) -> RedirectResponse:
+async def update_settings(request: Request) -> JSONResponse:
     """Update configuration based on JSON payload from the settings page.
-
-    Because `python-multipart` isn't available in this environment, we accept
-    JSON instead of form/multipart data. The settings page submits data via
-    fetch() with a JSON body.
+    
+    Also update Heroku environment variables if possible.
     """
     try:
         data = await request.json()
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
+    
     # Update known configuration keys if present
+    updated_keys = []
     for key in [
         "line_channel_secret",
-        "line_channel_access_token",
+        "line_channel_access_token", 
         "openai_api_key",
         "wallet_phone_number",
     ]:
         if key in data:
-            config_store[key] = str(data[key]).strip()
+            old_value = config_store.get(key, "")
+            new_value = str(data[key]).strip()
+            config_store[key] = new_value
+            if old_value != new_value:
+                updated_keys.append(key)
+    
     save_storage()
-    # Redirect back to settings page
-    url = app.url_path_for("admin_settings")
-    return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
-
-
-# New endpoint to test a forwarding webhook
-@app.post("/admin/forwarding/test")
-async def test_forwarding(request: Request):
-    """Test a forwarding endpoint with a sample payload."""
-    try:
-        data = await request.json()
-        url_to_test = data.get("url")
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON body")
-
-    if not url_to_test:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "URL is required"})
-
-    test_payload = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "event_type": "test",
-        "message": {
-            "type": "text",
-            "text": "This is a test message from the middleware.",
-        },
-    }
-
-    try:
-        resp = requests.post(url_to_test, json=test_payload, timeout=10)
-        resp.raise_for_status()
-        
-        # Capture response details
-        response_status_code = resp.status_code
-        response_body = resp.text
-        
-        return JSONResponse(content={
-            "status": "success",
-            "message": "Webhook test sent successfully.",
-            "response_status": response_status_code,
-            "response_body": response_body
-        })
-
-    except requests.exceptions.RequestException as e:
-        return JSONResponse(status_code=200, content={
-            "status": "error",
-            "message": f"Failed to send webhook test: {e}",
-            "response_status": "N/A",
-            "response_body": str(e)
-        })
+    
+    # Note: We cannot directly update Heroku config vars from the app
+    # User needs to set them in Heroku Dashboard for persistence
+    if updated_keys:
+        logger.info(f"Updated config keys: {updated_keys}")
+    
+    return JSONResponse(content={
+        "status": "success", 
+        "message": "การตั้งค่าถูกอัปเดตแล้ว! หากต้องการให้การตั้งค่าคงอยู่หลัง restart ให้อัปเดต Config Vars ใน Heroku Dashboard ด้วย",
+        "updated_keys": updated_keys
+    })
