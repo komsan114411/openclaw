@@ -1,134 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <meta charset="utf-8" />
-    <title>Chat History</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            background-color: #f8f9fa; 
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 { margin-bottom: 10px; }
-        nav a { margin-right: 15px; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
-        table, th, td { border: 1px solid #ccc; }
-        th, td { padding: 8px; text-align: left; }
-        th { background-color: #f5f5f5; }
-        .send-form { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        textarea { height: 80px; resize: vertical; }
-        button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .admin-msg { background-color: #e7f3ff; }
-        .user-msg { background-color: #f0f0f0; }
-        .bot-msg { background-color: #d4edda; }
-    </style>
+  <meta charset="UTF-8">
+  <title>ประวัติการแชท</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
+    th { background: #00B900; color: #fff; }
+    tr:nth-child(even) { background: #f2f2f2; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ประวัติการแชท</h1>
-        <nav>
-            <a href="/admin">กลับไปหน้าแดชบอร์ด</a>
-        </nav>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>เวลา (UTC)</th>
-                    <th>User ID</th>
-                    <th>ทิศทาง</th>
-                    <th>ผู้ส่ง</th>
-                    <th>ข้อความ/ข้อมูล</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in chat_history %}
-                <tr class="{{ 'user-msg' if entry.direction == 'in' and entry.sender == 'user' else 'bot-msg' if entry.direction == 'out' else 'admin-msg' }}">
-                    <td>{{ entry.timestamp }}</td>
-                    <td>{{ entry.user_id }}</td>
-                    <td>{{ 'รับ' if entry.direction == 'in' else 'ส่ง' }}</td>
-                    <td>{{ entry.sender }}</td>
-                    <td>
-                        {% if entry.message.type == 'text' %}
-                            {{ entry.message.text }}
-                        {% else %}
-                            {{ entry.message.type }}
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    
-        <div class="send-form">
-            <h2>📤 ส่งข้อความไปยังผู้ใช้</h2>
-            <form onsubmit="return sendMessage(event)">
-                <div class="form-group">
-                    <label for="user_id">User ID:</label>
-                    <input type="text" id="user_id" placeholder="Ufa2a1a54e9992ba0bf880c5b61904b49" required>
-                    <small>Copy User ID จากตารางด้านบน</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="message_text">ข้อความ:</label>
-                    <textarea id="message_text" placeholder="พิมพ์ข้อความที่ต้องการส่ง..." required></textarea>
-                </div>
-                
-                <button type="submit">📨 ส่งข้อความ</button>
-            </form>
-        </div>
-    </div>
-    
-    <script>
-        function sendMessage(event) {
-            event.preventDefault();
-            
-            const userId = document.getElementById('user_id').value.trim();
-            const text = document.getElementById('message_text').value.trim();
-            
-            if (!userId || !text) {
-                alert('กรุณาใส่ User ID และข้อความ');
-                return false;
-            }
-            
-            const button = event.target.querySelector('button');
-            const originalText = button.textContent;
-            button.textContent = '⏳ กำลังส่ง...';
-            button.disabled = true;
-            
-            fetch('/admin/send-message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, text: text })
-            }).then(response => {
-                if (response.ok) {
-                    alert('✅ ส่งข้อความสำเร็จ!');
-                    document.getElementById('message_text').value = '';
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    alert('❌ เกิดข้อผิดพลาดในการส่งข้อความ');
-                }
-            }).catch(err => {
-                console.error(err);
-                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
-            }).finally(() => {
-                button.textContent = originalText;
-                button.disabled = false;
-            });
-            
-            return false;
-        }
-    </script>
+<div class="container">
+  <h1>📜 ประวัติการแชทล่าสุด</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>เวลา</th>
+        <th>User ID</th>
+        <th>ทิศทาง</th>
+        <th>ข้อความ</th>
+        <th>ผู้ส่ง</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for msg in chat_history %}
+      <tr>
+        <td>{{ msg.created_at }}</td>
+        <td>{{ msg.user_id }}</td>
+        <td>{{ 'ขาเข้า' if msg.direction == 'in' else 'ขาออก' }}</td>
+        <td>{{ msg.message }}</td>
+        <td>{{ msg.sender }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 </body>
 </html>
