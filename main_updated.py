@@ -1,95 +1,229 @@
+import os
 import json
 import hmac
 import hashlib
 import base64
 import threading
 import logging
-import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 import requests
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-# เพิ่มการ import OpenAI เพื่อให้สามารถตรวจสอบสถานะได้
-try:
-    from openai import OpenAI
-except ImportError:
-    OpenAI = None
+from utils.config_manager import config_manager
+from services.slip_checker import verify_slip_with_thunder
+from services.chat_bot import get_chat_response
+from models.database import (
+    init_database,
+    save_chat_history,
+    get_chat_history_count,
+    get_recent_chat_history,
+)
 
-# ตรวจสอบและสร้างไฟล์ config_manager และ database ก่อนการ import
-# โค้ดส่วนนี้อาจต้องทำในส่วนของโค้ดหลักเพื่อป้องกันการ ImportError
-# หรือต้องมั่นใจว่าไฟล์ utils และ models มีอยู่และทำงานได้ปกติ
-
-# ตั้งค่า logger
 logger = logging.getLogger("main_app")
 logger.setLevel(logging.INFO)
 
-# สร้าง FastAPI instance และกำหนดตำแหน่งเทมเพลต
 app = FastAPI(title="LINE OA Middleware (Improved)")
 templates = Jinja2Templates(directory="templates")
 
-# การจัดการการเริ่มต้นฐานข้อมูลอย่างปลอดภัย
-try:
-    from utils.config_manager import config_manager
-    from models.database import (
-        init_database,
-        save_chat_history,
-        get_chat_history_count,
-        get_recent_chat_history,
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception: %s", exc)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"status": "error",
+                 "message": "เกิดข้อผิดพลาดภายในระบบ",
+                 "detail": str(exc)},
     )
-    from services.chat_bot import get_chat_response
-    from services.slip_checker import verify_slip_with_thunder
-    
-    # เริ่มต้นฐานข้อมูลเมื่อแอปถูกเริ่ม
-    logger.info("Initializing database...")
+
+
+# Initialize database
+try:
     init_database()
-    logger.info("Database initialized successfully.")
-    
-except ImportError as e:
-    logger.error(f"Failed to import a module: {e}")
-    # หากเกิด ImportError แอปพลิเคชันจะไม่สามารถรันได้
-    # ควรแก้ไข dependency ใน requirements.txt หรือโค้ดก่อน
-    raise SystemExit("Application startup failed due to missing dependencies.")
+    logger.info("Database initialized")
 except Exception as e:
-    logger.error(f"An error occurred during application startup: {e}")
-    raise SystemExit("Application startup failed.")
+    logger.exception("Database failed to init: %s", e)
+    raise SystemExit("Database init failed")
 
 
-# ====================== Utility Functions ======================
+@app.get("/admin/api-status")
+async def api_status_check():
+    """
+    API สำหรับตรวจสอบสถานะ Thunder / LINE / OpenAI
+    ส่งคืน JSON พร้อม configured, connected, error (human‑friendly message)
+    และ balance / bot_name ถ้ามี
+    """
+    result = {
+        "thunder": {"configured": False, "connected": False, "error": None, "balance": None},
+        "line": {"configured": False, "connected": False, "error": None, "bot_name": None},
+        "openai": {"configured": False, "connected": False, "error": None},
+    }
+
+    # --- Thunder
+    token_thunder = config_manager.get("thunder_api_token", "").strip()
+    if token_thunder:
+        result["thunder"]["configured"] = True
+        try:
+            resp = requests.get(
+                "https://api.thunder.in.th/v1/user",
+                headers={"Authorization": f"Bearer {token_thunder}"},
+                timeout=5,
+            )
+            resp.raise_for_status()
+            user_data = resp.json()
+            result["thunder"].update({
+                "connected": True,
+                "balance": user_data.get("balance")
+            })
+        except requests.exceptions.HTTPError:
+            msg = resp.text or f"HTTP {resp.status_code}"
+            if resp.status_code == 401:
+                msg = "Token ไม่ถูกต้องหรือหมดอายุ"
+            result["thunder"]["error"] = msg
+            logger.warning("Thunder failed: %s", msg)
+        except requests.exceptions.Timeout:
+            result["thunder"]["error"] = "เชื่อมต่อล้มเหลว (timeout)"
+            logger.warning("Thunder timeout")
+        except requests.exceptions.RequestException as e:
+            se = str(e)
+            msg = "DNS ไม่พบโดเมน Thunder" if "ENOTFOUND" in se.upper() else se
+            result["thunder"]["error"] = msg
+            logger.warning("Thunder request exception: %s", se)
+
+    # --- LINE
+    token_line = config_manager.get("line_channel_access_token", "").strip()
+    if token_line:
+        result["line"]["configured"] = True
+        try:
+            resp = requests.get(
+                "https://api.line.me/v2/bot/profile/me",
+                headers={"Authorization": f"Bearer {token_line}"},
+                timeout=5,
+            )
+            resp.raise_for_status()
+            bot_info = resp.json()
+            result["line"].update({
+                "connected": True,
+                "bot_name": bot_info.get("displayName")
+            })
+        except requests.exceptions.HTTPError:
+            msg = "LINE Token ไม่ถูกต้อง" if resp.status_code == 401 else resp.text
+            result["line"]["error"] = msg
+            logger.warning("LINE failed: %s", msg)
+        except requests.exceptions.Timeout:
+            result["line"]["error"] = "เชื่อมต่อล้มเหลว (timeout)"
+            logger.warning("LINE timeout")
+        except requests.exceptions.RequestException as e:
+            se = str(e)
+            msg = "DNS ไม่พบ LINE API" if "ENOTFOUND" in se.upper() else se
+            result["line"]["error"] = msg
+            logger.warning("LINE request exception: %s", se)
+
+    # --- OpenAI
+    openai_key = config_manager.get("openai_api_key", "").strip()
+    if openai_key:
+        result["openai"]["configured"] = True
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            client.models.list()
+            result["openai"]["connected"] = True
+        except ImportError:
+            result["openai"]["error"] = "ห้องสมุด OpenAI ยังไม่ได้ติดตั้ง"
+            logger.warning("OpenAI lib missing")
+        except Exception as e:
+            se = str(e)
+            msg = "API Key OpenAI ไม่ถูกต้อง" if "401" in se or "Invalid" in se else se
+            result["openai"]["error"] = msg
+            logger.warning("OpenAI failed: %s", se)
+
+    return JSONResponse(content=result)
+
+
+@app.post("/admin/test-slip-upload")
+async def test_slip_upload(request: Request):
+    """
+    ทดสอบส่งสลิปจากหน้า Admin
+    รับไฟล์ image, ส่งไปตรวจสอบกับ Thunder,
+    ส่งคืน status, message หรือ data
+    """
+    try:
+        form = await request.form()
+        file = form.get("file")
+        if not file:
+            return JSONResponse({"status": "error", "message": "ไม่พบไฟล์สลิป"})
+        image_data = await file.read()
+        # สั่งตรวจสอบ
+        result = verify_slip_with_thunder(message_id="admin_test", test_image_data=image_data)
+        return JSONResponse({
+            "status": result.get("status", "error"),
+            "message": result.get("message", ""),
+            "response": result
+        })
+    except Exception as e:
+        logger.exception("Test slip upload error: %s", e)
+        return JSONResponse({"status": "error", "message": str(e)})
+
+
+@app.post("/admin/test-thunder")
+async def test_thunder_api():
+    """
+    ตรวจสอบการเชื่อมต่อ Thunder API เอง
+    """
+    api_token = config_manager.get("thunder_api_token", "").strip()
+    if not api_token:
+        return JSONResponse({"status": "error", "message": "ยังไม่ได้ตั้งค่า Thunder API Token"})
+    try:
+        resp = requests.get(
+            "https://api.thunder.in.th/v1/user",
+            headers={"Authorization": f"Bearer {api_token}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        user_data = resp.json()
+        return JSONResponse({
+            "status": "success",
+            "message": "เชื่อมต่อ Thunder API สำเร็จ",
+            "user": user_data.get("name", "Unknown"),
+            "balance": user_data.get("balance"),
+        })
+    except Exception as e:
+        logger.warning("Thunder test failed: %s", e)
+        return JSONResponse({
+            "status": "error",
+            "message": f"Thunder API Error: {e}",
+            "details": str(e),
+        })
+
 
 def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> bool:
-    """ตรวจสอบลายเซ็นของ webhook จาก LINE"""
     if not channel_secret:
         return True
     h = hmac.new(channel_secret.encode(), body, hashlib.sha256).digest()
-    computed = base64.b64encode(h).decode()
-    return hmac.compare_digest(computed, signature)
+    signature_calc = base64.b64encode(h).decode()
+    return hmac.compare_digest(signature_calc, signature)
+
 
 def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง payload ของ Flex Message สำหรับผลตรวจสอบสลิป"""
-    # (โค้ดส่วนนี้ไม่ได้เปลี่ยนแปลง)
     return {
         "type": "bubble",
         "size": "mega",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "md",
-            "contents": [
-                {"type": "text", "text": "สลิปถูกต้อง ✅", "weight": "bold", "size": "lg", "color": "#00B900"},
-                {"type": "text", "text": f"฿{slip.get('amount')}", "weight": "bold", "size": "xxl", "margin": "md"},
-                {"type": "text", "text": slip.get("date", ""), "size": "sm", "color": "#999999", "margin": "sm"},
-                {"type": "separator", "margin": "md"},
-                {"type": "box", "layout": "vertical", "margin": "md", "contents": [
-                    {"type": "text", "text": f"ผู้โอน: {slip.get('sender', slip.get('sender_bank', ''))}", "size": "sm"},
-                    {"type": "text", "text": f"ผู้รับ: {slip.get('receiver_name', slip.get('receiver_bank', ''))}", "size": "sm"},
-                    {"type": "text", "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}", "size": "sm", "color": "#666666"},
-                ]},
-            ],
-        },
+        "body": {"type": "box", "layout": "vertical", "spacing": "md",
+                 "contents": [
+                     {"type": "text", "text": "สลิปถูกต้อง ✅", "weight": "bold", "size": "lg", "color": "#00B900"},
+                     {"type": "text", "text": f"฿{slip.get('amount')}", "weight": "bold", "size": "xxl", "margin": "md"},
+                     {"type": "text", "text": slip.get("date", ""), "size": "sm", "color": "#999999", "margin": "sm"},
+                     {"type": "separator", "margin": "md"},
+                     {"type": "box", "layout": "vertical", "margin": "md", "contents": [
+                         {"type": "text", "text": f"ผู้โอน: {slip.get('sender', slip.get('sender_bank', ''))}", "size": "sm"},
+                         {"type": "text", "text": f"ผู้รับ: {slip.get('receiver_name', slip.get('receiver_bank', ''))}", "size": "sm"},
+                         {"type": "text", "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}", "size": "sm", "color": "#666666"},
+                     ]},
+                 ]},
         "footer": {
             "type": "box",
             "layout": "vertical",
@@ -99,323 +233,75 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
 
+
 def send_line_reply(reply_token: str, text: str) -> None:
-    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE"""
-    access_token = config_manager.get("line_channel_access_token")
+    access_token = config_manager.get("line_channel_access_token", "").strip()
     if not access_token:
-        logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
+        logger.error("Missing LINE_ACCESS_TOKEN")
         return
-    url = "https://api.line.me/v2/bot/message/reply"
-    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    payload = {"replyToken": reply_token, "messages": [{"type": "text", "text": text}]}
-    try:
-        requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
-    except Exception as e:
-        logger.error("Failed to send text reply: %s", e)
+    r = requests.post(
+        "https://api.line.me/v2/bot/message/reply",
+        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+        json={"replyToken": reply_token, "messages": [{"type": "text", "text": text}]},
+        timeout=10,
+    )
+
 
 def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
-    """ส่ง Flex Message สำหรับผลตรวจสอบสลิป"""
-    access_token = config_manager.get("line_channel_access_token")
+    access_token = config_manager.get("line_channel_access_token", "").strip()
     if not access_token:
-        logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
+        logger.error("Missing LINE_ACCESS_TOKEN")
         return
-    url = "https://api.line.me/v2/bot/message/reply"
-    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     contents = build_slip_flex_contents(slip_data)
-    payload = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": "ผลการตรวจสอบสลิป", "contents": contents}]}
-    try:
-        requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
-    except Exception as e:
-        logger.error("Failed to send flex reply: %s", e)
+    requests.post(
+        "https://api.line.me/v2/bot/message/reply",
+        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+        json={"replyToken": reply_token,
+              "messages": [{"type": "flex", "altText": "ผลการตรวจสอบสลิป", "contents": contents}]},
+        timeout=10,
+    )
 
-# ====================== Event Dispatcher ======================
 
 def dispatch_event(event: Dict[str, Any]) -> None:
-    """ประมวลผล event ที่รับมาจาก LINE แล้วดำเนินการตามประเภทข้อความ"""
     try:
         if event.get("type") != "message":
             return
-        message = event.get("message", {})
-        user_id = event.get("source", {}).get("userId")
+        msg = event["message"]
+        src = event["source"]
+        user_id = src.get("userId")
         reply_token = event.get("replyToken")
-        
-        # บันทึกข้อความขาเข้า
-        save_chat_history(user_id, "in", message, sender="user")
 
-        if message.get("type") == "image":
-            # ตรวจสอบสลิป
-            result = verify_slip_with_thunder(message.get("id"))
+        save_chat_history(user_id, "in", msg, sender="user")
+
+        if msg.get("type") == "image":
+            result = verify_slip_with_thunder(message_id=msg.get("id"))
             if result["status"] == "success":
-                # ส่ง Flex message และบันทึกประวัติขาออก
                 save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
                 send_line_flex_reply(reply_token, result["data"])
             else:
-                # ส่งข้อความ error
                 save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
                 send_line_reply(reply_token, result["message"])
-        elif message.get("type") == "text":
-            # ใช้ AI ตอบข้อความ พร้อมส่งประวัติแชทย้อนหลังให้จำบริบท
-            user_text = message.get("text", "")
-            response = get_chat_response(user_text, user_id)
-            save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
-            send_line_reply(reply_token, response)
-    except Exception as e:
-        logger.exception("Error processing event: %s", e)
 
-# ====================== LINE Webhook Route ======================
+        elif msg.get("type") == "text":
+            txt = msg.get("text", "")
+            reply = get_chat_response(txt, user_id)
+            save_chat_history(user_id, "out", {"type": "text", "text": reply}, sender="bot")
+            send_line_reply(reply_token, reply)
+    except Exception as e:
+        logger.exception("dispatch_event failed: %s", e)
+
 
 @app.post("/line/webhook")
-async def line_webhook(request: Request) -> JSONResponse:
-    """รับ Webhook จาก LINE"""
+async def line_webhook(request: Request):
     body = await request.body()
-    signature = request.headers.get("x-line-signature", "")
-    channel_secret = config_manager.get("line_channel_secret", "")
-    if not verify_line_signature(body, signature, channel_secret):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+    sig = request.headers.get("x-line-signature", "")
+    ch_secret = config_manager.get("line_channel_secret", "").strip()
+    if not verify_line_signature(body, sig, ch_secret):
+        raise HTTPException(status_code=403, detail="Invalid signature")
     try:
-        payload = json.loads(body.decode("utf-8"))
+        payload = json.loads(body.decode())
+        for ev in payload.get("events", []):
+            threading.Thread(target=dispatch_event, args=(ev,), daemon=True).start()
     except json.JSONDecodeError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-    # Dispatch ทุก event ใน thread แยก
-    for ev in payload.get("events", []):
-        threading.Thread(target=dispatch_event, args=(ev,), daemon=True).start()
-    return JSONResponse(content={"status": "ok"})
-
-# ====================== Admin Pages ======================
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    """Redirect หน้าแรกไปหน้า Admin"""
-    return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
-
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_home(request: Request):
-    """หน้าแสดงภาพรวมระบบ"""
-    total_count = get_chat_history_count()
-    return templates.TemplateResponse(
-        "admin_home.html",
-        {
-            "request": request,
-            "config": config_manager.config,
-            "total_chat_history": total_count,
-        },
-    )
-
-@app.get("/admin/chat", response_class=HTMLResponse)
-async def admin_chat(request: Request):
-    """หน้าแสดงประวัติการสนทนาล่าสุด (เช่น 100 รายการ)"""
-    history = get_recent_chat_history(limit=100)
-    return templates.TemplateResponse(
-        "chat_history.html",
-        {
-            "request": request,
-            "chat_history": history,
-        },
-    )
-
-@app.get("/admin/settings", response_class=HTMLResponse)
-async def admin_settings(request: Request):
-    """หน้า Settings สำหรับตั้งค่าระบบ"""
-    return templates.TemplateResponse(
-        "settings.html",
-        {
-            "request": request,
-            "config": config_manager.config,
-        },
-    )
-
-# ====================== Admin API Endpoints ======================
-
-@app.get("/admin/api-status")
-async def api_status_check():
-    """ตรวจสอบสถานะการเชื่อมต่อ API ต่างๆ"""
-    status = {
-        "thunder": {"configured": False, "connected": False},
-        "line": {"configured": False, "connected": False},
-        "openai": {"configured": False, "connected": False},
-    }
-
-    # ตรวจสอบ Thunder API
-    thunder_token = config_manager.get("thunder_api_token")
-    if thunder_token:
-        status["thunder"]["configured"] = True
-        try:
-            headers = {"Authorization": f"Bearer {thunder_token}"}
-            response = requests.get("https://api.thunder.in.th/v1/user", headers=headers, timeout=5)
-            response.raise_for_status()
-            user_data = response.json()
-            status["thunder"]["connected"] = True
-            status["thunder"]["balance"] = user_data.get("balance", 0)
-        except requests.exceptions.RequestException as e:
-            status["thunder"]["error"] = str(e)
-
-    # ตรวจสอบ LINE API
-    line_token = config_manager.get("line_channel_access_token")
-    if line_token:
-        status["line"]["configured"] = True
-        try:
-            headers = {"Authorization": f"Bearer {line_token}"}
-            response = requests.get("https://api.line.me/v2/bot/profile/me", headers=headers, timeout=5)
-            response.raise_for_status()
-            bot_data = response.json()
-            status["line"]["connected"] = True
-            status["line"]["bot_name"] = bot_data.get("displayName")
-        except requests.exceptions.RequestException as e:
-            status["line"]["error"] = str(e)
-
-    # ตรวจสอบ OpenAI API
-    openai_key = config_manager.get("openai_api_key")
-    if openai_key:
-        status["openai"]["configured"] = True
-        try:
-            if OpenAI:
-                client = OpenAI(api_key=openai_key)
-                client.models.list()
-                status["openai"]["connected"] = True
-            else:
-                status["openai"]["error"] = "OpenAI library not installed"
-        except Exception as e:
-            status["openai"]["error"] = str(e)
-            
-    return JSONResponse(content=status)
-
-@app.post("/admin/test-thunder")
-async def test_thunder_api(request: Request):
-    """ทดสอบการเชื่อมต่อ Thunder API"""
-    try:
-        api_token = config_manager.get("thunder_api_token")
-        if not api_token:
-            return JSONResponse(content={"status": "error", "message": "ยังไม่ได้ตั้งค่า Thunder API Token"})
-        
-        headers = {"Authorization": f"Bearer {api_token}"}
-        response = requests.get("https://api.thunder.in.th/v1/user", headers=headers, timeout=10)
-        response.raise_for_status()
-        user_data = response.json()
-        return JSONResponse(content={"status": "success", "message": "เชื่อมต่อ Thunder API สำเร็จ", "user": user_data.get("name", "Unknown"), "balance": user_data.get("balance", 0)})
-    except requests.exceptions.RequestException as e:
-        return JSONResponse(content={"status": "error", "message": f"Thunder API Error: {e}", "details": str(e)})
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "message": f"Connection error: {str(e)}"})
-
-@app.post("/admin/test-slip-upload")
-async def test_slip_upload(request: Request):
-    """ทดสอบอัปโหลดสลิปจากหน้า Admin"""
-    try:
-        form = await request.form()
-        file = form.get("file")
-        if not file:
-            return JSONResponse(content={"status": "error", "message": "ไม่พบไฟล์สลิป"})
-
-        image_data = await file.read()
-        message_id = "test_slip_" + datetime.now().strftime("%Y%m%d%H%M%S")
-
-        result = verify_slip_with_thunder(message_id, test_image_data=image_data)
-        
-        return JSONResponse(content={
-            "status": "success" if result["status"] == "success" else "error",
-            "message": result["message"] if result["status"] == "error" else "ตรวจสอบสำเร็จ",
-            "response": result
-        })
-
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "message": str(e)})
-
-@app.get("/admin/status")
-async def admin_status():
-    """API endpoint สำหรับ refresh สถานะ"""
-    return JSONResponse(content={"status": "success"})
-
-@app.get("/admin/config/current")
-async def show_current_config():
-    """แสดง config ปัจจุบันในรูปแบบ JSON"""
-    return JSONResponse(content={"config": config_manager.config, "timestamp": datetime.utcnow().isoformat()})
-
-@app.post("/admin/settings/reset")
-async def reset_settings():
-    """รีเซ็ตการตั้งค่ากลับเป็นค่าเริ่มต้น"""
-    try:
-        if os.path.exists("app_config.json"):
-            os.remove("app_config.json")
-        config_manager.reload_config()
-        return JSONResponse(content={"status": "success", "message": "รีเซ็ตการตั้งค่าเรียบร้อยแล้ว"})
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "message": str(e)})
-
-@app.post("/admin/test-ai")
-async def test_ai_prompt(request: Request):
-    """ทดสอบ AI Prompt"""
-    data = await request.json()
-    prompt = data.get("prompt", "")
-    test_message = data.get("test_message", "สวัสดี")
-    
-    try:
-        import time
-        start_time = time.time()
-        
-        response = get_chat_response(test_message, "test_user")
-        
-        response_time = round(time.time() - start_time, 2)
-        
-        return JSONResponse(content={
-            "status": "success", 
-            "response": response,
-            "response_time": response_time,
-            "prompt_length": len(prompt)
-        })
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "message": str(e)})
-
-@app.get("/admin/debug/config")
-async def debug_config():
-    """Debug configuration"""
-    try:
-        config_from_file = {}
-        file_exists = os.path.exists("app_config.json")
-        
-        if file_exists:
-            with open("app_config.json", 'r', encoding='utf-8') as f:
-                config_from_file = json.load(f)
-        
-        return JSONResponse(content={
-            "file_exists": file_exists,
-            "config_in_memory": config_manager.config,
-            "config_from_file": config_from_file,
-            "ai_prompt_memory_length": len(config_manager.config.get("ai_prompt", "")),
-            "ai_prompt_file_length": len(config_from_file.get("ai_prompt", ""))
-        })
-    except Exception as e:
-        return JSONResponse(content={"error": str(e)})
-
-@app.post("/admin/config/reload")
-async def reload_config():
-    """โหลด config ใหม่จากไฟล์"""
-    try:
-        config_manager.reload_config()
-        return JSONResponse(content={
-            "status": "success",
-            "message": "โหลด Config ใหม่เรียบร้อย",
-            "ai_prompt_length": len(config_manager.config.get("ai_prompt", ""))
-        })
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "message": str(e)})
-
-@app.post("/admin/settings/update")
-async def update_settings(request: Request) -> JSONResponse:
-    """บันทึกการตั้งค่าจากหน้า Admin"""
-    data = await request.json()
-    updates = {}
-    for key in [
-        "line_channel_secret",
-        "line_channel_access_token",
-        "thunder_api_token",
-        "openai_api_key",
-        "ai_prompt",
-        "wallet_phone_number",
-    ]:
-        if key in data:
-            updates[key] = data[key].strip()
-    updates["ai_enabled"] = bool(data.get("ai_enabled"))
-    updates["slip_enabled"] = bool(data.get("slip_enabled"))
-
-    config_manager.update_multiple(updates)
-    return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    return JSONResponse({"status": "ok"})
