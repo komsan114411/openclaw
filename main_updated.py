@@ -1,4 +1,3 @@
-# main.py
 import json
 import hmac
 import hashlib
@@ -13,6 +12,7 @@ import requests
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from openai import OpenAI
 
 from utils.config_manager import config_manager
 from models.database import (
@@ -180,7 +180,7 @@ def dispatch_event(event: Dict[str, Any]) -> None:
         # บันทึกข้อความขาเข้า
         save_chat_history(user_id, "in", message, sender="user")
 
-        if message.get("type") == "image":
+        if message.get("type") == "image" and config_manager.get("slip_enabled"):
             # ตรวจสอบสลิป
             result = verify_slip_with_thunder(message.get("id"))
             if result["status"] == "success":
@@ -201,7 +201,7 @@ def dispatch_event(event: Dict[str, Any]) -> None:
                     sender="slip_bot",
                 )
                 send_line_reply(reply_token, result["message"])
-        elif message.get("type") == "text":
+        elif message.get("type") == "text" and config_manager.get("ai_enabled"):
             # ใช้ AI ตอบข้อความ พร้อมส่งประวัติแชทย้อนหลังให้จำบริบท
             user_text = message.get("text", "")
             response = get_chat_response(user_text, user_id)
@@ -209,6 +209,10 @@ def dispatch_event(event: Dict[str, Any]) -> None:
                 user_id, "out", {"type": "text", "text": response}, sender="bot"
             )
             send_line_reply(reply_token, response)
+        else:
+             # ตอบกลับด้วยข้อความเริ่มต้นหากไม่มีระบบที่เกี่ยวข้องทำงาน
+             send_line_reply(reply_token, "ขออภัย ระบบไม่สามารถดำเนินการตามคำขอได้")
+
     except Exception as e:
         logger.exception("Error processing event: %s", e)
 
@@ -275,7 +279,58 @@ async def admin_settings(request: Request):
     )
 
 # ====================== Admin API Endpoints ======================
-# เพิ่มใน main.py
+
+@app.get("/admin/api-status")
+async def api_status_check():
+    """ตรวจสอบสถานะการเชื่อมต่อ API ต่างๆ"""
+    status = {
+        "thunder": {"configured": False, "connected": False},
+        "line": {"configured": False, "connected": False},
+        "openai": {"configured": False, "connected": False},
+    }
+
+    # ตรวจสอบ Thunder API
+    thunder_token = config_manager.get("thunder_api_token")
+    if thunder_token:
+        status["thunder"]["configured"] = True
+        try:
+            # ทดสอบเรียก API endpoint พื้นฐาน
+            headers = {"Authorization": f"Bearer {thunder_token}"}
+            response = requests.get("https://api.thunder.in.th/v1/user", headers=headers, timeout=5)
+            response.raise_for_status()
+            user_data = response.json()
+            status["thunder"]["connected"] = True
+            status["thunder"]["balance"] = user_data.get("balance", 0)
+        except requests.exceptions.RequestException as e:
+            status["thunder"]["error"] = str(e)
+
+    # ตรวจสอบ LINE API
+    line_token = config_manager.get("line_channel_access_token")
+    if line_token:
+        status["line"]["configured"] = True
+        try:
+            # ทดสอบเรียก API endpoint พื้นฐาน
+            headers = {"Authorization": f"Bearer {line_token}"}
+            response = requests.get("https://api.line.me/v2/bot/profile/me", headers=headers, timeout=5)
+            response.raise_for_status()
+            bot_data = response.json()
+            status["line"]["connected"] = True
+            status["line"]["bot_name"] = bot_data.get("displayName")
+        except requests.exceptions.RequestException as e:
+            status["line"]["error"] = str(e)
+
+    # ตรวจสอบ OpenAI API
+    openai_key = config_manager.get("openai_api_key")
+    if openai_key:
+        status["openai"]["configured"] = True
+        try:
+            client = OpenAI(api_key=openai_key)
+            client.models.list()
+            status["openai"]["connected"] = True
+        except Exception as e:
+            status["openai"]["error"] = str(e)
+            
+    return JSONResponse(content=status)
 
 @app.post("/admin/test-thunder")
 async def test_thunder_api(request: Request):
@@ -316,6 +371,35 @@ async def test_thunder_api(request: Request):
             "status": "error",
             "message": f"Connection error: {str(e)}"
         })
+
+@app.post("/admin/test-slip-upload")
+async def test_slip_upload(request: Request):
+    """ทดสอบอัปโหลดสลิปจากหน้า Admin"""
+    try:
+        # รับไฟล์จากฟอร์ม
+        form = await request.form()
+        file = form.get("file")
+        if not file:
+            return JSONResponse(content={"status": "error", "message": "ไม่พบไฟล์สลิป"})
+
+        # อ่านข้อมูลไฟล์
+        image_data = await file.read()
+
+        # สร้าง message_id จำลอง
+        message_id = "test_slip_" + datetime.now().strftime("%Y%m%d%H%M%S")
+
+        # เรียกใช้ service เพื่อตรวจสอบสลิป
+        result = verify_slip_with_thunder(message_id, test_image_data=image_data)
+        
+        return JSONResponse(content={
+            "status": "success" if result["status"] == "success" else "error",
+            "message": result["message"] if result["status"] == "error" else "ตรวจสอบสำเร็จ",
+            "response": result
+        })
+
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
 @app.get("/admin/status")
 async def admin_status():
     """API endpoint สำหรับ refresh สถานะ"""
