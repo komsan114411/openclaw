@@ -1,5 +1,7 @@
 import os
 import sqlite3
+import json
+from datetime import datetime
 from typing import Any, Dict, List
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "storage.db")
@@ -7,8 +9,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "storage.db")
 def init_database() -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
-    # เพิ่มตารางเพื่อเก็บ chat history รายบุคคล
+    # สร้างตารางเก็บประวัติแชทรายบุคคล
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS chat_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,19 +21,10 @@ def init_database() -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # เพิ่มตารางสำหรับ config (สามารถใช้ใน main ได้)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS config_store (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-    ''')
-    
     conn.commit()
     conn.close()
 
-def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str):
+def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
@@ -42,12 +34,17 @@ def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sen
     conn.commit()
     conn.close()
 
-def get_user_chat_history(user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+def get_user_chat_history(user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT direction, message_data FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', (user_id, limit))
-    history = []
-    for row in reversed(cursor.fetchall()):
-        history.append({"role": "user" if row[0] == "in" else "assistant", "content": json.loads(row[1]).get("text", "")})
+    cursor.execute(
+        'SELECT direction, message_data FROM chat_history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+        (user_id, limit)
+    )
+    messages = []
+    for direction, msg_json in reversed(cursor.fetchall()):
+        role = "user" if direction == "in" else "assistant"
+        content = json.loads(msg_json).get("text", "")
+        messages.append({"role": role, "content": content})
     conn.close()
-    return history
+    return messages
