@@ -17,7 +17,7 @@ class ConfigManager:
             "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
             "thunder_api_token": os.getenv("THUNDER_API_TOKEN", ""),
             "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
-            "ai_prompt": "คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น",
+            "ai_prompt": "คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง",
             "ai_enabled": True,
             "slip_enabled": True,
             "wallet_phone_number": os.getenv("WALLET_PHONE_NUMBER", ""),
