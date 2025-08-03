@@ -14,8 +14,14 @@ def verify_slip_with_thunder(message_id: str) -> Dict[str, Any]:
     # ตรวจสอบการเปิดใช้งาน
     if not config_manager.get("slip_enabled"):
         return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดอยู่"}
-    if not api_token or not line_token:
-        return {"status": "error", "message": "ยังไม่ได้ตั้งค่า API Token หรือ LINE Token"}
+
+    # ปรับปรุงการตรวจสอบ Token ให้ละเอียดขึ้น
+    if not api_token:
+        logger.error("THUNDER_API_TOKEN is missing or not configured.")
+        return {"status": "error", "message": "ยังไม่ได้ตั้งค่า Thunder API Token"}
+    if not line_token:
+        logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing or not configured.")
+        return {"status": "error", "message": "ยังไม่ได้ตั้งค่า LINE Channel Access Token"}
 
     # 1. ดาวน์โหลดรูปสลิปจาก LINE
     try:
