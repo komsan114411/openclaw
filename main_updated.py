@@ -31,7 +31,6 @@ logger = logging.getLogger("line_middleware")
 app = FastAPI(title="LINE OA Webhook Middleware")
 templates = Jinja2Templates(directory="templates")
 
-# สร้างสภาพแวดล้อม Jinja2 และเพิ่มฟิลเตอร์ strftime
 def format_datetime(value, format_string="%Y-%m-%d %H:%M:%S"):
     """
     Custom Jinja2 filter to format datetime objects.
