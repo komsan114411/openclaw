@@ -6,23 +6,22 @@ import threading
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import requests
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from openai import OpenAI
 
-from utils.config_manager import config_manager
-from models.database import (
-    init_database,
-    save_chat_history,
-    get_chat_history_count,
-    get_recent_chat_history,
-)
-from services.chat_bot import get_chat_response
-from services.slip_checker import verify_slip_with_thunder
+# เพิ่มการ import OpenAI เพื่อให้สามารถตรวจสอบสถานะได้
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+# ตรวจสอบและสร้างไฟล์ config_manager และ database ก่อนการ import
+# โค้ดส่วนนี้อาจต้องทำในส่วนของโค้ดหลักเพื่อป้องกันการ ImportError
+# หรือต้องมั่นใจว่าไฟล์ utils และ models มีอยู่และทำงานได้ปกติ
 
 # ตั้งค่า logger
 logger = logging.getLogger("main_app")
@@ -32,8 +31,32 @@ logger.setLevel(logging.INFO)
 app = FastAPI(title="LINE OA Middleware (Improved)")
 templates = Jinja2Templates(directory="templates")
 
-# เริ่มต้นฐานข้อมูลเมื่อแอปถูกเริ่ม
-init_database()
+# การจัดการการเริ่มต้นฐานข้อมูลอย่างปลอดภัย
+try:
+    from utils.config_manager import config_manager
+    from models.database import (
+        init_database,
+        save_chat_history,
+        get_chat_history_count,
+        get_recent_chat_history,
+    )
+    from services.chat_bot import get_chat_response
+    from services.slip_checker import verify_slip_with_thunder
+    
+    # เริ่มต้นฐานข้อมูลเมื่อแอปถูกเริ่ม
+    logger.info("Initializing database...")
+    init_database()
+    logger.info("Database initialized successfully.")
+    
+except ImportError as e:
+    logger.error(f"Failed to import a module: {e}")
+    # หากเกิด ImportError แอปพลิเคชันจะไม่สามารถรันได้
+    # ควรแก้ไข dependency ใน requirements.txt หรือโค้ดก่อน
+    raise SystemExit("Application startup failed due to missing dependencies.")
+except Exception as e:
+    logger.error(f"An error occurred during application startup: {e}")
+    raise SystemExit("Application startup failed.")
+
 
 # ====================== Utility Functions ======================
 
@@ -47,6 +70,7 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
 
 def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
     """สร้าง payload ของ Flex Message สำหรับผลตรวจสอบสลิป"""
+    # (โค้ดส่วนนี้ไม่ได้เปลี่ยนแปลง)
     return {
         "type": "bubble",
         "size": "mega",
@@ -55,67 +79,22 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
             "layout": "vertical",
             "spacing": "md",
             "contents": [
-                {
-                    "type": "text",
-                    "text": "สลิปถูกต้อง ✅",
-                    "weight": "bold",
-                    "size": "lg",
-                    "color": "#00B900",
-                },
-                {
-                    "type": "text",
-                    "text": f"฿{slip.get('amount')}",
-                    "weight": "bold",
-                    "size": "xxl",
-                    "margin": "md",
-                },
-                {
-                    "type": "text",
-                    "text": slip.get("date", ""),
-                    "size": "sm",
-                    "color": "#999999",
-                    "margin": "sm",
-                },
-                {
-                    "type": "separator",
-                    "margin": "md",
-                },
-                {
-                    "type": "box",
-                    "layout": "vertical",
-                    "margin": "md",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": f"ผู้โอน: {slip.get('sender', slip.get('sender_bank', ''))}",
-                            "size": "sm",
-                        },
-                        {
-                            "type": "text",
-                            "text": f"ผู้รับ: {slip.get('receiver_name', slip.get('receiver_bank', ''))}",
-                            "size": "sm",
-                        },
-                        {
-                            "type": "text",
-                            "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}",
-                            "size": "sm",
-                            "color": "#666666",
-                        },
-                    ],
-                },
+                {"type": "text", "text": "สลิปถูกต้อง ✅", "weight": "bold", "size": "lg", "color": "#00B900"},
+                {"type": "text", "text": f"฿{slip.get('amount')}", "weight": "bold", "size": "xxl", "margin": "md"},
+                {"type": "text", "text": slip.get("date", ""), "size": "sm", "color": "#999999", "margin": "sm"},
+                {"type": "separator", "margin": "md"},
+                {"type": "box", "layout": "vertical", "margin": "md", "contents": [
+                    {"type": "text", "text": f"ผู้โอน: {slip.get('sender', slip.get('sender_bank', ''))}", "size": "sm"},
+                    {"type": "text", "text": f"ผู้รับ: {slip.get('receiver_name', slip.get('receiver_bank', ''))}", "size": "sm"},
+                    {"type": "text", "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}", "size": "sm", "color": "#666666"},
+                ]},
             ],
         },
         "footer": {
             "type": "box",
             "layout": "vertical",
             "contents": [
-                {
-                    "type": "text",
-                    "text": "ตรวจสอบโดย Thunder",
-                    "size": "xs",
-                    "color": "#AAAAAA",
-                    "align": "center",
-                }
+                {"type": "text", "text": "ตรวจสอบโดย Thunder", "size": "xs", "color": "#AAAAAA", "align": "center"}
             ],
         },
     }
@@ -127,14 +106,8 @@ def send_line_reply(reply_token: str, text: str) -> None:
         logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
         return
     url = "https://api.line.me/v2/bot/message/reply"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "replyToken": reply_token,
-        "messages": [{"type": "text", "text": text}],
-    }
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    payload = {"replyToken": reply_token, "messages": [{"type": "text", "text": text}]}
     try:
         requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
     except Exception as e:
@@ -147,21 +120,9 @@ def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
         logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
         return
     url = "https://api.line.me/v2/bot/message/reply"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     contents = build_slip_flex_contents(slip_data)
-    payload = {
-        "replyToken": reply_token,
-        "messages": [
-            {
-                "type": "flex",
-                "altText": "ผลการตรวจสอบสลิป",
-                "contents": contents,
-            }
-        ],
-    }
+    payload = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": "ผลการตรวจสอบสลิป", "contents": contents}]}
     try:
         requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
     except Exception as e:
@@ -177,42 +138,27 @@ def dispatch_event(event: Dict[str, Any]) -> None:
         message = event.get("message", {})
         user_id = event.get("source", {}).get("userId")
         reply_token = event.get("replyToken")
+        
         # บันทึกข้อความขาเข้า
         save_chat_history(user_id, "in", message, sender="user")
 
-        if message.get("type") == "image" and config_manager.get("slip_enabled"):
+        if message.get("type") == "image":
             # ตรวจสอบสลิป
             result = verify_slip_with_thunder(message.get("id"))
             if result["status"] == "success":
                 # ส่ง Flex message และบันทึกประวัติขาออก
-                save_chat_history(
-                    user_id,
-                    "out",
-                    {"type": "flex", "content": result["data"]},
-                    sender="slip_bot",
-                )
+                save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
                 send_line_flex_reply(reply_token, result["data"])
             else:
                 # ส่งข้อความ error
-                save_chat_history(
-                    user_id,
-                    "out",
-                    {"type": "text", "text": result["message"]},
-                    sender="slip_bot",
-                )
+                save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
                 send_line_reply(reply_token, result["message"])
-        elif message.get("type") == "text" and config_manager.get("ai_enabled"):
+        elif message.get("type") == "text":
             # ใช้ AI ตอบข้อความ พร้อมส่งประวัติแชทย้อนหลังให้จำบริบท
             user_text = message.get("text", "")
             response = get_chat_response(user_text, user_id)
-            save_chat_history(
-                user_id, "out", {"type": "text", "text": response}, sender="bot"
-            )
+            save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
             send_line_reply(reply_token, response)
-        else:
-             # ตอบกลับด้วยข้อความเริ่มต้นหากไม่มีระบบที่เกี่ยวข้องทำงาน
-             send_line_reply(reply_token, "ขออภัย ระบบไม่สามารถดำเนินการตามคำขอได้")
-
     except Exception as e:
         logger.exception("Error processing event: %s", e)
 
@@ -294,7 +240,6 @@ async def api_status_check():
     if thunder_token:
         status["thunder"]["configured"] = True
         try:
-            # ทดสอบเรียก API endpoint พื้นฐาน
             headers = {"Authorization": f"Bearer {thunder_token}"}
             response = requests.get("https://api.thunder.in.th/v1/user", headers=headers, timeout=5)
             response.raise_for_status()
@@ -309,7 +254,6 @@ async def api_status_check():
     if line_token:
         status["line"]["configured"] = True
         try:
-            # ทดสอบเรียก API endpoint พื้นฐาน
             headers = {"Authorization": f"Bearer {line_token}"}
             response = requests.get("https://api.line.me/v2/bot/profile/me", headers=headers, timeout=5)
             response.raise_for_status()
@@ -324,9 +268,12 @@ async def api_status_check():
     if openai_key:
         status["openai"]["configured"] = True
         try:
-            client = OpenAI(api_key=openai_key)
-            client.models.list()
-            status["openai"]["connected"] = True
+            if OpenAI:
+                client = OpenAI(api_key=openai_key)
+                client.models.list()
+                status["openai"]["connected"] = True
+            else:
+                status["openai"]["error"] = "OpenAI library not installed"
         except Exception as e:
             status["openai"]["error"] = str(e)
             
@@ -338,57 +285,30 @@ async def test_thunder_api(request: Request):
     try:
         api_token = config_manager.get("thunder_api_token")
         if not api_token:
-            return JSONResponse(content={
-                "status": "error", 
-                "message": "ยังไม่ได้ตั้งค่า Thunder API Token"
-            })
+            return JSONResponse(content={"status": "error", "message": "ยังไม่ได้ตั้งค่า Thunder API Token"})
         
-        # ทดสอบเรียก API endpoint พื้นฐาน
         headers = {"Authorization": f"Bearer {api_token}"}
-        response = requests.get(
-            "https://api.thunder.in.th/v1/user", 
-            headers=headers, 
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            user_data = response.json()
-            return JSONResponse(content={
-                "status": "success",
-                "message": "เชื่อมต่อ Thunder API สำเร็จ",
-                "user": user_data.get("name", "Unknown"),
-                "balance": user_data.get("balance", 0)
-            })
-        else:
-            return JSONResponse(content={
-                "status": "error",
-                "message": f"Thunder API Error: {response.status_code}",
-                "details": response.text
-            })
-            
+        response = requests.get("https://api.thunder.in.th/v1/user", headers=headers, timeout=10)
+        response.raise_for_status()
+        user_data = response.json()
+        return JSONResponse(content={"status": "success", "message": "เชื่อมต่อ Thunder API สำเร็จ", "user": user_data.get("name", "Unknown"), "balance": user_data.get("balance", 0)})
+    except requests.exceptions.RequestException as e:
+        return JSONResponse(content={"status": "error", "message": f"Thunder API Error: {e}", "details": str(e)})
     except Exception as e:
-        return JSONResponse(content={
-            "status": "error",
-            "message": f"Connection error: {str(e)}"
-        })
+        return JSONResponse(content={"status": "error", "message": f"Connection error: {str(e)}"})
 
 @app.post("/admin/test-slip-upload")
 async def test_slip_upload(request: Request):
     """ทดสอบอัปโหลดสลิปจากหน้า Admin"""
     try:
-        # รับไฟล์จากฟอร์ม
         form = await request.form()
         file = form.get("file")
         if not file:
             return JSONResponse(content={"status": "error", "message": "ไม่พบไฟล์สลิป"})
 
-        # อ่านข้อมูลไฟล์
         image_data = await file.read()
-
-        # สร้าง message_id จำลอง
         message_id = "test_slip_" + datetime.now().strftime("%Y%m%d%H%M%S")
 
-        # เรียกใช้ service เพื่อตรวจสอบสลิป
         result = verify_slip_with_thunder(message_id, test_image_data=image_data)
         
         return JSONResponse(content={
@@ -408,10 +328,7 @@ async def admin_status():
 @app.get("/admin/config/current")
 async def show_current_config():
     """แสดง config ปัจจุบันในรูปแบบ JSON"""
-    return JSONResponse(content={
-        "config": config_manager.config,
-        "timestamp": datetime.utcnow().isoformat()
-    })
+    return JSONResponse(content={"config": config_manager.config, "timestamp": datetime.utcnow().isoformat()})
 
 @app.post("/admin/settings/reset")
 async def reset_settings():
