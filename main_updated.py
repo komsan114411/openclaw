@@ -271,7 +271,94 @@ async def admin_settings(request: Request):
             "config": config_manager.config,
         },
     )
+# เพิ่มส่วนนี้ลงใน main_updated.py หลังจาก line webhook route
 
+# ====================== Missing Admin Routes ======================
+
+@app.get("/admin/status")
+async def admin_status():
+    """API endpoint สำหรับ refresh สถานะ"""
+    return JSONResponse(content={"status": "success"})
+
+@app.get("/admin/config/current")
+async def show_current_config():
+    """แสดง config ปัจจุบันในรูปแบบ JSON"""
+    return JSONResponse(content={
+        "config": config_manager.config,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+@app.post("/admin/settings/reset")
+async def reset_settings():
+    """รีเซ็ตการตั้งค่ากลับเป็นค่าเริ่มต้น"""
+    try:
+        # ลบไฟล์ config เพื่อให้โหลดค่า default ใหม่
+        if os.path.exists("app_config.json"):
+            os.remove("app_config.json")
+        config_manager.reload_config()
+        return JSONResponse(content={"status": "success", "message": "รีเซ็ตการตั้งค่าเรียบร้อยแล้ว"})
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
+@app.post("/admin/test-ai")
+async def test_ai_prompt(request: Request):
+    """ทดสอบ AI Prompt"""
+    data = await request.json()
+    prompt = data.get("prompt", "")
+    test_message = data.get("test_message", "สวัสดี")
+    
+    try:
+        import time
+        start_time = time.time()
+        
+        # จำลองการทดสอบ AI (ใช้ get_chat_response function)
+        response = get_chat_response(test_message, "test_user")
+        
+        response_time = round(time.time() - start_time, 2)
+        
+        return JSONResponse(content={
+            "status": "success", 
+            "response": response,
+            "response_time": response_time,
+            "prompt_length": len(prompt)
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
+@app.get("/admin/debug/config")
+async def debug_config():
+    """Debug configuration"""
+    import os
+    try:
+        config_from_file = {}
+        file_exists = os.path.exists("app_config.json")
+        
+        if file_exists:
+            with open("app_config.json", 'r', encoding='utf-8') as f:
+                config_from_file = json.load(f)
+        
+        return JSONResponse(content={
+            "file_exists": file_exists,
+            "config_in_memory": config_manager.config,
+            "config_from_file": config_from_file,
+            "ai_prompt_memory_length": len(config_manager.config.get("ai_prompt", "")),
+            "ai_prompt_file_length": len(config_from_file.get("ai_prompt", ""))
+        })
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)})
+
+@app.post("/admin/config/reload")
+async def reload_config():
+    """โหลด config ใหม่จากไฟล์"""
+    try:
+        config_manager.reload_config()
+        return JSONResponse(content={
+            "status": "success",
+            "message": "โหลด Config ใหม่เรียบร้อย",
+            "ai_prompt_length": len(config_manager.config.get("ai_prompt", ""))
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
     """บันทึกการตั้งค่าจากหน้า Admin"""
