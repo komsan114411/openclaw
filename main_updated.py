@@ -369,6 +369,34 @@ async def line_webhook(request: Request) -> JSONResponse:
         threading.Thread(target=dispatch_event, args=(event,), daemon=True).start()
     return JSONResponse(content={"status": "ok"})
 
+@app.post("/admin/send-message")
+async def send_admin_message(request: Request) -> JSONResponse:
+    """Send message from admin to user via API and store in chat history."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    user_id = data.get("user_id", "").strip()
+    text = data.get("text", "").strip()
+    
+    if not user_id or not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="user_id and text are required")
+    
+    # Send message via LINE API
+    send_line_push(user_id, text)
+    
+    # Store admin message to chat history
+    chat_history.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": user_id,
+        "direction": "out",
+        "message": {"type": "text", "text": text},
+        "sender": "admin"  # Mark as admin sent
+    })
+    save_storage()
+    
+    return JSONResponse(content={"status": "sent", "message": "Message sent successfully"})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_home(request: Request):
