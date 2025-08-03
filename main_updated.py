@@ -280,7 +280,7 @@ def load_from_database() -> bool:
 def generate_virtual_channel() -> Dict[str, str]:
     """Generate virtual channel credentials for external bots."""
     channel_id = f"VC{uuid.uuid4().hex[:10].upper()}"
-    channel_secret = secrets.token_urlsafe(32)
+    channel_secret = secrets.token_hex(32)
     access_token = f"VT{secrets.token_urlsafe(40)}"
     
     return {
