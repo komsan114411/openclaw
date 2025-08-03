@@ -18,6 +18,7 @@ Features:
   * Stores chat history in memory for review and provides a simple admin
     interface to view logs and add/update endpoints and API keys.
   * Persistent configuration using Heroku environment variables.
+  * Virtual Channels for external bot integration.
 
 Requirements:
   * Python 3.11 or later.
@@ -47,7 +48,9 @@ import hmac
 import json
 import logging
 import os
+import secrets
 import threading
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -76,11 +79,54 @@ if 'DYNO' in os.environ:
 config_store: Dict[str, str] = {}
 chat_history: List[Dict[str, Any]] = []
 forward_endpoints: List[Dict[str, Any]] = []
+virtual_channels: List[Dict[str, Any]] = []
+
+
+def generate_virtual_channel() -> Dict[str, str]:
+    """Generate virtual channel credentials for external bots."""
+    channel_id = f"VC{uuid.uuid4().hex[:10].upper()}"
+    channel_secret = secrets.token_urlsafe(32)
+    access_token = f"VT{secrets.token_urlsafe(40)}"
+    
+    return {
+        "channel_id": channel_id,
+        "channel_secret": channel_secret,
+        "access_token": access_token,
+        "created_at": datetime.utcnow().isoformat(),
+        "status": "active"
+    }
+
+
+def verify_virtual_channel(channel_id: str, channel_secret: str) -> bool:
+    """Verify virtual channel credentials."""
+    for channel in virtual_channels:
+        if (channel.get("channel_id") == channel_id and 
+            channel.get("channel_secret") == channel_secret and
+            channel.get("status") == "active"):
+            return True
+    return False
+
+
+def get_virtual_channel_by_token(access_token: str) -> Dict[str, Any]:
+    """Get virtual channel by access token."""
+    for channel in virtual_channels:
+        if (channel.get("access_token") == access_token and
+            channel.get("status") == "active"):
+            return channel
+    return {}
+
+
+def get_virtual_channel_by_id(channel_id: str) -> Dict[str, Any]:
+    """Get virtual channel by channel ID."""
+    for channel in virtual_channels:
+        if channel.get("channel_id") == channel_id:
+            return channel
+    return {}
 
 
 def load_storage() -> None:
     """Load configuration and data from storage file."""
-    global config_store, chat_history, forward_endpoints
+    global config_store, chat_history, forward_endpoints, virtual_channels
     if os.path.exists(STORAGE_PATH):
         try:
             with open(STORAGE_PATH, "r", encoding="utf-8") as f:
@@ -88,16 +134,19 @@ def load_storage() -> None:
             config_store = data.get("config_store", {})
             chat_history = data.get("chat_history", [])
             forward_endpoints = data.get("forward_endpoints", [])
+            virtual_channels = data.get("virtual_channels", [])
         except Exception as e:
             logger.error("Failed to load storage: %s", e)
             config_store = {}
             chat_history = []
             forward_endpoints = []
+            virtual_channels = []
     else:
         # Initialize defaults
         config_store = {}
         chat_history = []
         forward_endpoints = []
+        virtual_channels = []
 
     # Always prioritize environment variables over stored values
     config_store.update({
@@ -116,6 +165,7 @@ def save_storage() -> None:
         "config_store": config_store,
         "chat_history": chat_history,
         "forward_endpoints": forward_endpoints,
+        "virtual_channels": virtual_channels,
     }
     try:
         with open(STORAGE_PATH, "w", encoding="utf-8") as f:
@@ -177,6 +227,10 @@ def dispatch_event(event: Dict[str, Any]) -> None:
             "sender": "user"
         })
         save_storage()
+        
+        # Forward to virtual channels
+        forward_event_to_virtual_channels(event)
+        
         # Check if the message contains image (slip)
         if message.get("type") == "image":
             handle_slip_message(event)
@@ -185,11 +239,41 @@ def dispatch_event(event: Dict[str, Any]) -> None:
     elif event_type == "postback":
         # Example: handle postback data for top‑up etc.
         logger.info("Received postback: %s", event.get("postback"))
+        # Forward to virtual channels
+        forward_event_to_virtual_channels(event)
     else:
         logger.info("Unhandled event type: %s", event_type)
 
     # After internal processing, forward the event to all registered endpoints
     forward_event_to_external(event)
+
+
+def forward_event_to_virtual_channels(event: Dict[str, Any]) -> None:
+    """Forward LINE events to all active virtual channels."""
+    for virtual_channel in virtual_channels:
+        if virtual_channel.get("status") != "active":
+            continue
+            
+        channel_id = virtual_channel.get("channel_id")
+        # Create webhook payload similar to LINE format
+        webhook_payload = {
+            "destination": channel_id,
+            "events": [event]
+        }
+        
+        # Store forwarded event
+        chat_history.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "virtual_channel_id": channel_id,
+            "channel_name": virtual_channel.get("name", ""),
+            "direction": "forwarded_to_virtual",
+            "data": webhook_payload,
+            "sender": "middleware"
+        })
+        
+        logger.info(f"Forwarded event to virtual channel {channel_id}")
+    
+    save_storage()
 
 
 def handle_slip_message(event: Dict[str, Any]) -> None:
@@ -384,6 +468,261 @@ async def send_admin_message(request: Request) -> JSONResponse:
     return JSONResponse(content={"status": "sent", "message": "Message sent successfully"})
 
 
+# ===== VIRTUAL CHANNEL ROUTES =====
+
+@app.post("/admin/virtual-channels/create")
+async def create_virtual_channel(request: Request) -> JSONResponse:
+    """Create a new virtual channel for external bot integration."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
+    
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Channel name is required")
+    
+    # Generate virtual channel
+    virtual_channel = generate_virtual_channel()
+    virtual_channel.update({
+        "name": name,
+        "description": description,
+        "id": len(virtual_channels) + 1
+    })
+    
+    virtual_channels.append(virtual_channel)
+    save_storage()
+    
+    base_url = f"https://{request.headers.get('host', 'localhost')}"
+    
+    return JSONResponse(content={
+        "status": "success",
+        "channel": virtual_channel,
+        "webhook_urls": {
+            "messaging_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/webhook",
+            "content_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/content",
+            "push_api": f"{base_url}/virtual-api/v2/bot/message/push"
+        }
+    })
+
+
+@app.get("/admin/virtual-channels", response_class=HTMLResponse)
+async def admin_virtual_channels(request: Request):
+    """Display virtual channels management page."""
+    base_url = f"https://{request.headers.get('host', 'localhost')}"
+    return templates.TemplateResponse(
+        "virtual_channels.html", 
+        {
+            "request": request,
+            "channels": virtual_channels,
+            "base_url": base_url
+        }
+    )
+
+
+@app.post("/admin/virtual-channels/{channel_id}/toggle")
+async def toggle_virtual_channel(channel_id: str) -> JSONResponse:
+    """Toggle virtual channel active/inactive status."""
+    for channel in virtual_channels:
+        if channel.get("channel_id") == channel_id:
+            current_status = channel.get("status", "active")
+            new_status = "inactive" if current_status == "active" else "active"
+            channel["status"] = new_status
+            save_storage()
+            return JSONResponse(content={
+                "status": "success", 
+                "new_status": new_status,
+                "message": f"Channel {channel_id} is now {new_status}"
+            })
+    
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Virtual channel not found")
+
+
+# Virtual Channel API Endpoints (เลียนแบบ LINE API)
+
+@app.post("/virtual/{channel_id}/webhook")
+async def virtual_channel_webhook(channel_id: str, request: Request) -> JSONResponse:
+    """Virtual webhook endpoint for external bots (simulates LINE webhook)."""
+    
+    # Find virtual channel
+    virtual_channel = get_virtual_channel_by_id(channel_id)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Virtual channel not found or inactive")
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    # Log virtual channel activity
+    logger.info(f"Received webhook from virtual channel {channel_id}: {data}")
+    
+    # Store virtual channel message
+    message_data = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "virtual_channel_id": channel_id,
+        "channel_name": virtual_channel.get("name", ""),
+        "direction": "in",
+        "data": data,
+        "sender": "virtual_bot"
+    }
+    
+    # Add to chat history for tracking
+    chat_history.append(message_data)
+    save_storage()
+    
+    return JSONResponse(content={"status": "ok"})
+
+
+@app.post("/virtual-api/v2/bot/message/push")
+async def virtual_push_message(request: Request) -> JSONResponse:
+    """Virtual LINE Push API for external bots."""
+    
+    # Get authorization header
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+    
+    access_token = auth_header[7:]  # Remove "Bearer "
+    virtual_channel = get_virtual_channel_by_token(access_token)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    # Extract message data
+    to_user = data.get("to")
+    messages = data.get("messages", [])
+    
+    if not to_user or not messages:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
+    
+    # Send message via real LINE API
+    for message in messages:
+        if message.get("type") == "text":
+            send_line_push(to_user, message.get("text", ""))
+    
+    # Log virtual channel outbound message
+    chat_history.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": to_user,
+        "virtual_channel_id": virtual_channel.get("channel_id"),
+        "channel_name": virtual_channel.get("name", ""),
+        "direction": "out",
+        "message": messages[0] if messages else {},
+        "sender": "virtual_bot"
+    })
+    save_storage()
+    
+    logger.info(f"Virtual channel {virtual_channel.get('channel_id')} sent message to {to_user}")
+    
+    return JSONResponse(content={"status": "ok"})
+
+
+@app.post("/virtual-api/v2/bot/message/reply")
+async def virtual_reply_message(request: Request) -> JSONResponse:
+    """Virtual LINE Reply API for external bots."""
+    
+    # Get authorization header
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+    
+    access_token = auth_header[7:]  # Remove "Bearer "
+    virtual_channel = get_virtual_channel_by_token(access_token)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    # Extract message data
+    reply_token = data.get("replyToken")
+    messages = data.get("messages", [])
+    
+    if not reply_token or not messages:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
+    
+    # Send message via real LINE API
+    for message in messages:
+        if message.get("type") == "text":
+            send_line_reply(reply_token, message.get("text", ""))
+    
+    # Log virtual channel reply message
+    chat_history.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "reply_token": reply_token,
+        "virtual_channel_id": virtual_channel.get("channel_id"),
+        "channel_name": virtual_channel.get("name", ""),
+        "direction": "out",
+        "message": messages[0] if messages else {},
+        "sender": "virtual_bot"
+    })
+    save_storage()
+    
+    logger.info(f"Virtual channel {virtual_channel.get('channel_id')} replied with token {reply_token}")
+    
+    return JSONResponse(content={"status": "ok"})
+
+
+@app.get("/virtual-api/v2/bot/message/{message_id}/content")
+async def virtual_get_content(message_id: str, request: Request):
+    """Virtual LINE Content API for external bots."""
+    
+    # Get authorization header
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
+    
+    access_token = auth_header[7:]
+    virtual_channel = get_virtual_channel_by_token(access_token)
+    
+    if not virtual_channel or virtual_channel.get("status") != "active":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token or inactive channel")
+    
+    # Proxy request to real LINE API
+    real_access_token = config_store.get("line_channel_access_token")
+    if not real_access_token:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Real LINE API not configured")
+    
+    try:
+        real_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        headers = {"Authorization": f"Bearer {real_access_token}"}
+        
+        response = requests.get(real_url, headers=headers, timeout=30, stream=True)
+        response.raise_for_status()
+        
+        # Return the binary content with appropriate headers
+        from fastapi.responses import StreamingResponse
+        
+        def iterfile():
+            for chunk in response.iter_content(chunk_size=8192):
+                yield chunk
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type=response.headers.get("Content-Type", "application/octet-stream"),
+            headers={
+                "Content-Length": response.headers.get("Content-Length", ""),
+                "Content-Disposition": response.headers.get("Content-Disposition", "")
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get content from LINE API: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve content")
+
+
 # ===== WEB ROUTES =====
 
 @app.get("/", response_class=HTMLResponse)
@@ -431,6 +770,7 @@ async def admin_home(request: Request):
             "config": config_store,
             "webhook_url": webhook_url,
             "slip_webhook_url": slip_url,
+            "virtual_channels_count": len([c for c in virtual_channels if c.get("status") == "active"])
         }
     )
 
