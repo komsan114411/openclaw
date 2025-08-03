@@ -1,288 +1,34 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
     <title>Admin Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #00B900;
-            --secondary-color: #6c757d;
-            --light-bg: #f8f9fa;
-            --dark-bg: #e9ecef;
-            --border-color: #dee2e6;
-            --text-color: #343a40;
-        }
-
-        body {
-            font-family: 'Kanit', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--light-bg);
-            color: var(--text-color);
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        h1, h2 {
-            color: var(--primary-color);
-            margin-bottom: 20px;
-            border-bottom: 3px solid var(--primary-color);
-            padding-bottom: 10px;
-        }
-
-        nav {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: var(--dark-bg);
-            border-radius: 8px;
-        }
-
-        nav a {
-            display: inline-block;
-            padding: 10px 15px;
-            background-color: var(--secondary-color);
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-            margin-right: 10px;
-            margin-bottom: 5px;
-        }
-
-        nav a:hover {
-            background-color: #5a6268;
-        }
-
-        .webhook-info, .info-box {
-            background-color: #e7f3ff;
-            border: 1px solid #d1ecf1;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        
-        .info-box {
-            background-color: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
-            font-weight: 600;
-        }
-        
-        .webhook-info p {
-            margin: 0;
-            font-size: 14px;
-        }
-        
-        .webhook-info code {
-            display: block;
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid var(--border-color);
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            word-break: break-all;
-            margin-top: 5px;
-        }
-        
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-
-        table, th, td {
-            border: 1px solid var(--border-color);
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-        }
-
-        th {
-            background-color: var(--dark-bg);
-            font-weight: 600;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        .status-badge {
-            padding: 4px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-            display: inline-block;
-        }
-
-        .status-ok {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .status-empty {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .feature-item {
-            background: #e7f3ff;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #d1ecf1;
-        }
-        
-        .feature-item h4 {
-            color: var(--primary-color);
-            margin-top: 0;
-        }
-
-        .footer {
-            margin-top: 30px;
-            padding: 15px;
-            background-color: var(--dark-bg);
-            border-radius: 8px;
-            text-align: center;
-            color: #6c757d;
-            font-size: 14px;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #00B900; border-bottom: 3px solid #00B900; padding-bottom: 10px; }
+        nav { margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 8px; }
+        nav a { display: inline-block; padding: 10px 15px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; margin-right: 10px; }
+        nav a:hover { background-color: #5a6268; }
+        .status-box { background-color: #e7f3ff; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .status-box span { display: inline-block; margin-right: 15px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 Admin Dashboard</h1>
-        <div class="info-box">
-            <strong>ระบบพร้อมใช้งาน!</strong> LINE Bot Webhook Middleware ทำงานเรียบร้อย
-        </div>
-        
-        <div class="webhook-info">
-            <p><strong>🔗 LINE Webhook URL:</strong></p>
-            <code>{{ webhook_url }}</code>
-            <p><strong>🔗 Slip Bot Webhook URL:</strong></p>
-            <code>{{ slip_webhook_url }}</code>
-        </div>
-        
-        <nav>
-            <a href="/admin/chat">📝 ดูประวัติการแชท</a>
-            <a href="/admin/settings">⚙️ ตั้งค่าระบบ</a>
-            <a href="/admin/forwarding">🔀 จัดการ Forwarding Webhooks</a>
-            {% if virtual_channels_count is defined %}
-            <a href="/admin/virtual-channels">🔗 จัดการ Virtual Channels ({{ virtual_channels_count }})</a>
-            {% endif %}
-            <a href="/admin/data-info" target="_blank">💾 ข้อมูลการจัดเก็บ</a>
-        </nav>
+<div class="container">
+    <h1>🤖 Admin Dashboard</h1>
 
-        <h2>🔧 การตั้งค่าปัจจุบัน</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>คีย์</th>
-                    <th>ค่า</th>
-                    <th>สถานะ</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for key, value in config.items() %}
-                <tr>
-                    <td><strong>{{ key.replace('_', ' ').title() }}</strong></td>
-                    <td>
-                        {% if 'secret' in key.lower() or 'token' in key.lower() or 'key' in key.lower() %}
-                            ***มีการตั้งค่าแล้ว***
-                        {% else %}
-                            {{ value }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if value %}
-                            <span class="status-badge status-ok">✅ OK</span>
-                        {% else %}
-                            <span class="status-badge status-empty">❌ ไม่ได้ตั้งค่า</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        
-        <br>
-        
-        <h2>📊 สถานะระบบ</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>คุณสมบัติ</th>
-                    <th>รายละเอียด</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>ระบบจัดเก็บข้อมูล</td>
-                    <td>{{ storage_backend }}</td>
-                </tr>
-                <tr>
-                    <td>จำนวนประวัติการแชท</td>
-                    <td>{{ total_chat_history }} รายการ</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h2>📱 วิธีการใช้งาน</h2>
-        <div class="info-box">
-            <p><strong>สำหรับผู้ดูแลระบบ:</strong> การตั้งค่าที่สำคัญควรอยู่ใน **Config Vars ของ Heroku** เพื่อให้คงอยู่ถาวร</p>
-            <ol>
-                <li><strong>ตั้งค่า LINE Webhook:</strong> ไปที่ LINE Developers Console และใส่ Webhook URL: <code>{{ webhook_url }}</code></li>
-                <li><strong>ตั้งค่า Environment Variables:</strong> ตรวจสอบว่า `LINE_CHANNEL_SECRET` และ `LINE_CHANNEL_ACCESS_TOKEN` ถูกตั้งค่าใน Heroku</li>
-            </ol>
-        </div>
-
-        <h2>🚀 ฟีเจอร์ที่พร้อมใช้งาน</h2>
-        <div class="feature-grid">
-            <div class="feature-item">
-                <h4>💬 Chatbot</h4>
-                <p>รับส่งข้อความอัตโนมัติ (Echo mode หรือ ChatGPT)</p>
-            </div>
-            <div class="feature-item">
-                <h4>📄 Slip Checking</h4>
-                <p>รับรูปสลิปและส่งต่อไปยังระบบตรวจสอบ</p>
-            </div>
-            <div class="feature-item">
-                <h4>🔀 Webhook Forwarding</h4>
-                <p>ส่งต่อ events ไปยัง services อื่นๆ</p>
-            </div>
-            {% if virtual_channels_count is defined %}
-            <div class="feature-item">
-                <h4>🔗 Virtual Channels</h4>
-                <p>เชื่อมต่อบอทภายนอก (Thunder Solution)</p>
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="footer">
-            <p>
-                🕒 อัปเดตล่าสุด: {{ last_updated_time }} |
-                💻 Version: Middleware v2.0 |
-                🌐 Host: {{ request.headers.get('host', 'localhost') if request is defined else 'localhost' }}
-            </p>
-        </div>
+    <div class="status-box">
+        <h2>สถานะระบบ</h2>
+        <span>AI: {{ 'เปิด' if config.ai_enabled else 'ปิด' }}</span>
+        <span>ตรวจสอบสลิป: {{ 'เปิด' if config.slip_enabled else 'ปิด' }}</span>
+        <span>แชททั้งหมด: {{ total_chat_history }}</span>
     </div>
+
+    <nav>
+        <a href="/admin/chat">📝 ดูประวัติการแชท</a>
+        <a href="/admin/settings">⚙️ ตั้งค่าระบบ</a>
+    </nav>
+</div>
 </body>
 </html>
