@@ -5,12 +5,11 @@ from utils.config_manager import config_manager
 
 logger = logging.getLogger("slip_checker_service")
 
-
 def verify_slip_with_thunder(message_id: str,
                              test_image_data: Optional[bytes] = None) -> Dict[str, Any]:
     """
-    ตรวจสอบรูปสลิปจาก LINE หรือ จาก test buffer
-    ส่งคืน { status: str, type: str, data/message }
+    ตรวจสอบสลิปจาก LINE (message_id) หรือ test image buffer (เช่นจากอัปโหลดหน้าเว็บ)
+    คืนค่า dict ที่มี status และข้อมูล slip ที่ตรวจได้
     """
     if not config_manager.get("slip_enabled"):
         return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดอยู่"}
@@ -26,11 +25,9 @@ def verify_slip_with_thunder(message_id: str,
         logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
         return {"status": "error", "message": "ยังไม่ได้ตั้งค่า LINE Channel Access Token"}
 
-    # ดาวน์โหลดรูปจาก LINE หรือใช้ test_image_data
-    image_data = None
-    if test_image_data:
-        image_data = test_image_data
-    else:
+    # ดาวน์โหลดภาพจาก LINE (หากไม่ใช่ test mode)
+    image_data = test_image_data
+    if not test_image_data:
         try:
             url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
             headers = {"Authorization": f"Bearer {line_token}"}
@@ -38,34 +35,29 @@ def verify_slip_with_thunder(message_id: str,
             resp.raise_for_status()
             image_data = resp.content
         except Exception as e:
-            logger.error("LINE image download error: %s", e, exc_info=e)
-            return {"status": "error", "message": "ดาวน์โหลดรูปสลิปไม่สำเร็จ"}
+            logger.exception("\u274c ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ: %s", e)
+            return {"status": "error", "message": "ไม่สามารถดาวน์โหลดรูปจาก LINE ได้"}
 
+    # เตรียมส่งรูปไปยัง Thunder
     endpoint = "verify/truewallet" if wallet_phone else "verify"
     post_url = f"https://api.thunder.in.th/v1/{endpoint}"
+    headers = {"Authorization": f"Bearer {api_token}"}
+    files = {"file": ("slip.jpg", image_data, "image/jpeg")}
+    data = {"wallet_phone": wallet_phone} if wallet_phone else {}
+
     try:
-        headers = {"Authorization": f"Bearer {api_token}"}
-        files = {"file": ("slip.jpg", image_data, "image/jpeg")}
-        data = {}
-        if wallet_phone:
-            data["wallet_phone"] = wallet_phone
-        resp = requests.post(post_url, headers=headers, files=files,
-                             data=data, timeout=20)
+        resp = requests.post(post_url, headers=headers, files=files, data=data, timeout=20)
         resp.raise_for_status()
         result = resp.json()
     except Exception as e:
-        logger.error("Thunder API error: %s", e, exc_info=e)
-        return {"status": "error", "message": "ตรวจสอบสลิปไม่ได้ในขณะนี้"}
+        logger.exception("\u274c Thunder API error: %s", e)
+        return {"status": "error", "message": "เชื่อมต่อกับ Thunder ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"}
 
-    # ตรวจสอบว่า API ตอบกลับสถานะสำเร็จหรือไม่
-    # บางครั้ง API อาจจะตอบ 200 แต่ใน body บอกว่าไม่สำเร็จ
     if not result.get("success", False):
-        logger.warning("Thunder replied with failure: %s", result)
-        # ใช้ข้อความจาก API หากมี หรือใช้ข้อความทั่วไป
-        error_message = result.get("message", "สลิปไม่ถูกต้อง ❌")
-        return {"status": "error", "message": error_message}
-    
-    # หากสำเร็จ ให้ดึงข้อมูลอย่างปลอดภัย
+        error_msg = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ \u274c")
+        return {"status": "error", "message": error_msg}
+
+    # \u2705 ดึงข้อมูลที่เกี่ยวข้องตามประเภทบัญชี
     data = result.get("data", {})
     if wallet_phone:
         return {
@@ -77,17 +69,16 @@ def verify_slip_with_thunder(message_id: str,
                 "sender": data.get("sender"),
                 "receiver_name": data.get("receiver", {}).get("name"),
                 "receiver_phone": data.get("receiver", {}).get("phone"),
-            },
+            }
         }
     else:
-        amount = data.get("amount", {}).get("amount", 0)
         return {
             "status": "success",
             "type": "bank",
             "data": {
-                "amount": amount,
+                "amount": data.get("amount", {}).get("amount", 0),
                 "date": data.get("date"),
                 "sender_bank": data.get("sender", {}).get("bank", {}).get("short"),
                 "receiver_bank": data.get("receiver", {}).get("bank", {}).get("short"),
-            },
+            }
         }
