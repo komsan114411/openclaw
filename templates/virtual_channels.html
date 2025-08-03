@@ -20,6 +20,11 @@
         button.danger:hover { background-color: #c82333; }
         button.success { background-color: #28a745; }
         button.success:hover { background-color: #218838; }
+        .tab-button { background-color: #6c757d; color: white; border: none; padding: 10px 20px; margin-right: 10px; border-radius: 5px 5px 0 0; cursor: pointer; }
+        .tab-button.active { background-color: #007bff; }
+        .tab-button:hover { background-color: #5a6268; }
+        .tab-button.active:hover { background-color: #0056b3; }
+        .tab-content { border: 1px solid #ddd; padding: 20px; border-radius: 0 5px 5px 5px; background-color: white; }
         table { border-collapse: collapse; width: 100%; margin-top: 20px; }
         table, th, td { border: 1px solid #ccc; }
         th, td { padding: 12px; text-align: left; }
@@ -29,6 +34,9 @@
         .status-inactive { color: #dc3545; font-weight: bold; }
         .code-block { background-color: #f1f3f4; padding: 10px; border-radius: 4px; font-family: monospace; margin: 10px 0; }
         .info-box { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .badge-virtual { background-color: #007bff; color: white; }
+        .badge-line { background-color: #00B900; color: white; }
     </style>
 </head>
 <body>
@@ -40,30 +48,72 @@
             <a href="/admin/chat">📝 ดูประวัติการแชท</a>
             <a href="/admin/settings">⚙️ ตั้งค่าระบบ</a>
             <a href="/admin/forwarding">🔀 จัดการ Forwarding Webhooks</a>
+            <a href="/admin/data-info" target="_blank">💾 ข้อมูลการจัดเก็บ</a>
         </nav>
 
         <div class="info-box">
             <h3>🤖 Virtual Channels คืออะไร?</h3>
-            <p><strong>Virtual Channel</strong> คือช่องทางเสมือนที่ให้บอทภายนอก (เช่น Thunder Solution บอทตรวจสลิป) เชื่อมต่อมาหาระบบของเราแทนที่จะเชื่อมตรง LINE</p>
-            <p><strong>ประโยชน์:</strong> ควบคุมการสื่อสารทั้งหมด, ไม่ต้องแชร์ LINE credentials, ติดตามการใช้งานได้</p>
+            <p><strong>Virtual Channel</strong> คือช่องทางเสมือนที่ให้บอทภายนอก (เช่น Thunder Solution) เชื่อมต่อมาหาระบบของเราแทนที่จะเชื่อมตรง LINE</p>
+            <p><strong>ประโยชน์:</strong> ควบคุมการสื่อสารทั้งหมด, ไม่ต้องแชร์ LINE credentials หลัก, ติดตามการใช้งานได้</p>
         </div>
 
         <div class="create-form">
-            <h2>🆕 สร้าง Virtual Channel ใหม่</h2>
+            <h2>🆕 สร้าง/Import Virtual Channel</h2>
             
-            <form onsubmit="return createVirtualChannel(event)">
-                <div class="form-group">
-                    <label for="channel_name">ชื่อ Channel:</label>
-                    <input type="text" id="channel_name" placeholder="เช่น Thunder Slip Bot" required>
+            <!-- Tab Navigation -->
+            <div style="margin-bottom: 20px;">
+                <button type="button" onclick="showTab('create')" id="tab-create" class="tab-button active">🚀 สร้างใหม่</button>
+                <button type="button" onclick="showTab('import')" id="tab-import" class="tab-button">📥 Import จาก LINE</button>
+            </div>
+            
+            <!-- Create New Tab -->
+            <div id="create-tab" class="tab-content">
+                <p>สร้าง Virtual Channel ใหม่พร้อม credentials ที่เราสร้างให้</p>
+                <form onsubmit="return createVirtualChannel(event)">
+                    <div class="form-group">
+                        <label for="channel_name">ชื่อ Channel:</label>
+                        <input type="text" id="channel_name" placeholder="เช่น Thunder Slip Bot" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="channel_description">คำอธิบาย:</label>
+                        <textarea id="channel_description" placeholder="เช่น บอทตรวจสอบสลิปการโอนเงิน" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit">🚀 สร้าง Virtual Channel</button>
+                </form>
+            </div>
+            
+            <!-- Import LINE Tab -->
+            <div id="import-tab" class="tab-content" style="display: none;">
+                <div class="info-box">
+                    <p><strong>💡 สำหรับ Thunder Solution:</strong> ใช้ Channel ID และ Channel Secret จาก LINE ที่มีอยู่แล้ว</p>
+                    <p>ระบบจะใช้ credentials เหล่านี้เพื่อเชื่อมต่อกับ LINE และสร้าง Access Token ใหม่สำหรับ API ของเรา</p>
                 </div>
-                
-                <div class="form-group">
-                    <label for="channel_description">คำอธิบาย:</label>
-                    <textarea id="channel_description" placeholder="เช่น บอทตรวจสอบสลิปการโอนเงินจาก Thunder Solution" rows="3"></textarea>
-                </div>
-                
-                <button type="submit">🚀 สร้าง Virtual Channel</button>
-            </form>
+                <form onsubmit="return importLineChannel(event)">
+                    <div class="form-group">
+                        <label for="import_name">ชื่อ Channel:</label>
+                        <input type="text" id="import_name" placeholder="เช่น Thunder Slip Bot (LINE Import)" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="import_description">คำอธิบาย:</label>
+                        <textarea id="import_description" placeholder="Virtual Channel ที่ใช้ LINE credentials จริงจาก Thunder Solution" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="import_channel_id">LINE Channel ID:</label>
+                        <input type="text" id="import_channel_id" placeholder="เช่น VC9C4C991FD6" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="import_channel_secret">LINE Channel Secret:</label>
+                        <input type="text" id="import_channel_secret" placeholder="เช่น DIafOiCUcl5Hh5DDNtKeYQ24dKZ4xPAOV-oTQ-joLg" required>
+                    </div>
+                    
+                    <button type="submit">📥 Import LINE Channel</button>
+                </form>
+            </div>
         </div>
 
         <h2>📋 Virtual Channels ที่มีอยู่ ({{ channels|length }})</h2>
@@ -72,6 +122,7 @@
             <tr>
                 <th>ID</th>
                 <th>ชื่อ</th>
+                <th>ประเภท</th>
                 <th>คำอธิบาย</th>
                 <th>สถานะ</th>
                 <th>วันที่สร้าง</th>
@@ -82,13 +133,18 @@
             <tr>
                 <td><code>{{ channel.channel_id }}</code></td>
                 <td><strong>{{ channel.name }}</strong></td>
+                <td>
+                    <span class="badge {{ 'badge-line' if channel.type == 'line_import' else 'badge-virtual' }}">
+                        {{ 'LINE Import' if channel.type == 'line_import' else 'Virtual' }}
+                    </span>
+                </td>
                 <td>{{ channel.description }}</td>
                 <td>
                     <span class="status-{{ channel.status }}">
                         {{ '🟢 เปิดใช้งาน' if channel.status == 'active' else '🔴 ปิดใช้งาน' }}
                     </span>
                 </td>
-                <td>{{ channel.created_at[:10] }}</td>
+                <td>{{ channel.created_at[:10] if channel.created_at else 'N/A' }}</td>
                 <td>
                     <button onclick="showCredentials('{{ channel.channel_id }}')">📋 ดู Credentials</button>
                 </td>
@@ -102,7 +158,7 @@
             
             <!-- Credentials Row (Hidden by default) -->
             <tr id="credentials-{{ channel.channel_id }}" style="display: none;">
-                <td colspan="7">
+                <td colspan="8">
                     <div class="credentials">
                         <h4>🔑 Credentials สำหรับ {{ channel.name }}</h4>
                         <div class="code-block">
@@ -131,12 +187,18 @@
                         
                         <h4>📝 คำแนะนำการใช้งานสำหรับ Thunder Solution</h4>
                         <ol>
-                            <li>ใช้ <strong>Channel ID</strong>, <strong>Channel Secret</strong>, และ <strong>Access Token</strong> ด้านบนในระบบของ Thunder</li>
+                            <li>ใช้ <strong>Channel ID</strong> และ <strong>Channel Secret</strong> ด้านบนในระบบของ Thunder (เหมือนกับ LINE จริง)</li>
                             <li>ตั้งค่า Webhook URL เป็น: <code>{{ base_url }}/virtual/{{ channel.channel_id }}/webhook</code></li>
                             <li>ตั้งค่า API Base URL เป็น: <code>{{ base_url }}/virtual-api/v2/bot</code></li>
-                            <li>ใช้ Access Token ในการเรียก API (Authorization: Bearer {{ channel.access_token }})</li>
+                            <li>ใช้ Access Token ในการเรียก API: <code>{{ channel.access_token }}</code></li>
                             <li>Thunder จะได้รับ events จาก LINE ผ่านระบบเราและสามารถส่งข้อความกลับได้</li>
                         </ol>
+                        
+                        {% if channel.type == 'line_import' %}
+                        <div class="info-box">
+                            <strong>✅ LINE Import:</strong> Channel นี้ใช้ credentials จาก LINE จริง Thunder สามารถใช้ Channel ID และ Secret เหล่านี้ได้เลย
+                        </div>
+                        {% endif %}
                         
                         <h4>🧪 ทดสอบ API</h4>
                         <div class="code-block">
@@ -160,9 +222,9 @@ curl -X POST {{ base_url }}/virtual-api/v2/bot/message/push \
             
             {% if channels|length == 0 %}
             <tr>
-                <td colspan="7" style="text-align: center; color: #6c757d; padding: 40px;">
+                <td colspan="8" style="text-align: center; color: #6c757d; padding: 40px;">
                     ยังไม่มี Virtual Channel<br>
-                    <small>สร้าง Virtual Channel เพื่อให้บอทภายนอกเชื่อมต่อได้</small>
+                    <small>สร้าง Virtual Channel หรือ Import จาก LINE เพื่อให้บอทภายนอกเชื่อมต่อได้</small>
                 </td>
             </tr>
             {% endif %}
@@ -171,6 +233,20 @@ curl -X POST {{ base_url }}/virtual-api/v2/bot/message/push \
     </div>
 
     <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            document.getElementById('create-tab').style.display = 'none';
+            document.getElementById('import-tab').style.display = 'none';
+            
+            // Remove active class from all buttons
+            document.getElementById('tab-create').classList.remove('active');
+            document.getElementById('tab-import').classList.remove('active');
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+        
         function createVirtualChannel(event) {
             event.preventDefault();
             
@@ -184,59 +260,109 @@ curl -X POST {{ base_url }}/virtual-api/v2/bot/message/push \
             
             const button = event.target.querySelector('button');
             const originalText = button.textContent;
-            button.textContent = '⏳ กำลังสร้าง...';
-            button.disabled = true;
-            
-            fetch('/admin/virtual-channels/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: name, description: description })
-            }).then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('✅ สร้าง Virtual Channel สำเร็จ!\n\nChannel ID: ' + data.channel.channel_id);
-                    location.reload();
-                } else {
-                    alert('❌ เกิดข้อผิดพลาด: ' + (data.message || 'Unknown error'));
-                }
-            }).catch(err => {
-                console.error(err);
-                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
-            }).finally(() => {
-                button.textContent = originalText;
-                button.disabled = false;
-            });
-            
-            return false;
-        }
-        
-        function showCredentials(channelId) {
-            const row = document.getElementById('credentials-' + channelId);
-            if (row.style.display === 'none') {
-                row.style.display = 'table-row';
-            } else {
-                row.style.display = 'none';
-            }
-        }
-        
-        function toggleChannel(channelId) {
-            if (!confirm('ต้องการเปลี่ยนสถานะ Channel นี้หรือไม่?')) return;
-            
-            fetch('/admin/virtual-channels/' + channelId + '/toggle', {
-                method: 'POST'
-            }).then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('✅ เปลี่ยนสถานะเรียบร้อย: ' + data.message);
-                    location.reload();
-                } else {
-                    alert('❌ เกิดข้อผิดพลาด');
-                }
-            }).catch(err => {
-                console.error(err);
-                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
-            });
-        }
-    </script>
+           button.textContent = '⏳ กำลังสร้าง...';
+           button.disabled = true;
+           
+           fetch('/admin/virtual-channels/create', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ name: name, description: description })
+           }).then(response => response.json())
+           .then(data => {
+               if (data.status === 'success') {
+                   alert('✅ สร้าง Virtual Channel สำเร็จ!\n\nChannel ID: ' + data.channel.channel_id + '\nAccess Token: ' + data.channel.access_token);
+                   location.reload();
+               } else {
+                   alert('❌ เกิดข้อผิดพลาด: ' + (data.message || 'Unknown error'));
+               }
+           }).catch(err => {
+               console.error(err);
+               alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+           }).finally(() => {
+               button.textContent = originalText;
+               button.disabled = false;
+           });
+           
+           return false;
+       }
+       
+       function importLineChannel(event) {
+           event.preventDefault();
+           
+           const name = document.getElementById('import_name').value.trim();
+           const description = document.getElementById('import_description').value.trim();
+           const channelId = document.getElementById('import_channel_id').value.trim();
+           const channelSecret = document.getElementById('import_channel_secret').value.trim();
+           
+           if (!name || !channelId || !channelSecret) {
+               alert('กรุณาใส่ข้อมูลให้ครบถ้วน');
+               return false;
+           }
+           
+           const button = event.target.querySelector('button');
+           const originalText = button.textContent;
+           button.textContent = '⏳ กำลัง Import...';
+           button.disabled = true;
+           
+           fetch('/admin/virtual-channels/import-line', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ 
+                   name: name, 
+                   description: description,
+                   line_channel_id: channelId,
+                   line_channel_secret: channelSecret
+               })
+           }).then(response => response.json())
+           .then(data => {
+               if (data.status === 'success') {
+                   alert('✅ Import LINE Channel สำเร็จ!\n\n' +
+                         'Channel ID: ' + data.channel.channel_id + '\n' +
+                         'Channel Secret: ' + data.channel.channel_secret + '\n' +
+                         'Access Token: ' + data.channel.access_token + '\n\n' +
+                         'Thunder สามารถใช้ Channel ID และ Secret เหล่านี้ได้เลย!');
+                   location.reload();
+               } else {
+                   alert('❌ เกิดข้อผิดพลาด: ' + (data.message || 'Unknown error'));
+               }
+           }).catch(err => {
+               console.error(err);
+               alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+           }).finally(() => {
+               button.textContent = originalText;
+               button.disabled = false;
+           });
+           
+           return false;
+       }
+       
+       function showCredentials(channelId) {
+           const row = document.getElementById('credentials-' + channelId);
+           if (row.style.display === 'none') {
+               row.style.display = 'table-row';
+           } else {
+               row.style.display = 'none';
+           }
+       }
+       
+       function toggleChannel(channelId) {
+           if (!confirm('ต้องการเปลี่ยนสถานะ Channel นี้หรือไม่?')) return;
+           
+           fetch('/admin/virtual-channels/' + channelId + '/toggle', {
+               method: 'POST'
+           }).then(response => response.json())
+           .then(data => {
+               if (data.status === 'success') {
+                   alert('✅ เปลี่ยนสถานะเรียบร้อย: ' + data.message);
+                   location.reload();
+               } else {
+                   alert('❌ เกิดข้อผิดพลาด');
+               }
+           }).catch(err => {
+               console.error(err);
+               alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+           });
+       }
+   </script>
 </body>
 </html>
