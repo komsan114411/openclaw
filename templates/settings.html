@@ -1,207 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <meta charset="utf-8" />
-    <title>ตั้งค่าระบบ - LINE Bot Admin</title>
+    <meta charset="UTF-8">
+    <title>ตั้งค่าระบบ</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background-color: #f8f9fa; 
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #00B900; border-bottom: 3px solid #00B900; padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
+        input[type="text"], input[type="password"], textarea {
+            width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box;
         }
-        .container { 
-            max-width: 800px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 30px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        textarea { height: 120px; }
+        button { background: linear-gradient(135deg, #007bff, #0056b3); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,123,255,0.3); }
+        .switch-group { margin-bottom: 15px; }
+    </style>
+    <script>
+        function submitSettings(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                line_channel_secret: form.line_channel_secret.value,
+                line_channel_access_token: form.line_channel_access_token.value,
+                thunder_api_token: form.thunder_api_token.value,
+                openai_api_key: form.openai_api_key.value,
+                ai_prompt: form.ai_prompt.value,
+                wallet_phone_number: form.wallet_phone_number.value,
+                ai_enabled: form.ai_enabled.checked,
+                slip_enabled: form.slip_enabled.checked
+            };
+            fetch('/admin/settings/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(resp => {
+                if (resp.ok) {
+                    alert('✅ บันทึกการตั้งค่าเรียบร้อยแล้ว!');
+                } else {
+                    alert('❌ เกิดข้อผิดพลาดในการบันทึก');
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            });
+            return false;
         }
-        h1 { 
-            color: #00B900; 
-            margin-bottom: 20px; 
-            border-bottom: 3px solid #00B900; 
-            padding-bottom: 10px; 
-        }
-        nav { 
-            margin: 20px 0; 
-            padding: 15px; 
-            background-color: #f8f9fa; 
-            border-radius: 8px; 
-        }
-        nav a { 
-            display: inline-block; 
-            padding: 10px 20px; 
-            background-color: #6c757d; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 5px; 
-            transition: background-color 0.3s; 
-            margin-right: 10px;
-        }
-        nav a:hover { background-color: #5a6268; }
-        .form-group { 
-            margin-bottom: 20px; 
-        }
-        label { 
-            display: block; 
-            margin-bottom: 8px; 
-            font-weight: 600; 
-            color: #333; 
-        }
-        input[type="text"], input[type="password"] { 
-            width: 100%; 
-            padding: 12px 15px; 
-            border: 2px solid #ddd; 
-            border-radius: 8px; 
-            font-size: 14px; 
-            transition: border-color 0.3s; 
-            box-sizing: border-box; 
-        }
-        input[type="text"]:focus, input[type="password"]:focus { 
-            outline: none; 
-            border-color: #007bff; 
-            box-shadow: 0 0 0 3px rgba(0,123,255,0.1); 
-        }
-        button { 
-            background: linear-gradient(135deg, #007bff, #0056b3); 
-            color: white; 
-            border: none; 
-            padding: 12px 30px; 
-           border-radius: 8px; 
-           font-size: 16px; 
-           font-weight: 600; 
-           cursor: pointer; 
-           transition: all 0.3s; 
-           margin-top: 20px; 
-       }
-       button:hover { 
-           transform: translateY(-2px); 
-           box-shadow: 0 4px 15px rgba(0,123,255,0.3); 
-       }
-       .help-text { 
-           font-size: 12px; 
-           color: #6c757d; 
-           margin-top: 5px; 
-       }
-       .warning { 
-           background-color: #fff3cd; 
-           border: 1px solid #ffeaa7; 
-           color: #856404; 
-           padding: 15px; 
-           border-radius: 8px; 
-           margin: 20px 0; 
-       }
-       .success-message { 
-           background-color: #d4edda; 
-           border: 1px solid #c3e6cb; 
-           color: #155724; 
-           padding: 15px; 
-           border-radius: 8px; 
-           margin: 20px 0; 
-           display: none; 
-       }
-   </style>
+    </script>
 </head>
 <body>
-   <div class="container">
-       <h1>⚙️ ตั้งค่าระบบ</h1>
-       
-       <nav>
-           <a href="/admin">🏠 กลับไปหน้าแดชบอร์ด</a>
-           <a href="/admin/forwarding">🔀 จัดการ Forwarding Webhooks</a>
-       </nav>
-       
-       <div class="warning">
-           <strong>⚠️ คำเตือน:</strong> ข้อมูลที่ใส่ในฟอร์มนี้จะถูกเก็บในหน่วยความจำของเซิร์ฟเวอร์ หากเซิร์ฟเวอร์รีสตาร์ท ข้อมูลจะหายไป ในการใช้งานจริงควรเก็บในฐานข้อมูลที่ปลอดภัย
-       </div>
-       
-       <div id="success-message" class="success-message">
-           ✅ บันทึกการตั้งค่าเรียบร้อยแล้ว!
-       </div>
-       
-       <form onsubmit="return submitSettings(event)">
-           <div class="form-group">
-               <label for="line_channel_secret">🔐 LINE Channel Secret:</label>
-               <input type="password" name="line_channel_secret" id="line_channel_secret" 
-                      value="{{ config.line_channel_secret }}" 
-                      placeholder="ใส่ Channel Secret จาก LINE Developers Console" />
-               <div class="help-text">หาได้จาก LINE Developers Console → Basic settings → Channel secret</div>
-           </div>
-           
-           <div class="form-group">
-               <label for="line_channel_access_token">🔑 LINE Channel Access Token:</label>
-               <input type="password" name="line_channel_access_token" id="line_channel_access_token" 
-                      value="{{ config.line_channel_access_token }}" 
-                      placeholder="ใส่ Channel Access Token จาก LINE Developers Console" />
-               <div class="help-text">หาได้จาก LINE Developers Console → Messaging API → Channel access token</div>
-           </div>
-           
-           <div class="form-group">
-               <label for="openai_api_key">🤖 OpenAI API Key (สำหรับ ChatGPT):</label>
-               <input type="password" name="openai_api_key" id="openai_api_key" 
-                      value="{{ config.openai_api_key }}" 
-                      placeholder="ใส่ OpenAI API Key (ไม่บังคับ)" />
-               <div class="help-text">หากไม่ใส่ บอทจะตอบแบบ echo กลับ</div>
-           </div>
-           
-           <div class="form-group">
-               <label for="wallet_phone_number">💰 เบอร์วอเลท (สำหรับเติมเงิน):</label>
-               <input type="text" name="wallet_phone_number" id="wallet_phone_number" 
-                      value="{{ config.wallet_phone_number }}" 
-                      placeholder="เช่น 0801234567" />
-               <div class="help-text">เบอร์โทรศัพท์สำหรับระบบเติมเงิน (ไม่บังคับ)</div>
-           </div>
-           
-           <button type="submit">💾 อัปเดตการตั้งค่า</button>
-       </form>
-   </div>
-
-   <script>
-       function submitSettings(event) {
-           event.preventDefault();
-           const form = event.target;
-           const data = {
-               line_channel_secret: form.line_channel_secret.value,
-               line_channel_access_token: form.line_channel_access_token.value,
-               openai_api_key: form.openai_api_key.value,
-               wallet_phone_number: form.wallet_phone_number.value,
-           };
-           
-           // Show loading state
-           const button = form.querySelector('button');
-           const originalText = button.textContent;
-           button.textContent = '⏳ กำลังบันทึก...';
-           button.disabled = true;
-           
-           fetch('/admin/settings/update', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify(data)
-           }).then(response => {
-               // Reset button
-               button.textContent = originalText;
-               button.disabled = false;
-               
-               if (response.ok) {
-                   // Show success message
-                   document.getElementById('success-message').style.display = 'block';
-                   setTimeout(() => {
-                       document.getElementById('success-message').style.display = 'none';
-                   }, 3000);
-               } else {
-                   alert('❌ เกิดข้อผิดพลาดในการบันทึก');
-               }
-           }).catch(err => {
-               console.error(err);
-               button.textContent = originalText;
-               button.disabled = false;
-               alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
-           });
-           
-           return false;
-       }
-   </script>
+<div class="container">
+    <h1>⚙️ ตั้งค่าระบบ</h1>
+    <form onsubmit="submitSettings(event)">
+        <div class="form-group">
+            <label>LINE Channel Secret</label>
+            <input type="password" name="line_channel_secret" value="{{ config.line_channel_secret }}">
+        </div>
+        <div class="form-group">
+            <label>LINE Channel Access Token</label>
+            <input type="password" name="line_channel_access_token" value="{{ config.line_channel_access_token }}">
+        </div>
+        <div class="form-group">
+            <label>Thunder API Token</label>
+            <input type="password" name="thunder_api_token" value="{{ config.thunder_api_token }}">
+        </div>
+        <div class="form-group">
+            <label>OpenAI API Key</label>
+            <input type="password" name="openai_api_key" value="{{ config.openai_api_key }}">
+        </div>
+        <div class="form-group">
+            <label>AI Prompt (ข้อความแนะนำสำหรับ AI)</label>
+            <textarea name="ai_prompt">{{ config.ai_prompt }}</textarea>
+        </div>
+        <div class="switch-group">
+            <label><input type="checkbox" name="ai_enabled" {% if config.ai_enabled %}checked{% endif %}> เปิดใช้งาน AI Chatbot</label>
+        </div>
+        <div class="switch-group">
+            <label><input type="checkbox" name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป</label>
+        </div>
+        <div class="form-group">
+            <label>เบอร์วอลเลท (Wallet Phone Number)</label>
+            <input type="text" name="wallet_phone_number" value="{{ config.wallet_phone_number }}">
+        </div>
+        <button type="submit">💾 บันทึกการตั้งค่า</button>
+    </form>
+</div>
 </body>
 </html>
