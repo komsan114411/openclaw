@@ -60,13 +60,11 @@
         <div class="create-form">
             <h2>🆕 สร้าง/Import Virtual Channel</h2>
             
-            <!-- Tab Navigation -->
             <div style="margin-bottom: 20px;">
                 <button type="button" onclick="showTab('create')" id="tab-create" class="tab-button active">🚀 สร้างใหม่</button>
                 <button type="button" onclick="showTab('import')" id="tab-import" class="tab-button">📥 Import จาก LINE</button>
             </div>
             
-            <!-- Create New Tab -->
             <div id="create-tab" class="tab-content">
                 <p>สร้าง Virtual Channel ใหม่พร้อม credentials ที่เราสร้างให้</p>
                 <form onsubmit="return createVirtualChannel(event)">
@@ -84,7 +82,6 @@
                 </form>
             </div>
             
-            <!-- Import LINE Tab -->
             <div id="import-tab" class="tab-content" style="display: none;">
                 <div class="info-box">
                     <p><strong>💡 สำหรับ Thunder Solution:</strong> ใช้ Channel ID และ Channel Secret จาก LINE ที่มีอยู่แล้ว</p>
@@ -156,7 +153,6 @@
                 </td>
             </tr>
             
-            <!-- Credentials Row (Hidden by default) -->
             <tr id="credentials-{{ channel.channel_id }}" style="display: none;">
                 <td colspan="8">
                     <div class="credentials">
