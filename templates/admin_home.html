@@ -11,19 +11,76 @@
     nav a { background: #6c757d; color: #fff; padding: 10px 15px; border-radius: 6px; text-decoration: none; margin-right: 10px; }
     nav a:hover { background: #5a6268; }
     .status-box { margin-top: 20px; background: #e7f3ff; padding: 15px; border-radius: 8px; }
+    .status-item { margin: 8px 0; }
+    .status-ok { color: #28a745; font-weight: bold; }
+    .status-error { color: #dc3545; font-weight: bold; }
+    .status-warning { color: #ffc107; font-weight: bold; }
+    .refresh-btn { background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
   </style>
+  <script>
+    function refreshStatus() {
+      fetch('/admin/status')
+      .then(resp => resp.json())
+      .then(data => {
+        if (data.status === 'success') {
+          location.reload();
+        }
+      })
+      .catch(err => console.error(err));
+    }
+  </script>
 </head>
 <body>
 <div class="container">
   <h1>🤖 Admin Dashboard</h1>
+  
   <div class="status-box">
-    <h2>สถานะระบบ</h2>
-    <p>AI: {{ 'เปิด' if config.ai_enabled else 'ปิด' }} | ตรวจสอบสลิป: {{ 'เปิด' if config.slip_enabled else 'ปิด' }}</p>
-    <p>จำนวนข้อความในระบบทั้งหมด: {{ total_chat_history }}</p>
+    <h2>📊 สถานะระบบ <button class="refresh-btn" onclick="refreshStatus()">🔄 รีเฟรช</button></h2>
+    
+    <div class="status-item">
+      <strong>🤖 AI Chatbot:</strong> 
+      <span class="{{ 'status-ok' if config.ai_enabled else 'status-error' }}">
+        {{ 'เปิดใช้งาน ✅' if config.ai_enabled else 'ปิดใช้งาน ❌' }}
+      </span>
+    </div>
+    
+    <div class="status-item">
+      <strong>🧾 ตรวจสอบสลิป:</strong> 
+      <span class="{{ 'status-ok' if config.slip_enabled else 'status-error' }}">
+        {{ 'เปิดใช้งาน ✅' if config.slip_enabled else 'ปิดใช้งาน ❌' }}
+      </span>
+    </div>
+    
+    <div class="status-item">
+      <strong>💬 จำนวนข้อความทั้งหมด:</strong> {{ total_chat_history }} ข้อความ
+    </div>
+    
+    <div class="status-item">
+      <strong>📝 AI Prompt:</strong> 
+      <span class="{{ 'status-ok' if config.ai_prompt and config.ai_prompt|length > 50 else 'status-warning' }}">
+        {{ config.ai_prompt|length }} ตัวอักษร
+        {{ '✅' if config.ai_prompt and config.ai_prompt|length > 50 else '⚠️ สั้นเกินไป' }}
+      </span>
+    </div>
+    
+    <div class="status-item">
+      <strong>🔑 API Keys:</strong>
+      <span class="{{ 'status-ok' if config.openai_api_key else 'status-error' }}">
+        OpenAI: {{ '✅' if config.openai_api_key else '❌' }}
+      </span>
+      <span class="{{ 'status-ok' if config.thunder_api_token else 'status-error' }}">
+        Thunder: {{ '✅' if config.thunder_api_token else '❌' }}
+      </span>
+      <span class="{{ 'status-ok' if config.line_channel_access_token else 'status-error' }}">
+        LINE: {{ '✅' if config.line_channel_access_token else '❌' }}
+      </span>
+    </div>
   </div>
+  
   <nav>
     <a href="/admin/chat">📝 ดูประวัติการแชท</a>
     <a href="/admin/settings">⚙️ ตั้งค่าระบบ</a>
+    <a href="/admin/config/current" target="_blank">🔍 ดู Config</a>
   </nav>
 </div>
 </body>
