@@ -25,162 +25,304 @@
         .nav-back { margin-bottom: 20px; }
         .nav-back a { color: #007bff; text-decoration: none; }
         .nav-back a:hover { text-decoration: underline; }
+        .test-buttons { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .test-btn { background: #28a745; font-size: 12px; padding: 8px 15px; border: none; border-radius: 4px; color: white; cursor: pointer; }
+        .test-btn.debug { background: #6c757d; }
+        .test-btn.reload { background: #17a2b8; }
+        .test-btn:hover { opacity: 0.8; }
+        .status-indicator { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 5px; }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-warning { background: #fff3cd; color: #856404; }
     </style>
     <script>
-       function submitSettings(event) {
-           event.preventDefault();
-           const form = event.target;
-           const data = {
-               line_channel_secret: form.line_channel_secret.value,
-               line_channel_access_token: form.line_channel_access_token.value,
-               thunder_api_token: form.thunder_api_token.value,
-               openai_api_key: form.openai_api_key.value,
-               ai_prompt: form.ai_prompt.value,
-               wallet_phone_number: form.wallet_phone_number.value,
-               ai_enabled: form.ai_enabled.checked,
-               slip_enabled: form.slip_enabled.checked
-           };
-           
-           const submitBtn = form.querySelector('button[type="submit"]');
-           const originalText = submitBtn.textContent;
-           submitBtn.textContent = '💾 กำลังบันทึก...';
-           submitBtn.disabled = true;
-           
-           fetch('/admin/settings/update', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify(data)
-           }).then(resp => resp.json())
-           .then(data => {
-               if (data.status === 'success') {
-                   alert('✅ ' + data.message);
-               } else {
-                   alert('❌ ' + data.message);
-               }
-           }).catch(err => {
-               console.error(err);
-               alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
-           }).finally(() => {
-               submitBtn.textContent = originalText;
-               submitBtn.disabled = false;
-           });
-           return false;
-       }
-       
-       function resetSettings() {
-           if (!confirm('⚠️ ต้องการรีเซ็ตการตั้งค่าทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?\n(การกระทำนี้ไม่สามารถย้อนกลับได้)')) {
-               return;
-           }
-           
-           fetch('/admin/settings/reset', {
-               method: 'POST'
-           }).then(resp => resp.json())
-           .then(data => {
-               if (data.status === 'success') {
-                   alert('✅ ' + data.message);
-                   location.reload();
-               } else {
-                   alert('❌ ' + data.message);
-               }
-           }).catch(err => {
-               console.error(err);
-               alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
-           });
-       }
-       
-       function useExample(exampleText) {
-           document.getElementById('ai_prompt').value = exampleText;
-       }
-       
-       function testConfig() {
-           fetch('/admin/config/current')
-           .then(resp => resp.json())
-           .then(data => {
-               alert('Current Config:\n' + JSON.stringify(data, null, 2));
-           })
-           .catch(err => {
-               alert('Error: ' + err);
-           });
-       }
-   </script>
+        function submitSettings(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                line_channel_secret: form.line_channel_secret.value,
+                line_channel_access_token: form.line_channel_access_token.value,
+                thunder_api_token: form.thunder_api_token.value,
+                openai_api_key: form.openai_api_key.value,
+                ai_prompt: form.ai_prompt.value,
+                wallet_phone_number: form.wallet_phone_number.value,
+                ai_enabled: form.ai_enabled.checked,
+                slip_enabled: form.slip_enabled.checked
+            };
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '💾 กำลังบันทึก...';
+            submitBtn.disabled = true;
+            
+            fetch('/admin/settings/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    // อัปเดตตัวนับความยาว
+                    updatePromptLength();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            }).finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+            return false;
+        }
+        
+        function resetSettings() {
+            if (!confirm('⚠️ ต้องการรีเซ็ตการตั้งค่าทั้งหมดกลับเป็นค่าเริ่มต้นหรือไม่?\n(การกระทำนี้ไม่สามารถย้อนกลับได้)')) {
+                return;
+            }
+            
+            fetch('/admin/settings/reset', {
+                method: 'POST'
+            }).then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ ' + data.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            });
+        }
+        
+        function useExample(exampleText) {
+            document.getElementById('ai_prompt').value = exampleText;
+            updatePromptLength();
+        }
+        
+        function testAIPrompt() {
+            const promptText = document.getElementById('ai_prompt').value;
+            if (!promptText.trim()) {
+                alert('❌ กรุณาใส่ AI Prompt ก่อนทดสอบ');
+                return;
+            }
+            
+            const testMessage = prompt('ใส่ข้อความที่ต้องการทดสอบ AI:', 'สวัสดีครับ');
+            if (!testMessage) return;
+            
+            const testBtn = event.target;
+            const originalText = testBtn.textContent;
+            testBtn.textContent = '⏳ กำลังทดสอบ...';
+            testBtn.disabled = true;
+            
+            // ส่งข้อมูลไปทดสอบ
+            fetch('/admin/test-ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: promptText, 
+                    test_message: testMessage 
+                })
+            }).then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('🤖 AI Response:\n\n' + data.response + '\n\n⏱️ เวลาตอบ: ' + data.response_time + ' วินาที\n📏 Prompt ยาว: ' + data.prompt_length + ' ตัวอักษร');
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('❌ เกิดข้อผิดพลาดในการทดสอบ');
+            }).finally(() => {
+                testBtn.textContent = originalText;
+                testBtn.disabled = false;
+            });
+        }
+
+        function debugConfig() {
+            fetch('/admin/debug/config')
+            .then(resp => resp.json())
+            .then(data => {
+                let debugInfo = '🔍 Debug Config Information:\n\n';
+                debugInfo += '📁 File exists: ' + data.file_exists + '\n';
+                debugInfo += '💾 Memory AI Prompt: ' + data.ai_prompt_memory_length + ' chars\n';
+                debugInfo += '📄 File AI Prompt: ' + data.ai_prompt_file_length + ' chars\n\n';
+                debugInfo += '🧠 Config in Memory:\n' + JSON.stringify(data.config_in_memory, null, 2) + '\n\n';
+                debugInfo += '📄 Config from File:\n' + JSON.stringify(data.config_from_file, null, 2);
+                
+                // แสดงใน window ใหม่
+                const debugWindow = window.open('', '_blank', 'width=800,height=600');
+                debugWindow.document.write(`
+                    <html>
+                        <head><title>Debug Config</title></head>
+                        <body style="font-family: monospace; padding: 20px;">
+                            <h2>🔍 Configuration Debug</h2>
+                            <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; white-space: pre-wrap;">${debugInfo}</pre>
+                            <button onclick="window.close()" style="margin-top: 10px; padding: 10px 20px;">ปิด</button>
+                        </body>
+                    </html>
+                `);
+            })
+            .catch(err => {
+                alert('❌ Error: ' + err);
+            });
+        }
+
+        function reloadConfig() {
+            const reloadBtn = event.target;
+            const originalText = reloadBtn.textContent;
+            reloadBtn.textContent = '⏳ กำลังโหลด...';
+            reloadBtn.disabled = true;
+
+            fetch('/admin/config/reload', { method: 'POST' })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ โหลด Config ใหม่เรียบร้อย\n\nAI Prompt: ' + data.ai_prompt_length + ' ตัวอักษร');
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                alert('❌ Error: ' + err);
+            }).finally(() => {
+                reloadBtn.textContent = originalText;
+                reloadBtn.disabled = false;
+            });
+        }
+
+        function updatePromptLength() {
+            const promptText = document.getElementById('ai_prompt').value;
+            const lengthDisplay = document.getElementById('prompt-length');
+            if (lengthDisplay) {
+                lengthDisplay.textContent = promptText.length;
+            }
+        }
+
+        // อัปเดตตัวนับเมื่อพิมพ์
+        document.addEventListener('DOMContentLoaded', function() {
+            const promptTextarea = document.getElementById('ai_prompt');
+            if (promptTextarea) {
+                promptTextarea.addEventListener('input', updatePromptLength);
+                updatePromptLength(); // อัปเดตครั้งแรก
+            }
+        });
+    </script>
 </head>
 <body>
 <div class="container">
-   <div class="nav-back">
-       <a href="/admin">← กลับไปหน้าแดชบอร์ด</a>
-   </div>
-   
-   <h1>⚙️ ตั้งค่าระบบ</h1>
-   
-   <div class="current-config">
-       <h3>📊 สถานะปัจจุบัน</h3>
-       <p><strong>AI Chatbot:</strong> {{ 'เปิดใช้งาน ✅' if config.ai_enabled else 'ปิดใช้งาน ❌' }}</p>
-       <p><strong>ตรวจสอบสลิป:</strong> {{ 'เปิดใช้งาน ✅' if config.slip_enabled else 'ปิดใช้งาน ❌' }}</p>
-       <p><strong>การจัดเก็บ:</strong> ข้อมูลจะถูกบันทึกลงไฟล์ app_config.json</p>
-       <button type="button" onclick="testConfig()" style="background: #6c757d; font-size: 12px; padding: 5px 10px;">🔍 ดู Config ปัจจุบัน</button>
-   </div>
-   
-   <form onsubmit="submitSettings(event)">
-       <h2>🔐 API Credentials</h2>
-       
-       <div class="form-group">
-           <label>LINE Channel Secret</label>
-           <input type="password" name="line_channel_secret" value="{{ config.line_channel_secret }}">
-       </div>
-       
-       <div class="form-group">
-           <label>LINE Channel Access Token</label>
-           <input type="password" name="line_channel_access_token" value="{{ config.line_channel_access_token }}">
-       </div>
-       
-       <div class="form-group">
-           <label>Thunder API Token</label>
-           <input type="password" name="thunder_api_token" value="{{ config.thunder_api_token }}">
-           <small style="color: #6c757d;">💡 ได้รับจาก thunder.in.th</small>
-       </div>
-       
-       <div class="form-group">
-           <label>OpenAI API Key</label>
-           <input type="password" name="openai_api_key" value="{{ config.openai_api_key }}">
-           <small style="color: #6c757d;">💡 ได้รับจาก platform.openai.com</small>
-       </div>
-       
-       <h2>🤖 AI Configuration</h2>
-       
-       <div class="prompt-examples">
-           <h4>📝 ตัวอย่าง AI Prompt สำเร็จรูป (คลิกเพื่อใช้):</h4>
-           <p><button type="button" onclick="useExample('คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง หากลูกค้าถามเรื่องอื่นให้บอกว่าช่วยเหลือเฉพาะเรื่องการชำระเงินเท่านั้น')" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🏪 ร้านค้าทั่วไป</button></p>
-           <p><button type="button" onclick="useExample('คุณเป็นพนักงานแคชเชียร์ของร้านอาหารที่เชี่ยวชาญเรื่องการรับชำระเงินและตรวจสอบสลิปโอนเงิน ให้ความช่วยเหลือลูกค้าเรื่องการชำระเงินเท่านั้น ตอบด้วยน้ำเสียงเป็นกันเองและอบอุ่น หากถามเรื่องอื่นให้บอกว่าช่วยเหลือเฉพาะการชำระเงินเท่านั้น')" style="background: #fd7e14; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🍕 ร้านอาหาร</button></p>
-           <p><button type="button" onclick="useExample('คุณเป็นผู้ช่วยขายของร้านออนไลน์ที่เชี่ยวชาญเรื่องการตรวจสอบการชำระเงินและสลิปโอนเงิน ให้ข้อมูลเกี่ยวกับการสั่งซื้อและการชำระเงินเท่านั้น ห้ามคุยเรื่องอื่นที่ไม่เกี่ยวข้องกับสินค้าและการขาย ตอบด้วยภาษาไทยสุภาพ')" style="background: #6f42c1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🛒 ร้านออนไลน์</button></p>
-       </div>
-       
-       <div class="form-group">
-           <label>AI Prompt (คำแนะนำสำหรับ AI) - สามารถแก้ไขได้ตามต้องการ:</label>
-           <textarea id="ai_prompt" name="ai_prompt" class="ai-prompt-textarea" placeholder="ใส่คำแนะนำสำหรับ AI ว่าควรตอบอย่างไร...">{{ config.ai_prompt }}</textarea>
-           <small style="color: #6c757d;">💡 เคล็ดลับ: ระบุให้ชัดเจนว่าต้องการให้ AI ตอบเรื่องอะไรบ้าง และห้ามตอบเรื่องอะไร</small>
-       </div>
-       
-       <div class="switch-group">
-           <label><input type="checkbox" name="ai_enabled" {% if config.ai_enabled %}checked{% endif %}> เปิดใช้งาน AI Chatbot</label>
-       </div>
-       
-       <div class="switch-group">
-           <label><input type="checkbox" name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป</label>
-       </div>
-       
-       <h2>💳 Payment Configuration</h2>
-       
-       <div class="form-group">
-           <label>เบอร์วอลเลท (Wallet Phone Number)</label>
-           <input type="text" name="wallet_phone_number" value="{{ config.wallet_phone_number }}" placeholder="เช่น 0812345678">
-           <small style="color: #6c757d;">💡 ใส่เบอร์วอลเลทหากต้องการตรวจสอบสลิป TrueWallet</small>
-       </div>
-       
-       <div style="margin-top: 30px;">
-           <button type="submit">💾 บันทึกการตั้งค่า</button>
-           <button type="button" class="danger" onclick="resetSettings()">🔄 รีเซ็ตเป็นค่าเริ่มต้น</button>
-       </div>
-   </form>
+    <div class="nav-back">
+        <a href="/admin">← กลับไปหน้าแดชบอร์ด</a>
+    </div>
+    
+    <h1>⚙️ ตั้งค่าระบบ</h1>
+    
+    <div class="current-config">
+        <h3>📊 สถานะปัจจุบัน</h3>
+        <p>
+            <strong>🤖 AI Chatbot:</strong> 
+            <span class="status-indicator {{ 'status-ok' if config.ai_enabled else 'status-error' }}">
+                {{ 'เปิดใช้งาน' if config.ai_enabled else 'ปิดใช้งาน' }}
+            </span>
+        </p>
+        <p>
+            <strong>🧾 ตรวจสอบสลิป:</strong> 
+            <span class="status-indicator {{ 'status-ok' if config.slip_enabled else 'status-error' }}">
+                {{ 'เปิดใช้งาน' if config.slip_enabled else 'ปิดใช้งาน' }}
+            </span>
+        </p>
+        <p>
+            <strong>🔑 API Keys:</strong>
+            <span class="status-indicator {{ 'status-ok' if config.openai_api_key else 'status-error' }}">
+                OpenAI: {{ '✅' if config.openai_api_key else '❌' }}
+            </span>
+            <span class="status-indicator {{ 'status-ok' if config.thunder_api_token else 'status-error' }}">
+                Thunder: {{ '✅' if config.thunder_api_token else '❌' }}
+            </span>
+            <span class="status-indicator {{ 'status-ok' if config.line_channel_access_token else 'status-error' }}">
+                LINE: {{ '✅' if config.line_channel_access_token else '❌' }}
+            </span>
+        </p>
+        <p><strong>💾 การจัดเก็บ:</strong> ข้อมูลจะถูกบันทึกลงไฟล์ app_config.json</p>
+    </div>
+    
+    <form onsubmit="submitSettings(event)">
+        <h2>🔐 API Credentials</h2>
+        
+        <div class="form-group">
+            <label>LINE Channel Secret</label>
+            <input type="password" name="line_channel_secret" value="{{ config.line_channel_secret }}" placeholder="ดึงจาก LINE Developers Console">
+        </div>
+        
+        <div class="form-group">
+            <label>LINE Channel Access Token</label>
+            <input type="password" name="line_channel_access_token" value="{{ config.line_channel_access_token }}" placeholder="ดึงจาก LINE Developers Console">
+        </div>
+        
+        <div class="form-group">
+            <label>Thunder API Token</label>
+            <input type="password" name="thunder_api_token" value="{{ config.thunder_api_token }}" placeholder="ดึงจาก thunder.in.th">
+            <small style="color: #6c757d;">💡 สมัครและรับ Token จาก <a href="https://thunder.in.th" target="_blank">thunder.in.th</a></small>
+        </div>
+        
+        <div class="form-group">
+            <label>OpenAI API Key</label>
+            <input type="password" name="openai_api_key" value="{{ config.openai_api_key }}" placeholder="sk-proj-...">
+            <small style="color: #6c757d;">💡 สร้าง API Key จาก <a href="https://platform.openai.com" target="_blank">platform.openai.com</a></small>
+        </div>
+        
+        <h2>🤖 AI Configuration</h2>
+        
+        <div class="prompt-examples">
+            <h4>📝 ตัวอย่าง AI Prompt สำเร็จรูป (คลิกเพื่อใช้):</h4>
+            <p><button type="button" onclick="useExample('คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง หากลูกค้าถามเรื่องอื่นให้บอกว่าช่วยเหลือเฉพาะเรื่องการชำระเงินเท่านั้น')" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🏪 ร้านค้าทั่วไป</button></p>
+            <p><button type="button" onclick="useExample('คุณเป็นพนักงานแคชเชียร์ของร้านอาหารที่เชี่ยวชาญเรื่องการรับชำระเงินและตรวจสอบสลิปโอนเงิน ให้ความช่วยเหลือลูกค้าเรื่องการชำระเงินเท่านั้น ตอบด้วยน้ำเสียงเป็นกันเองและอบอุ่น หากถามเรื่องอื่นให้บอกว่าช่วยเหลือเฉพาะการชำระเงินเท่านั้น')" style="background: #fd7e14; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🍕 ร้านอาหาร</button></p>
+            <p><button type="button" onclick="useExample('คุณเป็นผู้ช่วยขายของร้านออนไลน์ที่เชี่ยวชาญเรื่องการตรวจสอบการชำระเงินและสลิปโอนเงิน ให้ข้อมูลเกี่ยวกับการสั่งซื้อและการชำระเงินเท่านั้น ห้ามคุยเรื่องอื่นที่ไม่เกี่ยวข้องกับสินค้าและการขาย ตอบด้วยภาษาไทยสุภาพ')" style="background: #6f42c1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🛒 ร้านออนไลน์</button></p>
+        </div>
+        
+        <div class="form-group">
+            <label>AI Prompt (คำแนะนำสำหรับ AI) - สามารถแก้ไขได้ตามต้องการ:</label>
+            <div class="test-buttons">
+                <button type="button" class="test-btn" onclick="testAIPrompt()">🧪 ทดสอบ AI</button>
+                <button type="button" class="test-btn debug" onclick="debugConfig()">🔍 Debug Config</button>
+                <button type="button" class="test-btn reload" onclick="reloadConfig()">🔄 โหลด Config ใหม่</button>
+            </div>
+            <textarea id="ai_prompt" name="ai_prompt" class="ai-prompt-textarea" placeholder="ใส่คำแนะนำสำหรับ AI ว่าควรตอบอย่างไร...">{{ config.ai_prompt }}</textarea>
+            <small style="color: #6c757d;">
+                💡 เคล็ดลับ: ระบุให้ชัดเจนว่าต้องการให้ AI ตอบเรื่องอะไรบ้าง และห้ามตอบเรื่องอะไร<br>
+                📏 ความยาวปัจจุบัน: <span id="prompt-length">{{ config.ai_prompt|length }}</span> ตัวอักษร
+                <span class="status-indicator {{ 'status-ok' if config.ai_prompt|length > 50 else 'status-warning' }}">
+                    {{ 'เหมาะสม' if config.ai_prompt|length > 50 else 'สั้นเกินไป' }}
+                </span>
+            </small>
+        </div>
+        
+        <div class="switch-group">
+            <label><input type="checkbox" name="ai_enabled" {% if config.ai_enabled %}checked{% endif %}> เปิดใช้งาน AI Chatbot</label>
+        </div>
+        
+        <div class="switch-group">
+            <label><input type="checkbox" name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป</label>
+        </div>
+        
+        <h2>💳 Payment Configuration</h2>
+        
+        <div class="form-group">
+            <label>เบอร์วอลเลท (Wallet Phone Number)</label>
+            <input type="text" name="wallet_phone_number" value="{{ config.wallet_phone_number }}" placeholder="เช่น 0812345678">
+            <small style="color: #6c757d;">💡 ใส่เบอร์วอลเลทหากต้องการตรวจสอบสลิป TrueWallet (ไม่ใส่ = ตรวจสอบสลิปธนาคารทั่วไป)</small>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <button type="submit">💾 บันทึกการตั้งค่า</button>
+            <button type="button" class="danger" onclick="resetSettings()">🔄 รีเซ็ตเป็นค่าเริ่มต้น</button>
+        </div>
+    </form>
 </div>
 </body>
 </html>
