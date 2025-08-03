@@ -31,6 +31,7 @@ logger = logging.getLogger("line_middleware")
 app = FastAPI(title="LINE OA Webhook Middleware")
 templates = Jinja2Templates(directory="templates")
 
+# สร้างสภาพแวดล้อม Jinja2 และเพิ่มฟิลเตอร์ strftime
 def format_datetime(value, format_string="%Y-%m-%d %H:%M:%S"):
     """
     Custom Jinja2 filter to format datetime objects.
@@ -115,10 +116,6 @@ def load_from_database() -> bool:
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
-        # Load config
-        # global config_store
-        # config_store = dict(cursor.fetchall())
         
         cursor.execute('''
             SELECT channel_id, channel_secret, access_token, name, description, status, channel_type, created_at
@@ -209,10 +206,7 @@ def dispatch_event(event: Dict[str, Any]) -> None:
             reply_text = get_chat_response(message.get("text"), user_id)
             send_line_reply(reply_token, reply_text)
             save_chat_history(user_id, "out", {"type": "text", "text": reply_text}, "chat_bot")
-    
-    # After internal processing, forward the event to all registered endpoints
-    # forward_event_to_external(event)
-    
+
 def send_line_reply(reply_token: str, text: str) -> None:
     """Send a reply message to the user via LINE's reply API."""
     access_token = config_store.get("line_channel_access_token")
@@ -289,160 +283,58 @@ async def send_admin_message(request: Request) -> JSONResponse:
     
     return JSONResponse(content={"status": "sent", "message": "Message sent successfully"})
 
-# ===== VIRTUAL CHANNEL ROUTES =====
-# Keeping these for completeness, but they need to be fully integrated with the new DB model if used.
-@app.post("/admin/virtual-channels/create")
-async def create_virtual_channel(request: Request) -> JSONResponse:
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-    
-    name = data.get("name", "").strip()
-    description = data.get("description", "").strip()
-    
-    if not name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Channel name is required")
-    
-    virtual_channel = {
-        "channel_id": f"VC{uuid.uuid4().hex[:10].upper()}",
-        "channel_secret": secrets.token_urlsafe(32),
-        "access_token": f"VT{secrets.token_urlsafe(40)}",
-        "created_at": datetime.utcnow().isoformat(),
-        "status": "active",
-        "type": "virtual",
-        "name": name,
-        "description": description,
-        "id": len(virtual_channels) + 1
-    }
-    
-    virtual_channels.append(virtual_channel)
-    save_storage()
-    
-    base_url = f"https://{request.headers.get('host', 'localhost')}"
-    
-    return JSONResponse(content={
-        "status": "success",
-        "channel": virtual_channel,
-        "webhook_urls": {
-            "messaging_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/webhook",
-            "content_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/content",
-            "push_api": f"{base_url}/virtual-api/v2/bot/message/push"
-        }
-    })
+# ===== WEB ROUTES =====
 
-@app.post("/admin/virtual-channels/import-line")
-async def import_line_credentials(request: Request) -> JSONResponse:
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
+
+@app.post("/line/webhook")
+async def line_webhook(request: Request) -> JSONResponse:
+    body = await request.body()
+    signature = request.headers.get("x-line-signature", "")
+    channel_secret = config_store.get("line_channel_secret", "")
+    
+    if not verify_line_signature(body, signature, channel_secret):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+    
     try:
-        data = await request.json()
-    except Exception:
+        payload = json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
     
-    name = data.get("name", "").strip()
-    description = data.get("description", "").strip()
-    line_channel_id = data.get("line_channel_id", "").strip()
-    line_channel_secret = data.get("line_channel_secret", "").strip()
+    events = payload.get("events", [])
+    for event in events:
+        threading.Thread(target=dispatch_event, args=(event,), daemon=True).start()
     
-    if not all([name, line_channel_id, line_channel_secret]):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required fields")
-    
-    for existing_channel in virtual_channels:
-        if existing_channel.get("channel_id") == line_channel_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Channel ID already exists")
-    
-    access_token = f"VT{secrets.token_urlsafe(40)}"
-    
-    virtual_channel = {
-        "id": len(virtual_channels) + 1,
-        "channel_id": line_channel_id,
-        "channel_secret": line_channel_secret,
-        "access_token": access_token,
-        "name": name,
-        "description": description,
-        "created_at": datetime.utcnow().isoformat(),
-        "status": "active",
-        "type": "line_import"
-    }
-    
-    virtual_channels.append(virtual_channel)
-    save_storage()
-    
-    base_url = f"https://{request.headers.get('host', 'localhost')}"
-    
-    return JSONResponse(content={
-        "status": "success",
-        "channel": virtual_channel,
-        "webhook_urls": {
-            "messaging_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/webhook",
-            "content_api": f"{base_url}/virtual/{virtual_channel['channel_id']}/content",
-            "push_api": f"{base_url}/virtual-api/v2/bot/message/push"
-        }
-    })
-@app.get("/admin/virtual-channels", response_class=HTMLResponse)
-async def admin_virtual_channels(request: Request):
-    base_url = f"https://{request.headers.get('host', 'localhost')}"
+    return JSONResponse(content={"status": "ok"})
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_home(request: Request):
+    base_url = str(request.base_url).rstrip('/')
+    webhook_url = f"{base_url}/line/webhook"
+    slip_url = f"{base_url}/bot/slip"
+    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     return templates.TemplateResponse(
-        "virtual_channels.html", 
+        "admin_home.html", 
         {
-            "request": request,
-            "channels": virtual_channels,
-            "base_url": base_url
+            "request": request, 
+            "config": config_store,
+            "webhook_url": webhook_url,
+            "slip_webhook_url": slip_url,
+            "virtual_channels_count": len([c for c in virtual_channels if c.get("status") == "active"]),
+            "total_chat_history": len(chat_history),
+            "storage_backend": "Database + JSON" if USE_DATABASE else "JSON only",
+            "last_updated_time": current_time_str
         }
     )
 
-@app.post("/admin/virtual-channels/{channel_id}/toggle")
-async def toggle_virtual_channel(channel_id: str) -> JSONResponse:
-    for channel in virtual_channels:
-        if channel.get("channel_id") == channel_id:
-            current_status = channel.get("status", "active")
-            new_status = "inactive" if current_status == "active" else "active"
-            channel["status"] = new_status
-            save_storage()
-            return JSONResponse(content={
-                "status": "success", 
-                "new_status": new_status,
-                "message": f"Channel {channel_id} is now {new_status}"
-            })
-    
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Virtual channel not found")
-
-@app.get("/admin/data-info")
-async def get_data_info() -> JSONResponse:
-    db_exists = os.path.exists(DB_PATH) if USE_DATABASE else False
-    json_exists = os.path.exists(STORAGE_PATH)
-    
-    try:
-        json_size = os.path.getsize(STORAGE_PATH) if json_exists else 0
-        db_size = os.path.getsize(DB_PATH) if db_exists else 0
-    except:
-        json_size = db_size = 0
-    
-    return JSONResponse(content={
-        "storage_backends": {
-            "database": {
-                "enabled": USE_DATABASE,
-                "exists": db_exists,
-                "path": DB_PATH,
-                "size_bytes": db_size
-            },
-            "json_file": {
-                "enabled": True,
-                "exists": json_exists,
-                "path": STORAGE_PATH,
-                "size_bytes": json_size
-            }
-        },
-        "data_counts": {
-            "virtual_channels": len(virtual_channels),
-            "chat_history": 0,
-            "forward_endpoints": len(forward_endpoints),
-            "config_items": len(config_store)
-        },
-        "environment": {
-            "is_heroku": 'DYNO' in os.environ,
-            "database_url_available": bool(os.getenv("DATABASE_URL"))
-        }
-    })
+@app.get("/admin/chat", response_class=HTMLResponse)
+async def admin_chat(request: Request):
+    # ปรับให้ดึง chat history จากฐานข้อมูล
+    # chat_history = get_all_chat_history()
+    return templates.TemplateResponse("chat_history.html", {"request": request, "chat_history": chat_history})
 
 @app.get("/admin/forwarding", response_class=HTMLResponse)
 async def admin_forwarding(request: Request):
