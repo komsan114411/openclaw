@@ -7,7 +7,7 @@ logger = logging.getLogger("slip_checker_service")
 
 
 def verify_slip_with_thunder(message_id: str,
-                              test_image_data: Optional[bytes] = None) -> Dict[str, Any]:
+                             test_image_data: Optional[bytes] = None) -> Dict[str, Any]:
     """
     ตรวจสอบรูปสลิปจาก LINE หรือ จาก test buffer
     ส่งคืน { status: str, type: str, data/message }
@@ -57,10 +57,15 @@ def verify_slip_with_thunder(message_id: str,
         logger.error("Thunder API error: %s", e, exc_info=e)
         return {"status": "error", "message": "ตรวจสอบสลิปไม่ได้ในขณะนี้"}
 
-    if result.get("status") != 200 and not result.get("success", False):
-        logger.warning("Thunder replied failure: %s", result)
-        return {"status": "error", "message": "สลิปไม่ถูกต้อง ❌"}
-
+    # ตรวจสอบว่า API ตอบกลับสถานะสำเร็จหรือไม่
+    # บางครั้ง API อาจจะตอบ 200 แต่ใน body บอกว่าไม่สำเร็จ
+    if not result.get("success", False):
+        logger.warning("Thunder replied with failure: %s", result)
+        # ใช้ข้อความจาก API หากมี หรือใช้ข้อความทั่วไป
+        error_message = result.get("message", "สลิปไม่ถูกต้อง ❌")
+        return {"status": "error", "message": error_message}
+    
+    # หากสำเร็จ ให้ดึงข้อมูลอย่างปลอดภัย
     data = result.get("data", {})
     if wallet_phone:
         return {
