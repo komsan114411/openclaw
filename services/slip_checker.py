@@ -7,26 +7,29 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from utils.config_manager import config_manager
 
+# ตั้งค่าตัว logger สำหรับบริการตรวจสอบสลิปของ Thunder
 logger = logging.getLogger("slip_checker_service")
+
 
 def create_requests_session():
     """สร้าง requests session พร้อม retry strategy"""
     session = requests.Session()
-    
-    # ตั้งค่า retry strategy
+
+    # ตั้งค่า retry strategy สำหรับการเชื่อมต่อ HTTP
     retry_strategy = Retry(
         total=3,  # จำนวนครั้งที่จะลองใหม่
         backoff_factor=1,  # เวลารอระหว่างการลองใหม่
         status_forcelist=[429, 500, 502, 503, 504],  # HTTP status ที่จะลองใหม่
         allowed_methods=["POST"]  # วิธีการที่อนุญาตให้ retry
     )
-    
+
     # ตั้งค่า adapter พร้อม retry
     adapter = HTTPAdapter(max_retries=retry_strategy)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
-    
+
     return session
+
 
 def verify_slip_with_thunder(
     message_id: str,
@@ -34,7 +37,10 @@ def verify_slip_with_thunder(
     check_duplicate: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """
-    ตรวจสอบสลิปด้วย Thunder API v1 (แก้ไข connection issues)
+    ตรวจสอบสลิปด้วย Thunder API v1
+
+    ฟังก์ชันนี้ดาวน์โหลดรูปสลิปจาก LINE (ถ้ากำหนด message_id) หรือนำข้อมูลรูปจาก test_image_data
+    จากนั้นเรียก Thunder API เพื่อตรวจสอบข้อมูลสลิป โดยเลือก endpoint ให้ถูกต้องตามเอกสาร
     """
     # ตรวจสอบว่าระบบเปิดใช้งานฟังก์ชันตรวจสอบสลิปหรือไม่
     if not config_manager.get("slip_enabled"):
@@ -62,7 +68,7 @@ def verify_slip_with_thunder(
                 "status": "error",
                 "message": "ยังไม่ได้ตั้งค่า LINE Channel Access Token",
             }
-        
+
         try:
             # ใช้ session พร้อม retry สำหรับดาวน์โหลดรูป
             session = create_requests_session()
@@ -80,7 +86,7 @@ def verify_slip_with_thunder(
     if not image_data:
         return {"status": "error", "message": "ไม่พบข้อมูลรูปภาพ"}
 
-    # สร้าง unique identifier สำหรับรูปภาพ
+    # สร้าง unique identifier สำหรับรูปภาพ เพื่อใช้กับการตรวจสอบ duplicate
     if message_id:
         unique_id = f"{message_id}_{int(time.time())}"
     else:
@@ -89,14 +95,13 @@ def verify_slip_with_thunder(
 
     # ใช้ Base URL ที่ถูกต้องตามเอกสาร Thunder API
     base_url = "https://api.thunder.in.th/v1"
-    
-    # กำหนด endpoint ตามประเภท - ใช้ endpoint ที่ถูกต้องจาก log
+
+    # กำหนด endpoint ตามประเภท: TrueWallet ใช้ verify/truewallet, ธนาคารทั่วไปใช้ verify
     if wallet_phone:
         endpoint = f"{base_url}/verify/truewallet"
         logger.info(f"🔍 ใช้ TrueWallet verification สำหรับเบอร์: {wallet_phone}")
     else:
-        # จาก log เห็นว่าใช้ /verify/bank
-        endpoint = f"{base_url}/verify/bank"
+        endpoint = f"{base_url}/verify"
         logger.info("🔍 ใช้ Bank slip verification")
 
     # ตั้งค่า headers ที่ปรับปรุงแล้ว
@@ -104,8 +109,9 @@ def verify_slip_with_thunder(
         "Authorization": f"Bearer {api_token}",
         "Accept": "application/json",
         "User-Agent": "LINE-OA-Middleware/1.0",
-        "Connection": "close",  # ปิดการเชื่อมต่อหลังใช้งาน
-        "Accept-Encoding": "gzip, deflate"  # รองรับการบีบอัด
+        # กำหนดการปิดการเชื่อมต่อหลังใช้งานเพื่อหลีกเลี่ยง connection reset
+        "Connection": "close",
+        "Accept-Encoding": "gzip, deflate"
     }
 
     # เตรียมไฟล์สำหรับส่ง
@@ -113,40 +119,40 @@ def verify_slip_with_thunder(
         "file": (f"slip_{unique_id}.jpg", image_data, "image/jpeg")
     }
 
-    # เตรียมข้อมูลเพิ่มเติม
+    # เตรียมข้อมูลเพิ่มเติมสำหรับ body แบบ multipart/form-data
     data = {}
     if wallet_phone:
+        # สำหรับ TrueWallet จะต้องส่งหมายเลขโทรศัพท์
         data["phone"] = wallet_phone
-    
-    # ปิดการตรวจสอบ duplicate เพื่อหลีกเลี่ยงปัญหา
+    # ปิดการตรวจสอบ duplicate เพื่อหลีกเลี่ยง false positive
     data["checkDuplicate"] = "false"
-    data["reference"] = unique_id
+    # สำหรับการตรวจสอบสลิปธนาคาร ไม่ต้องส่ง reference ตามเอกสาร Thunder API
 
     # สร้าง session ใหม่สำหรับ Thunder API
     session = create_requests_session()
-    
+
     try:
         logger.info(f"🚀 ส่งคำขอไปยัง Thunder API: {endpoint}")
         logger.info(f"📋 Parameters: {data}")
-        
+
         # ส่งคำขอพร้อม improved error handling
         resp = session.post(
-            endpoint, 
-            headers=headers, 
-            files=files, 
-            data=data, 
+            endpoint,
+            headers=headers,
+            files=files,
+            data=data,
             timeout=(30, 90),  # (connect timeout, read timeout)
-            stream=False  # ไม่ใช้ streaming เพื่อหลีกเลี่ยง premature end
+            stream=False  # ไม่ใช้ streaming เพื่อหลีกเลี่ยงการตัดการเชื่อมต่อก่อนเวลาอันควร
         )
-        
+
         logger.info(f"📈 Thunder API Response: {resp.status_code}")
         logger.info(f"📈 Content-Length: {resp.headers.get('Content-Length', 'Unknown')}")
-        
-        # ตรวจสอบว่า response สมบูรณ์
+
+        # ตรวจสอบว่า response มีขนาดตรงตาม Content-Length หรือไม่
         content_length = resp.headers.get('Content-Length')
         if content_length and len(resp.content) < int(content_length):
             logger.warning("⚠️ Response content shorter than expected")
-        
+
         # พยายาม parse JSON response
         try:
             result = resp.json()
@@ -158,16 +164,16 @@ def verify_slip_with_thunder(
                 "status": "error",
                 "message": f"Thunder API ตอบกลับข้อมูลที่ไม่ถูกต้อง (HTTP {resp.status_code})",
             }
-        
+
         # ตรวจสอบ HTTP status code
         if resp.status_code == 200:
-            # ตรวจสอบ success field
+            # ตรวจสอบ success field ตามรูปแบบการตอบกลับ
             if result.get("success", False):
                 logger.info("✅ Thunder API successful!")
-                
+
                 # ดึงข้อมูลที่เกี่ยวข้อง
                 data_response = result.get("data", {})
-                
+
                 if not data_response:
                     logger.warning("⚠️ Thunder API response ไม่มีข้อมูลใน data field")
                     return {"status": "error", "message": "ไม่พบข้อมูลสลิปในการตอบกลับจาก Thunder API"}
@@ -182,8 +188,12 @@ def verify_slip_with_thunder(
                             "amount": str(data_response.get("amount", "0")),
                             "date": data_response.get("date", ""),
                             "time": data_response.get("time", ""),
-                            "sender": data_response.get("sender", {}).get("name", "") if isinstance(data_response.get("sender"), dict) else str(data_response.get("sender", "")),
-                            "receiver_name": data_response.get("receiver", {}).get("name", "") if isinstance(data_response.get("receiver"), dict) else str(data_response.get("receiver", "")),
+                            "sender": data_response.get("sender", {}).get("name", "")
+                            if isinstance(data_response.get("sender"), dict)
+                            else str(data_response.get("sender", "")),
+                            "receiver_name": data_response.get("receiver", {}).get("name", "")
+                            if isinstance(data_response.get("receiver"), dict)
+                            else str(data_response.get("receiver", "")),
                             "receiver_phone": wallet_phone,
                             "reference": data_response.get("transRef", unique_id),
                             "verified_by": "Thunder API (TrueWallet)",
@@ -196,7 +206,7 @@ def verify_slip_with_thunder(
                         amount_str = str(amount_value.get("amount", "0"))
                     else:
                         amount_str = str(amount_value)
-                        
+
                     return {
                         "status": "success",
                         "type": "thunder",
@@ -204,10 +214,18 @@ def verify_slip_with_thunder(
                             "amount": amount_str,
                             "date": data_response.get("date", ""),
                             "time": data_response.get("time", ""),
-                            "sender_bank": data_response.get("sender", {}).get("bank", {}).get("short", "") if isinstance(data_response.get("sender"), dict) else "",
-                            "receiver_bank": data_response.get("receiver", {}).get("bank", {}).get("short", "") if isinstance(data_response.get("receiver"), dict) else "",
-                            "sender": data_response.get("sender", {}).get("name", "") if isinstance(data_response.get("sender"), dict) else str(data_response.get("sender", "")),
-                            "receiver_name": data_response.get("receiver", {}).get("name", "") if isinstance(data_response.get("receiver"), dict) else str(data_response.get("receiver", "")),
+                            "sender_bank": data_response.get("sender", {}).get("bank", {}).get("short", "")
+                            if isinstance(data_response.get("sender"), dict)
+                            else "",
+                            "receiver_bank": data_response.get("receiver", {}).get("bank", {}).get("short", "")
+                            if isinstance(data_response.get("receiver"), dict)
+                            else "",
+                            "sender": data_response.get("sender", {}).get("name", "")
+                            if isinstance(data_response.get("sender"), dict)
+                            else str(data_response.get("sender", "")),
+                            "receiver_name": data_response.get("receiver", {}).get("name", "")
+                            if isinstance(data_response.get("receiver"), dict)
+                            else str(data_response.get("receiver", "")),
                             "reference": data_response.get("transRef", unique_id),
                             "verified_by": "Thunder API (Bank)",
                         },
@@ -217,7 +235,7 @@ def verify_slip_with_thunder(
                 error_msg = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                 logger.warning(f"❌ Thunder API returned success=false: {error_msg}")
                 return {"status": "error", "message": error_msg}
-        
+
         elif resp.status_code == 400:
             error_msg = result.get("message", "Bad Request")
             if "duplicate" in error_msg.lower():
@@ -229,7 +247,7 @@ def verify_slip_with_thunder(
                 }
             else:
                 return {"status": "error", "message": f"Thunder API: {error_msg}"}
-        
+
         elif resp.status_code == 401:
             return {"status": "error", "message": "Thunder API Token ไม่ถูกต้องหรือหมดอายุ"}
         elif resp.status_code == 403:
@@ -247,26 +265,26 @@ def verify_slip_with_thunder(
     except requests.exceptions.ChunkedEncodingError as e:
         logger.error("❌ Thunder API chunked encoding error: %s", e)
         return {"status": "error", "message": "Thunder API: การตอบกลับไม่สมบูรณ์ กรุณาลองใหม่"}
-    
+
     except requests.exceptions.ConnectionError as e:
         logger.error("❌ Thunder API connection error: %s", e)
         return {"status": "error", "message": "ไม่สามารถเชื่อมต่อกับ Thunder API ได้ กรุณาตรวจสอบอินเทอร์เน็ต"}
-    
+
     except requests.exceptions.Timeout as e:
         logger.error("❌ Thunder API timeout: %s", e)
         return {"status": "error", "message": "Thunder API ตอบสนองช้าเกินไป กรุณาลองใหม่อีกครั้ง"}
-    
+
     except requests.exceptions.RequestException as e:
         logger.exception("❌ Thunder API request error: %s", e)
         return {"status": "error", "message": f"เกิดข้อผิดพลาดในการเชื่อมต่อ Thunder API: {str(e)}"}
-    
+
     except Exception as e:
         logger.exception("❌ Unexpected error: %s", e)
         return {"status": "error", "message": f"เกิดข้อผิดพลาดไม่คาดคิด: {str(e)}"}
-    
+
     finally:
         # ปิด session เสมอ
         try:
             session.close()
-        except:
+        except Exception:
             pass
