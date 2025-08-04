@@ -13,16 +13,22 @@ API_FAILURE_CACHE = {
     "kbank": {"last_failure": 0, "failure_count": 0}
 }
 
-def is_api_recently_failed(api_name: str, cooldown_minutes: int = 2) -> bool:
-    """ตรวจสอบว่า API นี้เพิ่งล้มเหลวไปหรือไม่"""
+def is_api_recently_failed(api_name: str, cooldown_minutes: int = 0.5) -> bool:
+    """ตรวจสอบว่า API นี้เพิ่งล้มเหลวไปหรือไม่ (ลด cooldown เป็น 30 วินาที)"""
     current_time = time.time()
     cache = API_FAILURE_CACHE.get(api_name, {"last_failure": 0, "failure_count": 0})
     
-    # ถ้าล้มเหลวเกิน 5 ครั้ง ให้ cooldown นานขึ้น
-    if cache["failure_count"] >= 5:
+    # ถ้าล้มเหลวเกิน 10 ครั้ง ให้ cooldown นานขึ้น
+    if cache["failure_count"] >= 10:
         cooldown_minutes = 10
+    elif cache["failure_count"] >= 5:
+        cooldown_minutes = 2
     elif cache["failure_count"] >= 3:
-        cooldown_minutes = 5
+        cooldown_minutes = 1
+    
+    # ถ้าไม่มี API อื่นให้ลด cooldown เป็น 0
+    if len(get_available_apis()) == 1:
+        cooldown_minutes = 0
     
     if current_time - cache["last_failure"] < (cooldown_minutes * 60):
         return True
