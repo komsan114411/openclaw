@@ -153,7 +153,7 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
         return False
 
 def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
-    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (แก้ไข 400 error + retry)"""
+    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (ปรับปรุงแล้ว)"""
     access_token = config_manager.get("line_channel_access_token")
     if not access_token:
         logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
@@ -267,10 +267,33 @@ def get_duplicate_slip_data(slip_hash: str) -> Optional[Dict]:
     """ดึงข้อมูลสลิปซ้ำที่เคยตรวจสอบแล้ว"""
     return notification_manager.duplicate_slip_cache.get(slip_hash)
 
+def check_slip_system_status() -> Dict[str, Any]:
+    """ตรวจสอบสถานะระบบตรวจสอบสลิป"""
+    slip_enabled = config_manager.get("slip_enabled", False)
+    thunder_token = config_manager.get("thunder_api_token", "").strip()
+    kbank_enabled = config_manager.get("kbank_enabled", False)
+    kbank_consumer_id = config_manager.get("kbank_consumer_id", "").strip()
+    kbank_consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
+    
+    status = {
+        "system_enabled": slip_enabled,
+        "thunder_configured": bool(thunder_token),
+        "kbank_configured": bool(kbank_consumer_id and kbank_consumer_secret) and kbank_enabled,
+        "any_api_available": False
+    }
+    
+    # ตรวจสอบว่ามี API ไหนพร้อมใช้งานบ้าง
+    if slip_enabled and thunder_token:
+        status["any_api_available"] = True
+    elif kbank_enabled and kbank_consumer_id and kbank_consumer_secret:
+        status["any_api_available"] = True
+    
+    return status
+
 # ====================== Event Dispatcher ======================
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
-    """ประมวลผล event แบบ async พร้อมการแจ้งเตือนในเว็บ"""
+    """ประมวลผล event แบบ async พร้อมการแจ้งเตือนในเว็บ (ปรับปรุงสถานะระบบ)"""
     try:
         if event.get("type") != "message":
             return
@@ -300,8 +323,48 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 "info"
             )
             
-            # ส่งข้อความแจ้งผู้ใช้ก่อน (แต่ไม่บังคับต้องสำเร็จ)
-            initial_reply_sent = send_line_reply(reply_token, "⏳ รอสักครู่ แอดมินกำลังตรวจสอบสลิปของคุณ...")
+            # ตรวจสอบสถานะระบบก่อนดำเนินการ
+            system_status = check_slip_system_status()
+            
+            if not system_status["system_enabled"]:
+                # ระบบปิดใช้งาน
+                system_off_msg = "🔒 ระบบตรวจสอบสลิปออโตปิดใช้งานชั่วคราว\n\n💡 กรุณาติดต่อแอดมินเพื่อเปิดระบบ หรือตรวจสอบสลิปด้วยตัวเอง"
+                
+                await notification_manager.send_notification(
+                    "🔒 ระบบตรวจสอบสลิปถูกปิดใช้งาน",
+                    "warning"
+                )
+                
+                send_line_reply(reply_token, system_off_msg)
+                
+                try:
+                    save_chat_history(user_id, "out", {"type": "text", "text": system_off_msg}, sender="system")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save chat history: {e}")
+                
+                return
+            
+            elif not system_status["any_api_available"]:
+                # ระบบเปิดแต่ไม่มี API ที่ใช้ได้
+                no_api_msg = "⚙️ ระบบตรวจสอบสลิปมีปัญหาขณะนี้\n\n🔧 แอดมินกำลังแก้ไขระบบ กรุณารอสักครู่\n💡 หรือติดต่อแอดมินโดยตรง"
+                
+                await notification_manager.send_notification(
+                    "⚙️ ระบบตรวจสอบสลิปมีปัญหา - ไม่มี API พร้อมใช้งาน",
+                    "error"
+                )
+                
+                send_line_reply(reply_token, no_api_msg)
+                
+                try:
+                    save_chat_history(user_id, "out", {"type": "text", "text": no_api_msg}, sender="system")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save chat history: {e}")
+                
+                return
+            
+            # ระบบพร้อมใช้งาน - ส่งข้อความแจ้งว่ากำลังตรวจสอบ
+            processing_msg = "⏳ กำลังตรวจสอบสลิปของคุณ...\n🔍 รอซักครู่ ระบบกำลังวิเคราะห์ข้อมูล"
+            initial_reply_sent = send_line_reply(reply_token, processing_msg)
             if not initial_reply_sent:
                 logger.warning("⚠️ Failed to send initial reply - continuing with slip verification")
             
@@ -338,19 +401,46 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         "warning"
                     )
                     
-                    # สร้างข้อความตอบกลับสำหรับสลิปซ้ำ
-                    amount = duplicate_data['data'].get('amount', '0')
-                    date = duplicate_data['data'].get('date', 'N/A')
-                    time_str = duplicate_data['data'].get('time', '')
-                    verified_by = duplicate_data['data'].get('verified_by', 'ระบบตรวจสอบ')
+                    # สร้างข้อความตอบกลับสำหรับสลิปซ้ำ (แสดงรายละเอียดครบ)
+                    data = duplicate_data['data']
+                    amount = data.get('amount', '0')
+                    date = data.get('date', 'N/A')
+                    time_str = data.get('time', '')
+                    sender = data.get('sender', '')
+                    receiver_name = data.get('receiver_name', '')
+                    sender_bank = data.get('sender_bank', '')
+                    receiver_bank = data.get('receiver_bank', '')
+                    reference = data.get('reference', '')
+                    verified_by = data.get('verified_by', 'ระบบตรวจสอบ')
                     duplicate_count = duplicate_data.get('count', 1)
                     
-                    success_msg = f"🔄 สลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n✅ ผลการตรวจสอบ:\n💰 จำนวน: ฿{amount}\n📅 วันที่: {date}"
-                    if time_str:
-                        success_msg += f"\n🕐 เวลา: {time_str}"
-                    success_msg += f"\n🔍 ตรวจสอบโดย: {verified_by}\n\n💡 หมายเหตุ: สลิปนี้ได้รับการตรวจสอบความถูกต้องแล้ว"
+                    # จัดรูปแบบจำนวนเงิน
+                    try:
+                        amount_float = float(amount)
+                        amount_formatted = f"{amount_float:,.0f}"
+                    except:
+                        amount_formatted = amount
                     
-                    # ส่งข้อความตอบกลับ
+                    success_msg = f"🔄 สลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n"
+                    success_msg += "✅ รายละเอียดการโอน:\n"
+                    success_msg += f"💰 จำนวนเงิน: ฿{amount_formatted} บาท\n"
+                    success_msg += f"📅 วันที่: {date}\n"
+                    if time_str:
+                        success_msg += f"🕐 เวลา: {time_str}\n"
+                    if sender:
+                        success_msg += f"👤 ผู้โอน: {sender}\n"
+                    if sender_bank:
+                        success_msg += f"🏦 ธนาคารผู้โอน: {sender_bank}\n"
+                    if receiver_name:
+                        success_msg += f"🏪 ผู้รับ: {receiver_name}\n"
+                    if receiver_bank:
+                        success_msg += f"🏦 ธนาคารผู้รับ: {receiver_bank}\n"
+                    if reference:
+                        success_msg += f"📋 เลขอ้างอิง: {reference}\n"
+                    success_msg += f"🔍 ตรวจสอบโดย: {verified_by}\n\n"
+                    success_msg += "💡 หมายเหตุ: สลิปนี้ได้รับการตรวจสอบความถูกต้องแล้ว"
+                    
+                    # ส่งข้อความตอบกลับ (ข้ามการส่ง initial reply เพราะใช้ข้อมูลเดิม)
                     reply_sent = send_line_reply(reply_token, success_msg)
                     if not reply_sent:
                         logger.error("❌ Failed to send duplicate slip reply to LINE")
@@ -374,24 +464,45 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             "success"
                         )
                         
-                        # สร้างข้อความตอบกลับสำหรับสลิปใหม่
-                        amount = result['data'].get('amount', '0')
-                        date = result['data'].get('date', 'N/A')
-                        time_str = result['data'].get('time', '')
-                        verified_by = result['data'].get('verified_by', 'Thunder API')
-                        sender_info = result['data'].get('sender', '')
-                        receiver_info = result['data'].get('receiver_name', '')
+                        # สร้างข้อความตอบกลับสำหรับสลิปใหม่ (แสดงรายละเอียดครบ)
+                        data = result['data']
+                        amount = data.get('amount', '0')
+                        date = data.get('date', 'N/A')
+                        time_str = data.get('time', '')
+                        sender = data.get('sender', '')
+                        receiver_name = data.get('receiver_name', '')
+                        sender_bank = data.get('sender_bank', '')
+                        receiver_bank = data.get('receiver_bank', '')
+                        reference = data.get('reference', '')
+                        verified_by = data.get('verified_by', 'Thunder API')
                         
-                        success_msg = f"✅ สลิปถูกต้อง\n\n💰 จำนวน: ฿{amount}\n📅 วันที่: {date}"
+                        # จัดรูปแบบจำนวนเงินให้มีคอมม่า
+                        try:
+                            amount_float = float(amount)
+                            amount_formatted = f"{amount_float:,.0f}"
+                        except:
+                            amount_formatted = amount
+                        
+                        success_msg = "✅ สลิปถูกต้อง - ตรวจสอบสำเร็จ\n\n"
+                        success_msg += "📋 รายละเอียดการโอนเงิน:\n"
+                        success_msg += f"💰 จำนวนเงิน: ฿{amount_formatted} บาท\n"
+                        success_msg += f"📅 วันที่ทำรายการ: {date}\n"
                         if time_str:
-                            success_msg += f"\n🕐 เวลา: {time_str}"
-                        if sender_info:
-                            success_msg += f"\n👤 ผู้โอน: {sender_info}"
-                        if receiver_info:
-                            success_msg += f"\n🏪 ผู้รับ: {receiver_info}"
-                        success_msg += f"\n🔍 ตรวจสอบโดย: {verified_by}"
+                            success_msg += f"🕐 เวลาทำรายการ: {time_str}\n"
+                        if sender:
+                            success_msg += f"👤 ชื่อผู้โอน: {sender}\n"
+                        if sender_bank:
+                            success_msg += f"🏦 ธนาคารผู้โอน: {sender_bank}\n"
+                        if receiver_name:
+                            success_msg += f"🏪 ชื่อผู้รับ: {receiver_name}\n"
+                        if receiver_bank:
+                            success_msg += f"🏦 ธนาคารผู้รับ: {receiver_bank}\n"
+                        if reference:
+                            success_msg += f"📋 เลขอ้างอิง: {reference}\n"
+                        success_msg += f"🔍 ตรวจสอบโดย: {verified_by}\n\n"
+                        success_msg += "🎉 การโอนเงินได้รับการยืนยันแล้ว"
                         
-                        # ส่งข้อความตอบกลับ
+                        # ส่งข้อความตอบกลับ (replace initial message)
                         reply_sent = send_line_reply(reply_token, success_msg)
                         if not reply_sent:
                             logger.error("❌ Failed to send success reply to LINE")
@@ -412,7 +523,28 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             "warning"
                         )
                         
-                        duplicate_msg = f"🔄 สลิปนี้เคยตรวจสอบแล้ว\n\n{result.get('message', '')}\n\n💡 หากต้องการตรวจสอบสลิปใหม่ กรุณาส่งรูปสลิปที่ยังไม่เคยใช้"
+                        # แสดงรายละเอียดสลิปซ้ำจาก Thunder API
+                        data = result.get('data', {})
+                        amount = data.get('amount', '0')
+                        date = data.get('date', '')
+                        reference = data.get('reference', '')
+                        
+                        try:
+                            amount_float = float(amount)
+                            amount_formatted = f"{amount_float:,.0f}"
+                        except:
+                            amount_formatted = amount
+                        
+                        duplicate_msg = "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว\n\n"
+                        if data:
+                            duplicate_msg += "📋 รายละเอียดสลิปเดิม:\n"
+                            duplicate_msg += f"💰 จำนวนเงิน: ฿{amount_formatted} บาท\n"
+                            if date:
+                                duplicate_msg += f"📅 วันที่: {date}\n"
+                            if reference:
+                                duplicate_msg += f"📋 เลขอ้างอิง: {reference}\n"
+                            duplicate_msg += "\n"
+                        duplicate_msg += "💡 หากต้องการตรวจสอบสลิปใหม่ กรุณาส่งรูปสลิปที่ยังไม่เคยใช้"
                         
                         reply_sent = send_line_reply(reply_token, duplicate_msg)
                         if not reply_sent:
@@ -420,10 +552,45 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             
                         try:
                             save_chat_history(user_id, "out", {"type": "text", "text": duplicate_msg}, sender="slip_bot_duplicate")
+                        except Exception as e:            
+                            logger.warning(f"⚠️ Failed to save chat history: {e}")
+                    
+                    elif result.get("status") == "not_found":
+                        # กรณีไม่พบข้อมูลสลิป
+                        await notification_manager.send_notification(
+                            f"🔍 ไม่พบข้อมูลสลิปในระบบธนาคาร",
+                            "warning"
+                        )
+                        
+                        not_found_msg = result.get("message", "ไม่พบข้อมูลสลิป")
+                        reply_sent = send_line_reply(reply_token, not_found_msg)
+                        if not reply_sent:
+                            logger.error("❌ Failed to send not found reply to LINE")
+                            
+                        try:
+                            save_chat_history(user_id, "out", {"type": "text", "text": not_found_msg}, sender="slip_bot")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to save chat history: {e}")
+                    
+                    elif result.get("status") == "qr_not_found":
+                        # กรณีไม่พบ QR Code
+                        await notification_manager.send_notification(
+                            f"📱 ไม่พบ QR Code ในรูปภาพ",
+                            "warning"
+                        )
+                        
+                        qr_not_found_msg = result.get("message", "ไม่พบ QR Code ในรูปภาพ")
+                        reply_sent = send_line_reply(reply_token, qr_not_found_msg)
+                        if not reply_sent:
+                            logger.error("❌ Failed to send QR not found reply to LINE")
+                            
+                        try:
+                            save_chat_history(user_id, "out", {"type": "text", "text": qr_not_found_msg}, sender="slip_bot")
                         except Exception as e:
                             logger.warning(f"⚠️ Failed to save chat history: {e}")
                             
                     else:
+                        # กรณี error อื่นๆ
                         error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                         
                         await notification_manager.send_notification(
@@ -436,7 +603,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         
                         # เพิ่มคำแนะนำถ้ามี
                         if result.get("suggestions"):
-                            error_reply += "\n\n💡 คำแนะนำ:\n• " + "\n• ".join(result["suggestions"][:3])
+                            error_reply += "\n\n💡 คำแนะนำในการแก้ไข:\n• " + "\n• ".join(result["suggestions"][:3])
                         
                         # ส่งข้อความตอบกลับ
                         reply_sent = send_line_reply(reply_token, error_reply)
@@ -449,7 +616,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             logger.warning(f"⚠️ Failed to save chat history: {e}")
                         
             except Exception as e:
-                error_msg = f"เกิดข้อผิดพลาดในการตรวจสอบสลิป: {str(e)}"
+                error_msg = f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิป\n\n🔧 กรุณาลองใหม่อีกครั้ง หรือติดต่อแอดมิน"
                 logger.error(f"❌ Slip verification exception: {e}", exc_info=True)
                 
                 await notification_manager.send_notification(
@@ -470,6 +637,18 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             slip_info = extract_slip_info_from_text(user_text)
             
             if slip_info["bank_code"] and slip_info["trans_ref"]:
+                # ตรวจสอบสถานะระบบก่อนดำเนินการ
+                system_status = check_slip_system_status()
+                
+                if not system_status["system_enabled"]:
+                    system_off_msg = "🔒 ระบบตรวจสอบสลิปออโตปิดใช้งานชั่วคราว\n\n💡 กรุณาติดต่อแอดมินเพื่อเปิดระบบ หรือตรวจสอบสลิปด้วยตัวเอง"
+                    send_line_reply(reply_token, system_off_msg)
+                    return
+                elif not system_status["any_api_available"]:
+                    no_api_msg = "⚙️ ระบบตรวจสอบสลิปมีปัญหาขณะนี้\n\n🔧 แอดมินกำลังแก้ไขระบบ กรุณารอสักครู่\n💡 หรือติดต่อแอดมินโดยตรง"
+                    send_line_reply(reply_token, no_api_msg)
+                    return
+                
                 await notification_manager.send_notification(
                     f"📝 ได้รับข้อมูลสลิปจากข้อความ: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}",
                     "info"
@@ -480,16 +659,28 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 duplicate_data = get_duplicate_slip_data(text_hash)
                 
                 if duplicate_data:
-                    # กรณีข้อมูลสลิปซ้ำ
+                    # กรณีข้อมูลสลิปซ้ำ (แสดงรายละเอียดครบ)
                     await notification_manager.send_notification(
                         f"🔄 พบข้อมูลสลิปซ้ำจากข้อความ! จำนวน ฿{duplicate_data['data'].get('amount', '0')}",
                         "warning"
                     )
                     
-                    amount = duplicate_data['data'].get('amount', '0')
+                    data = duplicate_data['data']
+                    amount = data.get('amount', '0')
                     duplicate_count = duplicate_data.get('count', 1)
                     
-                    success_msg = f"🔄 ข้อมูลสลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n✅ ผลการตรวจสอบ:\n💰 จำนวน: ฿{amount}\n🏦 ธนาคาร: {slip_info['bank_code']}\n📋 อ้างอิง: {slip_info['trans_ref']}"
+                    try:
+                        amount_float = float(amount)
+                        amount_formatted = f"{amount_float:,.0f}"
+                    except:
+                        amount_formatted = amount
+                    
+                    success_msg = f"🔄 ข้อมูลสลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n"
+                    success_msg += "✅ รายละเอียดการโอน:\n"
+                    success_msg += f"💰 จำนวนเงิน: ฿{amount_formatted} บาท\n"
+                    success_msg += f"🏦 รหัสธนาคาร: {slip_info['bank_code']}\n"
+                    success_msg += f"📋 เลขอ้างอิง: {slip_info['trans_ref']}\n"
+                    success_msg += f"🔍 ตรวจสอบโดย: {data.get('verified_by', 'ระบบตรวจสอบ')}"
                     
                     send_line_reply(reply_token, success_msg)
                     save_duplicate_slip_data(text_hash, duplicate_data['data'])
@@ -508,8 +699,21 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                                 "success"
                             )
                             
-                            amount = result['data'].get('amount', '0')
-                            success_msg = f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{amount}\n🏦 ธนาคาร: {slip_info['bank_code']}\n📋 อ้างอิง: {slip_info['trans_ref']}"
+                            data = result['data']
+                            amount = data.get('amount', '0')
+                            
+                            try:
+                                amount_float = float(amount)
+                                amount_formatted = f"{amount_float:,.0f}"
+                            except:
+                                amount_formatted = amount
+                            
+                            success_msg = "✅ ตรวจสอบสลิปสำเร็จ\n\n"
+                            success_msg += "📋 รายละเอียดการโอน:\n"
+                            success_msg += f"💰 จำนวนเงิน: ฿{amount_formatted} บาท\n"
+                            success_msg += f"🏦 รหัสธนาคาร: {slip_info['bank_code']}\n"
+                            success_msg += f"📋 เลขอ้างอิง: {slip_info['trans_ref']}\n"
+                            success_msg += f"🔍 ตรวจสอบโดย: {data.get('verified_by', 'ระบบตรวจสอบ')}"
                             
                             send_line_reply(reply_token, success_msg)
                             
@@ -656,12 +860,15 @@ async def root():
 @app.get("/admin", response_class=HTMLResponse)  
 async def admin_home(request: Request):
     total_count = get_chat_history_count()
+    system_status = check_slip_system_status()
+    
     return templates.TemplateResponse(
         "admin_home.html",
         {
             "request": request,
             "config": config_manager.config,
             "total_chat_history": total_count,
+            "system_status": system_status,
         },
     )
 
@@ -690,16 +897,20 @@ async def admin_chat(request: Request):
 
 @app.get("/admin/api-status")
 async def api_status_check():
-    """ตรวจสอบสถานะการเชื่อมต่อ API ต่างๆ"""
+    """ตรวจสอบสถานะการเชื่อมต่อ API ต่างๆ (ปรับปรุงแล้ว)"""
     status_result = {
-        "thunder": {"configured": False, "connected": False},
+        "thunder": {"configured": False, "connected": False, "enabled": False},
         "line": {"configured": False, "connected": False},
         "openai": {"configured": False, "connected": False},
-        "kbank": {"configured": False, "connected": False},
+        "kbank": {"configured": False, "connected": False, "enabled": False},
+        "system": check_slip_system_status()
     }
 
     # ตรวจสอบ Thunder API
     thunder_token = config_manager.get("thunder_api_token")
+    thunder_enabled = config_manager.get("slip_enabled", False)
+    status_result["thunder"]["enabled"] = thunder_enabled
+    
     if thunder_token:
         status_result["thunder"]["configured"] = True
         try:
@@ -731,6 +942,9 @@ async def api_status_check():
     # ตรวจสอบ KBank API
     kbank_consumer_id = config_manager.get("kbank_consumer_id")
     kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
+    kbank_enabled = config_manager.get("kbank_enabled", False)
+    status_result["kbank"]["enabled"] = kbank_enabled
+    
     if kbank_consumer_id and kbank_consumer_secret:
         status_result["kbank"]["configured"] = True
         try:
@@ -745,6 +959,18 @@ async def api_status_check():
             status_result["kbank"]["error"] = str(e)
 
     return JSONResponse(content=status_result)
+
+@app.get("/admin/system-status")
+async def get_system_status():
+    """ดึงสถานะระบบโดยรวม"""
+    system_status = check_slip_system_status()
+    return JSONResponse(content={
+        "system_status": system_status,
+        "active_connections": len(notification_manager.active_connections),
+        "pending_notifications": len(notification_manager.pending_notifications),
+        "duplicate_cache_size": len(notification_manager.duplicate_slip_cache),
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.get("/admin/slip-status")
 async def get_slip_processing_status():
@@ -887,9 +1113,34 @@ async def force_reset_apis():
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)})
 
+@app.post("/admin/toggle-slip-system")
+async def toggle_slip_system():
+    """เปิด/ปิดระบบตรวจสอบสลิป"""
+    try:
+        current_status = config_manager.get("slip_enabled", False)
+        new_status = not current_status
+        
+        config_manager.update("slip_enabled", new_status)
+        
+        status_text = "เปิด" if new_status else "ปิด"
+        await notification_manager.send_notification(
+            f"🔧 {status_text}ระบบตรวจสอบสลิปแล้ว",
+            "success" if new_status else "warning"
+        )
+        
+        return JSONResponse(content={
+            "status": "success",
+            "message": f"{status_text}ระบบตรวจสอบสลิปแล้ว",
+            "slip_enabled": new_status
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    system_status = check_slip_system_status()
+    
     return JSONResponse(content={
         "status": "ok", 
         "timestamp": datetime.utcnow().isoformat(),
@@ -897,7 +1148,8 @@ async def health_check():
         "line_configured": bool(config_manager.get("line_channel_access_token")),
         "thunder_configured": bool(config_manager.get("thunder_api_token")),
         "websocket_connections": len(notification_manager.active_connections),
-        "duplicate_cache_size": len(notification_manager.duplicate_slip_cache)
+        "duplicate_cache_size": len(notification_manager.duplicate_slip_cache),
+        "system_status": system_status
     })
 
 if __name__ == "__main__":
