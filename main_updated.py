@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 
-import httpx  # เปลี่ยนจาก requests เป็น httpx
+import httpx
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
@@ -339,7 +339,7 @@ async def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
                 elif response.status_code >= 500:
                     logger.warning(f"⚠️ LINE Push API {response.status_code} Server Error - will retry")
                     if attempt < max_retries - 1:
-                        await asyncio.sleep(2)  # เพิ่มการรอเป็น 2 วินาที
+                        await asyncio.sleep(2)
                         continue
                 else:
                     logger.error(f"❌ LINE Push API HTTP {response.status_code}: {response.text}")
@@ -512,7 +512,7 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
     receiver_account = data.get('receiver_account_number', '')
     
     fee = data.get('fee', 0)
-    verified_by = data.get('verified_by', 'Thunder API')
+    verified_by = data.get('verified_by', 'ระบบตรวจสอบสลิป')  # แก้ไขตรงนี้
     
     if is_duplicate:
         if duplicate_count > 0:
@@ -587,20 +587,23 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         except Exception as e:
             logger.warning(f"⚠️ Failed to save chat history: {e}")
 
+        # ตรวจสอบสถานะระบบสลิปตั้งแต่ต้น
+        system_status = check_slip_system_status()
+        if not system_status["system_enabled"] or not system_status["any_api_available"]:
+            error_msg_user = "ขออภัยค่ะ ระบบตรวจสอบสลิปอัตโนมัติปิดใช้งานชั่วคราว หรือมีปัญหา กรุณาติดต่อแอดมิน"
+            await notification_manager.send_notification("❌ ระบบตรวจสอบสลิปไม่พร้อมใช้งาน", "error")
+            if reply_token:
+                await send_slip_result_safe(user_id, reply_token, error_msg_user, "system_error")
+            else:
+                # กรณีไม่มี reply_token หรือใช้ไปแล้ว ให้แจ้งเตือนแอดมินแทน
+                logger.warning(f"⚠️ Cannot reply to user {user_id[:8]}... as reply token is missing or used.")
+            return
+
         if message_type == "image":
             await notification_manager.send_notification(f"🖼️ ได้รับรูปสลิปจากผู้ใช้ {user_id[:8]}...", "info")
             
-            system_status = check_slip_system_status()
-            
-            if not system_status["system_enabled"] or not system_status["any_api_available"]:
-                error_msg_user = "ขออภัยค่ะ ระบบตรวจสอบสลิปอัตโนมัติปิดใช้งานชั่วคราว หรือมีปัญหา กรุณาติดต่อแอดมิน"
-                await notification_manager.send_notification("❌ ระบบตรวจสอบสลิปไม่พร้อมใช้งาน", "error")
-                await send_slip_result_safe(user_id, reply_token, error_msg_user, "system_error")
-                return
-            
-            processing_msg = "⏳ กำลังตรวจสอบสลิปของคุณ...\n🔍 รอซักครู่ ระบบกำลングวิเคราะห์ข้อมูล"
-            
             # ส่งข้อความแจ้งให้รอก่อน (ใช้ reply ถ้ามี)
+            processing_msg = "⏳ กำลังตรวจสอบสลิปของคุณ...\n🔍 รอซักครู่ ระบบกำลังวิเคราะห์ข้อมูล"
             if reply_token:
                 await send_line_reply(reply_token, processing_msg)
 
@@ -641,7 +644,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         save_duplicate_slip_data(slip_hash, duplicate_data['data'])
                 else:
                     logger.info("🔍 Processing new slip with multiple providers...")
-                    result = await asyncio.to_thread(verify_slip_multiple_providers, message_id=message.get("id"))
+                    result = await asyncio.to_thread(verify_slip_multiple_providers, message_id=message.get("id"), test_image_data=image_data)
                     
                     if result["status"] == "success":
                         amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
@@ -651,7 +654,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         
                         if slip_hash and image_data:
                             save_duplicate_slip_data(slip_hash, result['data'])
-                            
                     elif result.get("status") == "duplicate":
                         logger.info(f"🔄 API reported duplicate slip.")
                         await notification_manager.send_notification(f"🔄 API แจ้งสลิปซ้ำ", "warning")
@@ -664,7 +666,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         else:
                             error_msg_user = "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
                             await send_slip_result_safe(user_id, None, error_msg_user, "slip_bot_duplicate")
-
                     else:
                         error_message_tech = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                         error_message_user = "❌ ไม่พบข้อมูลสลิปที่ถูกต้องในระบบธนาคารค่ะ"
@@ -682,7 +683,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 logger.error(f"❌ Slip verification exception: {e}", exc_info=True)
                 await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
                 await send_slip_result_safe(user_id, None, error_msg_user, "slip_bot_error")
-                
+            
         elif message_type == "text":
             user_text = message.get("text", "")
             slip_info = extract_slip_info_from_text(user_text)
@@ -743,7 +744,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         else:
             await notification_manager.send_notification(f"📝 ได้รับข้อความประเภท {message_type} จากผู้ใช้ {user_id[:8]}...", "info")
             await send_slip_result_safe(user_id, reply_token, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น", "system")
-                
+            
     except Exception as e:
         logger.exception(f"❌ Critical error in dispatch_event: {e}")
         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
@@ -1087,418 +1088,418 @@ async def force_reset_apis():
             kbank_checker._clear_token_cache()
         except:
             pass
-await notification_manager.send_notification("🔄 รีเซ็ต API Cache แล้ว", "success")
-       return JSONResponse(content={
-           "status": "success",
-           "message": "รีเซ็ต API Cache แล้ว"
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+        await notification_manager.send_notification("🔄 รีเซ็ต API Cache แล้ว", "success")
+        return JSONResponse(content={
+            "status": "success",
+            "message": "รีเซ็ต API Cache แล้ว"
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
-   """Toggle slip system on/off"""
-   try:
-       current_status = config_manager.get("slip_enabled", False)
-       new_status = not current_status
-       config_manager.update("slip_enabled", new_status)
-       action = "เปิด" if new_status else "ปิด"
-       await notification_manager.send_notification(f"🔄 {action}ระบบตรวจสอบสลิปแล้ว", "success" if new_status else "warning")
-       return JSONResponse(content={
-           "status": "success",
-           "message": f"{action}ระบบตรวจสอบสลิปแล้ว",
-           "slip_enabled": new_status
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Toggle slip system on/off"""
+    try:
+        current_status = config_manager.get("slip_enabled", False)
+        new_status = not current_status
+        config_manager.update("slip_enabled", new_status)
+        action = "เปิด" if new_status else "ปิด"
+        await notification_manager.send_notification(f"🔄 {action}ระบบตรวจสอบสลิปแล้ว", "success" if new_status else "warning")
+        return JSONResponse(content={
+            "status": "success",
+            "message": f"{action}ระบบตรวจสอบสลิปแล้ว",
+            "slip_enabled": new_status
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/statistics")
 async def get_admin_statistics():
-   """Get admin statistics"""
-   try:
-       total_messages = get_chat_history_count()
-       recent_history = get_recent_chat_history(limit=1000)
-       stats = {
-           "total_messages": total_messages,
-           "slip_checks": len([h for h in recent_history if h.sender in ['slip_bot', 'slip_bot_duplicate']]),
-           "duplicate_cache_size": len(notification_manager.duplicate_slip_cache),
-           "active_connections": len(notification_manager.active_connections),
-           "pending_notifications": len(notification_manager.pending_notifications),
-           "unique_users": len(set([h.user_id for h in recent_history if h.direction == 'in']))
-       }
-       return JSONResponse(content=stats)
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Get admin statistics"""
+    try:
+        total_messages = get_chat_history_count()
+        recent_history = get_recent_chat_history(limit=1000)
+        stats = {
+            "total_messages": total_messages,
+            "slip_checks": len([h for h in recent_history if h.sender in ['slip_bot', 'slip_bot_duplicate']]),
+            "duplicate_cache_size": len(notification_manager.duplicate_slip_cache),
+            "active_connections": len(notification_manager.active_connections),
+            "pending_notifications": len(notification_manager.pending_notifications),
+            "unique_users": len(set([h.user_id for h in recent_history if h.direction == 'in']))
+        }
+        return JSONResponse(content=stats)
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/export-chat-history")
 async def export_chat_history():
-   """Export chat history"""
-   try:
-       history = get_recent_chat_history(limit=10000)
-       export_data = []
-       for chat in history:
-           export_data.append({
-               "timestamp": chat.created_at.isoformat() if hasattr(chat, 'created_at') else datetime.now().isoformat(),
-               "user_id": chat.user_id if hasattr(chat, 'user_id') else "unknown",
-               "direction": chat.direction if hasattr(chat, 'direction') else "unknown",
-               "message_type": chat.message_type if hasattr(chat, 'message_type') else "text",
-               "message_text": chat.message_text if hasattr(chat, 'message_text') else "",
-               "sender": chat.sender if hasattr(chat, 'sender') else "unknown"
-           })
-       return JSONResponse(content={
-           "status": "success",
-           "data": export_data,
-           "total_records": len(export_data),
-           "export_time": datetime.now().isoformat()
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Export chat history"""
+    try:
+        history = get_recent_chat_history(limit=10000)
+        export_data = []
+        for chat in history:
+            export_data.append({
+                "timestamp": chat.created_at.isoformat() if hasattr(chat, 'created_at') else datetime.now().isoformat(),
+                "user_id": chat.user_id if hasattr(chat, 'user_id') else "unknown",
+                "direction": chat.direction if hasattr(chat, 'direction') else "unknown",
+                "message_type": chat.message_type if hasattr(chat, 'message_type') else "text",
+                "message_text": chat.message_text if hasattr(chat, 'message_text') else "",
+                "sender": chat.sender if hasattr(chat, 'sender') else "unknown"
+            })
+        return JSONResponse(content={
+            "status": "success",
+            "data": export_data,
+            "total_records": len(export_data),
+            "export_time": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/test-push-message")
 async def test_push_message(request: Request):
-   """Test push message (Enhanced version)"""
-   try:
-       data = await request.json()
-       user_id = data.get("user_id")
-       message = data.get("message", "🧪 นี่คือข้อความทดสอบจากระบบ\n\n✅ หากคุณเห็นข้อความนี้ แสดงว่า Push Message API ทำงานปกติ")
-       
-       if not user_id:
-           return JSONResponse(content={
-               "status": "error",
-               "message": "กรุณาใส่ User ID"
-           })
-       
-       await notification_manager.send_notification(f"🧪 กำลังทดสอบ Push Message ไปยัง {user_id[:8]}...", "info")
-       
-       success = await send_line_push(user_id, message)
-       if success:
-           await notification_manager.send_notification(f"✅ ส่ง Push Message ทดสอบสำเร็จไปยัง {user_id[:8]}...", "success")
-           return JSONResponse(content={
-               "status": "success",
-               "message": "ส่ง Push Message สำเร็จ",
-               "user_id": user_id,
-               "message_length": len(message)
-           })
-       else:
-           return JSONResponse(content={
-               "status": "error",
-               "message": "ไม่สามารถส่ง Push Message ได้ - ตรวจสอب log สำหรับข้อมูลเพิ่มเติม"
-           })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Test push message (Enhanced version)"""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        message = data.get("message", "🧪 นี่คือข้อความทดสอบจากระบบ\n\n✅ หากคุณเห็นข้อความนี้ แสดงว่า Push Message API ทำงานปกติ")
+        
+        if not user_id:
+            return JSONResponse(content={
+                "status": "error",
+                "message": "กรุณาใส่ User ID"
+            })
+        
+        await notification_manager.send_notification(f"🧪 กำลังทดสอบ Push Message ไปยัง {user_id[:8]}...", "info")
+        
+        success = await send_line_push(user_id, message)
+        if success:
+            await notification_manager.send_notification(f"✅ ส่ง Push Message ทดสอบสำเร็จไปยัง {user_id[:8]}...", "success")
+            return JSONResponse(content={
+                "status": "success",
+                "message": "ส่ง Push Message สำเร็จ",
+                "user_id": user_id,
+                "message_length": len(message)
+            })
+        else:
+            return JSONResponse(content={
+                "status": "error",
+                "message": "ไม่สามารถส่ง Push Message ได้ - ตรวจสอบ log สำหรับข้อมูลเพิ่มเติม"
+            })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/test-line-capabilities")
 async def test_line_capabilities():
-   """Test LINE account capabilities comprehensively"""
-   try:
-       await notification_manager.send_notification("🔬 กำลังทดสอบความสามารถ LINE Account แบบครบถ้วน", "info")
-       
-       result = await check_line_account_type()
-       
-       if result.get("status") == "success":
-           bot_info = result.get("bot_info", {})
-           capabilities = {
-               "account_info": {
-                   "display_name": bot_info.get("displayName", "Unknown"),
-                   "user_id": bot_info.get("userId", "Unknown"),
-                   "basic_id": bot_info.get("basicId", "Unknown"),
-                   "premium_id": bot_info.get("premiumId", "Not set"),
-               },
-               "api_capabilities": {
-                   "bot_info": True,  # ได้ข้อมูล bot แล้ว
-                   "push_message": result.get("can_push", False),
-                   "reply_message": True,  # สมมติว่าใช้ได้ถ้า bot info ใช้ได้
-               },
-               "test_results": {
-                   "push_test_status": result.get("push_test_status"),
-                   "push_error": result.get("push_error"),
-               },
-               "recommendations": []
-           }
-           
-           # ให้คำแนะนำตามผลการทดสอบ
-           if not result.get("can_push"):
-               if "not available" in (result.get("push_error", "")).lower():
-                   capabilities["recommendations"].append("❌ Push Message API ไม่รองรับ - ต้องอัปเกรด LINE Official Account เป็น Developer Trial หรือ Pro Plan")
-               elif "blocked" in (result.get("push_error", "")).lower():
-                   capabilities["recommendations"].append("⚠️ มีผู้ใช้บางคนบล็อกบอท - Push Message จะส่งไม่ถึงผู้ใช้เหล่านั้น")
-               else:
-                   capabilities["recommendations"].append("⚠️ Push Message อาจมีข้อจำกัด - ควรตรวจสอบ Account Plan")
-           else:
-               capabilities["recommendations"].append("✅ Push Message API พร้อมใช้งาน")
-           
-           capabilities["recommendations"].append("💡 ใช้ Reply Message เป็นหลักเพื่อประหยัดโควต้า Push Message")
-           
-           await notification_manager.send_notification(f"✅ ทดสอบ LINE Account สำเร็จ - {bot_info.get('displayName', 'Unknown')}", "success")
-           
-           return JSONResponse(content={
-               "status": "success",
-               "capabilities": capabilities,
-               "summary": f"Account: {bot_info.get('displayName', 'Unknown')}, Push: {'✅' if result.get('can_push') else '❌'}"
-           })
-       else:
-           await notification_manager.send_notification(f"❌ ทดสอบ LINE Account ล้มเหลว: {result.get('error')}", "error")
-           return JSONResponse(content={
-               "status": "error",
-               "message": result.get("error", "Unknown error"),
-               "recommendations": [
-                   "🔑 ตรวจสอบ LINE Channel Access Token",
-                   "🔒 ตรวจสอบ LINE Channel Secret",
-                   "🌐 ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต",
-                   "📋 ตรวจสอบการตั้งค่าใน LINE Developers Console"
-               ]
-           })
-   except Exception as e:
-       await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดในการทดสอบ LINE: {str(e)}", "error")
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Test LINE account capabilities comprehensively"""
+    try:
+        await notification_manager.send_notification("🔬 กำลังทดสอบความสามารถ LINE Account แบบครบถ้วน", "info")
+        
+        result = await check_line_account_type()
+        
+        if result.get("status") == "success":
+            bot_info = result.get("bot_info", {})
+            capabilities = {
+                "account_info": {
+                    "display_name": bot_info.get("displayName", "Unknown"),
+                    "user_id": bot_info.get("userId", "Unknown"),
+                    "basic_id": bot_info.get("basicId", "Unknown"),
+                    "premium_id": bot_info.get("premiumId", "Not set"),
+                },
+                "api_capabilities": {
+                    "bot_info": True,  # ได้ข้อมูล bot แล้ว
+                    "push_message": result.get("can_push", False),
+                    "reply_message": True,  # สมมติว่าใช้ได้ถ้า bot info ใช้ได้
+                },
+                "test_results": {
+                    "push_test_status": result.get("push_test_status"),
+                    "push_error": result.get("push_error"),
+                },
+                "recommendations": []
+            }
+            
+            # ให้คำแนะนำตามผลการทดสอบ
+            if not result.get("can_push"):
+                if "not available" in (result.get("push_error", "")).lower():
+                    capabilities["recommendations"].append("❌ Push Message API ไม่รองรับ - ต้องอัปเกรด LINE Official Account เป็น Developer Trial หรือ Pro Plan")
+                elif "blocked" in (result.get("push_error", "")).lower():
+                    capabilities["recommendations"].append("⚠️ มีผู้ใช้บางคนบล็อกบอท - Push Message จะส่งไม่ถึงผู้ใช้เหล่านั้น")
+                else:
+                    capabilities["recommendations"].append("⚠️ Push Message อาจมีข้อจำกัด - ควรตรวจสอบ Account Plan")
+            else:
+                capabilities["recommendations"].append("✅ Push Message API พร้อมใช้งาน")
+            
+            capabilities["recommendations"].append("💡 ใช้ Reply Message เป็นหลักเพื่อประหยัดโควต้า Push Message")
+            
+            await notification_manager.send_notification(f"✅ ทดสอบ LINE Account สำเร็จ - {bot_info.get('displayName', 'Unknown')}", "success")
+            
+            return JSONResponse(content={
+                "status": "success",
+                "capabilities": capabilities,
+                "summary": f"Account: {bot_info.get('displayName', 'Unknown')}, Push: {'✅' if result.get('can_push') else '❌'}"
+            })
+        else:
+            await notification_manager.send_notification(f"❌ ทดสอบ LINE Account ล้มเหลว: {result.get('error')}", "error")
+            return JSONResponse(content={
+                "status": "error",
+                "message": result.get("error", "Unknown error"),
+                "recommendations": [
+                    "🔑 ตรวจสอบ LINE Channel Access Token",
+                    "🔒 ตรวจสอบ LINE Channel Secret",
+                    "🌐 ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต",
+                    "📋 ตรวจสอบการตั้งค่าใน LINE Developers Console"
+                ]
+            })
+    except Exception as e:
+        await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดในการทดสอบ LINE: {str(e)}", "error")
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/health")
 async def health_check():
-   """Health check endpoint (Enhanced)"""
-   system_status = check_slip_system_status()
-   line_configured = bool(config_manager.get("line_channel_access_token"))
-   
-   return JSONResponse(content={
-       "status": "healthy",
-       "timestamp": datetime.now().isoformat(),
-       "version": "2.2.0",
-       "features": ["push_message_enhanced", "fallback_apis", "detailed_slip_info", "line_account_detection"],
-       "components": {
-           "database": True,
-           "websocket": len(notification_manager.active_connections) >= 0,
-           "config": bool(config_manager),
-           "cache": len(notification_manager.duplicate_slip_cache) >= 0,
-           "push_message": True,
-           "slip_system": system_status["system_enabled"],
-           "line_configured": line_configured
-       },
-       "statistics": {
-           "active_websocket_connections": len(notification_manager.active_connections),
-           "duplicate_slip_cache_size": len(notification_manager.duplicate_slip_cache),
-           "total_chat_history": get_chat_history_count()
-       }
-   })
+    """Health check endpoint (Enhanced)"""
+    system_status = check_slip_system_status()
+    line_configured = bool(config_manager.get("line_channel_access_token"))
+    
+    return JSONResponse(content={
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "2.2.0",
+        "features": ["push_message_enhanced", "fallback_apis", "detailed_slip_info", "line_account_detection"],
+        "components": {
+            "database": True,
+            "websocket": len(notification_manager.active_connections) >= 0,
+            "config": bool(config_manager),
+            "cache": len(notification_manager.duplicate_slip_cache) >= 0,
+            "push_message": True,
+            "slip_system": system_status["system_enabled"],
+            "line_configured": line_configured
+        },
+        "statistics": {
+            "active_websocket_connections": len(notification_manager.active_connections),
+            "duplicate_slip_cache_size": len(notification_manager.duplicate_slip_cache),
+            "total_chat_history": get_chat_history_count()
+        }
+    })
 
 @app.get("/admin/logs")
 async def get_recent_logs(limit: int = 50):
-   """Get recent logs (Enhanced)"""
-   try:
-       system_status = check_slip_system_status()
-       line_status = "configured" if config_manager.get("line_channel_access_token") else "not_configured"
-       
-       sample_logs = [
-           {
-               "timestamp": datetime.now().isoformat(),
-               "level": "INFO",
-               "message": f"System running normally - Slip system: {'enabled' if system_status['system_enabled'] else 'disabled'}",
-               "component": "main_app"
-           },
-           {
-               "timestamp": datetime.now().isoformat(),
-               "level": "INFO",
-               "message": f"LINE API status: {line_status}",
-               "component": "line_api"
-           },
-           {
-               "timestamp": datetime.now().isoformat(),
-               "level": "INFO",
-               "message": f"Active WebSocket connections: {len(notification_manager.active_connections)}",
-               "component": "websocket"
-           },
-           {
-               "timestamp": datetime.now().isoformat(),
-               "level": "INFO", 
-               "message": f"Duplicate slip cache size: {len(notification_manager.duplicate_slip_cache)}",
-               "component": "slip_cache"
-           }
-       ]
-       
-       return JSONResponse(content={
-           "status": "success",
-           "logs": sample_logs,
-           "total": len(sample_logs),
-           "system_info": {
-               "version": "2.2.0",
-               "uptime": "Running",
-               "features_enabled": {
-                   "slip_checking": system_status["system_enabled"],
-                   "push_message": True,
-                   "websocket_notifications": True,
-                   "duplicate_detection": True
-               }
-           }
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Get recent logs (Enhanced)"""
+    try:
+        system_status = check_slip_system_status()
+        line_status = "configured" if config_manager.get("line_channel_access_token") else "not_configured"
+        
+        sample_logs = [
+            {
+                "timestamp": datetime.now().isoformat(),
+                "level": "INFO",
+                "message": f"System running normally - Slip system: {'enabled' if system_status['system_enabled'] else 'disabled'}",
+                "component": "main_app"
+            },
+            {
+                "timestamp": datetime.now().isoformat(),
+                "level": "INFO",
+                "message": f"LINE API status: {line_status}",
+                "component": "line_api"
+            },
+            {
+                "timestamp": datetime.now().isoformat(),
+                "level": "INFO",
+                "message": f"Active WebSocket connections: {len(notification_manager.active_connections)}",
+                "component": "websocket"
+            },
+            {
+                "timestamp": datetime.now().isoformat(),
+                "level": "INFO", 
+                "message": f"Duplicate slip cache size: {len(notification_manager.duplicate_slip_cache)}",
+                "component": "slip_cache"
+            }
+        ]
+        
+        return JSONResponse(content={
+            "status": "success",
+            "logs": sample_logs,
+            "total": len(sample_logs),
+            "system_info": {
+                "version": "2.2.0",
+                "uptime": "Running",
+                "features_enabled": {
+                    "slip_checking": system_status["system_enabled"],
+                    "push_message": True,
+                    "websocket_notifications": True,
+                    "duplicate_detection": True
+                }
+            }
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 # ====================== Exception Handlers ======================
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
-   """404 handler"""
-   if request.url.path.startswith("/admin"):
-       return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
-   return JSONResponse(
-       status_code=404,
-       content={"detail": "Not Found", "path": request.url.path}
-   )
+    """404 handler"""
+    if request.url.path.startswith("/admin"):
+        return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Not Found", "path": request.url.path}
+    )
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc):
-   """500 handler"""
-   logger.error(f"Internal server error: {exc}")
-   return JSONResponse(
-       status_code=500,
-       content={"detail": "Internal Server Error"}
-   )
+    """500 handler"""
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"}
+    )
 
 # ====================== Startup/Shutdown Events ======================
 
 @app.on_event("startup")
 async def startup_event():
-   """Startup event handler (Enhanced)"""
-   logger.info("🚀 LINE OA Middleware เริ่มทำงาน... (Enhanced Push Message v2.2)")
-   
-   # Initialize LINE Bot
-   if init_line_bot():
-       logger.info("✅ LINE Bot credentials loaded")
-       
-       # ทดสอบ LINE Account capabilities
-       try:
-           account_info = await check_line_account_type()
-           if account_info.get("status") == "success":
-               bot_info = account_info.get("bot_info", {})
-               logger.info(f"✅ LINE Account: {bot_info.get('displayName', 'Unknown')}")
-               logger.info(f"📱 Push Message: {'✅ Available' if account_info.get('can_push') else '❌ Not Available'}")
-               if not account_info.get('can_push'):
-                   logger.warning(f"⚠️ Push Message limitation: {account_info.get('push_error', 'Unknown')}")
-           else:
-               logger.warning(f"⚠️ LINE Account check failed: {account_info.get('error')}")
-       except Exception as e:
-           logger.warning(f"⚠️ Could not check LINE Account capabilities: {e}")
-   else:
-       logger.warning("⚠️ LINE Bot credentials not found")
-   
-   # Check required configs
-   required_configs = ["line_channel_secret", "line_channel_access_token"]
-   missing_configs = []
-   for config_key in required_configs:
-       if not config_manager.get(config_key):
-           missing_configs.append(config_key)
-   
-   if missing_configs:
-       logger.warning(f"⚠️ การตั้งค่าที่ขาดหายไป: {', '.join(missing_configs)}")
-       logger.warning("⚠️ กรุณาตั้งค่าในหน้า /admin/settings")
-   else:
-       logger.info("✅ การตั้งค่าพื้นฐานครบถ้วน")
-   
-   try:
-       api_status = get_api_status_summary()
-       thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
-       kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
-       logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
-   except Exception as e:
-       logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
-   
-   await notification_manager.send_notification(
-       "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว (Enhanced Push Message v2.2)",
-       "success",
-       {
-           "timestamp": datetime.now().isoformat(),
-           "version": "2.2.0",
-           "features": ["push_message_enhanced", "fallback_apis", "detailed_slip_info", "line_account_detection"],
-           "websocket_connections": 0,
-           "system_ready": True
-       }
-   )
-   logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
-   logger.info("📱 Enhanced Push Message API พร้อมใช้งาน")
-   logger.info("🔍 LINE Account Detection เปิดใช้งาน")
+    """Startup event handler (Enhanced)"""
+    logger.info("🚀 LINE OA Middleware เริ่มทำงาน... (Enhanced Push Message v2.2)")
+    
+    # Initialize LINE Bot
+    if init_line_bot():
+        logger.info("✅ LINE Bot credentials loaded")
+        
+        # ทดสอบ LINE Account capabilities
+        try:
+            account_info = await check_line_account_type()
+            if account_info.get("status") == "success":
+                bot_info = account_info.get("bot_info", {})
+                logger.info(f"✅ LINE Account: {bot_info.get('displayName', 'Unknown')}")
+                logger.info(f"📱 Push Message: {'✅ Available' if account_info.get('can_push') else '❌ Not Available'}")
+                if not account_info.get('can_push'):
+                    logger.warning(f"⚠️ Push Message limitation: {account_info.get('push_error', 'Unknown')}")
+            else:
+                logger.warning(f"⚠️ LINE Account check failed: {account_info.get('error')}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not check LINE Account capabilities: {e}")
+    else:
+        logger.warning("⚠️ LINE Bot credentials not found")
+    
+    # Check required configs
+    required_configs = ["line_channel_secret", "line_channel_access_token"]
+    missing_configs = []
+    for config_key in required_configs:
+        if not config_manager.get(config_key):
+            missing_configs.append(config_key)
+    
+    if missing_configs:
+        logger.warning(f"⚠️ การตั้งค่าที่ขาดหายไป: {', '.join(missing_configs)}")
+        logger.warning("⚠️ กรุณาตั้งค่าในหน้า /admin/settings")
+    else:
+        logger.info("✅ การตั้งค่าพื้นฐานครบถ้วน")
+    
+    try:
+        api_status = get_api_status_summary()
+        thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
+        kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
+        logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
+    except Exception as e:
+        logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
+    
+    await notification_manager.send_notification(
+        "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว (Enhanced Push Message v2.2)",
+        "success",
+        {
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.2.0",
+            "features": ["push_message_enhanced", "fallback_apis", "detailed_slip_info", "line_account_detection"],
+            "websocket_connections": 0,
+            "system_ready": True
+        }
+    )
+    logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
+    logger.info("📱 Enhanced Push Message API พร้อมใช้งาน")
+    logger.info("🔍 LINE Account Detection เปิดใช้งาน")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-   """Shutdown event handler"""
-   logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
-   await notification_manager.send_notification("🛑 ระบบกำลังหยุดทำงาน", "info")
-   
-   for connection in notification_manager.active_connections.copy():
-       try:
-           await connection.close()
-       except:
-           pass
-   notification_manager.active_connections.clear()
-   notification_manager.duplicate_slip_cache.clear()
-   notification_manager.pending_notifications.clear()
-   logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
+    """Shutdown event handler"""
+    logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
+    await notification_manager.send_notification("🛑 ระบบกำลังหยุดทำงาน", "info")
+    
+    for connection in notification_manager.active_connections.copy():
+        try:
+            await connection.close()
+        except:
+            pass
+    notification_manager.active_connections.clear()
+    notification_manager.duplicate_slip_cache.clear()
+    notification_manager.pending_notifications.clear()
+    logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
 
 if __name__ == "__main__":
-   import uvicorn
-   uvicorn_log_config = {
-       "version": 1,
-       "disable_existing_loggers": False,
-       "formatters": {
-           "default": {
-               "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-           },
-       },
-       "handlers": {
-           "default": {
-               "formatter": "default",
-               "class": "logging.StreamHandler",
-               "stream": "ext://sys.stdout",
-           },
-       },
-       "root": {
-           "level": "INFO",
-           "handlers": ["default"],
-       },
-       "loggers": {
-           "uvicorn": {"level": "INFO"},
-           "uvicorn.error": {"level": "INFO"},
-           "uvicorn.access": {"level": "INFO"},
-       },
-   }
-   print("🚀 เริ่มต้น LINE OA Middleware (Enhanced Push Message v2.2)...")
-   print("📱 เว็บ Admin: http://localhost:8000/admin")
-   print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
-   print("📊 API Status: http://localhost:8000/admin/api-status")
-   print("🏥 Health Check: http://localhost:8000/health")
-   print("📤 Enhanced Push Message API พร้อมใช้งาน")
-   print("🔍 LINE Account Detection เปิดใช้งาน")
-   print()
-   try:
-       uvicorn.run(
-           "main_updated:app",
-           host="0.0.0.0",
-           port=8000,
-           reload=False,
-           log_config=uvicorn_log_config,
-           access_log=True,
-           server_header=False,
-           date_header=False
-       )
-   except KeyboardInterrupt:
-       print("\n🛑 หยุดระบบโดยผู้ใช้")
-   except Exception as e:
-       print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
+    import uvicorn
+    uvicorn_log_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "root": {
+            "level": "INFO",
+            "handlers": ["default"],
+        },
+        "loggers": {
+            "uvicorn": {"level": "INFO"},
+            "uvicorn.error": {"level": "INFO"},
+            "uvicorn.access": {"level": "INFO"},
+        },
+    }
+    print("🚀 เริ่มต้น LINE OA Middleware (Enhanced Push Message v2.2)...")
+    print("📱 เว็บ Admin: http://localhost:8000/admin")
+    print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
+    print("📊 API Status: http://localhost:8000/admin/api-status")
+    print("🏥 Health Check: http://localhost:8000/health")
+    print("📤 Enhanced Push Message API พร้อมใช้งาน")
+    print("🔍 LINE Account Detection เปิดใช้งาน")
+    print()
+    try:
+        uvicorn.run(
+            "main_updated:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=False,
+            log_config=uvicorn_log_config,
+            access_log=True,
+            server_header=False,
+            date_header=False
+        )
+    except KeyboardInterrupt:
+        print("\n🛑 หยุดระบบโดยผู้ใช้")
+    except Exception as e:
+        print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
