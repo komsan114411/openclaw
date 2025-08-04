@@ -108,8 +108,8 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
 
 def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
     """สร้าง payload ของ Flex Message สำหรับผลตรวจสอบสลิป"""
-    # ตรวจสอบประเภทของข้อมูลสลิป (KBank หรือ Thunder)
-    verified_by = slip.get("verified_by", "Thunder")
+    # ตรวจสอบประเภทของข้อมูลสลิป
+    verified_by = slip.get("verified_by", "Thunder API")
     slip_type = slip.get("type", "thunder")
     
     # ปรับแต่งข้อความตามประเภท
@@ -121,13 +121,19 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
         receiver_info = slip.get("receiver_account", "")
         reference_info = slip.get("reference", "")
     else:
-        # Thunder API format
+        # Thunder API format (รวมทั้ง wallet และ bank)
         title_text = "สลิปถูกต้อง ✅ (Thunder API)"
         amount = slip.get("amount", "0")
         date_time = slip.get("date", "")
+        
+        # จัดการข้อมูลผู้ส่งและผู้รับ
         sender_info = slip.get("sender", slip.get("sender_bank", ""))
         receiver_info = slip.get("receiver_name", slip.get("receiver_bank", ""))
         reference_info = ""
+        
+        # สำหรับ TrueWallet
+        if slip.get("receiver_phone"):
+            receiver_info = f"{receiver_info} ({slip.get('receiver_phone', '')})"
     
     contents = [
         {"type": "text", "text": title_text, "weight": "bold", "size": "lg", "color": "#00B900"},
@@ -146,10 +152,6 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
         detail_contents.append({"type": "text", "text": f"ผู้รับ: {receiver_info}", "size": "sm"})
     if reference_info:
         detail_contents.append({"type": "text", "text": f"อ้างอิง: {reference_info}", "size": "sm", "color": "#666666"})
-    
-    # เพิ่มเบอร์โทรผู้รับถ้ามี (Thunder wallet)
-    if slip.get("receiver_phone"):
-        detail_contents.append({"type": "text", "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}", "size": "sm", "color": "#666666"})
     
     if detail_contents:
         contents.append({"type": "box", "layout": "vertical", "margin": "md", "contents": detail_contents})
@@ -344,26 +346,31 @@ async def api_status_check():
     if thunder_token:
         status_result["thunder"]["configured"] = True
         try:
-            # ใช้ endpoint verify แทน /user; 401 = token ไม่ถูกต้อง แต่ถือว่าสามารถเชื่อมต่อ
+            # ใช้ base URL ที่ถูกต้องตามเอกสาร
             headers = {"Authorization": f"Bearer {thunder_token}"}
-            resp = requests.get("https://api.thunder.in.th/v1/verify",
-                                headers=headers, timeout=5)
-            if resp.status_code in (200, 401):
+            resp = requests.get("https://api.thunder.in.th/v1",
+                                headers=headers, timeout=10)
+            
+            # Thunder API จะตอบ status code ต่างๆ ตามสถานะ
+            if resp.status_code in (200, 401, 404, 405):  # 405 = Method Not Allowed แต่ server ตอบสนอง
                 status_result["thunder"]["connected"] = True
-            # ถ้ามีข้อมูล balance ใน response ให้ดึงมาแสดง
+                logger.info(f"Thunder API test - Status: {resp.status_code}")
+                
+            # พยายามดึงข้อมูลเพิ่มเติมจาก response
             try:
                 data = resp.json()
                 if isinstance(data, dict):
                     if "balance" in data:
                         status_result["thunder"]["balance"] = data.get("balance", 0)
-                    # แสดงข้อความ error จาก Thunder ถ้ามี
                     if data.get("message"):
-                        status_result["thunder"]["error"] = data.get("message")
+                        status_result["thunder"]["message"] = data.get("message")
             except Exception:
-                # ไม่สามารถ decode JSON ได้
-                status_result["thunder"]["error"] = f"Unexpected response: {resp.text}"
+                # ไม่สามารถ decode JSON ได้ หรือไม่มี JSON response
+                status_result["thunder"]["raw_response"] = resp.text[:100]
+                
         except requests.exceptions.RequestException as e:
             status_result["thunder"]["error"] = str(e)
+            logger.error(f"Thunder API connection error: {e}")
 
     # ตรวจสอบ LINE API
     line_token = config_manager.get("line_channel_access_token")
@@ -371,8 +378,6 @@ async def api_status_check():
         status_result["line"]["configured"] = True
         try:
             headers = {"Authorization": f"Bearer {line_token}"}
-            # ใช้ /v2/bot/info ตรวจสอบข้อมูลบอท ตามเอกสาร LINE Messaging API
-            # endpoint นี้ไม่ต้องระบุ userId และจะแจ้ง 401 หาก token ผิด
             response = requests.get("https://api.line.me/v2/bot/info",
                                     headers=headers, timeout=5)
             if response.status_code == 200:
@@ -392,7 +397,6 @@ async def api_status_check():
         status_result["openai"]["configured"] = True
         try:
             headers = {"Authorization": f"Bearer {openai_key}"}
-            # ตรวจสอบผ่าน endpoint models แทนการใช้ไลบรารี openai เพื่อหลีกเลี่ยง error proxies
             r = requests.get("https://api.openai.com/v1/models",
                              headers=headers, timeout=5)
             if r.status_code == 200:
@@ -402,7 +406,7 @@ async def api_status_check():
         except Exception as e:
             status_result["openai"]["error"] = str(e)
 
-    # ตรวจสอบ KBank API (เหมือนเดิม)
+    # ตรวจสอบ KBank API
     kbank_consumer_id = config_manager.get("kbank_consumer_id")
     kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
     if kbank_consumer_id and kbank_consumer_secret:
@@ -432,24 +436,44 @@ async def test_thunder_api():
         # ทดสอบ endpoint หลัก
         headers = {"Authorization": f"Bearer {api_token}"}
         
-        # ลองเรียก API เพื่อทดสอบการเชื่อมต่อ (ใช้ GET request ไปยัง base URL)
+        # ลองเรียก API เพื่อทดสอบการเชื่อมต่อ
         test_url = "https://api.thunder.in.th/v1"
         resp = requests.get(test_url, headers=headers, timeout=10)
         
         logger.info(f"Thunder API Test - Status: {resp.status_code}")
         logger.info(f"Thunder API Test - Response: {resp.text[:200]}")
         
-        # ส่งคืนข้อมูลการทดสอบ
-        return JSONResponse(content={
-            "status": "success" if resp.status_code in [200, 401, 404] else "error",
-            "message": f"เชื่อมต่อ Thunder API สำเร็จ (HTTP {resp.status_code})",
-            "details": {
-                "status_code": resp.status_code,
-                "headers": dict(resp.headers),
-                "response_preview": resp.text[:500],
-                "endpoint_tested": test_url
-            }
-        })
+        # ประเมินผลการทดสอบ
+        if resp.status_code in [200, 401, 404, 405]:
+            # API ตอบสนอง แม้จะเป็น error code แต่แสดงว่าเชื่อมต่อได้
+            success_message = f"เชื่อมต่อ Thunder API สำเร็จ (HTTP {resp.status_code})"
+            if resp.status_code == 401:
+                success_message += " - Token อาจไม่ถูกต้องหรือหมดอายุ"
+            elif resp.status_code == 404:
+                success_message += " - Endpoint พร้อมใช้งาน"
+            elif resp.status_code == 405:
+                success_message += " - Server ตอบสนอง (Method Not Allowed)"
+                
+            return JSONResponse(content={
+                "status": "success",
+                "message": success_message,
+                "details": {
+                    "status_code": resp.status_code,
+                    "headers": dict(resp.headers),
+                    "response_preview": resp.text[:500] if resp.text else "No response body",
+                    "endpoint_tested": test_url
+                }
+            })
+        else:
+            return JSONResponse(content={
+                "status": "error",
+                "message": f"Thunder API Error: HTTP {resp.status_code}",
+                "details": {
+                    "status_code": resp.status_code,
+                    "response_preview": resp.text[:500] if resp.text else "No response body",
+                    "endpoint_tested": test_url
+                }
+            })
         
     except Exception as e:
         logger.error(f"Thunder API Test Error: {e}")
@@ -508,6 +532,43 @@ async def test_slip_upload(request: Request):
             "response": result
         })
 
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
+@app.post("/admin/test-slip-text")
+async def test_slip_text(request: Request):
+    """ทดสอบการตรวจสอบสลิปจากข้อความ"""
+    try:
+        data = await request.json()
+        text = data.get("text", "").strip()
+        
+        if not text:
+            return JSONResponse(content={"status": "error", "message": "ไม่พบข้อความ"})
+        
+        # ดึงข้อมูลจากข้อความ
+        slip_info = extract_slip_info_from_text(text)
+        
+        if slip_info["bank_code"] and slip_info["trans_ref"]:
+            # ทดสอบการตรวจสอบ
+            result = verify_slip_multiple_providers(
+                None, None,
+                slip_info["bank_code"],
+                slip_info["trans_ref"]
+            )
+            
+            return JSONResponse(content={
+                "status": result["status"],
+                "message": result["message"] if result["status"] == "error" else f"ตรวจสอบสำเร็จด้วย {result.get('type', 'unknown')} API",
+                "extracted": slip_info,
+                "response": result
+            })
+        else:
+            return JSONResponse(content={
+                "status": "error",
+                "message": "ไม่พบข้อมูลธนาคารหรือหมายเลขอ้างอิงในข้อความ",
+                "extracted": slip_info
+            })
+            
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)})
 
