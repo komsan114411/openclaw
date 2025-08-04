@@ -129,17 +129,14 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
         receiver_info = slip.get("receiver_name", slip.get("receiver_bank", ""))
         reference_info = ""
     
-    contents = [
-        {"type": "text", "text": title_text, "weight": "bold", "size": "lg", "color": "#00B900"},
-        {"type": "text", "text": f"฿{amount}", "weight": "bold", "size": "xxl", "margin": "md"},
-    ]
+    contents =
     
     if date_time.strip():
         contents.append({"type": "text", "text": date_time, "size": "sm", "color": "#999999", "margin": "sm"})
     
     contents.append({"type": "separator", "margin": "md"})
     
-    detail_contents = []
+    detail_contents =
     if sender_info:
         detail_contents.append({"type": "text", "text": f"ผู้โอน: {sender_info}", "size": "sm"})
     if receiver_info:
@@ -195,7 +192,7 @@ def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
     url = "https://api.line.me/v2/bot/message/reply"
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     contents = build_slip_flex_contents(slip_data)
-    payload = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": "ผลการตรวจสอบสลิป", "contents": contents}]}
+    payload = {"replyToken": reply_token, "messages":}
     try:
         requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
     except Exception as e:
@@ -206,7 +203,7 @@ def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
 def dispatch_event(event: Dict[str, Any]) -> None:
     """ประมวลผล event ที่รับมาจาก LINE แล้วดำเนินการตามประเภทข้อความ"""
     try:
-        if event.get("type") != "message":
+        if event.get("type")!= "message":
             return
         message = event.get("message", {})
         user_id = event.get("source", {}).get("userId")
@@ -280,7 +277,7 @@ async def line_webhook(request: Request) -> JSONResponse:
     except json.JSONDecodeError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
     # Dispatch ทุก event ใน thread แยก
-    for ev in payload.get("events", []):
+    for ev in payload.get("events",):
         threading.Thread(target=dispatch_event, args=(ev,), daemon=True).start()
     return JSONResponse(content={"status": "ok"})
 
@@ -347,7 +344,7 @@ async def api_status_check():
             # ใช้ endpoint verify แทน /user; 401 = token ไม่ถูกต้อง แต่ถือว่าสามารถเชื่อมต่อ
             headers = {"Authorization": f"Bearer {thunder_token}"}
             resp = requests.get("https://api.thunder.in.th/v1/verify",
-                                headers=headers, timeout=5)
+                                 headers=headers, timeout=5)
             if resp.status_code in (200, 401):
                 status_result["thunder"]["connected"] = True
             # ถ้ามีข้อมูล balance ใน response ให้ดึงมาแสดง
@@ -374,7 +371,7 @@ async def api_status_check():
             # ใช้ /v2/bot/info ตรวจสอบข้อมูลบอท ตามเอกสาร LINE Messaging API
             # endpoint นี้ไม่ต้องระบุ userId และจะแจ้ง 401 หาก token ผิด
             response = requests.get("https://api.line.me/v2/bot/info",
-                                    headers=headers, timeout=5)
+                                     headers=headers, timeout=5)
             if response.status_code == 200:
                 bot_data = response.json()
                 status_result["line"]["connected"] = True
@@ -432,7 +429,7 @@ async def test_thunder_api():
         headers = {"Authorization": f"Bearer {api_token}"}
         # ใช้ /v1/verify เพื่อเช็กว่าเซิร์ฟเวอร์ตอบสนอง (401 แปลว่า token ผิด แต่ยังตอบ)
         resp = requests.get("https://api.thunder.in.th/v1/verify",
-                            headers=headers, timeout=10)
+                             headers=headers, timeout=10)
         if resp.status_code in (200, 401):
             msg = ("เชื่อมต่อ Thunder API สำเร็จ" if resp.status_code == 200
                    else "เชื่อมต่อได้ แต่ Token ไม่ถูกต้อง")
