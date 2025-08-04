@@ -42,6 +42,7 @@ try:
     )
     from services.chat_bot import get_chat_response
     from services.slip_checker import verify_slip_with_thunder
+    from services.enhanced_slip_checker import verify_slip_multiple_providers, extract_slip_info_from_text
     
     # เริ่มต้นฐานข้อมูลเมื่อแอปถูกเริ่ม
     logger.info("Initializing database...")
@@ -70,7 +71,52 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
 
 def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
     """สร้าง payload ของ Flex Message สำหรับผลตรวจสอบสลิป"""
-    # (โค้ดส่วนนี้ไม่ได้เปลี่ยนแปลง)
+    # ตรวจสอบประเภทของข้อมูลสลิป (KBank หรือ Thunder)
+    verified_by = slip.get("verified_by", "Thunder")
+    slip_type = slip.get("type", "thunder")
+    
+    # ปรับแต่งข้อความตามประเภท
+    if slip_type == "kbank":
+        title_text = "สลิปถูกต้อง ✅ (KBank API)"
+        amount = slip.get("amount", "0")
+        date_time = f"{slip.get('trans_date', '')} {slip.get('trans_time', '')}"
+        sender_info = slip.get("sender_account", "")
+        receiver_info = slip.get("receiver_account", "")
+        reference_info = slip.get("reference", "")
+    else:
+        # Thunder API format
+        title_text = "สลิปถูกต้อง ✅ (Thunder API)"
+        amount = slip.get("amount", "0")
+        date_time = slip.get("date", "")
+        sender_info = slip.get("sender", slip.get("sender_bank", ""))
+        receiver_info = slip.get("receiver_name", slip.get("receiver_bank", ""))
+        reference_info = ""
+    
+    contents = [
+        {"type": "text", "text": title_text, "weight": "bold", "size": "lg", "color": "#00B900"},
+        {"type": "text", "text": f"฿{amount}", "weight": "bold", "size": "xxl", "margin": "md"},
+    ]
+    
+    if date_time.strip():
+        contents.append({"type": "text", "text": date_time, "size": "sm", "color": "#999999", "margin": "sm"})
+    
+    contents.append({"type": "separator", "margin": "md"})
+    
+    detail_contents = []
+    if sender_info:
+        detail_contents.append({"type": "text", "text": f"ผู้โอน: {sender_info}", "size": "sm"})
+    if receiver_info:
+        detail_contents.append({"type": "text", "text": f"ผู้รับ: {receiver_info}", "size": "sm"})
+    if reference_info:
+        detail_contents.append({"type": "text", "text": f"อ้างอิง: {reference_info}", "size": "sm", "color": "#666666"})
+    
+    # เพิ่มเบอร์โทรผู้รับถ้ามี (Thunder wallet)
+    if slip.get("receiver_phone"):
+        detail_contents.append({"type": "text", "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}", "size": "sm", "color": "#666666"})
+    
+    if detail_contents:
+        contents.append({"type": "box", "layout": "vertical", "margin": "md", "contents": detail_contents})
+    
     return {
         "type": "bubble",
         "size": "mega",
@@ -78,23 +124,13 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
             "type": "box",
             "layout": "vertical",
             "spacing": "md",
-            "contents": [
-                {"type": "text", "text": "สลิปถูกต้อง ✅", "weight": "bold", "size": "lg", "color": "#00B900"},
-                {"type": "text", "text": f"฿{slip.get('amount')}", "weight": "bold", "size": "xxl", "margin": "md"},
-                {"type": "text", "text": slip.get("date", ""), "size": "sm", "color": "#999999", "margin": "sm"},
-                {"type": "separator", "margin": "md"},
-                {"type": "box", "layout": "vertical", "margin": "md", "contents": [
-                    {"type": "text", "text": f"ผู้โอน: {slip.get('sender', slip.get('sender_bank', ''))}", "size": "sm"},
-                    {"type": "text", "text": f"ผู้รับ: {slip.get('receiver_name', slip.get('receiver_bank', ''))}", "size": "sm"},
-                    {"type": "text", "text": f"เบอร์ผู้รับ: {slip.get('receiver_phone', '')}", "size": "sm", "color": "#666666"},
-                ]},
-            ],
+            "contents": contents,
         },
         "footer": {
             "type": "box",
             "layout": "vertical",
             "contents": [
-                {"type": "text", "text": "ตรวจสอบโดย Thunder", "size": "xs", "color": "#AAAAAA", "align": "center"}
+                {"type": "text", "text": f"ตรวจสอบโดย {verified_by}", "size": "xs", "color": "#AAAAAA", "align": "center"}
             ],
         },
     }
@@ -143,22 +179,52 @@ def dispatch_event(event: Dict[str, Any]) -> None:
         save_chat_history(user_id, "in", message, sender="user")
 
         if message.get("type") == "image":
-            # ตรวจสอบสลิป
-            result = verify_slip_with_thunder(message.get("id"))
+            # ตรวจสอบสลิปด้วยระบบใหม่ที่รองรับทั้ง KBank และ Thunder
+            logger.info(f"📷 ได้รับรูปภาพจากผู้ใช้ {user_id}")
+            result = verify_slip_multiple_providers(message.get("id"))
+            
             if result["status"] == "success":
                 # ส่ง Flex message และบันทึกประวัติขาออก
+                logger.info(f"✅ ตรวจสอบสลิปสำเร็จด้วย {result.get('type', 'unknown')} API")
                 save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
                 send_line_flex_reply(reply_token, result["data"])
             else:
                 # ส่งข้อความ error
+                logger.warning(f"❌ ตรวจสอบสลิปล้มเหลว: {result['message']}")
                 save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
                 send_line_reply(reply_token, result["message"])
+                
         elif message.get("type") == "text":
-            # ใช้ AI ตอบข้อความ พร้อมส่งประวัติแชทย้อนหลังให้จำบริบท
             user_text = message.get("text", "")
-            response = get_chat_response(user_text, user_id)
-            save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
-            send_line_reply(reply_token, response)
+            logger.info(f"💬 ได้รับข้อความจากผู้ใช้ {user_id}: {user_text[:50]}...")
+            
+            # ตรวจสอบว่าผู้ใช้ส่งข้อมูลสลิปมาผ่านข้อความหรือไม่
+            slip_info = extract_slip_info_from_text(user_text)
+            
+            if slip_info["bank_code"] and slip_info["trans_ref"]:
+                # ผู้ใช้ส่งข้อมูลสลิปมาผ่านข้อความ ลองตรวจสอบ
+                logger.info(f"🏦 ตรวจพบข้อมูลสลิป: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}")
+                result = verify_slip_multiple_providers(
+                    None, None, 
+                    slip_info["bank_code"], 
+                    slip_info["trans_ref"]
+                )
+                
+                if result["status"] == "success":
+                    logger.info("✅ ตรวจสอบสลิปจากข้อความสำเร็จ")
+                    save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
+                    send_line_flex_reply(reply_token, result["data"])
+                else:
+                    logger.warning(f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {result['message']}")
+                    save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
+                    send_line_reply(reply_token, result["message"])
+            else:
+                # การสนทนาธรรมดาด้วย AI
+                logger.info("🤖 กำลังประมวลผลด้วย AI")
+                response = get_chat_response(user_text, user_id)
+                save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
+                send_line_reply(reply_token, response)
+                
     except Exception as e:
         logger.exception("Error processing event: %s", e)
 
@@ -233,6 +299,7 @@ async def api_status_check():
         "thunder": {"configured": False, "connected": False},
         "line": {"configured": False, "connected": False},
         "openai": {"configured": False, "connected": False},
+        "kbank": {"configured": False, "connected": False},  # เพิ่ม KBank
     }
 
     # ตรวจสอบ Thunder API
@@ -276,6 +343,23 @@ async def api_status_check():
                 status["openai"]["error"] = "OpenAI library not installed"
         except Exception as e:
             status["openai"]["error"] = str(e)
+    
+    # ตรวจสอบ KBank API
+    kbank_consumer_id = config_manager.get("kbank_consumer_id")
+    kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
+    
+    if kbank_consumer_id and kbank_consumer_secret:
+        status["kbank"]["configured"] = True
+        try:
+            from services.kbank_checker import kbank_checker
+            token = kbank_checker._get_access_token()
+            if token:
+                status["kbank"]["connected"] = True
+                status["kbank"]["token_length"] = len(token)
+            else:
+                status["kbank"]["error"] = "ไม่สามารถขอ access token ได้"
+        except Exception as e:
+            status["kbank"]["error"] = str(e)
             
     return JSONResponse(content=status)
 
@@ -297,6 +381,32 @@ async def test_thunder_api(request: Request):
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": f"Connection error: {str(e)}"})
 
+@app.post("/admin/test-kbank")
+async def test_kbank_api(request: Request):
+    """ทดสอบการเชื่อมต่อ KBank API"""
+    try:
+        consumer_id = config_manager.get("kbank_consumer_id")
+        consumer_secret = config_manager.get("kbank_consumer_secret")
+        
+        if not consumer_id or not consumer_secret:
+            return JSONResponse(content={"status": "error", "message": "ยังไม่ได้ตั้งค่า KBank Consumer ID หรือ Secret"})
+        
+        from services.kbank_checker import kbank_checker
+        token = kbank_checker._get_access_token()
+        
+        if token:
+            return JSONResponse(content={
+                "status": "success", 
+                "message": "เชื่อมต่อ KBank API สำเร็จ",
+                "token_preview": token[:20] + "...",
+                "token_length": len(token)
+            })
+        else:
+            return JSONResponse(content={"status": "error", "message": "ไม่สามารถขอ KBank access token ได้"})
+            
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": f"KBank API Error: {str(e)}"})
+
 @app.post("/admin/test-slip-upload")
 async def test_slip_upload(request: Request):
     """ทดสอบอัปโหลดสลิปจากหน้า Admin"""
@@ -309,14 +419,52 @@ async def test_slip_upload(request: Request):
         image_data = await file.read()
         message_id = "test_slip_" + datetime.now().strftime("%Y%m%d%H%M%S")
 
-        result = verify_slip_with_thunder(message_id, test_image_data=image_data)
+        # ใช้ระบบตรวจสอบแบบใหม่
+        result = verify_slip_multiple_providers(message_id, test_image_data=image_data)
         
         return JSONResponse(content={
             "status": "success" if result["status"] == "success" else "error",
-            "message": result["message"] if result["status"] == "error" else "ตรวจสอบสำเร็จ",
+            "message": result["message"] if result["status"] == "error" else f"ตรวจสอบสำเร็จด้วย {result.get('type', 'unknown')} API",
             "response": result
         })
 
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
+@app.post("/admin/test-slip-text")
+async def test_slip_text(request: Request):
+    """ทดสอบตรวจสอบสลิปจากข้อความ"""
+    try:
+        data = await request.json()
+        text_input = data.get("text", "")
+        
+        if not text_input:
+            return JSONResponse(content={"status": "error", "message": "กรุณาใส่ข้อความ"})
+        
+        # ดึงข้อมูลจากข้อความ
+        slip_info = extract_slip_info_from_text(text_input)
+        
+        if not slip_info["bank_code"] or not slip_info["trans_ref"]:
+            return JSONResponse(content={
+                "status": "error", 
+                "message": "ไม่พบข้อมูลธนาคารหรือหมายเลขอ้างอิงในข้อความ",
+                "extracted": slip_info
+            })
+        
+        # ตรวจสอบสลิป
+        result = verify_slip_multiple_providers(
+            None, None,
+            slip_info["bank_code"],
+            slip_info["trans_ref"]
+        )
+        
+        return JSONResponse(content={
+            "status": result["status"],
+            "message": result.get("message", "ตรวจสอบเสร็จสิ้น"),
+            "extracted": slip_info,
+            "response": result
+        })
+        
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)})
 
@@ -381,7 +529,9 @@ async def debug_config():
             "config_in_memory": config_manager.config,
             "config_from_file": config_from_file,
             "ai_prompt_memory_length": len(config_manager.config.get("ai_prompt", "")),
-            "ai_prompt_file_length": len(config_from_file.get("ai_prompt", ""))
+            "ai_prompt_file_length": len(config_from_file.get("ai_prompt", "")),
+            "kbank_configured": bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret")),
+            "kbank_enabled": config_manager.get("kbank_enabled", False)
         })
     except Exception as e:
         return JSONResponse(content={"error": str(e)})
@@ -394,7 +544,8 @@ async def reload_config():
         return JSONResponse(content={
             "status": "success",
             "message": "โหลด Config ใหม่เรียบร้อย",
-            "ai_prompt_length": len(config_manager.config.get("ai_prompt", ""))
+            "ai_prompt_length": len(config_manager.config.get("ai_prompt", "")),
+            "kbank_enabled": config_manager.get("kbank_enabled", False)
         })
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)})
@@ -411,11 +562,15 @@ async def update_settings(request: Request) -> JSONResponse:
         "openai_api_key",
         "ai_prompt",
         "wallet_phone_number",
+        "kbank_consumer_id",      # เพิ่ม KBank Consumer ID
+        "kbank_consumer_secret",  # เพิ่ม KBank Consumer Secret
     ]:
         if key in data:
             updates[key] = data[key].strip()
+    
     updates["ai_enabled"] = bool(data.get("ai_enabled"))
     updates["slip_enabled"] = bool(data.get("slip_enabled"))
+    updates["kbank_enabled"] = bool(data.get("kbank_enabled"))  # เพิ่ม KBank enabled
 
     config_manager.update_multiple(updates)
     return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
