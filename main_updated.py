@@ -83,7 +83,7 @@ except ImportError as e:
         if message_id or test_image_data:
             return verify_slip_with_thunder(message_id, test_image_data)
         return {"status": "error", "message": "ไม่สามารถตรวจสอบสลิปได้"}
-
+    
     def extract_slip_info_from_text(text):
         return {"bank_code": None, "trans_ref": None}
 
@@ -129,17 +129,14 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
         receiver_info = slip.get("receiver_name", slip.get("receiver_bank", ""))
         reference_info = ""
     
-    contents = [
-        {"type": "text", "text": title_text, "weight": "bold", "size": "lg", "color": "#00B900"},
-        {"type": "text", "text": f"฿{amount}", "weight": "bold", "size": "xxl", "margin": "md"},
-    ]
+    contents =
     
     if date_time.strip():
         contents.append({"type": "text", "text": date_time, "size": "sm", "color": "#999999", "margin": "sm"})
     
     contents.append({"type": "separator", "margin": "md"})
     
-    detail_contents = []
+    detail_contents =
     if sender_info:
         detail_contents.append({"type": "text", "text": f"ผู้โอน: {sender_info}", "size": "sm"})
     if receiver_info:
@@ -163,7 +160,169 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
             "spacing": "md",
             "contents": contents,
         },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": f"ตรวจสอบโดย {verified_by}", "size": "xs", "color": "#AAAAAA", "align": "center"}
+            ],
+        },
     }
+
+def send_line_reply(reply_token: str, text: str) -> None:
+    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE"""
+    access_token = config_manager.get("line_channel_access_token")
+    if not access_token:
+        logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
+        return
+    url = "https://api.line.me/v2/bot/message/reply"
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    payload = {"replyToken": reply_token, "messages": [{"type": "text", "text": text}]}
+    try:
+        requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+    except Exception as e:
+        logger.error("Failed to send text reply: %s", e)
+
+def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
+    """ส่ง Flex Message สำหรับผลตรวจสอบสลิป"""
+    access_token = config_manager.get("line_channel_access_token")
+    if not access_token:
+        logger.error("LINE_CHANNEL_ACCESS_TOKEN is missing.")
+        return
+    url = "https://api.line.me/v2/bot/message/reply"
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    contents = build_slip_flex_contents(slip_data)
+    payload = {"replyToken": reply_token, "messages":}
+    try:
+        requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
+    except Exception as e:
+        logger.error("Failed to send flex reply: %s", e)
+
+# ====================== Event Dispatcher ======================
+
+def dispatch_event(event: Dict[str, Any]) -> None:
+    """ประมวลผล event ที่รับมาจาก LINE แล้วดำเนินการตามประเภทข้อความ"""
+    try:
+        if event.get("type")!= "message":
+            return
+        message = event.get("message", {})
+        user_id = event.get("source", {}).get("userId")
+        reply_token = event.get("replyToken")
+        
+        # บันทึกข้อความขาเข้า
+        save_chat_history(user_id, "in", message, sender="user")
+
+        if message.get("type") == "image":
+            # ตรวจสอบสลิป
+            logger.info(f"📷 ได้รับรูปภาพจากผู้ใช้ {user_id}")
+            result = verify_slip_multiple_providers(message.get("id"))
+            
+            if result["status"] == "success":
+                # ส่ง Flex message และบันทึกประวัติขาออก
+                logger.info(f"✅ ตรวจสอบสลิปสำเร็จด้วย {result.get('type', 'unknown')} API")
+                save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
+                send_line_flex_reply(reply_token, result["data"])
+            else:
+                # ส่งข้อความ error
+                logger.warning(f"❌ ตรวจสอบสลิปล้มเหลว: {result['message']}")
+                save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
+                send_line_reply(reply_token, result["message"])
+                
+        elif message.get("type") == "text":
+            user_text = message.get("text", "")
+            logger.info(f"💬 ได้รับข้อความจากผู้ใช้ {user_id}: {user_text[:50]}...")
+            
+            # ตรวจสอบว่าผู้ใช้ส่งข้อมูลสลิปมาผ่านข้อความหรือไม่
+            slip_info = extract_slip_info_from_text(user_text)
+            
+            if slip_info["bank_code"] and slip_info["trans_ref"]:
+                # ผู้ใช้ส่งข้อมูลสลิปมาผ่านข้อความ ลองตรวจสอบ
+                logger.info(f"🏦 ตรวจพบข้อมูลสลิป: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}")
+                result = verify_slip_multiple_providers(
+                    None, None, 
+                    slip_info["bank_code"], 
+                    slip_info["trans_ref"]
+                )
+                
+                if result["status"] == "success":
+                    logger.info("✅ ตรวจสอบสลิปจากข้อความสำเร็จ")
+                    save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
+                    send_line_flex_reply(reply_token, result["data"])
+                else:
+                    logger.warning(f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {result['message']}")
+                    save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
+                    send_line_reply(reply_token, result["message"])
+            else:
+                # การสนทนาธรรมดาด้วย AI
+                logger.info("🤖 กำลังประมวลผลด้วย AI")
+                response = get_chat_response(user_text, user_id)
+                save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
+                send_line_reply(reply_token, response)
+                
+    except Exception as e:
+        logger.exception("Error processing event: %s", e)
+
+# ====================== LINE Webhook Route ======================
+
+@app.post("/line/webhook")
+async def line_webhook(request: Request) -> JSONResponse:
+    """รับ Webhook จาก LINE"""
+    body = await request.body()
+    signature = request.headers.get("x-line-signature", "")
+    channel_secret = config_manager.get("line_channel_secret", "")
+    if not verify_line_signature(body, signature, channel_secret):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    # Dispatch ทุก event ใน thread แยก
+    for ev in payload.get("events",):
+        threading.Thread(target=dispatch_event, args=(ev,), daemon=True).start()
+    return JSONResponse(content={"status": "ok"})
+
+# ====================== Admin Pages ======================
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Redirect หน้าแรกไปหน้า Admin"""
+    return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
+
+@app.get("/admin", response_class=HTMLResponse)  
+async def admin_home(request: Request):
+    """หน้าแสดงภาพรวมระบบ"""
+    total_count = get_chat_history_count()
+    return templates.TemplateResponse(
+        "admin_home.html",
+        {
+            "request": request,
+            "config": config_manager.config,
+            "total_chat_history": total_count,
+        },
+    )
+
+@app.get("/admin/chat", response_class=HTMLResponse)
+async def admin_chat(request: Request):
+    """หน้าแสดงประวัติการสนทนาล่าสุด"""
+    history = get_recent_chat_history(limit=100)
+    return templates.TemplateResponse(
+        "chat_history.html",
+        {
+            "request": request,
+            "chat_history": history,
+        },
+    )
+
+@app.get("/admin/settings", response_class=HTMLResponse)
+async def admin_settings(request: Request):
+    """หน้า Settings สำหรับตั้งค่าระบบ"""
+    return templates.TemplateResponse(
+        "settings.html",
+        {
+            "request": request,
+            "config": config_manager.config,
+        },
+    )
 
 # ====================== Admin API Endpoints ======================
 
@@ -182,11 +341,36 @@ async def api_status_check():
     if thunder_token:
         status_result["thunder"]["configured"] = True
         try:
-            # ไม่เรียก /v1/verify เพื่อหลีกเลี่ยง invalid_payload; เรียก root domain แทน
-            ping = requests.get("https://api.thunder.in.th", timeout=5)
-            if 200 <= ping.status_code < 500:
+            # ใช้ POST request ไปยัง /v1/verify/truewallet พร้อมข้อมูลจำลอง
+            # เพื่อยืนยันการเชื่อมต่อและโทเค็น
+            dummy_file = {"file": ("dummy.txt", b"not_an_image", "text/plain")}
+            response = requests.post("https://api.thunder.in.th/v1/verify/truewallet",
+                                     headers={"Authorization": f"Bearer {thunder_token}"},
+                                     files=dummy_file,
+                                     timeout=5)
+            
+            # คาดหวัง 400 Bad Request (เช่น invalid_image) สำหรับข้อมูลจำลอง
+            # หรือ 401 Unauthorized หากโทเค็นไม่ถูกต้อง
+            if response.status_code == 400:
                 status_result["thunder"]["connected"] = True
-            # ไม่ได้ตรวจสอบ balance เพราะ endpoint นี้ไม่ต้องใช้ token
+                status_result["thunder"]["message"] = f"Health check responded with 400 Bad Request (expected for dummy data). API is reachable."
+                # พยายามดึงข้อความ error จาก response เพื่อให้ข้อมูลเพิ่มเติม
+                try:
+                    error_data = response.json()
+                    if error_data.get("message"):
+                        status_result["thunder"]["error"] = error_data.get("message")
+                except json.JSONDecodeError:
+                    status_result["thunder"]["error"] = f"Unexpected 400 response format: {response.text}"
+            elif response.status_code == 401:
+                status_result["thunder"]["connected"] = True # ถือว่าเชื่อมต่อได้ แต่โทเค็นไม่ถูกต้อง
+                status_result["thunder"]["error"] = "Thunder API returned 401 Unauthorized. Check API Token."
+            elif response.status_code == 403:
+                status_result["thunder"]["error"] = f"Thunder API returned 403 Forbidden: {response.json().get('message', 'Access denied')}"
+            elif response.status_code >= 500:
+                status_result["thunder"]["error"] = f"Thunder API returned server error {response.status_code}: {response.text}"
+            else:
+                # กรณีอื่นๆ ที่ไม่คาดคิด
+                status_result["thunder"]["error"] = f"Thunder API returned unexpected status {response.status_code}: {response.text}"
         except requests.exceptions.RequestException as e:
             status_result["thunder"]["error"] = str(e)
 
@@ -196,8 +380,10 @@ async def api_status_check():
         status_result["line"]["configured"] = True
         try:
             headers = {"Authorization": f"Bearer {line_token}"}
+            # ใช้ /v2/bot/info ตรวจสอบข้อมูลบอท ตามเอกสาร LINE Messaging API
+            # endpoint นี้ไม่ต้องระบุ userId และจะแจ้ง 401 หาก token ผิด
             response = requests.get("https://api.line.me/v2/bot/info",
-                                    headers=headers, timeout=5)
+                                     headers=headers, timeout=5)
             if response.status_code == 200:
                 bot_data = response.json()
                 status_result["line"]["connected"] = True
@@ -215,6 +401,7 @@ async def api_status_check():
         status_result["openai"]["configured"] = True
         try:
             headers = {"Authorization": f"Bearer {openai_key}"}
+            # ตรวจสอบผ่าน endpoint models แทนการใช้ไลบรารี openai เพื่อหลีกเลี่ยง error proxies
             r = requests.get("https://api.openai.com/v1/models",
                              headers=headers, timeout=5)
             if r.status_code == 200:
@@ -224,7 +411,7 @@ async def api_status_check():
         except Exception as e:
             status_result["openai"]["error"] = str(e)
 
-    # ตรวจสอบ KBank API
+    # ตรวจสอบ KBank API (เหมือนเดิม)
     kbank_consumer_id = config_manager.get("kbank_consumer_id")
     kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
     if kbank_consumer_id and kbank_consumer_secret:
@@ -252,34 +439,29 @@ async def test_thunder_api():
 
     try:
         headers = {"Authorization": f"Bearer {api_token}"}
-        # เรียก /v1/verify เพื่อดูว่าตอบสนอง; 400 invalid_payload หมายถึงเชื่อมต่อได้แต่ต้องส่งไฟล์
-        resp = requests.get("https://api.thunder.in.th/v1/verify",
-                            headers=headers, timeout=10)
-        # หาก invalid_payload ให้ตีความว่าเชื่อมต่อได้
-        if resp.status_code == 400 and "invalid_payload" in resp.text:
-            return JSONResponse(content={
-                "status": "success",
-                "message": "เชื่อมต่อ Thunder API ได้ แต่ต้องส่งไฟล์ในการตรวจสอบสลิป",
-                "raw_status_code": resp.status_code,
-                "response_message": resp.json().get("message", "")
-            })
-        elif resp.status_code in (200, 401):
-            msg = "เชื่อมต่อ Thunder API สำเร็จ" if resp.status_code == 200 else "เชื่อมต่อได้ แต่ Token ไม่ถูกต้อง"
-            return JSONResponse(content={
-                "status": "success",
-                "message": msg,
-                "raw_status_code": resp.status_code,
-                "response_message": resp.json().get("message", "")
-            })
-        return JSONResponse(content={
-            "status": "error",
-            "message": f"{resp.status_code}: {resp.text}"
-        })
+        # ใช้ POST request ไปยัง /v1/verify/truewallet พร้อมข้อมูลจำลอง
+        # เพื่อยืนยันการเชื่อมต่อและโทเค็น
+        dummy_file = {"file": ("dummy.txt", b"not_an_image", "text/plain")}
+        response = requests.post("https://api.thunder.in.th/v1/verify/truewallet",
+                                 headers=headers,
+                                 files=dummy_file,
+                                 timeout=10)
+        
+        # คาดหวัง 400 Bad Request สำหรับข้อมูลจำลอง หรือ 401 Unauthorized หากโทเค็นไม่ถูกต้อง
+        if response.status_code == 400:
+            return JSONResponse(content={"status": "success", "message": "เชื่อมต่อ Thunder API สำเร็จ (ตอบกลับ 400 Bad Request สำหรับข้อมูลจำลอง)", "response_detail": response.json()})
+        elif response.status_code == 401:
+            return JSONResponse(content={"status": "error", "message": "Thunder API Error: 401 Unauthorized. โปรดตรวจสอบ Thunder API Token ของคุณ", "response_detail": response.json()})
+        elif response.status_code == 403:
+            return JSONResponse(content={"status": "error", "message": f"Thunder API Error: 403 Forbidden. {response.json().get('message', 'Access denied')}", "response_detail": response.json()})
+        elif response.status_code >= 500:
+            return JSONResponse(content={"status": "error", "message": f"Thunder API Error: Internal Server Error {response.status_code}. โปรดลองอีกครั้งในภายหลัง", "response_detail": response.text})
+        else:
+            # กรณีอื่นๆ ที่ไม่คาดคิด
+            response.raise_for_status() # จะ raise HTTPError สำหรับ 4xx/5xx ที่เหลือ
+            return JSONResponse(content={"status": "success", "message": "เชื่อมต่อ Thunder API สำเร็จ (ตอบกลับ 200 OK)", "response_detail": response.json()})
     except Exception as e:
-        return JSONResponse(content={
-            "status": "error",
-            "message": f"Thunder API Error: {str(e)}"
-        })
+        return JSONResponse(content={"status": "error", "message": f"Thunder API Error: {str(e)}"})
 
 @app.post("/admin/test-kbank")
 async def test_kbank_api():
@@ -367,3 +549,7 @@ async def update_settings(request: Request) -> JSONResponse:
 async def health_check():
     """Health check endpoint"""
     return JSONResponse(content={"status": "ok", "timestamp": datetime.utcnow().isoformat()})
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
