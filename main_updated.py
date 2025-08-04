@@ -2,15 +2,16 @@ import json
 import hmac
 import hashlib
 import base64
-import asyncio
-import time
-from datetime import datetime
-from typing import Dict, Any, Optional, List, Union
+import threading
 import logging
 import os
 import sys
+import asyncio
+import time
+from datetime import datetime
+from typing import Dict, Any, Optional, List
 
-import httpx  # เปลี่ยนจาก requests เป็น httpx
+import requests
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
@@ -39,7 +40,7 @@ class NotificationManager:
         self.active_connections: List[WebSocket] = []
         self.pending_notifications: List[Dict] = []
         self.slip_processing_status = {}
-        self.duplicate_slip_cache: Dict[str, Dict] = {}
+        self.duplicate_slip_cache = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -116,7 +117,7 @@ try:
     logger.info("✅ Chat bot service imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import chat_bot: {e}")
-    def get_chat_response(text, user_id):
+    def get_chat_response(text, user_id): 
         return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
 
 try:
@@ -129,8 +130,8 @@ except ImportError as e:
 
 try:
     from services.enhanced_slip_checker import (
-        verify_slip_multiple_providers,
-        extract_slip_info_from_text,
+        verify_slip_multiple_providers, 
+        extract_slip_info_from_text, 
         get_api_status_summary
     )
     logger.info("✅ Enhanced slip checker imported successfully")
@@ -140,9 +141,9 @@ except ImportError as e:
         if message_id or test_image_data:
             return verify_slip_with_thunder(message_id, test_image_data)
         return {"status": "error", "message": "ไม่สามารถตรวจสอบสลิปได้"}
-    def extract_slip_info_from_text(text):
+    def extract_slip_info_from_text(text): 
         return {"bank_code": None, "trans_ref": None}
-    def get_api_status_summary():
+    def get_api_status_summary(): 
         return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
 
 # Initialize database
@@ -163,6 +164,7 @@ def init_line_bot():
     channel_secret = config_manager.get("line_channel_secret")
     
     if access_token and channel_secret:
+        # เก็บข้อมูลไว้ในตัวแปร global แทนการใช้ SDK
         line_bot_api = {
             "access_token": access_token,
             "channel_secret": channel_secret
@@ -191,8 +193,8 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
         logger.error(f"❌ Signature verification error: {e}")
         return False
 
-async def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
-    """Send LINE reply message asynchronously"""
+def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
+    """Send LINE reply message"""
     access_token = config_manager.get("line_channel_access_token")
     if not access_token:
         logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
@@ -210,61 +212,67 @@ async def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> 
         "Authorization": f"Bearer {access_token}", 
         "Content-Type": "application/json",
         "User-Agent": "LINE-OA-Middleware/1.0",
+        "Connection": "close"
     }
     payload = {
         "replyToken": reply_token, 
         "messages": [{"type": "text", "text": text}]
     }
     
-    async with httpx.AsyncClient() as client:
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"📤 Sending LINE reply (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
-                response = await client.post(url, headers=headers, json=payload, timeout=15)
-                logger.info(f"📤 LINE Reply API response: {response.status_code}")
-                
-                if response.status_code == 200:
-                    logger.info(f"✅ LINE reply sent successfully")
-                    return True
-                elif response.status_code == 400:
-                    try:
-                        error_data = response.json()
-                        error_message = error_data.get('message', 'Bad Request')
-                        logger.error(f"❌ LINE Reply API 400 Bad Request: {error_message}")
-                        if 'invalid' in error_message.lower() and 'token' in error_message.lower():
-                            logger.error("❌ Reply token expired - not retrying")
-                            return False
-                    except:
-                        logger.error(f"❌ LINE Reply API 400 Bad Request: {response.text}")
-                    return False
-                elif response.status_code == 401:
-                    logger.error(f"❌ LINE Reply API 401 Unauthorized - Check access token")
-                    return False
-                elif response.status_code == 403:
-                    logger.error(f"❌ LINE Reply API 403 Forbidden - Check permissions")
-                    return False
-                elif response.status_code >= 500:
-                    logger.warning(f"⚠️ LINE Reply API {response.status_code} Server Error - will retry")
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(1)
-                        continue
-                else:
-                    logger.error(f"❌ LINE Reply API HTTP {response.status_code}: {response.text}")
-                    return False
-            except (httpx.TimeoutException, httpx.RequestError) as e:
-                logger.warning(f"⚠️ LINE Reply API request error (attempt {attempt + 1}): {e}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(1)
-                    continue
-            except Exception as e:
-                logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"📤 Sending LINE reply (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
+            
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+            logger.info(f"📤 LINE Reply API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                logger.info(f"✅ LINE reply sent successfully")
+                return True
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                    error_message = error_data.get('message', 'Bad Request')
+                    logger.error(f"❌ LINE Reply API 400 Bad Request: {error_message}")
+                    if 'invalid' in error_message.lower() and 'token' in error_message.lower():
+                        logger.error("❌ Reply token expired - not retrying")
+                        return False
+                except:
+                    logger.error(f"❌ LINE Reply API 400 Bad Request: {response.text}")
                 return False
+            elif response.status_code == 401:
+                logger.error(f"❌ LINE Reply API 401 Unauthorized - Check access token")
+                return False
+            elif response.status_code == 403:
+                logger.error(f"❌ LINE Reply API 403 Forbidden - Check permissions")
+                return False
+            elif response.status_code >= 500:
+                logger.warning(f"⚠️ LINE Reply API {response.status_code} Server Error - will retry")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+            else:
+                logger.error(f"❌ LINE Reply API HTTP {response.status_code}: {response.text}")
+                return False
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ LINE Reply API timeout (attempt {attempt + 1})")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ LINE Reply API request error (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except Exception as e:
+            logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
+            return False
     
     logger.error(f"❌ Failed to send LINE reply after {max_retries} attempts")
     return False
 
-async def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
-    """Send LINE push message asynchronously"""
+def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
+    """Send LINE push message"""
     access_token = config_manager.get("line_channel_access_token")
     if not access_token:
         logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
@@ -282,52 +290,57 @@ async def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
         "User-Agent": "LINE-OA-Middleware/1.0",
+        "Connection": "close"
     }
     payload = {
         "to": user_id,
         "messages": [{"type": "text", "text": text}],
     }
 
-    async with httpx.AsyncClient() as client:
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"📤 Sending LINE push message (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
-                response = await client.post(url, headers=headers, json=payload, timeout=15)
-                logger.info(f"📤 LINE Push API response: {response.status_code}")
-                
-                if response.status_code == 200:
-                    logger.info("✅ Push message sent to LINE successfully")
-                    return True
-                elif response.status_code == 400:
-                    try:
-                        error_data = response.json()
-                        error_message = error_data.get('message', 'Bad Request')
-                        logger.error(f"❌ LINE Push API 400 Bad Request: {error_message}")
-                    except:
-                        logger.error(f"❌ LINE Push API 400 Bad Request: {response.text}")
-                    return False
-                elif response.status_code == 401:
-                    logger.error(f"❌ LINE Push API 401 Unauthorized - Check access token")
-                    return False
-                elif response.status_code == 403:
-                    logger.error(f"❌ LINE Push API 403 Forbidden - Check permissions or user blocked bot")
-                    return False
-                elif response.status_code >= 500:
-                    logger.warning(f"⚠️ LINE Push API {response.status_code} Server Error - will retry")
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(1)
-                        continue
-                else:
-                    logger.error(f"❌ LINE Push API HTTP {response.status_code}: {response.text}")
-                    return False
-            except (httpx.TimeoutException, httpx.RequestError) as e:
-                logger.warning(f"⚠️ LINE Push API request error (attempt {attempt + 1}): {e}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(1)
-                    continue
-            except Exception as e:
-                logger.exception(f"❌ Unexpected error in send_line_push: {e}")
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"📤 Sending LINE push message (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+            logger.info(f"📤 LINE Push API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                logger.info("✅ Push message sent to LINE successfully")
+                return True
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                    error_message = error_data.get('message', 'Bad Request')
+                    logger.error(f"❌ LINE Push API 400 Bad Request: {error_message}")
+                except:
+                    logger.error(f"❌ LINE Push API 400 Bad Request: {response.text}")
                 return False
+            elif response.status_code == 401:
+                logger.error(f"❌ LINE Push API 401 Unauthorized - Check access token")
+                return False
+            elif response.status_code == 403:
+                logger.error(f"❌ LINE Push API 403 Forbidden - Check permissions or user blocked bot")
+                return False
+            elif response.status_code >= 500:
+                logger.warning(f"⚠️ LINE Push API {response.status_code} Server Error - will retry")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+            else:
+                logger.error(f"❌ LINE Push API HTTP {response.status_code}: {response.text}")
+                return False
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ LINE Push API timeout (attempt {attempt + 1})")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ LINE Push API request error (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except Exception as e:
+            logger.exception(f"❌ Unexpected error in send_line_push: {e}")
+            return False
     
     logger.error(f"❌ Failed to send LINE push message after {max_retries} attempts")
     return False
@@ -357,13 +370,15 @@ def check_slip_system_status() -> Dict[str, Any]:
     kbank_consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
     
     status = {
-        "system_enabled": bool(slip_enabled),
+        "system_enabled": slip_enabled,
         "thunder_configured": bool(thunder_token),
-        "kbank_configured": bool(kbank_consumer_id and kbank_consumer_secret and kbank_enabled),
+        "kbank_configured": bool(kbank_consumer_id and kbank_consumer_secret) and kbank_enabled,
         "any_api_available": False
     }
     
-    if status["system_enabled"] and (status["thunder_configured"] or status["kbank_configured"]):
+    if slip_enabled and thunder_token:
+        status["any_api_available"] = True
+    elif kbank_enabled and kbank_consumer_id and kbank_consumer_secret:
         status["any_api_available"] = True
     
     return status
@@ -441,16 +456,10 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
 
 async def send_initial_and_final_message(user_id: str, reply_token: str, initial_msg: str, final_msg: str, log_sender: str = "slip_bot") -> None:
     """Send initial reply and final push message"""
-    if reply_token:
-        # Send initial reply message
-        if not await send_line_reply(reply_token, initial_msg):
-            logger.warning("⚠️ Failed to send initial reply - will use push message for all messages")
-            if not await send_line_push(user_id, initial_msg):
-                logger.error("❌ Failed to send initial message via push")
-                return
+    if reply_token and not send_line_reply(reply_token, initial_msg):
+        logger.warning("⚠️ Failed to send initial reply - will use push message for all messages")
 
-    # Send final push message
-    push_sent = await send_line_push(user_id, final_msg)
+    push_sent = send_line_push(user_id, final_msg)
     if not push_sent:
         logger.error(f"❌ Failed to send final message via push")
     else:
@@ -494,7 +503,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             
             processing_msg = "⏳ กำลังตรวจสอบสลิปของคุณ...\n🔍 รอซักครู่ ระบบกำลังวิเคราะห์ข้อมูล"
             if reply_token:
-                await send_line_reply(reply_token, processing_msg)
+                send_line_reply(reply_token, processing_msg)
 
             line_token = config_manager.get("line_channel_access_token")
             image_data = None
@@ -502,9 +511,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 try:
                     url = f"https://api-data.line.me/v2/bot/message/{message.get('id')}/content"
                     headers = {"Authorization": f"Bearer {line_token}"}
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.get(url, headers=headers, timeout=15)
-                        resp.raise_for_status()
+                    resp = requests.get(url, headers=headers, timeout=15)
+                    resp.raise_for_status()
                     image_data = resp.content
                     logger.info(f"✅ ดาวน์โหลดรูปภาพสำเร็จ: {len(image_data)} bytes")
                 except Exception as e:
@@ -533,7 +541,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         save_duplicate_slip_data(slip_hash, duplicate_data['data'])
                 else:
                     logger.info("🔍 Processing new slip with multiple providers...")
-                    result = await asyncio.to_thread(verify_slip_multiple_providers, message_id=message.get("id"))
+                    result = verify_slip_multiple_providers(message.get("id"))
                     
                     if result["status"] == "success":
                         amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
@@ -583,7 +591,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 system_status = check_slip_system_status()
                 if not system_status["system_enabled"] or not system_status["any_api_available"]:
                     system_off_msg = "🔒 ระบบตรวจสอบสลิปออโตปิดใช้งานชั่วคราว หรือมีปัญหา กรุณาติดต่อแอดมิน"
-                    await send_line_push(user_id, system_off_msg)
+                    send_line_push(user_id, system_off_msg)
                     return
                 
                 await notification_manager.send_notification(f"📝 ได้รับข้อมูลสลิปจากข้อความ: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}", "info")
@@ -596,16 +604,16 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     await notification_manager.send_notification(f"🔄 พบข้อมูลสลิปซ้ำจากข้อความ! จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
                     
                     success_msg = f"🔄 ข้อมูลสลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n✅ รายละเอียดการโอน:\n💰 จำนวนเงิน: {amount_display}\n🏦 รหัสธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n🔍 ตรวจสอบโดย: {duplicate_data['data'].get('verified_by', 'ระบบตรวจสอบ')}"
-                    await send_line_push(user_id, success_msg)
+                    send_line_push(user_id, success_msg)
                     save_duplicate_slip_data(text_hash, duplicate_data['data'])
                 else:
                     try:
-                        result = await asyncio.to_thread(verify_slip_multiple_providers, None, None, slip_info["bank_code"], slip_info["trans_ref"])
+                        result = verify_slip_multiple_providers(None, None, slip_info["bank_code"], slip_info["trans_ref"])
                         if result["status"] == "success":
                             amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
                             await notification_manager.send_notification(f"✅ ตรวจสอบสลิปจากข้อความสำเร็จ! จำนวน {amount_display}", "success")
                             success_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n\n📋 รายละเอียดการโอน:\n💰 จำนวนเงิน: {amount_display}\n🏦 รหัสธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n🔍 ตรวจสอบโดย: {result['data'].get('verified_by', 'ระบบตรวจสอบ')}\n\n🎉 การโอนเงินได้รับการยืนยันแล้ว"
-                            await send_line_push(user_id, success_msg)
+                            send_line_push(user_id, success_msg)
                             save_duplicate_slip_data(text_hash, result['data'])
                         else:
                             error_message_tech = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
@@ -616,30 +624,39 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             
                             await notification_manager.send_notification(f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {error_message_tech}", "error")
                             
-                            await send_line_push(user_id, error_message_user)
+                            send_line_push(user_id, error_message_user)
                     except Exception as e:
                         error_msg_user = f"เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ"
                         logger.error(f"❌ Text slip verification error: {e}")
                         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ: {str(e)}", "error")
-                        await send_line_push(user_id, error_msg_user)
+                        send_line_push(user_id, error_msg_user)
             else:
                 await notification_manager.send_notification(f"💬 ได้รับข้อความจากผู้ใช้ {user_id[:8]}...: {user_text[:30]}...", "info")
                 try:
-                    # Use asyncio.to_thread for synchronous calls
-                    response = await asyncio.to_thread(get_chat_response, user_text, user_id)
-                    await send_line_push(user_id, response)
+                    response = get_chat_response(user_text, user_id)
+                    send_line_push(user_id, response)
                     save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
                 except Exception as e:
                     error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
                     logger.error(f"❌ AI processing error: {e}")
-                    await send_line_push(user_id, error_msg)
+                    send_line_push(user_id, error_msg)
         else:
             await notification_manager.send_notification(f"📝 ได้รับข้อความประเภท {message_type} จากผู้ใช้ {user_id[:8]}...", "info")
-            await send_line_push(user_id, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น")
+            send_line_push(user_id, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น")
                 
     except Exception as e:
         logger.exception(f"❌ Critical error in dispatch_event: {e}")
         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
+
+def dispatch_event(event: Dict[str, Any]) -> None:
+    """Dispatch event wrapper for threading"""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(dispatch_event_async(event))
+        loop.close()
+    except Exception as e:
+        logger.exception(f"❌ Error in dispatch_event wrapper: {e}")
 
 # ====================== API Routes ======================
 
@@ -684,9 +701,15 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)) -
         if not events:
             return JSONResponse(content={"status": "ok", "message": "No events to process"})
         
-        # Dispatch events to be processed asynchronously
-        tasks = [dispatch_event_async(ev) for ev in events]
-        await asyncio.gather(*tasks)
+        for i, ev in enumerate(events):
+            logger.info(f"🎯 Dispatching event {i+1}/{len(events)}: {ev.get('type')}")
+            thread = threading.Thread(
+                target=dispatch_event, 
+                args=(ev,), 
+                daemon=True,
+                name=f"event-processor-{i+1}"
+            )
+            thread.start()
         
         return JSONResponse(content={"status": "ok", "events_processed": len(events)})
     except HTTPException:
@@ -700,7 +723,7 @@ async def root():
     """Root redirect to admin"""
     return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin", response_class=HTMLResponse)  
 async def admin_home(request: Request):
     """Admin home page"""
     total_count = get_chat_history_count()
@@ -732,9 +755,9 @@ async def admin_chat(request: Request):
     history = get_recent_chat_history(limit=100)
     return templates.TemplateResponse(
         "chat_history.html",{
-            "request": request,
-            "chat_history": history,
-        },
+           "request": request,
+           "chat_history": history,
+       },
     )
 
 @app.get("/admin/api-status")
@@ -748,54 +771,53 @@ async def api_status_check():
         "system": check_slip_system_status()
     }
     
-    async with httpx.AsyncClient() as client:
-        # Check Thunder API
-        thunder_token = config_manager.get("thunder_api_token")
-        thunder_enabled = config_manager.get("slip_enabled", False)
-        status_result["thunder"]["enabled"] = thunder_enabled
-        if thunder_token:
-            status_result["thunder"]["configured"] = True
-            try:
-                headers = {"Authorization": f"Bearer {thunder_token}"}
-                resp = await client.get("https://api.thunder.in.th/v1", headers=headers, timeout=10)
-                if resp.status_code in (200, 401, 404, 405):
-                    status_result["thunder"]["connected"] = True
-            except httpx.RequestError as e:
-                status_result["thunder"]["error"] = str(e)
-        
-        # Check LINE API
-        line_token = config_manager.get("line_channel_access_token")
-        if line_token:
-            status_result["line"]["configured"] = True
-            try:
-                headers = {"Authorization": f"Bearer {line_token}"}
-                response = await client.get("https://api.line.me/v2/bot/info", headers=headers, timeout=5)
-                if response.status_code == 200:
-                    bot_data = response.json()
-                    status_result["line"]["connected"] = True
-                    status_result["line"]["bot_name"] = bot_data.get("displayName")
-                else:
-                    status_result["line"]["error"] = f"{response.status_code}: {response.text}"
-            except httpx.RequestError as e:
-                status_result["line"]["error"] = str(e)
-        
-        # Check KBank API
-        kbank_consumer_id = config_manager.get("kbank_consumer_id")
-        kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
-        kbank_enabled = config_manager.get("kbank_enabled", False)
-        status_result["kbank"]["enabled"] = kbank_enabled
-        if kbank_consumer_id and kbank_consumer_secret:
-            status_result["kbank"]["configured"] = True
-            try:
-                from services.kbank_checker import kbank_checker
-                token = await asyncio.to_thread(kbank_checker._get_access_token)
-                if token:
-                    status_result["kbank"]["connected"] = True
-                    status_result["kbank"]["token_length"] = len(token)
-                else:
-                    status_result["kbank"]["error"] = "ไม่สามารถขอ access token ได้"
-            except Exception as e:
-                status_result["kbank"]["error"] = str(e)
+    # Check Thunder API
+    thunder_token = config_manager.get("thunder_api_token")
+    thunder_enabled = config_manager.get("slip_enabled", False)
+    status_result["thunder"]["enabled"] = thunder_enabled
+    if thunder_token:
+        status_result["thunder"]["configured"] = True
+        try:
+            headers = {"Authorization": f"Bearer {thunder_token}"}
+            resp = requests.get("https://api.thunder.in.th/v1", headers=headers, timeout=10)
+            if resp.status_code in (200, 401, 404, 405):
+                status_result["thunder"]["connected"] = True
+        except requests.exceptions.RequestException as e:
+            status_result["thunder"]["error"] = str(e)
+    
+    # Check LINE API
+    line_token = config_manager.get("line_channel_access_token")
+    if line_token:
+        status_result["line"]["configured"] = True
+        try:
+            headers = {"Authorization": f"Bearer {line_token}"}
+            response = requests.get("https://api.line.me/v2/bot/info", headers=headers, timeout=5)
+            if response.status_code == 200:
+                bot_data = response.json()
+                status_result["line"]["connected"] = True
+                status_result["line"]["bot_name"] = bot_data.get("displayName")
+            else:
+                status_result["line"]["error"] = f"{response.status_code}: {response.text}"
+        except requests.exceptions.RequestException as e:
+            status_result["line"]["error"] = str(e)
+    
+    # Check KBank API
+    kbank_consumer_id = config_manager.get("kbank_consumer_id")
+    kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
+    kbank_enabled = config_manager.get("kbank_enabled", False)
+    status_result["kbank"]["enabled"] = kbank_enabled
+    if kbank_consumer_id and kbank_consumer_secret:
+        status_result["kbank"]["configured"] = True
+        try:
+            from services.kbank_checker import kbank_checker
+            token = kbank_checker._get_access_token()
+            if token:
+                status_result["kbank"]["connected"] = True
+                status_result["kbank"]["token_length"] = len(token)
+            else:
+                status_result["kbank"]["error"] = "ไม่สามารถขอ access token ได้"
+        except Exception as e:
+            status_result["kbank"]["error"] = str(e)
     
     return JSONResponse(content=status_result)
 
@@ -875,7 +897,7 @@ async def test_slip_upload(request: Request):
                 "response": duplicate_data['data']
             })
         
-        result = await asyncio.to_thread(verify_slip_multiple_providers, test_image_data=image_data)
+        result = verify_slip_multiple_providers(test_image_data=image_data)
         
         if result["status"] == "success":
             amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
@@ -897,7 +919,7 @@ async def test_slip_upload(request: Request):
             error_message = result.get("message", "ทดสอบสลิปไม่สำเร็จ")
             await notification_manager.send_notification(f"❌ ทดสอบสลิปล้มเหลว: {error_message}", "error")
             return JSONResponse(content={
-                "status": "error",
+                "status": "error",  
                 "message": error_message,
                 "response": result
             })
@@ -905,7 +927,7 @@ async def test_slip_upload(request: Request):
         logger.exception(f"❌ Test slip upload error: {e}")
         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดในการทดสอบสลิป: {str(e)}", "error")
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -917,12 +939,12 @@ async def clear_duplicate_cache():
         notification_manager.duplicate_slip_cache.clear()
         await notification_manager.send_notification(f"🗑️ ล้าง cache สลิปซ้ำแล้ว ({cache_size} รายการ)", "success")
         return JSONResponse(content={
-            "status": "success",
+            "status": "success",  
             "message": f"ล้าง cache สลิปซ้ำแล้ว ({cache_size} รายการ)"
         })
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -943,12 +965,12 @@ async def force_reset_apis():
             pass
         await notification_manager.send_notification("🔄 รีเซ็ต API Cache แล้ว", "success")
         return JSONResponse(content={
-            "status": "success",
+            "status": "success",  
             "message": "รีเซ็ต API Cache แล้ว"
         })
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -962,13 +984,13 @@ async def toggle_slip_system():
         action = "เปิด" if new_status else "ปิด"
         await notification_manager.send_notification(f"🔄 {action}ระบบตรวจสอบสลิปแล้ว", "success" if new_status else "warning")
         return JSONResponse(content={
-            "status": "success",
+            "status": "success",  
             "message": f"{action}ระบบตรวจสอบสลิปแล้ว",
             "slip_enabled": new_status
         })
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -989,7 +1011,7 @@ async def get_admin_statistics():
         return JSONResponse(content=stats)
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -1016,7 +1038,7 @@ async def export_chat_history():
         })
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -1030,25 +1052,25 @@ async def test_push_message(request: Request):
         
         if not user_id:
             return JSONResponse(content={
-                "status": "error",
+                "status": "error",  
                 "message": "กรุณาใส่ User ID"
             })
         
-        success = await send_line_push(user_id, message)
+        success = send_line_push(user_id, message)
         if success:
             await notification_manager.send_notification(f"✅ ส่ง Push Message ทดสอบสำเร็จไปยัง {user_id[:8]}...", "success")
             return JSONResponse(content={
-                "status": "success",
+                "status": "success",  
                 "message": "ส่ง Push Message สำเร็จ"
             })
         else:
             return JSONResponse(content={
-                "status": "error",
+                "status": "error",  
                 "message": "ไม่สามารถส่ง Push Message ได้"
             })
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -1087,7 +1109,7 @@ async def get_recent_logs(limit: int = 50):
         })
     except Exception as e:
         return JSONResponse(content={
-            "status": "error",
+            "status": "error",  
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
@@ -1137,87 +1159,93 @@ async def startup_event():
         logger.warning("⚠️ กรุณาตั้งค่าในหน้า /admin/settings")
     else:
         logger.info("✅ การตั้งค่าพื้นฐานครบถ้วน")
-    
-    try:
-        api_status = get_api_status_summary()
-        thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
-        kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
-        logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
-    except Exception as e:
-        logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
-    
-    await notification_manager.send_notification(
-        "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว (รองรับ Push Message)",
-        "success",
-        {
-            "timestamp": datetime.now().isoformat(),
-            "version": "2.1.0",
-            "features": ["push_message", "fallback_apis", "detailed_slip_info"]
-        }
-    )
-    logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
-    logger.info("📱 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
+   
+   try:
+       api_status = get_api_status_summary()
+       thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
+       kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
+       logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
+   except Exception as e:
+       logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
+   
+   await notification_manager.send_notification(
+       "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว (รองรับ Push Message)",
+       "success",
+       {
+           "timestamp": datetime.now().isoformat(),
+           "version": "2.1.0",
+           "features": ["push_message", "fallback_apis", "detailed_slip_info"]
+       }
+   )
+   logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
+   logger.info("📱 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Shutdown event handler"""
-    logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
-    for connection in notification_manager.active_connections.copy():
-        try:
-            await connection.close()
-        except:
-            pass
-    notification_manager.active_connections.clear()
-    notification_manager.duplicate_slip_cache.clear()
-    notification_manager.pending_notifications.clear()
-    logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
+   """Shutdown event handler"""
+   logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
+   for connection in notification_manager.active_connections.copy():
+       try:
+           await connection.close()
+       except:
+           pass
+   notification_manager.active_connections.clear()
+   notification_manager.duplicate_slip_cache.clear()
+   notification_manager.pending_notifications.clear()
+   logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn_log_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            },
-        },
-        "handlers": {
-            "default": {
-                "formatter": "default",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stdout",
-            },
-        },
-        "root": {
-            "level": "INFO",
-            "handlers": ["default"],
-        },
-        "loggers": {
-            "uvicorn": {"level": "INFO"},
-            "uvicorn.error": {"level": "INFO"},
-            "uvicorn.access": {"level": "INFO"},
-        },
-    }
-    print("🚀 เริ่มต้น LINE OA Middleware (Enhanced with Push Message)...")
-    print("📱 เว็บ Admin: http://localhost:8000/admin")
-    print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
-    print("📊 API Status: http://localhost:8000/admin/api-status")
-    print("🏥 Health Check: http://localhost:8000/health")
-    print("📤 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
-    print()
-    try:
-        uvicorn.run(
-            "main_updated:app",
-            host="0.0.0.0",
-            port=8000,
-            reload=False,
-            log_config=uvicorn_log_config,
-            access_log=True,
-            server_header=False,
-            date_header=False
-        )
-    except KeyboardInterrupt:
-        print("\n🛑 หยุดระบบโดยผู้ใช้")
-    except Exception as e:
-        print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
+   import uvicorn
+   
+   # Get port from environment variable (Railway/Heroku)
+   port = int(os.environ.get("PORT", 8000))
+   
+   uvicorn_log_config = {
+       "version": 1,
+       "disable_existing_loggers": False,
+       "formatters": {
+           "default": {
+               "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+           },
+       },
+       "handlers": {
+           "default": {
+               "formatter": "default",
+               "class": "logging.StreamHandler",
+               "stream": "ext://sys.stdout",
+           },
+       },
+       "root": {
+           "level": "INFO",
+           "handlers": ["default"],
+       },
+       "loggers": {
+           "uvicorn": {"level": "INFO"},
+           "uvicorn.error": {"level": "INFO"},
+           "uvicorn.access": {"level": "INFO"},
+       },
+   }
+   
+   print("🚀 เริ่มต้น LINE OA Middleware (Enhanced with Push Message)...")
+   print(f"📱 เว็บ Admin: http://0.0.0.0:{port}/admin")
+   print(f"🔗 LINE Webhook URL: http://0.0.0.0:{port}/line/webhook")
+   print(f"📊 API Status: http://0.0.0.0:{port}/admin/api-status")
+   print(f"🏥 Health Check: http://0.0.0.0:{port}/health")
+   print("📤 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
+   print()
+   
+   try:
+       uvicorn.run(
+           app,  # ใช้ app object แทนการอ้างอิง module
+           host="0.0.0.0",
+           port=port,
+           reload=False,
+           log_config=uvicorn_log_config,
+           access_log=True,
+           server_header=False,
+           date_header=False
+       )
+   except KeyboardInterrupt:
+       print("\n🛑 หยุดระบบโดยผู้ใช้")
+   except Exception as e:
+       print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
