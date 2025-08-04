@@ -3,12 +3,10 @@ import logging
 import re
 from typing import Dict, Any, Optional
 from utils.config_manager import config_manager
-from services.slip_checker import verify_slip_with_thunder
-from services.kbank_checker import kbank_checker
 
 logger = logging.getLogger("enhanced_slip_checker")
 
-def verify_slip_multiple_providers(message_id: str, 
+def verify_slip_multiple_providers(message_id: str = None, 
                                  test_image_data: Optional[bytes] = None,
                                  bank_code: str = None,
                                  trans_ref: str = None) -> Dict[str, Any]:
@@ -30,24 +28,34 @@ def verify_slip_multiple_providers(message_id: str,
     # ลอง KBank API ก่อนถ้ามีข้อมูลที่จำเป็น
     if bank_code and trans_ref and config_manager.get("kbank_enabled", False):
         logger.info("🏦 กำลังตรวจสอบด้วย KBank API")
-        kbank_result = kbank_checker.verify_slip(bank_code, trans_ref)
-        
-        if kbank_result["status"] == "success":
-            logger.info("✅ ตรวจสอบด้วย KBank สำเร็จ")
-            return kbank_result
-        else:
-            logger.warning(f"⚠️ ตรวจสอบด้วย KBank ล้มเหลว: {kbank_result.get('message')}")
+        try:
+            from services.kbank_checker import kbank_checker
+            kbank_result = kbank_checker.verify_slip(bank_code, trans_ref)
+            
+            if kbank_result["status"] == "success":
+                logger.info("✅ ตรวจสอบด้วย KBank สำเร็จ")
+                return kbank_result
+            else:
+                logger.warning(f"⚠️ ตรวจสอบด้วย KBank ล้มเหลว: {kbank_result.get('message')}")
+        except ImportError:
+            logger.warning("⚠️ KBank checker ไม่พร้อมใช้งาน")
+        except Exception as e:
+            logger.error(f"❌ KBank API error: {e}")
     
     # สำรองด้วย Thunder API สำหรับตรวจสอบจากรูปภาพ
-    if config_manager.get("slip_enabled", False):
+    if config_manager.get("slip_enabled", False) and (message_id or test_image_data):
         logger.info("⚡ กำลังตรวจสอบด้วย Thunder API")
-        thunder_result = verify_slip_with_thunder(message_id, test_image_data)
-        
-        if thunder_result["status"] == "success":
-            logger.info("✅ ตรวจสอบด้วย Thunder สำเร็จ")
-            return thunder_result
-        else:
-            logger.warning(f"⚠️ ตรวจสอบด้วย Thunder ล้มเหลว: {thunder_result.get('message')}")
+        try:
+            from services.slip_checker import verify_slip_with_thunder
+            thunder_result = verify_slip_with_thunder(message_id, test_image_data)
+            
+            if thunder_result["status"] == "success":
+                logger.info("✅ ตรวจสอบด้วย Thunder สำเร็จ")
+                return thunder_result
+            else:
+                logger.warning(f"⚠️ ตรวจสอบด้วย Thunder ล้มเหลว: {thunder_result.get('message')}")
+        except Exception as e:
+            logger.error(f"❌ Thunder API error: {e}")
     
     # ถ้าทั้งสองล้มเหลวหรือถูกปิดใช้งาน
     return {
