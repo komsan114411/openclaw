@@ -19,10 +19,6 @@ try:
 except ImportError:
     OpenAI = None
 
-# ตรวจสอบและสร้างไฟล์ config_manager และ database ก่อนการ import
-# โค้ดส่วนนี้อาจต้องทำในส่วนของโค้ดหลักเพื่อป้องกันการ ImportError
-# หรือต้องมั่นใจว่าไฟล์ utils และ models มีอยู่และทำงานได้ปกติ
-
 # ตั้งค่า logger
 logger = logging.getLogger("main_app")
 logger.setLevel(logging.INFO)
@@ -42,7 +38,6 @@ try:
     )
     from services.chat_bot import get_chat_response
     from services.slip_checker import verify_slip_with_thunder
-    from services.enhanced_slip_checker import verify_slip_multiple_providers, extract_slip_info_from_text
     
     # เริ่มต้นฐานข้อมูลเมื่อแอปถูกเริ่ม
     logger.info("Initializing database...")
@@ -51,13 +46,23 @@ try:
     
 except ImportError as e:
     logger.error(f"Failed to import a module: {e}")
-    # หากเกิด ImportError แอปพลิเคชันจะไม่สามารถรันได้
-    # ควรแก้ไข dependency ใน requirements.txt หรือโค้ดก่อน
     raise SystemExit("Application startup failed due to missing dependencies.")
 except Exception as e:
     logger.error(f"An error occurred during application startup: {e}")
     raise SystemExit("Application startup failed.")
 
+# Import KBank services หลังจาก config_manager
+try:
+    from services.enhanced_slip_checker import verify_slip_multiple_providers, extract_slip_info_from_text
+    logger.info("✅ KBank services imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ KBank services not available: {e}")
+    # ถ้าไม่มี KBank services ให้ใช้ Thunder เท่านั้น
+    def verify_slip_multiple_providers(message_id, test_image_data=None, bank_code=None, trans_ref=None):
+        return verify_slip_with_thunder(message_id, test_image_data)
+    
+    def extract_slip_info_from_text(text):
+        return {"bank_code": None, "trans_ref": None}
 
 # ====================== Utility Functions ======================
 
@@ -299,7 +304,7 @@ async def api_status_check():
         "thunder": {"configured": False, "connected": False},
         "line": {"configured": False, "connected": False},
         "openai": {"configured": False, "connected": False},
-        "kbank": {"configured": False, "connected": False},  # เพิ่ม KBank
+        "kbank": {"configured": False, "connected": False},
     }
 
     # ตรวจสอบ Thunder API
@@ -391,18 +396,21 @@ async def test_kbank_api(request: Request):
         if not consumer_id or not consumer_secret:
             return JSONResponse(content={"status": "error", "message": "ยังไม่ได้ตั้งค่า KBank Consumer ID หรือ Secret"})
         
-        from services.kbank_checker import kbank_checker
-        token = kbank_checker._get_access_token()
-        
-        if token:
-            return JSONResponse(content={
-                "status": "success", 
-                "message": "เชื่อมต่อ KBank API สำเร็จ",
-                "token_preview": token[:20] + "...",
-                "token_length": len(token)
-            })
-        else:
-            return JSONResponse(content={"status": "error", "message": "ไม่สามารถขอ KBank access token ได้"})
+        try:
+            from services.kbank_checker import kbank_checker
+            token = kbank_checker._get_access_token()
+            
+            if token:
+                return JSONResponse(content={
+                    "status": "success", 
+                    "message": "เชื่อมต่อ KBank API สำเร็จ",
+                    "token_preview": token[:20] + "...",
+                    "token_length": len(token)
+                })
+            else:
+                return JSONResponse(content={"status": "error", "message": "ไม่สามารถขอ KBank access token ได้"})
+        except ImportError:
+            return JSONResponse(content={"status": "error", "message": "KBank services ไม่พร้อมใช้งาน"})
             
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": f"KBank API Error: {str(e)}"})
@@ -444,7 +452,7 @@ async def test_slip_text(request: Request):
         # ดึงข้อมูลจากข้อความ
         slip_info = extract_slip_info_from_text(text_input)
         
-        if not slip_info["bank_code"] or not slip_info["trans_ref"]:
+       if not slip_info["bank_code"] or not slip_info["trans_ref"]:
             return JSONResponse(content={
                 "status": "error", 
                 "message": "ไม่พบข้อมูลธนาคารหรือหมายเลขอ้างอิงในข้อความ",
@@ -553,24 +561,33 @@ async def reload_config():
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
     """บันทึกการตั้งค่าจากหน้า Admin"""
-    data = await request.json()
-    updates = {}
-    for key in [
-        "line_channel_secret",
-        "line_channel_access_token",
-        "thunder_api_token",
-        "openai_api_key",
-        "ai_prompt",
-        "wallet_phone_number",
-        "kbank_consumer_id",      # เพิ่ม KBank Consumer ID
-        "kbank_consumer_secret",  # เพิ่ม KBank Consumer Secret
-    ]:
-        if key in data:
-            updates[key] = data[key].strip()
-    
-    updates["ai_enabled"] = bool(data.get("ai_enabled"))
-    updates["slip_enabled"] = bool(data.get("slip_enabled"))
-    updates["kbank_enabled"] = bool(data.get("kbank_enabled"))  # เพิ่ม KBank enabled
+    try:
+        data = await request.json()
+        updates = {}
+        for key in [
+            "line_channel_secret",
+            "line_channel_access_token",
+            "thunder_api_token",
+            "openai_api_key",
+            "ai_prompt",
+            "wallet_phone_number",
+            "kbank_consumer_id",      # เพิ่ม KBank Consumer ID
+            "kbank_consumer_secret",  # เพิ่ม KBank Consumer Secret
+        ]:
+            if key in data:
+                updates[key] = data[key].strip()
+        
+        updates["ai_enabled"] = bool(data.get("ai_enabled"))
+        updates["slip_enabled"] = bool(data.get("slip_enabled"))
+        updates["kbank_enabled"] = bool(data.get("kbank_enabled"))  # เพิ่ม KBank enabled
 
-    config_manager.update_multiple(updates)
-    return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
+        config_manager.update_multiple(updates)
+        return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return JSONResponse(content={"status": "ok", "timestamp": datetime.utcnow().isoformat()})
