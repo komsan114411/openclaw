@@ -18,10 +18,13 @@ class ConfigManager:
             "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", os.getenv("line_channel_access_token", "")),
             "thunder_api_token": os.getenv("THUNDER_API_TOKEN", os.getenv("thunder_api_token", "")),
             "openai_api_key": os.getenv("OPENAI_API_KEY", os.getenv("openai_api_key", "")),
+            "kbank_consumer_id": os.getenv("KBANK_CONSUMER_ID", os.getenv("kbank_consumer_id", "")),
+            "kbank_consumer_secret": os.getenv("KBANK_CONSUMER_SECRET", os.getenv("kbank_consumer_secret", "")),
             "ai_prompt": os.getenv("AI_PROMPT", os.getenv("ai_prompt",
                 "คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง")),
             "ai_enabled": self._parse_bool(os.getenv("AI_ENABLED", os.getenv("ai_enabled", "true"))),
             "slip_enabled": self._parse_bool(os.getenv("SLIP_ENABLED", os.getenv("slip_enabled", "true"))),
+            "kbank_enabled": self._parse_bool(os.getenv("KBANK_ENABLED", os.getenv("kbank_enabled", "false"))),
             "wallet_phone_number": os.getenv("WALLET_PHONE_NUMBER", os.getenv("wallet_phone_number", "")),
         }
         
@@ -31,6 +34,8 @@ class ConfigManager:
         logger.info(f"  - LINE_CHANNEL_SECRET: {'✅ Found' if default_config['line_channel_secret'] else '❌ Not found'}")
         logger.info(f"  - THUNDER_API_TOKEN: {'✅ Found' if default_config['thunder_api_token'] else '❌ Not found'}")
         logger.info(f"  - OPENAI_API_KEY: {'✅ Found' if default_config['openai_api_key'] else '❌ Not found'}")
+        logger.info(f"  - KBANK_CONSUMER_ID: {'✅ Found' if default_config['kbank_consumer_id'] else '❌ Not found'}")
+        logger.info(f"  - KBANK_CONSUMER_SECRET: {'✅ Found' if default_config['kbank_consumer_secret'] else '❌ Not found'}")
         
         try:
             if os.path.exists(self.config_file):
@@ -63,7 +68,7 @@ class ConfigManager:
         """บันทึก config ลงไฟล์"""
         try:
             # ไม่บันทึก token ที่ว่างเปล่า
-            save_data = {k: v for k, v in config_data.items() if v or k in ['ai_enabled', 'slip_enabled']}
+            save_data = {k: v for k, v in config_data.items() if v or k in ['ai_enabled', 'slip_enabled', 'kbank_enabled']}
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(save_data, f, ensure_ascii=False, indent=2)
@@ -83,7 +88,7 @@ class ConfigManager:
         self.config[key] = value
         success = self.save_config()
         if success:
-            if key in ['thunder_api_token', 'line_channel_access_token', 'openai_api_key']:
+            if key in ['thunder_api_token', 'line_channel_access_token', 'openai_api_key', 'kbank_consumer_id', 'kbank_consumer_secret']:
                 logger.info(f"🔄 Updated {key}: {'[SET]' if value else '[REMOVED]'}")
             else:
                 logger.info(f"🔄 Updated {key}: {old_value} -> {value}")
@@ -108,7 +113,7 @@ class ConfigManager:
                 old_val = old_values.get(key)
                 if key == 'ai_prompt':
                     logger.info(f"✅ Updated AI Prompt: {len(str(old_val or ''))} chars -> {len(str(new_value))} chars")
-                elif key in ['thunder_api_token', 'line_channel_access_token', 'openai_api_key']:
+                elif key in ['thunder_api_token', 'line_channel_access_token', 'openai_api_key', 'kbank_consumer_id', 'kbank_consumer_secret']:
                     logger.info(f"✅ Updated {key}: {'[SET]' if new_value else '[REMOVED]'}")
                 else:
                     logger.info(f"✅ Updated {key}: {old_val} -> {new_value}")
@@ -147,6 +152,8 @@ class ConfigManager:
         logger.info(f"  - Thunder API: {'✅ Set' if self.get('thunder_api_token') else '❌ Not set'}")
         logger.info(f"  - LINE Access: {'✅ Set' if self.get('line_channel_access_token') else '❌ Not set'}")
         logger.info(f"  - OpenAI: {'✅ Set' if self.get('openai_api_key') else '❌ Not set'}")
+        logger.info(f"  - KBank Consumer ID: {'✅ Set' if self.get('kbank_consumer_id') else '❌ Not set'}")
+        logger.info(f"  - KBank Consumer Secret: {'✅ Set' if self.get('kbank_consumer_secret') else '❌ Not set'}")
 
 # สร้าง instance เดียวใช้ทั่วระบบ
 config_manager = ConfigManager()
