@@ -15,69 +15,26 @@ import requests
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
-from linebot.v3.messaging import (
-    Configuration,
-    ApiClient,
-    MessagingApi,
-    ReplyMessageRequest,
-    PushMessageRequest,
-    TextMessage,
-    ImageMessage as LineImageMessage
-)
-from linebot.v3.webhooks import (
-    WebhookParser,
-    MessageEvent,
-    TextMessageContent,
-    ImageMessageContent
-)
-from linebot.v3.exceptions import (
-    InvalidSignatureError as LineInvalidSignatureError,
-    ApiException as LineApiException
-)
 
-# เพิ่ม path ปัจจุบันใน sys.path
+# เพิ่มพาธปัจจุบันเข้าไปใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# ตั้งค่า logger
+# ตั้งค่า logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("main_app")
 
-# สร้าง FastAPI instance
 app = FastAPI(title="LINE OA Middleware (Enhanced with Push)")
 templates = Jinja2Templates(directory="templates")
 
-# LINE Bot instances for v3
-line_bot_api_client: Optional[MessagingApi] = None
-line_webhook_parser: Optional[WebhookParser] = None
+# Global variables for LINE Bot
+line_bot_api = None
+line_handler = None
 
-def init_line_bot_v3():
-    """Initialize LINE Bot API and Webhook Handler for SDK v3"""
-    global line_bot_api_client, line_webhook_parser
-    
-    access_token = config_manager.get("line_channel_access_token")
-    channel_secret = config_manager.get("line_channel_secret")
-    
-    if access_token and channel_secret:
-        try:
-            configuration = Configuration(access_token=access_token)
-            api_client = ApiClient(configuration)
-            line_bot_api_client = MessagingApi(api_client)
-            line_webhook_parser = WebhookParser(channel_secret)
-            logger.info("✅ LINE Bot (v3) initialized successfully")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize LINE Bot (v3): {e}")
-            return False
-    else:
-        logger.warning("⚠️ LINE credentials not found")
-        return False
-
-# WebSocket Manager สำหรับการแจ้งเตือนแบบ Real-time
 class NotificationManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -125,13 +82,23 @@ class NotificationManager:
 
 notification_manager = NotificationManager()
 
-# Import modules
+# Import modules with error handling
 try:
     from utils.config_manager import config_manager
     logger.info("✅ Config manager imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import config_manager: {e}")
-    raise SystemExit("Cannot import config_manager")
+    # Create a simple config manager fallback
+    class SimpleConfigManager:
+        def __init__(self):
+            self.config = {}
+        def get(self, key, default=None):
+            return os.getenv(key.upper(), os.getenv(key, default))
+        def update(self, key, value):
+            return True
+        def update_multiple(self, updates):
+            return True
+    config_manager = SimpleConfigManager()
 
 try:
     from models.database import (
@@ -150,7 +117,8 @@ try:
     logger.info("✅ Chat bot service imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import chat_bot: {e}")
-    def get_chat_response(text, user_id): return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
+    def get_chat_response(text, user_id): 
+        return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
 
 try:
     from services.slip_checker import verify_slip_with_thunder
@@ -161,7 +129,11 @@ except ImportError as e:
         return {"status": "error", "message": "ระบบตรวจสอบสลิป Thunder ไม่พร้อมใช้งาน"}
 
 try:
-    from services.enhanced_slip_checker import verify_slip_multiple_providers, extract_slip_info_from_text, get_api_status_summary
+    from services.enhanced_slip_checker import (
+        verify_slip_multiple_providers, 
+        extract_slip_info_from_text, 
+        get_api_status_summary
+    )
     logger.info("✅ Enhanced slip checker imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Enhanced slip checker not available: {e}")
@@ -169,10 +141,12 @@ except ImportError as e:
         if message_id or test_image_data:
             return verify_slip_with_thunder(message_id, test_image_data)
         return {"status": "error", "message": "ไม่สามารถตรวจสอบสลิปได้"}
-    def extract_slip_info_from_text(text): return {"bank_code": None, "trans_ref": None}
-    def get_api_status_summary(): return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
+    def extract_slip_info_from_text(text): 
+        return {"bank_code": None, "trans_ref": None}
+    def get_api_status_summary(): 
+        return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
 
-# เริ่มต้นฐานข้อมูล
+# Initialize database
 try:
     logger.info("Initializing database...")
     init_database()
@@ -180,94 +154,203 @@ try:
 except Exception as e:
     logger.error(f"❌ Database initialization error: {e}")
 
+# ====================== LINE Bot Functions ======================
+
+def init_line_bot():
+    """Initialize LINE Bot API (without SDK for now)"""
+    global line_bot_api, line_handler
+    
+    access_token = config_manager.get("line_channel_access_token")
+    channel_secret = config_manager.get("line_channel_secret")
+    
+    if access_token and channel_secret:
+        # เก็บข้อมูลไว้ในตัวแปร global แทนการใช้ SDK
+        line_bot_api = {
+            "access_token": access_token,
+            "channel_secret": channel_secret
+        }
+        line_handler = True
+        logger.info("✅ LINE Bot credentials loaded")
+        return True
+    else:
+        logger.warning("⚠️ LINE credentials not found")
+        return False
+
 # ====================== Utility Functions ======================
 
 def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> bool:
-    """ตรวจสอบลายเซ็นของ webhook จาก LINE"""
+    """Verify LINE webhook signature"""
     if not channel_secret:
         logger.warning("⚠️ LINE Channel Secret is empty - skipping signature verification")
         return True
     
     try:
-        if line_webhook_parser:
-            line_webhook_parser.parse(body.decode("utf-8"), signature)
-            return True
-        else:
-            logger.error("❌ LINE Webhook Parser is not initialized.")
-            return False
-    except LineInvalidSignatureError:
-        logger.error("❌ Invalid signature from LINE.")
-        return False
+        h = hmac.new(channel_secret.encode(), body, hashlib.sha256).digest()
+        computed = base64.b64encode(h).decode()
+        is_valid = hmac.compare_digest(computed, signature)
+        return is_valid
     except Exception as e:
-        logger.exception(f"❌ Signature verification error: {e}")
+        logger.error(f"❌ Signature verification error: {e}")
         return False
 
 def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
-    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (ใช้สำหรับข้อความเริ่มต้นเท่านั้น)"""
-    if not line_bot_api_client:
-        logger.error("❌ LINE Bot API client not initialized.")
+    """Send LINE reply message"""
+    access_token = config_manager.get("line_channel_access_token")
+    if not access_token:
+        logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
         return False
     
-    if not reply_token or reply_token.strip() == "":
-        logger.error("❌ Reply token is empty or invalid.")
+    if not reply_token or reply_token.strip() == "" or len(reply_token.strip()) < 10:
+        logger.error("❌ Reply token is empty, invalid, or too short")
         return False
     
     if len(text) > 5000:
         text = text[:4900] + "\n\n(ข้อความถูกตัดเนื่องจากยาวเกินไป)"
     
-    try:
-        logger.info(f"📤 Sending LINE reply (length: {len(text)} chars)")
-        line_bot_api_client.reply_message_with_http_info(
-            ReplyMessageRequest(
-                reply_token=reply_token,
-                messages=[TextMessage(text=text)]
-            )
-        )
-        logger.info("✅ LINE reply sent successfully")
-        return True
-    except LineApiException as e:
-        logger.error(f"❌ LINE Reply API error: status_code={e.status}, message={e.body}")
-        return False
-    except Exception as e:
-        logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
-        return False
+    url = "https://api.line.me/v2/bot/message/reply"
+    headers = {
+        "Authorization": f"Bearer {access_token}", 
+        "Content-Type": "application/json",
+        "User-Agent": "LINE-OA-Middleware/1.0",
+        "Connection": "close"
+    }
+    payload = {
+        "replyToken": reply_token, 
+        "messages": [{"type": "text", "text": text}]
+    }
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"📤 Sending LINE reply (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
+            
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+            logger.info(f"📤 LINE Reply API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                logger.info(f"✅ LINE reply sent successfully")
+                return True
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                    error_message = error_data.get('message', 'Bad Request')
+                    logger.error(f"❌ LINE Reply API 400 Bad Request: {error_message}")
+                    if 'invalid' in error_message.lower() and 'token' in error_message.lower():
+                        logger.error("❌ Reply token expired - not retrying")
+                        return False
+                except:
+                    logger.error(f"❌ LINE Reply API 400 Bad Request: {response.text}")
+                return False
+            elif response.status_code == 401:
+                logger.error(f"❌ LINE Reply API 401 Unauthorized - Check access token")
+                return False
+            elif response.status_code == 403:
+                logger.error(f"❌ LINE Reply API 403 Forbidden - Check permissions")
+                return False
+            elif response.status_code >= 500:
+                logger.warning(f"⚠️ LINE Reply API {response.status_code} Server Error - will retry")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+            else:
+                logger.error(f"❌ LINE Reply API HTTP {response.status_code}: {response.text}")
+                return False
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ LINE Reply API timeout (attempt {attempt + 1})")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ LINE Reply API request error (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except Exception as e:
+            logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
+            return False
+    
+    logger.error(f"❌ Failed to send LINE reply after {max_retries} attempts")
+    return False
 
 def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
-    """ส่งข้อความไปยังผู้ใช้ใน LINE ด้วย push message (สำหรับผลลัพธ์สุดท้าย)"""
-    if not line_bot_api_client:
-        logger.error("❌ LINE Bot API client not initialized.")
+    """Send LINE push message"""
+    access_token = config_manager.get("line_channel_access_token")
+    if not access_token:
+        logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
         return False
 
     if not user_id or user_id.strip() == "":
-        logger.error("❌ User ID is empty.")
+        logger.error("❌ User ID is empty")
         return False
 
     if len(text) > 5000:
         text = text[:4900] + "\n\n(ข้อความถูกตัดเนื่องจากยาวเกินไป)"
 
-    try:
-        logger.info(f"📤 Sending LINE push message (length: {len(text)} chars) to {user_id}")
-        line_bot_api_client.push_message_with_http_info(
-            PushMessageRequest(
-                to=user_id,
-                messages=[TextMessage(text=text)]
-            )
-        )
-        logger.info("✅ Push message sent to LINE successfully")
-        return True
-    except LineApiException as e:
-        logger.error(f"❌ LINE Push API error: status_code={e.status}, message={e.body}")
-        return False
-    except Exception as e:
-        logger.exception(f"❌ Unexpected error in send_line_push: {e}")
-        return False
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "User-Agent": "LINE-OA-Middleware/1.0",
+        "Connection": "close"
+    }
+    payload = {
+        "to": user_id,
+        "messages": [{"type": "text", "text": text}],
+    }
+
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"📤 Sending LINE push message (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
+            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
+            logger.info(f"📤 LINE Push API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                logger.info("✅ Push message sent to LINE successfully")
+                return True
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                    error_message = error_data.get('message', 'Bad Request')
+                    logger.error(f"❌ LINE Push API 400 Bad Request: {error_message}")
+                except:
+                    logger.error(f"❌ LINE Push API 400 Bad Request: {response.text}")
+                return False
+            elif response.status_code == 401:
+                logger.error(f"❌ LINE Push API 401 Unauthorized - Check access token")
+                return False
+            elif response.status_code == 403:
+                logger.error(f"❌ LINE Push API 403 Forbidden - Check permissions or user blocked bot")
+                return False
+            elif response.status_code >= 500:
+                logger.warning(f"⚠️ LINE Push API {response.status_code} Server Error - will retry")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+            else:
+                logger.error(f"❌ LINE Push API HTTP {response.status_code}: {response.text}")
+                return False
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ LINE Push API timeout (attempt {attempt + 1})")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ LINE Push API request error (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except Exception as e:
+            logger.exception(f"❌ Unexpected error in send_line_push: {e}")
+            return False
+    
+    logger.error(f"❌ Failed to send LINE push message after {max_retries} attempts")
+    return False
 
 def create_slip_hash(image_data: bytes) -> str:
-    """สร้าง hash จากข้อมูลรูปภาพเพื่อตรวจสอบสลิปซ้ำ"""
+    """Create hash for image data"""
     return hashlib.md5(image_data).hexdigest()
 
 def save_duplicate_slip_data(slip_hash: str, slip_data: Dict) -> None:
-    """บันทึกข้อมูลสลิปที่ตรวจสอบแล้วเพื่อใช้กรณีซ้ำ"""
+    """Save duplicate slip data to cache"""
     notification_manager.duplicate_slip_cache[slip_hash] = {
         "data": slip_data,
         "timestamp": datetime.now().isoformat(),
@@ -275,11 +358,11 @@ def save_duplicate_slip_data(slip_hash: str, slip_data: Dict) -> None:
     }
 
 def get_duplicate_slip_data(slip_hash: str) -> Optional[Dict]:
-    """ดึงข้อมูลสลิปซ้ำที่เคยตรวจสอบแล้ว"""
+    """Get duplicate slip data from cache"""
     return notification_manager.duplicate_slip_cache.get(slip_hash)
 
 def check_slip_system_status() -> Dict[str, Any]:
-    """ตรวจสอบสถานะระบบตรวจสอบสลิป"""
+    """Check slip system status"""
     slip_enabled = config_manager.get("slip_enabled", False)
     thunder_token = config_manager.get("thunder_api_token", "").strip()
     kbank_enabled = config_manager.get("kbank_enabled", False)
@@ -301,8 +384,7 @@ def check_slip_system_status() -> Dict[str, Any]:
     return status
 
 def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplicate: bool = False) -> str:
-    """สร้างข้อความแสดงรายละเอียดสลิปแบบครบถ้วน (ปรับปรุงแล้ว)"""
-    
+    """Create detailed slip message"""
     amount_display = data.get('amount_display', f"฿{data.get('amount_formatted', data.get('amount', '0'))}")
     date = data.get('date', 'N/A')
     time_str = data.get('time', '')
@@ -373,6 +455,7 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
     return message
 
 async def send_initial_and_final_message(user_id: str, reply_token: str, initial_msg: str, final_msg: str, log_sender: str = "slip_bot") -> None:
+    """Send initial reply and final push message"""
     if reply_token and not send_line_reply(reply_token, initial_msg):
         logger.warning("⚠️ Failed to send initial reply - will use push message for all messages")
 
@@ -387,9 +470,10 @@ async def send_initial_and_final_message(user_id: str, reply_token: str, initial
     except Exception as e:
         logger.warning(f"⚠️ Failed to save chat history: {e}")
 
-# ====================== Event Dispatcher ======================
+# ====================== Event Processing ======================
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
+    """Process LINE event asynchronously"""
     try:
         if event.get("type") != "message":
             return
@@ -450,7 +534,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
                     await notification_manager.send_notification(f"🔄 พบสลิปซ้ำ! แสดงผลตรวจสอบเดิม จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
                     
-                    # ส่งรายละเอียดสลิปฉบับเต็มเมื่อพบสลิปซ้ำใน cache
                     success_msg = create_detailed_slip_message(duplicate_data['data'], duplicate_count=duplicate_count, is_duplicate=True)
                     await send_initial_and_final_message(user_id, reply_token, processing_msg, success_msg, "slip_bot_duplicate")
                     
@@ -473,7 +556,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         logger.info(f"🔄 API reported duplicate slip.")
                         await notification_manager.send_notification(f"🔄 API แจ้งสลิปซ้ำ", "warning")
 
-                        # ส่งรายละเอียดสลิปฉบับเต็มเมื่อพบสลิปซ้ำจาก API
                         if result.get('data'):
                             success_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
                             await send_initial_and_final_message(user_id, reply_token, processing_msg, success_msg, "slip_bot_duplicate")
@@ -521,7 +603,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
                     await notification_manager.send_notification(f"🔄 พบข้อมูลสลิปซ้ำจากข้อความ! จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
                     
-                    # ส่งรายละเอียดสลิปฉบับเต็มเมื่อพบสลิปซ้ำจากข้อความ
                     success_msg = f"🔄 ข้อมูลสลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n✅ รายละเอียดการโอน:\n💰 จำนวนเงิน: {amount_display}\n🏦 รหัสธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n🔍 ตรวจสอบโดย: {duplicate_data['data'].get('verified_by', 'ระบบตรวจสอบ')}"
                     send_line_push(user_id, success_msg)
                     save_duplicate_slip_data(text_hash, duplicate_data['data'])
@@ -568,6 +649,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
 
 def dispatch_event(event: Dict[str, Any]) -> None:
+    """Dispatch event wrapper for threading"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -576,8 +658,11 @@ def dispatch_event(event: Dict[str, Any]) -> None:
     except Exception as e:
         logger.exception(f"❌ Error in dispatch_event wrapper: {e}")
 
+# ====================== API Routes ======================
+
 @app.websocket("/ws/notifications")
 async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time notifications"""
     await notification_manager.connect(websocket)
     for notification in notification_manager.pending_notifications:
         try:
@@ -592,24 +677,30 @@ async def websocket_endpoint(websocket: WebSocket):
         notification_manager.disconnect(websocket)
 
 @app.post("/line/webhook")
-async def line_webhook(request: Request) -> JSONResponse:
+async def line_webhook(request: Request, x_line_signature: str = Header(None)) -> JSONResponse:
+    """LINE webhook endpoint"""
     logger.info("📨 Received LINE webhook request")
     try:
         body = await request.body()
-        signature = request.headers.get("x-line-signature", "")
+        signature = x_line_signature or ""
         channel_secret = config_manager.get("line_channel_secret", "")
+        
         if not verify_line_signature(body, signature, channel_secret):
             logger.error("❌ Invalid LINE signature")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+        
         try:
             payload = json.loads(body.decode("utf-8"))
         except json.JSONDecodeError as e:
             logger.error(f"❌ Invalid JSON payload: {e}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+        
         events = payload.get("events", [])
         logger.info(f"🎭 Processing {len(events)} events")
+        
         if not events:
             return JSONResponse(content={"status": "ok", "message": "No events to process"})
+        
         for i, ev in enumerate(events):
             logger.info(f"🎯 Dispatching event {i+1}/{len(events)}: {ev.get('type')}")
             thread = threading.Thread(
@@ -619,6 +710,7 @@ async def line_webhook(request: Request) -> JSONResponse:
                 name=f"event-processor-{i+1}"
             )
             thread.start()
+        
         return JSONResponse(content={"status": "ok", "events_processed": len(events)})
     except HTTPException:
         raise
@@ -628,17 +720,19 @@ async def line_webhook(request: Request) -> JSONResponse:
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
+    """Root redirect to admin"""
     return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
 
 @app.get("/admin", response_class=HTMLResponse)  
 async def admin_home(request: Request):
+    """Admin home page"""
     total_count = get_chat_history_count()
     system_status = check_slip_system_status()
     return templates.TemplateResponse(
         "admin_home.html",
         {
             "request": request,
-            "config": config_manager.config,
+            "config": config_manager,
             "total_chat_history": total_count,
             "system_status": system_status,
         },
@@ -646,16 +740,18 @@ async def admin_home(request: Request):
 
 @app.get("/admin/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request):
+    """Admin settings page"""
     return templates.TemplateResponse(
         "settings.html",
         {
             "request": request,
-            "config": config_manager.config,
+            "config": config_manager,
         },
     )
 
 @app.get("/admin/chat", response_class=HTMLResponse)
 async def admin_chat(request: Request):
+    """Admin chat history page"""
     history = get_recent_chat_history(limit=100)
     return templates.TemplateResponse(
         "chat_history.html",{
@@ -666,6 +762,7 @@ async def admin_chat(request: Request):
 
 @app.get("/admin/api-status")
 async def api_status_check():
+    """Check API status"""
     status_result = {
         "thunder": {"configured": False, "connected": False, "enabled": False},
         "line": {"configured": False, "connected": False},
@@ -673,6 +770,8 @@ async def api_status_check():
         "kbank": {"configured": False, "connected": False, "enabled": False},
         "system": check_slip_system_status()
     }
+    
+    # Check Thunder API
     thunder_token = config_manager.get("thunder_api_token")
     thunder_enabled = config_manager.get("slip_enabled", False)
     status_result["thunder"]["enabled"] = thunder_enabled
@@ -685,6 +784,8 @@ async def api_status_check():
                 status_result["thunder"]["connected"] = True
         except requests.exceptions.RequestException as e:
             status_result["thunder"]["error"] = str(e)
+    
+    # Check LINE API
     line_token = config_manager.get("line_channel_access_token")
     if line_token:
         status_result["line"]["configured"] = True
@@ -699,6 +800,8 @@ async def api_status_check():
                 status_result["line"]["error"] = f"{response.status_code}: {response.text}"
         except requests.exceptions.RequestException as e:
             status_result["line"]["error"] = str(e)
+    
+    # Check KBank API
     kbank_consumer_id = config_manager.get("kbank_consumer_id")
     kbank_consumer_secret = config_manager.get("kbank_consumer_secret")
     kbank_enabled = config_manager.get("kbank_enabled", False)
@@ -715,10 +818,12 @@ async def api_status_check():
                 status_result["kbank"]["error"] = "ไม่สามารถขอ access token ได้"
         except Exception as e:
             status_result["kbank"]["error"] = str(e)
+    
     return JSONResponse(content=status_result)
 
 @app.get("/admin/system-status")
 async def get_system_status():
+    """Get system status"""
     system_status = check_slip_system_status()
     return JSONResponse(content={
         "system_status": system_status,
@@ -730,6 +835,7 @@ async def get_system_status():
 
 @app.get("/admin/slip-status")
 async def get_slip_processing_status():
+    """Get slip processing status"""
     return JSONResponse(content={
         "processing_status": notification_manager.slip_processing_status,
         "active_connections": len(notification_manager.active_connections),
@@ -739,6 +845,7 @@ async def get_slip_processing_status():
 
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
+    """Update settings"""
     try:
         data = await request.json()
         updates = {}
@@ -752,7 +859,13 @@ async def update_settings(request: Request) -> JSONResponse:
         updates["ai_enabled"] = bool(data.get("ai_enabled"))
         updates["slip_enabled"] = bool(data.get("slip_enabled"))
         updates["kbank_enabled"] = bool(data.get("kbank_enabled"))
+        
         config_manager.update_multiple(updates)
+        
+        # Reinitialize LINE Bot if credentials changed
+        if any(key in updates for key in ["line_channel_access_token", "line_channel_secret"]):
+            init_line_bot()
+        
         await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าระบบแล้ว", "success")
         return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
     except Exception as e:
@@ -760,16 +873,21 @@ async def update_settings(request: Request) -> JSONResponse:
 
 @app.post("/admin/test-slip-upload")
 async def test_slip_upload(request: Request):
+    """Test slip upload"""
     try:
         form = await request.form()
         file = form.get("file")
         if not file:
             return JSONResponse(content={"status": "error", "message": "ไม่พบไฟล์สลิป"})
+        
         image_data = await file.read()
         message_id = "admin_test_" + datetime.now().strftime("%Y%m%d%H%M%S")
+        
         await notification_manager.send_notification("🧪 Admin กำลังทดสอบการอัปโหลดสลิป", "info")
+        
         slip_hash = create_slip_hash(image_data)
         duplicate_data = get_duplicate_slip_data(slip_hash)
+        
         if duplicate_data:
             amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
             await notification_manager.send_notification(f"🔄 พบสลิปซ้ำในการทดสอบ! จำนวน {amount_display}", "warning")
@@ -778,7 +896,9 @@ async def test_slip_upload(request: Request):
                 "message": f"สลิปนี้เคยทดสอบแล้ว (ครั้งที่ {duplicate_data.get('count', 1)})",
                 "response": duplicate_data['data']
             })
+        
         result = verify_slip_multiple_providers(test_image_data=image_data)
+        
         if result["status"] == "success":
             amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
             await notification_manager.send_notification(f"✅ ทดสอบสลิปสำเร็จ! จำนวน {amount_display}", "success")
@@ -813,6 +933,7 @@ async def test_slip_upload(request: Request):
 
 @app.get("/admin/clear-duplicate-cache")
 async def clear_duplicate_cache():
+    """Clear duplicate cache"""
     try:
         cache_size = len(notification_manager.duplicate_slip_cache)
         notification_manager.duplicate_slip_cache.clear()
@@ -829,6 +950,7 @@ async def clear_duplicate_cache():
 
 @app.post("/admin/force-reset-apis")
 async def force_reset_apis():
+    """Force reset API caches"""
     try:
         try:
             from services.slip_checker import create_requests_session
@@ -854,6 +976,7 @@ async def force_reset_apis():
 
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
+    """Toggle slip system on/off"""
     try:
         current_status = config_manager.get("slip_enabled", False)
         new_status = not current_status
@@ -873,6 +996,7 @@ async def toggle_slip_system():
 
 @app.get("/admin/statistics")
 async def get_admin_statistics():
+    """Get admin statistics"""
     try:
         total_messages = get_chat_history_count()
         recent_history = get_recent_chat_history(limit=1000)
@@ -893,17 +1017,18 @@ async def get_admin_statistics():
 
 @app.get("/admin/export-chat-history")
 async def export_chat_history():
+    """Export chat history"""
     try:
         history = get_recent_chat_history(limit=10000)
         export_data = []
         for chat in history:
             export_data.append({
-                "timestamp": chat.created_at.isoformat(),
-                "user_id": chat.user_id,
-                "direction": chat.direction,
-                "message_type": chat.message_type,
-                "message_text": chat.message_text,
-                "sender": chat.sender
+                "timestamp": chat.created_at.isoformat() if hasattr(chat, 'created_at') else datetime.now().isoformat(),
+                "user_id": chat.user_id if hasattr(chat, 'user_id') else "unknown",
+                "direction": chat.direction if hasattr(chat, 'direction') else "unknown",
+                "message_type": chat.message_type if hasattr(chat, 'message_type') else "text",
+                "message_text": chat.message_text if hasattr(chat, 'message_text') else "",
+                "sender": chat.sender if hasattr(chat, 'sender') else "unknown"
             })
         return JSONResponse(content={
             "status": "success",
@@ -919,15 +1044,18 @@ async def export_chat_history():
 
 @app.post("/admin/test-push-message")
 async def test_push_message(request: Request):
+    """Test push message"""
     try:
         data = await request.json()
         user_id = data.get("user_id")
         message = data.get("message", "นี่คือข้อความทดสอบจากระบบ")
+        
         if not user_id:
             return JSONResponse(content={
                 "status": "error",  
                 "message": "กรุณาใส่ User ID"
             })
+        
         success = send_line_push(user_id, message)
         if success:
             await notification_manager.send_notification(f"✅ ส่ง Push Message ทดสอบสำเร็จไปยัง {user_id[:8]}...", "success")
@@ -948,6 +1076,7 @@ async def test_push_message(request: Request):
 
 @app.get("/health")
 async def health_check():
+    """Health check endpoint"""
     return JSONResponse(content={
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -956,7 +1085,7 @@ async def health_check():
         "components": {
             "database": True,
             "websocket": len(notification_manager.active_connections) >= 0,
-            "config": bool(config_manager.config),
+            "config": bool(config_manager),
             "cache": len(notification_manager.duplicate_slip_cache) >= 0,
             "push_message": True
         }
@@ -964,6 +1093,7 @@ async def health_check():
 
 @app.get("/admin/logs")
 async def get_recent_logs(limit: int = 50):
+    """Get recent logs"""
     try:
         return JSONResponse(content={
             "status": "success",
@@ -983,8 +1113,11 @@ async def get_recent_logs(limit: int = 50):
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
+# ====================== Exception Handlers ======================
+
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
+    """404 handler"""
     if request.url.path.startswith("/admin"):
         return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
     return JSONResponse(
@@ -994,103 +1127,119 @@ async def not_found_handler(request: Request, exc):
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc):
+    """500 handler"""
     logger.error(f"Internal server error: {exc}")
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"}
     )
 
+# ====================== Startup/Shutdown Events ======================
+
 @app.on_event("startup")
 async def startup_event():
+    """Startup event handler"""
     logger.info("🚀 LINE OA Middleware เริ่มทำงาน... (รองรับ Push Message)")
+    
+    # Initialize LINE Bot
+    if init_line_bot():
+        logger.info("✅ LINE Bot credentials loaded")
+    else:
+        logger.warning("⚠️ LINE Bot credentials not found")
+    
+    # Check required configs
     required_configs = ["line_channel_secret", "line_channel_access_token"]
     missing_configs = []
     for config_key in required_configs:
         if not config_manager.get(config_key):
             missing_configs.append(config_key)
+    
     if missing_configs:
         logger.warning(f"⚠️ การตั้งค่าที่ขาดหายไป: {', '.join(missing_configs)}")
         logger.warning("⚠️ กรุณาตั้งค่าในหน้า /admin/settings")
     else:
         logger.info("✅ การตั้งค่าพื้นฐานครบถ้วน")
-    try:
-        api_status = get_api_status_summary()
-        thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
-        kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
-        logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
-    except Exception as e:
-        logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
-    await notification_manager.send_notification(
-        "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว (รองรับ Push Message)",
-        "success",
-        {
-            "timestamp": datetime.now().isoformat(),
-            "version": "2.1.0",
-            "features": ["push_message", "fallback_apis", "detailed_slip_info"]
-        }
-    )
-    logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
-    logger.info("📱 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
+   
+   try:
+       api_status = get_api_status_summary()
+       thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
+       kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
+       logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
+   except Exception as e:
+       logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
+   
+   await notification_manager.send_notification(
+       "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว (รองรับ Push Message)",
+       "success",
+       {
+           "timestamp": datetime.now().isoformat(),
+           "version": "2.1.0",
+           "features": ["push_message", "fallback_apis", "detailed_slip_info"]
+       }
+   )
+   logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
+   logger.info("📱 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
-    for connection in notification_manager.active_connections.copy():
-        try:
-            await connection.close()
-        except:
-            pass
-    notification_manager.active_connections.clear()
-    notification_manager.duplicate_slip_cache.clear()
-    notification_manager.pending_notifications.clear()
-    logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
+   """Shutdown event handler"""
+   logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
+   for connection in notification_manager.active_connections.copy():
+       try:
+           await connection.close()
+       except:
+           pass
+   notification_manager.active_connections.clear()
+   notification_manager.duplicate_slip_cache.clear()
+   notification_manager.pending_notifications.clear()
+   logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn_log_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            },
-        },
-        "handlers": {
-            "default": {
-                "formatter": "default",
-                "class": "logging.StreamHandler",
-                "stream": "ext://sys.stdout",
-            },
-        },
-        "root": {
-            "level": "INFO",
-            "handlers": ["default"],
-        },
-        "loggers": {
-            "uvicorn": {"level": "INFO"},
-            "uvicorn.error": {"level": "INFO"},
-            "uvicorn.access": {"level": "INFO"},
-        },
-    }
-    print("🚀 เริ่มต้น LINE OA Middleware (Enhanced with Push Message)...")
-    print("📱 เว็บ Admin: http://localhost:8000/admin")
-    print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
-    print("📊 API Status: http://localhost:8000/admin/api-status")
-    print("🏥 Health Check: http://localhost:8000/health")
-    print("📤 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
-    print()
-    try:
-        uvicorn.run(
-            "main_updated:app",
-            host="0.0.0.0",
-            port=8000,
-            reload=False,
-            log_config=uvicorn_log_config,
-            access_log=True,
-            server_header=False,
-            date_header=False
-        )
-    except KeyboardInterrupt:
-        print("\n🛑 หยุดระบบโดยผู้ใช้")
-    except Exception as e:
-        print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
+   import uvicorn
+   uvicorn_log_config = {
+       "version": 1,
+       "disable_existing_loggers": False,
+       "formatters": {
+           "default": {
+               "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+           },
+       },
+       "handlers": {
+           "default": {
+               "formatter": "default",
+               "class": "logging.StreamHandler",
+               "stream": "ext://sys.stdout",
+           },
+       },
+       "root": {
+           "level": "INFO",
+           "handlers": ["default"],
+       },
+       "loggers": {
+           "uvicorn": {"level": "INFO"},
+           "uvicorn.error": {"level": "INFO"},
+           "uvicorn.access": {"level": "INFO"},
+       },
+   }
+   print("🚀 เริ่มต้น LINE OA Middleware (Enhanced with Push Message)...")
+   print("📱 เว็บ Admin: http://localhost:8000/admin")
+   print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
+   print("📊 API Status: http://localhost:8000/admin/api-status")
+   print("🏥 Health Check: http://localhost:8000/health")
+   print("📤 รองรับ Push Message สำหรับแก้ปัญหา Reply Token หมดอายุ")
+   print()
+   try:
+       uvicorn.run(
+           "main_updated:app",
+           host="0.0.0.0",
+           port=8000,
+           reload=False,
+           log_config=uvicorn_log_config,
+           access_log=True,
+           server_header=False,
+           date_header=False
+       )
+   except KeyboardInterrupt:
+       print("\n🛑 หยุดระบบโดยผู้ใช้")
+   except Exception as e:
+       print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
