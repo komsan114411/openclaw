@@ -170,16 +170,16 @@ def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
     
     url = "https://api.line.me/v2/bot/message/reply"
     headers = {
-        "Authorization": f"Bearer {access_token}", 
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
         "User-Agent": "LINE-OA-Middleware/1.0",
         "Connection": "close"
     }
     payload = {
-        "replyToken": reply_token, 
+        "replyToken": reply_token,
         "messages": [
             {
-                "type": "text", 
+                "type": "text",
                 "text": text
             }
         ]
@@ -191,9 +191,9 @@ def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
             logger.info(f"📤 Sending LINE reply (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
             
             response = requests.post(
-                url, 
-                headers=headers, 
-                data=json.dumps(payload), 
+                url,
+                headers=headers,
+                data=json.dumps(payload),
                 timeout=15
             )
             
@@ -291,34 +291,37 @@ def check_slip_system_status() -> Dict[str, Any]:
     return status
 
 def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplicate: bool = False) -> str:
-    """สร้างข้อความแสดงรายละเอียดสลิปแบบครบถ้วน (ปรับปรุงแล้ว)"""
+    """สร้างข้อความแสดงรายละเอียดสลิปแบบครบถ้วน"""
     
-    # ข้อมูลพื้นฐาน
-    amount_display = data.get('amount_display', f"฿{data.get('amount_formatted', data.get('amount', '0'))}")
+    # Format amount
+    amount = data.get('amount', '0')
+    try:
+        amount_float = float(amount)
+        amount_formatted = f"{amount_float:,.2f}"
+    except (ValueError, TypeError):
+        amount_formatted = amount
+
+    amount_display = f"฿{amount_formatted}"
+    
+    # Extract data with fallbacks
     date = data.get('date', 'N/A')
     time_str = data.get('time', '')
     reference = data.get('reference', '')
     
-    # ข้อมูลผู้ส่ง
-    sender_name = data.get('sender_name_th') or data.get('sender_name_en') or data.get('sender', '')
-    sender_bank_name = data.get('sender_bank_name', '') or data.get('sender_bank_short', '') or data.get('sender_bank', '')
+    sender_name = data.get('sender_name_th') or data.get('sender_name_en') or data.get('sender', 'N/A')
+    sender_bank_name = data.get('sender_bank_name', '') or data.get('sender_bank_short', '') or data.get('sender_bank', 'N/A')
     sender_account = data.get('sender_account_number', '')
     
-    # ข้อมูลผู้รับ
-    receiver_name = data.get('receiver_name_th') or data.get('receiver_name_en') or data.get('receiver_name', '')
-    receiver_bank_name = data.get('receiver_bank_name', '') or data.get('receiver_bank_short', '') or data.get('receiver_bank', '')
+    receiver_name = data.get('receiver_name_th') or data.get('receiver_name_en') or data.get('receiver_name', 'N/A')
+    receiver_bank_name = data.get('receiver_bank_name', '') or data.get('receiver_bank_short', '') or data.get('receiver_bank', 'N/A')
     receiver_account = data.get('receiver_account_number', '')
     
-    # ข้อมูลเพิ่มเติม
     fee = data.get('fee', 0)
-    verified_by = data.get('verified_by', 'Thunder API')
+    verified_by = data.get('verified_by', 'ระบบตรวจสอบ')
     
-    # สร้างข้อความ
+    # Create message header
     if is_duplicate:
-        if duplicate_count > 0:
-            header = f"🔄 สลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})"
-        else:
-            header = "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
+        header = f"🔄 สลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})"
     else:
         header = "✅ สลิปถูกต้อง - ตรวจสอบสำเร็จ"
     
@@ -333,33 +336,30 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
     if reference:
         message += f"📋 เลขอ้างอิง: {reference}\n"
     
-    # เพิ่มค่าธรรมเนียมถ้ามี
     if fee and float(fee) > 0:
         message += f"💸 ค่าธรรมเนียม: ฿{fee}\n"
     
-    # ข้อมูลผู้ส่ง
+    # Sender details
     if sender_name or sender_bank_name or sender_account:
         message += "\n═══ 👤 ข้อมูลผู้ส่ง ═══\n"
-        if sender_name:
-            message += f"👤 ชื่อผู้โอน: {sender_name}\n"
-        if sender_bank_name:
-            message += f"🏦 ธนาคารผู้โอน: {sender_bank_name}\n"
-        if sender_account:
-            # ซ่อนบางส่วนของเลขบัญชี
-            masked_account = sender_account[:4] + "xxxx" + sender_account[-4:] if len(sender_account) > 8 else sender_account
+        message += f"👤 ชื่อผู้โอน: {sender_name}\n"
+        message += f"🏦 ธนาคารผู้โอน: {sender_bank_name}\n"
+        if sender_account and len(sender_account) > 8:
+            masked_account = sender_account[:4] + "xxxx" + sender_account[-4:]
             message += f"💳 เลขบัญชีผู้โอน: {masked_account}\n"
-    
-    # ข้อมูลผู้รับ
+        else:
+            message += f"💳 เลขบัญชีผู้โอน: {sender_account}\n"
+
+    # Receiver details
     if receiver_name or receiver_bank_name or receiver_account:
         message += "\n═══ 🏪 ข้อมูลผู้รับ ═══\n"
-        if receiver_name:
-            message += f"🏪 ชื่อผู้รับ: {receiver_name}\n"
-        if receiver_bank_name:
-            message += f"🏦 ธนาคารผู้รับ: {receiver_bank_name}\n"
-        if receiver_account:
-            # ซ่อนบางส่วนของเลขบัญชี
-            masked_account = receiver_account[:4] + "xxxx" + receiver_account[-4:] if len(receiver_account) > 8 else receiver_account
+        message += f"🏪 ชื่อผู้รับ: {receiver_name}\n"
+        message += f"🏦 ธนาคารผู้รับ: {receiver_bank_name}\n"
+        if receiver_account and len(receiver_account) > 8:
+            masked_account = receiver_account[:4] + "xxxx" + receiver_account[-4:]
             message += f"💳 เลขบัญชีผู้รับ: {masked_account}\n"
+        else:
+            message += f"💳 เลขบัญชีผู้รับ: {receiver_account}\n"
     
     message += f"\n🔍 ตรวจสอบโดย: {verified_by}\n"
     
@@ -372,61 +372,6 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
     
     return message
 
-def create_simple_slip_message(data: Dict, duplicate_count: int = 0, is_duplicate: bool = False) -> str:
-    """สร้างข้อความแสดงรายละเอียดสลิปแบบง่าย (สำหรับ fallback)"""
-    
-    amount = data.get('amount', '0')
-    try:
-        amount_float = float(amount)
-        amount_formatted = f"{amount_float:,.0f}"
-    except:
-        amount_formatted = amount
-    
-    date = data.get('date', 'N/A')
-    time_str = data.get('time', '')
-    sender = data.get('sender', '')
-    receiver_name = data.get('receiver_name', '')
-    sender_bank = data.get('sender_bank', '')
-    receiver_bank = data.get('receiver_bank', '')
-    reference = data.get('reference', '')
-    verified_by = data.get('verified_by', 'ระบบตรวจสอบ')
-    
-    if is_duplicate:
-        if duplicate_count > 0:
-            header = f"🔄 สลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})"
-        else:
-            header = "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
-    else:
-        header = "✅ สลิปถูกต้อง - ตรวจสอบสำเร็จ"
-    
-    message = f"{header}\n\n"
-    message += "📋 รายละเอียดการโอนเงิน:\n"
-    message += f"💰 จำนวนเงิน: ฿{amount_formatted}\n"
-    message += f"📅 วันที่ทำรายการ: {date}\n"
-    
-    if time_str:
-        message += f"🕐 เวลาทำรายการ: {time_str}\n"
-    if sender:
-        message += f"👤 ชื่อผู้โอน: {sender}\n"
-    if sender_bank:
-        message += f"🏦 ธนาคารผู้โอน: {sender_bank}\n"
-    if receiver_name:
-        message += f"🏪 ชื่อผู้รับ: {receiver_name}\n"
-    if receiver_bank:
-        message += f"🏦 ธนาคารผู้รับ: {receiver_bank}\n"
-    if reference:
-        message += f"📋 เลขอ้างอิง: {reference}\n"
-    
-    message += f"🔍 ตรวจสอบโดย: {verified_by}\n"
-    
-    if is_duplicate:
-        message += "\n💡 หมายเหตุ: สลิปนี้ได้รับการตรวจสอบความถูกต้องแล้ว"
-        if duplicate_count > 1:
-            message += f" และได้ถูกส่งมาตรวจสอบซ้ำไปแล้ว {duplicate_count-1} ครั้ง"
-    else:
-        message += "\n🎉 การโอนเงินได้รับการยืนยันแล้ว"
-    
-    return message
 
 # ====================== Event Dispatcher ======================
 
@@ -435,7 +380,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
     try:
         if event.get("type") != "message":
             return
-            
+        
         message = event.get("message", {})
         user_id = event.get("source", {}).get("userId", "unknown_user")
         reply_token = event.get("replyToken")
@@ -543,19 +488,11 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     )
                     
                     # สร้างข้อความตอบกลับสำหรับสลิปซ้ำ (แสดงรายละเอียดครบ)
-                    try:
-                        success_msg = create_detailed_slip_message(
-                            duplicate_data['data'], 
-                            duplicate_count=duplicate_count, 
-                            is_duplicate=True
-                        )
-                    except Exception as e:
-                        logger.warning(f"⚠️ Error creating detailed message, falling back to simple: {e}")
-                        success_msg = create_simple_slip_message(
-                            duplicate_data['data'], 
-                            duplicate_count=duplicate_count, 
-                            is_duplicate=True
-                        )
+                    success_msg = create_detailed_slip_message(
+                        duplicate_data['data'],
+                        duplicate_count=duplicate_count,
+                        is_duplicate=True
+                    )
                     
                     # ส่งข้อความตอบกลับ
                     reply_sent = send_line_reply(reply_token, success_msg)
@@ -573,7 +510,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         
                 else:
                     # กรณีสลิปใหม่ - ตรวจสอบแบบปกติ
-                    result = verify_slip_multiple_providers(message.get("id"))
+                    result = verify_slip_multiple_providers(message.get("id"), test_image_data=image_data)
                     
                     if result["status"] == "success":
                         amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
@@ -584,11 +521,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         )
                         
                         # สร้างข้อความตอบกลับสำหรับสลิปใหม่ (แสดงรายละเอียดครบ)
-                        try:
-                            success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
-                        except Exception as e:
-                            logger.warning(f"⚠️ Error creating detailed message, falling back to simple: {e}")
-                            success_msg = create_simple_slip_message(result['data'], is_duplicate=False)
+                        success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
                         
                         # ส่งข้อความตอบกลับ (replace initial message)
                         reply_sent = send_line_reply(reply_token, success_msg)
@@ -605,27 +538,16 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             save_duplicate_slip_data(slip_hash, result['data'])
                             
                     elif result.get("status") == "duplicate":
-                        # กรณี Thunder API แจ้ง duplicate
+                        # กรณี API แจ้ง duplicate
                         await notification_manager.send_notification(
-                            f"🔄 Thunder API แจ้งสลิปซ้ำ",
+                            f"🔄 API แจ้งสลิปซ้ำ",
                             "warning"
                         )
                         
-                        # แสดงรายละเอียดสลิปซ้ำจาก Thunder API
+                        # แสดงรายละเอียดสลิปซ้ำจาก API
                         if result.get('data'):
-                            try:
-                                duplicate_msg = create_detailed_slip_message(
-                                    result['data'], 
-                                    is_duplicate=True
-                                )
-                                duplicate_msg += f"\n\n⚠️ ระบบ Thunder API แจ้งว่าสลิปนี้เคยถูกตรวจสอบแล้ว"
-                            except Exception as e:
-                                logger.warning(f"⚠️ Error creating detailed message, falling back to simple: {e}")
-                                duplicate_msg = create_simple_slip_message(
-                                    result['data'], 
-                                    is_duplicate=True
-                                )
-                                duplicate_msg += f"\n\n⚠️ ระบบ Thunder API แจ้งว่าสลิปนี้เคยถูกตรวจสอบแล้ว"
+                            duplicate_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
+                            duplicate_msg += f"\n\n⚠️ ระบบ API แจ้งว่าสลิปนี้เคยถูกตรวจสอบแล้ว"
                         else:
                             duplicate_msg = "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว\n\n💡 หากต้องการตรวจสอบสลิปใหม่ กรุณาส่งรูปสลิปที่ยังไม่เคยใช้"
                         
@@ -635,9 +557,9 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             
                         try:
                             save_chat_history(user_id, "out", {"type": "text", "text": duplicate_msg}, sender="slip_bot_duplicate")
-                        except Exception as e:            
+                        except Exception as e:
                             logger.warning(f"⚠️ Failed to save chat history: {e}")
-                    
+                            
                     elif result.get("status") == "not_found":
                         # กรณีไม่พบข้อมูลสลิป
                         await notification_manager.send_notification(
@@ -654,7 +576,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             save_chat_history(user_id, "out", {"type": "text", "text": not_found_msg}, sender="slip_bot")
                         except Exception as e:
                             logger.warning(f"⚠️ Failed to save chat history: {e}")
-                    
+                        
                     elif result.get("status") == "qr_not_found":
                         # กรณีไม่พบ QR Code
                         await notification_manager.send_notification(
@@ -768,8 +690,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     # ประมวลผลข้อมูลสลิปใหม่
                     try:
                         result = verify_slip_multiple_providers(
-                            None, None, 
-                            slip_info["bank_code"], 
+                            None, None,
+                            slip_info["bank_code"],
                             slip_info["trans_ref"]
                         )
                         
@@ -842,7 +764,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 "info"
             )
             send_line_reply(reply_token, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น")
-                
+            
     except Exception as e:
         logger.exception(f"❌ Critical error in dispatch_event: {e}")
         await notification_manager.send_notification(
@@ -877,7 +799,7 @@ async def websocket_endpoint(websocket: WebSocket):
     
     try:
         while True:
-            data = await websocket.receive_text()
+            await websocket.receive_text()
     except WebSocketDisconnect:
         notification_manager.disconnect(websocket)
 
@@ -912,8 +834,8 @@ async def line_webhook(request: Request) -> JSONResponse:
         for i, ev in enumerate(events):
             logger.info(f"🎯 Dispatching event {i+1}/{len(events)}: {ev.get('type')}")
             thread = threading.Thread(
-                target=dispatch_event, 
-                args=(ev,), 
+                target=dispatch_event,
+                args=(ev,),
                 daemon=True,
                 name=f"event-processor-{i+1}"
             )
@@ -931,7 +853,7 @@ async def line_webhook(request: Request) -> JSONResponse:
 async def root():
     return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
 
-@app.get("/admin", response_class=HTMLResponse)  
+@app.get("/admin", response_class=HTMLResponse)
 async def admin_home(request: Request):
     total_count = get_chat_history_count()
     system_status = check_slip_system_status()
@@ -1032,6 +954,23 @@ async def api_status_check():
         except Exception as e:
             status_result["kbank"]["error"] = str(e)
 
+    # ตรวจสอบ OpenAI API
+    openai_key = config_manager.get("openai_api_key")
+    openai_enabled = config_manager.get("ai_enabled", False)
+    status_result["openai"]["enabled"] = openai_enabled
+    if openai_key:
+        status_result["openai"]["configured"] = True
+        try:
+            # Simulate a simple API call
+            headers = {"Authorization": f"Bearer {openai_key}"}
+            resp = requests.get("https://api.openai.com/v1/models", headers=headers, timeout=5)
+            if resp.status_code == 200:
+                status_result["openai"]["connected"] = True
+            else:
+                status_result["openai"]["error"] = f"{resp.status_code}: {resp.text}"
+        except requests.exceptions.RequestException as e:
+            status_result["openai"]["error"] = str(e)
+
     return JSONResponse(content=status_result)
 
 @app.get("/admin/system-status")
@@ -1119,376 +1058,376 @@ async def test_slip_upload(request: Request):
             return JSONResponse(content={
                 "status": "duplicate",
                 "message": f"สลิปนี้เคยทดสอบแล้ว (ครั้งที่ {duplicate_data.get('count', 1)})",
-                "response": duplicate_data['data']})
-       
-       # ทดสอบการตรวจสอบสลิปใหม่
-       result = verify_slip_multiple_providers(test_image_data=image_data)
-       
-       if result["status"] == "success":
-           amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
-           
-           await notification_manager.send_notification(
-               f"✅ ทดสอบสลิปสำเร็จ! จำนวน {amount_display}",
-               "success"
-           )
-           
-           # บันทึกข้อมูลสลิปสำหรับการทดสอบ
-           save_duplicate_slip_data(slip_hash, result['data'])
-           
-           return JSONResponse(content={
-               "status": "success",
-               "message": "ทดสอบสลิปสำเร็จ",
-               "response": result
-           })
-       
-       elif result.get("status") == "duplicate":
-           await notification_manager.send_notification(
-               "🔄 Thunder API แจ้งสลิปซ้ำในการทดสอบ",
-               "warning"
-           )
-           
-           return JSONResponse(content={
-               "status": "duplicate",
-               "message": "Thunder API แจ้งสลิปซ้ำ",
-               "response": result
-           })
-       
-       else:
-           error_message = result.get("message", "ทดสอบสลิปไม่สำเร็จ")
-           
-           await notification_manager.send_notification(
-               f"❌ ทดสอบสลิปล้มเหลว: {error_message}",
-               "error"
-           )
-           
-           return JSONResponse(content={
-               "status": "error", 
-               "message": error_message,
-               "response": result
-           })
+                "response": {"data": duplicate_data['data']}})
+        
+        # ทดสอบการตรวจสอบสลิปใหม่
+        result = verify_slip_multiple_providers(test_image_data=image_data)
+        
+        if result["status"] == "success":
+            amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
+            
+            await notification_manager.send_notification(
+                f"✅ ทดสอบสลิปสำเร็จ! จำนวน {amount_display}",
+                "success"
+            )
+            
+            # บันทึกข้อมูลสลิปสำหรับการทดสอบ
+            save_duplicate_slip_data(slip_hash, result['data'])
+            
+            return JSONResponse(content={
+                "status": "success",
+                "message": "ทดสอบสลิปสำเร็จ",
+                "response": result
+            })
+        
+        elif result.get("status") == "duplicate":
+            await notification_manager.send_notification(
+                "🔄 API แจ้งสลิปซ้ำในการทดสอบ",
+                "warning"
+            )
+            
+            return JSONResponse(content={
+                "status": "duplicate",
+                "message": "API แจ้งสลิปซ้ำ",
+                "response": result
+            })
+        
+        else:
+            error_message = result.get("message", "ทดสอบสลิปไม่สำเร็จ")
+            
+            await notification_manager.send_notification(
+                f"❌ ทดสอบสลิปล้มเหลว: {error_message}",
+                "error"
+            )
+            
+            return JSONResponse(content={
+                "status": "error",
+                "message": error_message,
+                "response": result
+            })
 
-   except Exception as e:
-       logger.exception(f"❌ Test slip upload error: {e}")
-       
-       await notification_manager.send_notification(
-           f"💥 เกิดข้อผิดพลาดในการทดสอบสลิป: {str(e)}",
-           "error"
-       )
-       
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    except Exception as e:
+        logger.exception(f"❌ Test slip upload error: {e}")
+        
+        await notification_manager.send_notification(
+            f"💥 เกิดข้อผิดพลาดในการทดสอบสลิป: {str(e)}",
+            "error"
+        )
+        
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/clear-duplicate-cache")
 async def clear_duplicate_cache():
-   """ล้าง cache สลิปซ้ำ"""
-   try:
-       cache_size = len(notification_manager.duplicate_slip_cache)
-       notification_manager.duplicate_slip_cache.clear()
-       
-       await notification_manager.send_notification(
-           f"🗑️ ล้าง cache สลิปซ้ำแล้ว ({cache_size} รายการ)",
-           "success"
-       )
-       
-       return JSONResponse(content={
-           "status": "success", 
-           "message": f"ล้าง cache สลิปซ้ำแล้ว ({cache_size} รายการ)"
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ล้าง cache สลิปซ้ำ"""
+    try:
+        cache_size = len(notification_manager.duplicate_slip_cache)
+        notification_manager.duplicate_slip_cache.clear()
+        
+        await notification_manager.send_notification(
+            f"🗑️ ล้าง cache สลิปซ้ำแล้ว ({cache_size} รายการ)",
+            "success"
+        )
+        
+        return JSONResponse(content={
+            "status": "success",
+            "message": f"ล้าง cache สลิปซ้ำแล้ว ({cache_size} รายการ)"
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/force-reset-apis")
 async def force_reset_apis():
-   """รีเซ็ต API Cache"""
-   try:
-       # รีเซ็ต Thunder API
-       try:
-           from services.slip_checker import create_requests_session
-           session = create_requests_session()
-           session.close()
-       except:
-           pass
-       
-       # รีเซ็ต KBank API
-       try:
-           from services.kbank_checker import kbank_checker
-           kbank_checker._clear_token_cache()
-       except:
-           pass
-       
-       await notification_manager.send_notification(
-           "🔄 รีเซ็ต API Cache แล้ว",
-           "success"
-       )
-       
-       return JSONResponse(content={
-           "status": "success", 
-           "message": "รีเซ็ต API Cache แล้ว"
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """รีเซ็ต API Cache"""
+    try:
+        # รีเซ็ต Thunder API
+        try:
+            from services.slip_checker import create_requests_session
+            session = create_requests_session()
+            session.close()
+        except:
+            pass
+        
+        # รีเซ็ต KBank API
+        try:
+            from services.kbank_checker import kbank_checker
+            kbank_checker._clear_token_cache()
+        except:
+            pass
+        
+        await notification_manager.send_notification(
+            "🔄 รีเซ็ต API Cache แล้ว",
+            "success"
+        )
+        
+        return JSONResponse(content={
+            "status": "success",
+            "message": "รีเซ็ต API Cache แล้ว"
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
-   """เปิด/ปิดระบบตรวจสอบสลิป"""
-   try:
-       current_status = config_manager.get("slip_enabled", False)
-       new_status = not current_status
-       
-       config_manager.update("slip_enabled", new_status)
-       
-       action = "เปิด" if new_status else "ปิด"
-       
-       await notification_manager.send_notification(
-           f"🔄 {action}ระบบตรวจสอบสลิปแล้ว",
-           "success" if new_status else "warning"
-       )
-       
-       return JSONResponse(content={
-           "status": "success", 
-           "message": f"{action}ระบบตรวจสอบสลิปแล้ว",
-           "slip_enabled": new_status
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """เปิด/ปิดระบบตรวจสอบสลิป"""
+    try:
+        current_status = config_manager.get("slip_enabled", False)
+        new_status = not current_status
+        
+        config_manager.update("slip_enabled", new_status)
+        
+        action = "เปิด" if new_status else "ปิด"
+        
+        await notification_manager.send_notification(
+            f"🔄 {action}ระบบตรวจสอบสลิปแล้ว",
+            "success" if new_status else "warning"
+        )
+        
+        return JSONResponse(content={
+            "status": "success",
+            "message": f"{action}ระบบตรวจสอบสลิปแล้ว",
+            "slip_enabled": new_status
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/statistics")
 async def get_admin_statistics():
-   """ดึงสถิติสำหรับหน้า Admin"""
-   try:
-       total_messages = get_chat_history_count()
-       recent_history = get_recent_chat_history(limit=1000)
-       
-       # คำนวณสถิติ
-       stats = {
-           "total_messages": total_messages,
-           "slip_checks": len([h for h in recent_history if h.sender in ['slip_bot', 'slip_bot_duplicate']]),
-           "duplicate_cache_size": len(notification_manager.duplicate_slip_cache),
-           "active_connections": len(notification_manager.active_connections),
-           "pending_notifications": len(notification_manager.pending_notifications),
-           "unique_users": len(set([h.user_id for h in recent_history if h.direction == 'in']))
-       }
-       
-       return JSONResponse(content=stats)
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ดึงสถิติสำหรับหน้า Admin"""
+    try:
+        total_messages = get_chat_history_count()
+        recent_history = get_recent_chat_history(limit=1000)
+        
+        # คำนวณสถิติ
+        stats = {
+            "total_messages": total_messages,
+            "slip_checks": len([h for h in recent_history if h.sender in ['slip_bot', 'slip_bot_duplicate']]),
+            "duplicate_cache_size": len(notification_manager.duplicate_slip_cache),
+            "active_connections": len(notification_manager.active_connections),
+            "pending_notifications": len(notification_manager.pending_notifications),
+            "unique_users": len(set([h.user_id for h in recent_history if h.direction == 'in']))
+        }
+        
+        return JSONResponse(content=stats)
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/export-chat-history")
 async def export_chat_history():
-   """ส่งออกประวัติการแชท"""
-   try:
-       history = get_recent_chat_history(limit=10000)
-       
-       export_data = []
-       for chat in history:
-           export_data.append({
-               "timestamp": chat.created_at.isoformat(),
-               "user_id": chat.user_id,
-               "direction": chat.direction,
-               "message_type": chat.message_type,
-               "message_text": chat.message_text,
-               "sender": chat.sender
-           })
-       
-       return JSONResponse(content={
-           "status": "success",
-           "data": export_data,
-           "total_records": len(export_data),
-           "export_time": datetime.now().isoformat()
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ส่งออกประวัติการแชท"""
+    try:
+        history = get_recent_chat_history(limit=10000)
+        
+        export_data = []
+        for chat in history:
+            export_data.append({
+                "timestamp": chat.created_at.isoformat(),
+                "user_id": chat.user_id,
+                "direction": chat.direction,
+                "message_type": chat.message_type,
+                "message_text": chat.message_text,
+                "sender": chat.sender
+            })
+        
+        return JSONResponse(content={
+            "status": "success",
+            "data": export_data,
+            "total_records": len(export_data),
+            "export_time": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 # ====================== Health Check ======================
 
 @app.get("/health")
 async def health_check():
-   """ตรวจสอบสุขภาพของระบบ"""
-   return JSONResponse(content={
-       "status": "healthy",
-       "timestamp": datetime.now().isoformat(),
-       "version": "2.0.0",
-       "components": {
-           "database": True,
-           "websocket": len(notification_manager.active_connections) >= 0,
-           "config": bool(config_manager.config),
-           "cache": len(notification_manager.duplicate_slip_cache) >= 0
-       }
-   })
+    """ตรวจสอบสุขภาพของระบบ"""
+    return JSONResponse(content={
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "2.0.0",
+        "components": {
+            "database": True,
+            "websocket": len(notification_manager.active_connections) >= 0,
+            "config": bool(config_manager.config),
+            "cache": len(notification_manager.duplicate_slip_cache) >= 0
+        }
+    })
 
 @app.get("/admin/logs")
 async def get_recent_logs(limit: int = 50):
-   """ดึง log ล่าสุด (ถ้ามี log handler ที่เก็บใน memory)"""
-   try:
-       # สำหรับ demo - ใน production ควรใช้ log handler ที่เหมาะสม
-       return JSONResponse(content={
-           "status": "success",
-           "logs": [
-               {
-                   "timestamp": datetime.now().isoformat(),
-                   "level": "INFO",
-                   "message": "System is running normally",
-                   "component": "main_app"
-               }
-           ],
-           "total": 1
-       })
-   except Exception as e:
-       return JSONResponse(content={
-           "status": "error", 
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ดึง log ล่าสุด (ถ้ามี log handler ที่เก็บใน memory)"""
+    try:
+        # สำหรับ demo - ใน production ควรใช้ log handler ที่เก็บใน memory
+        return JSONResponse(content={
+            "status": "success",
+            "logs": [
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "level": "INFO",
+                    "message": "System is running normally",
+                    "component": "main_app"
+                }
+            ],
+            "total": 1
+        })
+    except Exception as e:
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 # ====================== Error Handlers ======================
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
-   if request.url.path.startswith("/admin"):
-       return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
-   return JSONResponse(
-       status_code=404,
-       content={"detail": "Not Found", "path": request.url.path}
-   )
+    if request.url.path.startswith("/admin"):
+        return RedirectResponse(url="/admin", status_code=status.HTTP_302_FOUND)
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Not Found", "path": request.url.path}
+    )
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc):
-   logger.error(f"Internal server error: {exc}")
-   return JSONResponse(
-       status_code=500,
-       content={"detail": "Internal Server Error"}
-   )
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error"}
+    )
 
 # ====================== Startup Event ======================
 
 @app.on_event("startup")
 async def startup_event():
-   """เหตุการณ์เมื่อเซิร์ฟเวอร์เริ่มทำงาน"""
-   logger.info("🚀 LINE OA Middleware เริ่มทำงาน...")
-   
-   # ตรวจสอบการตั้งค่าที่จำเป็น
-   required_configs = ["line_channel_secret", "line_channel_access_token"]
-   missing_configs = []
-   
-   for config_key in required_configs:
-       if not config_manager.get(config_key):
-           missing_configs.append(config_key)
-   
-   if missing_configs:
-       logger.warning(f"⚠️ การตั้งค่าที่ขาดหายไป: {', '.join(missing_configs)}")
-       logger.warning("⚠️ กรุณาตั้งค่าในหน้า /admin/settings")
-   else:
-       logger.info("✅ การตั้งค่าพื้นฐานครบถ้วน")
-   
-   # ตรวจสอบสถานะ APIs
-   try:
-       api_status = get_api_status_summary()
-       thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
-       kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
-       
-       logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
-   except Exception as e:
-       logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
-   
-   # แจ้งเตือนว่าระบบพร้อมทำงาน
-   await notification_manager.send_notification(
-       "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว",
-       "success",
-       {
-           "timestamp": datetime.now().isoformat(),
-           "version": "2.0.0"
-       }
-   )
-   
-   logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
+    """เหตุการณ์เมื่อเซิร์ฟเวอร์เริ่มทำงาน"""
+    logger.info("🚀 LINE OA Middleware เริ่มทำงาน...")
+    
+    # ตรวจสอบการตั้งค่าที่จำเป็น
+    required_configs = ["line_channel_secret", "line_channel_access_token"]
+    missing_configs = []
+    
+    for config_key in required_configs:
+        if not config_manager.get(config_key):
+            missing_configs.append(config_key)
+    
+    if missing_configs:
+        logger.warning(f"⚠️ การตั้งค่าที่ขาดหายไป: {', '.join(missing_configs)}")
+        logger.warning("⚠️ กรุณาตั้งค่าในหน้า /admin/settings")
+    else:
+        logger.info("✅ การตั้งค่าพื้นฐานครบถ้วน")
+    
+    # ตรวจสอบสถานะ APIs
+    try:
+        api_status = get_api_status_summary()
+        thunder_status = "✅" if api_status.get("thunder", {}).get("enabled") else "❌"
+        kbank_status = "✅" if api_status.get("kbank", {}).get("enabled") else "❌"
+        
+        logger.info(f"📊 สถานะ API: Thunder {thunder_status}, KBank {kbank_status}")
+    except Exception as e:
+        logger.warning(f"⚠️ ไม่สามารถตรวจสอบสถานะ API ได้: {e}")
+    
+    # แจ้งเตือนว่าระบบพร้อมทำงาน
+    await notification_manager.send_notification(
+        "🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว",
+        "success",
+        {
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.0.0"
+        }
+    )
+    
+    logger.info("✅ ระบบพร้อมทำงาน - http://localhost:8000/admin")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-   """เหตุการณ์เมื่อเซิร์ฟเวอร์หยุดทำงาน"""
-   logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
-   
-   # ปิด WebSocket connections
-   for connection in notification_manager.active_connections.copy():
-       try:
-           await connection.close()
-       except:
-           pass
-   
-   notification_manager.active_connections.clear()
-   
-   # ล้าง cache
-   notification_manager.duplicate_slip_cache.clear()
-   notification_manager.pending_notifications.clear()
-   
-   logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
+    """เหตุการณ์เมื่อเซิร์ฟเวอร์หยุดทำงาน"""
+    logger.info("🛑 LINE OA Middleware กำลังหยุดทำงาน...")
+    
+    # ปิด WebSocket connections
+    for connection in notification_manager.active_connections.copy():
+        try:
+            await connection.close()
+        except:
+            pass
+    
+    notification_manager.active_connections.clear()
+    
+    # ล้าง cache
+    notification_manager.duplicate_slip_cache.clear()
+    notification_manager.pending_notifications.clear()
+    
+    logger.info("✅ หยุดระบบเรียบร้อยแล้ว")
 
 # ====================== Main Application ======================
 
 if __name__ == "__main__":
-   import uvicorn
-   
-   # ตั้งค่า logging สำหรับ uvicorn
-   uvicorn_log_config = {
-       "version": 1,
-       "disable_existing_loggers": False,
-       "formatters": {
-           "default": {
-               "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-           },
-       },
-       "handlers": {
-           "default": {
-               "formatter": "default",
-               "class": "logging.StreamHandler",
-               "stream": "ext://sys.stdout",
-           },
-       },
-       "root": {
-           "level": "INFO",
-           "handlers": ["default"],
-       },
-       "loggers": {
-           "uvicorn": {"level": "INFO"},
-           "uvicorn.error": {"level": "INFO"},
-           "uvicorn.access": {"level": "INFO"},
-       },
-   }
-   
-   print("🚀 เริ่มต้น LINE OA Middleware...")
-   print("📱 เว็บ Admin: http://localhost:8000/admin")
-   print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
-   print("📊 API Status: http://localhost:8000/admin/api-status")
-   print("🏥 Health Check: http://localhost:8000/health")
-   print()
-   
-   try:
-       uvicorn.run(
-           "main_updated:app",
-           host="0.0.0.0",
-           port=8000,
-           reload=False,  # ปิด reload ใน production
-           log_config=uvicorn_log_config,
-           access_log=True,
-           server_header=False,
-           date_header=False
-       )
-   except KeyboardInterrupt:
-       print("\n🛑 หยุดระบบโดยผู้ใช้")
-   except Exception as e:
-       print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
+    import uvicorn
+    
+    # ตั้งค่า logging สำหรับ uvicorn
+    uvicorn_log_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "root": {
+            "level": "INFO",
+            "handlers": ["default"],
+        },
+        "loggers": {
+            "uvicorn": {"level": "INFO"},
+            "uvicorn.error": {"level": "INFO"},
+            "uvicorn.access": {"level": "INFO"},
+        },
+    }
+    
+    print("🚀 เริ่มต้น LINE OA Middleware...")
+    print("📱 เว็บ Admin: http://localhost:8000/admin")
+    print("🔗 LINE Webhook URL: http://localhost:8000/line/webhook")
+    print("📊 API Status: http://localhost:8000/admin/api-status")
+    print("🏥 Health Check: http://localhost:8000/health")
+    print()
+    
+    try:
+        uvicorn.run(
+            "main_updated:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=False,  # ปิด reload ใน production
+            log_config=uvicorn_log_config,
+            access_log=True,
+            server_header=False,
+            date_header=False
+        )
+    except KeyboardInterrupt:
+        print("\n🛑 หยุดระบบโดยผู้ใช้")
+    except Exception as e:
+        print(f"\n❌ เกิดข้อผิดพลาดในการเริ่มต้นระบบ: {e}")
