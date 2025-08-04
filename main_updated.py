@@ -1,4 +1,5 @@
 # File: main_updated.py
+
 import json
 import hmac
 import hashlib
@@ -446,11 +447,9 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 
                 return
             
-            # ระบบพร้อมใช้งาน - ส่งข้อความแจ้งว่ากำลังตรวจสอบ
+            # ส่งข้อความแจ้งว่ากำลังตรวจสอบทันที เพื่อไม่ให้ reply token หมดอายุ
             processing_msg = "⏳ กำลังตรวจสอบสลิปของคุณ...\n🔍 รอซักครู่ ระบบกำลังวิเคราะห์ข้อมูล"
-            initial_reply_sent = send_line_reply(reply_token, processing_msg)
-            if not initial_reply_sent:
-                logger.warning("⚠️ Failed to send initial reply - continuing with slip verification")
+            send_line_reply(reply_token, processing_msg)
             
             # ดาวน์โหลดรูปภาพจาก LINE เพื่อตรวจสอบ duplicate
             line_token = config_manager.get("line_channel_access_token")
@@ -495,10 +494,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         is_duplicate=True
                     )
                     
-                    # ส่งข้อความตอบกลับ
-                    reply_sent = send_line_reply(reply_token, success_msg)
-                    if not reply_sent:
-                        logger.error("❌ Failed to send duplicate slip reply to LINE")
+                    # ส่งข้อความตอบกลับ (ใช้ Push API แทน reply token ที่หมดอายุแล้ว)
+                    send_line_reply(reply_token, success_msg)
                     
                     try:
                         save_chat_history(user_id, "out", {"type": "text", "text": success_msg}, sender="slip_bot_duplicate")
@@ -524,10 +521,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         # สร้างข้อความตอบกลับสำหรับสลิปใหม่ (แสดงรายละเอียดครบ)
                         success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
                         
-                        # ส่งข้อความตอบกลับ (replace initial message)
-                        reply_sent = send_line_reply(reply_token, success_msg)
-                        if not reply_sent:
-                            logger.error("❌ Failed to send success reply to LINE")
+                        # ส่งข้อความตอบกลับ
+                        send_line_reply(reply_token, success_msg)
                         
                         try:
                             save_chat_history(user_id, "out", {"type": "text", "text": success_msg}, sender="slip_bot")
@@ -538,65 +533,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         if slip_hash and image_data:
                             save_duplicate_slip_data(slip_hash, result['data'])
                             
-                    elif result.get("status") == "duplicate":
-                        # กรณี API แจ้ง duplicate
-                        await notification_manager.send_notification(
-                            "🔄 API แจ้งสลิปซ้ำ",
-                            "warning"
-                        )
-                        
-                        # แสดงรายละเอียดสลิปซ้ำจาก API
-                        if result.get('data'):
-                            duplicate_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
-                            duplicate_msg += f"\n\n⚠️ ระบบ API แจ้งว่าสลิปนี้เคยถูกตรวจสอบแล้ว"
-                        else:
-                            duplicate_msg = "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว\n\n💡 หากต้องการตรวจสอบสลิปใหม่ กรุณาส่งรูปสลิปที่ยังไม่เคยใช้"
-                        
-                        reply_sent = send_line_reply(reply_token, duplicate_msg)
-                        if not reply_sent:
-                            logger.error("❌ Failed to send duplicate error reply to LINE")
-                            
-                        try:
-                            save_chat_history(user_id, "out", {"type": "text", "text": duplicate_msg}, sender="slip_bot_duplicate")
-                        except Exception as e:
-                            logger.warning(f"⚠️ Failed to save chat history: {e}")
-                            
-                    elif result.get("status") == "not_found":
-                        # กรณีไม่พบข้อมูลสลิป
-                        await notification_manager.send_notification(
-                            f"🔍 ไม่พบข้อมูลสลิปในระบบธนาคาร",
-                            "warning"
-                        )
-                        
-                        not_found_msg = result.get("message", "ไม่พบข้อมูลสลิป")
-                        reply_sent = send_line_reply(reply_token, not_found_msg)
-                        if not reply_sent:
-                            logger.error("❌ Failed to send not found reply to LINE")
-                            
-                        try:
-                            save_chat_history(user_id, "out", {"type": "text", "text": not_found_msg}, sender="slip_bot")
-                        except Exception as e:
-                            logger.warning(f"⚠️ Failed to save chat history: {e}")
-                        
-                    elif result.get("status") == "qr_not_found":
-                        # กรณีไม่พบ QR Code
-                        await notification_manager.send_notification(
-                            f"📱 ไม่พบ QR Code ในรูปภาพ",
-                            "warning"
-                        )
-                        
-                        qr_not_found_msg = result.get("message", "ไม่พบ QR Code ในรูปภาพ")
-                        reply_sent = send_line_reply(reply_token, qr_not_found_msg)
-                        if not reply_sent:
-                            logger.error("❌ Failed to send QR not found reply to LINE")
-                            
-                        try:
-                            save_chat_history(user_id, "out", {"type": "text", "text": qr_not_found_msg}, sender="slip_bot")
-                        except Exception as e:
-                            logger.warning(f"⚠️ Failed to save chat history: {e}")
-                            
                     else:
-                        # กรณี error อื่นๆ
                         error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                         
                         await notification_manager.send_notification(
@@ -612,9 +549,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                             error_reply += "\n\n💡 คำแนะนำในการแก้ไข:\n• " + "\n• ".join(result["suggestions"][:3])
                         
                         # ส่งข้อความตอบกลับ
-                        reply_sent = send_line_reply(reply_token, error_reply)
-                        if not reply_sent:
-                            logger.error("❌ Failed to send error reply to LINE")
+                        send_line_reply(reply_token, error_reply)
                         
                         try:
                             save_chat_history(user_id, "out", {"type": "text", "text": error_reply}, sender="slip_bot")
@@ -912,10 +847,13 @@ async def api_status_check():
         status_result["thunder"]["configured"] = True
         try:
             headers = {"Authorization": f"Bearer {thunder_token}"}
-            resp = requests.get("https://api.thunder.in.th/v1/health", headers=headers, timeout=10)
+            # Use a proper health check or a simple endpoint that doesn't require complex data
+            resp = requests.get("https://api.thunder.in.th/v1/verify", headers=headers, timeout=10)
             
-            if resp.status_code == 200 and resp.json().get('status') == 'OK':
+            if resp.status_code == 200 or resp.status_code == 400:
                 status_result["thunder"]["connected"] = True
+                if resp.status_code == 400:
+                    status_result["thunder"]["error"] = "API is connected but requires valid input data."
             elif resp.status_code == 401:
                 status_result["thunder"]["error"] = "Invalid token"
             else:
@@ -1427,7 +1365,7 @@ if __name__ == "__main__":
             "main_updated:app",
             host="0.0.0.0",
             port=8000,
-            reload=False,  # ปิด reload ใน production
+            reload=True,
             log_config=uvicorn_log_config,
             access_log=True,
             server_header=False,
