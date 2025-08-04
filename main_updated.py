@@ -600,7 +600,7 @@ async def root():
 async def admin_home(request: Request):
     total_count = get_chat_history_count()
     return templates.TemplateResponse(
-        "admin_home_enhanced.html",  # ใช้เทมเพลตใหม่
+        "admin_home.html",  # ใช้ template เดิม
         {
             "request": request,
             "config": config_manager.config,
@@ -611,7 +611,7 @@ async def admin_home(request: Request):
 @app.get("/admin/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request):
     return templates.TemplateResponse(
-        "settings_enhanced.html",  # ใช้เทมเพลตใหม่
+        "settings.html",  # ใช้ template เดิม
         {
             "request": request,
             "config": config_manager.config,
