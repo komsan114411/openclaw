@@ -114,7 +114,11 @@
                             <div>
                                 <h6 class="text-muted mb-2">ตรวจสอบสลิป</h6>
                                 <span class="badge {% if config.slip_enabled %}bg-success{% else %}bg-secondary{% endif %} status-badge">
-                                    {% if config.slip_enabled %}เปิดใช้งาน{% else %}ปิดใช้งาน{% endif %}
+                                    Thunder: {% if config.slip_enabled %}✅{% else %}❌{% endif %}
+                                </span>
+                                <br>
+                                <span class="badge {% if config.kbank_enabled %}bg-success{% else %}bg-secondary{% endif %} status-badge mt-1">
+                                    KBank: {% if config.kbank_enabled %}✅{% else %}❌{% endif %}
                                 </span>
                             </div>
                             <div class="text-success">
@@ -193,6 +197,31 @@
                 <div class="card">
                     <div class="card-header bg-white">
                         <h5 class="mb-0">
+                            <i class="bi bi-keyboard"></i> ทดสอบสลิปจากข้อความ
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="slipTextTestForm">
+                            <div class="mb-3">
+                                <label for="slipText" class="form-label">ใส่ข้อความที่มีข้อมูลสลิป</label>
+                                <textarea class="form-control" id="slipText" rows="3" 
+                                         placeholder="เช่น: กสิกร ref: ABC123XYZ789"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-search"></i> ทดสอบตรวจสอบจากข้อความ
+                            </button>
+                        </form>
+                        <div id="slipTextTestResult" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
                             <i class="bi bi-lightning"></i> การดำเนินการด่วน
                         </h5>
                     </div>
@@ -210,6 +239,26 @@
                             <a href="/admin/debug/config" class="btn btn-outline-secondary" target="_blank">
                                 <i class="bi bi-bug"></i> Debug Config
                             </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-gear-fill"></i> ทดสอบ API
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-warning" onclick="testThunderAPI()">
+                                <i class="bi bi-lightning-charge"></i> ทดสอบ Thunder API
+                            </button>
+                            <button class="btn btn-outline-info" onclick="testKBankAPI()">
+                                <i class="bi bi-bank"></i> ทดสอบ KBank API
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -252,6 +301,26 @@
                                         <td><strong>Thunder API Token:</strong></td>
                                         <td>
                                             {% if config.thunder_api_token %}
+                                                <span class="text-success">✅ ตั้งค่าแล้ว</span>
+                                            {% else %}
+                                                <span class="text-danger">❌ ยังไม่ได้ตั้งค่า</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>KBank Consumer ID:</strong></td>
+                                        <td>
+                                            {% if config.kbank_consumer_id %}
+                                                <span class="text-success">✅ ตั้งค่าแล้ว</span>
+                                            {% else %}
+                                                <span class="text-danger">❌ ยังไม่ได้ตั้งค่า</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>KBank Consumer Secret:</strong></td>
+                                        <td>
+                                            {% if config.kbank_consumer_secret %}
                                                 <span class="text-success">✅ ตั้งค่าแล้ว</span>
                                             {% else %}
                                                 <span class="text-danger">❌ ยังไม่ได้ตั้งค่า</span>
@@ -305,7 +374,7 @@
                 let html = '<div class="row">';
                 
                 // Thunder API
-                html += '<div class="col-md-4 mb-3">';
+                html += '<div class="col-md-3 mb-3">';
                 html += '<div class="card api-status-card">';
                 html += '<div class="card-body">';
                 html += '<h6 class="card-title"><i class="bi bi-lightning-charge"></i> Thunder API</h6>';
@@ -327,7 +396,7 @@
                 html += '</div></div></div>';
                 
                 // LINE API
-                html += '<div class="col-md-4 mb-3">';
+                html += '<div class="col-md-3 mb-3">';
                 html += '<div class="card api-status-card">';
                 html += '<div class="card-body">';
                 html += '<h6 class="card-title"><i class="bi bi-line"></i> LINE API</h6>';
@@ -349,7 +418,7 @@
                 html += '</div></div></div>';
                 
                 // OpenAI API
-                html += '<div class="col-md-4 mb-3">';
+                html += '<div class="col-md-3 mb-3">';
                 html += '<div class="card api-status-card">';
                 html += '<div class="card-body">';
                 html += '<h6 class="card-title"><i class="bi bi-robot"></i> OpenAI API</h6>';
@@ -367,11 +436,65 @@
                 }
                 html += '</div></div></div>';
                 
+                // KBank API
+                html += '<div class="col-md-3 mb-3">';
+                html += '<div class="card api-status-card">';
+                html += '<div class="card-body">';
+                html += '<h6 class="card-title"><i class="bi bi-bank"></i> KBank API</h6>';
+                if (status.kbank.configured) {
+                    if (status.kbank.connected) {
+                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                        if (status.kbank.token_length) {
+                            html += `<p class="mt-2 mb-0 small">Token Length: <strong>${status.kbank.token_length}</strong></p>`;
+                        }
+                    } else {
+                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                        if (status.kbank.error) {
+                            html += `<p class="mt-2 mb-0 text-danger small">${status.kbank.error}</p>`;
+                        }
+                    }
+                } else {
+                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+                }
+                html += '</div></div></div>';
+                
                 html += '</div>';
                 container.innerHTML = html;
                 
             } catch (error) {
                 container.innerHTML = '<div class="alert alert-danger">เกิดข้อผิดพลาดในการตรวจสอบ: ' + error.message + '</div>';
+            }
+        }
+
+        // ทดสอบ Thunder API
+        async function testThunderAPI() {
+            try {
+                const response = await fetch('/admin/test-thunder', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert(`✅ Thunder API ใช้งานได้!\n\nUser: ${result.user}\nBalance: ${result.balance} บาท`);
+                } else {
+                    alert(`❌ Thunder API ล้มเหลว!\n\n${result.message}`);
+                }
+            } catch (error) {
+                alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+            }
+        }
+
+        // ทดสอบ KBank API
+        async function testKBankAPI() {
+            try {
+                const response = await fetch('/admin/test-kbank', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert(`✅ KBank API ใช้งานได้!\n\nToken Preview: ${result.token_preview}\nToken Length: ${result.token_length}`);
+                } else {
+                    alert(`❌ KBank API ล้มเหลว!\n\n${result.message}`);
+                }
+            } catch (error) {
+                alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
             }
         }
 
@@ -405,7 +528,7 @@
                     let formattedResponse = JSON.stringify(result.response.data, null, 2);
                     resultDiv.innerHTML = `
                         <div class="alert alert-success">
-                            <h6>✅ ตรวจสอบสำเร็จ</h6>
+                            <h6>✅ ${result.message}</h6>
                             <pre><code>${formattedResponse}</code></pre>
                         </div>
                     `;
@@ -413,7 +536,53 @@
                     resultDiv.innerHTML = `
                         <div class="alert alert-danger">
                             <h6>❌ ตรวจสอบไม่สำเร็จ</h6>
-                            <p>${result.response.message || 'Unknown error'}</p>
+                            <p>${result.response?.message || result.message || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">เกิดข้อผิดพลาด: ${error.message}</div>`;
+            }
+        });
+
+        // ทดสอบสลิปจากข้อความ
+        document.getElementById('slipTextTestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('slipTextTestResult');
+            const textInput = document.getElementById('slipText');
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                resultDiv.innerHTML = '<div class="alert alert-warning">กรุณาใส่ข้อความ</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-success" role="status"></div></div>';
+            
+            try {
+                const response = await fetch('/admin/test-slip-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    let formattedResponse = JSON.stringify(result.response.data, null, 2);
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6>✅ ${result.message}</h6>
+                            <p><strong>ดึงข้อมูลได้:</strong> ธนาคาร ${result.extracted.bank_code}, อ้างอิง ${result.extracted.trans_ref}</p>
+                            <pre><code>${formattedResponse}</code></pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h6>❌ ${result.message}</h6>
+                            <p><strong>ข้อมูลที่ดึงได้:</strong> ${JSON.stringify(result.extracted)}</p>
                         </div>
                     `;
                 }
