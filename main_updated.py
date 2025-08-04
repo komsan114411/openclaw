@@ -476,11 +476,12 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             
             try:
                 if duplicate_data:
-                    logger.info(f"🔄 Found duplicate slip (hash: {slip_hash[:8]}...)")
+                    logger.info(f"🔄 Found duplicate slip in cache (hash: {slip_hash[:8]}...)")
                     duplicate_count = duplicate_data.get('count', 1)
                     amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
                     await notification_manager.send_notification(f"🔄 พบสลิปซ้ำ! แสดงผลตรวจสอบเดิม จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
                     
+                    # ส่งรายละเอียดสลิปฉบับเต็มเมื่อพบสลิปซ้ำใน cache
                     success_msg = create_detailed_slip_message(duplicate_data['data'], duplicate_count=duplicate_count, is_duplicate=True)
                     await send_initial_and_final_message(user_id, reply_token, processing_msg, success_msg, "slip_bot_duplicate")
                     
@@ -498,6 +499,21 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         
                         if slip_hash and image_data:
                             save_duplicate_slip_data(slip_hash, result['data'])
+                            
+                    elif result.get("status") == "duplicate":
+                        logger.info(f"🔄 API reported duplicate slip.")
+                        await notification_manager.send_notification(f"🔄 API แจ้งสลิปซ้ำ", "warning")
+
+                        # ส่งรายละเอียดสลิปฉบับเต็มเมื่อพบสลิปซ้ำจาก API
+                        if result.get('data'):
+                            success_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
+                            await send_initial_and_final_message(user_id, reply_token, processing_msg, success_msg, "slip_bot_duplicate")
+                            if slip_hash and image_data:
+                                save_duplicate_slip_data(slip_hash, result['data'])
+                        else:
+                            error_msg_user = "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
+                            await send_initial_and_final_message(user_id, reply_token, processing_msg, error_msg_user, "slip_bot_duplicate")
+
                     else:
                         error_message_tech = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                         error_message_user = "❌ ไม่พบข้อมูลสลิปที่ถูกต้องในระบบธนาคารค่ะ"
@@ -535,6 +551,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     duplicate_count = duplicate_data.get('count', 1)
                     amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
                     await notification_manager.send_notification(f"🔄 พบข้อมูลสลิปซ้ำจากข้อความ! จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
+                    
+                    # ส่งรายละเอียดสลิปฉบับเต็มเมื่อพบสลิปซ้ำจากข้อความ
                     success_msg = f"🔄 ข้อมูลสลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n✅ รายละเอียดการโอน:\n💰 จำนวนเงิน: {amount_display}\n🏦 รหัสธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n🔍 ตรวจสอบโดย: {duplicate_data['data'].get('verified_by', 'ระบบตรวจสอบ')}"
                     send_line_push(user_id, success_msg)
                     save_duplicate_slip_data(text_hash, duplicate_data['data'])
