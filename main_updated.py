@@ -16,19 +16,23 @@ from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocke
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 
+# เพิ่ม path ปัจจุบันใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
+# ตั้งค่า logger
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("main_app")
 
+# สร้าง FastAPI instance
 app = FastAPI(title="LINE OA Middleware (Enhanced with Push)")
 templates = Jinja2Templates(directory="templates")
 
+# WebSocket Manager สำหรับการแจ้งเตือนแบบ Real-time
 class NotificationManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -76,6 +80,7 @@ class NotificationManager:
 
 notification_manager = NotificationManager()
 
+# Import modules
 try:
     from utils.config_manager import config_manager
     logger.info("✅ Config manager imported successfully")
@@ -122,6 +127,7 @@ except ImportError as e:
     def extract_slip_info_from_text(text): return {"bank_code": None, "trans_ref": None}
     def get_api_status_summary(): return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
 
+# เริ่มต้นฐานข้อมูล
 try:
     logger.info("Initializing database...")
     init_database()
@@ -132,6 +138,7 @@ except Exception as e:
 # ====================== Utility Functions ======================
 
 def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> bool:
+    """ตรวจสอบลายเซ็นของ webhook จาก LINE"""
     if not channel_secret:
         logger.warning("⚠️ LINE Channel Secret is empty - skipping signature verification")
         return True
@@ -146,6 +153,7 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
         return False
 
 def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
+    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (ใช้สำหรับข้อความเริ่มต้นเท่านั้น)"""
     access_token = config_manager.get("line_channel_access_token")
     if not access_token:
         logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
@@ -228,6 +236,7 @@ def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
     return False
 
 def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
+    """ส่งข้อความไปยังผู้ใช้ใน LINE ด้วย push message (สำหรับผลลัพธ์สุดท้าย)"""
     access_token = config_manager.get("line_channel_access_token")
     if not access_token:
         logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
@@ -300,9 +309,11 @@ def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
     return False
 
 def create_slip_hash(image_data: bytes) -> str:
+    """สร้าง hash จากข้อมูลรูปภาพเพื่อตรวจสอบสลิปซ้ำ"""
     return hashlib.md5(image_data).hexdigest()
 
 def save_duplicate_slip_data(slip_hash: str, slip_data: Dict) -> None:
+    """บันทึกข้อมูลสลิปที่ตรวจสอบแล้วเพื่อใช้กรณีซ้ำ"""
     notification_manager.duplicate_slip_cache[slip_hash] = {
         "data": slip_data,
         "timestamp": datetime.now().isoformat(),
@@ -310,9 +321,11 @@ def save_duplicate_slip_data(slip_hash: str, slip_data: Dict) -> None:
     }
 
 def get_duplicate_slip_data(slip_hash: str) -> Optional[Dict]:
+    """ดึงข้อมูลสลิปซ้ำที่เคยตรวจสอบแล้ว"""
     return notification_manager.duplicate_slip_cache.get(slip_hash)
 
 def check_slip_system_status() -> Dict[str, Any]:
+    """ตรวจสอบสถานะระบบตรวจสอบสลิป"""
     slip_enabled = config_manager.get("slip_enabled", False)
     thunder_token = config_manager.get("thunder_api_token", "").strip()
     kbank_enabled = config_manager.get("kbank_enabled", False)
@@ -334,6 +347,8 @@ def check_slip_system_status() -> Dict[str, Any]:
     return status
 
 def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplicate: bool = False) -> str:
+    """สร้างข้อความแสดงรายละเอียดสลิปแบบครบถ้วน (ปรับปรุงแล้ว)"""
+    
     amount_display = data.get('amount_display', f"฿{data.get('amount_formatted', data.get('amount', '0'))}")
     date = data.get('date', 'N/A')
     time_str = data.get('time', '')
