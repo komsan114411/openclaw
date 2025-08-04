@@ -12,22 +12,23 @@ logger = logging.getLogger("kbank_checker_service")
 
 class KBankSlipChecker:
     def __init__(self):
-        self.base_url = "https://openapi-sandbox.kasikornbank.com"  # Sandbox
+        # ใช้ Production URL แทน Sandbox
+        self.base_url = "https://openapi.kasikornbank.com"  # Production
         self.oauth_url = f"{self.base_url}/v2/oauth/token"
         
     def _get_access_token(self) -> Optional[str]:
         """ขอ OAuth 2.0 access token ด้วย Client Credentials flow"""
         try:
-            consumer_id = config_manager.get("kbank_consumer_id", "")
-            consumer_secret = config_manager.get("kbank_consumer_secret", "")
+            consumer_id = config_manager.get("kbank_consumer_id", "").strip()
+            consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
             
             if not consumer_id or not consumer_secret:
                 logger.error("❌ ไม่พบ KBank Consumer ID หรือ Secret")
                 return None
             
-            # ตรวจสอบว่าค่าไม่ใช่ "undefined"
-            if consumer_id == "undefined" or consumer_secret == "undefined":
-                logger.error("❌ KBank credentials มีค่า 'undefined'")
+            # ตรวจสอบว่าค่าไม่ใช่ "undefined" หรือค่าเริ่มต้น
+            if consumer_id in ["undefined", "your_consumer_id", ""] or consumer_secret in ["undefined", "your_consumer_secret", ""]:
+                logger.error("❌ KBank credentials ยังไม่ได้ตั้งค่าหรือมีค่า placeholder")
                 return None
                 
             # สร้าง Basic Auth header
@@ -37,12 +38,13 @@ class KBankSlipChecker:
             headers = {
                 "Authorization": f"Basic {encoded_credentials}",
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
+                "Accept": "application/json",
+                "User-Agent": "Python-KBank-Client/1.0"
             }
             
             data = "grant_type=client_credentials"
             
-            logger.info(f"🔑 Requesting KBank OAuth token...")
+            logger.info(f"🔑 Requesting KBank OAuth token from {self.oauth_url}")
             response = requests.post(
                 self.oauth_url,
                 headers=headers,
@@ -52,7 +54,13 @@ class KBankSlipChecker:
             
             logger.info(f"🔑 KBank OAuth response: {response.status_code}")
             
-            if response.status_code != 200:
+            if response.status_code == 401:
+                logger.error(f"❌ KBank OAuth 401 Unauthorized - ตรวจสอบ Consumer ID และ Secret")
+                return None
+            elif response.status_code == 403:
+                logger.error(f"❌ KBank OAuth 403 Forbidden - บัญชีอาจถูกระงับหรือไม่มีสิทธิ์")
+                return None
+            elif response.status_code != 200:
                 logger.error(f"❌ KBank OAuth failed: {response.status_code} - {response.text}")
                 return None
             
@@ -64,9 +72,16 @@ class KBankSlipChecker:
                 return None
             
             expires_in = token_data.get("expires_in", 1800)
-            logger.info(f"✅ ได้รับ KBank access token แล้ว หมดอายุใน {expires_in} วินาที")
+            token_type = token_data.get("token_type", "Bearer")
+            logger.info(f"✅ ได้รับ KBank {token_type} access token แล้ว หมดอายุใน {expires_in} วินาที")
             return access_token
             
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ KBank OAuth timeout")
+            return None
+        except requests.exceptions.ConnectionError:
+            logger.error(f"❌ ไม่สามารถเชื่อมต่อกับ KBank OAuth ได้")
+            return None
         except Exception as e:
             logger.error(f"❌ เกิดข้อผิดพลาดในการขอ KBank token: {e}")
             return None
@@ -89,8 +104,7 @@ class KBankSlipChecker:
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "x-test-mode": "true",  # สำหรับ sandbox
-                "env-id": "SLIP_VERIFICATION"
+                "User-Agent": "Python-KBank-Client/1.0"
             }
             
             # สร้าง request ID และ timestamp ที่ไม่ซ้ำ
@@ -107,6 +121,8 @@ class KBankSlipChecker:
             }
             
             logger.info(f"🔍 กำลังตรวจสอบสลิปด้วย KBank API: Bank {sending_bank_id}, Ref {trans_ref}")
+            logger.info(f"📋 Request URL: {verify_url}")
+            logger.info(f"📋 Request ID: {request_id}")
             
             response = requests.post(
                 verify_url,
@@ -115,15 +131,31 @@ class KBankSlipChecker:
                 timeout=30
             )
             
-            logger.info(f"📋 KBank API response: {response.status_code} - {response.text[:200]}")
+            logger.info(f"📋 KBank API response: {response.status_code}")
+            response_preview = response.text[:200] + "..." if len(response.text) > 200 else response.text
+            logger.info(f"📋 Response preview: {response_preview}")
             
-            if response.status_code != 200:
-                return {"status": "error", "message": f"KBank API HTTP {response.status_code}: {response.text}"}
+            if response.status_code == 401:
+                return {"status": "error", "message": "KBank API: ไม่มีสิทธิ์เข้าถึง (401)"}
+            elif response.status_code == 403:
+                return {"status": "error", "message": "KBank API: การเข้าถึงถูกปฏิเสธ (403)"}
+            elif response.status_code == 404:
+                return {"status": "error", "message": "KBank API: ไม่พบ endpoint (404)"}
+            elif response.status_code != 200:
+                return {"status": "error", "message": f"KBank API HTTP {response.status_code}: {response.text[:100]}"}
             
-            result = response.json()
+            try:
+                result = response.json()
+            except ValueError:
+                return {"status": "error", "message": "KBank API ตอบกลับข้อมูลที่ไม่ใช่ JSON"}
             
             # แปลงผล response จาก KBank
-            if result.get("status_code") == "200" and result.get("status_message") == "SUCCESS":
+            status_code = result.get("status_code")
+            status_message = result.get("status_message", "")
+            
+            logger.info(f"📊 KBank response: status_code={status_code}, message={status_message}")
+            
+            if status_code == "200" and status_message == "SUCCESS":
                 data = result.get("data", {})
                 return {
                     "status": "success",
@@ -140,9 +172,24 @@ class KBankSlipChecker:
                     }
                 }
             else:
-                error_message = result.get("status_message", "การตรวจสอบสลิปล้มเหลว")
-                return {"status": "error", "message": f"KBank API: {error_message}"}
+                # จัดการข้อผิดพลาดเฉพาะ
+                if "INVALID" in status_message.upper():
+                    error_msg = "ข้อมูลสลิปไม่ถูกต้องหรือไม่พบในระบบ KBank"
+                elif "NOT_FOUND" in status_message.upper():
+                    error_msg = "ไม่พบรายการโอนเงินนี้ในระบบ KBank"
+                elif "TIMEOUT" in status_message.upper():
+                    error_msg = "KBank API ตอบสนองช้า กรุณาลองใหม่"
+                else:
+                    error_msg = f"KBank API: {status_message}"
+                    
+                return {"status": "error", "message": error_msg}
                 
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ KBank API timeout")
+            return {"status": "error", "message": "KBank API ตอบสนองช้าเกินไป กรุณาลองใหม่"}
+        except requests.exceptions.ConnectionError:
+            logger.error(f"❌ KBank API connection error")
+            return {"status": "error", "message": "ไม่สามารถเชื่อมต่อกับ KBank API ได้"}
         except Exception as e:
             logger.error(f"❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป KBank: {e}")
             return {"status": "error", "message": f"การตรวจสอบสลิป KBank ล้มเหลว: {str(e)}"}
