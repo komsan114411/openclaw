@@ -3,337 +3,421 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINE OA Admin - Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <title>Admin Dashboard - LINE OA Middleware</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .navbar { background-color: #00B900 !important; }
-        .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); border-radius: 0.5rem; }
-        .stat-card { transition: transform 0.2s; }
-        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15); }
-        .status-badge { font-size: 0.875rem; padding: 0.375rem 0.75rem; }
-        .api-status-card { min-height: 120px; }
-        
-        /* Notification Styles */
-        .notification-panel {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 350px;
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        .status-card {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: white;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        .notification-area {
             max-height: 400px;
             overflow-y: auto;
-            z-index: 1050;
-            background: white;
+            background: rgba(255, 255, 255, 0.9);
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            border: 1px solid #ddd;
-            display: none;
+            padding: 15px;
         }
         .notification-item {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            transition: background-color 0.2s;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+            animation: slideInRight 0.5s ease;
         }
-        .notification-item:hover { background-color: #f8f9fa; }
-        .notification-item:last-child { border-bottom: none; }
-        .notification-success { border-left: 4px solid #28a745; }
-        .notification-error { border-left: 4px solid #dc3545; }
-        .notification-info { border-left: 4px solid #17a2b8; }
-        .notification-processing { border-left: 4px solid #ffc107; }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-left: 8px;
+        .notification-success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
         }
-        .status-online { background-color: #28a745; }
-        .status-offline { background-color: #dc3545; }
-        .status-processing { background-color: #ffc107; animation: pulse 2s infinite; }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .notification-error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .notification-warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .notification-info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        .system-status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .status-online {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        .status-offline {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .status-partial {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #8b4513;
+        }
+        .quick-action-btn {
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin: 5px;
+            border: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .quick-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .metric-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .api-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .api-status-item {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .api-configured {
+            background: #d4edda;
+            color: #155724;
+        }
+        .api-not-configured {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .api-disabled {
+            background: #e2e3e5;
+            color: #6c757d;
+        }
+        .test-area {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+        }
+        .btn-system-toggle {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-system-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.6s;
+        }
+        .btn-system-toggle:hover::before {
+            left: 100%;
         }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/admin">
-                <i class="bi bi-robot"></i> LINE OA Middleware Enhanced
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/admin">
+                <i class="fas fa-robot me-2"></i>LINE OA Middleware
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/admin">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/chat">
-                            <i class="bi bi-chat-dots"></i> ประวัติแชท
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/settings">
-                            <i class="bi bi-gear"></i> ตั้งค่า
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <button class="btn btn-outline-light btn-sm ms-2" onclick="toggleNotifications()">
-                            <i class="bi bi-bell"></i> แจ้งเตือน
-                            <span id="notification-badge" class="badge bg-danger" style="display: none;">0</span>
-                        </button>
-                    </li>
-                </ul>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/admin/settings"><i class="fas fa-cog me-1"></i>ตั้งค่า</a>
+                <a class="nav-link" href="/admin/chat"><i class="fas fa-comments me-1"></i>ประวัติแชท</a>
             </div>
         </div>
     </nav>
 
-    <!-- Notification Panel -->
-    <div id="notification-panel" class="notification-panel">
-        <div class="p-3 border-bottom bg-primary text-white">
-            <h6 class="mb-0">
-                <i class="bi bi-bell"></i> การแจ้งเตือนแบบ Real-time
-                <span class="ms-2">
-                    WebSocket: <span id="websocket-status" class="status-indicator status-offline"></span>
-                </span>
-                <button class="btn btn-sm btn-outline-light float-end" onclick="clearNotifications()">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </h6>
-        </div>
-        <div id="notification-list">
-            <div class="p-3 text-center text-muted">ไม่มีการแจ้งเตือน</div>
-        </div>
-    </div>
-
-    <div class="container-fluid py-4">
-        <div class="row">
-            <div class="col-12">
-                <h1 class="h3 mb-4">
-                    <i class="bi bi-speedometer2"></i> Dashboard Enhanced
-                    <small class="text-muted">ระบบตรวจสอบสลิปอัตโนมัติ</small>
-                </h1>
-            </div>
-        </div>
-
-        <!-- Status Alert -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    <strong>ระบบใหม่:</strong> แจ้งเตือนจะแสดงในหน้านี้แทนที่จะส่งไปใน LINE โดยตรง
-                    <button class="btn btn-sm btn-primary ms-2" onclick="connectWebSocket()">
-                        <i class="bi bi-wifi"></i> เชื่อมต่อ WebSocket
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">ข้อความทั้งหมด</h6>
-                                <h3 class="mb-0">{{ total_chat_history }}</h3>
-                            </div>
-                            <div class="text-primary">
-                                <i class="bi bi-chat-square-text" style="font-size: 2rem;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">สลิปวันนี้</h6>
-                                <h3 class="mb-0" id="today-slips">0</h3>
-                            </div>
-                            <div class="text-success">
-                                <i class="bi bi-receipt" style="font-size: 2rem;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">WebSocket</h6>
-                                <h3 class="mb-0" id="websocket-connections">0</h3>
-                            </div>
-                            <div class="text-info">
-                                <i class="bi bi-wifi" style="font-size: 2rem;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="text-muted mb-2">สถานะระบบ</h6>
-                                <span class="badge bg-success status-badge">ออนไลน์</span>
-                            </div>
-                            <div class="text-success">
-                                <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- API Status Cards -->
+    <!-- Main Content -->
+    <div class="container mt-5 pt-4">
+        <!-- System Status Header -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-plug"></i> สถานะ API สำหรับตรวจสอบสลิป
-                        </h5>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1"><i class="fas fa-tachometer-alt me-2"></i>ระบบควบคุม LINE OA</h2>
+                                <p class="text-muted mb-0">จัดการและตรวจสอบสถานะระบบตรวจสอบสลิปอัตโนมัติ</p>
+                            </div>
+                            <div id="systemStatusBadge">
+                                <!-- จะถูกอัปเดตด้วย JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Control Panel -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>ควบคุมระบบ</h5>
                     </div>
                     <div class="card-body">
-                        <div id="api-status-container">
-                            <div class="text-center py-3">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">กำลังตรวจสอบ...</span>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="me-3">
+                                        <i class="fas fa-receipt fa-2x text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">ระบบตรวจสอบสลิป</h6>
+                                        <small class="text-muted">เปิด/ปิดระบบตรวจสอบสลิปอัตโนมัติ</small>
+                                    </div>
+                                    <button id="toggleSlipSystem" class="btn btn-system-toggle" type="button">
+                                        <i class="fas fa-spinner fa-spin d-none" id="toggleLoading"></i>
+                                        <span id="toggleText">กำลังโหลด...</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="me-3">
+                                        <i class="fas fa-sync fa-2x text-warning"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">รีเซ็ต API Cache</h6>
+                                        <small class="text-muted">ล้างแคช API ที่ล้มเหลว</small>
+                                    </div>
+                                    <button id="resetApiCache" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-redo me-1"></i>รีเซ็ต
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <button class="btn btn-primary btn-sm mt-3" onclick="checkAPIStatus()">
-                            <i class="bi bi-arrow-clockwise"></i> ตรวจสอบใหม่
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Testing Section -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-upload"></i> ทดสอบอัปโหลดสลิป
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="slipTestForm" enctype="multipart/form-data">
-                            <div class="mb-3">
-                                <label for="slipFile" class="form-label">เลือกไฟล์รูปสลิป</label>
-                                <input type="file" class="form-control" id="slipFile" name="file" accept="image/*" required>
-                                <div class="form-text">รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 10MB</div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="me-3">
+                                        <i class="fas fa-trash fa-2x text-danger"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">ล้างแคชสลิปซ้ำ</h6>
+                                        <small class="text-muted">ลบข้อมูลสลิปที่เคยตรวจแล้ว</small>
+                                    </div>
+                                    <button id="clearDuplicateCache" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i>ล้างแคช
+                                    </button>
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle"></i> ทดสอบตรวจสอบสลิป
-                            </button>
-                        </form>
-                        <div id="slipTestResult" class="mt-3"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-gear"></i> การจัดการระบบ
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <a href="/admin/settings" class="btn btn-outline-primary">
-                                <i class="bi bi-gear"></i> ตั้งค่าระบบ
-                            </a>
-                            <a href="/admin/chat" class="btn btn-outline-info">
-                                <i class="bi bi-chat-dots"></i> ดูประวัติแชท
-                            </a>
-                            <button class="btn btn-outline-success" onclick="checkSystemHealth()">
-                                <i class="bi bi-heart-pulse"></i> ตรวจสอบสุขภาพระบบ
-                            </button>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="me-3">
+                                        <i class="fas fa-chart-line fa-2x text-info"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">ตรวจสอบสถานะ API</h6>
+                                        <small class="text-muted">ทดสอบการเชื่อมต่อ API</small>
+                                    </div>
+                                    <button id="checkApiStatus" class="btn btn-info btn-sm">
+                                        <i class="fas fa-check me-1"></i>ตรวจสอบ
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- System Overview -->
-        <div class="row">
+        <!-- Stats Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body metric-card">
+                        <div class="metric-number">{{ total_chat_history }}</div>
+                        <div class="text-muted">ข้อความทั้งหมด</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body metric-card">
+                        <div class="metric-number" id="activeConnections">0</div>
+                        <div class="text-muted">การเชื่อมต่อสด</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body metric-card">
+                        <div class="metric-number" id="duplicateCache">0</div>
+                        <div class="text-muted">สลิปในแคช</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body metric-card">
+                        <div class="metric-number" id="systemUptime">00:00</div>
+                        <div class="text-muted">เวลาออนไลน์</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Status Grid -->
+        <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-info-circle"></i> ภาพรวมการตั้งค่า
-                        </h5>
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-plug me-2"></i>สถานะ API</h5>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <tbody>
-                                    <tr>
-                                        <td><strong>Thunder API:</strong></td>
-                                        <td>
-                                            {% if config.slip_enabled and config.thunder_api_token %}
-                                                <span class="text-success">✅ เปิดใช้งาน</span>
-                                            {% else %}
-                                                <span class="text-danger">❌ ปิดใช้งาน</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>KBank API:</strong></td>
-                                        <td>
-                                            {% if config.kbank_enabled and config.kbank_consumer_id %}
-                                                <span class="text-success">✅ เปิดใช้งาน</span>
-                                            {% else %}
-                                                <span class="text-danger">❌ ปิดใช้งาน</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>AI Chatbot:</strong></td>
-                                        <td>
-                                            {% if config.ai_enabled and config.openai_api_key %}
-                                                <span class="text-success">✅ เปิดใช้งาน</span>
-                                            {% else %}
-                                                <span class="text-danger">❌ ปิดใช้งาน</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>LINE Bot:</strong></td>
-                                        <td>
-                                            {% if config.line_channel_access_token %}
-                                                <span class="text-success">✅ เชื่อมต่อแล้ว</span>
-                                            {% else %}
-                                                <span class="text-danger">❌ ยังไม่เชื่อมต่อ</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="api-status-grid" id="apiStatusGrid">
+                            <!-- จะถูกอัปเดตด้วย JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="row">
+            <!-- Left Column: Notifications -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-bell me-2"></i>การแจ้งเตือนแบบเรียลไทม์</h5>
+                        <button id="clearNotifications" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-broom me-1"></i>ล้าง
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="notification-area" id="notificationArea">
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                                <p>ยังไม่มีการแจ้งเตือน</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Test Area -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-vial me-2"></i>ทดสอบระบบ</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="test-area">
+                            <form id="testSlipForm" enctype="multipart/form-data">
+                                <div class="upload-area" id="uploadArea">
+                                    <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
+                                    <h6>ลากรูปสลิปมาวางที่นี่</h6>
+                                    <p class="text-muted mb-3">หรือคลิกเพื่อเลือกไฟล์</p>
+                                    <input type="file" id="slipFile" name="file" accept="image/*" class="d-none">
+                                    <button type="button" class="btn btn-primary" onclick="document.getElementById('slipFile').click()">
+                                        <i class="fas fa-folder-open me-1"></i>เลือกไฟล์
+                                    </button>
+                                </div>
+                                <div id="uploadResult" class="mt-3 d-none">
+                                    <div class="alert" role="alert">
+                                        <div id="uploadResultContent"></div>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 mt-3" id="testButton">
+                                    <i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>ข้อมูลด่วน</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Thunder API:</span>
+                            <span id="thunderStatus" class="badge">กำลังตรวจสอบ...</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>KBank API:</span>
+                            <span id="kbankStatus" class="badge">กำลังตรวจสอบ...</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>LINE API:</span>
+                            <span id="lineStatus" class="badge">กำลังตรวจสอบ...</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <span>ระบบโดยรวม:</span>
+                            <span id="overallStatus" class="badge">กำลังประเมิน...</span>
                         </div>
                     </div>
                 </div>
@@ -341,343 +425,456 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let websocket = null;
-        let notifications = [];
-        let notificationCount = 0;
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
 
-        // เชื่อมต่อ WebSocket
-        function connectWebSocket() {
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // WebSocket connection for real-time notifications
+        let ws = null;
+        let systemStatus = {{ system_status | tojson }};
+        let startTime = new Date();
+
+        // Initialize WebSocket
+        function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
             
-            websocket = new WebSocket(wsUrl);
+            ws = new WebSocket(wsUrl);
             
-            websocket.onopen = function(event) {
+            ws.onopen = function() {
                 console.log('WebSocket connected');
-                document.getElementById('websocket-status').className = 'status-indicator status-online';
-                showToast('เชื่อมต่อ WebSocket สำเร็จ', 'success');
-                updateConnectionCount();
+                showToast('เชื่อมต่อระบบแจ้งเตือนสำเร็จ', 'success');
             };
             
-            websocket.onmessage = function(event) {
+            ws.onmessage = function(event) {
                 const notification = JSON.parse(event.data);
                 addNotification(notification);
             };
             
-            websocket.onclose = function(event) {
-                console.log('WebSocket closed');
-                document.getElementById('websocket-status').className = 'status-indicator status-offline';
-                showToast('WebSocket ขาดการเชื่อมต่อ', 'warning');
-                // พยายามเชื่อมต่อใหม่หลัง 5 วินาที
-                setTimeout(connectWebSocket, 5000);
+            ws.onclose = function() {
+                console.log('WebSocket disconnected');
+                setTimeout(initWebSocket, 3000); // Reconnect after 3 seconds
             };
             
-            websocket.onerror = function(error) {
+            ws.onerror = function(error) {
                 console.error('WebSocket error:', error);
-                document.getElementById('websocket-status').className = 'status-indicator status-offline';
-                showToast('WebSocket เกิดข้อผิดพลาด', 'error');
             };
         }
 
-        // เพิ่มการแจ้งเตือน
+        // Add notification to the list
         function addNotification(notification) {
-            notifications.unshift(notification);
-            notificationCount++;
+            const notificationArea = document.getElementById('notificationArea');
             
-            updateNotificationUI();
-            showToast(notification.message, notification.type);
-        }
-
-        // อัปเดต UI การแจ้งเตือน
-        function updateNotificationUI() {
-            const badge = document.getElementById('notification-badge');
-            const list = document.getElementById('notification-list');
+            // Remove empty message if exists
+            const emptyMsg = notificationArea.querySelector('.text-center');
+            if (emptyMsg) emptyMsg.remove();
             
-            if (notificationCount > 0) {
-                badge.textContent = notificationCount;
-                badge.style.display = 'inline';
-            } else {
-                badge.style.display = 'none';
-            }
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = `notification-item notification-${notification.type}`;
             
-            if (notifications.length === 0) {
-                list.innerHTML = '<div class="p-3 text-center text-muted">ไม่มีการแจ้งเตือน</div>';
-                return;
-            }
-
-            let html = '';
-            notifications.slice(0, 20).forEach(notification => {
-                const typeClass = `notification-${notification.type}`;
-                const icon = getNotificationIcon(notification.type);
-                const time = new Date(notification.timestamp).toLocaleTimeString('th-TH');
-                
-                html += `
-                    <div class="notification-item ${typeClass}">
-                        <div class="d-flex align-items-start">
-                            <i class="bi ${icon} me-2"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-bold small">${notification.message}</div>
-                                <div class="text-muted small">${time}</div>
-                            </div>
-                        </div>
+            const timestamp = new Date(notification.timestamp).toLocaleTimeString('th-TH');
+            notificationDiv.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>${getNotificationIcon(notification.type)} ${notification.message}</strong>
+                        ${notification.data && Object.keys(notification.data).length > 0 ? 
+                            `<br><small class="text-muted">${JSON.stringify(notification.data)}</small>` : ''
+                        }
                     </div>
-                `;
-            });
+                    <small class="text-muted">${timestamp}</small>
+                </div>
+            `;
             
-            list.innerHTML = html;
+            notificationArea.insertBefore(notificationDiv, notificationArea.firstChild);
+            
+            // Keep only last 50 notifications
+            const notifications = notificationArea.querySelectorAll('.notification-item');
+            if (notifications.length > 50) {
+                notifications[notifications.length - 1].remove();
+            }
+            
+            // Auto scroll to top
+            notificationArea.scrollTop = 0;
         }
 
-        // แสดง Toast notification
-        function showToast(message, type) {
+        function getNotificationIcon(type) {
+            const icons = {
+                'success': '<i class="fas fa-check-circle"></i>',
+                'error': '<i class="fas fa-exclamation-circle"></i>',
+                'warning': '<i class="fas fa-exclamation-triangle"></i>',
+                'info': '<i class="fas fa-info-circle"></i>'
+            };
+            return icons[type] || '<i class="fas fa-bell"></i>';
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast_' + Date.now();
+            
+            const bgClass = {
+                'success': 'bg-success',
+                'error': 'bg-danger',
+                'warning': 'bg-warning',
+                'info': 'bg-info'
+            }[type] || 'bg-info';
+            
             const toastHtml = `
-                <div class="toast align-items-center text-white bg-${getBootstrapColor(type)} border-0" role="alert">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            <i class="bi ${getNotificationIcon(type)} me-2"></i>
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                <div id="${toastId}" class="toast ${bgClass} text-white" role="alert" data-bs-autohide="true" data-bs-delay="5000">
+                    <div class="toast-body">
+                        ${getNotificationIcon(type)} ${message}
                     </div>
                 </div>
             `;
             
-            // สร้าง toast container ถ้ายังไม่มี
-            let toastContainer = document.getElementById('toast-container');
-            if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.id = 'toast-container';
-                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-                toastContainer.style.zIndex = '1060';
-                document.body.appendChild(toastContainer);
-            }
-            
-            const toastElement = document.createElement('div');
-            toastElement.innerHTML = toastHtml;
-            toastContainer.appendChild(toastElement.firstElementChild);
-            
-            const toast = new bootstrap.Toast(toastElement.firstElementChild, {
-                autohide: true,
-                delay: 5000
-            });
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
             toast.show();
             
-            // ลบ toast หลังจากซ่อน
-            toastElement.firstElementChild.addEventListener('hidden.bs.toast', function() {
+            toastElement.addEventListener('hidden.bs.toast', () => {
                 toastElement.remove();
             });
         }
 
-        // Helper functions
-        function getNotificationIcon(type) {
-            const icons = {
-                'success': 'bi-check-circle-fill',
-                'error': 'bi-x-circle-fill',
-                'info': 'bi-info-circle-fill',
-                'processing': 'bi-arrow-clockwise',
-                'warning': 'bi-exclamation-triangle-fill'
-            };
-            return icons[type] || 'bi-bell-fill';
-        }
-
-        function getBootstrapColor(type) {
-            const colors = {
-                'success': 'success',
-                'error': 'danger',
-                'info': 'info',
-                'processing': 'warning',
-                'warning': 'warning'
-            };
-            return colors[type] || 'primary';
-        }
-
-        // Toggle notification panel
-        function toggleNotifications() {
-            const panel = document.getElementById('notification-panel');
-            if (panel.style.display === 'none') {
-                panel.style.display = 'block';
-                notificationCount = 0;
-                updateNotificationUI();
-            } else {
-                panel.style.display = 'none';
-            }
-        }
-
-        // Clear all notifications
-        function clearNotifications() {
-            notifications = [];
-            notificationCount = 0;
-            updateNotificationUI();
-        }
-
-        // อัปเดตจำนวนการเชื่อมต่อ
-        async function updateConnectionCount() {
+        // Update system status
+        async function updateSystemStatus() {
             try {
-                const response = await fetch('/admin/slip-status');
+                const response = await fetch('/admin/system-status');
                 const data = await response.json();
-                document.getElementById('websocket-connections').textContent = data.active_connections;
+                
+                // Update stats
+                document.getElementById('activeConnections').textContent = data.active_connections;
+                document.getElementById('duplicateCache').textContent = data.duplicate_cache_size;
+                
+                // Update system status badge
+                const statusBadge = document.getElementById('systemStatusBadge');
+                const status = data.system_status;
+                
+                let badgeClass = 'badge bg-secondary';
+                let statusText = 'ไม่ทราบสถานะ';
+                
+                if (status.system_enabled && status.any_api_available) {
+                    badgeClass = 'badge bg-success';
+                    statusText = 'ระบบออนไลน์';
+                } else if (status.system_enabled && !status.any_api_available) {
+                    badgeClass = 'badge bg-warning';
+                    statusText = 'ระบบมีปัญหา';
+                } else {
+                    badgeClass = 'badge bg-danger';
+                    statusText = 'ระบบปิดใช้งาน';
+                }
+                
+                statusBadge.innerHTML = `<span class="${badgeClass} fs-6">${statusText}</span>`;
+                
+                // Update toggle button
+                updateToggleButton(status.system_enabled);
+                
             } catch (error) {
-                console.error('Error fetching connection count:', error);
+                console.error('Error updating system status:', error);
             }
         }
 
-        // ตรวจสอบสุขภาพระบบ
-        async function checkSystemHealth() {
+        // Update API status
+        async function updateApiStatus() {
             try {
                 const response = await fetch('/admin/api-status');
-                const status = await response.json();
+                const data = await response.json();
                 
-                let message = '🏥 สุขภาพระบบ:\n';
-                message += `• Thunder API: ${status.thunder.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}\n`;
-                message += `• LINE API: ${status.line.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}\n`;
-                message += `• KBank API: ${status.kbank.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}`;
+                // Update API status grid
+                const grid = document.getElementById('apiStatusGrid');
+                grid.innerHTML = '';
                 
-                alert(message);
-            } catch (error) {
-                alert('❌ เกิดข้อผิดพลาดในการตรวจสอบสุขภาพระบบ');
-            }
-        }
-
-        // ตรวจสอบสถานะ API
-        async function checkAPIStatus() {
-            const container = document.getElementById('api-status-container');
-            container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>';
-            
-            try {
-                const response = await fetch('/admin/api-status');
-                const status = await response.json();
-                
-                let html = '<div class="row">';
-                
-                // Thunder API
-                html += '<div class="col-md-6 mb-3">';
-                html += '<div class="card api-status-card">';
-                html += '<div class="card-body">';
-                html += '<h6 class="card-title"><i class="bi bi-lightning-charge"></i> Thunder API</h6>';
-                if (status.thunder.configured) {
-                    if (status.thunder.connected) {
-                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
-                    } else {
-                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                Object.entries(data).forEach(([apiName, apiData]) => {
+                    if (apiName === 'system') return; // Skip system data
+                    
+                    const div = document.createElement('div');
+                    div.className = 'api-status-item';
+                    
+                    let statusClass = 'api-not-configured';
+                    let statusText = 'ไม่ได้ตั้งค่า';
+                    let statusIcon = 'fas fa-times-circle';
+                    
+                    if (apiData.configured && apiData.connected) {
+                        statusClass = 'api-configured';
+                        statusText = 'พร้อมใช้งาน';
+                        statusIcon = 'fas fa-check-circle';
+                    } else if (apiData.configured) {
+                        statusClass = 'api-not-configured';
+                        statusText = 'ตั้งค่าแล้วแต่ไม่ได้เชื่อมต่อ';
+                        statusIcon = 'fas fa-exclamation-circle';
+                    } else if (apiData.enabled === false) {
+                        statusClass = 'api-disabled';
+                        statusText = 'ปิดใช้งาน';
+                        statusIcon = 'fas fa-power-off';
                     }
-                } else {
-                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
-                }
-                html += '</div></div></div>';
-                
-                // KBank API
-                html += '<div class="col-md-6 mb-3">';
-                html += '<div class="card api-status-card">';
-                html += '<div class="card-body">';
-                html += '<h6 class="card-title"><i class="bi bi-bank"></i> KBank API</h6>';
-                if (status.kbank.configured) {
-                    if (status.kbank.connected) {
-                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
-                    } else {
-                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
-                    }
-                } else {
-                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
-                }
-                html += '</div></div></div>';
-                
-                html += '</div>';
-                container.innerHTML = html;
-                
-            } catch (error) {
-                container.innerHTML = '<div class="alert alert-danger">เกิดข้อผิดพลาดในการตรวจสอบ: ' + error.message + '</div>';
-            }
-        }
-
-        // ทดสอบอัปโหลดสลิป
-        document.getElementById('slipTestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const resultDiv = document.getElementById('slipTestResult');
-            const fileInput = document.getElementById('slipFile');
-            const file = fileInput.files[0];
-            const submitButton = e.target.querySelector('button[type="submit"]');
-            
-            if (!file) {
-                resultDiv.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> กรุณาเลือกไฟล์</div>';
-                return;
-            }
-
-            if (file.size > 10 * 1024 * 1024) {
-                resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ไฟล์ใหญ่เกินไป (เกิน 10MB)</div>';
-                return;
-            }
-            
-            const originalText = submitButton.textContent;
-            submitButton.textContent = '⏳ กำลังประมวลผล...';
-            submitButton.disabled = true;
-            
-            resultDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">กำลังประมวลผลรูปสลิป...</p></div>';
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                const response = await fetch('/admin/test-slip-upload', {
-                    method: 'POST',
-                    body: formData
+                    
+                    div.className += ` ${statusClass}`;
+                    div.innerHTML = `
+                        <i class="${statusIcon} mb-2"></i>
+                        <h6>${apiName.toUpperCase()} API</h6>
+                        <small>${statusText}</small>
+                        ${apiData.error ? `<br><small class="text-danger">${apiData.error}</small>` : ''}
+                    `;
+                    
+                    grid.appendChild(div);
                 });
                 
-                const result = await response.json();
+                // Update quick stats
+                document.getElementById('thunderStatus').className = `badge ${data.thunder?.configured && data.thunder?.connected ? 'bg-success' : 'bg-danger'}`;
+                document.getElementById('thunderStatus').textContent = data.thunder?.configured && data.thunder?.connected ? 'ออนไลน์' : 'ออฟไลน์';
                 
-                if (result.status === 'success') {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h6><i class="bi bi-check-circle"></i> ${result.message}</h6>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            <h6><i class="bi bi-exclamation-triangle"></i> ${result.message}</h6>
-                        </div>
-                    `;
-                }
+                document.getElementById('kbankStatus').className = `badge ${data.kbank?.configured && data.kbank?.connected ? 'bg-success' : 'bg-danger'}`;
+                document.getElementById('kbankStatus').textContent = data.kbank?.configured && data.kbank?.connected ? 'ออนไลน์' : 'ออฟไลน์';
+                
+                document.getElementById('lineStatus').className = `badge ${data.line?.configured && data.line?.connected ? 'bg-success' : 'bg-danger'}`;
+                document.getElementById('lineStatus').textContent = data.line?.configured && data.line?.connected ? 'ออนไลน์' : 'ออฟไลน์';
+                
+                // Overall status
+                const overallOnline = (data.thunder?.configured && data.thunder?.connected) || 
+                                    (data.kbank?.configured && data.kbank?.connected);
+                document.getElementById('overallStatus').className = `badge ${overallOnline ? 'bg-success' : 'bg-danger'}`;
+                document.getElementById('overallStatus').textContent = overallOnline ? 'ปกติ' : 'มีปัญหา';
+                
             } catch (error) {
-                resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> เกิดข้อผิดพลาด: ${error.message}</div>`;
-            } finally {
-                submitButton.textContent = originalText;
-                submitButton.disabled = false;
+                console.error('Error updating API status:', error);
             }
-        });
+        }
 
-        // เริ่มต้นระบบ
+        // Update toggle button
+        function updateToggleButton(isEnabled) {
+            const toggleBtn = document.getElementById('toggleSlipSystem');
+            const toggleText = document.getElementById('toggleText');
+            
+            toggleBtn.className = `btn btn-system-toggle ${isEnabled ? 'btn-danger' : 'btn-success'}`;
+            toggleText.textContent = isEnabled ? 'ปิดระบบ' : 'เปิดระบบ';
+        }
+
+        // Update uptime
+        function updateUptime() {
+            const now = new Date();
+            const diff = now - startTime;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            document.getElementById('systemUptime').textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+
+        // Event Listeners
         document.addEventListener('DOMContentLoaded', function() {
-            checkAPIStatus();
-            updateConnectionCount();
+            // Initialize WebSocket
+            initWebSocket();
             
-            // อัปเดตข้อมูลทุก 30 วินาที
-            setInterval(updateConnectionCount, 30000);
-            setInterval(checkAPIStatus, 60000);
+            // Update status initially and then every 30 seconds
+            updateSystemStatus();
+            updateApiStatus();
+            setInterval(updateSystemStatus, 30000);
+            setInterval(updateApiStatus, 30000);
+            setInterval(updateUptime, 60000);
             
-            // ปิด notification panel เมื่อคลิกภายนอก
-            document.addEventListener('click', function(event) {
-                const panel = document.getElementById('notification-panel');
-                const button = document.querySelector('[onclick="toggleNotifications()"]');
+            // Toggle slip system
+            document.getElementById('toggleSlipSystem').addEventListener('click', async function() {
+                const loading = document.getElementById('toggleLoading');
+                const text = document.getElementById('toggleText');
                 
-                if (panel.style.display === 'block' && 
-                    !panel.contains(event.target) && 
-                    !button.contains(event.target)) {
-                    panel.style.display = 'none';
+                loading.classList.remove('d-none');
+                text.textContent = 'กำลังดำเนินการ...';
+                this.disabled = true;
+                
+                try {
+                    const response = await fetch('/admin/toggle-slip-system', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showToast(data.message, 'success');
+                        updateToggleButton(data.slip_enabled);
+                        setTimeout(updateSystemStatus, 1000);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                } catch (error) {
+                    showToast('เกิดข้อผิดพลาดในการควบคุมระบบ', 'error');
+                } finally {
+                    loading.classList.add('d-none');
+                    this.disabled = false;
                 }
             });
+            
+            // Reset API cache
+            document.getElementById('resetApiCache').addEventListener('click', async function() {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังรีเซ็ต...';
+                this.disabled = true;
+                
+                try {
+                    const response = await fetch('/admin/force-reset-apis', { method: 'POST' });
+                    const data = await response.json();
+                    showToast(data.message, data.status === 'success' ? 'success' : 'error');
+                } catch (error) {
+                    showToast('เกิดข้อผิดพลาดในการรีเซ็ต API', 'error');
+                } finally {
+                    this.innerHTML = '<i class="fas fa-redo me-1"></i>รีเซ็ต';
+                    this.disabled = false;
+                }
+            });
+            
+            // Clear duplicate cache
+            document.getElementById('clearDuplicateCache').addEventListener('click', async function() {
+                if (!confirm('คุณแน่ใจหรือไม่ที่จะล้างแคชสลิปซ้ำทั้งหมด?')) return;
+                
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังล้าง...';
+                this.disabled = true;
+                
+                try {
+                    const response = await fetch('/admin/clear-duplicate-cache');
+                    const data = await response.json();
+                    showToast(data.message, data.status === 'success' ? 'success' : 'error');
+                    setTimeout(updateSystemStatus, 1000);
+                } catch (error) {
+                    showToast('เกิดข้อผิดพลาดในการล้างแคช', 'error');
+                } finally {
+                    this.innerHTML = '<i class="fas fa-trash me-1"></i>ล้างแคช';
+                    this.disabled = false;
+                }
+            });
+            
+            // Check API status
+            document.getElementById('checkApiStatus').addEventListener('click', function() {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
+                this.disabled = true;
+                
+                updateApiStatus().finally(() => {
+                    this.innerHTML = '<i class="fas fa-check me-1"></i>ตรวจสอบ';
+                    this.disabled = false;
+                    showToast('ตรวจสอบสถานะ API แล้ว', 'info');
+                });
+            });
+            
+            // Clear notifications
+            document.getElementById('clearNotifications').addEventListener('click', function() {
+                const notificationArea = document.getElementById('notificationArea');
+                notificationArea.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                        <p>ยังไม่มีการแจ้งเตือน</p>
+                    </div>
+                `;
+            });
+            
+            // File upload handling
+            const uploadArea = document.getElementById('uploadArea');
+            const slipFile = document.getElementById('slipFile');
+            const testForm = document.getElementById('testSlipForm');
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    slipFile.files = files;
+                    updateFileDisplay(files[0]);
+                }
+            });
+            
+            // File input change
+            slipFile.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    updateFileDisplay(this.files[0]);
+                }
+            });
+            
+            // Form submit
+            testForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const fileInput = document.getElementById('slipFile');
+                if (!fileInput.files[0]) {
+                    showToast('กรุณาเลือกไฟล์สลิปก่อน', 'warning');
+                    return;
+                }
+                
+                const testButton = document.getElementById('testButton');
+                const uploadResult = document.getElementById('uploadResult');
+                
+                testButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
+                testButton.disabled = true;
+                
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                try {
+                    const response = await fetch('/admin/test-slip-upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    uploadResult.classList.remove('d-none');
+                    const alertClass = data.status === 'success' ? 'alert-success' : 
+                                     data.status === 'duplicate' ? 'alert-warning' : 'alert-danger';
+                    
+                    uploadResult.innerHTML = `
+                        <div class="alert ${alertClass}" role="alert">
+                            <div id="uploadResultContent">
+                                <strong>${data.status === 'success' ? 'สำเร็จ!' : 
+                                         data.status === 'duplicate' ? 'สลิปซ้ำ!' : 'ผิดพลาด!'}</strong>
+                                <p class="mb-0">${data.message}</p>
+                                ${data.response && data.response.data ? `
+                                    <hr>
+                                    <small>
+                                        <strong>รายละเอียด:</strong><br>
+                                        จำนวน: ฿${data.response.data.amount || 'N/A'}<br>
+                                        วันที่: ${data.response.data.date || 'N/A'}<br>
+                                        ตรวจสอบโดย: ${data.response.data.verified_by || 'N/A'}
+                                    </small>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    showToast(data.message, data.status === 'success' ? 'success' : 
+                             data.status === 'duplicate' ? 'warning' : 'error');
+                    
+                } catch (error) {
+                    uploadResult.classList.remove('d-none');
+                    uploadResult.innerHTML = `
+                        <div class="alert alert-danger" role="alert">
+                            <strong>เกิดข้อผิดพลาด!</strong>
+                            <p class="mb-0">ไม่สามารถเชื่อมต่อกับระบบได้</p>
+                        </div>
+                    `;
+                    showToast('เกิดข้อผิดพลาดในการทดสอบ', 'error');
+                } finally {
+                    testButton.innerHTML = '<i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป';
+                    testButton.disabled = false;
+                }
+            });
+            
+            function updateFileDisplay(file) {
+                const uploadArea = document.getElementById('uploadArea');
+                uploadArea.innerHTML = `
+                    <i class="fas fa-file-image fa-3x mb-3 text-success"></i>
+                    <h6>${file.name}</h6>
+                    <p class="text-muted mb-3">ขนาด: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('slipFile').click()">
+                        <i class="fas fa-exchange-alt me-1"></i>เปลี่ยนไฟล์
+                    </button>
+                `;
+            }
         });
-
-        // แสดงเวลาในชื่อหน้า
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleString('th-TH');
-            document.title = `Dashboard Enhanced - ${timeString}`;
-        }
-        
-        setInterval(updateTime, 1000);
-        updateTime();
     </script>
 </body>
 </html>
