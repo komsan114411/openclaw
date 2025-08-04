@@ -1,3 +1,4 @@
+# File: main_updated.py
 import json
 import hmac
 import hashlib
@@ -291,7 +292,7 @@ def check_slip_system_status() -> Dict[str, Any]:
     return status
 
 def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplicate: bool = False) -> str:
-    """สร้างข้อความแสดงรายละเอียดสลิปแบบครบถ้วน"""
+    """สร้างข้อความแสดงรายละเอียดสลิปแบบครบถ้วน (ปรับปรุงแล้ว)"""
     
     # Format amount
     amount = data.get('amount', '0')
@@ -540,7 +541,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     elif result.get("status") == "duplicate":
                         # กรณี API แจ้ง duplicate
                         await notification_manager.send_notification(
-                            f"🔄 API แจ้งสลิปซ้ำ",
+                            "🔄 API แจ้งสลิปซ้ำ",
                             "warning"
                         )
                         
@@ -911,10 +912,14 @@ async def api_status_check():
         status_result["thunder"]["configured"] = True
         try:
             headers = {"Authorization": f"Bearer {thunder_token}"}
-            resp = requests.get("https://api.thunder.in.th/v1", headers=headers, timeout=10)
+            resp = requests.get("https://api.thunder.in.th/v1/health", headers=headers, timeout=10)
             
-            if resp.status_code in (200, 401, 404, 405):
+            if resp.status_code == 200 and resp.json().get('status') == 'OK':
                 status_result["thunder"]["connected"] = True
+            elif resp.status_code == 401:
+                status_result["thunder"]["error"] = "Invalid token"
+            else:
+                status_result["thunder"]["error"] = f"{resp.status_code}: {resp.text}"
                 
         except requests.exceptions.RequestException as e:
             status_result["thunder"]["error"] = str(e)
@@ -1058,7 +1063,8 @@ async def test_slip_upload(request: Request):
             return JSONResponse(content={
                 "status": "duplicate",
                 "message": f"สลิปนี้เคยทดสอบแล้ว (ครั้งที่ {duplicate_data.get('count', 1)})",
-                "response": {"data": duplicate_data['data']}})
+                "response": {"data": duplicate_data['data']}
+            })
         
         # ทดสอบการตรวจสอบสลิปใหม่
         result = verify_slip_multiple_providers(test_image_data=image_data)
