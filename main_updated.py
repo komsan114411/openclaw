@@ -74,7 +74,7 @@ except ImportError as e:
 
 # Import enhanced slip checker (อาจจะไม่มี)
 try:
-    from services.enhanced_slip_checker import verify_slip_multiple_providers, extract_slip_info_from_text
+    from services.enhanced_slip_checker import verify_slip_multiple_providers, extract_slip_info_from_text, get_api_status_summary
     logger.info("✅ Enhanced slip checker imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Enhanced slip checker not available: {e}")
@@ -86,6 +86,9 @@ except ImportError as e:
     
     def extract_slip_info_from_text(text):
         return {"bank_code": None, "trans_ref": None}
+    
+    def get_api_status_summary():
+        return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
 
 # เริ่มต้นฐานข้อมูล
 try:
@@ -228,10 +231,14 @@ def dispatch_event(event: Dict[str, Any]) -> None:
                 save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
                 send_line_flex_reply(reply_token, result["data"])
             else:
-                # ส่งข้อความ error
+                # ส่งข้อความ error พร้อมคำแนะนำ
+                error_message = result["message"]
+                if result.get("suggestions"):
+                    error_message += "\n\n💡 คำแนะนำ:\n• " + "\n• ".join(result["suggestions"][:3])  # แสดงแค่ 3 คำแนะนำแรก
+                
                 logger.warning(f"❌ ตรวจสอบสลิปล้มเหลว: {result['message']}")
-                save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
-                send_line_reply(reply_token, result["message"])
+                save_chat_history(user_id, "out", {"type": "text", "text": error_message}, sender="slip_bot")
+                send_line_reply(reply_token, error_message)
                 
         elif message.get("type") == "text":
             user_text = message.get("text", "")
@@ -254,9 +261,14 @@ def dispatch_event(event: Dict[str, Any]) -> None:
                     save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
                     send_line_flex_reply(reply_token, result["data"])
                 else:
+                    # ส่งข้อความ error พร้อมคำแนะนำ
+                    error_message = result["message"]
+                    if result.get("suggestions"):
+                        error_message += "\n\n💡 ลองทำตามนี้:\n• " + "\n• ".join(result["suggestions"][:2])
+                    
                     logger.warning(f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {result['message']}")
-                    save_chat_history(user_id, "out", {"type": "text", "text": result["message"]}, sender="slip_bot")
-                    send_line_reply(reply_token, result["message"])
+                    save_chat_history(user_id, "out", {"type": "text", "text": error_message}, sender="slip_bot")
+                    send_line_reply(reply_token, error_message)
             else:
                 # การสนทนาธรรมดาด้วย AI
                 logger.info("🤖 กำลังประมวลผลด้วย AI")
@@ -423,6 +435,55 @@ async def api_status_check():
             status_result["kbank"]["error"] = str(e)
 
     return JSONResponse(content=status_result)
+
+@app.get("/admin/api-health")
+async def get_api_health():
+    """ตรวจสอบสุขภาพ API และสถานะ Fallback"""
+    try:
+        status_summary = get_api_status_summary()
+        
+        # คำนวณคะแนนสุขภาพโดยรวม
+        total_apis = 0
+        healthy_apis = 0
+        
+        for api_name, api_info in status_summary.items():
+            if api_info.get("enabled") and api_info.get("configured"):
+                total_apis += 1
+                if api_info.get("recent_failures", 0) < 3:  # น้อยกว่า 3 ครั้งล้มเหลวถือว่าดี
+                    healthy_apis += 1
+        
+        health_score = (healthy_apis / total_apis * 100) if total_apis > 0 else 0
+        
+        return JSONResponse(content={
+            "status": "healthy" if health_score >= 50 else "degraded" if health_score > 0 else "critical",
+            "health_score": health_score,
+            "apis": status_summary,
+            "recommendations": _get_health_recommendations(status_summary)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting API health: {e}")
+        return JSONResponse(content={
+            "status": "error",
+            "message": str(e)
+        })
+
+def _get_health_recommendations(status_summary: Dict[str, Any]) -> list:
+    """ให้คำแนะนำการปรับปรุงระบบ"""
+    recommendations = []
+    
+    for api_name, api_info in status_summary.items():
+        if not api_info.get("enabled"):
+            recommendations.append(f"เปิดใช้งาน {api_name.upper()} API เพื่อเพิ่มความน่าเชื่อถือ")
+        elif not api_info.get("configured"):
+            recommendations.append(f"ตั้งค่า credentials สำหรับ {api_name.upper()} API")
+        elif api_info.get("recent_failures", 0) >= 3:
+            recommendations.append(f"ตรวจสอบการตั้งค่า {api_name.upper()} API - มีการล้มเหลวหลายครั้ง")
+    
+    if not recommendations:
+        recommendations.append("ระบบทำงานปกติ - ไม่มีคำแนะนำเพิ่มเติม")
+    
+    return recommendations
 
 @app.post("/admin/test-thunder")
 async def test_thunder_api():
