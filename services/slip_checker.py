@@ -3,9 +3,30 @@ import requests
 import hashlib
 import time
 from typing import Dict, Any, Optional
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from utils.config_manager import config_manager
 
 logger = logging.getLogger("slip_checker_service")
+
+def create_requests_session():
+    """สร้าง requests session พร้อม retry strategy"""
+    session = requests.Session()
+    
+    # ตั้งค่า retry strategy
+    retry_strategy = Retry(
+        total=3,  # จำนวนครั้งที่จะลองใหม่
+        backoff_factor=1,  # เวลารอระหว่างการลองใหม่
+        status_forcelist=[429, 500, 502, 503, 504],  # HTTP status ที่จะลองใหม่
+        allowed_methods=["POST"]  # วิธีการที่อนุญาตให้ retry
+    )
+    
+    # ตั้งค่า adapter พร้อม retry
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    return session
 
 def verify_slip_with_thunder(
     message_id: str,
@@ -13,7 +34,7 @@ def verify_slip_with_thunder(
     check_duplicate: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """
-    ตรวจสอบสลิปด้วย Thunder API v1 (แก้ไขตามเอกสารล่าสุด)
+    ตรวจสอบสลิปด้วย Thunder API v1 (แก้ไข connection issues)
     """
     # ตรวจสอบว่าระบบเปิดใช้งานฟังก์ชันตรวจสอบสลิปหรือไม่
     if not config_manager.get("slip_enabled"):
@@ -43,12 +64,15 @@ def verify_slip_with_thunder(
             }
         
         try:
+            # ใช้ session พร้อม retry สำหรับดาวน์โหลดรูป
+            session = create_requests_session()
             url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
             headers = {"Authorization": f"Bearer {line_token}"}
-            resp = requests.get(url, headers=headers, timeout=15)
+            resp = session.get(url, headers=headers, timeout=30)
             resp.raise_for_status()
             image_data = resp.content
             logger.info(f"✅ ดาวน์โหลดรูปจาก LINE สำเร็จ: {len(image_data)} bytes")
+            session.close()
         except Exception as e:
             logger.exception("❌ ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ: %s", e)
             return {"status": "error", "message": f"ไม่สามารถดาวน์โหลดรูปจาก LINE ได้: {str(e)}"}
@@ -66,21 +90,22 @@ def verify_slip_with_thunder(
     # ใช้ Base URL ที่ถูกต้องตามเอกสาร Thunder API
     base_url = "https://api.thunder.in.th/v1"
     
-    # กำหนด endpoint ตามประเภท (ปรับตามเอกสารใหม่)
+    # กำหนด endpoint ตามประเภท - ใช้ endpoint ที่ถูกต้องจาก log
     if wallet_phone:
         endpoint = f"{base_url}/verify/truewallet"
         logger.info(f"🔍 ใช้ TrueWallet verification สำหรับเบอร์: {wallet_phone}")
     else:
-        # ใช้ endpoint ธนาคารทั่วไป
+        # จาก log เห็นว่าใช้ /verify/bank
         endpoint = f"{base_url}/verify/bank"
         logger.info("🔍 ใช้ Bank slip verification")
 
-    # ตั้งค่า headers ตามเอกสาร API อย่างถูกต้อง
+    # ตั้งค่า headers ที่ปรับปรุงแล้ว
     headers = {
         "Authorization": f"Bearer {api_token}",
         "Accept": "application/json",
-        "User-Agent": "LINE-OA-Middleware/1.0"
-        # ไม่ใส่ Content-Type เพราะ requests จะจัดการ multipart/form-data เอง
+        "User-Agent": "LINE-OA-Middleware/1.0",
+        "Connection": "close",  # ปิดการเชื่อมต่อหลังใช้งาน
+        "Accept-Encoding": "gzip, deflate"  # รองรับการบีบอัด
     }
 
     # เตรียมไฟล์สำหรับส่ง
@@ -91,44 +116,47 @@ def verify_slip_with_thunder(
     # เตรียมข้อมูลเพิ่มเติม
     data = {}
     if wallet_phone:
-        data["phone"] = wallet_phone  # เปลี่ยนจาก wallet_phone เป็น phone
+        data["phone"] = wallet_phone
     
     # ปิดการตรวจสอบ duplicate เพื่อหลีกเลี่ยงปัญหา
     data["checkDuplicate"] = "false"
-    
-    # เพิ่ม unique reference
     data["reference"] = unique_id
 
+    # สร้าง session ใหม่สำหรับ Thunder API
+    session = create_requests_session()
+    
     try:
         logger.info(f"🚀 ส่งคำขอไปยัง Thunder API: {endpoint}")
         logger.info(f"📋 Parameters: {data}")
         
-        resp = requests.post(
+        # ส่งคำขอพร้อม improved error handling
+        resp = session.post(
             endpoint, 
             headers=headers, 
             files=files, 
             data=data, 
-            timeout=60  # เพิ่ม timeout เป็น 60 วินาที
+            timeout=(30, 90),  # (connect timeout, read timeout)
+            stream=False  # ไม่ใช้ streaming เพื่อหลีกเลี่ยง premature end
         )
         
         logger.info(f"📈 Thunder API Response: {resp.status_code}")
-        logger.info(f"📈 Response Headers: {dict(resp.headers)}")
+        logger.info(f"📈 Content-Length: {resp.headers.get('Content-Length', 'Unknown')}")
         
-        # Log response body (แต่ไม่เกิน 500 ตัวอักษร)
-        response_text = resp.text
-        if len(response_text) > 500:
-            logger.info(f"📄 Response Body (truncated): {response_text[:500]}...")
-        else:
-            logger.info(f"📄 Response Body: {response_text}")
+        # ตรวจสอบว่า response สมบูรณ์
+        content_length = resp.headers.get('Content-Length')
+        if content_length and len(resp.content) < int(content_length):
+            logger.warning("⚠️ Response content shorter than expected")
         
         # พยายาม parse JSON response
         try:
             result = resp.json()
+            logger.info(f"📄 Response parsed successfully")
         except ValueError as e:
             logger.error(f"❌ ไม่สามารถ parse JSON response: {e}")
+            logger.error(f"📄 Raw Response: {resp.text[:500]}")
             return {
                 "status": "error",
-                "message": f"Thunder API ตอบกลับข้อมูลที่ไม่ใช่ JSON (HTTP {resp.status_code})",
+                "message": f"Thunder API ตอบกลับข้อมูลที่ไม่ถูกต้อง (HTTP {resp.status_code})",
             }
         
         # ตรวจสอบ HTTP status code
@@ -210,19 +238,35 @@ def verify_slip_with_thunder(
             return {"status": "error", "message": "ไม่พบ Thunder API endpoint - ตรวจสอบ URL"}
         elif resp.status_code == 429:
             return {"status": "error", "message": "ใช้งาน Thunder API เกินจำนวนที่กำหนด กรุณารอสักครู่"}
+        elif resp.status_code >= 500:
+            return {"status": "error", "message": f"Thunder API เกิดข้อผิดพลาดภายใน (HTTP {resp.status_code})"}
         else:
             error_message = result.get("message", f"HTTP {resp.status_code} Error")
             return {"status": "error", "message": f"Thunder API Error: {error_message}"}
 
-    except requests.exceptions.Timeout:
-        logger.error("❌ Thunder API timeout")
-        return {"status": "error", "message": "Thunder API ตอบสนองช้าเกินไป กรุณาลองใหม่อีกครั้ง"}
-    except requests.exceptions.ConnectionError:
-        logger.error("❌ Thunder API connection error")
+    except requests.exceptions.ChunkedEncodingError as e:
+        logger.error("❌ Thunder API chunked encoding error: %s", e)
+        return {"status": "error", "message": "Thunder API: การตอบกลับไม่สมบูรณ์ กรุณาลองใหม่"}
+    
+    except requests.exceptions.ConnectionError as e:
+        logger.error("❌ Thunder API connection error: %s", e)
         return {"status": "error", "message": "ไม่สามารถเชื่อมต่อกับ Thunder API ได้ กรุณาตรวจสอบอินเทอร์เน็ต"}
+    
+    except requests.exceptions.Timeout as e:
+        logger.error("❌ Thunder API timeout: %s", e)
+        return {"status": "error", "message": "Thunder API ตอบสนองช้าเกินไป กรุณาลองใหม่อีกครั้ง"}
+    
     except requests.exceptions.RequestException as e:
         logger.exception("❌ Thunder API request error: %s", e)
         return {"status": "error", "message": f"เกิดข้อผิดพลาดในการเชื่อมต่อ Thunder API: {str(e)}"}
+    
     except Exception as e:
         logger.exception("❌ Unexpected error: %s", e)
         return {"status": "error", "message": f"เกิดข้อผิดพลาดไม่คาดคิด: {str(e)}"}
+    
+    finally:
+        # ปิด session เสมอ
+        try:
+            session.close()
+        except:
+            pass
