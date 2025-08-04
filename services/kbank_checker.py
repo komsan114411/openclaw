@@ -18,14 +18,14 @@ class KBankSlipChecker:
         
     def _get_access_token(self) -> Optional[str]:
         """ขอ OAuth 2.0 access token ด้วย Client Credentials flow"""
-        consumer_id = config_manager.get("kbank_consumer_id", "")
-        consumer_secret = config_manager.get("kbank_consumer_secret", "")
-        
-        if not consumer_id or not consumer_secret:
-            logger.error("ไม่พบ KBank Consumer ID หรือ Secret")
-            return None
-            
         try:
+            consumer_id = config_manager.get("kbank_consumer_id", "")
+            consumer_secret = config_manager.get("kbank_consumer_secret", "")
+            
+            if not consumer_id or not consumer_secret:
+                logger.error("ไม่พบ KBank Consumer ID หรือ Secret")
+                return None
+                
             # สร้าง Basic Auth header
             credentials = f"{consumer_id}:{consumer_secret}"
             encoded_credentials = base64.b64encode(credentials.encode()).decode()
@@ -53,11 +53,8 @@ class KBankSlipChecker:
             logger.info(f"✅ ได้รับ KBank access token แล้ว หมดอายุใน {expires_in} วินาที")
             return access_token
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ ไม่สามารถขอ KBank access token ได้: {e}")
-            return None
         except Exception as e:
-            logger.error(f"❌ เกิดข้อผิดพลาดไม่คาดคิดในการขอ KBank token: {e}")
+            logger.error(f"❌ เกิดข้อผิดพลาดในการขอ KBank token: {e}")
             return None
     
     def verify_slip(self, sending_bank_id: str, trans_ref: str) -> Dict[str, Any]:
@@ -71,15 +68,15 @@ class KBankSlipChecker:
         Returns:
             Dict ที่มีผลการตรวจสอบ
         """
-        if not config_manager.get("kbank_enabled", False):
-            return {"status": "error", "message": "ระบบตรวจสอบสลิป KBank ถูกปิดใช้งาน"}
-            
-        # ขอ access token
-        access_token = self._get_access_token()
-        if not access_token:
-            return {"status": "error", "message": "ไม่สามารถยืนยันตัวตนกับ KBank API ได้"}
-            
         try:
+            if not config_manager.get("kbank_enabled", False):
+                return {"status": "error", "message": "ระบบตรวจสอบสลิป KBank ถูกปิดใช้งาน"}
+                
+            # ขอ access token
+            access_token = self._get_access_token()
+            if not access_token:
+                return {"status": "error", "message": "ไม่สามารถยืนยันตัวตนกับ KBank API ได้"}
+                
             # เตรียมข้อมูลส่ง request
             verify_url = f"{self.base_url}/v1/verslip/kbank/verify"
             
@@ -136,4 +133,9 @@ class KBankSlipChecker:
                 error_message = result.get("status_message", "การตรวจสอบสลิปล้มเหลว")
                 return {"status": "error", "message": f"KBank API: {error_message}"}
                 
-        except re
+        except Exception as e:
+            logger.error(f"❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป KBank: {e}")
+            return {"status": "error", "message": "การตรวจสอบสลิป KBank ล้มเหลว"}
+
+# สร้าง instance สำหรับใช้งานทั่วระบบ
+kbank_checker = KBankSlipChecker()
