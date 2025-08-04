@@ -28,13 +28,94 @@ def create_requests_session():
     
     return session
 
+def format_thai_datetime(iso_datetime: str) -> Dict[str, str]:
+    """แปลง ISO datetime เป็นรูปแบบไทย"""
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(iso_datetime.replace('Z', '+00:00'))
+        
+        # แปลงเป็นเวลาไทย (UTC+7)
+        import pytz
+        thai_tz = pytz.timezone('Asia/Bangkok')
+        thai_dt = dt.astimezone(thai_tz)
+        
+        return {
+            "date": thai_dt.strftime("%d/%m/%Y"),
+            "time": thai_dt.strftime("%H:%M:%S"),
+            "full": thai_dt.strftime("%d/%m/%Y %H:%M:%S")
+        }
+    except Exception as e:
+        logger.warning(f"Date parsing error: {e}")
+        return {
+            "date": iso_datetime.split('T')[0] if 'T' in iso_datetime else iso_datetime,
+            "time": iso_datetime.split('T')[1][:8] if 'T' in iso_datetime else "",
+            "full": iso_datetime
+        }
+
+def extract_account_info(account_data: Dict) -> Dict[str, str]:
+    """ดึงข้อมูลบัญชีจาก account object"""
+    info = {
+        "name_th": "",
+        "name_en": "",
+        "account_number": "",
+        "account_type": "",
+        "proxy_type": "",
+        "proxy_account": ""
+    }
+    
+    if not isinstance(account_data, dict):
+        return info
+    
+    # ดึงชื่อ
+    name_data = account_data.get("name", {})
+    if isinstance(name_data, dict):
+        info["name_th"] = name_data.get("th", "")
+        info["name_en"] = name_data.get("en", "")
+    
+    # ดึงข้อมูลบัญชี
+    bank_data = account_data.get("bank", {})
+    if isinstance(bank_data, dict):
+        info["account_type"] = bank_data.get("type", "")
+        info["account_number"] = bank_data.get("account", "")
+    
+    # ดึงข้อมูล proxy
+    proxy_data = account_data.get("proxy", {})
+    if isinstance(proxy_data, dict):
+        info["proxy_type"] = proxy_data.get("type", "")
+        info["proxy_account"] = proxy_data.get("account", "")
+    
+    return info
+
+def format_amount(amount_data: Any) -> Dict[str, str]:
+    """จัดรูปแบบจำนวนเงิน"""
+    try:
+        if isinstance(amount_data, dict):
+            amount_value = amount_data.get("amount", 0)
+        else:
+            amount_value = amount_data or 0
+        
+        amount_float = float(amount_value)
+        
+        return {
+            "raw": str(amount_value),
+            "formatted": f"{amount_float:,.0f}",
+            "with_currency": f"฿{amount_float:,.0f}"
+        }
+    except Exception as e:
+        logger.warning(f"Amount formatting error: {e}")
+        return {
+            "raw": str(amount_data),
+            "formatted": str(amount_data),
+            "with_currency": f"฿{amount_data}"
+        }
+
 def verify_slip_with_thunder(
     message_id: str,
     test_image_data: Optional[bytes] = None,
     check_duplicate: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """
-    ตรวจสอบสลิปด้วย Thunder API v1 (ปรับปรุงตามเอกสาร API)
+    ตรวจสอบสลิปด้วย Thunder API v1 (ปรับปรุงให้แสดงรายละเอียดครบถ้วน)
     """
     # ตรวจสอบว่าระบบเปิดใช้งานฟังก์ชันตรวจสอบสลิปหรือไม่
     if not config_manager.get("slip_enabled"):
@@ -89,14 +170,9 @@ def verify_slip_with_thunder(
 
     # ใช้ Base URL และ endpoint ที่ถูกต้องตามเอกสาร Thunder API
     base_url = "https://api.thunder.in.th/v1"
+    endpoint = f"{base_url}/verify"  # ใช้ endpoint ตามเอกสาร
     
-    # ใช้ endpoint ตามเอกสาร API
-    if wallet_phone:
-        endpoint = f"{base_url}/verify/truewallet"  # สำหรับ TrueWallet
-        logger.info(f"🔍 ใช้ TrueWallet verification สำหรับเบอร์: {wallet_phone}")
-    else:
-        endpoint = f"{base_url}/verify"  # สำหรับธนาคาร
-        logger.info("🔍 ใช้ Bank slip verification")
+    logger.info(f"🔍 ใช้ Thunder API verification endpoint: {endpoint}")
 
     # ตั้งค่า headers ตามเอกสาร API
     headers = {
@@ -118,10 +194,6 @@ def verify_slip_with_thunder(
         data["checkDuplicate"] = "true"
     else:
         data["checkDuplicate"] = "false"
-    
-    # เพิ่มข้อมูล wallet_phone สำหรับ TrueWallet (ถ้ามี)
-    if wallet_phone:
-        data["wallet_phone"] = wallet_phone
 
     # สร้าง session ใหม่สำหรับ Thunder API
     session = create_requests_session()
@@ -167,50 +239,78 @@ def verify_slip_with_thunder(
                     logger.warning("⚠️ Thunder API response ไม่มีข้อมูลใน data field")
                     return {"status": "error", "message": "ไม่พบข้อมูลสลิปในการตอบกลับจาก Thunder API"}
 
-                # จัดรูปแบบข้อมูลตามโครงสร้าง API ใหม่
-                amount_data = data_response.get("amount", {})
-                amount_value = amount_data.get("amount", 0) if isinstance(amount_data, dict) else 0
+                # ประมวลผลข้อมูลตามโครงสร้าง API ใหม่
+                datetime_info = format_thai_datetime(data_response.get("date", ""))
+                amount_info = format_amount(data_response.get("amount", {}))
                 
+                # ดึงข้อมูลผู้ส่งและผู้รับ
                 sender_info = data_response.get("sender", {})
                 receiver_info = data_response.get("receiver", {})
                 
-                # ดึงชื่อผู้ส่งและผู้รับ
-                sender_name = ""
-                if isinstance(sender_info, dict) and "account" in sender_info:
-                    sender_account = sender_info.get("account", {})
-                    sender_name_data = sender_account.get("name", {})
-                    if isinstance(sender_name_data, dict):
-                        sender_name = sender_name_data.get("th", "") or sender_name_data.get("en", "")
-                
-                receiver_name = ""
-                if isinstance(receiver_info, dict) and "account" in receiver_info:
-                    receiver_account = receiver_info.get("account", {})
-                    receiver_name_data = receiver_account.get("name", {})
-                    if isinstance(receiver_name_data, dict):
-                        receiver_name = receiver_name_data.get("th", "") or receiver_name_data.get("en", "")
-                
                 # ดึงข้อมูลธนาคาร
-                sender_bank = ""
-                receiver_bank = ""
-                if isinstance(sender_info, dict) and "bank" in sender_info:
-                    sender_bank = sender_info.get("bank", {}).get("short", "")
-                if isinstance(receiver_info, dict) and "bank" in receiver_info:
-                    receiver_bank = receiver_info.get("bank", {}).get("short", "")
+                sender_bank = sender_info.get("bank", {}) if isinstance(sender_info, dict) else {}
+                receiver_bank = receiver_info.get("bank", {}) if isinstance(receiver_info, dict) else {}
+                
+                # ดึงข้อมูลบัญชี
+                sender_account = extract_account_info(sender_info.get("account", {})) if isinstance(sender_info, dict) else {}
+                receiver_account = extract_account_info(receiver_info.get("account", {})) if isinstance(receiver_info, dict) else {}
 
+                # สร้าง response ที่มีรายละเอียดครบถ้วน
                 return {
                     "status": "success",
                     "type": "thunder",
                     "data": {
-                        "amount": str(amount_value),
-                        "date": data_response.get("date", ""),
-                        "time": data_response.get("date", "")[:19] if data_response.get("date") else "",  # แยกเวลาจาก ISO datetime
-                        "sender_bank": sender_bank,
-                        "receiver_bank": receiver_bank,
-                        "sender": sender_name,
-                        "receiver_name": receiver_name,
+                        # ข้อมูลพื้นฐาน
+                        "amount": amount_info["raw"],
+                        "amount_formatted": amount_info["formatted"],
+                        "amount_display": amount_info["with_currency"],
+                        "date": datetime_info["date"],
+                        "time": datetime_info["time"],
+                        "datetime_full": datetime_info["full"],
                         "reference": data_response.get("transRef", unique_id),
-                        "verified_by": "Thunder API (Bank)" if not wallet_phone else "Thunder API (TrueWallet)",
-                        "raw_data": data_response  # เก็บข้อมูลเต็มไว้สำหรับ debug
+                        "country_code": data_response.get("countryCode", "TH"),
+                        
+                        # ข้อมูลธนาคารผู้ส่ง
+                        "sender_bank_id": sender_bank.get("id", ""),
+                        "sender_bank_name": sender_bank.get("name", ""),
+                        "sender_bank_short": sender_bank.get("short", ""),
+                        
+                        # ข้อมูลผู้ส่ง
+                        "sender_name_th": sender_account.get("name_th", ""),
+                        "sender_name_en": sender_account.get("name_en", ""),
+                        "sender_account_number": sender_account.get("account_number", ""),
+                        "sender_account_type": sender_account.get("account_type", ""),
+                        
+                        # ข้อมูลธนาคารผู้รับ
+                        "receiver_bank_id": receiver_bank.get("id", ""),
+                        "receiver_bank_name": receiver_bank.get("name", ""),
+                        "receiver_bank_short": receiver_bank.get("short", ""),
+                        
+                        # ข้อมูลผู้รับ
+                        "receiver_name_th": receiver_account.get("name_th", ""),
+                        "receiver_name_en": receiver_account.get("name_en", ""),
+                        "receiver_account_number": receiver_account.get("account_number", ""),
+                        "receiver_account_type": receiver_account.get("account_type", ""),
+                        "receiver_proxy_type": receiver_account.get("proxy_type", ""),
+                        "receiver_proxy_account": receiver_account.get("proxy_account", ""),
+                        
+                        # ข้อมูลเพิ่มเติม
+                        "fee": data_response.get("fee", 0),
+                        "ref1": data_response.get("ref1", ""),
+                        "ref2": data_response.get("ref2", ""),
+                        "ref3": data_response.get("ref3", ""),
+                        
+                        # ข้อมูลสำหรับแสดงผล (backward compatibility)
+                        "sender": sender_account.get("name_th", "") or sender_account.get("name_en", ""),
+                        "receiver_name": receiver_account.get("name_th", "") or receiver_account.get("name_en", ""),
+                        "sender_bank": sender_bank.get("short", ""),
+                        "receiver_bank": receiver_bank.get("short", ""),
+                        
+                        "verified_by": "Thunder API",
+                        "verification_time": datetime.now().isoformat(),
+                        
+                        # Raw data สำหรับ debug
+                        "raw_data": data_response
                     },
                 }
             else:
@@ -228,20 +328,59 @@ def verify_slip_with_thunder(
                 
                 # ดึงข้อมูลสลิปซ้ำถ้ามี
                 duplicate_data = result.get("data", {})
-                amount_data = duplicate_data.get("amount", {}) if duplicate_data else {}
-                amount_value = amount_data.get("amount", 0) if isinstance(amount_data, dict) else 0
-                
-                return {
-                    "status": "duplicate",
-                    "message": "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว",
-                    "data": {
-                        "amount": str(amount_value),
-                        "date": duplicate_data.get("date", "") if duplicate_data else "",
-                        "reference": duplicate_data.get("transRef", "") if duplicate_data else "",
-                        "verified_by": "Thunder API (Duplicate)"
-                    },
-                    "original_message": error_msg
-                }
+                if duplicate_data:
+                    # ประมวลผลข้อมูลสลิปซ้ำเหมือนกับสลิปปกติ
+                    datetime_info = format_thai_datetime(duplicate_data.get("date", ""))
+                    amount_info = format_amount(duplicate_data.get("amount", {}))
+                    
+                    sender_info = duplicate_data.get("sender", {})
+                    receiver_info = duplicate_data.get("receiver", {})
+                    
+                    sender_bank = sender_info.get("bank", {}) if isinstance(sender_info, dict) else {}
+                    receiver_bank = receiver_info.get("bank", {}) if isinstance(receiver_info, dict) else {}
+                    
+                    sender_account = extract_account_info(sender_info.get("account", {})) if isinstance(sender_info, dict) else {}
+                    receiver_account = extract_account_info(receiver_info.get("account", {})) if isinstance(receiver_info, dict) else {}
+                    
+                    return {
+                        "status": "duplicate",
+                        "message": "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว",
+                        "data": {
+                            "amount": amount_info["raw"],
+                            "amount_formatted": amount_info["formatted"],
+                            "amount_display": amount_info["with_currency"],
+                            "date": datetime_info["date"],
+                            "time": datetime_info["time"],
+                            "datetime_full": datetime_info["full"],
+                            "reference": duplicate_data.get("transRef", ""),
+                            
+                            "sender_name_th": sender_account.get("name_th", ""),
+                            "sender_name_en": sender_account.get("name_en", ""),
+                            "receiver_name_th": receiver_account.get("name_th", ""),
+                            "receiver_name_en": receiver_account.get("name_en", ""),
+                            
+                            "sender_bank_name": sender_bank.get("name", ""),
+                            "sender_bank_short": sender_bank.get("short", ""),
+                            "receiver_bank_name": receiver_bank.get("name", ""),
+                            "receiver_bank_short": receiver_bank.get("short", ""),
+                            
+                            # ข้อมูลสำหรับแสดงผล
+                            "sender": sender_account.get("name_th", "") or sender_account.get("name_en", ""),
+                            "receiver_name": receiver_account.get("name_th", "") or receiver_account.get("name_en", ""),
+                            "sender_bank": sender_bank.get("short", ""),
+                            "receiver_bank": receiver_bank.get("short", ""),
+                            
+                            "verified_by": "Thunder API (Duplicate)"
+                        },
+                        "original_message": error_msg
+                    }
+                else:
+                    return {
+                        "status": "duplicate",
+                        "message": "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว",
+                        "original_message": error_msg
+                    }
+                    
             elif error_msg == "invalid_payload":
                 return {"status": "error", "message": "📷 ไม่สามารถอ่านข้อมูลจากสลิปได้ กรุณาถ่ายรูปสลิปให้ชัดเจนขึ้น"}
             elif error_msg == "invalid_image":
