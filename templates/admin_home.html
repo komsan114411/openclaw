@@ -32,6 +32,25 @@
         .api-status-card {
             min-height: 120px;
         }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .btn-loading {
+            position: relative;
+        }
+        .btn-loading:disabled {
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -236,9 +255,6 @@
                             <button class="btn btn-outline-success" onclick="reloadConfig()">
                                 <i class="bi bi-arrow-clockwise"></i> โหลด Config ใหม่
                             </button>
-                            <a href="/admin/debug/config" class="btn btn-outline-secondary" target="_blank">
-                                <i class="bi bi-bug"></i> Debug Config
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -362,6 +378,20 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // ฟังก์ชันช่วยเหลือสำหรับการแสดง loading state
+        function setButtonLoading(button, loading = true) {
+            if (loading) {
+                button.disabled = true;
+                button.setAttribute('data-original-text', button.innerHTML);
+                button.innerHTML = '<span class="loading-spinner"></span> กำลังประมวลผล...';
+                button.classList.add('btn-loading');
+            } else {
+                button.disabled = false;
+                button.innerHTML = button.getAttribute('data-original-text');
+                button.classList.remove('btn-loading');
+            }
+        }
+
         // ตรวจสอบสถานะ API
         async function checkAPIStatus() {
             const container = document.getElementById('api-status-container');
@@ -383,6 +413,12 @@
                         html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
                         if (status.thunder.balance !== undefined) {
                             html += `<p class="mt-2 mb-0 small">Balance: <strong>${status.thunder.balance}</strong> บาท</p>`;
+                        }
+                        if (status.thunder.message) {
+                            html += `<p class="mt-1 mb-0 text-info small">${status.thunder.message}</p>`;
+                        }
+                        if (status.thunder.raw_response) {
+                            html += `<p class="mt-1 mb-0 text-muted small">Response: ${status.thunder.raw_response.substring(0, 50)}...</p>`;
                         }
                     } else {
                         html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
@@ -466,35 +502,59 @@
             }
         }
 
-        // ทดสอบ Thunder API
+        // ทดสอบ Thunder API (ปรับปรุงใหม่)
         async function testThunderAPI() {
+            const button = event.target;
+            setButtonLoading(button, true);
+            
             try {
                 const response = await fetch('/admin/test-thunder', { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    alert(`✅ Thunder API ใช้งานได้!\n\nUser: ${result.user}\nBalance: ${result.balance} บาท`);
+                    let message = `✅ Thunder API การเชื่อมต่อสำเร็จ!\n\n`;
+                    message += `${result.message}\n\n`;
+                    if (result.details) {
+                        message += `📋 รายละเอียด:\n`;
+                        message += `• Status Code: ${result.details.status_code}\n`;
+                        message += `• Endpoint: ${result.details.endpoint_tested}\n`;
+                        if (result.details.response_preview) {
+                            message += `• Response Preview: ${result.details.response_preview.substring(0, 150)}...`;
+                        }
+                    }
+                    alert(message);
                 } else {
-                    alert(`❌ Thunder API ล้มเหลว!\n\n${result.message}`);
+                    let message = `❌ Thunder API ทดสอบล้มเหลว!\n\n${result.message}`;
+                    if (result.details && result.details.response_preview) {
+                        message += `\n\nResponse: ${result.details.response_preview.substring(0, 200)}...`;
+                    }
+                    alert(message);
                 }
             } catch (error) {
                 alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+            } finally {
+                setButtonLoading(button, false);
             }
         }
 
         // ทดสอบ KBank API
         async function testKBankAPI() {
+            const button = event.target;
+            setButtonLoading(button, true);
+            
             try {
                 const response = await fetch('/admin/test-kbank', { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    alert(`✅ KBank API ใช้งานได้!\n\nToken Preview: ${result.token_preview}\nToken Length: ${result.token_length}`);
+                    alert(`✅ KBank API ใช้งานได้!\n\n${result.message}\nToken Preview: ${result.token_preview}\nToken Length: ${result.token_length}`);
                 } else {
                     alert(`❌ KBank API ล้มเหลว!\n\n${result.message}`);
                 }
             } catch (error) {
                 alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+            } finally {
+                setButtonLoading(button, false);
             }
         }
 
@@ -505,12 +565,14 @@
             const resultDiv = document.getElementById('slipTestResult');
             const fileInput = document.getElementById('slipFile');
             const file = fileInput.files[0];
+            const submitButton = e.target.querySelector('button[type="submit"]');
             
             if (!file) {
                 resultDiv.innerHTML = '<div class="alert alert-warning">กรุณาเลือกไฟล์</div>';
                 return;
             }
             
+            setButtonLoading(submitButton, true);
             resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
             
             const formData = new FormData();
@@ -542,6 +604,8 @@
                 }
             } catch (error) {
                 resultDiv.innerHTML = `<div class="alert alert-danger">เกิดข้อผิดพลาด: ${error.message}</div>`;
+            } finally {
+                setButtonLoading(submitButton, false);
             }
         });
 
@@ -552,12 +616,14 @@
             const resultDiv = document.getElementById('slipTextTestResult');
             const textInput = document.getElementById('slipText');
             const text = textInput.value.trim();
+            const submitButton = e.target.querySelector('button[type="submit"]');
             
             if (!text) {
                 resultDiv.innerHTML = '<div class="alert alert-warning">กรุณาใส่ข้อความ</div>';
                 return;
             }
             
+            setButtonLoading(submitButton, true);
             resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-success" role="status"></div></div>';
             
             try {
@@ -574,47 +640,4 @@
                     resultDiv.innerHTML = `
                         <div class="alert alert-success">
                             <h6>✅ ${result.message}</h6>
-                            <p><strong>ดึงข้อมูลได้:</strong> ธนาคาร ${result.extracted.bank_code}, อ้างอิง ${result.extracted.trans_ref}</p>
-                            <pre><code>${formattedResponse}</code></pre>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            <h6>❌ ${result.message}</h6>
-                            <p><strong>ข้อมูลที่ดึงได้:</strong> ${JSON.stringify(result.extracted)}</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="alert alert-danger">เกิดข้อผิดพลาด: ${error.message}</div>`;
-            }
-        });
-
-        // โหลด Config ใหม่
-        async function reloadConfig() {
-            try {
-                const response = await fetch('/admin/config/reload', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    alert(result.message);
-                    location.reload();
-                } else {
-                    alert('เกิดข้อผิดพลาด: ' + result.message);
-                }
-            } catch (error) {
-                alert('เกิดข้อผิดพลาด: ' + error.message);
-            }
-        }
-
-        // เรียกตรวจสอบ API เมื่อโหลดหน้า
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAPIStatus();
-        });
-
-        // Auto refresh ทุก 30 วินาที
-        setInterval(checkAPIStatus, 30000);
-    </script>
-</body>
-</html>
+                            <p><strong>ดึงข้อม
