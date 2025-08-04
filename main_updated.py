@@ -12,9 +12,28 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 
 import requests
-from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    PushMessageRequest,
+    TextMessage,
+    ImageMessage as LineImageMessage
+)
+from linebot.v3.webhooks import (
+    WebhookParser,
+    MessageEvent,
+    TextMessageContent,
+    ImageMessageContent
+)
+from linebot.v3.exceptions import (
+    InvalidSignatureError as LineInvalidSignatureError,
+    ApiException as LineApiException
+)
 
 # เพิ่ม path ปัจจุบันใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +50,32 @@ logger = logging.getLogger("main_app")
 # สร้าง FastAPI instance
 app = FastAPI(title="LINE OA Middleware (Enhanced with Push)")
 templates = Jinja2Templates(directory="templates")
+
+# LINE Bot instances for v3
+line_bot_api_client: Optional[MessagingApi] = None
+line_webhook_parser: Optional[WebhookParser] = None
+
+def init_line_bot_v3():
+    """Initialize LINE Bot API and Webhook Handler for SDK v3"""
+    global line_bot_api_client, line_webhook_parser
+    
+    access_token = config_manager.get("line_channel_access_token")
+    channel_secret = config_manager.get("line_channel_secret")
+    
+    if access_token and channel_secret:
+        try:
+            configuration = Configuration(access_token=access_token)
+            api_client = ApiClient(configuration)
+            line_bot_api_client = MessagingApi(api_client)
+            line_webhook_parser = WebhookParser(channel_secret)
+            logger.info("✅ LINE Bot (v3) initialized successfully")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize LINE Bot (v3): {e}")
+            return False
+    else:
+        logger.warning("⚠️ LINE credentials not found")
+        return False
 
 # WebSocket Manager สำหรับการแจ้งเตือนแบบ Real-time
 class NotificationManager:
@@ -144,169 +189,78 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
         return True
     
     try:
-        h = hmac.new(channel_secret.encode(), body, hashlib.sha256).digest()
-        computed = base64.b64encode(h).decode()
-        is_valid = hmac.compare_digest(computed, signature)
-        return is_valid
+        if line_webhook_parser:
+            line_webhook_parser.parse(body.decode("utf-8"), signature)
+            return True
+        else:
+            logger.error("❌ LINE Webhook Parser is not initialized.")
+            return False
+    except LineInvalidSignatureError:
+        logger.error("❌ Invalid signature from LINE.")
+        return False
     except Exception as e:
-        logger.error(f"❌ Signature verification error: {e}")
+        logger.exception(f"❌ Signature verification error: {e}")
         return False
 
 def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
     """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (ใช้สำหรับข้อความเริ่มต้นเท่านั้น)"""
-    access_token = config_manager.get("line_channel_access_token")
-    if not access_token:
-        logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
+    if not line_bot_api_client:
+        logger.error("❌ LINE Bot API client not initialized.")
         return False
     
-    if not reply_token or reply_token.strip() == "" or len(reply_token.strip()) < 10:
-        logger.error("❌ Reply token is empty, invalid, or too short")
+    if not reply_token or reply_token.strip() == "":
+        logger.error("❌ Reply token is empty or invalid.")
         return False
     
     if len(text) > 5000:
         text = text[:4900] + "\n\n(ข้อความถูกตัดเนื่องจากยาวเกินไป)"
     
-    url = "https://api.line.me/v2/bot/message/reply"
-    headers = {
-        "Authorization": f"Bearer {access_token}", 
-        "Content-Type": "application/json",
-        "User-Agent": "LINE-OA-Middleware/1.0",
-        "Connection": "close"
-    }
-    payload = {
-        "replyToken": reply_token, 
-        "messages": [
-            {
-                "type": "text", 
-                "text": text
-            }
-        ]
-    }
-    
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"📤 Sending LINE reply (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
-            
-            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
-            
-            logger.info(f"📤 LINE Reply API response: {response.status_code}")
-            
-            if response.status_code == 200:
-                logger.info(f"✅ LINE reply sent successfully")
-                return True
-            elif response.status_code == 400:
-                try:
-                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                    error_message = error_data.get('message', 'Bad Request')
-                    logger.error(f"❌ LINE Reply API 400 Bad Request: {error_message}")
-                    if 'invalid' in error_message.lower() and 'token' in error_message.lower():
-                        logger.error("❌ Reply token expired - not retrying")
-                        return False
-                except:
-                    logger.error(f"❌ LINE Reply API 400 Bad Request: {response.text}")
-                return False
-            elif response.status_code == 401:
-                logger.error(f"❌ LINE Reply API 401 Unauthorized - Check access token")
-                return False
-            elif response.status_code == 403:
-                logger.error(f"❌ LINE Reply API 403 Forbidden - Check permissions")
-                return False
-            elif response.status_code >= 500:
-                logger.warning(f"⚠️ LINE Reply API {response.status_code} Server Error - will retry")
-                if attempt < max_retries - 1:
-                    time.sleep(1)
-                    continue
-            else:
-                logger.error(f"❌ LINE Reply API HTTP {response.status_code}: {response.text}")
-                return False
-        except requests.exceptions.Timeout:
-            logger.warning(f"⚠️ LINE Reply API timeout (attempt {attempt + 1})")
-            if attempt < max_retries - 1:
-                time.sleep(1)
-                continue
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"⚠️ LINE Reply API request error (attempt {attempt + 1}): {e}")
-            if attempt < max_retries - 1:
-                time.sleep(1)
-                continue
-        except Exception as e:
-            logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
-            return False
-    logger.error(f"❌ Failed to send LINE reply after {max_retries} attempts")
-    return False
+    try:
+        logger.info(f"📤 Sending LINE reply (length: {len(text)} chars)")
+        line_bot_api_client.reply_message_with_http_info(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[TextMessage(text=text)]
+            )
+        )
+        logger.info("✅ LINE reply sent successfully")
+        return True
+    except LineApiException as e:
+        logger.error(f"❌ LINE Reply API error: status_code={e.status}, message={e.body}")
+        return False
+    except Exception as e:
+        logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
+        return False
 
 def send_line_push(user_id: str, text: str, max_retries: int = 3) -> bool:
     """ส่งข้อความไปยังผู้ใช้ใน LINE ด้วย push message (สำหรับผลลัพธ์สุดท้าย)"""
-    access_token = config_manager.get("line_channel_access_token")
-    if not access_token:
-        logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
+    if not line_bot_api_client:
+        logger.error("❌ LINE Bot API client not initialized.")
         return False
 
     if not user_id or user_id.strip() == "":
-        logger.error("❌ User ID is empty")
+        logger.error("❌ User ID is empty.")
         return False
 
     if len(text) > 5000:
         text = text[:4900] + "\n\n(ข้อความถูกตัดเนื่องจากยาวเกินไป)"
 
-    url = "https://api.line.me/v2/bot/message/push"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-        "User-Agent": "LINE-OA-Middleware/1.0",
-        "Connection": "close"
-    }
-    payload = {
-        "to": user_id,
-        "messages": [{"type": "text", "text": text}],
-    }
-
-    for attempt in range(max_retries):
-        try:
-            logger.info(f"📤 Sending LINE push message (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
-            response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
-            logger.info(f"📤 LINE Push API response: {response.status_code}")
-            
-            if response.status_code == 200:
-                logger.info("✅ Push message sent to LINE successfully")
-                return True
-            elif response.status_code == 400:
-                try:
-                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                    error_message = error_data.get('message', 'Bad Request')
-                    logger.error(f"❌ LINE Push API 400 Bad Request: {error_message}")
-                except:
-                    logger.error(f"❌ LINE Push API 400 Bad Request: {response.text}")
-                return False
-            elif response.status_code == 401:
-                logger.error(f"❌ LINE Push API 401 Unauthorized - Check access token")
-                return False
-            elif response.status_code == 403:
-                logger.error(f"❌ LINE Push API 403 Forbidden - Check permissions or user blocked bot")
-                return False
-            elif response.status_code >= 500:
-                logger.warning(f"⚠️ LINE Push API {response.status_code} Server Error - will retry")
-                if attempt < max_retries - 1:
-                    time.sleep(1)
-                    continue
-            else:
-                logger.error(f"❌ LINE Push API HTTP {response.status_code}: {response.text}")
-                return False
-        except requests.exceptions.Timeout:
-            logger.warning(f"⚠️ LINE Push API timeout (attempt {attempt + 1})")
-            if attempt < max_retries - 1:
-                time.sleep(1)
-                continue
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"⚠️ LINE Push API request error (attempt {attempt + 1}): {e}")
-            if attempt < max_retries - 1:
-                time.sleep(1)
-                continue
-        except Exception as e:
-            logger.exception(f"❌ Unexpected error in send_line_push: {e}")
-            return False
-    logger.error(f"❌ Failed to send LINE push message after {max_retries} attempts")
-    return False
+    try:
+        logger.info(f"📤 Sending LINE push message (length: {len(text)} chars) to {user_id}")
+        line_bot_api_client.push_message_with_http_info(
+            PushMessageRequest(
+                to=user_id,
+                messages=[TextMessage(text=text)]
+            )
+        )
+        logger.info("✅ Push message sent to LINE successfully")
+        return True
+    except LineApiException as e:
+        logger.error(f"❌ LINE Push API error: status_code={e.status}, message={e.body}")
+        return False
+    except Exception as e:
+        logger.exception(f"❌ Unexpected error in send_line_push: {e}")
+        return False
 
 def create_slip_hash(image_data: bytes) -> str:
     """สร้าง hash จากข้อมูลรูปภาพเพื่อตรวจสอบสลิปซ้ำ"""
