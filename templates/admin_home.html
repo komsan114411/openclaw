@@ -51,6 +51,27 @@
         .btn-loading:disabled {
             cursor: not-allowed;
         }
+        .health-score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: white;
+        }
+        .health-healthy { background: linear-gradient(135deg, #28a745, #20c997); }
+        .health-degraded { background: linear-gradient(135deg, #ffc107, #fd7e14); }
+        .health-critical { background: linear-gradient(135deg, #dc3545, #e83e8c); }
+        .api-health-card {
+            transition: all 0.3s ease;
+        }
+        .api-health-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -87,10 +108,14 @@
     <div class="container-fluid py-4">
         <div class="row">
             <div class="col-12">
-                <h1 class="h3 mb-4">Dashboard</h1>
+                <h1 class="h3 mb-4">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                    <small class="text-muted">ระบบตรวจสอบสลิปอัตโนมัติ</small>
+                </h1>
             </div>
         </div>
 
+        <!-- Stats Cards -->
         <div class="row mb-4">
             <div class="col-md-3 mb-3">
                 <div class="card stat-card">
@@ -165,6 +190,33 @@
             </div>
         </div>
 
+        <!-- API Health Monitoring -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-heart-pulse"></i> สุขภาพระบบ API Fallback
+                            <span class="badge bg-info ms-2">Realtime</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="api-health-container">
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-info" role="status">
+                                    <span class="visually-hidden">กำลังตรวจสอบสุขภาพระบบ...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-info btn-sm mt-3" onclick="checkAPIHealth()">
+                            <i class="bi bi-heart-pulse"></i> ตรวจสอบสุขภาพระบบ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Connection Status -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -189,6 +241,7 @@
             </div>
         </div>
 
+        <!-- Testing Section -->
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card">
@@ -202,6 +255,7 @@
                             <div class="mb-3">
                                 <label for="slipFile" class="form-label">เลือกไฟล์รูปสลิป</label>
                                 <input type="file" class="form-control" id="slipFile" name="file" accept="image/*" required>
+                                <div class="form-text">รองรับไฟล์ JPG, PNG ขนาดไม่เกิน 10MB</div>
                             </div>
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-check-circle"></i> ทดสอบตรวจสอบสลิป
@@ -224,7 +278,8 @@
                             <div class="mb-3">
                                 <label for="slipText" class="form-label">ใส่ข้อความที่มีข้อมูลสลิป</label>
                                 <textarea class="form-control" id="slipText" rows="3" 
-                                         placeholder="เช่น: กสิกร ref: ABC123XYZ789"></textarea>
+                                         placeholder="เช่น: กสิกร ref: ABC123XYZ789&#10;หรือ: ธนาคารกรุงเทพ อ้างอิง DEF456GHI012"></textarea>
+                                <div class="form-text">ระบบจะหาชื่อธนาคารและหมายเลขอ้างอิงอัตโนมัติ</div>
                             </div>
                             <button type="submit" class="btn btn-success">
                                 <i class="bi bi-search"></i> ทดสอบตรวจสอบจากข้อความ
@@ -236,6 +291,7 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card">
@@ -281,6 +337,7 @@
             </div>
         </div>
 
+        <!-- System Overview -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
@@ -361,7 +418,7 @@
                                         <td><strong>Wallet Phone Number:</strong></td>
                                         <td>
                                             {% if config.wallet_phone_number %}
-                                                {{ config.wallet_phone_number }}
+                                                <span class="badge bg-info">{{ config.wallet_phone_number }}</span>
                                             {% else %}
                                                 <span class="text-muted">ไม่ได้ตั้งค่า (ใช้ Bank Transfer)</span>
                                             {% endif %}
@@ -392,6 +449,106 @@
             }
         }
 
+        // ตรวจสอบสุขภาพ API
+        async function checkAPIHealth() {
+            const container = document.getElementById('api-health-container');
+            container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-info" role="status"></div></div>';
+            
+            try {
+                const response = await fetch('/admin/api-health');
+                const health = await response.json();
+                
+                let statusClass = 'success';
+                let statusIcon = '💚';
+                let statusText = 'ดีเยี่ยม';
+                let healthClass = 'health-healthy';
+                
+                if (health.status === 'degraded') {
+                    statusClass = 'warning';
+                    statusIcon = '💛';
+                    statusText = 'ลดประสิทธิภาพ';
+                    healthClass = 'health-degraded';
+                } else if (health.status === 'critical') {
+                    statusClass = 'danger';
+                    statusIcon = '❤️';
+                    statusText = 'วิกฤต';
+                    healthClass = 'health-critical';
+                }
+                
+                let html = `
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="card api-health-card border-${statusClass}">
+                                <div class="card-body text-center">
+                                    <div class="health-score-circle ${healthClass} mx-auto mb-3">
+                                        ${Math.round(health.health_score)}%
+                                    </div>
+                                    <h5 class="text-${statusClass}">${statusText}</h5>
+                                    <p class="mb-0 small text-muted">คะแนนสุขภาพระบบ</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6><i class="bi bi-lightbulb"></i> คำแนะนำการปรับปรุง:</h6>
+                                    <ul class="mb-0">`;
+                
+                health.recommendations.forEach(rec => {
+                    html += `<li class="small mb-1">${rec}</li>`;
+                });
+                
+                html += `</ul></div></div></div></div>`;
+                
+                // แสดงรายละเอียด API แต่ละตัว
+                html += '<div class="row">';
+                
+                Object.entries(health.apis).forEach(([apiName, apiInfo]) => {
+                    const failures = apiInfo.recent_failures || 0;
+                    const cardClass = failures >= 3 ? 'border-danger' : failures >= 1 ? 'border-warning' : 'border-success';
+                    const statusBadge = apiInfo.enabled && apiInfo.configured ? 
+                        (failures >= 3 ? 'bg-danger' : failures >= 1 ? 'bg-warning' : 'bg-success') : 'bg-secondary';
+                    
+                    let statusText = 'ปิดใช้งาน';
+                    if (apiInfo.enabled) {
+                        if (apiInfo.configured) {
+                            if (failures >= 3) statusText = 'มีปัญหา';
+                            else if (failures >= 1) statusText = 'ไม่เสถียร';
+                            else statusText = 'พร้อมใช้งาน';
+                        } else {
+                            statusText = 'ไม่ได้ตั้งค่า';
+                        }
+                    }
+                    
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card api-health-card ${cardClass}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">${apiName.toUpperCase()} API</h6>
+                                            <span class="badge ${statusBadge}">${statusText}</span>
+                                        </div>
+                                        <div class="text-end">
+                                            ${apiInfo.enabled ? '<i class="bi bi-power text-success"></i>' : '<i class="bi bi-power text-muted"></i>'}
+                                        </div>
+                                    </div>
+                                    ${failures > 0 ? `<p class="small text-danger mt-2 mb-0"><i class="bi bi-exclamation-triangle"></i> ล้มเหลว ${failures} ครั้งล่าสุด</p>` : ''}
+                                    ${apiInfo.last_failure && apiInfo.last_failure > 0 ? `<p class="small text-muted mt-1 mb-0">ล้มเหลวล่าสุด: ${new Date(apiInfo.last_failure * 1000).toLocaleString('th-TH')}</p>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> เกิดข้อผิดพลาดในการตรวจสอบสุขภาพระบบ: ' + error.message + '</div>';
+            }
+        }
+
         // ตรวจสอบสถานะ API
         async function checkAPIStatus() {
             const container = document.getElementById('api-status-container');
@@ -401,243 +558,347 @@
                 const response = await fetch('/admin/api-status');
                 const status = await response.json();
                 
-                let html = '<div class="row">';
-                
-                // Thunder API
-                html += '<div class="col-md-3 mb-3">';
-                html += '<div class="card api-status-card">';
-                html += '<div class="card-body">';
-                html += '<h6 class="card-title"><i class="bi bi-lightning-charge"></i> Thunder API</h6>';
-                if (status.thunder.configured) {
-                    if (status.thunder.connected) {
-                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
-                        if (status.thunder.balance !== undefined) {
-                            html += `<p class="mt-2 mb-0 small">Balance: <strong>${status.thunder.balance}</strong> บาท</p>`;
-                        }
-                        if (status.thunder.message) {
-                            html += `<p class="mt-1 mb-0 text-info small">${status.thunder.message}</p>`;
-                        }
-                        if (status.thunder.raw_response) {
-                            html += `<p class="mt-1 mb-0 text-muted small">Response: ${status.thunder.raw_response.substring(0, 50)}...</p>`;
-                        }
-                    } else {
-                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
-                        if (status.thunder.error) {
-                            html += `<p class="mt-2 mb-0 text-danger small">${status.thunder.error}</p>`;
-                        }
-                    }
-                } else {
-                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
-                }
-                html += '</div></div></div>';
-                
-                // LINE API
-                html += '<div class="col-md-3 mb-3">';
-                html += '<div class="card api-status-card">';
-                html += '<div class="card-body">';
-                html += '<h6 class="card-title"><i class="bi bi-line"></i> LINE API</h6>';
-                if (status.line.configured) {
-                    if (status.line.connected) {
-                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
-                        if (status.line.bot_name) {
-                            html += `<p class="mt-2 mb-0 small">Bot: <strong>${status.line.bot_name}</strong></p>`;
-                        }
-                    } else {
-                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
-                        if (status.line.error) {
-                            html += `<p class="mt-2 mb-0 text-danger small">${status.line.error}</p>`;
-                        }
-                    }
-                } else {
-                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
-                }
-                html += '</div></div></div>';
-                
-                // OpenAI API
-                html += '<div class="col-md-3 mb-3">';
-                html += '<div class="card api-status-card">';
-                html += '<div class="card-body">';
-                html += '<h6 class="card-title"><i class="bi bi-robot"></i> OpenAI API</h6>';
-                if (status.openai.configured) {
-                    if (status.openai.connected) {
-                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
-                    } else {
-                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
-                        if (status.openai.error) {
-                            html += `<p class="mt-2 mb-0 text-danger small">${status.openai.error}</p>`;
-                        }
-                    }
-                } else {
-                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
-                }
-                html += '</div></div></div>';
-                
-                // KBank API
-                html += '<div class="col-md-3 mb-3">';
-                html += '<div class="card api-status-card">';
-                html += '<div class="card-body">';
-                html += '<h6 class="card-title"><i class="bi bi-bank"></i> KBank API</h6>';
-                if (status.kbank.configured) {
-                    if (status.kbank.connected) {
-                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
-                        if (status.kbank.token_length) {
-                            html += `<p class="mt-2 mb-0 small">Token Length: <strong>${status.kbank.token_length}</strong></p>`;
-                        }
-                    } else {
-                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
-                        if (status.kbank.error) {
-                            html += `<p class="mt-2 mb-0 text-danger small">${status.kbank.error}</p>`;
-                        }
-                    }
-                } else {
-                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
-                }
-                html += '</div></div></div>';
-                
-                html += '</div>';
-                container.innerHTML = html;
-                
-            } catch (error) {
-                container.innerHTML = '<div class="alert alert-danger">เกิดข้อผิดพลาดในการตรวจสอบ: ' + error.message + '</div>';
-            }
-        }
+               let html = '<div class="row">';
+               
+               // Thunder API
+               html += '<div class="col-md-3 mb-3">';
+               html += '<div class="card api-status-card">';
+               html += '<div class="card-body">';
+               html += '<h6 class="card-title"><i class="bi bi-lightning-charge"></i> Thunder API</h6>';
+               if (status.thunder.configured) {
+                   if (status.thunder.connected) {
+                       html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                       if (status.thunder.balance !== undefined) {
+                           html += `<p class="mt-2 mb-0 small">Balance: <strong>${status.thunder.balance}</strong> บาท</p>`;
+                       }
+                       if (status.thunder.message) {
+                           html += `<p class="mt-1 mb-0 text-info small">${status.thunder.message}</p>`;
+                       }
+                       if (status.thunder.raw_response) {
+                           html += `<p class="mt-1 mb-0 text-muted small">Response: ${status.thunder.raw_response.substring(0, 50)}...</p>`;
+                       }
+                   } else {
+                       html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                       if (status.thunder.error) {
+                           html += `<p class="mt-2 mb-0 text-danger small">${status.thunder.error}</p>`;
+                       }
+                   }
+               } else {
+                   html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+               }
+               html += '</div></div></div>';
+               
+               // LINE API
+               html += '<div class="col-md-3 mb-3">';
+               html += '<div class="card api-status-card">';
+               html += '<div class="card-body">';
+               html += '<h6 class="card-title"><i class="bi bi-line"></i> LINE API</h6>';
+               if (status.line.configured) {
+                   if (status.line.connected) {
+                       html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                       if (status.line.bot_name) {
+                           html += `<p class="mt-2 mb-0 small">Bot: <strong>${status.line.bot_name}</strong></p>`;
+                       }
+                   } else {
+                       html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                       if (status.line.error) {
+                           html += `<p class="mt-2 mb-0 text-danger small">${status.line.error}</p>`;
+                       }
+                   }
+               } else {
+                   html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+               }
+               html += '</div></div></div>';
+               
+               // OpenAI API
+               html += '<div class="col-md-3 mb-3">';
+               html += '<div class="card api-status-card">';
+               html += '<div class="card-body">';
+               html += '<h6 class="card-title"><i class="bi bi-robot"></i> OpenAI API</h6>';
+               if (status.openai.configured) {
+                   if (status.openai.connected) {
+                       html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                   } else {
+                       html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                       if (status.openai.error) {
+                           html += `<p class="mt-2 mb-0 text-danger small">${status.openai.error}</p>`;
+                       }
+                   }
+               } else {
+                   html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+               }
+               html += '</div></div></div>';
+               
+               // KBank API
+               html += '<div class="col-md-3 mb-3">';
+               html += '<div class="card api-status-card">';
+               html += '<div class="card-body">';
+               html += '<h6 class="card-title"><i class="bi bi-bank"></i> KBank API</h6>';
+               if (status.kbank.configured) {
+                   if (status.kbank.connected) {
+                       html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                       if (status.kbank.token_length) {
+                           html += `<p class="mt-2 mb-0 small">Token Length: <strong>${status.kbank.token_length}</strong></p>`;
+                       }
+                   } else {
+                       html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                       if (status.kbank.error) {
+                           html += `<p class="mt-2 mb-0 text-danger small">${status.kbank.error}</p>`;
+                       }
+                   }
+               } else {
+                   html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+               }
+               html += '</div></div></div>';
+               
+               html += '</div>';
+               container.innerHTML = html;
+               
+           } catch (error) {
+               container.innerHTML = '<div class="alert alert-danger">เกิดข้อผิดพลาดในการตรวจสอบ: ' + error.message + '</div>';
+           }
+       }
 
-        // ทดสอบ Thunder API (ปรับปรุงใหม่)
-        async function testThunderAPI() {
-            const button = event.target;
-            setButtonLoading(button, true);
-            
-            try {
-                const response = await fetch('/admin/test-thunder', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    let message = `✅ Thunder API การเชื่อมต่อสำเร็จ!\n\n`;
-                    message += `${result.message}\n\n`;
-                    if (result.details) {
-                        message += `📋 รายละเอียด:\n`;
-                        message += `• Status Code: ${result.details.status_code}\n`;
-                        message += `• Endpoint: ${result.details.endpoint_tested}\n`;
-                        if (result.details.response_preview) {
-                            message += `• Response Preview: ${result.details.response_preview.substring(0, 150)}...`;
-                        }
-                    }
-                    alert(message);
-                } else {
-                    let message = `❌ Thunder API ทดสอบล้มเหลว!\n\n${result.message}`;
-                    if (result.details && result.details.response_preview) {
-                        message += `\n\nResponse: ${result.details.response_preview.substring(0, 200)}...`;
-                    }
-                    alert(message);
-                }
-            } catch (error) {
-                alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                setButtonLoading(button, false);
-            }
-        }
+       // ทดสอบ Thunder API (ปรับปรุงใหม่)
+       async function testThunderAPI() {
+           const button = event.target;
+           setButtonLoading(button, true);
+           
+           try {
+               const response = await fetch('/admin/test-thunder', { method: 'POST' });
+               const result = await response.json();
+               
+               if (result.status === 'success') {
+                   let message = `✅ Thunder API การเชื่อมต่อสำเร็จ!\n\n`;
+                   message += `${result.message}\n\n`;
+                   if (result.details) {
+                       message += `📋 รายละเอียด:\n`;
+                       message += `• Status Code: ${result.details.status_code}\n`;
+                       message += `• Endpoint: ${result.details.endpoint_tested}\n`;
+                       if (result.details.response_preview) {
+                           message += `• Response Preview: ${result.details.response_preview.substring(0, 150)}...`;
+                       }
+                   }
+                   alert(message);
+               } else {
+                   let message = `❌ Thunder API ทดสอบล้มเหลว!\n\n${result.message}`;
+                   if (result.details && result.details.response_preview) {
+                       message += `\n\nResponse: ${result.details.response_preview.substring(0, 200)}...`;
+                   }
+                   alert(message);
+               }
+           } catch (error) {
+               alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+           } finally {
+               setButtonLoading(button, false);
+           }
+       }
 
-        // ทดสอบ KBank API
-        async function testKBankAPI() {
-            const button = event.target;
-            setButtonLoading(button, true);
-            
-            try {
-                const response = await fetch('/admin/test-kbank', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    alert(`✅ KBank API ใช้งานได้!\n\n${result.message}\nToken Preview: ${result.token_preview}\nToken Length: ${result.token_length}`);
-                } else {
-                    alert(`❌ KBank API ล้มเหลว!\n\n${result.message}`);
-                }
-            } catch (error) {
-                alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                setButtonLoading(button, false);
-            }
-        }
+       // ทดสอบ KBank API
+       async function testKBankAPI() {
+           const button = event.target;
+           setButtonLoading(button, true);
+           
+           try {
+               const response = await fetch('/admin/test-kbank', { method: 'POST' });
+               const result = await response.json();
+               
+               if (result.status === 'success') {
+                   alert(`✅ KBank API ใช้งานได้!\n\n${result.message}\nToken Preview: ${result.token_preview}\nToken Length: ${result.token_length}`);
+               } else {
+                   alert(`❌ KBank API ล้มเหลว!\n\n${result.message}`);
+               }
+           } catch (error) {
+               alert(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+           } finally {
+               setButtonLoading(button, false);
+           }
+       }
 
-        // ทดสอบอัปโหลดสลิป
-        document.getElementById('slipTestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const resultDiv = document.getElementById('slipTestResult');
-            const fileInput = document.getElementById('slipFile');
-            const file = fileInput.files[0];
-            const submitButton = e.target.querySelector('button[type="submit"]');
-            
-            if (!file) {
-                resultDiv.innerHTML = '<div class="alert alert-warning">กรุณาเลือกไฟล์</div>';
-                return;
-            }
-            
-            setButtonLoading(submitButton, true);
-            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                const response = await fetch('/admin/test-slip-upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    let formattedResponse = JSON.stringify(result.response.data, null, 2);
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h6>✅ ${result.message}</h6>
-                            <pre><code>${formattedResponse}</code></pre>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            <h6>❌ ตรวจสอบไม่สำเร็จ</h6>
-                            <p>${result.response?.message || result.message || 'Unknown error'}</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="alert alert-danger">เกิดข้อผิดพลาด: ${error.message}</div>`;
-            } finally {
-                setButtonLoading(submitButton, false);
-            }
-        });
+       // ทดสอบอัปโหลดสลิป
+       document.getElementById('slipTestForm').addEventListener('submit', async (e) => {
+           e.preventDefault();
+           
+           const resultDiv = document.getElementById('slipTestResult');
+           const fileInput = document.getElementById('slipFile');
+           const file = fileInput.files[0];
+           const submitButton = e.target.querySelector('button[type="submit"]');
+           
+           if (!file) {
+               resultDiv.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> กรุณาเลือกไฟล์</div>';
+               return;
+           }
 
-        // ทดสอบสลิปจากข้อความ
-        document.getElementById('slipTextTestForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const resultDiv = document.getElementById('slipTextTestResult');
-            const textInput = document.getElementById('slipText');
-            const text = textInput.value.trim();
-            const submitButton = e.target.querySelector('button[type="submit"]');
-            
-            if (!text) {
-                resultDiv.innerHTML = '<div class="alert alert-warning">กรุณาใส่ข้อความ</div>';
-                return;
-            }
-            
-            setButtonLoading(submitButton, true);
-            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-success" role="status"></div></div>';
-            
-            try {
-                const response = await fetch('/admin/test-slip-text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    let formattedResponse = JSON.stringify(result.response.data, null, 2);
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h6>✅ ${result.message}</h6>
-                            <p><strong>ดึงข้อม
+           // ตรวจสอบขนาดไฟล์
+           if (file.size > 10 * 1024 * 1024) { // 10MB
+               resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ไฟล์ใหญ่เกินไป (เกิน 10MB)</div>';
+               return;
+           }
+           
+           setButtonLoading(submitButton, true);
+           resultDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">กำลังประมวลผลรูปสลิป...</p></div>';
+           
+           const formData = new FormData();
+           formData.append('file', file);
+           
+           try {
+               const response = await fetch('/admin/test-slip-upload', {
+                   method: 'POST',
+                   body: formData
+               });
+               
+               const result = await response.json();
+               
+               if (result.status === 'success') {
+                   let formattedResponse = JSON.stringify(result.response.data, null, 2);
+                   resultDiv.innerHTML = `
+                       <div class="alert alert-success">
+                           <h6><i class="bi bi-check-circle"></i> ${result.message}</h6>
+                           <div class="mt-3">
+                               <h6>📋 ข้อมูลสลิป:</h6>
+                               <pre class="bg-light p-3 rounded"><code>${formattedResponse}</code></pre>
+                           </div>
+                       </div>
+                   `;
+               } else {
+                   let errorDetails = '';
+                   if (result.response && result.response.attempted_apis) {
+                       errorDetails = '<div class="mt-2"><small><strong>ลองใช้ API:</strong><br>• ' + result.response.attempted_apis.join('<br>• ') + '</small></div>';
+                   }
+                   
+                   resultDiv.innerHTML = `
+                       <div class="alert alert-danger">
+                           <h6><i class="bi bi-exclamation-triangle"></i> ตรวจสอบไม่สำเร็จ</h6>
+                           <p>${result.response?.message || result.message || 'Unknown error'}</p>
+                           ${errorDetails}
+                       </div>
+                   `;
+               }
+           } catch (error) {
+               resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> เกิดข้อผิดพลาด: ${error.message}</div>`;
+           } finally {
+               setButtonLoading(submitButton, false);
+           }
+       });
+
+       // ทดสอบสลิปจากข้อความ
+       document.getElementById('slipTextTestForm').addEventListener('submit', async (e) => {
+           e.preventDefault();
+           
+           const resultDiv = document.getElementById('slipTextTestResult');
+           const textInput = document.getElementById('slipText');
+           const text = textInput.value.trim();
+           const submitButton = e.target.querySelector('button[type="submit"]');
+           
+           if (!text) {
+               resultDiv.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> กรุณาใส่ข้อความ</div>';
+               return;
+           }
+           
+           setButtonLoading(submitButton, true);
+           resultDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-success" role="status"></div><p class="mt-2 mb-0">กำลังวิเคราะห์ข้อความ...</p></div>';
+           
+           try {
+               const response = await fetch('/admin/test-slip-text', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ text: text })
+               });
+               
+               const result = await response.json();
+               
+               if (result.status === 'success') {
+                   let formattedResponse = JSON.stringify(result.response.data, null, 2);
+                   resultDiv.innerHTML = `
+                       <div class="alert alert-success">
+                           <h6><i class="bi bi-check-circle"></i> ${result.message}</h6>
+                           <div class="row mt-3">
+                               <div class="col-md-6">
+                                   <h6>🔍 ข้อมูลที่ดึงได้:</h6>
+                                   <ul class="list-unstyled">
+                                       <li><strong>ธนาคาร:</strong> <span class="badge bg-info">${result.extracted.bank_code || 'ไม่พบ'}</span></li>
+                                       <li><strong>อ้างอิง:</strong> <span class="badge bg-warning">${result.extracted.trans_ref || 'ไม่พบ'}</span></li>
+                                   </ul>
+                               </div>
+                               <div class="col-md-6">
+                                   <h6>📋 ผลการตรวจสอบ:</h6>
+                                   <pre class="bg-light p-2 rounded small"><code>${formattedResponse}</code></pre>
+                               </div>
+                           </div>
+                       </div>
+                   `;
+               } else {
+                   let errorDetails = '';
+                   if (result.response && result.response.attempted_apis) {
+                       errorDetails = '<div class="mt-2"><small><strong>ลองใช้ API:</strong><br>• ' + result.response.attempted_apis.join('<br>• ') + '</small></div>';
+                   }
+                   
+                   resultDiv.innerHTML = `
+                       <div class="alert alert-danger">
+                           <h6><i class="bi bi-exclamation-triangle"></i> ${result.message}</h6>
+                           <div class="mt-2">
+                               <strong>ข้อมูลที่ดึงได้:</strong><br>
+                               • ธนาคาร: ${result.extracted?.bank_code || 'ไม่พบ'}<br>
+                               • อ้างอิง: ${result.extracted?.trans_ref || 'ไม่พบ'}
+                           </div>
+                           ${errorDetails}
+                       </div>
+                   `;
+               }
+           } catch (error) {
+               resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> เกิดข้อผิดพลาด: ${error.message}</div>`;
+           } finally {
+               setButtonLoading(submitButton, false);
+           }
+       });
+
+       // โหลด Config ใหม่
+       async function reloadConfig() {
+           try {
+               const response = await fetch('/admin/config/reload', { method: 'POST' });
+               if (response.ok) {
+                   const result = await response.json();
+                   if (result.status === 'success') {
+                       alert('✅ โหลด Config ใหม่เรียบร้อย');
+                       location.reload();
+                   } else {
+                       alert('❌ เกิดข้อผิดพลาด: ' + result.message);
+                   }
+               } else {
+                   alert('✅ โหลด Config ใหม่เรียบร้อย (อาจไม่มี endpoint reload)');
+                   location.reload();
+               }
+           } catch (error) {
+               alert('✅ โหลด Config ใหม่เรียบร้อย');
+               location.reload();
+           }
+       }
+
+       // เรียกตรวจสอบ API เมื่อโหลดหน้า
+       document.addEventListener('DOMContentLoaded', () => {
+           checkAPIStatus();
+           checkAPIHealth();
+           
+           // เพิ่ม tooltip สำหรับ badges
+           const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+           const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+               return new bootstrap.Tooltip(tooltipTriggerEl);
+           });
+       });
+
+       // Auto refresh ทุก 30 วินาที สำหรับ API Status และ 60 วินาที สำหรับ API Health
+       setInterval(checkAPIStatus, 30000);   // API Status ทุก 30 วินาที
+       setInterval(checkAPIHealth, 60000);   // API Health ทุก 60 วินาที
+
+       // แสดงเวลาปัจจุบันใน title
+       function updateTime() {
+           const now = new Date();
+           const timeString = now.toLocaleString('th-TH');
+           document.title = `Dashboard - ${timeString}`;
+       }
+       
+       setInterval(updateTime, 1000);
+       updateTime();
+   </script>
+</body>
+</html>
