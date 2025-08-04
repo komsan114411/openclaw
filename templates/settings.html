@@ -34,6 +34,8 @@
         .status-ok { background: #d4edda; color: #155724; }
         .status-error { background: #f8d7da; color: #721c24; }
         .status-warning { background: #fff3cd; color: #856404; }
+        .section-divider { border-top: 2px solid #dee2e6; margin: 30px 0; padding-top: 20px; }
+        .kbank-section { background: #f0f8ff; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff; }
     </style>
     <script>
         function submitSettings(event) {
@@ -44,10 +46,13 @@
                 line_channel_access_token: form.line_channel_access_token.value,
                 thunder_api_token: form.thunder_api_token.value,
                 openai_api_key: form.openai_api_key.value,
+                kbank_consumer_id: form.kbank_consumer_id.value,
+                kbank_consumer_secret: form.kbank_consumer_secret.value,
                 ai_prompt: form.ai_prompt.value,
                 wallet_phone_number: form.wallet_phone_number.value,
                 ai_enabled: form.ai_enabled.checked,
-                slip_enabled: form.slip_enabled.checked
+                slip_enabled: form.slip_enabled.checked,
+                kbank_enabled: form.kbank_enabled.checked
             };
             
             const submitBtn = form.querySelector('button[type="submit"]');
@@ -143,6 +148,29 @@
             });
         }
 
+        function testKBankAPI() {
+            const testBtn = event.target;
+            const originalText = testBtn.textContent;
+            testBtn.textContent = '⏳ กำลังทดสอบ...';
+            testBtn.disabled = true;
+
+            fetch('/admin/test-kbank', { method: 'POST' })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('✅ KBank API ใช้งานได้!\n\n' + data.message + '\nToken Length: ' + data.token_length);
+                } else {
+                    alert('❌ KBank API Error:\n\n' + data.message);
+                }
+            })
+            .catch(err => {
+                alert('❌ Error: ' + err);
+            }).finally(() => {
+                testBtn.textContent = originalText;
+                testBtn.disabled = false;
+            });
+        }
+
         function debugConfig() {
             fetch('/admin/debug/config')
             .then(resp => resp.json())
@@ -150,7 +178,9 @@
                 let debugInfo = '🔍 Debug Config Information:\n\n';
                 debugInfo += '📁 File exists: ' + data.file_exists + '\n';
                 debugInfo += '💾 Memory AI Prompt: ' + data.ai_prompt_memory_length + ' chars\n';
-                debugInfo += '📄 File AI Prompt: ' + data.ai_prompt_file_length + ' chars\n\n';
+                debugInfo += '📄 File AI Prompt: ' + data.ai_prompt_file_length + ' chars\n';
+                debugInfo += '🏦 KBank Configured: ' + data.kbank_configured + '\n';
+                debugInfo += '🏦 KBank Enabled: ' + data.kbank_enabled + '\n\n';
                 debugInfo += '🧠 Config in Memory:\n' + JSON.stringify(data.config_in_memory, null, 2) + '\n\n';
                 debugInfo += '📄 Config from File:\n' + JSON.stringify(data.config_from_file, null, 2);
                 
@@ -182,7 +212,7 @@
             .then(resp => resp.json())
             .then(data => {
                 if (data.status === 'success') {
-                    alert('✅ โหลด Config ใหม่เรียบร้อย\n\nAI Prompt: ' + data.ai_prompt_length + ' ตัวอักษร');
+                    alert('✅ โหลด Config ใหม่เรียบร้อย\n\nAI Prompt: ' + data.ai_prompt_length + ' ตัวอักษร\nKBank Enabled: ' + data.kbank_enabled);
                     location.reload();
                 } else {
                     alert('❌ Error: ' + data.message);
@@ -231,9 +261,15 @@
             </span>
         </p>
         <p>
-            <strong>🧾 ตรวจสอบสลิป:</strong> 
+            <strong>🧾 ตรวจสอบสลิป Thunder:</strong> 
             <span class="status-indicator {{ 'status-ok' if config.slip_enabled else 'status-error' }}">
                 {{ 'เปิดใช้งาน' if config.slip_enabled else 'ปิดใช้งาน' }}
+            </span>
+        </p>
+        <p>
+            <strong>🏦 ตรวจสอบสลิป KBank:</strong> 
+            <span class="status-indicator {{ 'status-ok' if config.kbank_enabled else 'status-error' }}">
+                {{ 'เปิดใช้งาน' if config.kbank_enabled else 'ปิดใช้งาน' }}
             </span>
         </p>
         <p>
@@ -246,6 +282,9 @@
             </span>
             <span class="status-indicator {{ 'status-ok' if config.line_channel_access_token else 'status-error' }}">
                 LINE: {{ '✅' if config.line_channel_access_token else '❌' }}
+            </span>
+            <span class="status-indicator {{ 'status-ok' if config.kbank_consumer_id and config.kbank_consumer_secret else 'status-error' }}">
+                KBank: {{ '✅' if config.kbank_consumer_id and config.kbank_consumer_secret else '❌' }}
             </span>
         </p>
         <p><strong>💾 การจัดเก็บ:</strong> ข้อมูลจะถูกบันทึกลงไฟล์ app_config.json</p>
@@ -275,6 +314,34 @@
             <input type="password" name="openai_api_key" value="{{ config.openai_api_key }}" placeholder="sk-proj-...">
             <small style="color: #6c757d;">💡 สร้าง API Key จาก <a href="https://platform.openai.com" target="_blank">platform.openai.com</a></small>
         </div>
+
+        <div class="section-divider"></div>
+        
+        <div class="kbank-section">
+            <h2>🏦 KBank API Configuration</h2>
+            <p style="margin-bottom: 20px; color: #495057;">
+                <strong>ข้อมูล KBank API สำหรับตรวจสอบสลิปผ่าน OAuth 2.0</strong><br>
+                สมัครได้ที่ <a href="https://apiportal.kasikornbank.com" target="_blank">KBank API Portal</a>
+            </p>
+            
+            <div class="form-group">
+                <label>KBank Consumer ID</label>
+                <input type="password" name="kbank_consumer_id" value="{{ config.kbank_consumer_id }}" placeholder="ดึงจาก KBank API Portal">
+                <small style="color: #6c757d;">💡 รับจากหน้า My Apps ใน KBank API Portal</small>
+            </div>
+            
+            <div class="form-group">
+                <label>KBank Consumer Secret</label>
+                <input type="password" name="kbank_consumer_secret" value="{{ config.kbank_consumer_secret }}" placeholder="ดึงจาก KBank API Portal">
+                <small style="color: #6c757d;">💡 Consumer Secret จากหน้า My Apps ใน KBank API Portal</small>
+            </div>
+
+            <div class="test-buttons">
+                <button type="button" class="test-btn" onclick="testKBankAPI()">🧪 ทดสอบ KBank API</button>
+            </div>
+        </div>
+
+        <div class="section-divider"></div>
         
         <h2>🤖 AI Configuration</h2>
         
@@ -307,7 +374,11 @@
         </div>
         
         <div class="switch-group">
-            <label><input type="checkbox" name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป</label>
+            <label><input type="checkbox" name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป Thunder API</label>
+        </div>
+        
+        <div class="switch-group">
+            <label><input type="checkbox" name="kbank_enabled" {% if config.kbank_enabled %}checked{% endif %}> เปิดใช้งานตรวจสอบสลิป KBank API</label>
         </div>
         
         <h2>💳 Payment Configuration</h2>
