@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - LINE OA Middleware</title>
+    <title>Admin Dashboard - LINE OA Middleware Enhanced</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -128,18 +128,30 @@
             padding: 15px;
             border-radius: 10px;
             text-align: center;
+            transition: transform 0.2s ease;
+        }
+        .api-status-item:hover {
+            transform: scale(1.02);
         }
         .api-configured {
             background: #d4edda;
             color: #155724;
+            border: 2px solid #28a745;
         }
         .api-not-configured {
             background: #f8d7da;
             color: #721c24;
+            border: 2px solid #dc3545;
         }
         .api-disabled {
             background: #e2e3e5;
             color: #6c757d;
+            border: 2px solid #6c757d;
+        }
+        .api-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
         }
         .test-area {
             background: rgba(255, 255, 255, 0.9);
@@ -180,6 +192,25 @@
         .btn-system-toggle:hover::before {
             left: 100%;
         }
+        .line-account-info {
+            background: linear-gradient(135deg, #00B900 0%, #00D400 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .push-message-test {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .enhanced-features {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -187,7 +218,7 @@
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container">
             <a class="navbar-brand fw-bold" href="/admin">
-                <i class="fas fa-robot me-2"></i>LINE OA Middleware
+                <i class="fas fa-robot me-2"></i>LINE OA Middleware <span class="badge bg-success">v2.2</span>
             </a>
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="/admin/settings"><i class="fas fa-cog me-1"></i>ตั้งค่า</a>
@@ -205,12 +236,51 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h2 class="mb-1"><i class="fas fa-tachometer-alt me-2"></i>ระบบควบคุม LINE OA</h2>
-                                <p class="text-muted mb-0">จัดการและตรวจสอบสถานะระบบตรวจสอบสลิปอัตโนมัติ</p>
+                                <h2 class="mb-1"><i class="fas fa-tachometer-alt me-2"></i>ระบบควบคุม LINE OA Enhanced</h2>
+                                <p class="text-muted mb-0">จัดการและตรวจสอบสถานะระบบตรวจสอบสลิปอัตโนมัติ พร้อม Push Message API</p>
                             </div>
                             <div id="systemStatusBadge">
                                 <!-- จะถูกอัปเดตด้วย JavaScript -->
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LINE Account Info -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="line-account-info" id="lineAccountInfo" style="display: none;">
+                    <h5><i class="fab fa-line me-2"></i>ข้อมูล LINE Official Account</h5>
+                    <div id="lineAccountDetails">
+                        <!-- จะถูกอัปเดตด้วย JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Features Banner -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="enhanced-features">
+                    <h5><i class="fas fa-star me-2"></i>Enhanced Features v2.2</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <i class="fas fa-paper-plane text-primary"></i> <strong>Smart Push Message</strong><br>
+                            <small>ส่งข้อความหาลูกค้าได้แม้ไม่มี Reply Token</small>
+                        </div>
+                        <div class="col-md-3">
+                            <i class="fas fa-shield-alt text-success"></i> <strong>Fallback System</strong><br>
+                            <small>ลอง Reply ก่อน แล้วค่อย Push หากล้มเหลว</small>
+                        </div>
+                        <div class="col-md-3">
+                            <i class="fas fa-search text-info"></i> <strong>Account Detection</strong><br>
+                            <small>ตรวจสอบความสามารถ LINE Account อัตโนมัติ</small>
+                        </div>
+                        <div class="col-md-3">
+                            <i class="fas fa-chart-line text-warning"></i> <strong>Enhanced Monitoring</strong><br>
+                            <small>แจ้งเตือนแบบ Real-time ครบถ้วน</small>
                         </div>
                     </div>
                 </div>
@@ -332,7 +402,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-plug me-2"></i>สถานะ API</h5>
+                        <h5 class="mb-0"><i class="fas fa-plug me-2"></i>สถานะ API Enhanced</h5>
                     </div>
                     <div class="card-body">
                         <div class="api-status-grid" id="apiStatusGrid">
@@ -369,10 +439,12 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-vial me-2"></i>ทดสอบระบบ</h5>
+                        <h5 class="mb-0"><i class="fas fa-vial me-2"></i>ทดสอบระบบ Enhanced</h5>
                     </div>
                     <div class="card-body">
+                        <!-- Slip Upload Test -->
                         <div class="test-area">
+                            <h6><i class="fas fa-receipt me-1"></i>ทดสอบการตรวจสอบสลิป</h6>
                             <form id="testSlipForm" enctype="multipart/form-data">
                                 <div class="upload-area" id="uploadArea">
                                     <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
@@ -393,6 +465,25 @@
                                 </button>
                             </form>
                         </div>
+
+                        <!-- Push Message Test -->
+                        <div class="push-message-test">
+                            <h6 class="text-white"><i class="fas fa-paper-plane me-1"></i>ทดสอบ Push Message</h6>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="testUserId" placeholder="ใส่ LINE User ID">
+                                <small class="text-white">ได้จาก webhook หรือ log files</small>
+                            </div>
+                            <button id="testPushMessage" class="btn btn-light w-100">
+                                <i class="fas fa-rocket me-1"></i>ทดสอบส่ง Push
+                            </button>
+                        </div>
+
+                        <!-- LINE Account Test -->
+                        <div class="mt-3">
+                            <button id="testLineCapabilities" class="btn btn-success w-100">
+                                <i class="fas fa-search me-1"></i>ตรวจสอบ LINE Account
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -404,15 +495,19 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between mb-2">
                             <span>Thunder API:</span>
-                            <span id="thunderStatus" class="badge">กำลังตรวจสอบ...</span>
+                            <span id="thunderStatus" class="badge">ตรวจสอบ...</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span>KBank API:</span>
-                            <span id="kbankStatus" class="badge">กำลังตรวจสอบ...</span>
+                            <span id="kbankStatus" class="badge">ตรวจสอบ...</span>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span>LINE API:</span>
-                            <span id="lineStatus" class="badge">กำลังตรวจสอบ...</span>
+                            <span id="lineStatus" class="badge">ตรวจสอบ...</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Push Message:</span>
+                            <span id="pushStatus" class="badge">ตรวจสอบ...</span>
                         </div>
                         <hr>
                         <div class="d-flex justify-content-between">
@@ -577,7 +672,7 @@
             }
         }
 
-        // Update API status
+        // Update API status (Enhanced version)
         async function updateApiStatus() {
             try {
                 const response = await fetch('/admin/api-status');
@@ -596,13 +691,30 @@
                     let statusClass = 'api-not-configured';
                     let statusText = 'ไม่ได้ตั้งค่า';
                     let statusIcon = 'fas fa-times-circle';
+                    let extraInfo = '';
                     
-                    if (apiData.configured && apiData.connected) {
+                    if (apiName === 'line' && apiData.configured && apiData.connected) {
+                        statusClass = 'api-configured';
+                        statusText = 'พร้อมใช้งาน';
+                        statusIcon = 'fas fa-check-circle';
+                        extraInfo = `<br><small>${apiData.bot_name || 'Unknown Bot'}</small>`;
+                        
+                        // ตรวจสอบ Push Message capability
+                        if (apiData.can_push === false) {
+                            statusClass = 'api-warning';
+                            statusText = 'Push Message ไม่รองรับ';
+                            statusIcon = 'fas fa-exclamation-triangle';
+                            extraInfo += `<br><small class="text-danger">Push: ${apiData.push_error || 'ไม่รองรับ'}</small>`;
+                        } else if (apiData.can_push === true) {
+                            extraInfo += '<br><small class="text-success">Push: รองรับ</small>';
+                        }
+                        
+                    } else if (apiData.configured && apiData.connected) {
                         statusClass = 'api-configured';
                         statusText = 'พร้อมใช้งาน';
                         statusIcon = 'fas fa-check-circle';
                     } else if (apiData.configured) {
-                        statusClass = 'api-not-configured';
+                        statusClass = 'api-warning';
                         statusText = 'ตั้งค่าแล้วแต่ไม่ได้เชื่อมต่อ';
                         statusIcon = 'fas fa-exclamation-circle';
                     } else if (apiData.enabled === false) {
@@ -616,6 +728,7 @@
                         <i class="${statusIcon} mb-2"></i>
                         <h6>${apiName.toUpperCase()} API</h6>
                         <small>${statusText}</small>
+                        ${extraInfo}
                         ${apiData.error ? `<br><small class="text-danger">${apiData.error}</small>` : ''}
                     `;
                     
@@ -632,14 +745,63 @@
                 document.getElementById('lineStatus').className = `badge ${data.line?.configured && data.line?.connected ? 'bg-success' : 'bg-danger'}`;
                 document.getElementById('lineStatus').textContent = data.line?.configured && data.line?.connected ? 'ออนไลน์' : 'ออฟไลน์';
                 
+                // Push Message status
+                const pushStatus = document.getElementById('pushStatus');
+                if (data.line?.can_push === true) {
+                    pushStatus.className = 'badge bg-success';
+                    pushStatus.textContent = 'รองรับ';
+                } else if (data.line?.can_push === false) {
+                    pushStatus.className = 'badge bg-warning';
+                    pushStatus.textContent = 'ไม่รองรับ';
+                } else {
+                    pushStatus.className = 'badge bg-secondary';
+                    pushStatus.textContent = 'ไม่ทราบ';
+                }
+                
                 // Overall status
                 const overallOnline = (data.thunder?.configured && data.thunder?.connected) || 
                                     (data.kbank?.configured && data.kbank?.connected);
-                document.getElementById('overallStatus').className = `badge ${overallOnline ? 'bg-success' : 'bg-danger'}`;
-                document.getElementById('overallStatus').textContent = overallOnline ? 'ปกติ' : 'มีปัญหา';
+                const lineOk = data.line?.configured && data.line?.connected;
+                
+                document.getElementById('overallStatus').className = `badge ${overallOnline && lineOk ? 'bg-success' : 'bg-danger'}`;
+                document.getElementById('overallStatus').textContent = overallOnline && lineOk ? 'ปกติ' : 'มีปัญหา';
+                
+                // Update LINE Account Info
+                if (data.line?.configured && data.line?.connected) {
+                    updateLineAccountInfo(data.line);
+                }
                 
             } catch (error) {
                 console.error('Error updating API status:', error);
+            }
+        }
+
+        // Update LINE Account Info
+        function updateLineAccountInfo(lineData) {
+            const infoDiv = document.getElementById('lineAccountInfo');
+            const detailsDiv = document.getElementById('lineAccountDetails');
+            
+            if (lineData.bot_name) {
+                const pushStatusText = lineData.can_push ? 
+                    '<span class="badge bg-success">Push Message รองรับ</span>' : 
+                    '<span class="badge bg-warning">Push Message ไม่รองรับ</span>';
+                
+                detailsDiv.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>ชื่อบอท:</strong> ${lineData.bot_name}<br>
+                            <strong>User ID:</strong> ${lineData.user_id ? lineData.user_id.substring(0, 10) + '...' : 'Unknown'}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>สถานะ:</strong> <span class="badge bg-success">เชื่อมต่อแล้ว</span><br>
+                            <strong>Push Message:</strong> ${pushStatusText}
+                        </div>
+                    </div>
+                    ${lineData.push_error ? `<div class="mt-2"><small>Push Error: ${lineData.push_error}</small></div>` : ''}
+                `;
+                infoDiv.style.display = 'block';
+            } else {
+                infoDiv.style.display = 'none';
             }
         }
 
@@ -670,7 +832,7 @@
             updateSystemStatus();
             updateApiStatus();
             setInterval(updateSystemStatus, 30000);
-            setInterval(updateApiStatus, 30000);
+            setInterval(updateApiStatus, 60000);  // API status ทุก 1 นาที
             setInterval(updateUptime, 60000);
             
             // Toggle slip system
@@ -722,159 +884,361 @@
             document.getElementById('clearDuplicateCache').addEventListener('click', async function() {
                 if (!confirm('คุณแน่ใจหรือไม่ที่จะล้างแคชสลิปซ้ำทั้งหมด?')) return;
                 
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังล้าง...';
-                this.disabled = true;
-                
-                try {
-                    const response = await fetch('/admin/clear-duplicate-cache');
-                    const data = await response.json();
-                    showToast(data.message, data.status === 'success' ? 'success' : 'error');
-                    setTimeout(updateSystemStatus, 1000);
-                } catch (error) {
-                    showToast('เกิดข้อผิดพลาดในการล้างแคช', 'error');
-                } finally {
-                    this.innerHTML = '<i class="fas fa-trash me-1"></i>ล้างแคช';
-                    this.disabled = false;
-                }
-            });
-            
-            // Check API status
-            document.getElementById('checkApiStatus').addEventListener('click', function() {
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
-                this.disabled = true;
-                
-                updateApiStatus().finally(() => {
-                    this.innerHTML = '<i class="fas fa-check me-1"></i>ตรวจสอบ';
-                    this.disabled = false;
-                    showToast('ตรวจสอบสถานะ API แล้ว', 'info');
-                });
-            });
-            
-            // Clear notifications
-            document.getElementById('clearNotifications').addEventListener('click', function() {
-                const notificationArea = document.getElementById('notificationArea');
-                notificationArea.innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-bell-slash fa-2x mb-2"></i>
-                        <p>ยังไม่มีการแจ้งเตือน</p>
-                    </div>
-                `;
-            });
-            
-            // File upload handling
-            const uploadArea = document.getElementById('uploadArea');
-            const slipFile = document.getElementById('slipFile');
-            const testForm = document.getElementById('testSlipForm');
-            
-            // Drag and drop
-            uploadArea.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('dragover');
-            });
-            
-            uploadArea.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-            });
-            
-            uploadArea.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    slipFile.files = files;
-                    updateFileDisplay(files[0]);
-                }
-            });
-            
-            // File input change
-            slipFile.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    updateFileDisplay(this.files[0]);
-                }
-            });
-            
-            // Form submit
-            testForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const fileInput = document.getElementById('slipFile');
-                if (!fileInput.files[0]) {
-                    showToast('กรุณาเลือกไฟล์สลิปก่อน', 'warning');
-                    return;
-                }
-                
-                const testButton = document.getElementById('testButton');
-                const uploadResult = document.getElementById('uploadResult');
-                
-                testButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
-                testButton.disabled = true;
-                
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                
-                try {
-                    const response = await fetch('/admin/test-slip-upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    
-                    uploadResult.classList.remove('d-none');
-                    const alertClass = data.status === 'success' ? 'alert-success' : 
-                                     data.status === 'duplicate' ? 'alert-warning' : 'alert-danger';
-                    
-                    uploadResult.innerHTML = `
-                        <div class="alert ${alertClass}" role="alert">
-                            <div id="uploadResultContent">
-                                <strong>${data.status === 'success' ? 'สำเร็จ!' : 
-                                         data.status === 'duplicate' ? 'สลิปซ้ำ!' : 'ผิดพลาด!'}</strong>
-                                <p class="mb-0">${data.message}</p>
-                                ${data.response && data.response.data ? `
-                                    <hr>
-                                    <small>
-                                        <strong>รายละเอียด:</strong><br>
-                                        จำนวน: ฿${data.response.data.amount || 'N/A'}<br>
-                                        วันที่: ${data.response.data.date || 'N/A'}<br>
-                                        ตรวจสอบโดย: ${data.response.data.verified_by || 'N/A'}
-                                    </small>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
-                    
-                    showToast(data.message, data.status === 'success' ? 'success' : 
-                             data.status === 'duplicate' ? 'warning' : 'error');
-                    
-                } catch (error) {
-                    uploadResult.classList.remove('d-none');
-                    uploadResult.innerHTML = `
-                        <div class="alert alert-danger" role="alert">
-                            <strong>เกิดข้อผิดพลาด!</strong>
-                            <p class="mb-0">ไม่สามารถเชื่อมต่อกับระบบได้</p>
-                        </div>
-                    `;
-                    showToast('เกิดข้อผิดพลาดในการทดสอบ', 'error');
-                } finally {
-                    testButton.innerHTML = '<i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป';
-                    testButton.disabled = false;
-                }
-            });
-            
-            function updateFileDisplay(file) {
-                const uploadArea = document.getElementById('uploadArea');
-                uploadArea.innerHTML = `
-                    <i class="fas fa-file-image fa-3x mb-3 text-success"></i>
-                    <h6>${file.name}</h6>
-                    <p class="text-muted mb-3">ขนาด: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('slipFile').click()">
-                        <i class="fas fa-exchange-alt me-1"></i>เปลี่ยนไฟล์
-                    </button>
-                `;
-            }
-        });
-    </script>
+               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังล้าง...';
+               this.disabled = true;
+               
+               try {
+                   const response = await fetch('/admin/clear-duplicate-cache');
+                   const data = await response.json();
+                   showToast(data.message, data.status === 'success' ? 'success' : 'error');
+                   setTimeout(updateSystemStatus, 1000);
+               } catch (error) {
+                   showToast('เกิดข้อผิดพลาดในการล้างแคช', 'error');
+               } finally {
+                   this.innerHTML = '<i class="fas fa-trash me-1"></i>ล้างแคช';
+                   this.disabled = false;
+               }
+           });
+           
+           // Check API status
+           document.getElementById('checkApiStatus').addEventListener('click', function() {
+               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
+               this.disabled = true;
+               
+               updateApiStatus().finally(() => {
+                   this.innerHTML = '<i class="fas fa-check me-1"></i>ตรวจสอบ';
+                   this.disabled = false;
+                   showToast('ตรวจสอบสถานะ API แล้ว', 'info');
+               });
+           });
+           
+           // Test LINE Capabilities (Enhanced)
+           document.getElementById('testLineCapabilities').addEventListener('click', async function() {
+               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังทดสอบ...';
+               this.disabled = true;
+               
+               try {
+                   const response = await fetch('/admin/test-line-capabilities', { method: 'POST' });
+                   const data = await response.json();
+                   
+                   if (data.status === 'success') {
+                       const capabilities = data.capabilities;
+                       const accountInfo = capabilities.account_info;
+                       
+                       let resultHtml = `<strong>✅ ทดสอบ LINE Account สำเร็จ!</strong><br><br>`;
+                       resultHtml += `<strong>ข้อมูลบัญชี:</strong><br>`;
+                       resultHtml += `• ชื่อ: ${accountInfo.display_name}<br>`;
+                       resultHtml += `• User ID: ${accountInfo.user_id.substring(0, 15)}...<br>`;
+                       resultHtml += `• Basic ID: ${accountInfo.basic_id}<br><br>`;
+                       
+                       resultHtml += `<strong>ความสามารถ API:</strong><br>`;
+                       resultHtml += `• Bot Info: ✅ ใช้งานได้<br>`;
+                       resultHtml += `• Reply Message: ✅ ใช้งานได้<br>`;
+                       resultHtml += `• Push Message: ${capabilities.api_capabilities.push_message ? '✅ ใช้งานได้' : '❌ ไม่รองรับ'}<br><br>`;
+                       
+                       if (capabilities.recommendations && capabilities.recommendations.length > 0) {
+                           resultHtml += `<strong>คำแนะนำ:</strong><br>`;
+                           capabilities.recommendations.forEach(rec => {
+                               resultHtml += `• ${rec}<br>`;
+                           });
+                       }
+                       
+                       showToastLarge(resultHtml, 'success', 10000);
+                       updateApiStatus(); // Refresh API status
+                   } else {
+                       let errorHtml = `<strong>❌ ทดสอบ LINE Account ล้มเหลว</strong><br><br>`;
+                       errorHtml += `ข้อผิดพลาด: ${data.message}<br><br>`;
+                       
+                       if (data.recommendations) {
+                           errorHtml += `<strong>คำแนะนำการแก้ไข:</strong><br>`;
+                           data.recommendations.forEach(rec => {
+                               errorHtml += `• ${rec}<br>`;
+                           });
+                       }
+                       
+                       showToastLarge(errorHtml, 'error', 10000);
+                   }
+               } catch (error) {
+                   showToast('เกิดข้อผิดพลาดในการทดสอบ LINE Account', 'error');
+               } finally {
+                   this.innerHTML = '<i class="fas fa-search me-1"></i>ตรวจสอบ LINE Account';
+                   this.disabled = false;
+               }
+           });
+           
+           // Test Push Message
+           document.getElementById('testPushMessage').addEventListener('click', async function() {
+               const userId = document.getElementById('testUserId').value.trim();
+               
+               if (!userId) {
+                   showToast('กรุณาใส่ LINE User ID', 'warning');
+                   document.getElementById('testUserId').focus();
+                   return;
+               }
+               
+               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังส่ง...';
+               this.disabled = true;
+               
+               try {
+                   const response = await fetch('/admin/test-push-message', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ 
+                           user_id: userId,
+                           message: `🧪 นี่คือข้อความทดสอบจากระบบ\n\n✅ หากคุณเห็นข้อความนี้ แสดงว่า Push Message API ทำงานปกติ\n\n📅 เวลา: ${new Date().toLocaleString('th-TH')}\n💻 ส่งจาก: Admin Dashboard`
+                       })
+                   });
+                   
+                   const data = await response.json();
+                   
+                   if (data.status === 'success') {
+                       showToast(`✅ ส่ง Push Message สำเร็จไปยัง ${userId.substring(0, 8)}...`, 'success');
+                       document.getElementById('testUserId').value = ''; // Clear input
+                   } else {
+                       showToast(`❌ ส่ง Push Message ล้มเหลว: ${data.message}`, 'error');
+                   }
+               } catch (error) {
+                   showToast('เกิดข้อผิดพลาดในการทดสอบ Push Message', 'error');
+               } finally {
+                   this.innerHTML = '<i class="fas fa-rocket me-1"></i>ทดสอบส่ง Push';
+                   this.disabled = false;
+               }
+           });
+           
+           // Clear notifications
+           document.getElementById('clearNotifications').addEventListener('click', function() {
+               const notificationArea = document.getElementById('notificationArea');
+               notificationArea.innerHTML = `
+                   <div class="text-center text-muted py-4">
+                       <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                       <p>ยังไม่มีการแจ้งเตือน</p>
+                   </div>
+               `;
+           });
+           
+           // File upload handling
+           const uploadArea = document.getElementById('uploadArea');
+           const slipFile = document.getElementById('slipFile');
+           const testForm = document.getElementById('testSlipForm');
+           
+           // Drag and drop
+           uploadArea.addEventListener('dragover', function(e) {
+               e.preventDefault();
+               this.classList.add('dragover');
+           });
+           
+           uploadArea.addEventListener('dragleave', function(e) {
+               e.preventDefault();
+               this.classList.remove('dragover');
+           });
+           
+           uploadArea.addEventListener('drop', function(e) {
+               e.preventDefault();
+               this.classList.remove('dragover');
+               
+               const files = e.dataTransfer.files;
+               if (files.length > 0) {
+                   slipFile.files = files;
+                   updateFileDisplay(files[0]);
+               }
+           });
+           
+           // File input change
+           slipFile.addEventListener('change', function() {
+               if (this.files.length > 0) {
+                   updateFileDisplay(this.files[0]);
+               }
+           });
+           
+           // Form submit
+           testForm.addEventListener('submit', async function(e) {
+               e.preventDefault();
+               
+               const fileInput = document.getElementById('slipFile');
+               if (!fileInput.files[0]) {
+                   showToast('กรุณาเลือกไฟล์สลิปก่อน', 'warning');
+                   return;
+               }
+               
+               const testButton = document.getElementById('testButton');
+               const uploadResult = document.getElementById('uploadResult');
+               
+               testButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
+               testButton.disabled = true;
+               
+               const formData = new FormData();
+               formData.append('file', fileInput.files[0]);
+               
+               try {
+                   const response = await fetch('/admin/test-slip-upload', {
+                       method: 'POST',
+                       body: formData
+                   });
+                   
+                   const data = await response.json();
+                   
+                   uploadResult.classList.remove('d-none');
+                   const alertClass = data.status === 'success' ? 'alert-success' : 
+                                    data.status === 'duplicate' ? 'alert-warning' : 'alert-danger';
+                   
+                   uploadResult.innerHTML = `
+                       <div class="alert ${alertClass}" role="alert">
+                           <div id="uploadResultContent">
+                               <strong>${data.status === 'success' ? '✅ สำเร็จ!' : 
+                                        data.status === 'duplicate' ? '🔄 สลิปซ้ำ!' : '❌ ผิดพลาด!'}</strong>
+                               <p class="mb-0">${data.message}</p>
+                               ${data.response && data.response.data ? `
+                                   <hr>
+                                   <small>
+                                       <strong>รายละเอียด:</strong><br>
+                                       จำนวน: ${data.response.data.amount_display || data.response.data.amount || 'N/A'}<br>
+                                       วันที่: ${data.response.data.date || 'N/A'}<br>
+                                       ตรวจสอบโดย: ${data.response.data.verified_by || 'N/A'}
+                                   </small>
+                               ` : ''}
+                           </div>
+                       </div>
+                   `;
+                   
+                   showToast(data.message, data.status === 'success' ? 'success' : 
+                            data.status === 'duplicate' ? 'warning' : 'error');
+                   
+               } catch (error) {
+                   uploadResult.classList.remove('d-none');
+                   uploadResult.innerHTML = `
+                       <div class="alert alert-danger" role="alert">
+                           <strong>เกิดข้อผิดพลาด!</strong>
+                           <p class="mb-0">ไม่สามารถเชื่อมต่อกับระบบได้</p>
+                       </div>
+                   `;
+                   showToast('เกิดข้อผิดพลาดในการทดสอบ', 'error');
+               } finally {
+                   testButton.innerHTML = '<i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป';
+                   testButton.disabled = false;
+               }
+           });
+           
+           function updateFileDisplay(file) {
+               const uploadArea = document.getElementById('uploadArea');
+               uploadArea.innerHTML = `
+                   <i class="fas fa-file-image fa-3x mb-3 text-success"></i>
+                   <h6>${file.name}</h6>
+                   <p class="text-muted mb-3">ขนาด: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                   <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('slipFile').click()">
+                       <i class="fas fa-exchange-alt me-1"></i>เปลี่ยนไฟล์
+                   </button>
+               `;
+           }
+       });
+
+       // Show large toast for detailed information
+       function showToastLarge(message, type = 'info', duration = 8000) {
+           const toastContainer = document.getElementById('toastContainer');
+           const toastId = 'toast_large_' + Date.now();
+           
+           const bgClass = {
+               'success': 'bg-success',
+               'error': 'bg-danger',
+               'warning': 'bg-warning',
+               'info': 'bg-info'
+           }[type] || 'bg-info';
+           
+           const toastHtml = `
+               <div id="${toastId}" class="toast ${bgClass} text-white" role="alert" data-bs-autohide="true" data-bs-delay="${duration}" style="max-width: 400px;">
+                   <div class="toast-header">
+                       <strong class="me-auto">${getNotificationIcon(type)} ผลการทดสอบ</strong>
+                       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                   </div>
+                   <div class="toast-body">
+                       ${message}
+                   </div>
+               </div>
+           `;
+           
+           toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+           const toastElement = document.getElementById(toastId);
+           const toast = new bootstrap.Toast(toastElement);
+           toast.show();
+           
+           toastElement.addEventListener('hidden.bs.toast', () => {
+               toastElement.remove();
+           });
+       }
+
+       // Debug functions (can be called from browser console)
+       window.debugFunctions = {
+           async checkConfig() {
+               const response = await fetch('/admin/debug-config');
+               const data = await response.json();
+               console.table(data);
+               return data;
+           },
+           
+           async testLineAccount() {
+               const response = await fetch('/admin/check-line-account');
+               const data = await response.json();
+               console.log('LINE Account Test Result:', data);
+               return data;
+           },
+           
+           async getSystemStats() {
+               const response = await fetch('/admin/statistics');
+               const data = await response.json();
+               console.table(data);
+               return data;
+           },
+           
+           sendTestNotification(message, type = 'info') {
+               addNotification({
+                   message: message,
+                   type: type,
+                   timestamp: new Date().toISOString(),
+                   data: { test: true }
+               });
+           }
+       };
+
+       // Keyboard shortcuts
+       document.addEventListener('keydown', function(e) {
+           if (e.ctrlKey || e.metaKey) {
+               switch(e.key) {
+                   case 'r':
+                       e.preventDefault();
+                       updateApiStatus();
+                       showToast('รีเฟรชสถานะ API แล้ว', 'info');
+                       break;
+                   case 't':
+                       e.preventDefault();
+                       document.getElementById('testUserId').focus();
+                       break;
+                   case 'u':
+                       e.preventDefault();
+                       document.getElementById('slipFile').click();
+                       break;
+               }
+           }
+       });
+
+       // Add helpful tooltips
+       const tooltips = [
+           { selector: '#testUserId', title: 'User ID ได้จาก webhook หรือ log เมื่อผู้ใช้ส่งข้อความมา' },
+           { selector: '#toggleSlipSystem', title: 'เปิด/ปิดระบบตรวจสอบสลิปทั้งหมด' },
+           { selector: '#clearDuplicateCache', title: 'ล้างแคชสลิปซ้ำ เพื่อให้สามารถตรวจสอบสลิปเดิมได้อีกครั้ง' }
+       ];
+
+       tooltips.forEach(tooltip => {
+           const element = document.querySelector(tooltip.selector);
+           if (element) {
+               element.setAttribute('title', tooltip.title);
+               element.setAttribute('data-bs-toggle', 'tooltip');
+           }
+       });
+
+       // Initialize Bootstrap tooltips
+       var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+       var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+           return new bootstrap.Tooltip(tooltipTriggerEl);
+       });
+   </script>
 </body>
 </html>
