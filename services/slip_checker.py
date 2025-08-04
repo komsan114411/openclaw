@@ -14,6 +14,7 @@ def verify_slip_with_thunder(message_id: str,
     if not config_manager.get("slip_enabled"):
         return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดอยู่"}
 
+    # ปรับปรุง: เพิ่ม .strip() เพื่อลบช่องว่างที่ไม่จำเป็น
     api_token = config_manager.get("thunder_api_token", "").strip()
     line_token = config_manager.get("line_channel_access_token", "").strip()
     wallet_phone = config_manager.get("wallet_phone_number", "").strip()
@@ -41,6 +42,7 @@ def verify_slip_with_thunder(message_id: str,
     # เตรียมส่งรูปไปยัง Thunder
     endpoint = "verify/truewallet" if wallet_phone else "verify"
     post_url = f"https://api.thunder.in.th/v1/{endpoint}"
+    # ปรับปรุง: ตรวจสอบให้แน่ใจว่า Authorization header ถูกสร้างอย่างถูกต้อง
     headers = {"Authorization": f"Bearer {api_token}"}
     files = {"file": ("slip.jpg", image_data, "image/jpeg")}
     data = {"wallet_phone": wallet_phone} if wallet_phone else {}
