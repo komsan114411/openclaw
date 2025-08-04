@@ -129,14 +129,17 @@ def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
         receiver_info = slip.get("receiver_name", slip.get("receiver_bank", ""))
         reference_info = ""
     
-    contents =
+    contents = [
+        {"type": "text", "text": title_text, "weight": "bold", "size": "lg", "color": "#00B900"},
+        {"type": "text", "text": f"฿{amount}", "weight": "bold", "size": "xxl", "margin": "md"},
+    ]
     
     if date_time.strip():
         contents.append({"type": "text", "text": date_time, "size": "sm", "color": "#999999", "margin": "sm"})
     
     contents.append({"type": "separator", "margin": "md"})
     
-    detail_contents =
+    detail_contents = []
     if sender_info:
         detail_contents.append({"type": "text", "text": f"ผู้โอน: {sender_info}", "size": "sm"})
     if receiver_info:
@@ -192,7 +195,7 @@ def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
     url = "https://api.line.me/v2/bot/message/reply"
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     contents = build_slip_flex_contents(slip_data)
-    payload = {"replyToken": reply_token, "messages":}
+    payload = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": "ผลการตรวจสอบสลิป", "contents": contents}]}
     try:
         requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
     except Exception as e:
@@ -203,7 +206,7 @@ def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> None:
 def dispatch_event(event: Dict[str, Any]) -> None:
     """ประมวลผล event ที่รับมาจาก LINE แล้วดำเนินการตามประเภทข้อความ"""
     try:
-        if event.get("type")!= "message":
+        if event.get("type") != "message":
             return
         message = event.get("message", {})
         user_id = event.get("source", {}).get("userId")
@@ -277,7 +280,7 @@ async def line_webhook(request: Request) -> JSONResponse:
     except json.JSONDecodeError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
     # Dispatch ทุก event ใน thread แยก
-    for ev in payload.get("events",):
+    for ev in payload.get("events", []):
         threading.Thread(target=dispatch_event, args=(ev,), daemon=True).start()
     return JSONResponse(content={"status": "ok"})
 
@@ -341,36 +344,24 @@ async def api_status_check():
     if thunder_token:
         status_result["thunder"]["configured"] = True
         try:
-            # ใช้ POST request ไปยัง /v1/verify/truewallet พร้อมข้อมูลจำลอง
-            # เพื่อยืนยันการเชื่อมต่อและโทเค็น
-            dummy_file = {"file": ("dummy.txt", b"not_an_image", "text/plain")}
-            response = requests.post("https://api.thunder.in.th/v1/verify/truewallet",
-                                     headers={"Authorization": f"Bearer {thunder_token}"},
-                                     files=dummy_file,
-                                     timeout=5)
-            
-            # คาดหวัง 400 Bad Request (เช่น invalid_image) สำหรับข้อมูลจำลอง
-            # หรือ 401 Unauthorized หากโทเค็นไม่ถูกต้อง
-            if response.status_code == 400:
+            # ใช้ endpoint verify แทน /user; 401 = token ไม่ถูกต้อง แต่ถือว่าสามารถเชื่อมต่อ
+            headers = {"Authorization": f"Bearer {thunder_token}"}
+            resp = requests.get("https://api.thunder.in.th/v1/verify",
+                                headers=headers, timeout=5)
+            if resp.status_code in (200, 401):
                 status_result["thunder"]["connected"] = True
-                status_result["thunder"]["message"] = f"Health check responded with 400 Bad Request (expected for dummy data). API is reachable."
-                # พยายามดึงข้อความ error จาก response เพื่อให้ข้อมูลเพิ่มเติม
-                try:
-                    error_data = response.json()
-                    if error_data.get("message"):
-                        status_result["thunder"]["error"] = error_data.get("message")
-                except json.JSONDecodeError:
-                    status_result["thunder"]["error"] = f"Unexpected 400 response format: {response.text}"
-            elif response.status_code == 401:
-                status_result["thunder"]["connected"] = True # ถือว่าเชื่อมต่อได้ แต่โทเค็นไม่ถูกต้อง
-                status_result["thunder"]["error"] = "Thunder API returned 401 Unauthorized. Check API Token."
-            elif response.status_code == 403:
-                status_result["thunder"]["error"] = f"Thunder API returned 403 Forbidden: {response.json().get('message', 'Access denied')}"
-            elif response.status_code >= 500:
-                status_result["thunder"]["error"] = f"Thunder API returned server error {response.status_code}: {response.text}"
-            else:
-                # กรณีอื่นๆ ที่ไม่คาดคิด
-                status_result["thunder"]["error"] = f"Thunder API returned unexpected status {response.status_code}: {response.text}"
+            # ถ้ามีข้อมูล balance ใน response ให้ดึงมาแสดง
+            try:
+                data = resp.json()
+                if isinstance(data, dict):
+                    if "balance" in data:
+                        status_result["thunder"]["balance"] = data.get("balance", 0)
+                    # แสดงข้อความ error จาก Thunder ถ้ามี
+                    if data.get("message"):
+                        status_result["thunder"]["error"] = data.get("message")
+            except Exception:
+                # ไม่สามารถ decode JSON ได้
+                status_result["thunder"]["error"] = f"Unexpected response: {resp.text}"
         except requests.exceptions.RequestException as e:
             status_result["thunder"]["error"] = str(e)
 
@@ -383,7 +374,7 @@ async def api_status_check():
             # ใช้ /v2/bot/info ตรวจสอบข้อมูลบอท ตามเอกสาร LINE Messaging API
             # endpoint นี้ไม่ต้องระบุ userId และจะแจ้ง 401 หาก token ผิด
             response = requests.get("https://api.line.me/v2/bot/info",
-                                     headers=headers, timeout=5)
+                                    headers=headers, timeout=5)
             if response.status_code == 200:
                 bot_data = response.json()
                 status_result["line"]["connected"] = True
@@ -439,29 +430,27 @@ async def test_thunder_api():
 
     try:
         headers = {"Authorization": f"Bearer {api_token}"}
-        # ใช้ POST request ไปยัง /v1/verify/truewallet พร้อมข้อมูลจำลอง
-        # เพื่อยืนยันการเชื่อมต่อและโทเค็น
-        dummy_file = {"file": ("dummy.txt", b"not_an_image", "text/plain")}
-        response = requests.post("https://api.thunder.in.th/v1/verify/truewallet",
-                                 headers=headers,
-                                 files=dummy_file,
-                                 timeout=10)
-        
-        # คาดหวัง 400 Bad Request สำหรับข้อมูลจำลอง หรือ 401 Unauthorized หากโทเค็นไม่ถูกต้อง
-        if response.status_code == 400:
-            return JSONResponse(content={"status": "success", "message": "เชื่อมต่อ Thunder API สำเร็จ (ตอบกลับ 400 Bad Request สำหรับข้อมูลจำลอง)", "response_detail": response.json()})
-        elif response.status_code == 401:
-            return JSONResponse(content={"status": "error", "message": "Thunder API Error: 401 Unauthorized. โปรดตรวจสอบ Thunder API Token ของคุณ", "response_detail": response.json()})
-        elif response.status_code == 403:
-            return JSONResponse(content={"status": "error", "message": f"Thunder API Error: 403 Forbidden. {response.json().get('message', 'Access denied')}", "response_detail": response.json()})
-        elif response.status_code >= 500:
-            return JSONResponse(content={"status": "error", "message": f"Thunder API Error: Internal Server Error {response.status_code}. โปรดลองอีกครั้งในภายหลัง", "response_detail": response.text})
-        else:
-            # กรณีอื่นๆ ที่ไม่คาดคิด
-            response.raise_for_status() # จะ raise HTTPError สำหรับ 4xx/5xx ที่เหลือ
-            return JSONResponse(content={"status": "success", "message": "เชื่อมต่อ Thunder API สำเร็จ (ตอบกลับ 200 OK)", "response_detail": response.json()})
+        # ใช้ /v1/verify เพื่อเช็กว่าเซิร์ฟเวอร์ตอบสนอง (401 แปลว่า token ผิด แต่ยังตอบ)
+        resp = requests.get("https://api.thunder.in.th/v1/verify",
+                            headers=headers, timeout=10)
+        if resp.status_code in (200, 401):
+            msg = ("เชื่อมต่อ Thunder API สำเร็จ" if resp.status_code == 200
+                   else "เชื่อมต่อได้ แต่ Token ไม่ถูกต้อง")
+            return JSONResponse(content={
+                "status": "success",
+                "message": msg,
+                "raw_status_code": resp.status_code,
+                "response_message": resp.json().get("message", "")
+            })
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"{resp.status_code}: {resp.text}"
+        })
     except Exception as e:
-        return JSONResponse(content={"status": "error", "message": f"Thunder API Error: {str(e)}"})
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"Thunder API Error: {str(e)}"
+        })
 
 @app.post("/admin/test-kbank")
 async def test_kbank_api():
