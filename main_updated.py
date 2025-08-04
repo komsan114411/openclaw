@@ -649,6 +649,25 @@ async def admin_chat(request: Request):
         },
     )
 
+@app.post("/admin/force-reset-apis")
+async def force_reset_apis():
+    """บังคับรีเซ็ต API cache ทั้งหมด"""
+    try:
+        from services.enhanced_slip_checker import reset_api_failure_cache
+        reset_api_failure_cache()
+        
+        await notification_manager.send_notification(
+            "🔄 บังคับรีเซ็ต API cache แล้ว - ระบบพร้อมใช้งาน",
+            "success"
+        )
+        
+        return JSONResponse(content={
+            "status": "success", 
+            "message": "บังคับรีเซ็ต API cache แล้ว ระบบพร้อมใช้งาน"
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
 # ====================== API Endpoints ======================
 
 @app.get("/admin/api-status")
