@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import asyncio
+import time
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
@@ -151,16 +152,16 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
         logger.error(f"❌ Signature verification error: {e}")
         return False
 
-def send_line_reply(reply_token: str, text: str) -> bool:
-    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (แก้ไข 400 error)"""
+def send_line_reply(reply_token: str, text: str, max_retries: int = 3) -> bool:
+    """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE (แก้ไข 400 error + retry)"""
     access_token = config_manager.get("line_channel_access_token")
     if not access_token:
         logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
         return False
     
     # ตรวจสอบ reply_token
-    if not reply_token or reply_token.strip() == "":
-        logger.error("❌ Reply token is empty or invalid")
+    if not reply_token or reply_token.strip() == "" or len(reply_token.strip()) < 10:
+        logger.error("❌ Reply token is empty, invalid, or too short")
         return False
     
     # จำกัดความยาวข้อความ (LINE มีข้อจำกัด 5000 ตัวอักษร)
@@ -171,7 +172,8 @@ def send_line_reply(reply_token: str, text: str) -> bool:
     headers = {
         "Authorization": f"Bearer {access_token}", 
         "Content-Type": "application/json",
-        "User-Agent": "LINE-OA-Middleware/1.0"
+        "User-Agent": "LINE-OA-Middleware/1.0",
+        "Connection": "close"
     }
     payload = {
         "replyToken": reply_token, 
@@ -183,42 +185,71 @@ def send_line_reply(reply_token: str, text: str) -> bool:
         ]
     }
     
-    try:
-        logger.info(f"📤 Sending LINE reply (length: {len(text)} chars)")
-        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
-        
-        logger.info(f"📤 LINE API response: {response.status_code}")
-        
-        if response.status_code == 200:
-            logger.info(f"✅ LINE reply sent successfully")
-            return True
-        elif response.status_code == 400:
-            try:
-                error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
-                error_message = error_data.get('message', 'Bad Request')
-                logger.error(f"❌ LINE API 400 Bad Request: {error_message}")
-            except:
-                logger.error(f"❌ LINE API 400 Bad Request: {response.text}")
-            return False
-        elif response.status_code == 401:
-            logger.error(f"❌ LINE API 401 Unauthorized - Check access token")
-            return False
-        elif response.status_code == 403:
-            logger.error(f"❌ LINE API 403 Forbidden - Check permissions")
-            return False
-        else:
-            logger.error(f"❌ LINE API HTTP {response.status_code}: {response.text}")
-            return False
+    # ลองส่งหลายครั้งถ้าล้มเหลว
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"📤 Sending LINE reply (attempt {attempt + 1}/{max_retries}, length: {len(text)} chars)")
             
-    except requests.exceptions.Timeout:
-        logger.error(f"❌ LINE API timeout")
-        return False
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Failed to send LINE reply: {e}")
-        return False
-    except Exception as e:
-        logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
-        return False
+            response = requests.post(
+                url, 
+                headers=headers, 
+                data=json.dumps(payload), 
+                timeout=15
+            )
+            
+            logger.info(f"📤 LINE API response: {response.status_code}")
+            
+            if response.status_code == 200:
+                logger.info(f"✅ LINE reply sent successfully")
+                return True
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                    error_message = error_data.get('message', 'Bad Request')
+                    logger.error(f"❌ LINE API 400 Bad Request: {error_message}")
+                    
+                    # ถ้าเป็น reply token หมดอายุ ไม่ต้องลองใหม่
+                    if 'invalid' in error_message.lower() and 'token' in error_message.lower():
+                        logger.error("❌ Reply token expired - not retrying")
+                        return False
+                        
+                except:
+                    logger.error(f"❌ LINE API 400 Bad Request: {response.text}")
+                
+                return False  # ไม่ลองใหม่สำหรับ 400 errors
+                
+            elif response.status_code == 401:
+                logger.error(f"❌ LINE API 401 Unauthorized - Check access token")
+                return False
+            elif response.status_code == 403:
+                logger.error(f"❌ LINE API 403 Forbidden - Check permissions")
+                return False
+            elif response.status_code >= 500:
+                # Server errors - ลองใหม่
+                logger.warning(f"⚠️ LINE API {response.status_code} Server Error - will retry")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # รอ 1 วินาทีก่อนลองใหม่
+                    continue
+            else:
+                logger.error(f"❌ LINE API HTTP {response.status_code}: {response.text}")
+                return False
+                
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ LINE API timeout (attempt {attempt + 1})")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ LINE API request error (attempt {attempt + 1}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+        except Exception as e:
+            logger.exception(f"❌ Unexpected error sending LINE reply: {e}")
+            return False
+    
+    logger.error(f"❌ Failed to send LINE reply after {max_retries} attempts")
+    return False
 
 def create_slip_hash(image_data: bytes) -> str:
     """สร้าง hash จากข้อมูลรูปภาพเพื่อตรวจสอบสลิปซ้ำ"""
@@ -251,8 +282,9 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         
         logger.info(f"🔄 Processing {message_type} from user {user_id}")
         
-        if not reply_token:
-            logger.error("❌ No reply token - cannot respond")
+        # ตรวจสอบ reply token ก่อนดำเนินการ
+        if not reply_token or len(reply_token.strip()) < 10:
+            logger.error("❌ Invalid or expired reply token - skipping reply")
             return
         
         # บันทึกข้อความขาเข้า
@@ -268,8 +300,10 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 "info"
             )
             
-            # ส่งข้อความแจ้งผู้ใช้ก่อน
-            send_line_reply(reply_token, "⏳ รอสักครู่ แอดมินกำลังตรวจสอบสลิปของคุณ...")
+            # ส่งข้อความแจ้งผู้ใช้ก่อน (แต่ไม่บังคับต้องสำเร็จ)
+            initial_reply_sent = send_line_reply(reply_token, "⏳ รอสักครู่ แอดมินกำลังตรวจสอบสลิปของคุณ...")
+            if not initial_reply_sent:
+                logger.warning("⚠️ Failed to send initial reply - continuing with slip verification")
             
             # ดาวน์โหลดรูปภาพจาก LINE เพื่อตรวจสอบ duplicate
             line_token = config_manager.get("line_channel_access_token")
@@ -371,49 +405,48 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         if slip_hash and image_data:
                             save_duplicate_slip_data(slip_hash, result['data'])
                             
+                    elif result.get("status") == "duplicate":
+                        # กรณี Thunder API แจ้ง duplicate
+                        await notification_manager.send_notification(
+                            f"🔄 Thunder API แจ้งสลิปซ้ำ",
+                            "warning"
+                        )
+                        
+                        duplicate_msg = f"🔄 สลิปนี้เคยตรวจสอบแล้ว\n\n{result.get('message', '')}\n\n💡 หากต้องการตรวจสอบสลิปใหม่ กรุณาส่งรูปสลิปที่ยังไม่เคยใช้"
+                        
+                        reply_sent = send_line_reply(reply_token, duplicate_msg)
+                        if not reply_sent:
+                            logger.error("❌ Failed to send duplicate error reply to LINE")
+                            
+                        try:
+                            save_chat_history(user_id, "out", {"type": "text", "text": duplicate_msg}, sender="slip_bot_duplicate")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to save chat history: {e}")
+                            
                     else:
                         error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                         
-                        # จัดการข้อผิดพลาดเฉพาะสำหรับ duplicate จาก Thunder API
-                        if "duplicate" in error_message.lower() or "ซ้ำ" in error_message:
-                            await notification_manager.send_notification(
-                                f"🔄 Thunder API แจ้งสลิปซ้ำ - กำลังค้นหาข้อมูลเดิม",
-                                "warning"
-                            )
-                            
-                            # ส่งข้อความแจ้งสลิปซ้ำแบบทั่วไป
-                            duplicate_msg = f"🔄 สลิปนี้เคยตรวจสอบแล้ว\n\n{error_message}\n\n💡 หากต้องการตรวจสอบสลิปใหม่ กรุณาส่งรูปสลิปที่ยังไม่เคยใช้"
-                            
-                            reply_sent = send_line_reply(reply_token, duplicate_msg)
-                            if not reply_sent:
-                                logger.error("❌ Failed to send duplicate error reply to LINE")
-                                
-                            try:
-                                save_chat_history(user_id, "out", {"type": "text", "text": duplicate_msg}, sender="slip_bot_duplicate")
-                            except Exception as e:
-                                logger.warning(f"⚠️ Failed to save chat history: {e}")
-                        else:
-                            await notification_manager.send_notification(
-                                f"❌ ตรวจสอบสลิปล้มเหลว: {error_message}",
-                                "error"
-                            )
-                            
-                            # สร้างข้อความ error ที่เป็นมิตร
-                            error_reply = f"❌ {error_message}"
-                            
-                            # เพิ่มคำแนะนำถ้ามี
-                            if result.get("suggestions"):
-                                error_reply += "\n\n💡 คำแนะนำ:\n• " + "\n• ".join(result["suggestions"][:3])
-                            
-                            # ส่งข้อความตอบกลับ
-                            reply_sent = send_line_reply(reply_token, error_reply)
-                            if not reply_sent:
-                                logger.error("❌ Failed to send error reply to LINE")
-                            
-                            try:
-                                save_chat_history(user_id, "out", {"type": "text", "text": error_reply}, sender="slip_bot")
-                            except Exception as e:
-                                logger.warning(f"⚠️ Failed to save chat history: {e}")
+                        await notification_manager.send_notification(
+                            f"❌ ตรวจสอบสลิปล้มเหลว: {error_message}",
+                            "error"
+                        )
+                        
+                        # สร้างข้อความ error ที่เป็นมิตร
+                        error_reply = f"❌ {error_message}"
+                        
+                        # เพิ่มคำแนะนำถ้ามี
+                        if result.get("suggestions"):
+                            error_reply += "\n\n💡 คำแนะนำ:\n• " + "\n• ".join(result["suggestions"][:3])
+                        
+                        # ส่งข้อความตอบกลับ
+                        reply_sent = send_line_reply(reply_token, error_reply)
+                        if not reply_sent:
+                            logger.error("❌ Failed to send error reply to LINE")
+                        
+                        try:
+                            save_chat_history(user_id, "out", {"type": "text", "text": error_reply}, sender="slip_bot")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Failed to save chat history: {e}")
                         
             except Exception as e:
                 error_msg = f"เกิดข้อผิดพลาดในการตรวจสอบสลิป: {str(e)}"
@@ -424,7 +457,11 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     "error"
                 )
                 
-                send_line_reply(reply_token, error_msg)
+                # ลองส่งข้อความ error
+                try:
+                    send_line_reply(reply_token, error_msg)
+                except:
+                    logger.error("❌ Failed to send error message to LINE")
                 
         elif message_type == "text":
             user_text = message.get("text", "")
@@ -649,25 +686,6 @@ async def admin_chat(request: Request):
         },
     )
 
-@app.post("/admin/force-reset-apis")
-async def force_reset_apis():
-    """บังคับรีเซ็ต API cache ทั้งหมด"""
-    try:
-        from services.enhanced_slip_checker import reset_api_failure_cache
-        reset_api_failure_cache()
-        
-        await notification_manager.send_notification(
-            "🔄 บังคับรีเซ็ต API cache แล้ว - ระบบพร้อมใช้งาน",
-            "success"
-        )
-        
-        return JSONResponse(content={
-            "status": "success", 
-            "message": "บังคับรีเซ็ต API cache แล้ว ระบบพร้อมใช้งาน"
-        })
-    except Exception as e:
-        return JSONResponse(content={"status": "error", "message": str(e)})
-
 # ====================== API Endpoints ======================
 
 @app.get("/admin/api-status")
@@ -846,6 +864,25 @@ async def clear_duplicate_cache():
         return JSONResponse(content={
             "status": "success", 
             "message": f"ล้างแคชสลิปซ้ำแล้ว {cache_size} รายการ"
+        })
+    except Exception as e:
+        return JSONResponse(content={"status": "error", "message": str(e)})
+
+@app.post("/admin/force-reset-apis")
+async def force_reset_apis():
+    """บังคับรีเซ็ต API cache ทั้งหมด"""
+    try:
+        from services.enhanced_slip_checker import reset_api_failure_cache
+        reset_api_failure_cache()
+        
+        await notification_manager.send_notification(
+            "🔄 บังคับรีเซ็ต API cache แล้ว - ระบบพร้อมใช้งาน",
+            "success"
+        )
+        
+        return JSONResponse(content={
+            "status": "success", 
+            "message": "บังคับรีเซ็ต API cache แล้ว ระบบพร้อมใช้งาน"
         })
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)})
