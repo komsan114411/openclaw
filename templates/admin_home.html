@@ -3,12 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINE OA Admin - Enhanced Dashboard</title>
+    <title>LINE OA Admin - Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <style>
         body { background-color: #f8f9fa; }
         .navbar { background-color: #00B900 !important; }
+        .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); border-radius: 0.5rem; }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15); }
+        .status-badge { font-size: 0.875rem; padding: 0.375rem 0.75rem; }
+        .api-status-card { min-height: 120px; }
+        
+        /* Notification Styles */
         .notification-panel {
             position: fixed;
             top: 80px;
@@ -21,18 +28,15 @@
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             border: 1px solid #ddd;
+            display: none;
         }
         .notification-item {
             padding: 12px;
             border-bottom: 1px solid #eee;
             transition: background-color 0.2s;
         }
-        .notification-item:hover {
-            background-color: #f8f9fa;
-        }
-        .notification-item:last-child {
-            border-bottom: none;
-        }
+        .notification-item:hover { background-color: #f8f9fa; }
+        .notification-item:last-child { border-bottom: none; }
         .notification-success { border-left: 4px solid #28a745; }
         .notification-error { border-left: 4px solid #dc3545; }
         .notification-info { border-left: 4px solid #17a2b8; }
@@ -54,50 +58,53 @@
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
-        
-        .slip-status-panel {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .api-health-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="/admin">
-                <i class="bi bi-robot"></i> LINE OA Enhanced Dashboard
+                <i class="bi bi-robot"></i> LINE OA Middleware Enhanced
             </a>
-            <div class="d-flex align-items-center">
-                <span class="me-3">
-                    <i class="bi bi-wifi"></i> WebSocket
-                    <span id="websocket-status" class="status-indicator status-offline"></span>
-                </span>
-                <button class="btn btn-outline-light btn-sm" onclick="toggleNotifications()">
-                    <i class="bi bi-bell"></i> แจ้งเตือน
-                    <span id="notification-badge" class="badge bg-danger" style="display: none;">0</span>
-                </button>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/chat">
+                            <i class="bi bi-chat-dots"></i> ประวัติแชท
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/settings">
+                            <i class="bi bi-gear"></i> ตั้งค่า
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light btn-sm ms-2" onclick="toggleNotifications()">
+                            <i class="bi bi-bell"></i> แจ้งเตือน
+                            <span id="notification-badge" class="badge bg-danger" style="display: none;">0</span>
+                        </button>
+                    </li>
+                </ul>
             </div>
         </div>
     </nav>
 
     <!-- Notification Panel -->
-    <div id="notification-panel" class="notification-panel" style="display: none;">
+    <div id="notification-panel" class="notification-panel">
         <div class="p-3 border-bottom bg-primary text-white">
             <h6 class="mb-0">
                 <i class="bi bi-bell"></i> การแจ้งเตือนแบบ Real-time
+                <span class="ms-2">
+                    WebSocket: <span id="websocket-status" class="status-indicator status-offline"></span>
+                </span>
                 <button class="btn btn-sm btn-outline-light float-end" onclick="clearNotifications()">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -109,49 +116,32 @@
     </div>
 
     <div class="container-fluid py-4">
-        <!-- Status Overview -->
-        <div class="slip-status-panel">
-            <h4><i class="bi bi-speedometer2"></i> สถานะระบบตรวจสอบสลิป</h4>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="api-health-indicator">
-                        <i class="bi bi-lightning-charge"></i>
-                        <span>Thunder API</span>
-                        <span id="thunder-status" class="ms-auto">
-                            {% if config.slip_enabled and config.thunder_api_token %}
-                                <span class="badge bg-success">เปิดใช้งาน</span>
-                            {% else %}
-                                <span class="badge bg-secondary">ปิดใช้งาน</span>
-                            {% endif %}
-                        </span>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="api-health-indicator">
-                        <i class="bi bi-bank"></i>
-                        <span>KBank API</span>
-                        <span id="kbank-status" class="ms-auto">
-                            {% if config.kbank_enabled and config.kbank_consumer_id %}
-                                <span class="badge bg-success">เปิดใช้งาน</span>
-                            {% else %}
-                                <span class="badge bg-secondary">ปิดใช้งาน</span>
-                            {% endif %}
-                        </span>
-                    </div>
-                </div>
+        <div class="row">
+            <div class="col-12">
+                <h1 class="h3 mb-4">
+                    <i class="bi bi-speedometer2"></i> Dashboard Enhanced
+                    <small class="text-muted">ระบบตรวจสอบสลิปอัตโนมัติ</small>
+                </h1>
             </div>
-            <div class="mt-3">
-                <small>
+        </div>
+
+        <!-- Status Alert -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-info">
                     <i class="bi bi-info-circle"></i>
-                    ระบบจะใช้ Thunder API ก่อน หากล้มเหลวจะใช้ KBank API เป็น Fallback
-                </small>
+                    <strong>ระบบใหม่:</strong> แจ้งเตือนจะแสดงในหน้านี้แทนที่จะส่งไปใน LINE โดยตรง
+                    <button class="btn btn-sm btn-primary ms-2" onclick="connectWebSocket()">
+                        <i class="bi bi-wifi"></i> เชื่อมต่อ WebSocket
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Stats Cards -->
         <div class="row mb-4">
             <div class="col-md-3 mb-3">
-                <div class="card">
+                <div class="card stat-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -167,11 +157,11 @@
             </div>
             
             <div class="col-md-3 mb-3">
-                <div class="card">
+                <div class="card stat-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-2">สลิปที่ประมวลผลวันนี้</h6>
+                                <h6 class="text-muted mb-2">สลิปวันนี้</h6>
                                 <h3 class="mb-0" id="today-slips">0</h3>
                             </div>
                             <div class="text-success">
@@ -183,11 +173,11 @@
             </div>
             
             <div class="col-md-3 mb-3">
-                <div class="card">
+                <div class="card stat-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="text-muted mb-2">การเชื่อมต่อ WebSocket</h6>
+                                <h6 class="text-muted mb-2">WebSocket</h6>
                                 <h3 class="mb-0" id="websocket-connections">0</h3>
                             </div>
                             <div class="text-info">
@@ -199,12 +189,12 @@
             </div>
             
             <div class="col-md-3 mb-3">
-                <div class="card">
+                <div class="card stat-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="text-muted mb-2">สถานะระบบ</h6>
-                                <span class="badge bg-success">ออนไลน์</span>
+                                <span class="badge bg-success status-badge">ออนไลน์</span>
                             </div>
                             <div class="text-success">
                                 <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
@@ -215,7 +205,32 @@
             </div>
         </div>
 
-        <!-- Test Upload Section -->
+        <!-- API Status Cards -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-plug"></i> สถานะ API สำหรับตรวจสอบสลิป
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="api-status-container">
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">กำลังตรวจสอบ...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-sm mt-3" onclick="checkAPIStatus()">
+                            <i class="bi bi-arrow-clockwise"></i> ตรวจสอบใหม่
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Testing Section -->
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card">
@@ -263,6 +278,67 @@
                 </div>
             </div>
         </div>
+
+        <!-- System Overview -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle"></i> ภาพรวมการตั้งค่า
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Thunder API:</strong></td>
+                                        <td>
+                                            {% if config.slip_enabled and config.thunder_api_token %}
+                                                <span class="text-success">✅ เปิดใช้งาน</span>
+                                            {% else %}
+                                                <span class="text-danger">❌ ปิดใช้งาน</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>KBank API:</strong></td>
+                                        <td>
+                                            {% if config.kbank_enabled and config.kbank_consumer_id %}
+                                                <span class="text-success">✅ เปิดใช้งาน</span>
+                                            {% else %}
+                                                <span class="text-danger">❌ ปิดใช้งาน</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>AI Chatbot:</strong></td>
+                                        <td>
+                                            {% if config.ai_enabled and config.openai_api_key %}
+                                                <span class="text-success">✅ เปิดใช้งาน</span>
+                                            {% else %}
+                                                <span class="text-danger">❌ ปิดใช้งาน</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>LINE Bot:</strong></td>
+                                        <td>
+                                            {% if config.line_channel_access_token %}
+                                                <span class="text-success">✅ เชื่อมต่อแล้ว</span>
+                                            {% else %}
+                                                <span class="text-danger">❌ ยังไม่เชื่อมต่อ</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -281,6 +357,7 @@
             websocket.onopen = function(event) {
                 console.log('WebSocket connected');
                 document.getElementById('websocket-status').className = 'status-indicator status-online';
+                showToast('เชื่อมต่อ WebSocket สำเร็จ', 'success');
                 updateConnectionCount();
             };
             
@@ -292,6 +369,7 @@
             websocket.onclose = function(event) {
                 console.log('WebSocket closed');
                 document.getElementById('websocket-status').className = 'status-indicator status-offline';
+                showToast('WebSocket ขาดการเชื่อมต่อ', 'warning');
                 // พยายามเชื่อมต่อใหม่หลัง 5 วินาที
                 setTimeout(connectWebSocket, 5000);
             };
@@ -299,6 +377,7 @@
             websocket.onerror = function(error) {
                 console.error('WebSocket error:', error);
                 document.getElementById('websocket-status').className = 'status-indicator status-offline';
+                showToast('WebSocket เกิดข้อผิดพลาด', 'error');
             };
         }
 
@@ -308,7 +387,7 @@
             notificationCount++;
             
             updateNotificationUI();
-            showNotificationToast(notification);
+            showToast(notification.message, notification.type);
         }
 
         // อัปเดต UI การแจ้งเตือน
@@ -327,229 +406,278 @@
                 list.innerHTML = '<div class="p-3 text-center text-muted">ไม่มีการแจ้งเตือน</div>';
                 return;
             }
+
             let html = '';
-           notifications.slice(0, 20).forEach(notification => {
-               const typeClass = `notification-${notification.type}`;
-               const icon = getNotificationIcon(notification.type);
-               const time = new Date(notification.timestamp).toLocaleTimeString('th-TH');
-               
-               html += `
-                   <div class="notification-item ${typeClass}">
-                       <div class="d-flex align-items-start">
-                           <i class="bi ${icon} me-2"></i>
-                           <div class="flex-grow-1">
-                               <div class="fw-bold small">${notification.message}</div>
-                               <div class="text-muted small">${time}</div>
-                           </div>
-                       </div>
-                   </div>
-               `;
-           });
-           
-           list.innerHTML = html;
-       }
+            notifications.slice(0, 20).forEach(notification => {
+                const typeClass = `notification-${notification.type}`;
+                const icon = getNotificationIcon(notification.type);
+                const time = new Date(notification.timestamp).toLocaleTimeString('th-TH');
+                
+                html += `
+                    <div class="notification-item ${typeClass}">
+                        <div class="d-flex align-items-start">
+                            <i class="bi ${icon} me-2"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold small">${notification.message}</div>
+                                <div class="text-muted small">${time}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            list.innerHTML = html;
+        }
 
-       // แสดง Toast notification
-       function showNotificationToast(notification) {
-           const toastHtml = `
-               <div class="toast align-items-center text-white bg-${getBootstrapColor(notification.type)} border-0" role="alert">
-                   <div class="d-flex">
-                       <div class="toast-body">
-                           <i class="bi ${getNotificationIcon(notification.type)} me-2"></i>
-                           ${notification.message}
-                       </div>
-                       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                   </div>
-               </div>
-           `;
-           
-           // สร้าง toast container ถ้ายังไม่มี
-           let toastContainer = document.getElementById('toast-container');
-           if (!toastContainer) {
-               toastContainer = document.createElement('div');
-               toastContainer.id = 'toast-container';
-               toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-               toastContainer.style.zIndex = '1060';
-               document.body.appendChild(toastContainer);
-           }
-           
-           const toastElement = document.createElement('div');
-           toastElement.innerHTML = toastHtml;
-           toastContainer.appendChild(toastElement.firstElementChild);
-           
-           const toast = new bootstrap.Toast(toastElement.firstElementChild, {
-               autohide: true,
-               delay: 5000
-           });
-           toast.show();
-           
-           // ลบ toast หลังจากซ่อน
-           toastElement.firstElementChild.addEventListener('hidden.bs.toast', function() {
-               toastElement.remove();
-           });
-       }
+        // แสดง Toast notification
+        function showToast(message, type) {
+            const toastHtml = `
+                <div class="toast align-items-center text-white bg-${getBootstrapColor(type)} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi ${getNotificationIcon(type)} me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            // สร้าง toast container ถ้ายังไม่มี
+            let toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '1060';
+                document.body.appendChild(toastContainer);
+            }
+            
+            const toastElement = document.createElement('div');
+            toastElement.innerHTML = toastHtml;
+            toastContainer.appendChild(toastElement.firstElementChild);
+            
+            const toast = new bootstrap.Toast(toastElement.firstElementChild, {
+                autohide: true,
+                delay: 5000
+            });
+            toast.show();
+            
+            // ลบ toast หลังจากซ่อน
+            toastElement.firstElementChild.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
 
-       // Helper functions
-       function getNotificationIcon(type) {
-           const icons = {
-               'success': 'bi-check-circle-fill',
-               'error': 'bi-x-circle-fill',
-               'info': 'bi-info-circle-fill',
-               'processing': 'bi-arrow-clockwise'
-           };
-           return icons[type] || 'bi-bell-fill';
-       }
+        // Helper functions
+        function getNotificationIcon(type) {
+            const icons = {
+                'success': 'bi-check-circle-fill',
+                'error': 'bi-x-circle-fill',
+                'info': 'bi-info-circle-fill',
+                'processing': 'bi-arrow-clockwise',
+                'warning': 'bi-exclamation-triangle-fill'
+            };
+            return icons[type] || 'bi-bell-fill';
+        }
 
-       function getBootstrapColor(type) {
-           const colors = {
-               'success': 'success',
-               'error': 'danger',
-               'info': 'info',
-               'processing': 'warning'
-           };
-           return colors[type] || 'primary';
-       }
+        function getBootstrapColor(type) {
+            const colors = {
+                'success': 'success',
+                'error': 'danger',
+                'info': 'info',
+                'processing': 'warning',
+                'warning': 'warning'
+            };
+            return colors[type] || 'primary';
+        }
 
-       // Toggle notification panel
-       function toggleNotifications() {
-           const panel = document.getElementById('notification-panel');
-           if (panel.style.display === 'none') {
-               panel.style.display = 'block';
-               notificationCount = 0;
-               updateNotificationUI();
-           } else {
-               panel.style.display = 'none';
-           }
-       }
+        // Toggle notification panel
+        function toggleNotifications() {
+            const panel = document.getElementById('notification-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                notificationCount = 0;
+                updateNotificationUI();
+            } else {
+                panel.style.display = 'none';
+            }
+        }
 
-       // Clear all notifications
-       function clearNotifications() {
-           notifications = [];
-           notificationCount = 0;
-           updateNotificationUI();
-       }
+        // Clear all notifications
+        function clearNotifications() {
+            notifications = [];
+            notificationCount = 0;
+            updateNotificationUI();
+        }
 
-       // อัปเดตจำนวนการเชื่อมต่อ
-       async function updateConnectionCount() {
-           try {
-               const response = await fetch('/admin/slip-status');
-               const data = await response.json();
-               document.getElementById('websocket-connections').textContent = data.active_connections;
-           } catch (error) {
-               console.error('Error fetching connection count:', error);
-           }
-       }
+        // อัปเดตจำนวนการเชื่อมต่อ
+        async function updateConnectionCount() {
+            try {
+                const response = await fetch('/admin/slip-status');
+                const data = await response.json();
+                document.getElementById('websocket-connections').textContent = data.active_connections;
+            } catch (error) {
+                console.error('Error fetching connection count:', error);
+            }
+        }
 
-       // ตรวจสอบสุขภาพระบบ
-       async function checkSystemHealth() {
-           try {
-               const response = await fetch('/admin/api-status');
-               const status = await response.json();
-               
-               let message = '🏥 สุขภาพระบบ:\n';
-               message += `• Thunder API: ${status.thunder.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}\n`;
-               message += `• LINE API: ${status.line.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}\n`;
-               message += `• KBank API: ${status.kbank.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}`;
-               
-               alert(message);
-           } catch (error) {
-               alert('❌ เกิดข้อผิดพลาดในการตรวจสอบสุขภาพระบบ');
-           }
-       }
+        // ตรวจสอบสุขภาพระบบ
+        async function checkSystemHealth() {
+            try {
+                const response = await fetch('/admin/api-status');
+                const status = await response.json();
+                
+                let message = '🏥 สุขภาพระบบ:\n';
+                message += `• Thunder API: ${status.thunder.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}\n`;
+                message += `• LINE API: ${status.line.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}\n`;
+                message += `• KBank API: ${status.kbank.connected ? '✅ เชื่อมต่อได้' : '❌ เชื่อมต่อไม่ได้'}`;
+                
+                alert(message);
+            } catch (error) {
+                alert('❌ เกิดข้อผิดพลาดในการตรวจสอบสุขภาพระบบ');
+            }
+        }
 
-       // ทดสอบอัปโหลดสลิป
-       document.getElementById('slipTestForm').addEventListener('submit', async (e) => {
-           e.preventDefault();
-           
-           const resultDiv = document.getElementById('slipTestResult');
-           const fileInput = document.getElementById('slipFile');
-           const file = fileInput.files[0];
-           const submitButton = e.target.querySelector('button[type="submit"]');
-           
-           if (!file) {
-               resultDiv.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> กรุณาเลือกไฟล์</div>';
-               return;
-           }
+        // ตรวจสอบสถานะ API
+        async function checkAPIStatus() {
+            const container = document.getElementById('api-status-container');
+            container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div></div>';
+            
+            try {
+                const response = await fetch('/admin/api-status');
+                const status = await response.json();
+                
+                let html = '<div class="row">';
+                
+                // Thunder API
+                html += '<div class="col-md-6 mb-3">';
+                html += '<div class="card api-status-card">';
+                html += '<div class="card-body">';
+                html += '<h6 class="card-title"><i class="bi bi-lightning-charge"></i> Thunder API</h6>';
+                if (status.thunder.configured) {
+                    if (status.thunder.connected) {
+                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                    } else {
+                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                    }
+                } else {
+                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+                }
+                html += '</div></div></div>';
+                
+                // KBank API
+                html += '<div class="col-md-6 mb-3">';
+                html += '<div class="card api-status-card">';
+                html += '<div class="card-body">';
+                html += '<h6 class="card-title"><i class="bi bi-bank"></i> KBank API</h6>';
+                if (status.kbank.configured) {
+                    if (status.kbank.connected) {
+                        html += '<span class="badge bg-success">✅ เชื่อมต่อสำเร็จ</span>';
+                    } else {
+                        html += '<span class="badge bg-danger">❌ เชื่อมต่อไม่ได้</span>';
+                    }
+                } else {
+                    html += '<span class="badge bg-warning">⚠️ ยังไม่ได้ตั้งค่า</span>';
+                }
+                html += '</div></div></div>';
+                
+                html += '</div>';
+                container.innerHTML = html;
+                
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger">เกิดข้อผิดพลาดในการตรวจสอบ: ' + error.message + '</div>';
+            }
+        }
 
-           if (file.size > 10 * 1024 * 1024) {
-               resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ไฟล์ใหญ่เกินไป (เกิน 10MB)</div>';
-               return;
-           }
-           
-           const originalText = submitButton.textContent;
-           submitButton.textContent = '⏳ กำลังประมวลผล...';
-           submitButton.disabled = true;
-           
-           resultDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">กำลังประมวลผลรูปสลิป...</p></div>';
-           
-           const formData = new FormData();
-           formData.append('file', file);
-           
-           try {
-               const response = await fetch('/admin/test-slip-upload', {
-                   method: 'POST',
-                   body: formData
-               });
-               
-               const result = await response.json();
-               
-               if (result.status === 'success') {
-                   let formattedResponse = JSON.stringify(result.response.data, null, 2);
-                   resultDiv.innerHTML = `
-                       <div class="alert alert-success">
-                           <h6><i class="bi bi-check-circle"></i> ${result.message}</h6>
-                           <div class="mt-3">
-                               <h6>📋 ข้อมูลสลิป:</h6>
-                               <pre class="bg-light p-3 rounded"><code>${formattedResponse}</code></pre>
-                           </div>
-                       </div>
-                   `;
-               } else {
-                   resultDiv.innerHTML = `
-                       <div class="alert alert-danger">
-                           <h6><i class="bi bi-exclamation-triangle"></i> ${result.message}</h6>
-                           ${result.response?.attempted_apis ? '<div class="mt-2"><small><strong>ลองใช้ API:</strong><br>• ' + result.response.attempted_apis.join('<br>• ') + '</small></div>' : ''}
-                       </div>
-                   `;
-               }
-           } catch (error) {
-               resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> เกิดข้อผิดพลาด: ${error.message}</div>`;
-           } finally {
-               submitButton.textContent = originalText;
-               submitButton.disabled = false;
-           }
-       });
+        // ทดสอบอัปโหลดสลิป
+        document.getElementById('slipTestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('slipTestResult');
+            const fileInput = document.getElementById('slipFile');
+            const file = fileInput.files[0];
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            
+            if (!file) {
+                resultDiv.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> กรุณาเลือกไฟล์</div>';
+                return;
+            }
 
-       // เริ่มต้นระบบ
-       document.addEventListener('DOMContentLoaded', function() {
-           connectWebSocket();
-           updateConnectionCount();
-           
-           // อัปเดตข้อมูลทุก 30 วินาที
-           setInterval(updateConnectionCount, 30000);
-           
-           // ปิด notification panel เมื่อคลิกภายนอก
-           document.addEventListener('click', function(event) {
-               const panel = document.getElementById('notification-panel');
-               const button = document.querySelector('[onclick="toggleNotifications()"]');
-               
-               if (panel.style.display === 'block' && 
-                   !panel.contains(event.target) && 
-                   !button.contains(event.target)) {
-                   panel.style.display = 'none';
-               }
-           });
-       });
+            if (file.size > 10 * 1024 * 1024) {
+                resultDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ไฟล์ใหญ่เกินไป (เกิน 10MB)</div>';
+                return;
+            }
+            
+            const originalText = submitButton.textContent;
+            submitButton.textContent = '⏳ กำลังประมวลผล...';
+            submitButton.disabled = true;
+            
+            resultDiv.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 mb-0">กำลังประมวลผลรูปสลิป...</p></div>';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/admin/test-slip-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle"></i> ${result.message}</h6>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h6><i class="bi bi-exclamation-triangle"></i> ${result.message}</h6>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> เกิดข้อผิดพลาด: ${error.message}</div>`;
+            } finally {
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
+            }
+        });
 
-       // อัปเดตเวลาในชื่อหน้า
-       function updateTime() {
-           const now = new Date();
-           const timeString = now.toLocaleString('th-TH');
-           document.title = `Enhanced Dashboard - ${timeString}`;
-       }
-       
-       setInterval(updateTime, 1000);
-       updateTime();
-   </script>
+        // เริ่มต้นระบบ
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAPIStatus();
+            updateConnectionCount();
+            
+            // อัปเดตข้อมูลทุก 30 วินาที
+            setInterval(updateConnectionCount, 30000);
+            setInterval(checkAPIStatus, 60000);
+            
+            // ปิด notification panel เมื่อคลิกภายนอก
+            document.addEventListener('click', function(event) {
+                const panel = document.getElementById('notification-panel');
+                const button = document.querySelector('[onclick="toggleNotifications()"]');
+                
+                if (panel.style.display === 'block' && 
+                    !panel.contains(event.target) && 
+                    !button.contains(event.target)) {
+                    panel.style.display = 'none';
+                }
+            });
+        });
+
+        // แสดงเวลาในชื่อหน้า
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('th-TH');
+            document.title = `Dashboard Enhanced - ${timeString}`;
+        }
+        
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
 </body>
 </html>
