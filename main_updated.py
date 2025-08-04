@@ -9,13 +9,11 @@ import sys
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from collections import defaultdict
 
 import requests
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 
 # เพิ่ม path ปัจจุบันใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +50,6 @@ class NotificationManager:
 
     async def send_notification(self, message: str, notification_type: str = "info", data: Dict = None):
         if not self.active_connections:
-            # เก็บการแจ้งเตือนไว้สำหรับการเชื่อมต่อครั้งต่อไป
             self.pending_notifications.append({
                 "message": message,
                 "type": notification_type,
@@ -68,7 +65,6 @@ class NotificationManager:
             "data": data or {}
         }
 
-        # ส่งให้ทุก connection ที่เชื่อมต่ออยู่
         disconnected = []
         for connection in self.active_connections:
             try:
@@ -77,20 +73,12 @@ class NotificationManager:
                 logger.error(f"Error sending notification: {e}")
                 disconnected.append(connection)
 
-        # ลบ connection ที่ disconnected
         for conn in disconnected:
             self.disconnect(conn)
 
-    def set_slip_status(self, user_id: str, status: str, details: Dict = None):
-        self.slip_processing_status[user_id] = {
-            "status": status,
-            "timestamp": datetime.now().isoformat(),
-            "details": details or {}
-        }
-
 notification_manager = NotificationManager()
 
-# การจัดการการเริ่มต้นฐานข้อมูลอย่างปลอดภัย
+# Import modules
 try:
     from utils.config_manager import config_manager
     logger.info("✅ Config manager imported successfully")
@@ -100,30 +88,22 @@ except ImportError as e:
 
 try:
     from models.database import (
-        init_database,
-        save_chat_history,
-        get_chat_history_count,
-        get_recent_chat_history,
+        init_database, save_chat_history, get_chat_history_count, get_recent_chat_history,
     )
     logger.info("✅ Database models imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import database models: {e}")
-    def init_database():
-        pass
-    def save_chat_history(user_id, direction, message, sender):
-        pass
-    def get_chat_history_count():
-        return 0
-    def get_recent_chat_history(limit=50):
-        return []
+    def init_database(): pass
+    def save_chat_history(user_id, direction, message, sender): pass
+    def get_chat_history_count(): return 0
+    def get_recent_chat_history(limit=50): return []
 
 try:
     from services.chat_bot import get_chat_response
     logger.info("✅ Chat bot service imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import chat_bot: {e}")
-    def get_chat_response(text, user_id):
-        return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
+    def get_chat_response(text, user_id): return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
 
 try:
     from services.slip_checker import verify_slip_with_thunder
@@ -139,16 +119,11 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ Enhanced slip checker not available: {e}")
     def verify_slip_multiple_providers(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
-        logger.info(f"🔄 Fallback slip verification")
         if message_id or test_image_data:
             return verify_slip_with_thunder(message_id, test_image_data)
         return {"status": "error", "message": "ไม่สามารถตรวจสอบสลิปได้"}
-    
-    def extract_slip_info_from_text(text):
-        return {"bank_code": None, "trans_ref": None}
-    
-    def get_api_status_summary():
-        return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
+    def extract_slip_info_from_text(text): return {"bank_code": None, "trans_ref": None}
+    def get_api_status_summary(): return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
 
 # เริ่มต้นฐานข้อมูล
 try:
@@ -175,68 +150,6 @@ def verify_line_signature(body: bytes, signature: str, channel_secret: str) -> b
         logger.error(f"❌ Signature verification error: {e}")
         return False
 
-def build_slip_flex_contents(slip: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง payload ของ Flex Message สำหรับผลตรวจสอบสลิป"""
-    verified_by = slip.get("verified_by", "Thunder API")
-    slip_type = slip.get("type", "thunder")
-    
-    if slip_type == "kbank":
-        title_text = "✅ สลิปถูกต้อง (KBank API)"
-        amount = slip.get("amount", "0")
-        date_time = f"{slip.get('trans_date', '')} {slip.get('trans_time', '')}"
-        sender_info = slip.get("sender_account", "")
-        receiver_info = slip.get("receiver_account", "")
-        reference_info = slip.get("reference", "")
-    else:
-        title_text = "✅ สลิปถูกต้อง (Thunder API)"
-        amount = slip.get("amount", "0")
-        date_time = slip.get("date", "")
-        sender_info = slip.get("sender", slip.get("sender_bank", ""))
-        receiver_info = slip.get("receiver_name", slip.get("receiver_bank", ""))
-        reference_info = ""
-        
-        if slip.get("receiver_phone"):
-            receiver_info = f"{receiver_info} ({slip.get('receiver_phone', '')})"
-    
-    contents = [
-        {"type": "text", "text": title_text, "weight": "bold", "size": "lg", "color": "#00B900"},
-        {"type": "text", "text": f"฿{amount}", "weight": "bold", "size": "xxl", "margin": "md"},
-    ]
-    
-    if date_time.strip():
-        contents.append({"type": "text", "text": date_time, "size": "sm", "color": "#999999", "margin": "sm"})
-    
-    contents.append({"type": "separator", "margin": "md"})
-    
-    detail_contents = []
-    if sender_info:
-        detail_contents.append({"type": "text", "text": f"ผู้โอน: {sender_info}", "size": "sm"})
-    if receiver_info:
-        detail_contents.append({"type": "text", "text": f"ผู้รับ: {receiver_info}", "size": "sm"})
-    if reference_info:
-        detail_contents.append({"type": "text", "text": f"อ้างอิง: {reference_info}", "size": "sm", "color": "#666666"})
-    
-    if detail_contents:
-        contents.append({"type": "box", "layout": "vertical", "margin": "md", "contents": detail_contents})
-    
-    return {
-        "type": "bubble",
-        "size": "mega",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "md",
-            "contents": contents,
-        },
-        "footer": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-                {"type": "text", "text": f"ตรวจสอบโดย {verified_by}", "size": "xs", "color": "#AAAAAA", "align": "center"}
-            ],
-        },
-    }
-
 def send_line_reply(reply_token: str, text: str) -> bool:
     """ส่งข้อความธรรมดากลับไปยังผู้ใช้ใน LINE"""
     access_token = config_manager.get("line_channel_access_token")
@@ -257,28 +170,7 @@ def send_line_reply(reply_token: str, text: str) -> bool:
         logger.error(f"❌ Failed to send LINE reply: {e}")
         return False
 
-def send_line_flex_reply(reply_token: str, slip_data: Dict[str, Any]) -> bool:
-    """ส่ง Flex Message สำหรับผลตรวจสอบสลิป"""
-    access_token = config_manager.get("line_channel_access_token")
-    if not access_token:
-        logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
-        return False
-    
-    url = "https://api.line.me/v2/bot/message/reply"
-    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    contents = build_slip_flex_contents(slip_data)
-    payload = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": "ผลการตรวจสอบสลิป", "contents": contents}]}
-    
-    try:
-        response = requests.post(url, headers=headers, data=json.dumps(payload), timeout=15)
-        response.raise_for_status()
-        logger.info(f"✅ LINE Flex reply sent successfully")
-        return True
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Failed to send LINE Flex reply: {e}")
-        return False
-
-# ====================== Enhanced Event Dispatcher ======================
+# ====================== Event Dispatcher ======================
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
     """ประมวลผล event แบบ async พร้อมการแจ้งเตือนในเว็บ"""
@@ -304,12 +196,134 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             logger.warning(f"⚠️ Failed to save chat history: {e}")
 
         if message_type == "image":
-            await handle_image_message(user_id, message, reply_token)
+            # แจ้งเตือนว่าได้รับสลิป
+            await notification_manager.send_notification(
+                f"🖼️ ได้รับรูปสลิปจากผู้ใช้ {user_id[:8]}...",
+                "info"
+            )
+            
+            # ส่งข้อความแจ้งผู้ใช้ก่อน
+            send_line_reply(reply_token, "⏳ รอสักครู่ แอดมินกำลังตรวจสอบสลิปของคุณ...")
+            
+            # ประมวลผลสลิป
+            try:
+                result = verify_slip_multiple_providers(message.get("id"))
+                
+                if result["status"] == "success":
+                    await notification_manager.send_notification(
+                        f"✅ ตรวจสอบสลิปสำเร็จ! จำนวน ฿{result['data'].get('amount', '0')}",
+                        "success"
+                    )
+                    
+                    success_msg = f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{result['data'].get('amount', '0')}\n📅 วันที่: {result['data'].get('date', 'N/A')}"
+                    send_line_reply(reply_token, success_msg)
+                    
+                    try:
+                        save_chat_history(user_id, "out", {"type": "text", "text": success_msg}, sender="slip_bot")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to save chat history: {e}")
+                else:
+                    error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
+                    
+                    await notification_manager.send_notification(
+                        f"❌ ตรวจสอบสลิปล้มเหลว: {error_message}",
+                        "error"
+                    )
+                    
+                    if result.get("suggestions"):
+                        error_message += "\n\n💡 คำแนะนำ:\n• " + "\n• ".join(result["suggestions"][:3])
+                    
+                    send_line_reply(reply_token, error_message)
+                    
+                    try:
+                        save_chat_history(user_id, "out", {"type": "text", "text": error_message}, sender="slip_bot")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to save chat history: {e}")
+                        
+            except Exception as e:
+                error_msg = f"เกิดข้อผิดพลาดในการตรวจสอบสลิป: {str(e)}"
+                logger.error(f"❌ Slip verification exception: {e}", exc_info=True)
+                
+                await notification_manager.send_notification(
+                    f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}",
+                    "error"
+                )
+                
+                send_line_reply(reply_token, error_msg)
+                
         elif message_type == "text":
-            await handle_text_message(user_id, message, reply_token)
+            user_text = message.get("text", "")
+            
+            # ตรวจสอบว่าเป็นข้อมูลสลิปหรือไม่
+            slip_info = extract_slip_info_from_text(user_text)
+            
+            if slip_info["bank_code"] and slip_info["trans_ref"]:
+                await notification_manager.send_notification(
+                    f"📝 ได้รับข้อมูลสลิปจากข้อความ: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}",
+                    "info"
+                )
+                
+                # ประมวลผลเหมือนรูปสลิป
+                try:
+                    result = verify_slip_multiple_providers(
+                        None, None, 
+                        slip_info["bank_code"], 
+                        slip_info["trans_ref"]
+                    )
+                    
+                    if result["status"] == "success":
+                        await notification_manager.send_notification(
+                            f"✅ ตรวจสอบสลิปจากข้อความสำเร็จ! จำนวน ฿{result['data'].get('amount', '0')}",
+                            "success"
+                        )
+                        
+                        success_msg = f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{result['data'].get('amount', '0')}"
+                        send_line_reply(reply_token, success_msg)
+                    else:
+                        error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
+                        
+                        await notification_manager.send_notification(
+                            f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {error_message}",
+                            "error"
+                        )
+                        
+                        if result.get("suggestions"):
+                            error_message += "\n\n💡 ลองทำตามนี้:\n• " + "\n• ".join(result["suggestions"][:2])
+                        
+                        send_line_reply(reply_token, error_message)
+                        
+                except Exception as e:
+                    error_msg = f"เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ"
+                    logger.error(f"❌ Text slip verification error: {e}")
+                    
+                    await notification_manager.send_notification(
+                        f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ: {str(e)}",
+                        "error"
+                    )
+                    
+                    send_line_reply(reply_token, error_msg)
+            else:
+                # การสนทนาธรรมดา
+                await notification_manager.send_notification(
+                    f"💬 ได้รับข้อความจากผู้ใช้ {user_id[:8]}...: {user_text[:30]}...",
+                    "info"
+                )
+                
+                try:
+                    response = get_chat_response(user_text, user_id)
+                    send_line_reply(reply_token, response)
+                    
+                    try:
+                        save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to save chat history: {e}")
+                except Exception as e:
+                    error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
+                    logger.error(f"❌ AI processing error: {e}")
+                    send_line_reply(reply_token, error_msg)
         else:
             await notification_manager.send_notification(
-                f"ได้รับข้อความประเภท {message_type} จากผู้ใช้ {user_id}",
+                f"📝 ได้รับข้อความประเภท {message_type} จากผู้ใช้ {user_id[:8]}...",
                 "info"
             )
             send_line_reply(reply_token, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น")
@@ -317,201 +331,13 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
     except Exception as e:
         logger.exception(f"❌ Critical error in dispatch_event: {e}")
         await notification_manager.send_notification(
-            f"เกิดข้อผิดพลาดในการประมวลผล: {str(e)}",
-            "error"
-        )
-
-async def handle_image_message(user_id: str, message: Dict, reply_token: str):
-    """จัดการข้อความรูปภาพ"""
-    message_id = message.get("id")
-    
-    # แจ้งเตือนว่าได้รับสลิป
-    await notification_manager.send_notification(
-        f"🖼️ ได้รับรูปสลิปจากผู้ใช้ {user_id}",
-        "info",
-        {"user_id": user_id, "message_id": message_id}
-    )
-    
-    # ตั้งสถานะเป็นกำลังประมวลผล
-    notification_manager.set_slip_status(user_id, "processing", {"message_id": message_id})
-    
-    # แจ้งผู้ใช้ว่ากำลังประมวลผล
-    await notification_manager.send_notification(
-        f"⏳ กำลังตรวจสอบสลิปของผู้ใช้ {user_id}...",
-        "processing"
-    )
-    
-    # ตรวจสอบว่ามี API ที่พร้อมใช้งานหรือไม่
-    thunder_enabled = config_manager.get("slip_enabled", False)
-    thunder_token = config_manager.get("thunder_api_token")
-    kbank_enabled = config_manager.get("kbank_enabled", False)
-    kbank_credentials = config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret")
-    
-    if not thunder_enabled and not (kbank_enabled and kbank_credentials):
-        error_msg = "❌ ระบบตรวจสอบสลิปทั้งหมดถูกปิดใช้งาน"
-        await notification_manager.send_notification(error_msg, "error")
-        send_line_reply(reply_token, "ขออภัย ระบบตรวจสอบสลิปไม่พร้อมใช้งานในขณะนี้ กรุณาติดต่อเจ้าหน้าที่")
-        notification_manager.set_slip_status(user_id, "failed", {"reason": "All APIs disabled"})
-        return
-    
-    if not thunder_token and not kbank_credentials:
-        error_msg = "❌ ไม่พบ API Token สำหรับการตรวจสอบสลิป"
-        await notification_manager.send_notification(error_msg, "error")
-        send_line_reply(reply_token, "ขออภัย ระบบตรวจสอบสลิปไม่พร้อมใช้งานในขณะนี้ กรุณาติดต่อเจ้าหน้าที่")
-        notification_manager.set_slip_status(user_id, "failed", {"reason": "No API credentials"})
-        return
-    
-    try:
-        # ส่งข้อความแจ้งผู้ใช้ก่อน
-        send_line_reply(reply_token, "⏳ รอสักครู่ แอดมินกำลังตรวจสอบสลิปของคุณ...")
-        
-        # ประมวลผลสลิป
-        result = verify_slip_multiple_providers(message_id)
-        
-        if result["status"] == "success":
-            await notification_manager.send_notification(
-                f"✅ ตรวจสอบสลิปสำเร็จ! จำนวน ฿{result['data'].get('amount', '0')} ด้วย {result.get('type', 'unknown')} API",
-                "success",
-                {"user_id": user_id, "slip_data": result["data"]}
-            )
-            
-            # ส่ง Flex Message
-            success = send_line_flex_reply(reply_token, result["data"])
-            if not success:
-                # Fallback เป็น text
-                fallback_msg = f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{result['data'].get('amount', '0')}\n📅 วันที่: {result['data'].get('date', 'N/A')}"
-                send_line_reply(reply_token, fallback_msg)
-            
-            notification_manager.set_slip_status(user_id, "success", result["data"])
-            
-            try:
-                save_chat_history(user_id, "out", {"type": "flex", "content": result["data"]}, sender="slip_bot")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to save chat history: {e}")
-        else:
-            error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
-            
-            await notification_manager.send_notification(
-                f"❌ ตรวจสอบสลิปล้มเหลว: {error_message}",
-                "error",
-                {"user_id": user_id, "error": error_message, "attempted_apis": result.get("attempted_apis", [])}
-            )
-            
-            # ส่งข้อความแจ้งผู้ใช้
-            if result.get("suggestions"):
-                error_message += "\n\n💡 คำแนะนำ:\n• " + "\n• ".join(result["suggestions"][:3])
-            
-            send_line_reply(reply_token, error_message)
-            notification_manager.set_slip_status(user_id, "failed", {"error": error_message})
-            
-            try:
-                save_chat_history(user_id, "out", {"type": "text", "text": error_message}, sender="slip_bot")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to save chat history: {e}")
-                
-    except Exception as e:
-        error_msg = f"เกิดข้อผิดพลาดในการตรวจสอบสลิป: {str(e)}"
-        logger.error(f"❌ Slip verification exception: {e}", exc_info=True)
-        
-        await notification_manager.send_notification(
             f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}",
-            "error",
-            {"user_id": user_id, "exception": str(e)}
-        )
-        
-        send_line_reply(reply_token, error_msg)
-        notification_manager.set_slip_status(user_id, "error", {"exception": str(e)})
-
-async def handle_text_message(user_id: str, message: Dict, reply_token: str):
-    """จัดการข้อความตัวอักษร"""
-    user_text = message.get("text", "")
-    
-    # ตรวจสอบว่าเป็นข้อมูลสลิปหรือไม่
-    slip_info = extract_slip_info_from_text(user_text)
-    
-    if slip_info["bank_code"] and slip_info["trans_ref"]:
-        await notification_manager.send_notification(
-            f"📝 ได้รับข้อมูลสลิปจากข้อความ: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}",
-            "info",
-            {"user_id": user_id, "slip_info": slip_info}
-        )
-        
-        # ประมวลผลเหมือนรูปสลิป
-        await handle_slip_from_text(user_id, slip_info, reply_token)
-    else:
-        # การสนทนาธรรมดา
-        await notification_manager.send_notification(
-            f"💬 ได้รับข้อความจากผู้ใช้ {user_id}: {user_text[:50]}...",
-            "info"
-        )
-        
-        try:
-            response = get_chat_response(user_text, user_id)
-            send_line_reply(reply_token, response)
-            
-            try:
-                save_chat_history(user_id, "out", {"type": "text", "text": response}, sender="bot")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to save chat history: {e}")
-        except Exception as e:
-            error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
-            logger.error(f"❌ AI processing error: {e}")
-            send_line_reply(reply_token, error_msg)
-
-async def handle_slip_from_text(user_id: str, slip_info: Dict, reply_token: str):
-    """จัดการสลิปจากข้อความ"""
-    notification_manager.set_slip_status(user_id, "processing", slip_info)
-    
-    try:
-        result = verify_slip_multiple_providers(
-            None, None, 
-            slip_info["bank_code"], 
-            slip_info["trans_ref"]
-        )
-        
-        if result["status"] == "success":
-            await notification_manager.send_notification(
-                f"✅ ตรวจสอบสลิปจากข้อความสำเร็จ! จำนวน ฿{result['data'].get('amount', '0')}",
-                "success",
-                {"user_id": user_id, "slip_data": result["data"]}
-            )
-            
-            success = send_line_flex_reply(reply_token, result["data"])
-            if not success:
-                fallback_msg = f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{result['data'].get('amount', '0')}"
-                send_line_reply(reply_token, fallback_msg)
-            
-            notification_manager.set_slip_status(user_id, "success", result["data"])
-        else:
-            error_message = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
-            
-            await notification_manager.send_notification(
-                f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {error_message}",
-                "error"
-            )
-            
-            if result.get("suggestions"):
-                error_message += "\n\n💡 ลองทำตามนี้:\n• " + "\n• ".join(result["suggestions"][:2])
-            
-            send_line_reply(reply_token, error_message)
-            notification_manager.set_slip_status(user_id, "failed", {"error": error_message})
-            
-    except Exception as e:
-        error_msg = f"เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ"
-        logger.error(f"❌ Text slip verification error: {e}")
-        
-        await notification_manager.send_notification(
-            f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ: {str(e)}",
             "error"
         )
-        
-        send_line_reply(reply_token, error_msg)
-        notification_manager.set_slip_status(user_id, "error", {"exception": str(e)})
 
 def dispatch_event(event: Dict[str, Any]) -> None:
     """Wrapper สำหรับเรียก async function"""
     try:
-        # สร้าง event loop ใหม่สำหรับ thread นี้
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(dispatch_event_async(event))
@@ -532,18 +358,15 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception as e:
             logger.error(f"Error sending pending notification: {e}")
     
-    # ล้างการแจ้งเตือนที่ส่งแล้ว
     notification_manager.pending_notifications.clear()
     
     try:
         while True:
-            # รอรับข้อความจาก client (ถ้ามี)
             data = await websocket.receive_text()
-            # ไม่ต้องทำอะไรกับข้อความที่รับมา
     except WebSocketDisconnect:
         notification_manager.disconnect(websocket)
 
-# ====================== LINE Webhook Route ======================
+# ====================== Routes ======================
 
 @app.post("/line/webhook")
 async def line_webhook(request: Request) -> JSONResponse:
@@ -565,7 +388,6 @@ async def line_webhook(request: Request) -> JSONResponse:
             logger.error(f"❌ Invalid JSON payload: {e}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
         
-        # ประมวลผล events
         events = payload.get("events", [])
         logger.info(f"🎭 Processing {len(events)} events")
         
@@ -589,8 +411,6 @@ async def line_webhook(request: Request) -> JSONResponse:
     except Exception as e:
         logger.exception(f"❌ Webhook processing error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
-
-# ====================== Admin Pages ======================
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -618,6 +438,17 @@ async def admin_settings(request: Request):
         },
     )
 
+@app.get("/admin/chat", response_class=HTMLResponse)
+async def admin_chat(request: Request):
+    history = get_recent_chat_history(limit=100)
+    return templates.TemplateResponse(
+        "chat_history.html",
+        {
+            "request": request,
+            "chat_history": history,
+        },
+    )
+
 # ====================== API Endpoints ======================
 
 @app.get("/admin/api-status")
@@ -640,16 +471,6 @@ async def api_status_check():
             
             if resp.status_code in (200, 401, 404, 405):
                 status_result["thunder"]["connected"] = True
-                
-            try:
-                data = resp.json()
-                if isinstance(data, dict):
-                    if "balance" in data:
-                        status_result["thunder"]["balance"] = data.get("balance", 0)
-                    if data.get("message"):
-                        status_result["thunder"]["message"] = data.get("message")
-            except Exception:
-                status_result["thunder"]["raw_response"] = resp.text[:100]
                 
         except requests.exceptions.RequestException as e:
             status_result["thunder"]["error"] = str(e)
@@ -705,14 +526,9 @@ async def update_settings(request: Request) -> JSONResponse:
         updates = {}
         
         for key in [
-            "line_channel_secret",
-            "line_channel_access_token", 
-            "thunder_api_token",
-            "openai_api_key",
-            "ai_prompt",
-            "wallet_phone_number",
-            "kbank_consumer_id",
-            "kbank_consumer_secret",
+            "line_channel_secret", "line_channel_access_token", "thunder_api_token",
+            "openai_api_key", "ai_prompt", "wallet_phone_number",
+            "kbank_consumer_id", "kbank_consumer_secret",
         ]:
             if key in data:
                 updates[key] = data[key].strip()
@@ -726,8 +542,7 @@ async def update_settings(request: Request) -> JSONResponse:
         # แจ้งเตือนการอัปเดตการตั้งค่า
         await notification_manager.send_notification(
             "⚙️ อัปเดตการตั้งค่าระบบแล้ว",
-            "success",
-            {"updated_keys": list(updates.keys())}
+            "success"
         )
         
         return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
@@ -786,8 +601,6 @@ async def health_check():
         "config_loaded": bool(config_manager.config),
         "line_configured": bool(config_manager.get("line_channel_access_token")),
         "thunder_configured": bool(config_manager.get("thunder_api_token")),
-        "thunder_enabled": config_manager.get("slip_enabled", False),
-        "kbank_enabled": config_manager.get("kbank_enabled", False),
         "websocket_connections": len(notification_manager.active_connections)
     })
 
