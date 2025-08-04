@@ -35,7 +35,7 @@ def verify_slip_with_thunder(message_id: str,
             resp.raise_for_status()
             image_data = resp.content
         except Exception as e:
-            logger.exception("\u274c ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ: %s", e)
+            logger.exception("❌ ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ: %s", e)
             return {"status": "error", "message": "ไม่สามารถดาวน์โหลดรูปจาก LINE ได้"}
 
     # เตรียมส่งรูปไปยัง Thunder
@@ -50,14 +50,14 @@ def verify_slip_with_thunder(message_id: str,
         resp.raise_for_status()
         result = resp.json()
     except Exception as e:
-        logger.exception("\u274c Thunder API error: %s", e)
+        logger.exception("❌ Thunder API error: %s", e)
         return {"status": "error", "message": "เชื่อมต่อกับ Thunder ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"}
 
     if not result.get("success", False):
-        error_msg = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ \u274c")
+        error_msg = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ ❌")
         return {"status": "error", "message": error_msg}
 
-    # \u2705 ดึงข้อมูลที่เกี่ยวข้องตามประเภทบัญชี
+    # ✅ ดึงข้อมูลที่เกี่ยวข้องตามประเภทบัญชี
     data = result.get("data", {})
     if wallet_phone:
         return {
