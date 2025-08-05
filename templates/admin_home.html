@@ -3,222 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - LINE OA Middleware Enhanced</title>
+    <title>Admin Dashboard - LINE OA Middleware</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .navbar {
-            background: rgba(255, 255, 255, 0.95) !important;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-        }
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
-        }
-        .status-card {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-            color: white;
-        }
-        .stats-card {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        }
-        .notification-area {
-            max-height: 400px;
-            overflow-y: auto;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 10px;
-            padding: 15px;
-        }
-        .notification-item {
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 8px;
-            border-left: 4px solid;
-            animation: slideInRight 0.5s ease;
-        }
-        .notification-success {
-            background: #d4edda;
-            border-color: #28a745;
-            color: #155724;
-        }
-        .notification-error {
-            background: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24;
-        }
-        .notification-warning {
-            background: #fff3cd;
-            border-color: #ffc107;
-            color: #856404;
-        }
-        .notification-info {
-            background: #d1ecf1;
-            border-color: #17a2b8;
-            color: #0c5460;
-        }
-        .system-status {
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-        }
-        .status-online {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-        .status-offline {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-        .status-partial {
-            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-            color: #8b4513;
-        }
-        .quick-action-btn {
-            border-radius: 10px;
-            padding: 12px 20px;
-            margin: 5px;
-            border: none;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        .quick-action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        .metric-card {
-            text-align: center;
-            padding: 20px;
-        }
-        .metric-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #667eea;
-        }
-        .api-status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .api-status-item {
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-            transition: transform 0.2s ease;
-        }
-        .api-status-item:hover {
-            transform: scale(1.02);
-        }
-        .api-configured {
-            background: #d4edda;
-            color: #155724;
-            border: 2px solid #28a745;
-        }
-        .api-not-configured {
-            background: #f8d7da;
-            color: #721c24;
-            border: 2px solid #dc3545;
-        }
-        .api-disabled {
-            background: #e2e3e5;
-            color: #6c757d;
-            border: 2px solid #6c757d;
-        }
-        .api-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 2px solid #ffc107;
-        }
-        .test-area {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .upload-area {
-            border: 2px dashed #667eea;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .upload-area:hover {
-            border-color: #764ba2;
-            background: rgba(102, 126, 234, 0.05);
-        }
-        .upload-area.dragover {
-            border-color: #28a745;
-            background: rgba(40, 167, 69, 0.1);
-        }
-        .btn-system-toggle {
-            position: relative;
-            overflow: hidden;
-        }
-        .btn-system-toggle::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: left 0.6s;
-        }
-        .btn-system-toggle:hover::before {
-            left: 100%;
-        }
-        .line-account-info {
-            background: linear-gradient(135deg, #00B900 0%, #00D400 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-        }
-        .push-message-test {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
-        }
-        .enhanced-features {
-            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border-radius: 8px; }
+        .status-badge { font-size: 1rem; }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="/admin">
-                <i class="fas fa-robot me-2"></i>LINE OA Middleware <span class="badge bg-success">v2.2</span>
+            <a class="navbar-brand" href="/admin">
+                <i class="fas fa-robot me-2"></i>LINE OA Middleware
             </a>
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="/admin/settings"><i class="fas fa-cog me-1"></i>ตั้งค่า</a>
@@ -227,205 +25,78 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <div class="container mt-5 pt-4">
-        <!-- System Status Header -->
+    <div class="container mt-4">
+        <h2 class="mb-4">
+            <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+        </h2>
+
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h2 class="mb-1"><i class="fas fa-tachometer-alt me-2"></i>ระบบควบคุม LINE OA Enhanced</h2>
-                                <p class="text-muted mb-0">จัดการและตรวจสอบสถานะระบบตรวจสอบสลิปอัตโนมัติ พร้อม Push Message API</p>
+                                <h5 class="mb-1">สถานะระบบ</h5>
+                                <p class="text-muted mb-0">สถานะปัจจุบันของระบบโดยรวม</p>
                             </div>
-                            <div id="systemStatusBadge">
-                                <!-- จะถูกอัปเดตด้วย JavaScript -->
-                            </div>
+                            <span id="systemStatusBadge" class="status-badge">
+                                {% if system_status.system_enabled and system_status.any_api_available %}
+                                    <span class="badge bg-success">ระบบออนไลน์</span>
+                                {% elif system_status.system_enabled and not system_status.any_api_available %}
+                                    <span class="badge bg-warning">ระบบมีปัญหา</span>
+                                {% else %}
+                                    <span class="badge bg-danger">ระบบปิดใช้งาน</span>
+                                {% endif %}
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- LINE Account Info -->
         <div class="row mb-4">
-            <div class="col-12">
-                <div class="line-account-info" id="lineAccountInfo" style="display: none;">
-                    <h5><i class="fab fa-line me-2"></i>ข้อมูล LINE Official Account</h5>
-                    <div id="lineAccountDetails">
-                        <!-- จะถูกอัปเดตด้วย JavaScript -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Enhanced Features Banner -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="enhanced-features">
-                    <h5><i class="fas fa-star me-2"></i>Enhanced Features v2.2</h5>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <i class="fas fa-paper-plane text-primary"></i> <strong>Smart Push Message</strong><br>
-                            <small>ส่งข้อความหาลูกค้าได้แม้ไม่มี Reply Token</small>
-                        </div>
-                        <div class="col-md-3">
-                            <i class="fas fa-shield-alt text-success"></i> <strong>Fallback System</strong><br>
-                            <small>ลอง Reply ก่อน แล้วค่อย Push หากล้มเหลว</small>
-                        </div>
-                        <div class="col-md-3">
-                            <i class="fas fa-search text-info"></i> <strong>Account Detection</strong><br>
-                            <small>ตรวจสอบความสามารถ LINE Account อัตโนมัติ</small>
-                        </div>
-                        <div class="col-md-3">
-                            <i class="fas fa-chart-line text-warning"></i> <strong>Enhanced Monitoring</strong><br>
-                            <small>แจ้งเตือนแบบ Real-time ครบถ้วน</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Control Panel -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>ควบคุมระบบ</h5>
-                    </div>
+            <div class="col-md-3">
+                <div class="card text-center">
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="me-3">
-                                        <i class="fas fa-receipt fa-2x text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1">ระบบตรวจสอบสลิป</h6>
-                                        <small class="text-muted">เปิด/ปิดระบบตรวจสอบสลิปอัตโนมัติ</small>
-                                    </div>
-                                    <button id="toggleSlipSystem" class="btn btn-system-toggle" type="button">
-                                        <i class="fas fa-spinner fa-spin d-none" id="toggleLoading"></i>
-                                        <span id="toggleText">กำลังโหลด...</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="me-3">
-                                        <i class="fas fa-sync fa-2x text-warning"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1">รีเซ็ต API Cache</h6>
-                                        <small class="text-muted">ล้างแคช API ที่ล้มเหลว</small>
-                                    </div>
-                                    <button id="resetApiCache" class="btn btn-warning btn-sm">
-                                        <i class="fas fa-redo me-1"></i>รีเซ็ต
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="me-3">
-                                        <i class="fas fa-trash fa-2x text-danger"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1">ล้างแคชสลิปซ้ำ</h6>
-                                        <small class="text-muted">ลบข้อมูลสลิปที่เคยตรวจแล้ว</small>
-                                    </div>
-                                    <button id="clearDuplicateCache" class="btn btn-danger btn-sm">
-                                        <i class="fas fa-trash me-1"></i>ล้างแคช
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="me-3">
-                                        <i class="fas fa-chart-line fa-2x text-info"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1">ตรวจสอบสถานะ API</h6>
-                                        <small class="text-muted">ทดสอบการเชื่อมต่อ API</small>
-                                    </div>
-                                    <button id="checkApiStatus" class="btn btn-info btn-sm">
-                                        <i class="fas fa-check me-1"></i>ตรวจสอบ
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stats Row -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body metric-card">
-                        <div class="metric-number">{{ total_chat_history }}</div>
-                        <div class="text-muted">ข้อความทั้งหมด</div>
+                        <h5 class="card-title">{{ total_chat_history }}</h5>
+                        <p class="card-text text-muted">ข้อความทั้งหมด</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body metric-card">
-                        <div class="metric-number" id="activeConnections">0</div>
-                        <div class="text-muted">การเชื่อมต่อสด</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body metric-card">
-                        <div class="metric-number" id="duplicateCache">0</div>
-                        <div class="text-muted">สลิปในแคช</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body metric-card">
-                        <div class="metric-number" id="systemUptime">00:00</div>
-                        <div class="text-muted">เวลาออนไลน์</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- API Status Grid -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-plug me-2"></i>สถานะ API Enhanced</h5>
-                    </div>
+                <div class="card text-center">
                     <div class="card-body">
-                        <div class="api-status-grid" id="apiStatusGrid">
-                            <!-- จะถูกอัปเดตด้วย JavaScript -->
-                        </div>
+                        <h5 class="card-title" id="activeConnections">0</h5>
+                        <p class="card-text text-muted">การเชื่อมต่อสด</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title" id="duplicateCache">0</h5>
+                        <p class="card-text text-muted">สลิปในแคช</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title" id="systemUptime">00:00</h5>
+                        <p class="card-text text-muted">เวลาออนไลน์</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Two Column Layout -->
         <div class="row">
-            <!-- Left Column: Notifications -->
             <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-bell me-2"></i>การแจ้งเตือนแบบเรียลไทม์</h5>
-                        <button id="clearNotifications" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-broom me-1"></i>ล้าง
-                        </button>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-bell me-2"></i>การแจ้งเตือน</h5>
                     </div>
                     <div class="card-body p-0">
-                        <div class="notification-area" id="notificationArea">
+                        <div class="list-group list-group-flush" id="notificationArea" style="max-height: 400px; overflow-y: auto;">
                             <div class="text-center text-muted py-4">
                                 <i class="fas fa-bell-slash fa-2x mb-2"></i>
                                 <p>ยังไม่มีการแจ้งเตือน</p>
@@ -434,811 +105,150 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Right Column: Test Area -->
             <div class="col-md-4">
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-vial me-2"></i>ทดสอบระบบ Enhanced</h5>
+                        <h5><i class="fas fa-vial me-2"></i>ทดสอบระบบ</h5>
                     </div>
                     <div class="card-body">
-                        <!-- Slip Upload Test -->
-                        <div class="test-area">
-                            <h6><i class="fas fa-receipt me-1"></i>ทดสอบการตรวจสอบสลิป</h6>
-                            <form id="testSlipForm" enctype="multipart/form-data">
-                                <div class="upload-area" id="uploadArea">
-                                    <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
-                                    <h6>ลากรูปสลิปมาวางที่นี่</h6>
-                                    <p class="text-muted mb-3">หรือคลิกเพื่อเลือกไฟล์</p>
-                                    <input type="file" id="slipFile" name="file" accept="image/*" class="d-none">
-                                    <button type="button" class="btn btn-primary" onclick="document.getElementById('slipFile').click()">
-                                        <i class="fas fa-folder-open me-1"></i>เลือกไฟล์
-                                    </button>
-                                </div>
-                                <div id="uploadResult" class="mt-3 d-none">
-                                    <div class="alert" role="alert">
-                                        <div id="uploadResultContent"></div>
-                                    </div>
-                                </div>
-                                <button type="submit" class="btn btn-success w-100 mt-3" id="testButton">
-                                    <i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป
-                                </button>
-                            </form>
-                        </div>
+                        <h6 class="mb-3"><i class="fas fa-receipt me-1"></i>ตรวจสอบสลิป</h6>
+                        <form id="testSlipForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <input type="file" class="form-control" id="slipFile" name="file" accept="image/*" required>
+                            </div>
+                            <div id="uploadResult" class="mt-3" style="display:none;"></div>
+                            <button type="submit" class="btn btn-primary w-100" id="testButton">
+                                <i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป
+                            </button>
+                        </form>
+                        
+                        <hr>
 
-                        <!-- Push Message Test -->
-                        <div class="push-message-test">
-                            <h6 class="text-white"><i class="fas fa-paper-plane me-1"></i>ทดสอบ Push Message</h6>
+                        <h6 class="mb-3"><i class="fas fa-paper-plane me-1"></i>ทดสอบ Push Message</h6>
+                        <form id="testPushForm">
                             <div class="mb-3">
                                 <input type="text" class="form-control" id="testUserId" placeholder="ใส่ LINE User ID">
-                                <small class="text-white">ได้จาก webhook หรือ log files</small>
                             </div>
-                            <button id="testPushMessage" class="btn btn-light w-100">
+                            <button type="submit" class="btn btn-primary w-100" id="testPushButton">
                                 <i class="fas fa-rocket me-1"></i>ทดสอบส่ง Push
                             </button>
-                        </div>
-
-                        <!-- LINE Account Test -->
-                        <div class="mt-3">
-                            <button id="testLineCapabilities" class="btn btn-success w-100">
-                                <i class="fas fa-search me-1"></i>ตรวจสอบ LINE Account
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Stats -->
-                <div class="card mt-3">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>ข้อมูลด่วน</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Thunder API:</span>
-                            <span id="thunderStatus" class="badge">ตรวจสอบ...</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>KBank API:</span>
-                            <span id="kbankStatus" class="badge">ตรวจสอบ...</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>LINE API:</span>
-                            <span id="lineStatus" class="badge">ตรวจสอบ...</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Push Message:</span>
-                            <span id="pushStatus" class="badge">ตรวจสอบ...</span>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between">
-                            <span>ระบบโดยรวม:</span>
-                            <span id="overallStatus" class="badge">กำลังประเมิน...</span>
-                        </div>
+                        </form>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Toast Container -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
-
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // WebSocket connection for real-time notifications
         let ws = null;
-        let systemStatus = {{ system_status | tojson }};
         let startTime = new Date();
 
-        // Initialize WebSocket
+        document.addEventListener('DOMContentLoaded', function() {
+            initWebSocket();
+            updateSystemStatus();
+            setInterval(updateSystemStatus, 5000);
+            setInterval(updateUptime, 60000);
+
+            document.getElementById('testSlipForm').addEventListener('submit', testSlipUpload);
+            document.getElementById('testPushForm').addEventListener('submit', testPushMessage);
+        });
+
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-            
             ws = new WebSocket(wsUrl);
-            
-            ws.onopen = function() {
-                console.log('WebSocket connected');
-                showToast('เชื่อมต่อระบบแจ้งเตือนสำเร็จ', 'success');
-            };
-            
             ws.onmessage = function(event) {
                 const notification = JSON.parse(event.data);
                 addNotification(notification);
             };
-            
-            ws.onclose = function() {
-                console.log('WebSocket disconnected');
-                setTimeout(initWebSocket, 3000); // Reconnect after 3 seconds
-            };
-            
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
+            ws.onclose = function() { setTimeout(initWebSocket, 3000); };
+            ws.onerror = function(error) { console.error('WebSocket error:', error); };
         }
 
-        // Add notification to the list
         function addNotification(notification) {
             const notificationArea = document.getElementById('notificationArea');
-            
-            // Remove empty message if exists
             const emptyMsg = notificationArea.querySelector('.text-center');
             if (emptyMsg) emptyMsg.remove();
             
             const notificationDiv = document.createElement('div');
-            notificationDiv.className = `notification-item notification-${notification.type}`;
-            
+            notificationDiv.className = `list-group-item list-group-item-${notification.type}`;
             const timestamp = new Date(notification.timestamp).toLocaleTimeString('th-TH');
             notificationDiv.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <strong>${getNotificationIcon(notification.type)} ${notification.message}</strong>
-                        ${notification.data && Object.keys(notification.data).length > 0 ? 
-                            `<br><small class="text-muted">${JSON.stringify(notification.data)}</small>` : ''
-                        }
-                    </div>
-                    <small class="text-muted">${timestamp}</small>
+                <div>
+                    <strong>${notification.message}</strong>
+                    <br><small class="text-muted">${timestamp}</small>
                 </div>
             `;
-            
-            notificationArea.insertBefore(notificationDiv, notificationArea.firstChild);
-            
-            // Keep only last 50 notifications
-            const notifications = notificationArea.querySelectorAll('.notification-item');
-            if (notifications.length > 50) {
-                notifications[notifications.length - 1].remove();
-            }
-            
-            // Auto scroll to top
-            notificationArea.scrollTop = 0;
+            notificationArea.prepend(notificationDiv);
         }
-
-        function getNotificationIcon(type) {
-            const icons = {
-                'success': '<i class="fas fa-check-circle"></i>',
-                'error': '<i class="fas fa-exclamation-circle"></i>',
-                'warning': '<i class="fas fa-exclamation-triangle"></i>',
-                'info': '<i class="fas fa-info-circle"></i>'
-            };
-            return icons[type] || '<i class="fas fa-bell"></i>';
-        }
-
-        // Show toast notification
-        function showToast(message, type = 'info') {
-            const toastContainer = document.getElementById('toastContainer');
-            const toastId = 'toast_' + Date.now();
-            
-            const bgClass = {
-                'success': 'bg-success',
-                'error': 'bg-danger',
-                'warning': 'bg-warning',
-                'info': 'bg-info'
-            }[type] || 'bg-info';
-            
-            const toastHtml = `
-                <div id="${toastId}" class="toast ${bgClass} text-white" role="alert" data-bs-autohide="true" data-bs-delay="5000">
-                    <div class="toast-body">
-                        ${getNotificationIcon(type)} ${message}
-                    </div>
-                </div>
-            `;
-            
-            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement);
-            toast.show();
-            
-            toastElement.addEventListener('hidden.bs.toast', () => {
-                toastElement.remove();
-            });
-        }
-
-        // Update system status
+        
         async function updateSystemStatus() {
             try {
                 const response = await fetch('/admin/system-status');
                 const data = await response.json();
-                
-                // Update stats
                 document.getElementById('activeConnections').textContent = data.active_connections;
                 document.getElementById('duplicateCache').textContent = data.duplicate_cache_size;
-                
-                // Update system status badge
-                const statusBadge = document.getElementById('systemStatusBadge');
-                const status = data.system_status;
-                
-                let badgeClass = 'badge bg-secondary';
-                let statusText = 'ไม่ทราบสถานะ';
-                
-                if (status.system_enabled && status.any_api_available) {
-                    badgeClass = 'badge bg-success';
-                    statusText = 'ระบบออนไลน์';
-                } else if (status.system_enabled && !status.any_api_available) {
-                    badgeClass = 'badge bg-warning';
-                    statusText = 'ระบบมีปัญหา';
-                } else {
-                    badgeClass = 'badge bg-danger';
-                    statusText = 'ระบบปิดใช้งาน';
-                }
-                
-                statusBadge.innerHTML = `<span class="${badgeClass} fs-6">${statusText}</span>`;
-                
-                // Update toggle button
-                updateToggleButton(status.system_enabled);
-                
             } catch (error) {
                 console.error('Error updating system status:', error);
             }
         }
-
-        // Update API status (Enhanced version)
-        async function updateApiStatus() {
-            try {
-                const response = await fetch('/admin/api-status');
-                const data = await response.json();
-                
-                // Update API status grid
-                const grid = document.getElementById('apiStatusGrid');
-                grid.innerHTML = '';
-                
-                Object.entries(data).forEach(([apiName, apiData]) => {
-                    if (apiName === 'system') return; // Skip system data
-                    
-                    const div = document.createElement('div');
-                    div.className = 'api-status-item';
-                    
-                    let statusClass = 'api-not-configured';
-                    let statusText = 'ไม่ได้ตั้งค่า';
-                    let statusIcon = 'fas fa-times-circle';
-                    let extraInfo = '';
-                    
-                    if (apiName === 'line' && apiData.configured && apiData.connected) {
-                        statusClass = 'api-configured';
-                        statusText = 'พร้อมใช้งาน';
-                        statusIcon = 'fas fa-check-circle';
-                        extraInfo = `<br><small>${apiData.bot_name || 'Unknown Bot'}</small>`;
-                        
-                        // ตรวจสอบ Push Message capability
-                        if (apiData.can_push === false) {
-                            statusClass = 'api-warning';
-                            statusText = 'Push Message ไม่รองรับ';
-                            statusIcon = 'fas fa-exclamation-triangle';
-                            extraInfo += `<br><small class="text-danger">Push: ${apiData.push_error || 'ไม่รองรับ'}</small>`;
-                        } else if (apiData.can_push === true) {
-                            extraInfo += '<br><small class="text-success">Push: รองรับ</small>';
-                        }
-                        
-                    } else if (apiData.configured && apiData.connected) {
-                        statusClass = 'api-configured';
-                        statusText = 'พร้อมใช้งาน';
-                        statusIcon = 'fas fa-check-circle';
-                    } else if (apiData.configured) {
-                        statusClass = 'api-warning';
-                        statusText = 'ตั้งค่าแล้วแต่ไม่ได้เชื่อมต่อ';
-                        statusIcon = 'fas fa-exclamation-circle';
-                    } else if (apiData.enabled === false) {
-                        statusClass = 'api-disabled';
-                        statusText = 'ปิดใช้งาน';
-                        statusIcon = 'fas fa-power-off';
-                    }
-                    
-                    div.className += ` ${statusClass}`;
-                    div.innerHTML = `
-                        <i class="${statusIcon} mb-2"></i>
-                        <h6>${apiName.toUpperCase()} API</h6>
-                        <small>${statusText}</small>
-                        ${extraInfo}
-                        ${apiData.error ? `<br><small class="text-danger">${apiData.error}</small>` : ''}
-                    `;
-                    
-                    grid.appendChild(div);
-                });
-                
-                // Update quick stats
-                document.getElementById('thunderStatus').className = `badge ${data.thunder?.configured && data.thunder?.connected ? 'bg-success' : 'bg-danger'}`;
-                document.getElementById('thunderStatus').textContent = data.thunder?.configured && data.thunder?.connected ? 'ออนไลน์' : 'ออฟไลน์';
-                
-                document.getElementById('kbankStatus').className = `badge ${data.kbank?.configured && data.kbank?.connected ? 'bg-success' : 'bg-danger'}`;
-                document.getElementById('kbankStatus').textContent = data.kbank?.configured && data.kbank?.connected ? 'ออนไลน์' : 'ออฟไลน์';
-                
-                document.getElementById('lineStatus').className = `badge ${data.line?.configured && data.line?.connected ? 'bg-success' : 'bg-danger'}`;
-                document.getElementById('lineStatus').textContent = data.line?.configured && data.line?.connected ? 'ออนไลน์' : 'ออฟไลน์';
-                
-                // Push Message status
-                const pushStatus = document.getElementById('pushStatus');
-                if (data.line?.can_push === true) {
-                    pushStatus.className = 'badge bg-success';
-                    pushStatus.textContent = 'รองรับ';
-                } else if (data.line?.can_push === false) {
-                    pushStatus.className = 'badge bg-warning';
-                    pushStatus.textContent = 'ไม่รองรับ';
-                } else {
-                    pushStatus.className = 'badge bg-secondary';
-                    pushStatus.textContent = 'ไม่ทราบ';
-                }
-                
-                // Overall status
-                const overallOnline = (data.thunder?.configured && data.thunder?.connected) || 
-                                    (data.kbank?.configured && data.kbank?.connected);
-                const lineOk = data.line?.configured && data.line?.connected;
-                
-                document.getElementById('overallStatus').className = `badge ${overallOnline && lineOk ? 'bg-success' : 'bg-danger'}`;
-                document.getElementById('overallStatus').textContent = overallOnline && lineOk ? 'ปกติ' : 'มีปัญหา';
-                
-                // Update LINE Account Info
-                if (data.line?.configured && data.line?.connected) {
-                    updateLineAccountInfo(data.line);
-                }
-                
-            } catch (error) {
-                console.error('Error updating API status:', error);
-            }
-        }
-
-        // Update LINE Account Info
-        function updateLineAccountInfo(lineData) {
-            const infoDiv = document.getElementById('lineAccountInfo');
-            const detailsDiv = document.getElementById('lineAccountDetails');
-            
-            if (lineData.bot_name) {
-                const pushStatusText = lineData.can_push ? 
-                    '<span class="badge bg-success">Push Message รองรับ</span>' : 
-                    '<span class="badge bg-warning">Push Message ไม่รองรับ</span>';
-                
-                detailsDiv.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>ชื่อบอท:</strong> ${lineData.bot_name}<br>
-                            <strong>User ID:</strong> ${lineData.user_id ? lineData.user_id.substring(0, 10) + '...' : 'Unknown'}
-                        </div>
-                        <div class="col-md-6">
-                            <strong>สถานะ:</strong> <span class="badge bg-success">เชื่อมต่อแล้ว</span><br>
-                            <strong>Push Message:</strong> ${pushStatusText}
-                        </div>
-                    </div>
-                    ${lineData.push_error ? `<div class="mt-2"><small>Push Error: ${lineData.push_error}</small></div>` : ''}
-                `;
-                infoDiv.style.display = 'block';
-            } else {
-                infoDiv.style.display = 'none';
-            }
-        }
-
-        // Update toggle button
-        function updateToggleButton(isEnabled) {
-            const toggleBtn = document.getElementById('toggleSlipSystem');
-            const toggleText = document.getElementById('toggleText');
-            
-            toggleBtn.className = `btn btn-system-toggle ${isEnabled ? 'btn-danger' : 'btn-success'}`;
-            toggleText.textContent = isEnabled ? 'ปิดระบบ' : 'เปิดระบบ';
-        }
-
-        // Update uptime
+        
         function updateUptime() {
             const now = new Date();
             const diff = now - startTime;
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            document.getElementById('systemUptime').textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            const minutes = Math.floor(diff / (1000 * 60));
+            const hours = Math.floor(minutes / 60);
+            const displayMinutes = minutes % 60;
+            document.getElementById('systemUptime').textContent = `${hours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}`;
         }
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize WebSocket
-            initWebSocket();
+        
+        async function testSlipUpload(e) {
+            e.preventDefault();
+            const form = e.target;
+            const fileInput = document.getElementById('slipFile');
+            if (!fileInput.files[0]) return;
             
-            // Update status initially and then every 30 seconds
-            updateSystemStatus();
-            updateApiStatus();
-            setInterval(updateSystemStatus, 30000);
-            setInterval(updateApiStatus, 60000);  // API status ทุก 1 นาที
-            setInterval(updateUptime, 60000);
+            const testButton = document.getElementById('testButton');
+            testButton.disabled = true;
+            testButton.textContent = 'กำลังตรวจสอบ...';
             
-            // Toggle slip system
-            document.getElementById('toggleSlipSystem').addEventListener('click', async function() {
-                const loading = document.getElementById('toggleLoading');
-                const text = document.getElementById('toggleText');
-                
-                loading.classList.remove('d-none');
-                text.textContent = 'กำลังดำเนินการ...';
-                this.disabled = true;
-                
-                try {
-                    const response = await fetch('/admin/toggle-slip-system', { method: 'POST' });
-                    const data = await response.json();
-                    
-                    if (data.status === 'success') {
-                        showToast(data.message, 'success');
-                        updateToggleButton(data.slip_enabled);
-                        setTimeout(updateSystemStatus, 1000);
-                    } else {
-                        showToast(data.message, 'error');
-                    }
-                } catch (error) {
-                    showToast('เกิดข้อผิดพลาดในการควบคุมระบบ', 'error');
-                } finally {
-                    loading.classList.add('d-none');
-                    this.disabled = false;
-                }
+            const formData = new FormData(form);
+            const response = await fetch('/admin/test-slip-upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            
+            const resultDiv = document.getElementById('uploadResult');
+            resultDiv.style.display = 'block';
+            const alertClass = result.status === 'success' ? 'alert-success' : 'alert-danger';
+            resultDiv.innerHTML = `<div class="alert ${alertClass}" role="alert">${result.message}</div>`;
+            
+            testButton.disabled = false;
+            testButton.textContent = 'ทดสอบตรวจสอบสลิป';
+        }
+        
+        async function testPushMessage(e) {
+            e.preventDefault();
+            const userId = document.getElementById('testUserId').value.trim();
+            if (!userId) return;
+            
+            const testButton = document.getElementById('testPushButton');
+            testButton.disabled = true;
+            testButton.textContent = 'กำลังส่ง...';
+            
+            const response = await fetch('/admin/test-push-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: userId,
+                    message: `🧪 ข้อความทดสอบจาก Admin Dashboard`
+                })
             });
+            const result = await response.json();
             
-            // Reset API cache
-            document.getElementById('resetApiCache').addEventListener('click', async function() {
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังรีเซ็ต...';
-                this.disabled = true;
-                
-                try {
-                    const response = await fetch('/admin/force-reset-apis', { method: 'POST' });
-                    const data = await response.json();
-                    showToast(data.message, data.status === 'success' ? 'success' : 'error');
-                } catch (error) {
-                    showToast('เกิดข้อผิดพลาดในการรีเซ็ต API', 'error');
-                } finally {
-                    this.innerHTML = '<i class="fas fa-redo me-1"></i>รีเซ็ต';
-                    this.disabled = false;
-                }
-            });
-            
-            // Clear duplicate cache
-            document.getElementById('clearDuplicateCache').addEventListener('click', async function() {
-                if (!confirm('คุณแน่ใจหรือไม่ที่จะล้างแคชสลิปซ้ำทั้งหมด?')) return;
-                
-               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังล้าง...';
-               this.disabled = true;
-               
-               try {
-                   const response = await fetch('/admin/clear-duplicate-cache');
-                   const data = await response.json();
-                   showToast(data.message, data.status === 'success' ? 'success' : 'error');
-                   setTimeout(updateSystemStatus, 1000);
-               } catch (error) {
-                   showToast('เกิดข้อผิดพลาดในการล้างแคช', 'error');
-               } finally {
-                   this.innerHTML = '<i class="fas fa-trash me-1"></i>ล้างแคช';
-                   this.disabled = false;
-               }
-           });
-           
-           // Check API status
-           document.getElementById('checkApiStatus').addEventListener('click', function() {
-               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
-               this.disabled = true;
-               
-               updateApiStatus().finally(() => {
-                   this.innerHTML = '<i class="fas fa-check me-1"></i>ตรวจสอบ';
-                   this.disabled = false;
-                   showToast('ตรวจสอบสถานะ API แล้ว', 'info');
-               });
-           });
-           
-           // Test LINE Capabilities (Enhanced)
-           document.getElementById('testLineCapabilities').addEventListener('click', async function() {
-               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังทดสอบ...';
-               this.disabled = true;
-               
-               try {
-                   const response = await fetch('/admin/test-line-capabilities', { method: 'POST' });
-                   const data = await response.json();
-                   
-                   if (data.status === 'success') {
-                       const capabilities = data.capabilities;
-                       const accountInfo = capabilities.account_info;
-                       
-                       let resultHtml = `<strong>✅ ทดสอบ LINE Account สำเร็จ!</strong><br><br>`;
-                       resultHtml += `<strong>ข้อมูลบัญชี:</strong><br>`;
-                       resultHtml += `• ชื่อ: ${accountInfo.display_name}<br>`;
-                       resultHtml += `• User ID: ${accountInfo.user_id.substring(0, 15)}...<br>`;
-                       resultHtml += `• Basic ID: ${accountInfo.basic_id}<br><br>`;
-                       
-                       resultHtml += `<strong>ความสามารถ API:</strong><br>`;
-                       resultHtml += `• Bot Info: ✅ ใช้งานได้<br>`;
-                       resultHtml += `• Reply Message: ✅ ใช้งานได้<br>`;
-                       resultHtml += `• Push Message: ${capabilities.api_capabilities.push_message ? '✅ ใช้งานได้' : '❌ ไม่รองรับ'}<br><br>`;
-                       
-                       if (capabilities.recommendations && capabilities.recommendations.length > 0) {
-                           resultHtml += `<strong>คำแนะนำ:</strong><br>`;
-                           capabilities.recommendations.forEach(rec => {
-                               resultHtml += `• ${rec}<br>`;
-                           });
-                       }
-                       
-                       showToastLarge(resultHtml, 'success', 10000);
-                       updateApiStatus(); // Refresh API status
-                   } else {
-                       let errorHtml = `<strong>❌ ทดสอบ LINE Account ล้มเหลว</strong><br><br>`;
-                       errorHtml += `ข้อผิดพลาด: ${data.message}<br><br>`;
-                       
-                       if (data.recommendations) {
-                           errorHtml += `<strong>คำแนะนำการแก้ไข:</strong><br>`;
-                           data.recommendations.forEach(rec => {
-                               errorHtml += `• ${rec}<br>`;
-                           });
-                       }
-                       
-                       showToastLarge(errorHtml, 'error', 10000);
-                   }
-               } catch (error) {
-                   showToast('เกิดข้อผิดพลาดในการทดสอบ LINE Account', 'error');
-               } finally {
-                   this.innerHTML = '<i class="fas fa-search me-1"></i>ตรวจสอบ LINE Account';
-                   this.disabled = false;
-               }
-           });
-           
-           // Test Push Message
-           document.getElementById('testPushMessage').addEventListener('click', async function() {
-               const userId = document.getElementById('testUserId').value.trim();
-               
-               if (!userId) {
-                   showToast('กรุณาใส่ LINE User ID', 'warning');
-                   document.getElementById('testUserId').focus();
-                   return;
-               }
-               
-               this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังส่ง...';
-               this.disabled = true;
-               
-               try {
-                   const response = await fetch('/admin/test-push-message', {
-                       method: 'POST',
-                       headers: { 'Content-Type': 'application/json' },
-                       body: JSON.stringify({ 
-                           user_id: userId,
-                           message: `🧪 นี่คือข้อความทดสอบจากระบบ\n\n✅ หากคุณเห็นข้อความนี้ แสดงว่า Push Message API ทำงานปกติ\n\n📅 เวลา: ${new Date().toLocaleString('th-TH')}\n💻 ส่งจาก: Admin Dashboard`
-                       })
-                   });
-                   
-                   const data = await response.json();
-                   
-                   if (data.status === 'success') {
-                       showToast(`✅ ส่ง Push Message สำเร็จไปยัง ${userId.substring(0, 8)}...`, 'success');
-                       document.getElementById('testUserId').value = ''; // Clear input
-                   } else {
-                       showToast(`❌ ส่ง Push Message ล้มเหลว: ${data.message}`, 'error');
-                   }
-               } catch (error) {
-                   showToast('เกิดข้อผิดพลาดในการทดสอบ Push Message', 'error');
-               } finally {
-                   this.innerHTML = '<i class="fas fa-rocket me-1"></i>ทดสอบส่ง Push';
-                   this.disabled = false;
-               }
-           });
-           
-           // Clear notifications
-           document.getElementById('clearNotifications').addEventListener('click', function() {
-               const notificationArea = document.getElementById('notificationArea');
-               notificationArea.innerHTML = `
-                   <div class="text-center text-muted py-4">
-                       <i class="fas fa-bell-slash fa-2x mb-2"></i>
-                       <p>ยังไม่มีการแจ้งเตือน</p>
-                   </div>
-               `;
-           });
-           
-           // File upload handling
-           const uploadArea = document.getElementById('uploadArea');
-           const slipFile = document.getElementById('slipFile');
-           const testForm = document.getElementById('testSlipForm');
-           
-           // Drag and drop
-           uploadArea.addEventListener('dragover', function(e) {
-               e.preventDefault();
-               this.classList.add('dragover');
-           });
-           
-           uploadArea.addEventListener('dragleave', function(e) {
-               e.preventDefault();
-               this.classList.remove('dragover');
-           });
-           
-           uploadArea.addEventListener('drop', function(e) {
-               e.preventDefault();
-               this.classList.remove('dragover');
-               
-               const files = e.dataTransfer.files;
-               if (files.length > 0) {
-                   slipFile.files = files;
-                   updateFileDisplay(files[0]);
-               }
-           });
-           
-           // File input change
-           slipFile.addEventListener('change', function() {
-               if (this.files.length > 0) {
-                   updateFileDisplay(this.files[0]);
-               }
-           });
-           
-           // Form submit
-           testForm.addEventListener('submit', async function(e) {
-               e.preventDefault();
-               
-               const fileInput = document.getElementById('slipFile');
-               if (!fileInput.files[0]) {
-                   showToast('กรุณาเลือกไฟล์สลิปก่อน', 'warning');
-                   return;
-               }
-               
-               const testButton = document.getElementById('testButton');
-               const uploadResult = document.getElementById('uploadResult');
-               
-               testButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังตรวจสอบ...';
-               testButton.disabled = true;
-               
-               const formData = new FormData();
-               formData.append('file', fileInput.files[0]);
-               
-               try {
-                   const response = await fetch('/admin/test-slip-upload', {
-                       method: 'POST',
-                       body: formData
-                   });
-                   
-                   const data = await response.json();
-                   
-                   uploadResult.classList.remove('d-none');
-                   const alertClass = data.status === 'success' ? 'alert-success' : 
-                                    data.status === 'duplicate' ? 'alert-warning' : 'alert-danger';
-                   
-                   uploadResult.innerHTML = `
-                       <div class="alert ${alertClass}" role="alert">
-                           <div id="uploadResultContent">
-                               <strong>${data.status === 'success' ? '✅ สำเร็จ!' : 
-                                        data.status === 'duplicate' ? '🔄 สลิปซ้ำ!' : '❌ ผิดพลาด!'}</strong>
-                               <p class="mb-0">${data.message}</p>
-                               ${data.response && data.response.data ? `
-                                   <hr>
-                                   <small>
-                                       <strong>รายละเอียด:</strong><br>
-                                       จำนวน: ${data.response.data.amount_display || data.response.data.amount || 'N/A'}<br>
-                                       วันที่: ${data.response.data.date || 'N/A'}<br>
-                                       ตรวจสอบโดย: ${data.response.data.verified_by || 'N/A'}
-                                   </small>
-                               ` : ''}
-                           </div>
-                       </div>
-                   `;
-                   
-                   showToast(data.message, data.status === 'success' ? 'success' : 
-                            data.status === 'duplicate' ? 'warning' : 'error');
-                   
-               } catch (error) {
-                   uploadResult.classList.remove('d-none');
-                   uploadResult.innerHTML = `
-                       <div class="alert alert-danger" role="alert">
-                           <strong>เกิดข้อผิดพลาด!</strong>
-                           <p class="mb-0">ไม่สามารถเชื่อมต่อกับระบบได้</p>
-                       </div>
-                   `;
-                   showToast('เกิดข้อผิดพลาดในการทดสอบ', 'error');
-               } finally {
-                   testButton.innerHTML = '<i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป';
-                   testButton.disabled = false;
-               }
-           });
-           
-           function updateFileDisplay(file) {
-               const uploadArea = document.getElementById('uploadArea');
-               uploadArea.innerHTML = `
-                   <i class="fas fa-file-image fa-3x mb-3 text-success"></i>
-                   <h6>${file.name}</h6>
-                   <p class="text-muted mb-3">ขนาด: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                   <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('slipFile').click()">
-                       <i class="fas fa-exchange-alt me-1"></i>เปลี่ยนไฟล์
-                   </button>
-               `;
-           }
-       });
-
-       // Show large toast for detailed information
-       function showToastLarge(message, type = 'info', duration = 8000) {
-           const toastContainer = document.getElementById('toastContainer');
-           const toastId = 'toast_large_' + Date.now();
-           
-           const bgClass = {
-               'success': 'bg-success',
-               'error': 'bg-danger',
-               'warning': 'bg-warning',
-               'info': 'bg-info'
-           }[type] || 'bg-info';
-           
-           const toastHtml = `
-               <div id="${toastId}" class="toast ${bgClass} text-white" role="alert" data-bs-autohide="true" data-bs-delay="${duration}" style="max-width: 400px;">
-                   <div class="toast-header">
-                       <strong class="me-auto">${getNotificationIcon(type)} ผลการทดสอบ</strong>
-                       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                   </div>
-                   <div class="toast-body">
-                       ${message}
-                   </div>
-               </div>
-           `;
-           
-           toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-           const toastElement = document.getElementById(toastId);
-           const toast = new bootstrap.Toast(toastElement);
-           toast.show();
-           
-           toastElement.addEventListener('hidden.bs.toast', () => {
-               toastElement.remove();
-           });
-       }
-
-       // Debug functions (can be called from browser console)
-       window.debugFunctions = {
-           async checkConfig() {
-               const response = await fetch('/admin/debug-config');
-               const data = await response.json();
-               console.table(data);
-               return data;
-           },
-           
-           async testLineAccount() {
-               const response = await fetch('/admin/check-line-account');
-               const data = await response.json();
-               console.log('LINE Account Test Result:', data);
-               return data;
-           },
-           
-           async getSystemStats() {
-               const response = await fetch('/admin/statistics');
-               const data = await response.json();
-               console.table(data);
-               return data;
-           },
-           
-           sendTestNotification(message, type = 'info') {
-               addNotification({
-                   message: message,
-                   type: type,
-                   timestamp: new Date().toISOString(),
-                   data: { test: true }
-               });
-           }
-       };
-
-       // Keyboard shortcuts
-       document.addEventListener('keydown', function(e) {
-           if (e.ctrlKey || e.metaKey) {
-               switch(e.key) {
-                   case 'r':
-                       e.preventDefault();
-                       updateApiStatus();
-                       showToast('รีเฟรชสถานะ API แล้ว', 'info');
-                       break;
-                   case 't':
-                       e.preventDefault();
-                       document.getElementById('testUserId').focus();
-                       break;
-                   case 'u':
-                       e.preventDefault();
-                       document.getElementById('slipFile').click();
-                       break;
-               }
-           }
-       });
-
-       // Add helpful tooltips
-       const tooltips = [
-           { selector: '#testUserId', title: 'User ID ได้จาก webhook หรือ log เมื่อผู้ใช้ส่งข้อความมา' },
-           { selector: '#toggleSlipSystem', title: 'เปิด/ปิดระบบตรวจสอบสลิปทั้งหมด' },
-           { selector: '#clearDuplicateCache', title: 'ล้างแคชสลิปซ้ำ เพื่อให้สามารถตรวจสอบสลิปเดิมได้อีกครั้ง' }
-       ];
-
-       tooltips.forEach(tooltip => {
-           const element = document.querySelector(tooltip.selector);
-           if (element) {
-               element.setAttribute('title', tooltip.title);
-               element.setAttribute('data-bs-toggle', 'tooltip');
-           }
-       });
-
-       // Initialize Bootstrap tooltips
-       var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-       var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-           return new bootstrap.Tooltip(tooltipTriggerEl);
-       });
-   </script>
+            alert(result.message);
+            testButton.disabled = false;
+            testButton.textContent = 'ทดสอบส่ง Push';
+        }
+    </script>
 </body>
 </html>
