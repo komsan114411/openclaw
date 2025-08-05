@@ -1,3 +1,4 @@
+<!-- templates/admin_home.html - ปรับปรุงเวอร์ชัน -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -16,23 +17,70 @@
         }
         .status-online { background-color: #28a745; }
         .status-offline { background-color: #dc3545; }
-        .api-status-card { transition: all 0.3s ease; }
-        .api-status-card:hover { transform: translateY(-2px); }
+        .status-warning { background-color: #ffc107; }
+        .api-status-card { 
+            transition: all 0.3s ease; 
+            cursor: pointer;
+        }
+        .api-status-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .notification-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            max-width: 400px;
+        }
+        .log-viewer {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-light">
+    <!-- Notification Panel -->
+    <div id="notificationPanel" class="notification-panel"></div>
+
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="/admin">
                 <i class="fas fa-cogs me-2"></i>LINE OA Admin Dashboard
+                <span class="badge bg-light text-dark ms-2" id="connectionStatus">Connecting...</span>
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin/debug">
-                    <i class="fas fa-bug me-1"></i>Debug Console
+                <a class="nav-link" href="/admin/chat-history">
+                    <i class="fas fa-comments me-1"></i>Chat History
                 </a>
                 <a class="nav-link" href="/admin/settings">
                     <i class="fas fa-cog me-1"></i>Settings
+                </a>
+                <a class="nav-link" href="/admin/debug">
+                    <i class="fas fa-bug me-1"></i>Debug Console
                 </a>
                 <a class="nav-link" href="/health" target="_blank">
                     <i class="fas fa-heartbeat me-1"></i>Health
@@ -48,38 +96,51 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5><i class="fas fa-tachometer-alt me-2"></i>System Status Overview</h5>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshAllStatus()" id="refreshBtn">
-                            <i class="fas fa-sync me-1"></i>Refresh All
-                        </button>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshAllStatus()" id="refreshBtn">
+                                <i class="fas fa-sync me-1"></i>Refresh All
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="exportSystemData()">
+                                <i class="fas fa-download me-1"></i>Export Data
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="row" id="systemStatusOverview">
                             <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h2 text-primary" id="systemStatus">
-                                        <div class="spinner-border" role="status"></div>
+                                <div class="card metric-card">
+                                    <div class="card-body text-center">
+                                        <div class="h2" id="systemStatus">
+                                            <div class="spinner-border" role="status"></div>
+                                        </div>
+                                        <div>System Status</div>
                                     </div>
-                                    <div class="text-muted">System Status</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h2 text-success" id="apiCount">
-                                        <div class="spinner-border" role="status"></div>
+                                <div class="card metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                    <div class="card-body text-center">
+                                        <div class="h2" id="apiCount">
+                                            <div class="spinner-border" role="status"></div>
+                                        </div>
+                                        <div>APIs Ready</div>
                                     </div>
-                                    <div class="text-muted">APIs Ready</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h2 text-info">{{ total_chat_history or 0 }}</div>
-                                    <div class="text-muted">Total Messages</div>
+                                <div class="card metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                    <div class="card-body text-center">
+                                        <div class="h2">{{ total_chat_history or 0 }}</div>
+                                        <div>Total Messages</div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h2 text-warning" id="activeConnections">0</div>
-                                    <div class="text-muted">Active Connections</div>
+                                <div class="card metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                    <div class="card-body text-center">
+                                        <div class="h2" id="activeConnections">0</div>
+                                        <div>Active Connections</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -92,7 +153,7 @@
         <div class="row mb-4">
             <!-- Thunder API -->
             <div class="col-md-4">
-                <div class="card api-status-card">
+                <div class="card api-status-card" onclick="openDebugConsole()">
                     <div class="card-header bg-warning text-dark">
                         <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
                     </div>
@@ -107,7 +168,7 @@
 
             <!-- KBank API -->
             <div class="col-md-4">
-                <div class="card api-status-card">
+                <div class="card api-status-card" onclick="openDebugConsole()">
                     <div class="card-header bg-primary text-white">
                         <h6><i class="fas fa-university me-2"></i>KBank API</h6>
                     </div>
@@ -122,7 +183,7 @@
 
             <!-- LINE API -->
             <div class="col-md-4">
-                <div class="card api-status-card">
+                <div class="card api-status-card" onclick="testLineConnection()">
                     <div class="card-header bg-success text-white">
                         <h6><i class="fab fa-line me-2"></i>LINE API</h6>
                     </div>
@@ -154,6 +215,9 @@
                             <button class="btn btn-outline-info" onclick="testKBankSandbox()">
                                 <i class="fas fa-university me-1"></i>Test KBank Sandbox
                             </button>
+                            <button class="btn btn-outline-warning" onclick="testLineConnection()">
+                                <i class="fab fa-line me-1"></i>Test LINE API
+                            </button>
                             <a href="/admin/settings" class="btn btn-outline-secondary">
                                 <i class="fas fa-cog me-1"></i>Settings
                             </a>
@@ -165,16 +229,106 @@
                 </div>
             </div>
         </div>
+
+        <!-- System Logs Preview -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6><i class="fas fa-terminal me-2"></i>System Logs (Last 10 entries)</h6>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshLogs()">
+                            <i class="fas fa-sync me-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <pre id="systemLogs" class="log-viewer p-3 rounded">กำลังโหลด logs...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let websocket = null;
+        let refreshInterval = null;
+
         document.addEventListener('DOMContentLoaded', function() {
+            initializeWebSocket();
             refreshAllStatus();
-            setInterval(refreshAllStatus, 30000);
+            refreshLogs();
+            
+            // Auto refresh every 30 seconds
+            refreshInterval = setInterval(() => {
+                refreshAllStatus();
+                refreshLogs();
+            }, 30000);
         });
 
+        function initializeWebSocket() {
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function() {
+                    document.getElementById('connectionStatus').textContent = 'Connected';
+                    document.getElementById('connectionStatus').className = 'badge bg-success text-white ms-2';
+                };
+                
+                websocket.onmessage = function(event) {
+                    const notification = JSON.parse(event.data);
+                    showNotification(notification.message, notification.type);
+                };
+                
+                websocket.onclose = function() {
+                    document.getElementById('connectionStatus').textContent = 'Disconnected';
+                    document.getElementById('connectionStatus').className = 'badge bg-danger text-white ms-2';
+                    
+                    // Try to reconnect after 5 seconds
+                    setTimeout(initializeWebSocket, 5000);
+                };
+                
+                websocket.onerror = function() {
+                    document.getElementById('connectionStatus').textContent = 'Error';
+                    document.getElementById('connectionStatus').className = 'badge bg-warning text-dark ms-2';
+                };
+            } catch (error) {
+                console.error('WebSocket error:', error);
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const alertClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            const notification = document.createElement('div');
+            notification.className = `alert ${alertClass} alert-dismissible fade show`;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.getElementById('notificationPanel').appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
         async function refreshAllStatus() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+            refreshBtn.disabled = true;
+
             try {
                 const response = await fetch('/admin/api-status');
                 const data = await response.json();
@@ -200,6 +354,10 @@
                 
             } catch (error) {
                 console.error('Failed to refresh status:', error);
+                showNotification('ไม่สามารถโหลดสถานะระบบได้', 'error');
+            } finally {
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
             }
         }
 
@@ -228,14 +386,31 @@
             `;
         }
 
+        async function refreshLogs() {
+            try {
+                const response = await fetch('/admin/system-logs');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const logs = result.logs.slice(-10).join('');
+                    document.getElementById('systemLogs').textContent = logs || 'No logs available';
+                } else {
+                    document.getElementById('systemLogs').textContent = 'Error loading logs';
+                }
+            } catch (error) {
+                console.error('Failed to refresh logs:', error);
+                document.getElementById('systemLogs').textContent = 'Error loading logs';
+            }
+        }
+
         async function toggleSlipSystem() {
             try {
                 const response = await fetch('/admin/toggle-slip-system', { method: 'POST' });
                 const result = await response.json();
-                alert(result.message);
+                showNotification(result.message, result.status);
                 refreshAllStatus();
             } catch (error) {
-                alert('Failed to toggle slip system');
+                showNotification('Failed to toggle slip system', 'error');
             }
         }
 
@@ -243,14 +418,15 @@
             try {
                 const response = await fetch('/admin/reset-failures', { method: 'POST' });
                 const result = await response.json();
-                alert(result.message);
+                showNotification(result.message, result.status);
                 refreshAllStatus();
             } catch (error) {
-                alert('Failed to reset API failures');
+                showNotification('Failed to reset API failures', 'error');
             }
         }
 
         async function testKBankSandbox() {
+            showNotification('กำลังทดสอบ KBank Sandbox...', 'info');
             try {
                 const response = await fetch('/admin/test-kbank-sandbox', {
                     method: 'POST',
@@ -263,12 +439,66 @@
                     })
                 });
                 const result = await response.json();
-                alert(`KBank Sandbox Test: ${result.message}`);
+                showNotification(`KBank Sandbox Test: ${result.message}`, result.status);
                 console.log('KBank Test Result:', result);
             } catch (error) {
-                alert('Failed to test KBank Sandbox');
+                showNotification('Failed to test KBank Sandbox', 'error');
             }
         }
+
+        async function testLineConnection() {
+            showNotification('กำลังทดสอบ LINE API...', 'info');
+            try {
+                const response = await fetch('/admin/test-line-connection', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showNotification(`LINE API Test Success: ${result.data.bot_name}`, 'success');
+                } else {
+                    showNotification(`LINE API Test Failed: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showNotification('Failed to test LINE API', 'error');
+            }
+        }
+
+        async function exportSystemData() {
+            try {
+                const response = await fetch('/admin/export-data');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    const dataStr = JSON.stringify(result.data, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    const exportFileDefaultName = `system_export_${new Date().toISOString().split('T')[0]}.json`;
+                    
+                    const linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', exportFileDefaultName);
+                    linkElement.click();
+                    
+                    showNotification('Export successful', 'success');
+                } else {
+                    showNotification('Export failed', 'error');
+                }
+            } catch (error) {
+                showNotification('Export error', 'error');
+            }
+        }
+
+        function openDebugConsole() {
+            window.open('/admin/debug', '_blank');
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (websocket) {
+                websocket.close();
+            }
+        });
     </script>
 </body>
 </html>
