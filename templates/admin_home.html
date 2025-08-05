@@ -50,7 +50,6 @@
     </style>
 </head>
 <body class="bg-light">
-    <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay">
         <div class="text-center text-white">
             <div class="spinner-border mb-3" role="status">
@@ -60,10 +59,8 @@
         </div>
     </div>
 
-    <!-- Notification Area -->
     <div id="notificationArea" class="notification-area"></div>
 
-    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="/admin">
@@ -92,7 +89,6 @@
     </nav>
 
     <div class="container mt-4">
-        <!-- System Status Overview -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -138,9 +134,7 @@
             </div>
         </div>
 
-        <!-- API Status Cards -->
         <div class="row mb-4">
-            <!-- Thunder API -->
             <div class="col-md-4">
                 <div class="card api-status-card">
                     <div class="card-header bg-warning text-dark">
@@ -155,7 +149,6 @@
                 </div>
             </div>
 
-            <!-- KBank API -->
             <div class="col-md-4">
                 <div class="card api-status-card">
                     <div class="card-header bg-primary text-white">
@@ -170,7 +163,6 @@
                 </div>
             </div>
 
-            <!-- LINE API -->
             <div class="col-md-4">
                 <div class="card api-status-card">
                     <div class="card-header bg-success text-white">
@@ -186,7 +178,6 @@
             </div>
         </div>
 
-        <!-- Quick Actions -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -219,7 +210,6 @@
             </div>
         </div>
 
-        <!-- Recent Activities (if available) -->
         {% if system_status %}
         <div class="row mb-4">
             <div class="col-12">
@@ -252,7 +242,6 @@
         </div>
         {% endif %}
 
-        <!-- Footer -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
@@ -333,8 +322,8 @@
         function showNotification(message, type = 'info') {
             const notificationArea = document.getElementById('notificationArea');
             const alertClass = type === 'success' ? 'alert-success' : 
-                              type === 'error' ? 'alert-danger' : 
-                              type === 'warning' ? 'alert-warning' : 'alert-info';
+                                 type === 'error' ? 'alert-danger' : 
+                                 type === 'warning' ? 'alert-warning' : 'alert-info';
             
             const notification = document.createElement('div');
             notification.className = `alert ${alertClass} alert-dismissible fade show`;
