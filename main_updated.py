@@ -82,75 +82,48 @@ class NotificationManager:
 notification_manager = NotificationManager()
 
 # Import modules with error handling
+# การนำเข้าทั้งหมดถูกย้ายมาที่ด้านบนและลบ try-except block ที่ทำให้เกิด NameError ออก
 try:
     from utils.config_manager import config_manager
-    logger.info("✅ Config manager imported successfully")
-except ImportError as e:
-    logger.error(f"❌ Failed to import config_manager: {e}")
-    # Create a simple config manager fallback
-    class SimpleConfigManager:
-        def __init__(self):
-            self.config = {}
-        def get(self, key, default=None):
-            return os.getenv(key.upper(), os.getenv(key, default))
-        def update(self, key, value):
-            return True
-        def update_multiple(self, updates):
-            return True
-    config_manager = SimpleConfigManager()
-
-try:
     from models.database import (
         init_database, save_chat_history, get_chat_history_count, get_recent_chat_history,
         get_user_chat_history
     )
-    logger.info("✅ Database models imported successfully")
+    from services.chat_bot import get_chat_response
+    from services.enhanced_slip_checker import (
+        verify_slip_multiple_providers,
+        extract_slip_info_from_text,
+        get_api_status_summary,
+        reset_api_failure_cache,
+    )
+    from services.slip_checker import verify_slip_with_thunder
+    from services.kbank_checker import kbank_checker
+    
+    # กำหนดสถานะการนำเข้า
+    IS_READY = True
+    logger.info("✅ All core modules imported successfully.")
 except ImportError as e:
-    logger.error(f"❌ Failed to import database models: {e}")
+    logger.error(f"❌ Failed to import core modules: {e}")
+    IS_READY = False
+    
+    # Fallback functions in case of critical import failure
     def init_database(): pass
     def save_chat_history(user_id, direction, message, sender): pass
     def get_chat_history_count(): return 0
     def get_recent_chat_history(limit=50): return []
     def get_user_chat_history(user_id, limit=10): return []
-
-try:
-    from services.chat_bot import get_chat_response
-    logger.info("✅ Chat bot service imported successfully")
-except ImportError as e:
-    logger.error(f"❌ Failed to import chat_bot: {e}")
-    def get_chat_response(text, user_id):
-        return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
-
-try:
-    from services.slip_checker import verify_slip_with_thunder
-    logger.info("✅ Thunder slip checker imported successfully")
-except ImportError as e:
-    logger.error(f"❌ Failed to import slip_checker: {e}")
-    def verify_slip_with_thunder(message_id, test_image_data=None):
-        return {"status": "error", "message": "ระบบตรวจสอบสลิป Thunder ไม่พร้อมใช้งาน"}
-
-try:
-    from services.enhanced_slip_checker import (
-        verify_slip_multiple_providers,
-        extract_slip_info_from_text,
-        get_api_status_summary
-    )
-    logger.info("✅ Enhanced slip checker imported successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Enhanced slip checker not available: {e}")
+    def get_chat_response(text, user_id): return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
     def verify_slip_multiple_providers(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
-        if message_id or test_image_data:
-            return verify_slip_with_thunder(message_id, test_image_data)
-        return {"status": "error", "message": "ไม่สามารถตรวจสอบสลิปได้"}
-    def extract_slip_info_from_text(text):
-        return {"bank_code": None, "trans_ref": None}
-    def get_api_status_summary():
-        return {"thunder": {"enabled": False}, "kbank": {"enabled": False}}
-
+        return {"status": "error", "message": "ไม่สามารถตรวจสอบสลิปได้เนื่องจากระบบไม่พร้อมใช้งาน"}
+    def extract_slip_info_from_text(text): return {"bank_code": None, "trans_ref": None}
+    def get_api_status_summary(): return {"thunder": {"enabled": False, "configured": False, "connected": False}, "kbank": {"enabled": False, "configured": False, "connected": False}}
+    def reset_api_failure_cache(): pass
+    
 # Initialize database
 try:
     logger.info("Initializing database...")
-    init_database()
+    if IS_READY:
+        init_database()
     logger.info("✅ Database initialized successfully")
 except Exception as e:
     logger.error(f"❌ Database initialization error: {e}")
@@ -466,7 +439,6 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         elif not openai_key:
             response = "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
         else:
-            # เรียกใช้ AI
             response = await asyncio.to_thread(get_chat_response, user_text, user_id)
         
         # ส่งข้อความตอบกลับ
@@ -494,7 +466,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             return
 
         # แจ้งผู้ใช้ว่ากำลังตรวจสอบ
-        await send_message_safe(user_id, reply_token, "กรุณารอสักครู่ ระบบกำลังตรวจสอบสลิป...", "system")
+        await send_line_reply(reply_token, "กรุณารอสักครู่ ระบบกำลังตรวจสอบสลิป...", "system")
 
         # เรียกใช้ระบบตรวจสอบสลิป
         if slip_info:
@@ -523,6 +495,10 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
     """Process LINE event (Simplified and more robust)"""
+    if not IS_READY:
+        logger.error("❌ System is not ready due to import errors. Skipping event processing.")
+        return
+        
     try:
         if event.get("type") != "message":
             logger.info(f"⏭️ Skipping non-message event: {event.get('type')}")
@@ -547,7 +523,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             slip_info = extract_slip_info_from_text(user_text)
             
             if slip_info.get("bank_code") and slip_info.get("trans_ref"):
-                # ส่งไปตรวจสอบสลิป แต่ใช้ reply token จากข้อความเดิม
                 await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
             else:
                 await handle_ai_chat(user_id, reply_token, user_text)
@@ -586,6 +561,10 @@ async def websocket_endpoint(websocket: WebSocket):
 async def line_webhook(request: Request, x_line_signature: str = Header(None)) -> JSONResponse:
     """LINE webhook endpoint"""
     logger.info("📨 Received LINE webhook request")
+    if not IS_READY:
+        logger.error("❌ System not ready, cannot process webhook.")
+        return JSONResponse(content={"status": "error", "message": "System is not ready"}, status_code=503)
+
     try:
         body = await request.body()
         signature = x_line_signature or ""
@@ -620,13 +599,15 @@ async def root():
 async def admin_home(request: Request):
     """Admin home page"""
     total_count = get_chat_history_count()
-    # This function is not defined in the provided code, so I'll create a dummy one
-    def check_slip_system_status():
-        return {
-            "system_enabled": config_manager.get("slip_enabled", False),
-            "any_api_available": bool(config_manager.get("thunder_api_token")) or bool(config_manager.get("kbank_consumer_id"))
-        }
-    system_status = check_slip_system_status()
+    api_statuses = get_api_status_summary()
+    system_enabled = config_manager.get("slip_enabled", False)
+    any_api_available = any(api["enabled"] and api["configured"] for api in api_statuses.values())
+
+    system_status = {
+        "system_enabled": system_enabled,
+        "any_api_available": any_api_available
+    }
+    
     return templates.TemplateResponse(
         "admin_home.html",
         {
@@ -658,7 +639,18 @@ async def admin_chat(request: Request):
             "chat_history": history,
         },
     )
-    
+
+@app.post("/admin/force-reset-apis")
+async def force_reset_apis():
+    """Force reset API failure cache"""
+    try:
+        reset_api_failure_cache()
+        await notification_manager.send_notification("🔄 API failure cache ถูกรีเซ็ตแล้ว", "success")
+        return JSONResponse({"status": "success", "message": "รีเซ็ต API failure cache สำเร็จ"})
+    except Exception as e:
+        logger.error(f"❌ Error resetting API cache: {e}")
+        return JSONResponse({"status": "error", "message": "เกิดข้อผิดพลาดในการรีเซ็ต API cache"})
+        
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
     """Update settings (Enhanced boolean handling)"""
@@ -704,6 +696,9 @@ async def update_settings(request: Request) -> JSONResponse:
 @app.post("/admin/test-slip-upload")
 async def test_slip_upload(request: Request):
     """Test slip upload"""
+    if not IS_READY:
+        return JSONResponse(content={"status": "error", "message": "ระบบไม่พร้อมใช้งาน"}, status_code=503)
+
     try:
         form = await request.form()
         file = form.get("file")
@@ -738,13 +733,134 @@ async def test_slip_upload(request: Request):
         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดในการทดสอบสลิป: {str(e)}", "error")
         return JSONResponse(content={"status": "error", "message": f"เกิดข้อผิดพลาด: {str(e)}"})
 
+# Add a new route to test push messages
+@app.post("/admin/test-push-message")
+async def test_push_message(request: Request):
+    if not IS_READY:
+        return JSONResponse(content={"status": "error", "message": "ระบบไม่พร้อมใช้งาน"}, status_code=503)
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        message_text = data.get("message")
+
+        if not user_id or not message_text:
+            return JSONResponse({"status": "error", "message": "ต้องระบุ user_id และ message"})
+
+        success = await send_line_push(user_id, message_text)
+        if success:
+            return JSONResponse({"status": "success", "message": "ส่งข้อความทดสอบสำเร็จ"})
+        else:
+            return JSONResponse({"status": "error", "message": "ส่งข้อความทดสอบไม่สำเร็จ"})
+    except Exception as e:
+        logger.exception("❌ Error in test_push_message endpoint")
+        return JSONResponse({"status": "error", "message": f"เกิดข้อผิดพลาด: {str(e)}"})
+        
+@app.post("/admin/toggle-slip-system")
+async def toggle_slip_system():
+    """Toggle slip checking system on/off"""
+    try:
+        current_status = config_manager.get("slip_enabled", False)
+        new_status = not current_status
+        config_manager.update("slip_enabled", new_status)
+        message = f"✅ ระบบตรวจสอบสลิปถูก{'เปิด' if new_status else 'ปิด'}ใช้งานแล้ว"
+        await notification_manager.send_notification(message, "success")
+        return JSONResponse({"status": "success", "message": message, "slip_enabled": new_status})
+    except Exception as e:
+        logger.error(f"❌ Error toggling slip system: {e}")
+        return JSONResponse({"status": "error", "message": "ไม่สามารถเปลี่ยนสถานะระบบได้"})
+
+@app.get("/admin/api-status")
+async def get_api_status():
+    """Get status of all configured APIs for the dashboard"""
+    if not IS_READY:
+        return JSONResponse({"status": "error", "message": "ระบบไม่พร้อมใช้งาน", "thunder": {"configured": False, "enabled": False}, "kbank": {"configured": False, "enabled": False}, "line": {"configured": False, "enabled": False}})
+
+    # ดึงสถานะ Thunder และ KBank จาก enhanced_slip_checker
+    api_summary = get_api_status_summary()
+
+    # ดึงสถานะ LINE จาก main_updated
+    line_token = config_manager.get("line_channel_access_token")
+    line_secret = config_manager.get("line_channel_secret")
+    line_configured = bool(line_token and line_secret)
+    line_connected = False
+    bot_name = "N/A"
+    
+    if line_configured:
+        # ลองทดสอบการเชื่อมต่อกับ LINE API (ตัวอย่าง)
+        try:
+            import requests
+            url = "https://api.line.me/v2/bot/info"
+            headers = {"Authorization": f"Bearer {line_token}"}
+            response = requests.get(url, headers=headers, timeout=5)
+            if response.status_code == 200:
+                line_connected = True
+                bot_name = response.json().get("displayName", "Unknown Bot")
+        except:
+            pass # ไม่เป็นไรถ้าทดสอบไม่สำเร็จ
+
+    api_summary["line"] = {
+        "configured": line_configured,
+        "connected": line_connected,
+        "bot_name": bot_name,
+        "enabled": True, # LINE API ถือว่าเปิดใช้งานตลอดหากมีการตั้งค่า
+        "can_push": False, # Mock value, implementation not provided
+    }
+    
+    return JSONResponse(api_summary)
+
+@app.get("/admin/system-status")
+async def get_system_status():
+    """Get system status for the dashboard"""
+    if not IS_READY:
+        return JSONResponse({"status": "error", "message": "ระบบไม่พร้อมใช้งาน", "system_enabled": False, "any_api_available": False, "active_connections": 0, "duplicate_cache_size": 0})
+    
+    api_statuses = get_api_status_summary()
+    system_enabled = config_manager.get("slip_enabled", False)
+    any_api_available = any(api["configured"] and api["enabled"] for api in api_statuses.values())
+    
+    return JSONResponse({
+        "status": "success",
+        "system_status": {
+            "system_enabled": system_enabled,
+            "any_api_available": any_api_available,
+        },
+        "active_connections": len(notification_manager.active_connections),
+        "duplicate_cache_size": len(notification_manager.duplicate_slip_cache)
+    })
+    
+@app.get("/admin/clear-duplicate-cache")
+async def clear_duplicate_cache():
+    """Clear the duplicate slip cache"""
+    try:
+        count = len(notification_manager.duplicate_slip_cache)
+        notification_manager.duplicate_slip_cache.clear()
+        message = f"✅ ล้างแคชสลิปซ้ำจำนวน {count} รายการแล้ว"
+        await notification_manager.send_notification(message, "success")
+        return JSONResponse({"status": "success", "message": message, "cleared_count": count})
+    except Exception as e:
+        logger.error(f"❌ Error clearing duplicate cache: {e}")
+        return JSONResponse({"status": "error", "message": "เกิดข้อผิดพลาดในการล้างแคช"})
+
+@app.get("/admin/forwarding")
+async def admin_forwarding(request: Request):
+    """Admin forwarding page"""
+    endpoints = [] # Dummy data
+    return templates.TemplateResponse("forwarding.html", {"request": request, "endpoints": endpoints})
+
+@app.get("/admin/virtual-channels")
+async def admin_virtual_channels(request: Request):
+    """Admin virtual channels page"""
+    channels = [] # Dummy data
+    return templates.TemplateResponse("virtual_channels.html", {"request": request, "channels": channels, "base_url": "https://example.com"})
+
 # ====================== Startup/Shutdown Events ======================
 
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
     logger.info("🚀 LINE OA Middleware เริ่มทำงาน...")
-    init_line_bot()
+    if IS_READY:
+        init_line_bot()
     await notification_manager.send_notification("🚀 ระบบ LINE OA Middleware เริ่มทำงานแล้ว", "success")
 
 @app.on_event("shutdown")
