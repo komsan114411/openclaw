@@ -1052,6 +1052,66 @@ async def test_line_connection():
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
+
+@app.post("/admin/kbank/force-sandbox")
+async def force_kbank_sandbox():
+    """บังคับใช้ KBank Sandbox mode"""
+    try:
+        from services.kbank_checker import kbank_checker
+        
+        # บังคับใช้ sandbox
+        kbank_checker.is_sandbox = True
+        kbank_checker.base_url = "https://openapi-sandbox.kasikornbank.com"
+        kbank_checker.oauth_url = f"{kbank_checker.base_url}/v2/oauth/token"
+        kbank_checker.verify_url = f"{kbank_checker.base_url}/v1/verslip/kbank/verify"
+        kbank_checker.clear_token_cache()
+        
+        # อัปเดต config
+        config_manager.update_multiple({
+            "kbank_sandbox_mode": True,
+            "kbank_enabled": True
+        })
+        
+        # ทดสอบการเชื่อมต่อ
+        test_result = kbank_checker.test_connection()
+        
+        await notification_manager.send_notification("🧪 เปลี่ยนเป็น KBank Sandbox mode แล้ว", "success")
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "เปลี่ยนเป็น KBank Sandbox mode สำเร็จ",
+            "connection_test": test_result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Force sandbox error: {e}")
+        return JSONResponse({
+            "status": "error", 
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.post("/admin/kbank/test-slip-demo")
+async def test_kbank_slip_demo():
+    """ทดสอบ KBank Slip Verification ด้วยข้อมูลตัวอย่าง"""
+    try:
+        from services.kbank_checker import kbank_checker
+        
+        # ใช้ข้อมูลตัวอย่างสำหรับทดสอบ
+        result = kbank_checker.verify_slip("004", "TEST123456789")
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "ทดสอบ KBank Slip Verification สำเร็จ",
+            "result": result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Test slip demo error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
 @app.get("/admin/export-data")
 async def export_admin_data():
     """Export system data"""
