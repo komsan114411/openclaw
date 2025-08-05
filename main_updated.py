@@ -842,6 +842,272 @@ async def root():
     """Root redirect"""
     return RedirectResponse(url="/admin")
 
+# เพิ่มใน main_updated.py หลัง line 755
+
+@app.get("/admin/settings", response_class=HTMLResponse)
+async def admin_settings(request: Request):
+    """Settings page"""
+    try:
+        config_data = {
+            "line_channel_secret": config_manager.get("line_channel_secret", ""),
+            "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
+            "thunder_api_token": config_manager.get("thunder_api_token", ""),
+            "kbank_consumer_id": config_manager.get("kbank_consumer_id", ""),
+            "kbank_consumer_secret": config_manager.get("kbank_consumer_secret", ""),
+            "openai_api_key": config_manager.get("openai_api_key", ""),
+            "ai_prompt": config_manager.get("ai_prompt", ""),
+            "ai_enabled": config_manager.get("ai_enabled", False),
+            "slip_enabled": config_manager.get("slip_enabled", False),
+            "thunder_enabled": config_manager.get("thunder_enabled", True),
+            "kbank_enabled": config_manager.get("kbank_enabled", False),
+        }
+        
+        return templates.TemplateResponse(
+            "settings.html",
+            {"request": request, "config": config_data}
+        )
+    except Exception as e:
+        logger.error(f"❌ Settings page error: {e}")
+        return templates.TemplateResponse(
+            "settings.html",
+            {"request": request, "config": {}}
+        )
+
+@app.post("/admin/settings/update")
+async def update_settings(request: Request):
+    """Update settings"""
+    try:
+        data = await request.json()
+        
+        # Process boolean values
+        boolean_fields = ["ai_enabled", "slip_enabled", "thunder_enabled", "kbank_enabled"]
+        for field in boolean_fields:
+            if field in data:
+                if isinstance(data[field], str):
+                    data[field] = data[field].lower() in ["true", "1", "yes", "on"]
+                else:
+                    data[field] = bool(data[field])
+        
+        # Update config
+        success = config_manager.update_multiple(data)
+        
+        if success:
+            # Reinitialize LINE Bot if credentials updated
+            if any(key in data for key in ["line_channel_access_token", "line_channel_secret"]):
+                init_line_bot()
+            
+            await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
+            return JSONResponse({
+                "status": "success",
+                "message": "บันทึกการตั้งค่าเรียบร้อยแล้ว"
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "ไม่สามารถบันทึกการตั้งค่าได้"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Update settings error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.get("/admin/chat-history", response_class=HTMLResponse)
+async def admin_chat_history(request: Request):
+    """Chat history page"""
+    try:
+        chat_history = database_functions['get_recent_chat_history'](100)
+        return templates.TemplateResponse(
+            "chat_history.html",
+            {"request": request, "chat_history": chat_history}
+        )
+    except Exception as e:
+        logger.error(f"❌ Chat history page error: {e}")
+        return templates.TemplateResponse(
+            "chat_history.html",
+            {"request": request, "chat_history": []}
+        )
+
+@app.post("/admin/toggle-slip-system")
+async def toggle_slip_system():
+    """Toggle slip system on/off"""
+    try:
+        current_status = config_manager.get("slip_enabled", False)
+        new_status = not current_status
+        
+        success = config_manager.update("slip_enabled", new_status)
+        
+        if success:
+            status_text = "เปิด" if new_status else "ปิด"
+            await notification_manager.send_notification(
+                f"🔄 {status_text}ระบบตรวจสอบสลิปแล้ว", 
+                "info"
+            )
+            return JSONResponse({
+                "status": "success",
+                "message": f"{status_text}ระบบตรวจสอบสลิปแล้ว",
+                "slip_enabled": new_status
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "ไม่สามารถเปลี่ยนสถานะได้"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Toggle slip system error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.post("/admin/reset-failures")
+async def reset_api_failures():
+    """Reset API failure counters"""
+    try:
+        from services.enhanced_slip_checker import reset_api_failure_cache
+        reset_api_failure_cache()
+        
+        await notification_manager.send_notification("🔄 รีเซ็ต API failure cache แล้ว", "info")
+        return JSONResponse({
+            "status": "success",
+            "message": "รีเซ็ต API failure counters แล้ว"
+        })
+    except Exception as e:
+        logger.error(f"❌ Reset failures error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.get("/admin/system-logs")
+async def get_system_logs():
+    """Get system logs"""
+    try:
+        logs = []
+        log_file = "app.log"
+        
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # Get last 100 lines
+                logs = lines[-100:] if len(lines) > 100 else lines
+        
+        return JSONResponse({
+            "status": "success",
+            "logs": logs
+        })
+    except Exception as e:
+        logger.error(f"❌ Get system logs error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.post("/admin/test-line-connection")
+async def test_line_connection():
+    """Test LINE API connection"""
+    try:
+        access_token = config_manager.get("line_channel_access_token")
+        if not access_token:
+            return JSONResponse({
+                "status": "error",
+                "message": "LINE Access Token ไม่ได้ตั้งค่า"
+            })
+        
+        import requests
+        url = "https://api.line.me/v2/bot/info"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            bot_info = response.json()
+            return JSONResponse({
+                "status": "success",
+                "message": "เชื่อมต่อ LINE API สำเร็จ",
+                "data": {
+                    "bot_name": bot_info.get("displayName", "Unknown"),
+                    "user_id": bot_info.get("userId", "Unknown"),
+                    "premium_id": bot_info.get("premiumId", "Unknown")
+                }
+            })
+        elif response.status_code == 401:
+            return JSONResponse({
+                "status": "error",
+                "message": "LINE Access Token ไม่ถูกต้อง"
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": f"LINE API Error: {response.status_code}"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Test LINE connection error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.get("/admin/export-data")
+async def export_admin_data():
+    """Export system data"""
+    try:
+        # Get chat history
+        chat_history = database_functions['get_recent_chat_history'](1000)
+        
+        # Get configuration (without sensitive data)
+        config_export = {
+            "ai_enabled": config_manager.get("ai_enabled", False),
+            "slip_enabled": config_manager.get("slip_enabled", False),
+            "thunder_enabled": config_manager.get("thunder_enabled", True),
+            "kbank_enabled": config_manager.get("kbank_enabled", False),
+            "ai_prompt": config_manager.get("ai_prompt", ""),
+        }
+        
+        # Prepare export data
+        export_data = {
+            "export_timestamp": datetime.now().isoformat(),
+            "system_config": config_export,
+            "chat_history": [
+                {
+                    "id": chat.id,
+                    "user_id": chat.user_id[:8] + "..." if len(chat.user_id) > 8 else chat.user_id,
+                    "direction": chat.direction,
+                    "message_type": chat.message_type,
+                    "message_text": chat.message_text[:100] + "..." if len(chat.message_text or "") > 100 else chat.message_text,
+                    "sender": chat.sender,
+                    "created_at": chat.created_at.isoformat() if chat.created_at else None
+                }
+                for chat in chat_history
+            ],
+            "statistics": {
+                "total_messages": len(chat_history),
+                "unique_users": len(set(chat.user_id for chat in chat_history)),
+                "message_types": {}
+            }
+        }
+        
+        # Calculate message type statistics
+        from collections import Counter
+        message_types = Counter(chat.sender for chat in chat_history)
+        export_data["statistics"]["message_types"] = dict(message_types)
+        
+        return JSONResponse({
+            "status": "success",
+            "data": export_data
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Export data error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_home(request: Request):
     """Admin home page"""
