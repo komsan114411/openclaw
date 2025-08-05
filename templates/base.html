@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LINE OA Middleware{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --info-color: #0891b2;
+            --dark-color: #1f2937;
+        }
+        
+        body {
+            background-color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 12px 12px 0 0 !important;
+            font-weight: 600;
+        }
+        
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-connected {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-disconnected {
+            background-color: #fef2f2;
+            color: #991b1b;
+        }
+        
+        .status-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 300px;
+            max-width: 400px;
+        }
+        
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background: white;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        .sidebar .nav-link {
+            color: #64748b;
+            border-radius: 8px;
+            margin: 2px 0;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: #f1f5f9;
+            color: var(--primary-color);
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: #dbeafe;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .main-content {
+            padding: 24px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+        }
+        
+        .stat-card .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .api-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 24px;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/admin">
+                <i class="fas fa-robot me-2"></i>
+                LINE OA Middleware
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <span class="badge me-3" id="navbar-connection-status">
+                    <i class="fas fa-circle me-1"></i>Connecting...
+                </span>
+                <span class="badge bg-info">
+                    <i class="fas fa-clock me-1"></i>
+                    <span id="current-time"></span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                <div class="p-3">
+                    <nav class="nav flex-column">
+                        <a class="nav-link {% if request.url.path == '/admin' or request.url.path == '/admin/' %}active{% endif %}" href="/admin">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                        <a class="nav-link {% if 'settings' in request.url.path %}active{% endif %}" href="/admin/settings">
+                            <i class="fas fa-cogs me-2"></i>Settings
+                        </a>
+                        <a class="nav-link {% if 'chat-history' in request.url.path %}active{% endif %}" href="/admin/chat-history">
+                            <i class="fas fa-comments me-2"></i>Chat History
+                        </a>
+                        <a class="nav-link {% if 'config-management' in request.url.path %}active{% endif %}" href="/admin/config-management">
+                            <i class="fas fa-database me-2"></i>Config Management
+                        </a>
+                        <a class="nav-link {% if 'debug' in request.url.path %}active{% endif %}" href="/admin/debug">
+                            <i class="fas fa-bug me-2"></i>Debug Console
+                        </a>
+                        
+                        <hr class="my-3">
+                        
+                        <div class="nav-section">
+                            <small class="text-muted fw-bold">QUICK ACTIONS</small>
+                            <button class="nav-link btn btn-link text-start" onclick="toggleSlipSystem()">
+                                <i class="fas fa-toggle-on me-2"></i>Toggle Slip System
+                            </button>
+                            <button class="nav-link btn btn-link text-start" onclick="testLineConnection()">
+                                <i class="fab fa-line me-2"></i>Test LINE API
+                            </button>
+                            <button class="nav-link btn btn-link text-start" onclick="restartServices()">
+                                <i class="fas fa-redo me-2"></i>Restart Services
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Base JavaScript -->
+    <script>
+        // Global variables
+        let websocket = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+
+        // Update navbar status
+        function updateNavbarStatus(connected) {
+            const statusElement = document.getElementById('navbar-connection-status');
+            if (statusElement) {
+                if (connected) {
+                    statusElement.className = 'badge bg-success me-3';
+                    statusElement.innerHTML = '<i class="fas fa-circle me-1"></i>Connected';
+                } else {
+                    statusElement.className = 'badge bg-warning me-3';
+                    statusElement.innerHTML = '<i class="fas fa-circle me-1"></i>Reconnecting...';
+                }
+            }
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                return;
+            }
+            
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+                
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function() {
+                    console.log('✅ WebSocket connected');
+                    updateNavbarStatus(true);
+                    reconnectAttempts = 0;
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const notification = JSON.parse(event.data);
+                        showNotification(notification.message, notification.type);
+                    } catch (e) {
+                        console.error('❌ Error parsing notification:', e);
+                    }
+                };
+                
+                websocket.onclose = function() {
+                    console.log('❌ WebSocket disconnected');
+                    updateNavbarStatus(false);
+                    
+                    // Reconnect with exponential backoff
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        const delay = Math.pow(2, reconnectAttempts) * 1000;
+                        setTimeout(() => {
+                            reconnectAttempts++;
+                            connectWebSocket();
+                        }, delay);
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('❌ WebSocket error:', error);
+                    updateNavbarStatus(false);
+                };
+                
+            } catch (error) {
+                console.error('❌ WebSocket connection failed:', error);
+                updateNavbarStatus(false);
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('notification-container');
+            
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${getBootstrapAlertClass(type)} alert-dismissible fade show notification`;
+            notification.innerHTML = `
+                <strong>${getNotificationIcon(type)}</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Auto remove after duration
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, duration);
+        }
+
+        function getBootstrapAlertClass(type) {
+            const mapping = {
+                'success': 'success',
+                'error': 'danger',
+                'warning': 'warning',
+                'info': 'info'
+            };
+            return mapping[type] || 'info';
+        }
+
+        function getNotificationIcon(type) {
+            const icons = {
+                'success': '<i class="fas fa-check-circle"></i>',
+                'error': '<i class="fas fa-exclamation-circle"></i>',
+                'warning': '<i class="fas fa-exclamation-triangle"></i>',
+                'info': '<i class="fas fa-info-circle"></i>'
+            };
+            return icons[type] || icons['info'];
+        }
+
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('th-TH', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        // API helper functions
+        async function apiCall(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                showNotification(`API Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Quick actions
+        async function toggleSlipSystem() {
+            try {
+                const result = await apiCall('/admin/toggle-slip-system', {
+                    method: 'POST'
+                });
+                
+                if (result.status === 'success') {
+                    showNotification(result.message, 'success');
+                    // Refresh page after delay
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showNotification(result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('เกิดข้อผิดพลาดในการเปลี่ยนสถานะระบบ', 'error');
+            }
+        }
+
+        async function testLineConnection() {
+            try {
+                showNotification('กำลังทดสอบการเชื่อมต่อ LINE API...', 'info');
+                
+                const result = await apiCall('/admin/test-line-connection', {
+                    method: 'POST'
+                });
+                
+                if (result.status === 'success') {
+                    showNotification(`LINE API: ${result.message}`, 'success');
+                } else {
+                    showNotification(`LINE API Error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showNotification('เกิดข้อผิดพลาดในการทดสอบ LINE API', 'error');
+            }
+        }
+
+        async function restartServices() {
+            try {
+                showNotification('กำลังรีสตาร์ทบริการ...', 'info');
+                
+                const result = await apiCall('/admin/restart-services', {
+                    method: 'POST'
+                });
+                
+                if (result.status === 'success') {
+                    showNotification(result.message, 'success');
+                } else {
+                    showNotification(result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('เกิดข้อผิดพลาดในการรีสตาร์ทบริการ', 'error');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+            updateCurrentTime();
+            
+            // Update time every minute
+            setInterval(updateCurrentTime, 60000);
+            
+            console.log('🚀 LINE OA Middleware Admin Panel initialized');
+        });
+
+        // Page visibility handling
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && (!websocket || websocket.readyState !== WebSocket.OPEN)) {
+                setTimeout(connectWebSocket, 1000);
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
