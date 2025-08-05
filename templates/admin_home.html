@@ -4,251 +4,670 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LINE OA Middleware</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border-radius: 8px; }
-        .status-badge { font-size: 1rem; }
+        .status-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-online { background-color: #28a745; }
+        .status-offline { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+        .card-metric { text-align: center; }
+        .metric-value { font-size: 2rem; font-weight: bold; }
+        .metric-label { color: #6c757d; font-size: 0.875rem; }
+        .settings-section { margin-bottom: 2rem; }
+        .api-test-result { margin-top: 10px; padding: 10px; border-radius: 5px; display: none; }
+        .test-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .test-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     </style>
 </head>
-<body>
+<body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="/admin">
-                <i class="fas fa-robot me-2"></i>LINE OA Middleware
+                <i class="fas fa-cogs me-2"></i>LINE OA Admin Dashboard
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin/settings"><i class="fas fa-cog me-1"></i>ตั้งค่า</a>
-                <a class="nav-link" href="/admin/chat"><i class="fas fa-comments me-1"></i>ประวัติแชท</a>
+                <a class="nav-link" href="/admin/debug">
+                    <i class="fas fa-bug me-1"></i>Debug Console
+                </a>
+                <a class="nav-link" href="/admin/logs">
+                    <i class="fas fa-file-alt me-1"></i>Logs
+                </a>
             </div>
         </div>
     </nav>
 
     <div class="container mt-4">
-        <h2 class="mb-4">
-            <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
-        </h2>
-
+        <!-- Status Overview -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-tachometer-alt me-2"></i>System Status</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshStatus()">
+                            <i class="fas fa-sync me-1"></i>Refresh
+                        </button>
+                    </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="mb-1">สถานะระบบ</h5>
-                                <p class="text-muted mb-0">สถานะปัจจุบันของระบบโดยรวม</p>
+                        <div class="row" id="statusOverview">
+                            <div class="col-md-3">
+                                <div class="card-metric">
+                                    <div class="metric-value text-primary" id="systemStatus">Loading...</div>
+                                    <div class="metric-label">System Status</div>
+                                </div>
                             </div>
-                            <span id="systemStatusBadge" class="status-badge">
-                                {% if system_status.system_enabled and system_status.any_api_available %}
-                                    <span class="badge bg-success">ระบบออนไลน์</span>
-                                {% elif system_status.system_enabled and not system_status.any_api_available %}
-                                    <span class="badge bg-warning">ระบบมีปัญหา</span>
-                                {% else %}
-                                    <span class="badge bg-danger">ระบบปิดใช้งาน</span>
-                                {% endif %}
-                            </span>
+                            <div class="col-md-3">
+                                <div class="card-metric">
+                                    <div class="metric-value text-success" id="apiCount">0/3</div>
+                                    <div class="metric-label">APIs Connected</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card-metric">
+                                    <div class="metric-value text-info" id="totalFailures">0</div>
+                                    <div class="metric-label">Total Failures</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card-metric">
+                                    <div class="metric-value text-warning" id="botName">Loading...</div>
+                                    <div class="metric-label">LINE Bot</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- API Status Cards -->
         <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ total_chat_history }}</h5>
-                        <p class="card-text text-muted">ข้อความทั้งหมด</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title" id="activeConnections">0</h5>
-                        <p class="card-text text-muted">การเชื่อมต่อสด</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title" id="duplicateCache">0</h5>
-                        <p class="card-text text-muted">สลิปในแคช</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h5 class="card-title" id="systemUptime">00:00</h5>
-                        <p class="card-text text-muted">เวลาออนไลน์</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card mb-4">
+            <div class="col-md-4">
+                <div class="card">
                     <div class="card-header">
-                        <h5><i class="fas fa-bell me-2"></i>การแจ้งเตือน</h5>
+                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="list-group list-group-flush" id="notificationArea" style="max-height: 400px; overflow-y: auto;">
-                            <div class="text-center text-muted py-4">
-                                <i class="fas fa-bell-slash fa-2x mb-2"></i>
-                                <p>ยังไม่มีการแจ้งเตือน</p>
-                            </div>
+                    <div class="card-body" id="thunderStatus">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span class="ms-2">Loading...</span>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card mb-4">
+                <div class="card">
                     <div class="card-header">
-                        <h5><i class="fas fa-vial me-2"></i>ทดสอบระบบ</h5>
+                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
+                    </div>
+                    <div class="card-body" id="kbankStatus">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span class="ms-2">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fab fa-line me-2"></i>LINE API</h6>
+                    </div>
+                    <div class="card-body" id="lineStatus">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span class="ms-2">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Sections -->
+        <div class="row">
+            <div class="col-md-6">
+                <!-- System Settings -->
+                <div class="card settings-section">
+                    <div class="card-header">
+                        <h6><i class="fas fa-cog me-2"></i>System Settings</h6>
                     </div>
                     <div class="card-body">
-                        <h6 class="mb-3"><i class="fas fa-receipt me-1"></i>ตรวจสอบสลิป</h6>
-                        <form id="testSlipForm" enctype="multipart/form-data">
-                            <div class="mb-3">
-                                <input type="file" class="form-control" id="slipFile" name="file" accept="image/*" required>
-                            </div>
-                            <div id="uploadResult" class="mt-3" style="display:none;"></div>
-                            <button type="submit" class="btn btn-primary w-100" id="testButton">
-                                <i class="fas fa-play me-1"></i>ทดสอบตรวจสอบสลิป
-                            </button>
-                        </form>
-                        
-                        <hr>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="slipEnabled">
+                            <label class="form-check-label" for="slipEnabled">
+                                <strong>เปิดใช้งานระบบตรวจสอบสลิป</strong>
+                            </label>
+                            <small class="form-text text-muted d-block">เปิด/ปิดการทำงานของระบบตรวจสอบสลิปทั้งหมด</small>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="aiEnabled">
+                            <label class="form-check-label" for="aiEnabled">
+                                <strong>เปิดใช้งาน AI Chat</strong>
+                            </label>
+                            <small class="form-text text-muted d-block">เปิด/ปิดการตอบกลับอัตโนมัติด้วย AI</small>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="notificationEnabled">
+                            <label class="form-check-label" for="notificationEnabled">
+                                <strong>เปิดการแจ้งเตือน</strong>
+                            </label>
+                            <small class="form-text text-muted d-block">รับการแจ้งเตือนเมื่อเกิดข้อผิดพลาด</small>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSystemSettings()">
+                            <i class="fas fa-save me-1"></i>บันทึกการตั้งค่า
+                        </button>
+                    </div>
+                </div>
 
-                        <h6 class="mb-3"><i class="fas fa-paper-plane me-1"></i>ทดสอบ Push Message</h6>
-                        <form id="testPushForm">
-                            <div class="mb-3">
-                                <input type="text" class="form-control" id="testUserId" placeholder="ใส่ LINE User ID">
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100" id="testPushButton">
-                                <i class="fas fa-rocket me-1"></i>ทดสอบส่ง Push
+                <!-- LINE Settings -->
+                <div class="card settings-section">
+                    <div class="card-header">
+                        <h6><i class="fab fa-line me-2"></i>LINE Messaging API</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="lineAccessToken" class="form-label">Channel Access Token</label>
+                            <input type="password" class="form-control" id="lineAccessToken" placeholder="LINE Channel Access Token">
+                            <small class="text-muted">ได้จาก LINE Developers Console</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="lineChannelSecret" class="form-label">Channel Secret</label>
+                            <input type="password" class="form-control" id="lineChannelSecret" placeholder="LINE Channel Secret">
+                            <small class="text-muted">ใช้สำหรับตรวจสอบ Webhook</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success" onclick="saveLINESettings()">
+                                <i class="fas fa-save me-1"></i>บันทึก
                             </button>
-                        </form>
+                            <button class="btn btn-info" onclick="testLINEConnection()">
+                                <i class="fas fa-vial me-1"></i>ทดสอบ
+                            </button>
+                        </div>
+                        <div id="lineTestResult" class="api-test-result"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- Thunder API Settings -->
+                <div class="card settings-section">
+                    <div class="card-header">
+                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="thunderEnabled">
+                            <label class="form-check-label" for="thunderEnabled">เปิดใช้งาน Thunder API</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="thunderApiToken" class="form-label">API Token</label>
+                            <input type="password" class="form-control" id="thunderApiToken" placeholder="Thunder API Token">
+                            <small class="text-muted">ได้จาก Thunder Solution Portal</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-warning" onclick="saveThunderSettings()">
+                                <i class="fas fa-save me-1"></i>บันทึก
+                            </button>
+                            <button class="btn btn-info" onclick="testThunderConnection()">
+                                <i class="fas fa-vial me-1"></i>ทดสอบ
+                            </button>
+                        </div>
+                        <div id="thunderTestResult" class="api-test-result"></div>
+                    </div>
+                </div>
+
+                <!-- KBank API Settings -->
+                <div class="card settings-section">
+                    <div class="card-header">
+                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="kbankEnabled">
+                            <label class="form-check-label" for="kbankEnabled">เปิดใช้งาน KBank API</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="kbankConsumerId" class="form-label">Consumer ID</label>
+                            <input type="text" class="form-control" id="kbankConsumerId" placeholder="KBank Consumer ID">
+                            <small class="text-muted">ได้จาก KBank Developer Portal</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="kbankConsumerSecret" class="form-label">Consumer Secret</label>
+                            <input type="password" class="form-control" id="kbankConsumerSecret" placeholder="KBank Consumer Secret">
+                            <small class="text-muted">เก็บเป็นความลับ</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" onclick="saveKBankSettings()">
+                                <i class="fas fa-save me-1"></i>บันทึก
+                            </button>
+                            <button class="btn btn-info" onclick="testKBankConnection()">
+                                <i class="fas fa-vial me-1"></i>ทดสอบ
+                            </button>
+                        </div>
+                        <div id="kbankTestResult" class="api-test-result"></div>
+                    </div>
+                </div>
+
+                <!-- OpenAI Settings -->
+                <div class="card settings-section">
+                    <div class="card-header">
+                        <h6><i class="fas fa-robot me-2"></i>OpenAI API</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="openaiApiKey" class="form-label">API Key</label>
+                            <input type="password" class="form-control" id="openaiApiKey" placeholder="OpenAI API Key">
+                            <small class="text-muted">ได้จาก OpenAI Platform</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="openaiModel" class="form-label">Model</label>
+                            <select class="form-select" id="openaiModel">
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" onclick="saveOpenAISettings()">
+                            <i class="fas fa-save me-1"></i>บันทึก
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-primary" onclick="refreshAllConfigs()">
+                                <i class="fas fa-sync me-1"></i>Refresh All
+                            </button>
+                            <button class="btn btn-outline-info" onclick="testAllAPIs()">
+                                <i class="fas fa-vial me-1"></i>Test All APIs
+                            </button>
+                            <button class="btn btn-outline-success" onclick="resetAPIFailures()">
+                                <i class="fas fa-redo me-1"></i>Reset Failures
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="exportSettings()">
+                                <i class="fas fa-download me-1"></i>Export Settings
+                            </button>
+                            <a href="/admin/debug" class="btn btn-outline-warning">
+                                <i class="fas fa-bug me-1"></i>Debug Console
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="successToast" class="toast" role="alert">
+            <div class="toast-header text-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong class="me-auto">Success</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body"></div>
+        </div>
+        <div id="errorToast" class="toast" role="alert">
+            <div class="toast-header text-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <strong class="me-auto">Error</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let ws = null;
-        let startTime = new Date();
+        let statusUpdateInterval;
+        let apiStatusData = {};
 
         document.addEventListener('DOMContentLoaded', function() {
-            initWebSocket();
-            updateSystemStatus();
-            setInterval(updateSystemStatus, 5000);
-            setInterval(updateUptime, 60000);
-
-            document.getElementById('testSlipForm').addEventListener('submit', testSlipUpload);
-            document.getElementById('testPushForm').addEventListener('submit', testPushMessage);
+            console.log('Admin Dashboard initialized');
+            loadAllSettings();
+            refreshStatus();
+            
+            // Auto-refresh every 30 seconds
+            statusUpdateInterval = setInterval(refreshStatus, 30000);
         });
 
-        function initWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-            ws = new WebSocket(wsUrl);
-            ws.onmessage = function(event) {
-                const notification = JSON.parse(event.data);
-                addNotification(notification);
-            };
-            ws.onclose = function() { setTimeout(initWebSocket, 3000); };
-            ws.onerror = function(error) { console.error('WebSocket error:', error); };
+        // Toast functions
+        function showToast(type, message) {
+            const toastElement = document.getElementById(type + 'Toast');
+            const toastBody = toastElement.querySelector('.toast-body');
+            toastBody.textContent = message;
+            
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
         }
 
-        function addNotification(notification) {
-            const notificationArea = document.getElementById('notificationArea');
-            const emptyMsg = notificationArea.querySelector('.text-center');
-            if (emptyMsg) emptyMsg.remove();
-            
-            const notificationDiv = document.createElement('div');
-            notificationDiv.className = `list-group-item list-group-item-${notification.type}`;
-            const timestamp = new Date(notification.timestamp).toLocaleTimeString('th-TH');
-            notificationDiv.innerHTML = `
-                <div>
-                    <strong>${notification.message}</strong>
-                    <br><small class="text-muted">${timestamp}</small>
-                </div>
-            `;
-            notificationArea.prepend(notificationDiv);
+        function showSuccess(message) {
+            showToast('success', message);
         }
-        
-        async function updateSystemStatus() {
+
+        function showError(message) {
+            showToast('error', message);
+        }
+
+        // Status functions
+        async function refreshStatus() {
             try {
-                const response = await fetch('/admin/system-status');
+                const response = await fetch('/admin/api-status');
                 const data = await response.json();
-                document.getElementById('activeConnections').textContent = data.active_connections;
-                document.getElementById('duplicateCache').textContent = data.duplicate_cache_size;
+                apiStatusData = data;
+                
+                updateStatusOverview(data);
+                updateAPIStatusCards(data);
+                
             } catch (error) {
-                console.error('Error updating system status:', error);
+                console.error('Failed to refresh status:', error);
+                showError('ไม่สามารถอัปเดตสถานะได้');
             }
         }
-        
-        function updateUptime() {
-            const now = new Date();
-            const diff = now - startTime;
-            const minutes = Math.floor(diff / (1000 * 60));
-            const hours = Math.floor(minutes / 60);
-            const displayMinutes = minutes % 60;
-            document.getElementById('systemUptime').textContent = `${hours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}`;
+
+        function updateStatusOverview(data) {
+            const systemReady = data.system_status?.slip_system_ready && data.system_status?.line_ready;
+            const connectedAPIs = [data.thunder?.connected, data.kbank?.connected, data.line?.connected].filter(Boolean).length;
+            const totalFailures = (data.thunder?.recent_failures || 0) + (data.kbank?.recent_failures || 0);
+            
+            document.getElementById('systemStatus').textContent = systemReady ? 'Online' : 'Offline';
+            document.getElementById('systemStatus').className = `metric-value ${systemReady ? 'text-success' : 'text-danger'}`;
+            
+            document.getElementById('apiCount').textContent = `${connectedAPIs}/3`;
+            document.getElementById('totalFailures').textContent = totalFailures;
+            document.getElementById('botName').textContent = data.line?.bot_name || 'N/A';
         }
-        
-        async function testSlipUpload(e) {
-            e.preventDefault();
-            const form = e.target;
-            const fileInput = document.getElementById('slipFile');
-            if (!fileInput.files[0]) return;
-            
-            const testButton = document.getElementById('testButton');
-            testButton.disabled = true;
-            testButton.textContent = 'กำลังตรวจสอบ...';
-            
-            const formData = new FormData(form);
-            const response = await fetch('/admin/test-slip-upload', { method: 'POST', body: formData });
-            const result = await response.json();
-            
-            const resultDiv = document.getElementById('uploadResult');
-            resultDiv.style.display = 'block';
-            const alertClass = result.status === 'success' ? 'alert-success' : 'alert-danger';
-            resultDiv.innerHTML = `<div class="alert ${alertClass}" role="alert">${result.message}</div>`;
-            
-            testButton.disabled = false;
-            testButton.textContent = 'ทดสอบตรวจสอบสลิป';
+
+        function updateAPIStatusCards(data) {
+            // Thunder API
+            document.getElementById('thunderStatus').innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Status:</span>
+                    <span class="badge ${data.thunder?.connected ? 'bg-success' : data.thunder?.configured ? 'bg-warning' : 'bg-danger'}">
+                        ${data.thunder?.connected ? 'Connected' : data.thunder?.configured ? 'Configured' : 'Not Configured'}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Enabled:</span>
+                    <span class="badge ${data.thunder?.enabled ? 'bg-primary' : 'bg-secondary'}">
+                        ${data.thunder?.enabled ? 'Yes' : 'No'}
+                    </span>
+                </div>
+                <small class="text-muted">Failures: ${data.thunder?.recent_failures || 0}</small>
+            `;
+
+            // KBank API
+            document.getElementById('kbankStatus').innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Status:</span>
+                    <span class="badge ${data.kbank?.connected ? 'bg-success' : data.kbank?.configured ? 'bg-warning' : 'bg-danger'}">
+                        ${data.kbank?.connected ? 'Connected' : data.kbank?.configured ? 'Configured' : 'Not Configured'}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Enabled:</span>
+                    <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'}">
+                        ${data.kbank?.enabled ? 'Yes' : 'No'}
+                    </span>
+                </div>
+                <small class="text-muted">Failures: ${data.kbank?.recent_failures || 0}</small>
+            `;
+
+            // LINE API
+            document.getElementById('lineStatus').innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Status:</span>
+                    <span class="badge ${data.line?.connected ? 'bg-success' : data.line?.configured ? 'bg-warning' : 'bg-danger'}">
+                        ${data.line?.connected ? 'Connected' : data.line?.configured ? 'Configured' : 'Not Configured'}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Bot:</span>
+                    <span class="text-muted">${data.line?.bot_name || 'N/A'}</span>
+                </div>
+                <small class="text-muted">Push: ${data.line?.can_push ? 'Available' : 'Unavailable'}</small>
+            `;
         }
-        
-        async function testPushMessage(e) {
-            e.preventDefault();
-            const userId = document.getElementById('testUserId').value.trim();
-            if (!userId) return;
-            
-            const testButton = document.getElementById('testPushButton');
-            testButton.disabled = true;
-            testButton.textContent = 'กำลังส่ง...';
-            
-            const response = await fetch('/admin/test-push-message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: userId,
-                    message: `🧪 ข้อความทดสอบจาก Admin Dashboard`
-                })
-            });
-            const result = await response.json();
-            
-            alert(result.message);
-            testButton.disabled = false;
-            testButton.textContent = 'ทดสอบส่ง Push';
+
+        // Settings loading functions
+        async function loadAllSettings() {
+            try {
+                const response = await fetch('/admin/config');
+                const config = await response.json();
+                
+                // System settings
+                document.getElementById('slipEnabled').checked = config.slip_enabled || false;
+                document.getElementById('aiEnabled').checked = config.ai_enabled || false;
+                document.getElementById('notificationEnabled').checked = config.notification_enabled || false;
+                
+                // LINE settings
+                document.getElementById('lineAccessToken').value = config.line_channel_access_token || '';
+                document.getElementById('lineChannelSecret').value = config.line_channel_secret || '';
+                
+                // Thunder settings
+                document.getElementById('thunderEnabled').checked = config.thunder_enabled || false;
+                document.getElementById('thunderApiToken').value = config.thunder_api_token || '';
+                
+                // KBank settings
+                document.getElementById('kbankEnabled').checked = config.kbank_enabled || false;
+                document.getElementById('kbankConsumerId').value = config.kbank_consumer_id || '';
+                document.getElementById('kbankConsumerSecret').value = config.kbank_consumer_secret || '';
+                
+                // OpenAI settings
+                document.getElementById('openaiApiKey').value = config.openai_api_key || '';
+                document.getElementById('openaiModel').value = config.openai_model || 'gpt-3.5-turbo';
+                
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+                showError('ไม่สามารถโหลดการตั้งค่าได้');
+            }
         }
+
+        // Settings saving functions
+        async function saveSystemSettings() {
+            const settings = {
+                slip_enabled: document.getElementById('slipEnabled').checked,
+                ai_enabled: document.getElementById('aiEnabled').checked,
+                notification_enabled: document.getElementById('notificationEnabled').checked
+            };
+            
+            await saveConfig(settings, 'System settings saved successfully');
+        }
+
+        async function saveLINESettings() {
+            const settings = {
+                line_channel_access_token: document.getElementById('lineAccessToken').value,
+                line_channel_secret: document.getElementById('lineChannelSecret').value
+            };
+            
+            await saveConfig(settings, 'LINE settings saved successfully');
+        }
+
+        async function saveThunderSettings() {
+            const settings = {
+                thunder_enabled: document.getElementById('thunderEnabled').checked,
+                thunder_api_token: document.getElementById('thunderApiToken').value
+            };
+            
+            await saveConfig(settings, 'Thunder settings saved successfully');
+        }
+
+        async function saveKBankSettings() {
+            const settings = {
+                kbank_enabled: document.getElementById('kbankEnabled').checked,
+                kbank_consumer_id: document.getElementById('kbankConsumerId').value,
+                kbank_consumer_secret: document.getElementById('kbankConsumerSecret').value
+            };
+            
+            await saveConfig(settings, 'KBank settings saved successfully');
+        }
+
+        async function saveOpenAISettings() {
+            const settings = {
+                openai_api_key: document.getElementById('openaiApiKey').value,
+                openai_model: document.getElementById('openaiModel').value
+            };
+            
+            await saveConfig(settings, 'OpenAI settings saved successfully');
+        }
+
+        async function saveConfig(settings, successMessage) {
+            try {
+                const response = await fetch('/admin/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showSuccess(successMessage);
+                    setTimeout(refreshStatus, 1000); // Refresh status after save
+                } else {
+                    showError(result.message || 'Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Save config error:', error);
+                showError('เกิดข้อผิดพลาดในการบันทึก');
+            }
+        }
+
+        // API testing functions
+        async function testLINEConnection() {
+            const token = document.getElementById('lineAccessToken').value;
+            if (!token) {
+                showError('กรุณาใส่ LINE Access Token');
+                return;
+            }
+            
+            await testAPI('line', { access_token: token }, 'lineTestResult');
+        }
+
+        async function testThunderConnection() {
+            const token = document.getElementById('thunderApiToken').value;
+            if (!token) {
+                showError('กรุณาใส่ Thunder API Token');
+                return;
+            }
+            
+            await testAPI('thunder', { api_token: token }, 'thunderTestResult');
+        }
+
+        async function testKBankConnection() {
+            const consumerId = document.getElementById('kbankConsumerId').value;
+            const consumerSecret = document.getElementById('kbankConsumerSecret').value;
+            
+            if (!consumerId || !consumerSecret) {
+                showError('กรุณาใส่ KBank Consumer ID และ Secret');
+                return;
+            }
+            
+            await testAPI('kbank', { 
+                consumer_id: consumerId, 
+                consumer_secret: consumerSecret 
+            }, 'kbankTestResult');
+        }
+
+        async function testAPI(apiType, credentials, resultElementId) {
+            const resultElement = document.getElementById(resultElementId);
+            resultElement.style.display = 'block';
+            resultElement.className = 'api-test-result';
+            resultElement.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+            
+            try {
+                const response = await fetch(`/admin/test-${apiType}-api`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(credentials)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    resultElement.className = 'api-test-result test-success';
+                    resultElement.innerHTML = `<i class="fas fa-check-circle me-2"></i>${result.message}`;
+                } else {
+                    resultElement.className = 'api-test-result test-error';
+                    resultElement.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${result.message}`;
+                }
+            } catch (error) {
+                resultElement.className = 'api-test-result test-error';
+                resultElement.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>Test failed: ${error.message}`;
+            }
+            
+            setTimeout(() => {
+                resultElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // Quick actions
+        async function refreshAllConfigs() {
+            await loadAllSettings();
+            await refreshStatus();
+            showSuccess('All configurations refreshed');
+        }
+
+        async function testAllAPIs() {
+            showSuccess('Testing all APIs...');
+            
+            setTimeout(() => testLINEConnection(), 500);
+            setTimeout(() => testThunderConnection(), 1500);
+            setTimeout(() => testKBankConnection(), 2500);
+        }
+
+        async function resetAPIFailures() {
+            try {
+                const response = await fetch('/admin/reset-failures', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showSuccess('API failures reset successfully');
+                    refreshStatus();
+                } else {
+                    showError('Failed to reset failures');
+                }
+            } catch (error) {
+                showError('Error resetting failures');
+            }
+        }
+
+        async function exportSettings() {
+            try {
+                const response = await fetch('/admin/config');
+                const config = await response.json();
+                
+                const dataStr = JSON.stringify(config, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `line-oa-config-${new Date().toISOString().split('T')[0]}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                showSuccess('Settings exported successfully');
+            } catch (error) {
+                showError('Failed to export settings');
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (statusUpdateInterval) {
+                clearInterval(statusUpdateInterval);
+            }
+        });
     </script>
 </body>
 </html>
