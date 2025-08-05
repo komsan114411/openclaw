@@ -1,4 +1,4 @@
-<!-- templates/settings.html -->
+<!-- templates/settings.html - เวอร์ชันปรับปรุงใหม่ -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -19,183 +19,299 @@
         .status-active { background-color: #28a745; }
         .status-inactive { background-color: #dc3545; }
         .status-warning { background-color: #ffc107; }
+        .config-section {
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        .config-section:hover {
+            background: #e9ecef;
+            transform: translateX(2px);
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .save-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
     </style>
 </head>
 <body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/admin">
-                <i class="fas fa-robot me-2"></i>LINE OA Middleware
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin">
-                    <i class="fas fa-arrow-left me-1"></i>กลับหน้าหลัก
-                </a>
-            </div>
-        </div>
-    </nav>
+    <div id="saveNotification" class="save-notification"></div>
+
+    <!-- Include navbar -->
+    {% include 'components/navbar.html' %}
 
     <div class="container mt-4">
-        <h2 class="mb-4">
-            <i class="fas fa-cog me-2"></i>ตั้งค่าระบบ
-        </h2>
+        <div class="row">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <i class="fas fa-cog me-2"></i>ตั้งค่าระบบ
+                    <small class="text-muted">กำหนดค่าการทำงานของระบบ</small>
+                </h2>
 
-        <form id="settingsForm">
-            <!-- LINE Configuration -->
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5><i class="fab fa-line me-2"></i>LINE Official Account</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="line_channel_secret" class="form-label">Channel Secret</label>
-                        <input type="text" class="form-control" id="line_channel_secret" name="line_channel_secret" 
-                               value="{{ config.get('line_channel_secret', '') }}"
-                               placeholder="Channel Secret จาก LINE Developers Console">
-                    </div>
-                    <div class="mb-3">
-                        <label for="line_channel_access_token" class="form-label">Channel Access Token</label>
-                        <input type="text" class="form-control" id="line_channel_access_token" name="line_channel_access_token" 
-                               value="{{ config.get('line_channel_access_token', '') }}"
-                               placeholder="Channel Access Token จาก LINE Developers Console">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Slip Verification System -->
-            <div class="card mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5><i class="fas fa-receipt me-2"></i>ระบบตรวจสอบสลิป</h5>
-                </div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-4">
-                        <input class="form-check-input" type="checkbox" id="slip_enabled" name="slip_enabled" 
-                               {{ 'checked' if config.get('slip_enabled') }}>
-                        <label class="form-check-label" for="slip_enabled">
-                            <strong>เปิดใช้งานระบบตรวจสอบสลิป</strong>
-                            <span class="status-indicator" id="slip_system_status"></span>
-                        </label>
-                        <small class="form-text text-muted">เปิด/ปิดระบบตรวจสอบสลิปทั้งหมด</small>
-                    </div>
-
-                    <!-- Thunder API -->
-                    <div class="border rounded p-3 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="mb-0">
-                                <i class="fas fa-bolt text-warning me-2"></i>Thunder API
-                                <span class="status-indicator" id="thunder_status"></span>
-                            </h6>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="thunder_enabled" name="thunder_enabled" 
-                                       {{ 'checked' if config.get('thunder_enabled', True) }}>
-                                <label class="form-check-label" for="thunder_enabled">เปิดใช้งาน</label>
+                <form id="settingsForm">
+                    <!-- LINE Configuration -->
+                    <div class="card mb-4 config-section">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fab fa-line me-2"></i>LINE Official Account
+                                <span class="status-indicator" id="line_status"></span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="line_channel_secret" class="form-label">
+                                            <i class="fas fa-key me-1"></i>Channel Secret
+                                        </label>
+                                        <input type="password" class="form-control" id="line_channel_secret" 
+                                               name="line_channel_secret" value="{{ config.get('line_channel_secret', '') }}"
+                                               placeholder="Channel Secret จาก LINE Developers Console">
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            ใช้สำหรับตรวจสอบ webhook signature
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="line_channel_access_token" class="form-label">
+                                            <i class="fas fa-ticket-alt me-1"></i>Channel Access Token
+                                        </label>
+                                        <input type="password" class="form-control" id="line_channel_access_token" 
+                                               name="line_channel_access_token" value="{{ config.get('line_channel_access_token', '') }}"
+                                               placeholder="Channel Access Token จาก LINE Developers Console">
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            ใช้สำหรับส่งข้อความผ่าน LINE API
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="testLineConnection()">
+                                    <i class="fas fa-vial me-1"></i>ทดสอบการเชื่อมต่อ
+                                </button>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="thunder_api_token" class="form-label">Thunder API Token</label>
-                            <input type="text" class="form-control" id="thunder_api_token" name="thunder_api_token" 
-                                   value="{{ config.get('thunder_api_token', '') }}"
-                                   placeholder="API Token จาก Thunder Solution">
-                            <small class="form-text text-muted">
-                                ใช้สำหรับตรวจสอบสลิปจากรูปภาพ - 
-                                <a href="https://thunder.in.th" target="_blank">สมัครที่ thunder.in.th</a>
-                            </small>
-                        </div>
                     </div>
 
-                    <!-- KBank API -->
-                    <div class="border rounded p-3 mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="mb-0">
-                                <i class="fas fa-university text-primary me-2"></i>KBank API
-                                <span class="status-indicator" id="kbank_status"></span>
-                            </h6>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="kbank_enabled" name="kbank_enabled" 
-                                       {{ 'checked' if config.get('kbank_enabled', False) }}>
-                                <label class="form-check-label" for="kbank_enabled">เปิดใช้งาน</label>
+                    <!-- Slip Verification System -->
+                    <div class="card mb-4 config-section">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-receipt me-2"></i>ระบบตรวจสอบสลิป
+                                <span class="status-indicator" id="slip_system_status"></span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="slip_enabled" 
+                                       name="slip_enabled" {{ 'checked' if config.get('slip_enabled') }}>
+                                <label class="form-check-label" for="slip_enabled">
+                                    <strong>เปิดใช้งานระบบตรวจสอบสลิป</strong>
+                                </label>
+                                <div class="form-text">เปิด/ปิดระบบตรวจสอบสลิปทั้งหมด</div>
+                            </div>
+
+                            <!-- Thunder API -->
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-bolt text-warning me-2"></i>Thunder API
+                                        <span class="status-indicator" id="thunder_status"></span>
+                                    </h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="thunder_enabled" 
+                                               name="thunder_enabled" {{ 'checked' if config.get('thunder_enabled', True) }}>
+                                        <label class="form-check-label" for="thunder_enabled">เปิดใช้งาน</label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="thunder_api_token" class="form-label">Thunder API Token</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="thunder_api_token" 
+                                               name="thunder_api_token" value="{{ config.get('thunder_api_token', '') }}"
+                                               placeholder="API Token จาก Thunder Solution">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('thunder_api_token')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        ใช้สำหรับตรวจสอบสลิปจากรูปภาพ - 
+                                        <a href="https://thunder.in.th" target="_blank">สมัครที่ thunder.in.th</a>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="testThunderAPI()">
+                                        <i class="fas fa-vial me-1"></i>ทดสอบ Thunder API
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- KBank API -->
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-university text-primary me-2"></i>KBank API
+                                        <span class="status-indicator" id="kbank_status"></span>
+                                    </h6>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="kbank_enabled" 
+                                               name="kbank_enabled" {{ 'checked' if config.get('kbank_enabled', False) }}>
+                                        <label class="form-check-label" for="kbank_enabled">เปิดใช้งาน</label>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="kbank_consumer_id" class="form-label">Consumer ID</label>
+                                            <input type="text" class="form-control" id="kbank_consumer_id" 
+                                                   name="kbank_consumer_id" value="{{ config.get('kbank_consumer_id', '') }}"
+                                                   placeholder="Consumer ID จาก KBank Developer Portal">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="kbank_consumer_secret" class="form-label">Consumer Secret</label>
+                                            <div class="input-group">
+                                                <input type="password" class="form-control" id="kbank_consumer_secret" 
+                                                       name="kbank_consumer_secret" value="{{ config.get('kbank_consumer_secret', '') }}"
+                                                       placeholder="Consumer Secret จาก KBank Developer Portal">
+                                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('kbank_consumer_secret')">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text mb-3">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    ใช้สำหรับตรวจสอบสลิปด้วยข้อมูลธนาคาร - 
+                                    <a href="https://developer.kasikornbank.com" target="_blank">สมัครที่ KBank Developer</a>
+                                </div>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="testKBankOAuth()">
+                                        <i class="fas fa-key me-1"></i>ทดสอบ OAuth
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="testKBankSandbox()">
+                                        <i class="fas fa-vial me-1"></i>ทดสอบ Sandbox
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="kbank_consumer_id" class="form-label">Consumer ID</label>
-                            <input type="text" class="form-control" id="kbank_consumer_id" name="kbank_consumer_id" 
-                                   value="{{ config.get('kbank_consumer_id', '') }}"
-                                   placeholder="Consumer ID จาก KBank Developer Portal">
+                    </div>
+
+                    <!-- AI Chatbot -->
+                    <div class="card mb-4 config-section">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-brain me-2"></i>AI Chatbot
+                                <span class="status-indicator" id="ai_status"></span>
+                            </h5>
                         </div>
-                        <div class="mb-3">
-                            <label for="kbank_consumer_secret" class="form-label">Consumer Secret</label>
-                            <input type="text" class="form-control" id="kbank_consumer_secret" name="kbank_consumer_secret" 
-                                   value="{{ config.get('kbank_consumer_secret', '') }}"
-                                   placeholder="Consumer Secret จาก KBank Developer Portal">
-                            <small class="form-text text-muted">
-                                ใช้สำหรับตรวจสอบสลิปด้วยข้อมูลธนาคาร - 
-                                <a href="https://developer.kasikornbank.com" target="_blank">สมัครที่ KBank Developer</a>
-                            </small>
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="ai_enabled" 
+                                       name="ai_enabled" {{ 'checked' if config.get('ai_enabled') }}>
+                                <label class="form-check-label" for="ai_enabled">
+                                    <strong>เปิดใช้งาน AI Chatbot</strong>
+                                </label>
+                            </div>
+                            <div class="mb-3">
+                                <label for="openai_api_key" class="form-label">
+                                    <i class="fas fa-key me-1"></i>OpenAI API Key
+                                </label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="openai_api_key" 
+                                           name="openai_api_key" value="{{ config.get('openai_api_key', '') }}"
+                                           placeholder="sk-...">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('openai_api_key')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    API Key สำหรับ ChatGPT - 
+                                    <a href="https://platform.openai.com/api-keys" target="_blank">สร้างที่ OpenAI Platform</a>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="ai_prompt" class="form-label">
+                                    <i class="fas fa-comment-dots me-1"></i>AI Prompt
+                                </label>
+                                <textarea class="form-control" id="ai_prompt" name="ai_prompt" rows="4" 
+                                          placeholder="คุณเป็นผู้ช่วยระบบชำระเงิน...">{{ config.get('ai_prompt', '') }}</textarea>
+                                <div class="form-text">คำสั่งพื้นฐานที่จะส่งให้ AI ในทุกการสนทนา</div>
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                    <!-- Action Buttons -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="submit" class="btn btn-primary w-100 btn-lg">
+                                <i class="fas fa-save me-1"></i>บันทึกการตั้งค่า
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-outline-success w-100 btn-lg" onclick="testAllConfiguration()">
+                                <i class="fas fa-vial me-1"></i>ทดสอบการตั้งค่าทั้งหมด
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
 
-            <!-- AI Chatbot -->
-            <div class="card mb-4">
-                <div class="card-header bg-warning text-dark">
-                    <h5><i class="fas fa-brain me-2"></i>AI Chatbot</h5>
-                </div>
-                <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="ai_enabled" name="ai_enabled" 
-                               {{ 'checked' if config.get('ai_enabled') }}>
-                        <label class="form-check-label" for="ai_enabled">
-                            <strong>เปิดใช้งาน AI Chatbot</strong>
-                            <span class="status-indicator" id="ai_status"></span>
-                        </label>
+            <!-- Status Sidebar -->
+            <div class="col-md-4">
+                <div class="card sticky-top">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>สถานะระบบ
+                            <button class="btn btn-sm btn-outline-light float-end" onclick="updateSystemStatus()">
+                                <i class="fas fa-sync"></i>
+                            </button>
+                        </h5>
                     </div>
-                    <div class="mb-3">
-                        <label for="openai_api_key" class="form-label">OpenAI API Key</label>
-                        <input type="text" class="form-control" id="openai_api_key" name="openai_api_key" 
-                               value="{{ config.get('openai_api_key', '') }}"
-                               placeholder="sk-...">
-                        <small class="form-text text-muted">
-                            API Key สำหรับ ChatGPT - 
-                            <a href="https://platform.openai.com/api-keys" target="_blank">สร้างที่ OpenAI Platform</a>
-                        </small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="ai_prompt" class="form-label">AI Prompt</label>
-                        <textarea class="form-control" id="ai_prompt" name="ai_prompt" rows="3" 
-                                  placeholder="คุณเป็นผู้ช่วยระบบชำระเงิน...">{{ config.get('ai_prompt', '') }}</textarea>
-                        <small class="form-text text-muted">คำสั่งพื้นฐานที่จะส่งให้ AI ในทุกการสนทนา</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="row">
-                <div class="col-md-6">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-save me-1"></i>บันทึกการตั้งค่า
-                    </button>
-                </div>
-                <div class="col-md-6">
-                    <button type="button" class="btn btn-outline-success w-100" onclick="testConfiguration()">
-                        <i class="fas fa-vial me-1"></i>ทดสอบการตั้งค่า
-                    </button>
-                </div>
-            </div>
-        </form>
-
-        <!-- Status Display -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5><i class="fas fa-info-circle me-2"></i>สถานะระบบ</h5>
-            </div>
-            <div class="card-body">
-                <div id="systemStatus">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">กำลังโหลด...</span>
+                    <div class="card-body">
+                        <div id="systemStatus">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">กำลังโหลด...</span>
+                                </div>
+                                <p class="mt-2">กำลังตรวจสอบสถานะระบบ...</p>
+                            </div>
                         </div>
-                        <p class="mt-2">กำลังตรวจสอบสถานะระบบ...</p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card mt-3">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="resetToDefaults()">
+                                <i class="fas fa-undo me-1"></i>Reset to Defaults
+                            </button>
+                            <button class="btn btn-outline-info btn-sm" onclick="exportConfig()">
+                                <i class="fas fa-download me-1"></i>Export Config
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" onclick="importConfig()">
+                                <i class="fas fa-upload me-1"></i>Import Config
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -206,7 +322,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             updateSystemStatus();
-            setInterval(updateSystemStatus, 10000); // อัปเดตทุก 10 วินาที
+            setInterval(updateSystemStatus, 15000); // อัปเดตทุก 15 วินาที
         });
 
         // บันทึกการตั้งค่า
@@ -242,10 +358,10 @@
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    showAlert('success', result.message);
+                    showNotification('success', result.message);
                     updateSystemStatus(); // อัปเดตสถานะทันที
                 } else {
-                    showAlert('danger', result.message);
+                    showNotification('danger', result.message);
                 }
                 
                 button.innerHTML = originalText;
@@ -253,7 +369,7 @@
                 
             } catch (error) {
                 console.error('Error:', error);
-                showAlert('danger', 'เกิดข้อผิดพลาดในการบันทึกการตั้งค่า');
+                showNotification('danger', 'เกิดข้อผิดพลาดในการบันทึกการตั้งค่า');
                 
                 const button = e.target.querySelector('button[type="submit"]');
                 button.innerHTML = '<i class="fas fa-save me-1"></i>บันทึกการตั้งค่า';
@@ -272,52 +388,61 @@
                 updateStatusIndicator('thunder_status', data.thunder?.connected);
                 updateStatusIndicator('kbank_status', data.kbank?.connected);
                 updateStatusIndicator('ai_status', data.line?.configured);
+                updateStatusIndicator('line_status', data.line?.connected);
                 
                 // สร้าง HTML สำหรับแสดงสถานะ
                 const statusHtml = `
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Thunder API</h6>
-                            <p class="mb-1">
-                                <span class="badge ${data.thunder?.configured ? 'bg-success' : 'bg-danger'}">
-                                    ${data.thunder?.configured ? 'กำหนดค่าแล้ว' : 'ยังไม่ได้กำหนดค่า'}
-                                </span>
-                                <span class="badge ${data.thunder?.enabled ? 'bg-primary' : 'bg-secondary'}">
-                                    ${data.thunder?.enabled ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                                </span>
-                            </p>
-                            <small class="text-muted">
-                                ความผิดพลาดล่าสุด: ${data.thunder?.recent_failures || 0} ครั้ง
-                            </small>
+                    <div class="mb-3">
+                        <h6><i class="fab fa-line me-2"></i>LINE API</h6>
+                        <div class="d-flex justify-content-between">
+                            <span>Status:</span>
+                            <span class="badge ${data.line?.connected ? 'bg-success' : 'bg-danger'}">
+                                ${data.line?.connected ? 'Connected' : 'Disconnected'}
+                            </span>
                         </div>
-                        <div class="col-md-6">
-                            <h6>KBank API</h6>
-                            <p class="mb-1">
-                                <span class="badge ${data.kbank?.configured ? 'bg-success' : 'bg-danger'}">
-                                    ${data.kbank?.configured ? 'กำหนดค่าแล้ว' : 'ยังไม่ได้กำหนดค่า'}
-                                </span>
-                                <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'}">
-                                    ${data.kbank?.enabled ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                                </span>
-                            </p>
-                            <small class="text-muted">
-                                ความผิดพลาดล่าสุด: ${data.kbank?.recent_failures || 0} ครั้ง
-                            </small>
-                        </div>
+                        ${data.line?.bot_name ? `<small class="text-muted">Bot: ${data.line.bot_name}</small>` : ''}
                     </div>
-                    <hr>
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <h6>สถานะระบบโดยรวม</h6>
-                            <p class="mb-0">
-                                <span class="badge ${data.system_status?.system_enabled ? 'bg-success' : 'bg-danger'} me-2">
-                                    ระบบตรวจสอบสลิป: ${data.system_status?.system_enabled ? 'เปิด' : 'ปิด'}
-                                </span>
-                                <span class="badge ${data.system_status?.any_api_available ? 'bg-success' : 'bg-warning'}">
-                                    API พร้อมใช้งาน: ${data.system_status?.any_api_available ? 'มี' : 'ไม่มี'}
-                                </span>
-                            </p>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Configured:</span>
+                            <span class="badge ${data.thunder?.configured ? 'bg-success' : 'bg-danger'}">
+                                ${data.thunder?.configured ? 'Yes' : 'No'}
+                            </span>
                         </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Enabled:</span>
+                            <span class="badge ${data.thunder?.enabled ? 'bg-primary' : 'bg-secondary'}">
+                                ${data.thunder?.enabled ? 'Yes' : 'No'}
+                            </span>
+                        </div>
+                        <small class="text-muted">Failures: ${data.thunder?.recent_failures || 0}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Configured:</span>
+                            <span class="badge ${data.kbank?.configured ? 'bg-success' : 'bg-danger'}">
+                                ${data.kbank?.configured ? 'Yes' : 'No'}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Enabled:</span>
+                            <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'}">
+                                ${data.kbank?.enabled ? 'Yes' : 'No'}
+                            </span>
+                        </div>
+                        <small class="text-muted">Failures: ${data.kbank?.recent_failures || 0}</small>
+                    </div>
+                    
+                    <hr>
+                    <div class="text-center">
+                        <h6>สถานะระบบโดยรวม</h6>
+                        <span class="badge ${data.system_status?.system_enabled ? 'bg-success' : 'bg-danger'} fs-6">
+                            ${data.system_status?.system_enabled ? 'System Ready' : 'System Not Ready'}
+                        </span>
                     </div>
                 `;
                 
@@ -336,65 +461,222 @@
 
         // อัปเดต status indicator
         function updateStatusIndicator(elementId, isActive) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.className = `status-indicator ${isActive ? 'status-active' : 'status-inactive'}`;
-            }
-        }
+           const element = document.getElementById(elementId);
+           if (element) {
+               element.className = `status-indicator ${isActive ? 'status-active' : 'status-inactive'}`;
+           }
+       }
 
-        // ทดสอบการตั้งค่า
-        async function testConfiguration() {
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>กำลังทดสอบ...';
-            button.disabled = true;
-            
-            try {
-                // ทดสอบ Thunder API
-                if (document.getElementById('thunder_enabled').checked) {
-                    showAlert('info', 'กำลังทดสอบ Thunder API...');
-                }
-                
-                // ทดสอบ KBank API
-                if (document.getElementById('kbank_enabled').checked) {
-                    showAlert('info', 'กำลังทดสอบ KBank API...');
-                }
-                
-                // รอ 2 วินาทีเพื่อจำลองการทดสอบ
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                showAlert('success', 'การทดสอบเสร็จสิ้น โปรดตรวจสอบ log สำหรับรายละเอียด');
-                
-            } catch (error) {
-                showAlert('danger', 'เกิดข้อผิดพลาดในการทดสอบ');
-            } finally {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
-        }
+       // Toggle password visibility
+       function togglePasswordVisibility(fieldId) {
+           const field = document.getElementById(fieldId);
+           const button = field.nextElementSibling.querySelector('i');
+           
+           if (field.type === 'password') {
+               field.type = 'text';
+               button.className = 'fas fa-eye-slash';
+           } else {
+               field.type = 'password';
+               button.className = 'fas fa-eye';
+           }
+       }
 
-        // แสดง alert
-        function showAlert(type, message) {
-            const alertHtml = `
-                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-            
-            // แทรก alert ที่ด้านบนของ form
-            const form = document.getElementById('settingsForm');
-            form.insertAdjacentHTML('beforebegin', alertHtml);
-            
-            // ลบ alert หลัง 5 วินาที
-            setTimeout(() => {
-                const alerts = document.querySelectorAll('.alert');
-                if (alerts.length > 0) {
-                    alerts[alerts.length - 1].remove();
-                }
-            }, 5000);
-        }
-    </script>
+       // Test functions
+       async function testLineConnection() {
+           showNotification('info', 'กำลังทดสอบ LINE API...');
+           try {
+               const response = await fetch('/admin/test-line-connection', { method: 'POST' });
+               const result = await response.json();
+               
+               if (result.status === 'success') {
+                   showNotification('success', `LINE API Test Success: ${result.data.bot_name}`);
+               } else {
+                   showNotification('danger', `LINE API Test Failed: ${result.message}`);
+               }
+           } catch (error) {
+               showNotification('danger', 'Failed to test LINE API');
+           }
+       }
+
+       async function testThunderAPI() {
+           showNotification('info', 'Thunder API test requires image upload. Redirecting to debug console...');
+           window.open('/admin/debug', '_blank');
+       }
+
+       async function testKBankOAuth() {
+           const consumerId = document.getElementById('kbank_consumer_id').value.trim();
+           const consumerSecret = document.getElementById('kbank_consumer_secret').value.trim();
+           
+           if (!consumerId || !consumerSecret) {
+               showNotification('warning', 'กรุณาใส่ Consumer ID และ Secret ก่อน');
+               return;
+           }
+           
+           showNotification('info', 'กำลังทดสอบ KBank OAuth...');
+           try {
+               const response = await fetch('/admin/test-kbank-oauth', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                       consumer_id: consumerId,
+                       consumer_secret: consumerSecret
+                   })
+               });
+               const result = await response.json();
+               
+               if (result.status === 'success') {
+                   showNotification('success', 'KBank OAuth test successful!');
+               } else {
+                   showNotification('danger', `KBank OAuth test failed: ${result.message}`);
+               }
+           } catch (error) {
+               showNotification('danger', 'Failed to test KBank OAuth');
+           }
+       }
+
+       async function testKBankSandbox() {
+           showNotification('info', 'กำลังทดสอบ KBank Sandbox...');
+           try {
+               const response = await fetch('/admin/test-kbank-sandbox', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                       consumer_id: 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr',
+                       consumer_secret: 'goOfPtGLoGxYP3DG',
+                       bank_id: '004',
+                       trans_ref: 'TEST123456789'
+                   })
+               });
+               const result = await response.json();
+               showNotification(result.status, `KBank Sandbox: ${result.message}`);
+           } catch (error) {
+               showNotification('danger', 'Failed to test KBank Sandbox');
+           }
+       }
+
+       async function testAllConfiguration() {
+           showNotification('info', 'กำลังทดสอบการตั้งค่าทั้งหมด...');
+           
+           // Test LINE API
+           await testLineConnection();
+           await new Promise(resolve => setTimeout(resolve, 1000));
+           
+           // Test KBank OAuth if enabled
+           if (document.getElementById('kbank_enabled').checked) {
+               await testKBankOAuth();
+               await new Promise(resolve => setTimeout(resolve, 1000));
+           }
+           
+           // Test KBank Sandbox
+           await testKBankSandbox();
+           
+           showNotification('success', 'การทดสอบเสร็จสิ้น กรุณาตรวจสอบผลลัพธ์');
+       }
+
+       // Utility functions
+       async function resetToDefaults() {
+           if (!confirm('ต้องการรีเซ็ตการตั้งค่าเป็นค่าเริ่มต้นหรือไม่?')) return;
+           
+           document.getElementById('ai_enabled').checked = true;
+           document.getElementById('slip_enabled').checked = true;
+           document.getElementById('thunder_enabled').checked = true;
+           document.getElementById('kbank_enabled').checked = false;
+           document.getElementById('ai_prompt').value = 'คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง';
+           
+           showNotification('info', 'รีเซ็ตการตั้งค่าแล้ว กรุณาบันทึกการตั้งค่า');
+       }
+
+       async function exportConfig() {
+           try {
+               const config = {
+                   ai_enabled: document.getElementById('ai_enabled').checked,
+                   slip_enabled: document.getElementById('slip_enabled').checked,
+                   thunder_enabled: document.getElementById('thunder_enabled').checked,
+                   kbank_enabled: document.getElementById('kbank_enabled').checked,
+                   ai_prompt: document.getElementById('ai_prompt').value,
+                   export_timestamp: new Date().toISOString()
+               };
+               
+               const dataStr = JSON.stringify(config, null, 2);
+               const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+               const exportFileDefaultName = `config_export_${new Date().toISOString().split('T')[0]}.json`;
+               
+               const linkElement = document.createElement('a');
+               linkElement.setAttribute('href', dataUri);
+               linkElement.setAttribute('download', exportFileDefaultName);
+               linkElement.click();
+               
+               showNotification('success', 'ส่งออกการตั้งค่าแล้ว');
+           } catch (error) {
+               showNotification('danger', 'เกิดข้อผิดพลาดในการส่งออก');
+           }
+       }
+
+       function importConfig() {
+           const input = document.createElement('input');
+           input.type = 'file';
+           input.accept = '.json';
+           input.onchange = function(event) {
+               const file = event.target.files[0];
+               if (file) {
+                   const reader = new FileReader();
+                   reader.onload = function(e) {
+                       try {
+                           const config = JSON.parse(e.target.result);
+                           
+                           // Apply imported config
+                           if (config.ai_enabled !== undefined) {
+                               document.getElementById('ai_enabled').checked = config.ai_enabled;
+                           }
+                           if (config.slip_enabled !== undefined) {
+                               document.getElementById('slip_enabled').checked = config.slip_enabled;
+                           }
+                           if (config.thunder_enabled !== undefined) {
+                               document.getElementById('thunder_enabled').checked = config.thunder_enabled;
+                           }
+                           if (config.kbank_enabled !== undefined) {
+                               document.getElementById('kbank_enabled').checked = config.kbank_enabled;
+                           }
+                           if (config.ai_prompt) {
+                               document.getElementById('ai_prompt').value = config.ai_prompt;
+                           }
+                           
+                           showNotification('success', 'นำเข้าการตั้งค่าแล้ว กรุณาบันทึกการตั้งค่า');
+                       } catch (error) {
+                           showNotification('danger', 'ไฟล์ config ไม่ถูกต้อง');
+                       }
+                   };
+                   reader.readAsText(file);
+               }
+           };
+           input.click();
+       }
+
+       // แสดง notification
+       function showNotification(type, message) {
+           const alertClass = {
+               'success': 'alert-success',
+               'danger': 'alert-danger',
+               'warning': 'alert-warning',
+               'info': 'alert-info'
+           }[type] || 'alert-info';
+           
+           const notification = document.createElement('div');
+           notification.className = `alert ${alertClass} alert-dismissible fade show`;
+           notification.innerHTML = `
+               ${message}
+               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+           `;
+           
+           document.getElementById('saveNotification').appendChild(notification);
+           
+           // Auto remove after 5 seconds
+           setTimeout(() => {
+               if (notification.parentNode) {
+                   notification.remove();
+               }
+           }, 5000);
+       }
+   </script>
 </body>
 </html>
