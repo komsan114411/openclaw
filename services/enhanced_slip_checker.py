@@ -1,40 +1,32 @@
+# services/enhanced_slip_checker.py
 import logging
 import re
 import time
 from typing import Dict, Any, Optional, List, Tuple
 from utils.config_manager import config_manager
-# นำเข้าโมดูลทั้งหมดที่นี่เพื่อป้องกัน NameError
-from services.slip_checker import verify_slip_with_thunder
-from services.kbank_checker import kbank_checker
 
 logger = logging.getLogger("enhanced_slip_checker")
 
-# Cache สำหรับเก็บสถานะ API ที่ล้มเหลว
+# API Failure Cache - แยกตาม API
 API_FAILURE_CACHE = {
     "thunder": {"last_failure": 0, "failure_count": 0},
     "kbank": {"last_failure": 0, "failure_count": 0}
 }
 
-def is_api_recently_failed(api_name: str, cooldown_minutes: int = 0.5) -> bool:
-    """ตรวจสอบว่า API นี้เพิ่งล้มเหลวไปหรือไม่ (ลด cooldown เป็น 30 วินาที)"""
+def is_api_recently_failed(api_name: str, cooldown_minutes: int = 2) -> bool:
+    """ตรวจสอบว่า API นี้เพิ่งล้มเหลวไปหรือไม่"""
     current_time = time.time()
     cache = API_FAILURE_CACHE.get(api_name, {"last_failure": 0, "failure_count": 0})
     
-    # ถ้าล้มเหลวเกิน 10 ครั้ง ให้ cooldown นานขึ้น
+    # เพิ่ม cooldown ตามจำนวนครั้งที่ล้มเหลว
     if cache["failure_count"] >= 10:
-        cooldown_minutes = 10
+        cooldown_minutes = 30
     elif cache["failure_count"] >= 5:
-        cooldown_minutes = 2
+        cooldown_minutes = 10
     elif cache["failure_count"] >= 3:
-        cooldown_minutes = 1
+        cooldown_minutes = 5
     
-    # ถ้าไม่มี API อื่นให้ลด cooldown เป็น 0
-    if len(get_available_apis()) == 1:
-        cooldown_minutes = 0
-    
-    if current_time - cache["last_failure"] < (cooldown_minutes * 60):
-        return True
-    return False
+    return (current_time - cache["last_failure"]) < (cooldown_minutes * 60)
 
 def mark_api_failure(api_name: str):
     """บันทึกว่า API นี้ล้มเหลว"""
@@ -44,13 +36,13 @@ def mark_api_failure(api_name: str):
     
     API_FAILURE_CACHE[api_name]["last_failure"] = current_time
     API_FAILURE_CACHE[api_name]["failure_count"] += 1
-    logger.warning(f"🚨 Marked {api_name} API as failed (count: {API_FAILURE_CACHE[api_name]['failure_count']})")
+    logger.warning(f"🚨 {api_name} API failed (count: {API_FAILURE_CACHE[api_name]['failure_count']})")
 
 def mark_api_success(api_name: str):
     """บันทึกว่า API นี้ใช้งานได้แล้ว"""
     if api_name in API_FAILURE_CACHE:
         API_FAILURE_CACHE[api_name]["failure_count"] = 0
-        logger.info(f"✅ Reset failure count for {api_name} API")
+        logger.info(f"✅ {api_name} API working normally")
 
 def reset_api_failure_cache():
     """รีเซ็ต failure cache ทั้งหมด"""
@@ -59,279 +51,177 @@ def reset_api_failure_cache():
         "thunder": {"last_failure": 0, "failure_count": 0},
         "kbank": {"last_failure": 0, "failure_count": 0}
     }
-    logger.info("🔄 Reset API failure cache")
-
-def get_available_apis() -> List[Tuple[str, Dict[str, Any]]]:
-    """ดึงรายการ API ที่เปิดใช้งานตามลำดับความสำคัญ"""
-    available_apis = []
-    
-    # 1. Thunder API (ลำดับแรก)
-    thunder_enabled = config_manager.get("slip_enabled", False)
-    thunder_has_token = config_manager.get("thunder_api_token", "").strip()
-    
-    if thunder_enabled and thunder_has_token:
-        available_apis.append(("thunder", {
-            "name": "Thunder API",
-            "enabled": thunder_enabled,
-            "configured": bool(thunder_has_token),
-            "priority": 1,
-            "requires_image": True,
-            "requires_bank_data": False
-        }))
-    
-    # 2. KBank API (ลำดับที่ 2)
-    kbank_enabled = config_manager.get("kbank_enabled", False)
-    kbank_consumer_id = config_manager.get("kbank_consumer_id", "").strip()
-    kbank_consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
-    kbank_has_credentials = kbank_consumer_id and kbank_consumer_secret
-    
-    if kbank_enabled and kbank_has_credentials:
-        available_apis.append(("kbank", {
-            "name": "KBank API",
-            "enabled": kbank_enabled,
-            "configured": kbank_has_credentials,
-            "priority": 2,
-            "requires_image": False,
-            "requires_bank_data": True
-        }))
-    
-    # เรียงตามลำดับความสำคัญ
-    available_apis.sort(key=lambda x: x[1]["priority"])
-    
-    logger.info(f"📋 Available APIs: {[api[0] for api in available_apis]}")
-    return available_apis
+    logger.info("🔄 API failure cache reset")
 
 def verify_slip_multiple_providers(message_id: str = None, 
                                  test_image_data: Optional[bytes] = None,
                                  bank_code: str = None,
                                  trans_ref: str = None) -> Dict[str, Any]:
-    """ระบบตรวจสอบสลิปแบบหลายช่องทาง (Fixed version)"""
+    """ระบบตรวจสอบสลิปแบบหลายช่องทาง (แก้ไขใหม่)"""
     
-    logger.info(f"🔍 Starting slip verification")
-    logger.info(f"📊 Input: message_id={bool(message_id)}, image_data={bool(test_image_data)}, bank_code={bank_code}, trans_ref={trans_ref}")
+    logger.info(f"🔍 Starting multi-provider slip verification")
+    logger.info(f"📊 Inputs: message_id={bool(message_id)}, image_data={bool(test_image_data)}, bank_code={bank_code}, trans_ref={trans_ref}")
     
-    # ตรวจสอบว่ามี API ใดบ้างที่พร้อมใช้งาน
-    available_apis = []
+    # ตรวจสอบว่าระบบตรวจสอบสลิปเปิดอยู่หรือไม่
+    slip_enabled = config_manager.get("slip_enabled", False)
+    if not slip_enabled:
+        return {
+            "status": "error",
+            "message": "ระบบตรวจสอบสลิปถูกปิดใช้งาน",
+            "suggestions": ["เปิดใช้งานระบบตรวจสอบสลิปในหน้า Settings"]
+        }
     
-    # ตรวจสอบ Thunder API
-    thunder_enabled = config_manager.get("slip_enabled", False)
+    # รายการ API ที่จะลอง (ตามลำดับความสำคัญ)
+    api_list = []
+    
+    # 1. Thunder API (สำหรับรูปภาพ)
+    thunder_enabled = config_manager.get("thunder_enabled", True)  # เพิ่มการตั้งค่าแยก
     thunder_token = config_manager.get("thunder_api_token", "").strip()
     
-    if thunder_enabled and thunder_token:
-        try:
-            available_apis.append(("thunder", "Thunder API"))
-            logger.info("✅ Thunder API available")
-        except Exception as e:
-            logger.error(f"❌ Thunder API error: {e}")
+    if thunder_enabled and thunder_token and (message_id or test_image_data):
+        if not is_api_recently_failed("thunder"):
+            api_list.append(("thunder", "Thunder API"))
+            logger.info("✅ Thunder API will be attempted")
+        else:
+            logger.warning("⚠️ Thunder API skipped due to recent failures")
+    elif not thunder_enabled:
+        logger.info("❌ Thunder API disabled by user")
+    elif not thunder_token:
+        logger.info("❌ Thunder API token not configured")
     else:
-        logger.info("⚠️ Thunder API not configured or disabled")
+        logger.info("❌ Thunder API requires image data")
     
-    # ตรวจสอบ KBank API
+    # 2. KBank API (สำหรับข้อมูลธนาคาร)
     kbank_enabled = config_manager.get("kbank_enabled", False)
     kbank_consumer_id = config_manager.get("kbank_consumer_id", "").strip()
     kbank_consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
     
     if kbank_enabled and kbank_consumer_id and kbank_consumer_secret:
-        try:
-            available_apis.append(("kbank", "KBank API"))
-            logger.info("✅ KBank API available")
-        except Exception as e:
-            logger.error(f"❌ KBank API error: {e}")
+        if not is_api_recently_failed("kbank"):
+            api_list.append(("kbank", "KBank API"))
+            logger.info("✅ KBank API will be attempted")
+        else:
+            logger.warning("⚠️ KBank API skipped due to recent failures")
+    elif not kbank_enabled:
+        logger.info("❌ KBank API disabled by user")
     else:
-        logger.info("⚠️ KBank API not configured or disabled")
+        logger.info("❌ KBank API credentials not configured")
     
-    # ถ้าไม่มี API ใดเลย
-    if not available_apis:
-        logger.error("❌ No APIs available")
+    # ตรวจสอบว่ามี API ให้ใช้หรือไม่
+    if not api_list:
+        available_apis = []
+        if thunder_token:
+            available_apis.append("Thunder API (มี Token)")
+        if kbank_consumer_id and kbank_consumer_secret:
+            available_apis.append("KBank API (มี Credentials)")
+            
         return {
             "status": "error",
-            "message": "ไม่มี API ตรวจสอบสลิปที่พร้อมใช้งาน กรุณาตั้งค่า Thunder หรือ KBank API",
+            "message": "ไม่มี API ที่พร้อมใช้งาน",
+            "available_apis": available_apis,
             "suggestions": [
-                "ตรวจสอบการตั้งค่า Thunder API Token",
-                "ตรวจสอบการตั้งค่า KBank Consumer ID/Secret",
-                "เปิดใช้งานระบบตรวจสอบสลิปในหน้า Settings"
+                "ตรวจสอบการตั้งค่า API tokens",
+                "เปิดใช้งาน API ที่ต้องการในหน้า Settings",
+                "รอให้ API ที่ล้มเหลวกลับมาใช้งานได้"
             ]
         }
     
-    logger.info(f"📋 Available APIs: {[api[1] for api in available_apis]}")
+    logger.info(f"📋 Will attempt APIs: {[name for _, name in api_list]}")
     
-    # ลองแต่ละ API ตามลำดับ
-    for api_name, api_display_name in available_apis:
-        logger.info(f"🔄 Trying {api_display_name}...")
+    # ลอง API ตามลำดับ
+    last_error = None
+    
+    for api_name, api_display_name in api_list:
+        logger.info(f"🔄 Attempting {api_display_name}...")
         
         try:
             result = None
             
             if api_name == "thunder":
                 # ใช้ Thunder API
-                if message_id or test_image_data:
-                    result = verify_slip_with_thunder(message_id, test_image_data)
-                else:
-                    logger.info("⏭️ Skipping Thunder API - no image data")
-                    continue
-            
+                from services.slip_checker import verify_slip_with_thunder
+                result = verify_slip_with_thunder(message_id, test_image_data)
+                
             elif api_name == "kbank":
                 # ใช้ KBank API
+                from services.kbank_checker import kbank_checker
+                
+                # ถ้ามีข้อมูลธนาคารแล้วใช้เลย
                 if bank_code and trans_ref:
                     result = kbank_checker.verify_slip(bank_code, trans_ref)
-                elif message_id or test_image_data:
-                    # ลองดึงข้อมูลธนาคารจากรูปภาพด้วย Thunder ก่อน
-                    logger.info("🔍 Extracting bank data for KBank API")
-                    try:
-                        thunder_result = verify_slip_with_thunder(message_id, test_image_data)
-                        if thunder_result.get("status") == "success":
-                            # ใช้ข้อมูลจาก Thunder เพื่อเรียก KBank
-                            extracted_bank = thunder_result['data'].get('sender_bank_id', '')
-                            extracted_ref = thunder_result['data'].get('reference', '')
-                            if extracted_bank and extracted_ref:
-                                result = kbank_checker.verify_slip(extracted_bank, extracted_ref)
-                            else:
-                                logger.info("⏭️ Could not extract bank data for KBank")
-                                continue
-                        else:
-                            logger.info("⏭️ Thunder extraction failed for KBank")
-                            continue
-                    except Exception as e:
-                        logger.error(f"❌ Bank data extraction failed: {e}")
-                        continue
                 else:
-                    logger.info("⏭️ Skipping KBank API - no bank data")
-                    continue
+                    # ลองดึงข้อมูลจาก Thunder ก่อน
+                    logger.info("🔍 Extracting bank data for KBank API...")
+                    if message_id or test_image_data:
+                        try:
+                            from services.slip_checker import verify_slip_with_thunder
+                            thunder_result = verify_slip_with_thunder(message_id, test_image_data)
+                            
+                            if thunder_result.get("status") == "success":
+                                extracted_data = thunder_result.get("data", {})
+                                extracted_bank = extracted_data.get("sender_bank_id", "")
+                                extracted_ref = extracted_data.get("reference", "")
+                                
+                                if extracted_bank and extracted_ref:
+                                    result = kbank_checker.verify_slip(extracted_bank, extracted_ref)
+                                else:
+                                    logger.warning("⚠️ Could not extract bank data for KBank")
+                                    continue
+                            else:
+                                logger.warning("⚠️ Thunder extraction failed for KBank")
+                                continue
+                        except Exception as e:
+                            logger.error(f"❌ Bank data extraction failed: {e}")
+                            continue
+                    else:
+                        logger.info("⏭️ KBank API requires bank data or image")
+                        continue
             
             # ตรวจสอบผลลัพธ์
-            if result and result.get("status") == "success":
+            if result and result.get("status") in ["success", "duplicate"]:
                 logger.info(f"✅ {api_display_name} succeeded!")
+                mark_api_success(api_name)
+                
+                # เพิ่มข้อมูลการตรวจสอบ
                 result["verified_by"] = api_display_name
+                result["verification_time"] = time.time()
+                
                 return result
             else:
+                # API ส่งผลลัพธ์แต่ไม่สำเร็จ
                 error_msg = result.get("message", "Unknown error") if result else "No response"
                 logger.warning(f"⚠️ {api_display_name} failed: {error_msg}")
                 
+                # ตรวจสอบว่าเป็น error จริงหรือไม่
+                if result and result.get("status") in ["not_found", "invalid", "error"]:
+                    mark_api_failure(api_name)
+                    last_error = error_msg
+                
         except Exception as e:
             logger.error(f"❌ {api_display_name} exception: {e}")
+            mark_api_failure(api_name)
+            last_error = str(e)
     
     # ถ้าทุก API ล้มเหลว
-    logger.error("🚫 All APIs failed")
+    logger.error("🚫 All available APIs failed")
     return {
         "status": "error",
-        "message": "ไม่สามารถตรวจสอบสลิปได้จากทุก API ที่มี",
-        "attempted_apis": [api[1] for api in available_apis],
+        "message": f"ไม่สามารถตรวจสอบสลิปได้ จากทุก API ที่มี",
+        "last_error": last_error,
+        "attempted_apis": [name for _, name in api_list],
         "suggestions": [
             "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต",
             "ตรวจสอบความถูกต้องของ API credentials",
-            "ลองส่งสลิปใหม่อีกครั้งในภายหลัง"
+            "ลองส่งสลิปใหม่อีกครั้งในภายหลัง",
+            "ติดต่อผู้ดูแลระบบหากปัญหายังคงอยู่"
         ]
     }
 
-def extract_bank_data_from_image(message_id: str = None, test_image_data: Optional[bytes] = None) -> Dict[str, Optional[str]]:
-    """ดึงข้อมูลธนาคารจากรูปภาพโดยใช้ Thunder API (สำหรับ KBank API)"""
-    try:
-        # ถ้า Thunder API ไม่พร้อม ให้ return ข้อมูลว่าง
-        if not config_manager.get("slip_enabled") or not config_manager.get("thunder_api_token"):
-            return {"bank_code": None, "trans_ref": None}
-        
-        thunder_result = call_thunder_api(message_id, test_image_data)
-        if thunder_result and thunder_result.get("status") == "success":
-            data = thunder_result.get("data", {})
-            
-            # แปลงข้อมูลธนาคารเป็นรหัส
-            sender_bank = data.get("sender_bank", "")
-            bank_code = convert_bank_name_to_code(sender_bank)
-            trans_ref = data.get("reference", "") or data.get("transRef", "")
-            
-            return {"bank_code": bank_code, "trans_ref": trans_ref}
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to extract bank data from image: {e}")
-    
-    return {"bank_code": None, "trans_ref": None}
-
-def convert_bank_name_to_code(bank_name: str) -> Optional[str]:
-    """แปลงชื่อธนาคารเป็นรหัส"""
-    if not bank_name:
-        return None
-    
-    bank_name_lower = bank_name.lower()
-    bank_mapping = {
-        "bbl": "002", "bangkok": "002", "กรุงเทพ": "002",
-        "kbank": "004", "kasikorn": "004", "กสิกร": "004",
-        "ktb": "006", "krungthai": "006", "กรุงไทย": "006",
-        "tmb": "011", "tmbbank": "011", "ทหารไทย": "011",
-        "scb": "014", "scbbank": "014", "ไทยพาณิชย์": "014",
-        "bay": "025", "krungsri": "025", "กรุงศรี": "025",
-        "gsb": "030", "ออมสิน": "030",
-        "baac": "017", "ธกส": "017"
-    }
-    
-    for key, code in bank_mapping.items():
-        if key in bank_name_lower:
-            return code
-    
-    return None
-
-def call_thunder_api(message_id: str = None, test_image_data: Optional[bytes] = None) -> Dict[str, Any]:
-    """เรียกใช้ Thunder API"""
-    try:
-        return verify_slip_with_thunder(message_id, test_image_data)
-    except ImportError:
-        return {"status": "error", "message": "Thunder API module not available"}
-    except Exception as e:
-        return {"status": "error", "message": f"Thunder API error: {str(e)}"}
-
-def call_kbank_api(bank_code: str, trans_ref: str) -> Dict[str, Any]:
-    """เรียกใช้ KBank API"""
-    try:
-        return kbank_checker.verify_slip(bank_code, trans_ref)
-    except ImportError:
-        return {"status": "error", "message": "KBank API module not available"}
-    except Exception as e:
-        return {"status": "error", "message": f"KBank API error: {str(e)}"}
-
-def is_non_critical_error(error_message: str) -> bool:
-    """ตรวจสอบว่าเป็น error ที่ไม่ใช่ความผิดพลาดของ API"""
-    if not error_message:
-        return False
-    
-    error_lower = error_message.lower()
-    non_critical_keywords = [
-        "duplicate", "ซ้ำ", "invalid slip", "สลิปไม่ถูกต้อง",
-        "not found", "ไม่พบ", "validation", "format"
-    ]
-    
-    return any(keyword in error_lower for keyword in non_critical_keywords)
-
-def get_troubleshooting_suggestions(attempted_apis: List[str]) -> List[str]:
-    """ให้คำแนะนำในการแก้ไขปัญหาตาม API ที่ลอง"""
-    suggestions = []
-    
-    if "thunder" in attempted_apis:
-        thunder_token = config_manager.get("thunder_api_token")
-        if not thunder_token:
-            suggestions.append("🔧 ตั้งค่า Thunder API Token ในหน้า Settings")
-        else:
-            suggestions.extend([
-                "⚡ ตรวจสอบว่า Thunder API Token ยังไม่หมดอายุ",
-                "📸 ลองถ่ายรูปสลิปใหม่ให้ชัดเจนขึ้น"
-            ])
-    
-    if "kbank" in attempted_apis:
-        if not (config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret")):
-            suggestions.append("🏦 ตั้งค่า KBank Consumer ID และ Secret")
-        else:
-            suggestions.extend([
-                "🔑 ตรวจสอบ KBank credentials ให้ถูกต้อง",
-                "🌐 ตรวจสอบการเชื่อมต่อกับ KBank API"
-            ])
-    
-    # คำแนะนำทั่วไป
-    suggestions.extend([
-        "🔄 รอสักครู่แล้วลองส่งสลิปใหม่อีกครั้ง",
-        "📞 ติดต่อแอดมินหากปัญหายังคงอยู่"
-    ])
-    
-    return suggestions
-
 def extract_slip_info_from_text(text: str) -> Dict[str, Optional[str]]:
     """ดึงรหัสธนาคารและหมายเลขอ้างอิงจากข้อความ"""
+    
+    if not text or not isinstance(text, str):
+        return {"bank_code": None, "trans_ref": None}
     
     # รูปแบบธนาคารไทยที่พบบ่อย
     bank_patterns = {
@@ -343,91 +233,94 @@ def extract_slip_info_from_text(text: str) -> Dict[str, Optional[str]]:
         "025": ["กรุงศรี", "bay", "bank of ayudhya", "ธนาคารกรุงศรีอยุธยา", "krungsri"],
         "017": ["ธกส", "baac", "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร"],
         "030": ["ออมสิน", "gsb", "government savings bank", "ธนาคารออมสิน"],
-        "034": ["เพื่อการส่งออกและนำเข้าแห่งประเทศไทย", "exim", "export import"],
     }
     
     # ดึงรหัสธนาคาร
     bank_code = None
-    text_lower = text.lower().replace(" ", "")
+    text_lower = text.lower().replace(" ", "").replace("-", "").replace("_", "")
+    
     for code, keywords in bank_patterns.items():
-        if any(keyword.replace(" ", "").lower() in text_lower for keyword in keywords):
-            bank_code = code
+        for keyword in keywords:
+            keyword_clean = keyword.replace(" ", "").replace("-", "").lower()
+            if keyword_clean in text_lower:
+                bank_code = code
+                break
+        if bank_code:
             break
     
     # ดึงหมายเลขอ้างอิง
     trans_ref = None
     ref_patterns = [
-        r'ref[:\s]*([A-Z0-9]{6,20})',
-        r'อ้างอิง[:\s]*([A-Z0-9]{6,20})',
-        r'reference[:\s]*([A-Z0-9]{6,20})',
-        r'เลขอ้างอิง[:\s]*([A-Z0-9]{6,20})',
-        r'หมายเลขอ้างอิง[:\s]*([A-Z0-9]{6,20})',
-        r'รหัสอ้างอิง[:\s]*([A-Z0-9]{6,20})',
-        r'trans[:\s]*([A-Z0-9]{6,20})',
-        r'transaction[:\s]*([A-Z0-9]{6,20})',
-        r'([A-Z0-9]{10,20})',  # รูปแบบทั่วไป
+        r'(?:ref|reference|อ้างอิง|เลขอ้างอิง|หมายเลขอ้างอิง|รหัสอ้างอิง)[:\s]*([A-Z0-9]{8,20})',
+        r'(?:trans|transaction)[:\s]*([A-Z0-9]{8,20})',
+        r'\b([A-Z0-9]{12,20})\b',  # รูปแบบทั่วไป 12-20 ตัวอักษร
+        r'\b([0-9]{10,16})\b',     # ตัวเลขเพียงอย่างเดียว 10-16 หลัก
     ]
     
     for pattern in ref_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            trans_ref = match.group(1)
-            break
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        if matches:
+            # เลือก match ที่ยาวที่สุดและดูเหมือน reference มากที่สุด
+            trans_ref = max(matches, key=len)
+            if len(trans_ref) >= 8:  # อย่างน้อย 8 ตัวอักษร
+                break
     
     logger.info(f"📝 Text analysis: bank_code={bank_code}, trans_ref={trans_ref}")
     return {"bank_code": bank_code, "trans_ref": trans_ref}
 
 def get_api_status_summary() -> Dict[str, Any]:
-    """ดึงสรุปสถานะ API สำหรับ monitoring"""
-    available_apis = get_available_apis()
-    
+    """ดึงสรุปสถานะ API สำหรับ dashboard"""
     status = {}
-    for api_name, api_info in available_apis:
-        failure_cache = API_FAILURE_CACHE.get(api_name, {"failure_count": 0, "last_failure": 0})
-        status[api_name] = {
-            "name": api_info["name"],
-            "enabled": api_info["enabled"],
-            "configured": api_info["configured"],
-            "priority": api_info["priority"],
-            "recent_failures": failure_cache["failure_count"],
-            "last_failure": failure_cache["last_failure"],
-            "recently_failed": is_api_recently_failed(api_name)
-        }
     
-    # เพิ่มข้อมูล API ที่ปิดใช้งาน
-    all_possible_apis = ["thunder", "kbank"]
-    for api_name in all_possible_apis:
-        if api_name not in status:
-            if api_name == "thunder":
-                enabled = config_manager.get("slip_enabled", False)
-                configured = bool(config_manager.get("thunder_api_token"))
-            elif api_name == "kbank":
-                enabled = config_manager.get("kbank_enabled", False)
-                configured = bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"))
-            
-            status[api_name] = {
-                "name": f"{api_name.title()} API",
-                "enabled": enabled,
-                "configured": configured,
-                "priority": 99,  # ไม่มีความสำคัญ
-                "recent_failures": 0,
-                "last_failure": 0,
-                "recently_failed": False,
-                "status": "disabled"
-            }
+    # Thunder API
+    thunder_enabled = config_manager.get("thunder_enabled", True)
+    thunder_token = config_manager.get("thunder_api_token", "").strip()
+    thunder_configured = bool(thunder_token)
+    thunder_cache = API_FAILURE_CACHE.get("thunder", {"failure_count": 0, "last_failure": 0})
+    
+    status["thunder"] = {
+        "name": "Thunder API",
+        "enabled": thunder_enabled,
+        "configured": thunder_configured,
+        "connected": thunder_configured and not is_api_recently_failed("thunder"),
+        "recent_failures": thunder_cache["failure_count"],
+        "last_failure": thunder_cache["last_failure"],
+        "recently_failed": is_api_recently_failed("thunder")
+    }
+    
+    # KBank API
+    kbank_enabled = config_manager.get("kbank_enabled", False)
+    kbank_consumer_id = config_manager.get("kbank_consumer_id", "").strip()
+    kbank_consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
+    kbank_configured = bool(kbank_consumer_id and kbank_consumer_secret)
+    kbank_cache = API_FAILURE_CACHE.get("kbank", {"failure_count": 0, "last_failure": 0})
+    
+    status["kbank"] = {
+        "name": "KBank API",
+        "enabled": kbank_enabled,
+        "configured": kbank_configured,
+        "connected": kbank_configured and not is_api_recently_failed("kbank"),
+        "recent_failures": kbank_cache["failure_count"],
+        "last_failure": kbank_cache["last_failure"],
+        "recently_failed": is_api_recently_failed("kbank")
+    }
     
     return status
 
-# ฟังก์ชันสำหรับ admin debugging
+# ฟังก์ชันเพิ่มเติมสำหรับ debugging
 def get_detailed_api_status() -> Dict[str, Any]:
-    """ดึงข้อมุลสถานะ API แบบละเอียดสำหรับ debugging"""
+    """ดึงข้อมูลสถานะ API แบบละเอียดสำหรับ debugging"""
     return {
-        "available_apis": [(name, info) for name, info in get_available_apis()],
+        "api_status": get_api_status_summary(),
         "failure_cache": API_FAILURE_CACHE.copy(),
         "config_status": {
-            "thunder_enabled": config_manager.get("slip_enabled", False),
+            "slip_system_enabled": config_manager.get("slip_enabled", False),
+            "thunder_enabled": config_manager.get("thunder_enabled", True),
             "thunder_token_configured": bool(config_manager.get("thunder_api_token")),
             "kbank_enabled": config_manager.get("kbank_enabled", False),
-            "kbank_credentials_configured": bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"))
+            "kbank_credentials_configured": bool(
+                config_manager.get("kbank_consumer_id") and 
+                config_manager.get("kbank_consumer_secret")
+            )
         }
     }
