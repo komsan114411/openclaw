@@ -102,6 +102,7 @@ except ImportError as e:
 try:
     from models.database import (
         init_database, save_chat_history, get_chat_history_count, get_recent_chat_history,
+        get_user_chat_history
     )
     logger.info("✅ Database models imported successfully")
 except ImportError as e:
@@ -110,6 +111,7 @@ except ImportError as e:
     def save_chat_history(user_id, direction, message, sender): pass
     def get_chat_history_count(): return 0
     def get_recent_chat_history(limit=50): return []
+    def get_user_chat_history(user_id, limit=10): return []
 
 try:
     from services.chat_bot import get_chat_response
