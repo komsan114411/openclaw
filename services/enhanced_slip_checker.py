@@ -1,256 +1,199 @@
-# services/kbank_checker.py (แก้ไขส่วน OAuth)
+# services/enhanced_slip_checker.py
 import logging
-import requests
-import base64
-import json
-import uuid
-import time
-from datetime import datetime, timezone
+import re
 from typing import Dict, Any, Optional
 from utils.config_manager import config_manager
 
-logger = logging.getLogger("kbank_checker_service")
+logger = logging.getLogger("enhanced_slip_checker")
 
-class KBankSlipChecker:
-    def __init__(self):
-        # ใช้ Production URL
-        self.base_url = "https://openapi.kasikornbank.com"
-        self.oauth_url = f"{self.base_url}/v2/oauth/token"
-        self.verify_url = f"{self.base_url}/v1/verslip/kbank/verify"
-        self._access_token = None
-        self._token_expires_at = 0
+# API failure tracking
+api_failure_cache = {
+    "thunder": {"failures": 0, "last_failure": 0},
+    "kbank": {"failures": 0, "last_failure": 0}
+}
+
+def get_api_status_summary():
+    """ดึงสรุปสถานะ API"""
+    try:
+        thunder_token = config_manager.get("thunder_api_token", "").strip()
+        thunder_enabled = config_manager.get("thunder_enabled", True)
         
-    def _get_access_token(self) -> Optional[str]:
-        """ขอ OAuth 2.0 access token ด้วย Client Credentials flow (Fixed format)"""
-        try:
-            # ตรวจสอบว่า token ยังไม่หมดอายุ
-            if self._access_token and time.time() < self._token_expires_at:
-                logger.info("🔑 Using cached access token")
-                return self._access_token
-            
-            consumer_id = config_manager.get("kbank_consumer_id", "").strip()
-            consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
-            
-            if not consumer_id or not consumer_secret:
-                logger.error("❌ ไม่พบ KBank Consumer ID หรือ Secret")
-                return None
-            
-            logger.info(f"🔑 === KBANK OAUTH START ===")
-            logger.info(f"🔑 Consumer ID: {consumer_id}")
-            logger.info(f"🔑 Consumer Secret: {consumer_secret[:10]}***")
-            logger.info(f"🔑 URL: {self.oauth_url}")
-                
-            # สร้าง Basic Auth header ตาม KBank OAuth 2.0 spec
-            credentials = f"{consumer_id}:{consumer_secret}"
-            encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
-            
-            logger.info(f"🔑 Credentials (raw): {consumer_id}:{consumer_secret[:10]}***")
-            logger.info(f"🔑 Credentials (base64): {encoded_credentials}")
-            
-            # Headers ตาม KBank specification
-            headers = {
-                "Authorization": f"Basic {encoded_credentials}",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json",
-                "User-Agent": "KBank-Client/1.0",
-                "Cache-Control": "no-cache"
+        kbank_id = config_manager.get("kbank_consumer_id", "").strip()
+        kbank_secret = config_manager.get("kbank_consumer_secret", "").strip()
+        kbank_enabled = config_manager.get("kbank_enabled", False)
+        
+        return {
+            "thunder": {
+                "name": "Thunder API",
+                "enabled": thunder_enabled,
+                "configured": bool(thunder_token),
+                "connected": bool(thunder_token and thunder_enabled),
+                "recent_failures": api_failure_cache["thunder"]["failures"],
+                "last_failure": api_failure_cache["thunder"]["last_failure"],
+                "recently_failed": api_failure_cache["thunder"]["failures"] > 0
+            },
+            "kbank": {
+                "name": "KBank API",
+                "enabled": kbank_enabled,
+                "configured": bool(kbank_id and kbank_secret),
+                "connected": bool(kbank_id and kbank_secret and kbank_enabled),
+                "recent_failures": api_failure_cache["kbank"]["failures"],
+                "last_failure": api_failure_cache["kbank"]["last_failure"],
+                "recently_failed": api_failure_cache["kbank"]["failures"] > 0
             }
-            
-            # Body data - ต้องเป็น form-urlencoded
-            form_data = "grant_type=client_credentials"
-            
-            logger.info(f"🔑 Headers:")
-            for key, value in headers.items():
-                if key == "Authorization":
-                    logger.info(f"    {key}: Basic {encoded_credentials[:20]}...")
-                else:
-                    logger.info(f"    {key}: {value}")
-            
-            logger.info(f"🔑 Form data: {form_data}")
-            logger.info(f"🔑 Sending OAuth request...")
-            
-            # ส่ง request
-            response = requests.post(
-                self.oauth_url,
-                headers=headers,
-                data=form_data,  # ใช้ data ไม่ใช่ json
-                timeout=30,
-                allow_redirects=False
-            )
-            
-            logger.info(f"🔑 === OAUTH RESPONSE ===")
-            logger.info(f"🔑 Status Code: {response.status_code}")
-            logger.info(f"🔑 Response Headers:")
-            for key, value in response.headers.items():
-                logger.info(f"    {key}: {value}")
-            
-            response_text = response.text
-            logger.info(f"🔑 Response Body: {response_text}")
-            
-            # ตรวจสอบสถานะ
-            if response.status_code == 200:
-                try:
-                    token_data = response.json()
-                    logger.info(f"🔑 Parsed JSON: {json.dumps(token_data, indent=2)}")
-                    
-                    access_token = token_data.get("access_token")
-                    if access_token:
-                        expires_in = token_data.get("expires_in", 1800)
-                        token_type = token_data.get("token_type", "Bearer")
-                        
-                        # Cache token
-                        self._access_token = access_token
-                        self._token_expires_at = time.time() + expires_in - 60
-                        
-                        logger.info(f"✅ === OAUTH SUCCESS ===")
-                        logger.info(f"✅ Token Type: {token_type}")
-                        logger.info(f"✅ Expires In: {expires_in} seconds")
-                        logger.info(f"✅ Token: {access_token[:30]}...")
-                        
-                        return access_token
-                    else:
-                        logger.error("❌ No access_token in response")
-                        return None
-                        
-                except json.JSONDecodeError as e:
-                    logger.error(f"❌ Invalid JSON response: {e}")
-                    return None
-                    
-            elif response.status_code == 400:
-                logger.error(f"❌ OAuth 400 Bad Request")
-                logger.error(f"❌ Request format may be incorrect")
-                logger.error(f"❌ Response: {response_text}")
-                
-                # ลองแปลง response ดู
-                try:
-                    error_data = response.json()
-                    error_msg = error_data.get("error_description", error_data.get("error", "Bad Request"))
-                    logger.error(f"❌ Error: {error_msg}")
-                except:
-                    pass
-                return None
-                
-            elif response.status_code == 401:
-                logger.error(f"❌ OAuth 401 Unauthorized")
-                logger.error(f"❌ Consumer ID หรือ Secret ไม่ถูกต้อง")
-                logger.error(f"❌ ตรวจสอบ credentials ในหน้า Settings")
-                return None
-                
-            elif response.status_code == 403:
-                logger.error(f"❌ OAuth 403 Forbidden")
-                logger.error(f"❌ บัญชีถูกระงับหรือไม่มีสิทธิ์")
-                return None
-                
-            else:
-                logger.error(f"❌ OAuth failed with status {response.status_code}")
-                logger.error(f"❌ Response: {response_text}")
-                return None
-            
-        except requests.exceptions.Timeout:
-            logger.error(f"❌ KBank OAuth timeout")
-            return None
-        except requests.exceptions.ConnectionError:
-            logger.error(f"❌ Cannot connect to KBank OAuth")
-            return None
-        except Exception as e:
-            logger.exception(f"❌ OAuth exception: {e}")
-            return None
-    
-    def verify_slip(self, sending_bank_id: str, trans_ref: str) -> Dict[str, Any]:
-        """ตรวจสอบสลิปด้วย KBank API"""
-        try:
-            if not config_manager.get("kbank_enabled", False):
-                return {"status": "error", "message": "ระบบตรวจสอบสลิป KBank ถูกปิดใช้งาน"}
-                
-            logger.info(f"🏦 === KBANK SLIP VERIFICATION START ===")
-            logger.info(f"🏦 Bank ID: {sending_bank_id}")
-            logger.info(f"🏦 Trans Ref: {trans_ref}")
-            
-            # ขอ access token
-            access_token = self._get_access_token()
-            if not access_token:
-                return {"status": "error", "message": "ไม่สามารถขอ OAuth token จาก KBank ได้"}
-                
-            # เตรียมข้อมูลส่ง request
-            headers = {
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": "KBank-Client/1.0"
-            }
-            
-            # สร้าง request payload
-            request_id = uuid.uuid4().hex
-            request_time = datetime.now(timezone.utc).isoformat()
-            
-            payload = {
-                "rqUID": request_id,
-                "rqDt": request_time,
-                "data": {
-                    "sendingBank": str(sending_bank_id).zfill(3),  # ให้เป็น 3 หลัก
-                    "transRef": str(trans_ref)
-                }
-            }
-            
-            logger.info(f"🔍 Verify request:")
-            logger.info(f"🔍 URL: {self.verify_url}")
-            logger.info(f"🔍 Payload: {json.dumps(payload, indent=2)}")
-            
-            response = requests.post(
-                self.verify_url,
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            
-            logger.info(f"🔍 Verify response: {response.status_code}")
-            logger.info(f"🔍 Response: {response.text}")
-            
-            if response.status_code == 200:
-                try:
-                    result = response.json()
-                    status_code = result.get("status_code")
-                    status_message = result.get("status_message", "")
-                    
-                    if status_code == "200" and status_message == "SUCCESS":
-                        data = result.get("data", {})
-                        
-                        return {
-                            "status": "success",
-                            "type": "kbank",
-                            "data": {
-                                "amount": str(data.get("amount", "0")),
-                                "amount_display": f"฿{float(data.get('amount', 0)):,.0f}",
-                                "reference": trans_ref,
-                                "date": data.get("transDate", ""),
-                                "time": data.get("transTime", ""),
-                                "sender": data.get("senderAccount", ""),
-                                "receiver_name": data.get("receiverAccount", ""),
-                                "sender_bank": self._get_bank_short(sending_bank_id), 
-                                "receiver_bank": "KBANK",
-                                "verified_by": "KBank API",
-                                "raw_data": data
-                            }
-                        }
-                    else:
-                        return {"status": "error", "message": f"KBank: {status_message}"}
-                        
-                except json.JSONDecodeError:
-                    return {"status": "error", "message": "KBank response is not valid JSON"}
-            else:
-                return {"status": "error", "message": f"KBank API HTTP {response.status_code}"}
-                
-        except Exception as e:
-            logger.exception(f"❌ KBank verify error: {e}")
-            return {"status": "error", "message": f"KBank verification failed: {str(e)}"}
-    
-    def _get_bank_short(self, bank_id: str) -> str:
-        """แปลงรหัสธนาคารเป็นชื่อย่อ"""
-        bank_shorts = {
-            "002": "BBL", "004": "KBANK", "006": "KTB", "011": "TMB",
-            "014": "SCB", "025": "BAY", "030": "GSB", "017": "BAAC"
         }
-        return bank_shorts.get(str(bank_id).zfill(3), bank_id)
+    except Exception as e:
+        logger.error(f"❌ Error in get_api_status_summary: {e}")
+        return {
+            "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
+            "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
+        }
 
-# สร้าง instance
-kbank_checker = KBankSlipChecker()
+def reset_api_failure_cache():
+    """รีเซ็ต API failure cache"""
+    global api_failure_cache
+    api_failure_cache = {
+        "thunder": {"failures": 0, "last_failure": 0},
+        "kbank": {"failures": 0, "last_failure": 0}
+    }
+    logger.info("🔄 API failure cache reset")
+    return True
+
+def extract_slip_info_from_text(text: str) -> Dict[str, Optional[str]]:
+    """ดึงข้อมูลสลิปจากข้อความ"""
+    try:
+        # ตรวจหา transaction reference patterns
+        trans_ref_patterns = [
+            r'ref[\s:]*([0-9A-Za-z]{10,})',
+            r'reference[\s:]*([0-9A-Za-z]{10,})',
+            r'เลขที่อ้างอิง[\s:]*([0-9A-Za-z]{10,})',
+            r'หมายเลขอ้างอิง[\s:]*([0-9A-Za-z]{10,})',
+            r'([0-9A-Za-z]{12,})'  # Generic long alphanumeric
+        ]
+        
+        # ตรวจหา bank code patterns
+        bank_patterns = [
+            r'bank[\s:]*([0-9]{3})',
+            r'ธนาคาร[\s:]*([0-9]{3})',
+            r'([0-9]{3})[\s]*ธนาคาร'
+        ]
+        
+        trans_ref = None
+        bank_code = None
+        
+        text_lower = text.lower()
+        
+        # หา transaction reference
+        for pattern in trans_ref_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                trans_ref = match.group(1)
+                break
+        
+        # หา bank code
+        for pattern in bank_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                bank_code = match.group(1)
+                break
+        
+        # Default bank codes if not found
+        if not bank_code and trans_ref:
+            # ถ้าไม่เจอ bank code แต่เจอ trans_ref ให้ลอง default banks
+            bank_code = "004"  # Default to KBank
+        
+        logger.info(f"📝 Extracted slip info: bank_code={bank_code}, trans_ref={trans_ref}")
+        
+        return {
+            "bank_code": bank_code,
+            "trans_ref": trans_ref
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error extracting slip info: {e}")
+        return {"bank_code": None, "trans_ref": None}
+
+def verify_slip_multiple_providers(message_id: str = None, test_image_data: bytes = None, 
+                                 bank_code: str = None, trans_ref: str = None) -> Dict[str, Any]:
+    """ตรวจสอบสลิปด้วย API หลายตัว"""
+    try:
+        logger.info("🔍 Starting slip verification with multiple providers")
+        
+        # ตรวจสอบว่าระบบเปิดอยู่
+        if not config_manager.get("slip_enabled", False):
+            return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดใช้งาน"}
+        
+        results = []
+        
+        # ลอง Thunder API ก่อน (สำหรับรูปภาพ)
+        if message_id or test_image_data:
+            thunder_enabled = config_manager.get("thunder_enabled", True)
+            thunder_token = config_manager.get("thunder_api_token", "").strip()
+            
+            if thunder_enabled and thunder_token:
+                try:
+                    from services.slip_checker import verify_slip_with_thunder
+                    logger.info("⚡ Trying Thunder API...")
+                    result = verify_slip_with_thunder(message_id, test_image_data)
+                    if result and result.get("status") in ["success", "duplicate"]:
+                        logger.info("✅ Thunder API verification successful")
+                        return result
+                    else:
+                        logger.warning(f"⚠️ Thunder API failed: {result.get('message', 'Unknown error')}")
+                        results.append(("Thunder", result))
+                except Exception as e:
+                    logger.error(f"❌ Thunder API error: {e}")
+                    api_failure_cache["thunder"]["failures"] += 1
+                    results.append(("Thunder", {"status": "error", "message": str(e)}))
+        
+        # ลอง KBank API (สำหรับข้อมูลธนาคาร)
+        if bank_code and trans_ref:
+            kbank_enabled = config_manager.get("kbank_enabled", False)
+            kbank_configured = bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"))
+            
+            if kbank_enabled and kbank_configured:
+                try:
+                    from services.kbank_checker import kbank_checker
+                    logger.info("🏦 Trying KBank API...")
+                    result = kbank_checker.verify_slip(bank_code, trans_ref)
+                    if result and result.get("status") in ["success", "duplicate"]:
+                        logger.info("✅ KBank API verification successful")
+                        return result
+                    else:
+                        logger.warning(f"⚠️ KBank API failed: {result.get('message', 'Unknown error')}")
+                        results.append(("KBank", result))
+                except Exception as e:
+                    logger.error(f"❌ KBank API error: {e}")
+                    api_failure_cache["kbank"]["failures"] += 1
+                    results.append(("KBank", {"status": "error", "message": str(e)}))
+        
+        # ถ้าทุก API ล้มเหลว
+        if results:
+            error_messages = [f"{api}: {result.get('message', 'Unknown error')}" for api, result in results]
+            return {
+                "status": "error",
+                "message": "ไม่สามารถตรวจสอบสลิปได้จากทุก API",
+                "details": error_messages,
+                "suggestions": [
+                    "ตรวจสอบว่ารูปสลิปชัดเจน",
+                    "ตรวจสอบการตั้งค่า API",
+                    "ลองใหม่อีกครั้ง"
+                ]
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "ไม่มี API ที่พร้อมใช้งาน",
+                "suggestions": [
+                    "ตรวจสอบการตั้งค่า Thunder API",
+                    "ตรวจสอบการตั้งค่า KBank API",
+                    "เปิดใช้งานระบบตรวจสอบสลิป"
+                ]
+            }
+        
+    except Exception as e:
+        logger.exception(f"❌ Critical error in verify_slip_multiple_providers: {e}")
+        return {
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาดร้ายแรง: {str(e)}"
+        }
