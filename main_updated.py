@@ -828,6 +828,48 @@ async def get_system_status():
         "duplicate_cache_size": len(notification_manager.duplicate_slip_cache)
     })
     
+    # เพิ่มใน main_updated.py หลัง route อื่น ๆ
+
+@app.post("/admin/toggle-api")
+async def toggle_api():
+    """Toggle API แต่ละตัวแยกกัน"""
+    try:
+        data = await request.json()
+        api_name = data.get("api_name")  # "thunder" หรือ "kbank"
+        
+        if api_name == "thunder":
+            current_status = config_manager.get("thunder_enabled", True)
+            new_status = not current_status
+            config_manager.update("thunder_enabled", new_status)
+            message = f"Thunder API ถูก{'เปิด' if new_status else 'ปิด'}ใช้งานแล้ว"
+            
+        elif api_name == "kbank":
+            current_status = config_manager.get("kbank_enabled", False)
+            new_status = not current_status
+            config_manager.update("kbank_enabled", new_status)
+            message = f"KBank API ถูก{'เปิด' if new_status else 'ปิด'}ใช้งานแล้ว"
+            
+        else:
+            return JSONResponse({"status": "error", "message": "ไม่รู้จัก API name"})
+        
+        await notification_manager.send_notification(message, "success")
+        return JSONResponse({"status": "success", "message": message, "enabled": new_status})
+        
+    except Exception as e:
+        logger.error(f"❌ Error toggling API: {e}")
+        return JSONResponse({"status": "error", "message": "ไม่สามารถเปลี่ยนสถานะ API ได้"})
+
+@app.get("/admin/reset-api-failures")
+async def reset_api_failures():
+    """รีเซ็ต API failure cache"""
+    try:
+        reset_api_failure_cache()
+        await notification_manager.send_notification("🔄 รีเซ็ต API failure cache แล้ว", "success")
+        return JSONResponse({"status": "success", "message": "รีเซ็ต API failure cache สำเร็จ"})
+    except Exception as e:
+        logger.error(f"❌ Error resetting API failures: {e}")
+        return JSONResponse({"status": "error", "message": "เกิดข้อผิดพลาดในการรีเซ็ต"})
+    
 @app.get("/admin/clear-duplicate-cache")
 async def clear_duplicate_cache():
     """Clear the duplicate slip cache"""
