@@ -21,84 +21,84 @@ class KBankSlipChecker:
         self._token_expires_at = 0
         
     def _get_access_token(self) -> Optional[str]:
-        """ขอ OAuth 2.0 access token สำหรับ Sandbox Environment"""
-        try:
-            # ตรวจสอบว่า token ยังไม่หมดอายุ
-            if self._access_token and time.time() < self._token_expires_at:
-                logger.info("🔑 Using cached access token")
-                return self._access_token
-            
-            consumer_id = config_manager.get("kbank_consumer_id", "").strip()
-            consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
-            
-            if not consumer_id or not consumer_secret:
-                logger.error("❌ ไม่พบ KBank Consumer ID หรือ Secret")
-                return None
-                
-            logger.info(f"🔑 === KBANK SANDBOX OAUTH START ===")
-            logger.info(f"🔑 Consumer ID: {consumer_id}")
-            logger.info(f"🔑 Consumer Secret: {consumer_secret[:10]}...")
-            logger.info(f"🔑 URL: {self.oauth_url}")
-                
-            # สร้าง Basic Auth header ตาม KBank Sandbox specification
-            credentials = f"{consumer_id}:{consumer_secret}"
-            encoded_credentials = base64.b64encode(credentials.encode()).decode()
-            
-            # Headers สำหรับ Sandbox Environment
-            headers = {
-                "Authorization": f"Basic {encoded_credentials}",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json",
-                "User-Agent": "LINE-OA-Middleware/2.0",
-                # Sandbox specific headers
-                "x-test-mode": "true",
-                "env-id": "OAUTH2"
-            }
-            
-            data = "grant_type=client_credentials"
-            
-            logger.info(f"🔑 Sending OAuth request to Sandbox...")
-            
-            response = requests.post(
-                self.oauth_url,
-                headers=headers,
-                data=data,
-                timeout=30
-            )
-            
-            logger.info(f"🔑 OAuth response status: {response.status_code}")
-            logger.info(f"🔑 OAuth response body: {response.text}")
-            
-            if response.status_code != 200:
-                logger.error(f"❌ KBank OAuth failed: {response.status_code}")
-                logger.error(f"❌ Response: {response.text}")
-                return None
-            
-            try:
-                token_data = response.json()
-                logger.info(f"🔑 Token response parsed: {json.dumps(token_data, indent=2)}")
-            except ValueError:
-                logger.error(f"❌ KBank OAuth response is not valid JSON: {response.text}")
-                return None
-            
-            access_token = token_data.get("access_token")
-            
-            if not access_token:
-                logger.error(f"❌ No access token in response")
-                return None
-            
-            expires_in = token_data.get("expires_in", 1800)
-            self._access_token = access_token
-            self._token_expires_at = time.time() + expires_in - 60
-            
-            logger.info(f"✅ KBank Sandbox OAuth Success!")
-            logger.info(f"✅ Token preview: {access_token[:30]}...")
-            
-            return access_token
-            
-        except Exception as e:
-            logger.exception(f"❌ เกิดข้อผิดพลาดในการขอ KBank token: {e}")
+    """ขอ OAuth 2.0 access token สำหรับ Sandbox Environment"""
+    try:
+        # ตรวจสอบว่า token ยังไม่หมดอายุ
+        if self._access_token and time.time() < self._token_expires_at:
+            logger.info("🔑 Using cached access token")
+            return self._access_token
+        
+        consumer_id = config_manager.get("kbank_consumer_id", "").strip()
+        consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
+        
+        if not consumer_id or not consumer_secret:
+            logger.error("❌ ไม่พบ KBank Consumer ID หรือ Secret")
             return None
+            
+        logger.info(f"🔑 === KBANK SANDBOX OAUTH START ===")
+        logger.info(f"🔑 Consumer ID: {consumer_id}")
+        logger.info(f"🔑 Consumer Secret: {consumer_secret[:10]}...")
+        logger.info(f"🔑 URL: {self.oauth_url}")
+            
+        # สร้าง Basic Auth header ตาม KBank Sandbox specification
+        credentials = f"{consumer_id}:{consumer_secret}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        
+        # Headers สำหรับ Sandbox Environment
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": "LINE-OA-Middleware/2.0",
+            # Sandbox specific headers
+            "x-test-mode": "true",
+            "env-id": "OAUTH2"
+        }
+        
+        data = "grant_type=client_credentials"
+        
+        logger.info(f"🔑 Sending OAuth request to Sandbox...")
+        
+        response = requests.post(
+            self.oauth_url,
+            headers=headers,
+            data=data,
+            timeout=30
+        )
+        
+        logger.info(f"🔑 OAuth response status: {response.status_code}")
+        logger.info(f"🔑 OAuth response body: {response.text}")
+        
+        if response.status_code != 200:
+            logger.error(f"❌ KBank OAuth failed: {response.status_code}")
+            logger.error(f"❌ Response: {response.text}")
+            return None
+        
+        try:
+            token_data = response.json()
+            logger.info(f"🔑 Token response parsed: {json.dumps(token_data, indent=2)}")
+        except ValueError:
+            logger.error(f"❌ KBank OAuth response is not valid JSON: {response.text}")
+            return None
+        
+        access_token = token_data.get("access_token")
+        
+        if not access_token:
+            logger.error(f"❌ No access token in response")
+            return None
+        
+        expires_in = token_data.get("expires_in", 1800)
+        self._access_token = access_token
+        self._token_expires_at = time.time() + expires_in - 60
+        
+        logger.info(f"✅ KBank Sandbox OAuth Success!")
+        logger.info(f"✅ Token preview: {access_token[:30]}...")
+        
+        return access_token
+        
+    except Exception as e:
+        logger.exception(f"❌ เกิดข้อผิดพลาดในการขอ KBank token: {e}")
+        return None
     
     def verify_slip(self, sending_bank_id: str, trans_ref: str) -> Dict[str, Any]:
         """ตรวจสอบสลิปด้วย KBank Sandbox API"""
