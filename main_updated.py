@@ -837,6 +837,28 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks, x_li
         logger.error(f"❌ Webhook error: {e}")
         return JSONResponse(content={"status": "error", "message": "Internal error"}, status_code=500)
 
+
+@app.post("/admin/kbank/setup-instant")
+async def setup_kbank_instant():
+    """ตั้งค่า KBank ให้ใช้งานได้ทันที"""
+    try:
+        from services.kbank_checker import setup_kbank_sandbox_instantly
+        result = setup_kbank_sandbox_instantly()
+        
+        await notification_manager.send_notification(
+            f"🏦 {result.get('message', 'ตั้งค่า KBank เสร็จสิ้น')}", 
+            result.get('status', 'info')
+        )
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Setup KBank instant error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
 @app.get("/", response_class=RedirectResponse)
 async def root():
     """Root redirect"""
