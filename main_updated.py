@@ -23,6 +23,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from services.user_manager import user_manager
+from services.message_sender import message_sender
 
 # เพิ่มพาธปัจจุบันเข้าไปใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -729,7 +731,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
         await send_line_push(user_id, error_msg)
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
-    """Process LINE event (Production version)"""
+    """Process LINE event with user management"""
     if not IS_READY or SHUTDOWN_INITIATED:
         logger.error("❌ System not ready or shutting down")
         return
@@ -747,7 +749,14 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             logger.error("❌ Missing user ID or reply token")
             return
         
-        logger.info(f"🔄 Processing {message_type} from user {user_id[:10]}...")
+        # จัดการผู้ใช้
+        line_token = config_manager.get("line_channel_access_token")
+        user_manager.set_line_token(line_token)
+        message_sender.set_line_token(line_token)
+        
+        user = await user_manager.get_or_create_user(user_id)
+        
+        logger.info(f"🔄 Processing {message_type} from {user.display_name if user else user_id[:10]}...")
         
         # บันทึกประวัติ
         try:
@@ -778,7 +787,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 await send_message_safe(user_id, reply_token, "เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่", "system_error")
         except Exception:
             pass
-
 # ====================== API Routes ======================
 
 @app.websocket("/ws/notifications")
@@ -802,6 +810,129 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         await notification_manager.disconnect(websocket)
+        
+        
+        @app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(request: Request):
+    """User management page"""
+    try:
+        users = user_manager.get_all_users(limit=200)
+        stats = user_manager.get_user_stats()
+        
+        return templates.TemplateResponse(
+            "users.html",
+            {
+                "request": request,
+                "users": users,
+                "stats": stats
+            }
+        )
+    except Exception as e:
+        logger.error(f"❌ Users page error: {e}")
+        return templates.TemplateResponse(
+            "users.html",
+            {
+                "request": request,
+                "users": [],
+                "stats": {"total_users": 0, "active_24h": 0, "new_this_week": 0}
+            }
+        )
+
+@app.post("/admin/users/send-message")
+async def send_message_to_users(request: Request):
+    """ส่งข้อความไปหาผู้ใช้"""
+    try:
+        data = await request.json()
+        user_ids = data.get("user_ids", [])
+        message = data.get("message", "").strip()
+        
+        if not user_ids or not message:
+            return JSONResponse({
+                "status": "error",
+                "message": "Missing user IDs or message"
+            })
+        
+        # ตั้งค่า LINE token
+        line_token = config_manager.get("line_channel_access_token")
+        message_sender.set_line_token(line_token)
+        
+        # ส่งข้อความ
+        if len(user_ids) == 1:
+            result = await message_sender.send_message_to_user(user_ids[0], message)
+        else:
+            result = await message_sender.broadcast_message(user_ids, message)
+        
+        await notification_manager.send_notification(
+            f"📤 ส่งข้อความไปยัง {len(user_ids)} คน", "success"
+        )
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Send message error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.post("/admin/users/broadcast")
+async def broadcast_message(request: Request):
+    """ส่งข้อความแบบ broadcast"""
+    try:
+        data = await request.json()
+        message = data.get("message", "").strip()
+        
+        if not message:
+            return JSONResponse({
+                "status": "error",
+                "message": "Message is required"
+            })
+        
+        # ดึงรายชื่อผู้ใช้ทั้งหมดที่ active
+        users = user_manager.get_all_users(limit=500)  # LINE API limit
+        user_ids = [user.user_id for user in users if not user.is_blocked]
+        
+        if not user_ids:
+            return JSONResponse({
+                "status": "error",
+                "message": "No active users found"
+            })
+        
+        # ตั้งค่า LINE token
+        line_token = config_manager.get("line_channel_access_token")
+        message_sender.set_line_token(line_token)
+        
+        # ส่งข้อความ
+        result = await message_sender.broadcast_message(user_ids, message)
+        
+        await notification_manager.send_notification(
+            f"📢 Broadcast ไปยัง {len(user_ids)} คน", "success"
+        )
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Broadcast error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/users/{user_id}", response_class=HTMLResponse)
+async def user_detail(request: Request, user_id: str):
+    """รายละเอียดผู้ใช้"""
+    try:
+        # Implementation for user detail page
+        return JSONResponse({
+            "status": "info",
+            "message": "User detail page coming soon"
+        })
+    except Exception as e:
+        logger.error(f"❌ User detail error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
 
 @app.post("/line/webhook")
 async def line_webhook(request: Request, background_tasks: BackgroundTasks, x_line_signature: str = Header(None)) -> JSONResponse:
