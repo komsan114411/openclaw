@@ -23,6 +23,33 @@ class ConfigModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class ChatHistoryModel(Base):
+    """Model สำหรับเก็บประวัติการสนทนา"""
+    __tablename__ = 'chat_history'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(100), nullable=False, index=True)
+    direction = Column(String(10), nullable=False) # 'in' or 'out'
+    message_type = Column(String(20), nullable=False, default='text')
+    message_text = Column(Text, nullable=True)
+    message_data = Column(Text, nullable=True) # For storing raw JSON
+    sender = Column(String(50), nullable=False)
+    read_status = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class APILogModel(Base):
+    """Model สำหรับเก็บ log การเรียกใช้ API"""
+    __tablename__ = 'api_logs'
+
+    id = Column(Integer, primary_key=True)
+    api_name = Column(String(50), nullable=False, index=True)
+    endpoint = Column(String(255), nullable=True)
+    method = Column(String(10), nullable=True)
+    status_code = Column(Integer, nullable=True)
+    response_time = Column(Integer, nullable=True) # in ms
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class DatabaseManager:
     """จัดการ Database operations"""
     
