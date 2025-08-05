@@ -3,14 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debug API - LINE OA Middleware</title>
+    <title>API Debug Console - LINE OA Middleware</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .debug-log {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.4;
+        }
+        .log-info { color: #569cd6; }
+        .log-success { color: #4ec9b0; }
+        .log-warning { color: #dcdcaa; }
+        .log-error { color: #f44747; }
+        .badge-configured { background-color: #28a745 !important; }
+        .badge-not-configured { background-color: #dc3545 !important; }
+        .badge-enabled { background-color: #007bff !important; }
+        .badge-disabled { background-color: #6c757d !important; }
+        .badge-connected { background-color: #28a745 !important; }
+        .badge-disconnected { background-color: #ffc107 !important; color: #000; }
+    </style>
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/admin">
+            <a class="navbar-brand" href="/admin/debug">
                 <i class="fas fa-bug me-2"></i>API Debug Console
             </a>
             <div class="navbar-nav ms-auto">
@@ -21,20 +40,24 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
+    <div class="container-fluid mt-4">
         <div class="row">
+            <!-- Thunder API Testing -->
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5><i class="fas fa-vial me-2"></i>ทดสอบ Thunder API</h5>
+                        <h5><i class="fas fa-bolt me-2"></i>ทดสอบ Thunder API</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="thunderToken" class="form-label">API Token</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="thunderToken" placeholder="Loading...">
-                                <button class="btn btn-outline-secondary" type="button" onclick="loadThunderConfig()">
+                                <input type="password" class="form-control" id="thunderToken" placeholder="Loading...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="loadThunderConfig()" title="Reload from config">
                                     <i class="fas fa-sync"></i>
+                                </button>
+                                <button class="btn btn-outline-info" type="button" onclick="togglePasswordVisibility('thunderToken')" title="Show/Hide">
+                                    <i class="fas fa-eye"></i>  
                                 </button>
                             </div>
                             <small class="text-muted">Auto-loaded from config</small>
@@ -42,6 +65,7 @@
                         <div class="mb-3">
                             <label for="thunderFile" class="form-label">รูปสลิป</label>
                             <input type="file" class="form-control" id="thunderFile" accept="image/*">
+                            <small class="text-muted">เลือกไฟล์รูปสลิปเพื่อทดสอบ</small>
                         </div>
                         <button class="btn btn-warning w-100" onclick="testThunderAPI()">
                             <i class="fas fa-bolt me-1"></i>ทดสอบ Thunder API
@@ -50,6 +74,7 @@
                 </div>
             </div>
             
+            <!-- KBank API Testing -->
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
@@ -60,7 +85,7 @@
                             <label for="kbankConsumerId" class="form-label">Consumer ID</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="kbankConsumerId" placeholder="Loading...">
-                                <button class="btn btn-outline-secondary" type="button" onclick="loadKBankConfig()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="loadKBankConfig()" title="Reload from config">
                                     <i class="fas fa-sync"></i>
                                 </button>
                             </div>
@@ -68,15 +93,18 @@
                         <div class="mb-3">
                             <label for="kbankConsumerSecret" class="form-label">Consumer Secret</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" id="kbankConsumerSecret" placeholder="Loading...">
-                                <button class="btn btn-outline-secondary" type="button" onclick="loadKBankConfig()">
+                                <input type="password" class="form-control" id="kbankConsumerSecret" placeholder="Loading...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="loadKBankConfig()" title="Reload from config">
                                     <i class="fas fa-sync"></i>
+                                </button>
+                                <button class="btn btn-outline-info" type="button" onclick="togglePasswordVisibility('kbankConsumerSecret')" title="Show/Hide">
+                                    <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                             <small class="text-muted">Auto-loaded from config</small>
                         </div>
                         
-                        <!-- ปุ่มทดสอบ OAuth -->
+                        <!-- OAuth Test Button -->
                         <button class="btn btn-info w-100 mb-2" onclick="testKBankOAuth()">
                             <i class="fas fa-key me-1"></i>ทดสอบ OAuth Token
                         </button>
@@ -84,10 +112,12 @@
                         <div class="mb-3">
                             <label for="kbankBankId" class="form-label">Bank ID</label>
                             <input type="text" class="form-control" id="kbankBankId" placeholder="004" value="004">
+                            <small class="text-muted">004 = กสิกรไทย</small>
                         </div>
                         <div class="mb-3">
                             <label for="kbankTransRef" class="form-label">Transaction Reference</label>
-                            <input type="text" class="form-control" id="kbankTransRef" placeholder="Transaction Reference">
+                            <input type="text" class="form-control" id="kbankTransRef" placeholder="หมายเลขอ้างอิง">
+                            <small class="text-muted">หมายเลขอ้างอิงจากสลิปธนาคาร</small>
                         </div>
                         <button class="btn btn-primary w-100" onclick="testKBankAPI()">
                             <i class="fas fa-university me-1"></i>ทดสอบ KBank API
@@ -96,10 +126,14 @@
                 </div>
             </div>
             
+            <!-- API Status -->
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h5><i class="fas fa-info-circle me-2"></i>API Status</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="updateAPIStatus()">
+                            <i class="fas fa-sync me-1"></i>Refresh
+                        </button>
                     </div>
                     <div class="card-body" id="apiStatusCard">
                         <div class="text-center">
@@ -113,6 +147,7 @@
             </div>
         </div>
         
+        <!-- Debug Log Section -->
         <div class="row mt-4">
             <div class="col-12">
                 <div class="card">
@@ -122,14 +157,24 @@
                             <button class="btn btn-sm btn-outline-success me-2" onclick="loadAllConfigs()">
                                 <i class="fas fa-sync me-1"></i>Reload All
                             </button>
+                            <button class="btn btn-sm btn-outline-info me-2" onclick="testAllAPIs()">
+                                <i class="fas fa-vial me-1"></i>Test All
+                            </button>
                             <button class="btn btn-sm btn-outline-secondary" onclick="clearLog()">
                                 <i class="fas fa-trash me-1"></i>Clear
                             </button>
                         </div>
                     </div>
                     <div class="card-body">
-                        <pre id="debugLog" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px;">
-Ready for testing...
+                        <pre id="debugLog" class="debug-log p-3 rounded" style="max-height: 500px; overflow-y: auto;">
+🚀 Debug Console Ready
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Available Commands:
+  • Load Config: โหลดการตั้งค่าจากระบบ
+  • Test APIs: ทดสอบการเชื่อมต่อ API ทั้งหมด
+  • View Status: ดูสถานะ API แบบ Real-time
+
+ℹ️  กรุณาเลือกการทำงานที่ต้องการ...
                         </pre>
                     </div>
                 </div>
@@ -140,32 +185,58 @@ Ready for testing...
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let configData = {};
+        let logUpdateInterval;
 
         document.addEventListener('DOMContentLoaded', function() {
-            log('Debug Console initialized', 'info');
+            log('🚀 Debug Console initialized', 'info');
             updateAPIStatus();
             loadAllConfigs();
-            setInterval(updateAPIStatus, 10000);
+            
+            // Auto-refresh API status every 15 seconds
+            setInterval(updateAPIStatus, 15000);
         });
 
         function log(message, type = 'info') {
             const timestamp = new Date().toLocaleTimeString('th-TH');
             const logElement = document.getElementById('debugLog');
-            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
-            logElement.textContent += `\n[${timestamp}] ${icon} ${message}`;
+            
+            let icon, className;
+            switch(type) {
+                case 'success': icon = '✅'; className = 'log-success'; break;
+                case 'error': icon = '❌'; className = 'log-error'; break;
+                case 'warning': icon = '⚠️'; className = 'log-warning'; break;
+                default: icon = 'ℹ️'; className = 'log-info'; break;
+            }
+            
+            const logLine = `[${timestamp}] ${icon} ${message}`;
+            logElement.textContent += '\n' + logLine;
             logElement.scrollTop = logElement.scrollHeight;
         }
 
         function clearLog() {
-            document.getElementById('debugLog').textContent = 'Log cleared...';
+            document.getElementById('debugLog').textContent = '🗑️ Log cleared...\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+        }
+
+        function togglePasswordVisibility(fieldId) {
+            const field = document.getElementById(fieldId);
+            const button = field.nextElementSibling.nextElementSibling;
+            const icon = button.querySelector('i');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                field.type = 'password'; 
+                icon.className = 'fas fa-eye';
+            }
         }
 
         async function loadAllConfigs() {
-            log('Loading all configurations...', 'info');
+            log('📥 Loading all configurations...', 'info');
             await loadConfigValues();
             await loadThunderConfig();
             await loadKBankConfig();
-            log('All configurations loaded', 'success');
+            log('✅ All configurations loaded successfully', 'success');
         }
 
         async function loadConfigValues() {
@@ -174,13 +245,13 @@ Ready for testing...
                 const data = await response.json();
                 configData = data;
                 
-                log('Config metadata loaded from backend', 'success');
-                log(`Thunder Token: ${data.config_values?.thunder_token ? 'SET' : 'NOT SET'}`);
-                log(`KBank Consumer ID: ${data.config_values?.kbank_consumer_id ? 'SET' : 'NOT SET'}`);
-                log(`KBank Consumer Secret: ${data.config_values?.kbank_consumer_secret ? 'SET' : 'NOT SET'}`);
+                log('📊 Config metadata loaded from backend', 'success');
+                log(`🔑 Thunder Token: ${data.config_values?.thunder_token ? 'SET' : 'NOT SET'}`);
+                log(`🏦 KBank Consumer ID: ${data.config_values?.kbank_consumer_id ? 'SET' : 'NOT SET'}`);
+                log(`🔐 KBank Consumer Secret: ${data.config_values?.kbank_consumer_secret ? 'SET' : 'NOT SET'}`);
                 
             } catch (error) {
-                log(`Failed to load config metadata: ${error.message}`, 'error');
+                log(`❌ Failed to load config metadata: ${error.message}`, 'error');
             }
         }
 
@@ -191,14 +262,14 @@ Ready for testing...
                 
                 if (data.status === 'success' && data.value) {
                     document.getElementById('thunderToken').value = data.value;
-                    log(`Thunder token loaded: ${data.value.substring(0, 20)}...`, 'success');
+                    log(`⚡ Thunder token loaded: ${data.value.substring(0, 15)}...`, 'success');
                 } else {
                     document.getElementById('thunderToken').value = '';
                     document.getElementById('thunderToken').placeholder = 'Thunder token not configured';
-                    log('Thunder token not configured', 'warning');
+                    log('⚠️ Thunder token not configured', 'warning');
                 }
             } catch (error) {
-                log(`Failed to load Thunder token: ${error.message}`, 'error');
+                log(`❌ Failed to load Thunder token: ${error.message}`, 'error');
                 document.getElementById('thunderToken').placeholder = 'Failed to load';
             }
         }
@@ -215,24 +286,24 @@ Ready for testing...
                 
                 if (idData.status === 'success' && idData.value) {
                     document.getElementById('kbankConsumerId').value = idData.value;
-                    log(`KBank Consumer ID loaded: ${idData.value.substring(0, 20)}...`, 'success');
+                    log(`🏦 KBank Consumer ID loaded: ${idData.value.substring(0, 15)}...`, 'success');
                 } else {
                     document.getElementById('kbankConsumerId').value = '';
                     document.getElementById('kbankConsumerId').placeholder = 'Consumer ID not configured';
-                    log('KBank Consumer ID not configured', 'warning');
+                    log('⚠️ KBank Consumer ID not configured', 'warning');
                 }
                 
                 if (secretData.status === 'success' && secretData.value) {
                     document.getElementById('kbankConsumerSecret').value = secretData.value;
-                    log(`KBank Consumer Secret loaded: ${secretData.value.substring(0, 20)}...`, 'success');
+                    log(`🔐 KBank Consumer Secret loaded: ${secretData.value.substring(0, 15)}...`, 'success');
                 } else {
                     document.getElementById('kbankConsumerSecret').value = '';
                     document.getElementById('kbankConsumerSecret').placeholder = 'Consumer Secret not configured';
-                    log('KBank Consumer Secret not configured', 'warning');
+                    log('⚠️ KBank Consumer Secret not configured', 'warning');
                 }
                 
             } catch (error) {
-                log(`Failed to load KBank credentials: ${error.message}`, 'error');
+                log(`❌ Failed to load KBank credentials: ${error.message}`, 'error');
                 document.getElementById('kbankConsumerId').placeholder = 'Failed to load';
                 document.getElementById('kbankConsumerSecret').placeholder = 'Failed to load';
             }
@@ -244,29 +315,57 @@ Ready for testing...
                 const data = await response.json();
                 
                 const statusHtml = `
-                    <div class="mb-2">
-                        <strong>Thunder API</strong>
-                        <span class="badge ${data.thunder?.configured ? 'bg-success' : 'bg-danger'} ms-2">
-                            ${data.thunder?.configured ? 'Configured' : 'Not Configured'}
-                        </span>
-                        <span class="badge ${data.thunder?.enabled ? 'bg-primary' : 'bg-secondary'} ms-1">
-                            ${data.thunder?.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
+                    <div class="mb-3">
+                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <span class="badge ${data.thunder?.configured ? 'badge-configured' : 'badge-not-configured'}">
+                                ${data.thunder?.configured ? 'Configured' : 'Not Configured'}
+                            </span>
+                            <span class="badge ${data.thunder?.enabled ? 'badge-enabled' : 'badge-disabled'}">
+                                ${data.thunder?.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <span class="badge ${data.thunder?.connected ? 'badge-connected' : 'badge-disconnected'}">
+                                ${data.thunder?.connected ? 'Connected' : 'Disconnected'}
+                            </span>
+                        </div>
+                        <small class="text-muted">Failures: ${data.thunder?.recent_failures || 0}</small>
                     </div>
-                    <div class="mb-2">
-                        <strong>KBank API</strong>
-                        <span class="badge ${data.kbank?.configured ? 'bg-success' : 'bg-danger'} ms-2">
-                            ${data.kbank?.configured ? 'Configured' : 'Not Configured'}
-                        </span>
-                        <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'} ms-1">
-                            ${data.kbank?.enabled ? 'Enabled' : 'Disabled'}
-                        </span>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <span class="badge ${data.kbank?.configured ? 'badge-configured' : 'badge-not-configured'}">
+                                ${data.kbank?.configured ? 'Configured' : 'Not Configured'}
+                            </span>
+                            <span class="badge ${data.kbank?.enabled ? 'badge-enabled' : 'badge-disabled'}">
+                                ${data.kbank?.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <span class="badge ${data.kbank?.connected ? 'badge-connected' : 'badge-disconnected'}">
+                                ${data.kbank?.connected ? 'Connected' : 'Disconnected'}
+                            </span>
+                        </div>
+                        <small class="text-muted">Failures: ${data.kbank?.recent_failures || 0}</small>
                     </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fab fa-line me-2"></i>LINE API</h6>
+                        <div class="d-flex flex-wrap gap-1 mb-2">
+                            <span class="badge ${data.line?.configured ? 'badge-configured' : 'badge-not-configured'}">
+                                ${data.line?.configured ? 'Configured' : 'Not Configured'}
+                            </span>
+                            <span class="badge ${data.line?.connected ? 'badge-connected' : 'badge-disconnected'}">
+                                ${data.line?.connected ? 'Connected' : 'Disconnected'}
+                            </span>
+                        </div>
+                        <small class="text-muted">Bot: ${data.line?.bot_name || 'N/A'}</small>
+                    </div>
+                    
                     <hr>
-                    <small class="text-muted">
-                        Thunder Failures: ${data.thunder?.recent_failures || 0}<br>
-                        KBank Failures: ${data.kbank?.recent_failures || 0}
-                    </small>
+                    <div class="text-center">
+                        <span class="badge ${data.system_status?.slip_system_ready ? 'bg-success' : 'bg-danger'} fs-6">
+                            System ${data.system_status?.slip_system_ready ? 'Ready' : 'Not Ready'}
+                        </span>
+                    </div>
                 `;
                 
                 document.getElementById('apiStatusCard').innerHTML = statusHtml;
@@ -275,7 +374,7 @@ Ready for testing...
                 document.getElementById('apiStatusCard').innerHTML = `
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        Cannot load API status
+                        Cannot load API status: ${error.message}
                     </div>
                 `;
             }
@@ -286,16 +385,18 @@ Ready for testing...
             const fileInput = document.getElementById('thunderFile');
             
             if (!token) {
-                log('Thunder API Token is required', 'error');
+                log('❌ Thunder API Token is required', 'error');
                 return;
             }
             
             if (!fileInput.files[0]) {
-                log('Please select an image file', 'error');
+                log('❌ Please select an image file', 'error');
                 return;
             }
             
-            log('Testing Thunder API...', 'info');
+            log('🧪 Testing Thunder API...', 'info');
+            log(`🔑 Using token: ${token.substring(0, 15)}...`);
+            log(`📷 Image file: ${fileInput.files[0].name} (${(fileInput.files[0].size / 1024).toFixed(1)} KB)`);
             
             try {
                 const formData = new FormData();
@@ -310,15 +411,21 @@ Ready for testing...
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    log('Thunder API test successful!', 'success');
-                    log(`Amount: ${result.data?.data?.amount_display || 'N/A'}`);
-                    log(`Bank: ${result.data?.data?.sender_bank || 'N/A'} -> ${result.data?.data?.receiver_bank || 'N/A'}`);
+                    log('✅ Thunder API test successful!', 'success');
+                    const data = result.data?.data;
+                    if (data) {
+                        log(`💰 Amount: ${data.amount_display || 'N/A'}`);
+                        log(`🏦 Banks: ${data.sender_bank || 'N/A'} → ${data.receiver_bank || 'N/A'}`);
+                        log(`👤 Transfer: ${data.sender || 'N/A'} → ${data.receiver_name || 'N/A'}`);
+                        log(`📅 Date: ${data.date || 'N/A'} ${data.time || ''}`);
+                        log(`🔍 Reference: ${data.reference || 'N/A'}`);
+                    }
                 } else {
-                    log(`Thunder API test failed: ${result.message}`, 'error');
+                    log(`❌ Thunder API test failed: ${result.message}`, 'error');
                 }
                 
             } catch (error) {
-                log(`Thunder API test error: ${error.message}`, 'error');
+                log(`💥 Thunder API test error: ${error.message}`, 'error');
             }
         }
 
@@ -327,12 +434,13 @@ Ready for testing...
             const consumerSecret = document.getElementById('kbankConsumerSecret').value.trim();
             
             if (!consumerId || !consumerSecret) {
-                log('Consumer ID and Secret are required for OAuth test', 'error');
+                log('❌ Consumer ID and Secret are required for OAuth test', 'error');
                 return;
             }
             
-            log('Testing KBank OAuth...', 'info');
-            log(`Consumer ID: ${consumerId.substring(0, 20)}...`);
+            log('🧪 Testing KBank OAuth...', 'info');
+            log(`🏦 Consumer ID: ${consumerId}`);
+            log(`🔐 Consumer Secret: ${consumerSecret.substring(0, 15)}...`);
             
             try {
                 const response = await fetch('/admin/test-kbank-oauth', {
@@ -347,15 +455,17 @@ Ready for testing...
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    log('KBank OAuth test successful!', 'success');
-                    log(`Token preview: ${result.data.token_preview}`);
-                    log(`Token length: ${result.data.token_length} characters`);
+                    log('✅ KBank OAuth test successful!', 'success');
+                    log(`🎫 Token preview: ${result.data.token_preview}`);
+                    log(`📏 Token length: ${result.data.token_length} characters`);
+                    log('ℹ️  Now you can test slip verification', 'info');
                 } else {
-                    log(`KBank OAuth test failed: ${result.message}`, 'error');
+                    log(`❌ KBank OAuth test failed: ${result.message}`, 'error');
+                    log('💡 Tip: Check your Consumer ID and Secret in Settings', 'warning');
                 }
                 
             } catch (error) {
-                log(`KBank OAuth test error: ${error.message}`, 'error');
+                log(`💥 KBank OAuth test error: ${error.message}`, 'error');
             }
         }
 
@@ -366,12 +476,13 @@ Ready for testing...
             const transRef = document.getElementById('kbankTransRef').value.trim();
             
             if (!consumerId || !consumerSecret || !bankId || !transRef) {
-                log('All KBank fields are required', 'error');
+                log('❌ All KBank fields are required', 'error');
                 return;
             }
             
-            log('Testing KBank Slip Verification API...', 'info');
-            log(`Bank ID: ${bankId}, Transaction Ref: ${transRef}`);
+            log('🧪 Testing KBank Slip Verification API...', 'info');
+            log(`🏦 Bank ID: ${bankId}`);
+            log(`🔢 Transaction Ref: ${transRef}`);
             
             try {
                 const response = await fetch('/admin/test-kbank-api', {
@@ -388,17 +499,57 @@ Ready for testing...
                 const result = await response.json();
                 
                 if (result.status === 'success') {
-                    log('KBank API test successful!', 'success');
-                    log(`Amount: ${result.data?.data?.amount_display || 'N/A'}`);
-                    log(`Sender: ${result.data?.data?.sender || 'N/A'}`);
-                    log(`Receiver: ${result.data?.data?.receiver_name || 'N/A'}`);
+                    log('✅ KBank API test successful!', 'success');
+                    const data = result.data?.data;
+                    if (data) {
+                        log(`💰 Amount: ${data.amount_display || 'N/A'}`);
+                        log(`👤 Sender: ${data.sender || 'N/A'}`);
+                        log(`🎯 Receiver: ${data.receiver_name || 'N/A'}`);
+                        log(`📅 Date: ${data.date || 'N/A'} ${data.time || ''}`);
+                        log(`🔍 Verified by: ${data.verified_by || 'N/A'}`);
+                    }
                 } else {
-                    log(`KBank API test failed: ${result.message}`, 'error');
+                    log(`❌ KBank API test failed: ${result.message}`, 'error');
+                    if (result.message.includes('OAuth') || result.message.includes('token')) {
+                        log('💡 Tip: Try testing OAuth first', 'warning');
+                    }
                 }
                 
             } catch (error) {
-                log(`KBank API test error: ${error.message}`, 'error');
+                log(`💥 KBank API test error: ${error.message}`, 'error');
             }
+        }
+
+        async function testAllAPIs() {
+            log('🔄 Starting comprehensive API testing...', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            
+            // Test Thunder API
+            if (document.getElementById('thunderToken').value && document.getElementById('thunderFile').files[0]) {
+                log('⚡ Testing Thunder API...');
+                await testThunderAPI();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+                log('⚠️ Thunder API test skipped - missing token or file', 'warning');
+            }
+            
+            // Test KBank OAuth
+            if (document.getElementById('kbankConsumerId').value && document.getElementById('kbankConsumerSecret').value) {
+                log('🔑 Testing KBank OAuth...');
+                await testKBankOAuth();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Test KBank API if transaction ref is provided
+                if (document.getElementById('kbankTransRef').value) {
+                    log('🏦 Testing KBank Slip Verification...');
+                    await testKBankAPI();
+                }
+            } else {
+                log('⚠️ KBank API test skipped - missing credentials', 'warning');
+            }
+            
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            log('🏁 API testing completed', 'success');
         }
     </script>
 </body>
