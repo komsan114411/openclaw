@@ -576,9 +576,10 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
 # ====================== Event Processing ======================
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
-    """Process LINE event asynchronously (Enhanced version with improved fallback)"""
+    """Process LINE event asynchronously (Fixed version)"""
     try:
         if event.get("type") != "message":
+            logger.info(f"⏭️ Skipping non-message event: {event.get('type')}")
             return
         
         message = event.get("message", {})
@@ -586,167 +587,179 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         reply_token = event.get("replyToken")
         message_type = message.get("type")
         
-        logger.info(f"🔄 Processing {message_type} from user {user_id[:10]}...")
+        logger.info(f"🔄 Processing {message_type} from user {user_id[:10]}... (reply_token: {'Yes' if reply_token else 'No'})")
         
+        # บันทึกประวัติข้อความเข้า
         try:
             save_chat_history(user_id, "in", message, sender="user")
         except Exception as e:
             logger.warning(f"⚠️ Failed to save chat history: {e}")
 
-        # ตรวจสอบสถานะระบบสลิปตั้งแต่ต้น
-        system_status = check_slip_system_status()
-        if not system_status["system_enabled"] or not system_status["any_api_available"]:
-            error_msg_user = "ขออภัยค่ะ ระบบตรวจสอบสลิปอัตโนมัติปิดใช้งานชั่วคราว หรือมีปัญหา กรุณาติดต่อแอดมิน"
-            await notification_manager.send_notification("❌ ระบบตรวจสอบสลิปไม่พร้อมใช้งาน", "error")
-            await send_slip_result_safe(user_id, reply_token, error_msg_user, "system_error")
-            return
-
-        if message_type == "image":
-            await notification_manager.send_notification(f"🖼️ ได้รับรูปสลิปจากผู้ใช้ {user_id[:8]}...", "info")
-            
-            # **แก้ไขจุดสำคัญ: ไม่ส่งข้อความแจ้งล่วงหน้า เก็บ reply_token ไว้ส่งผลลัพธ์**
-            # ดาวน์โหลดรูปภาพก่อน
-            line_token = config_manager.get("line_channel_access_token")
-            image_data = None
-            if line_token:
-                try:
-                    url = f"https://api-data.line.me/v2/bot/message/{message.get('id')}/content"
-                    headers = {"Authorization": f"Bearer {line_token}"}
-                    async with httpx.AsyncClient() as client:
-                        resp = await client.get(url, headers=headers, timeout=15)
-                        resp.raise_for_status()
-                    image_data = resp.content
-                    logger.info(f"✅ ดาวน์โหลดรูปภาพสำเร็จ: {len(image_data)} bytes")
-                except Exception as e:
-                    logger.error(f"❌ ไม่สามารถดาวน์โหลดรูปภาพได้: {e}")
-                    error_msg_user = f"💥 ไม่สามารถดาวน์โหลดรูปภาพได้ค่ะ\n\n🔧 กรุณาลองส่งรูปภาพใหม่อีกครั้งนะคะ"
-                    await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_error")
-                    return
-            
-            slip_hash = None
-            duplicate_data = None
-            if image_data:
-                slip_hash = create_slip_hash(image_data)
-                duplicate_data = get_duplicate_slip_data(slip_hash)
-            
-            try:
-                if duplicate_data:
-                    logger.info(f"🔄 Found duplicate slip in cache (hash: {slip_hash[:8]}...)")
-                    duplicate_count = duplicate_data.get('count', 1)
-                    amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
-                    await notification_manager.send_notification(f"🔄 พบสลิปซ้ำ! แสดงผลตรวจสอบเดิม จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
-                    
-                    success_msg = create_detailed_slip_message(duplicate_data['data'], duplicate_count=duplicate_count, is_duplicate=True)
-                    await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot_duplicate")
-                    
-                    if slip_hash:
-                        save_duplicate_slip_data(slip_hash, duplicate_data['data'])
-                else:
-                    logger.info("🔍 Processing new slip with multiple providers...")
-                    result = await asyncio.to_thread(verify_slip_multiple_providers, message_id=message.get("id"), test_image_data=image_data)
-                    
-                    if result["status"] == "success":
-                        amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
-                        await notification_manager.send_notification(f"✅ ตรวจสอบสลิปสำเร็จ! จำนวน {amount_display}", "success")
-                        success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
-                        await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot")
-                        
-                        if slip_hash and image_data:
-                            save_duplicate_slip_data(slip_hash, result['data'])
-                    elif result.get("status") == "duplicate":
-                        logger.info(f"🔄 API reported duplicate slip.")
-                        await notification_manager.send_notification(f"🔄 API แจ้งสลิปซ้ำ", "warning")
-
-                        if result.get('data'):
-                            success_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
-                            await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot_duplicate")
-                            if slip_hash and image_data:
-                                save_duplicate_slip_data(slip_hash, result['data'])
-                        else:
-                            error_msg_user = "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
-                            await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_duplicate")
-                    else:
-                        error_message_tech = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
-                        error_message_user = "❌ ไม่พบข้อมูลสลิปที่ถูกต้องในระบบธนาคารค่ะ"
-                        
-                        if error_message_tech == "qrcode_not_found":
-                            error_message_user = "❌ ไม่พบ QR Code ในรูปภาพที่ส่งมาค่ะ"
-                        elif "unauthorized" in error_message_tech.lower():
-                            error_message_user = "❌ ระบบตรวจสอบมีปัญหาชั่วคราว กรุณาแจ้งแอดมินหรือลองใหม่อีกครั้งค่ะ"
-
-                        await notification_manager.send_notification(f"❌ ตรวจสอบสลิปล้มเหลว: {error_message_tech}", "error")
-                        
-                        await send_slip_result_safe(user_id, reply_token, error_message_user, "slip_bot_error")
-            except Exception as e:
-                error_msg_user = f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิป\n\n🔧 กรุณาลองใหม่อีกครั้ง หรือติดต่อแอดมิน"
-                logger.error(f"❌ Slip verification exception: {e}", exc_info=True)
-                await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
-                await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_error")
-            
-        elif message_type == "text":
+        # ตรวจสอบว่าเป็นข้อความปกติ (ไม่ใช่รูปภาพ)
+        if message_type == "text":
             user_text = message.get("text", "")
+            logger.info(f"💬 Received text: {user_text[:50]}...")
+            
+            # ตรวจสอบว่าเป็นข้อมูลสลิปหรือไม่
             slip_info = extract_slip_info_from_text(user_text)
             
             if slip_info["bank_code"] and slip_info["trans_ref"]:
-                system_status = check_slip_system_status()
-                if not system_status["system_enabled"] or not system_status["any_api_available"]:
-                    system_off_msg = "🔒 ระบบตรวจสอบสลิปออโตปิดใช้งานชั่วคราว หรือมีปัญหา กรุณาติดต่อแอดมิน"
-                    await send_slip_result_safe(user_id, reply_token, system_off_msg, "system_error")
-                    return
-                
-                await notification_manager.send_notification(f"📝 ได้รับข้อมูลสลิปจากข้อความ: ธนาคาร {slip_info['bank_code']}, อ้างอิง {slip_info['trans_ref']}", "info")
-                text_hash = hashlib.md5(f"{slip_info['bank_code']}:{slip_info['trans_ref']}".encode()).hexdigest()
-                duplicate_data = get_duplicate_slip_data(text_hash)
-                
-                if duplicate_data:
-                    duplicate_count = duplicate_data.get('count', 1)
-                    amount_display = duplicate_data['data'].get('amount_display') or f"฿{duplicate_data['data'].get('amount', '0')}"
-                    await notification_manager.send_notification(f"🔄 พบข้อมูลสลิปซ้ำจากข้อความ! จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
-                    
-                    success_msg = f"🔄 ข้อมูลสลิปนี้เคยตรวจสอบแล้ว (ครั้งที่ {duplicate_count})\n\n✅ รายละเอียดการโอน:\n💰 จำนวนเงิน: {amount_display}\n🏦 รหัสธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n🔍 ตรวจสอบโดย: {duplicate_data['data'].get('verified_by', 'ระบบตรวจสอบ')}"
-                    await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot_duplicate")
-                    save_duplicate_slip_data(text_hash, duplicate_data['data'])
-                else:
-                    try:
-                        result = await asyncio.to_thread(verify_slip_multiple_providers, None, None, slip_info["bank_code"], slip_info["trans_ref"])
-                        if result["status"] == "success":
-                            amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
-                            await notification_manager.send_notification(f"✅ ตรวจสอบสลิปจากข้อความสำเร็จ! จำนวน {amount_display}", "success")
-                            success_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n\n📋 รายละเอียดการโอน:\n💰 จำนวนเงิน: {amount_display}\n🏦 รหัสธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n🔍 ตรวจสอบโดย: {result['data'].get('verified_by', 'ระบบตรวจสอบ')}\n\n🎉 การโอนเงินได้รับการยืนยันแล้ว"
-                            await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot")
-                            save_duplicate_slip_data(text_hash, result['data'])
-                        else:
-                            error_message_tech = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
-                            error_message_user = "❌ ไม่พบข้อมูลสลิปที่ถูกต้องในระบบธนาคารค่ะ"
-                            
-                            if "unauthorized" in error_message_tech.lower() or "access_denied" in error_message_tech.lower() or "quota_exceeded" in error_message_tech.lower():
-                                error_message_user = "❌ ระบบตรวจสอบมีปัญหาชั่วคราว กรุณาแจ้งแอดมินหรือลองใหม่อีกครั้งค่ะ"
-                            
-                            await notification_manager.send_notification(f"❌ ตรวจสอบสลิปจากข้อความล้มเหลว: {error_message_tech}", "error")
-                            
-                            await send_slip_result_safe(user_id, reply_token, error_message_user, "slip_bot_error")
-                    except Exception as e:
-                        error_msg_user = f"เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ"
-                        logger.error(f"❌ Text slip verification error: {e}")
-                        await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิปจากข้อความ: {str(e)}", "error")
-                        await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_error")
+                # เป็นข้อมูลสลิป - ตรวจสอบสลิป
+                await handle_slip_from_text(user_id, reply_token, slip_info, user_text)
             else:
-                await notification_manager.send_notification(f"💬 ได้รับข้อความจากผู้ใช้ {user_id[:8]}...: {user_text[:30]}...", "info")
-                try:
-                    # Use asyncio.to_thread for synchronous calls
-                    response = await asyncio.to_thread(get_chat_response, user_text, user_id)
-                    await send_slip_result_safe(user_id, reply_token, response, "bot")
-                except Exception as e:
-                    error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
-                    logger.error(f"❌ AI processing error: {e}")
-                    await send_slip_result_safe(user_id, reply_token, error_msg, "bot_error")
+                # เป็นข้อความปกติ - ใช้ AI
+                await handle_regular_text(user_id, reply_token, user_text)
+                
+        elif message_type == "image":
+            # จัดการรูปภาพสลิป
+            logger.info(f"🖼️ Received image from user {user_id[:8]}...")
+            await handle_slip_image(user_id, reply_token, message)
+            
         else:
-            await notification_manager.send_notification(f"📝 ได้รับข้อความประเภท {message_type} จากผู้ใช้ {user_id[:8]}...", "info")
-            await send_slip_result_safe(user_id, reply_token, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น", "system")
+            # ประเภทข้อความอื่น ๆ
+            logger.info(f"📝 Unsupported message type: {message_type}")
+            error_msg = "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น"
+            await send_message_safe(user_id, reply_token, error_msg, "system")
             
     except Exception as e:
         logger.exception(f"❌ Critical error in dispatch_event: {e}")
-        await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
+        # ส่งข้อความขออภัยให้ผู้ใช้
+        try:
+            error_msg = "ขออภัย เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง"
+            await send_message_safe(user_id, reply_token, error_msg, "system_error")
+        except:
+            pass
+        await notification_manager.send_notification(f"💥 Critical error: {str(e)}", "error")
+
+async def handle_regular_text(user_id: str, reply_token: str, user_text: str):
+    """จัดการข้อความปกติด้วย AI"""
+    try:
+        logger.info(f"🤖 Processing AI chat for user {user_id[:8]}...")
+        
+        # ตรวจสอบว่า AI เปิดใช้งานหรือไม่
+        ai_enabled = config_manager.get("ai_enabled", False)
+        openai_key = config_manager.get("openai_api_key", "")
+        
+        if not ai_enabled:
+            response = "ขออภัย ระบบ AI ถูกปิดการใช้งานค่ะ"
+        elif not openai_key:
+            response = "ขออภัย ระบบ AI ยังไม่ได้ตั้งค่าค่ะ"
+        else:
+            # เรียกใช้ AI
+            response = await asyncio.to_thread(get_chat_response, user_text, user_id)
+        
+        # ส่งข้อความตอบกลับ
+        await send_message_safe(user_id, reply_token, response, "bot")
+        
+    except Exception as e:
+        logger.error(f"❌ AI processing error: {e}")
+        error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
+        await send_message_safe(user_id, reply_token, error_msg, "bot_error")
+
+async def handle_slip_from_text(user_id: str, reply_token: str, slip_info: dict, original_text: str):
+    """จัดการข้อมูลสลิปจากข้อความ"""
+    try:
+        logger.info(f"🏦 Processing slip from text: bank={slip_info['bank_code']}, ref={slip_info['trans_ref']}")
+        
+        # ตรวจสอบสถานะระบบสลิป
+        if not config_manager.get("slip_enabled", False):
+            error_msg = "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งานชั่วคราว"
+            await send_message_safe(user_id, reply_token, error_msg, "system_error")
+            return
+        
+        # ตรวจสอบสลิป
+        result = await asyncio.to_thread(
+            verify_slip_multiple_providers, 
+            None, None, 
+            slip_info["bank_code"], 
+            slip_info["trans_ref"]
+        )
+        
+        if result["status"] == "success":
+            amount = result['data'].get('amount_display', f"฿{result['data'].get('amount', '0')}")
+            success_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n\n💰 จำนวนเงิน: {amount}\n🏦 ธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n\n🎉 การโอนเงินได้รับการยืนยันแล้ว"
+            await send_message_safe(user_id, reply_token, success_msg, "slip_bot")
+        else:
+            error_msg = f"❌ ไม่พบข้อมูลสลิปในระบบธนาคาร\n\nสาเหตุ: {result.get('message', 'ไม่ทราบสาเหตุ')}"
+            await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
+            
+    except Exception as e:
+        logger.error(f"❌ Slip from text error: {e}")
+        error_msg = "เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง"
+        await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
+
+async def handle_slip_image(user_id: str, reply_token: str, message: dict):
+    """จัดการรูปภาพสลิป"""
+    try:
+        logger.info(f"📸 Processing slip image from user {user_id[:8]}...")
+        
+        # ตรวจสอบสถานะระบบสลิป
+        if not config_manager.get("slip_enabled", False):
+            error_msg = "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งานชั่วคราว"
+            await send_message_safe(user_id, reply_token, error_msg, "system_error")
+            return
+        
+        # ตรวจสอบสลิป
+        result = await asyncio.to_thread(
+            verify_slip_multiple_providers,
+            message_id=message.get("id"),
+            test_image_data=None
+        )
+        
+        if result["status"] == "success":
+            amount = result['data'].get('amount_display', f"฿{result['data'].get('amount', '0')}")
+            success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
+            await send_message_safe(user_id, reply_token, success_msg, "slip_bot")
+        elif result.get("status") == "duplicate":
+            if result.get('data'):
+                duplicate_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
+                await send_message_safe(user_id, reply_token, duplicate_msg, "slip_bot_duplicate")
+            else:
+                error_msg = "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
+                await send_message_safe(user_id, reply_token, error_msg, "slip_bot_duplicate")
+        else:
+            error_msg = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\nสาเหตุ: {result.get('message', 'ไม่ทราบสาเหตุ')}"
+            await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
+            
+    except Exception as e:
+        logger.error(f"❌ Slip image processing error: {e}")
+        error_msg = "เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง"
+        await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
+
+async def send_message_safe(user_id: str, reply_token: str, message: str, message_type: str = "general"):
+    """ส่งข้อความอย่างปลอดภัย (Simplified version)"""
+    try:
+        success = False
+        
+        # ลอง reply ก่อน (ถ้ามี reply token)
+        if reply_token and len(reply_token.strip()) > 10:
+            logger.info(f"📤 Attempting reply message...")
+            success = await send_line_reply(reply_token, message)
+            if success:
+                logger.info("✅ Reply message sent successfully")
+        
+        # ถ้า reply ไม่ได้ ลอง push
+        if not success:
+            logger.info(f"📤 Attempting push message...")
+            success = await send_line_push(user_id, message)
+            if success:
+                logger.info("✅ Push message sent successfully")
+        
+        # บันทึกประวัติ
+        if success:
+            try:
+                save_chat_history(user_id, "out", {"type": "text", "text": message}, sender=message_type)
+            except:
+                pass
+        else:
+            logger.error(f"❌ Failed to send message to {user_id[:8]}...")
+            await notification_manager.send_notification(f"❌ ส่งข้อความไม่สำเร็จ: {user_id[:8]}...", "error")
+        
+        return success
+        
+    except Exception as e:
+        logger.error(f"❌ send_message_safe error: {e}")
+        return False
 # ====================== API Routes ======================
 
 @app.websocket("/ws/notifications")
