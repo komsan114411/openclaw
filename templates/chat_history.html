@@ -1,451 +1,482 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ประวัติการแชท - LINE OA Middleware</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .chat-message {
-            margin-bottom: 15px;
-            padding: 12px;
-            border-radius: 10px;
-            max-width: 80%;
-        }
-        .chat-message.incoming {
-            background-color: #f1f3f4;
-            margin-right: auto;
-            border-bottom-left-radius: 4px;
-        }
-        .chat-message.outgoing {
-            background-color: #007bff;
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
-        }
-        .chat-message.system {
-            background-color: #ffc107;
-            color: #212529;
-            margin-left: auto;
-            margin-right: auto;
-            text-align: center;
-            border-radius: 15px;
-        }
-        .chat-message.slip-bot {
-            background-color: #28a745;
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
-        }
-        .chat-message.duplicate {
-            background-color: #fd7e14;
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
-        }
-        .message-meta {
-            font-size: 0.75rem;
-            opacity: 0.7;
-            margin-top: 5px;
-        }
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 10px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        .chat-container {
-            height: 70vh;
-            overflow-y: auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 15px;
-        }
-        .message-wrapper {
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 10px;
-        }
-        .message-wrapper.outgoing {
-            flex-direction: row-reverse;
-        }
-        .message-wrapper.outgoing .user-avatar {
-            margin-right: 0;
-            margin-left: 10px;
-        }
-        .filter-badge {
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .filter-badge:hover {
-            transform: scale(1.05);
-        }
-        .filter-badge.active {
-            box-shadow: 0 0 0 2px rgba(255,255,255,0.5);
-        }
-        .search-box {
-            border-radius: 25px;
-            border: none;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .stats-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            border: none;
-        }
-    </style>
-</head>
-<body class="bg-light">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/admin">
-                <i class="fas fa-robot me-2"></i>LINE OA Middleware
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin">
-                    <i class="fas fa-arrow-left me-1"></i>กลับหน้าหลัก
-                </a>
-            </div>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="container mt-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h2>
-                    <i class="fas fa-comments me-2"></i>ประวัติการแชท
-                    <span class="badge bg-secondary">{{ chat_history|length }} ข้อความ</span>
-                </h2>
-            </div>
-            <div class="col-md-4">
-                <input type="text" class="form-control search-box" id="searchInput" 
-                       placeholder="🔍 ค้นหาข้อความ...">
-            </div>
-        </div>
+{% block title %}Chat History - LINE OA Middleware{% endblock %}
 
-        <!-- Stats Row -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body">
-                        <h5 class="card-title" id="totalMessages">{{ chat_history|length }}</h5>
-                        <p class="card-text">ข้อความทั้งหมด</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <div class="card-body">
-                        <h5 class="card-title" id="slipMessages">0</h5>
-                        <p class="card-text">การตรวจสอบสลิป</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <div class="card-body">
-                        <h5 class="card-title" id="uniqueUsers">0</h5>
-                        <p class="card-text">ผู้ใช้ทั้งหมด</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                    <div class="card-body">
-                        <h5 class="card-title" id="todayMessages">0</h5>
-                        <p class="card-text">ข้อความวันนี้</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-comments me-2 text-primary"></i>
+        Chat History
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshHistory()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+        <button class="btn btn-outline-success" onclick="exportHistory()">
+            <i class="fas fa-download me-1"></i> Export
+        </button>
+        <button class="btn btn-outline-warning" onclick="cleanupOldData()">
+            <i class="fas fa-trash me-1"></i> Cleanup Old Data
+        </button>
+    </div>
+</div>
 
-        <!-- Filter Row -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="d-flex flex-wrap gap-2">
-                    <span class="badge bg-primary filter-badge active" data-filter="all">
-                        <i class="fas fa-list me-1"></i>ทั้งหมด
-                    </span>
-                    <span class="badge bg-info filter-badge" data-filter="user">
-                        <i class="fas fa-user me-1"></i>ข้อความผู้ใช้
-                    </span>
-                    <span class="badge bg-success filter-badge" data-filter="slip_bot">
-                        <i class="fas fa-receipt me-1"></i>การตรวจสอบสลิป
-                    </span>
-                    <span class="badge bg-warning filter-badge" data-filter="duplicate">
-                        <i class="fas fa-copy me-1"></i>สลิปซ้ำ
-                    </span>
-                    <span class="badge bg-secondary filter-badge" data-filter="bot">
-                        <i class="fas fa-robot me-1"></i>AI Bot
-                    </span>
-                    <span class="badge bg-dark filter-badge" data-filter="system">
-                        <i class="fas fa-cog me-1"></i>ระบบ
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chat History -->
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
         <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body p-0">
-                        <div class="chat-container" id="chatContainer">
-                            {% if chat_history %}
-                                {% for chat in chat_history %}
-                                <div class="message-wrapper {{ 'outgoing' if chat.direction == 'out' else 'incoming' }}" 
-                                     data-sender="{{ chat.sender }}" data-search="{{ chat.message_text|lower if chat.message_text }}">
-                                    <div class="user-avatar bg-{{ 'primary' if chat.direction == 'out' else 'secondary' }}">
-                                        {% if chat.sender == 'user' %}
-                                            <i class="fas fa-user"></i>
-                                        {% elif chat.sender == 'slip_bot' %}
-                                            <i class="fas fa-receipt"></i>
-                                        {% elif chat.sender == 'slip_bot_duplicate' %}
-                                            <i class="fas fa-copy"></i>
-                                        {% elif chat.sender == 'bot' %}
-                                            <i class="fas fa-robot"></i>
-                                        {% elif chat.sender == 'system' %}
-                                            <i class="fas fa-cog"></i>
-                                        {% else %}
-                                            <i class="fas fa-comment"></i>
-                                        {% endif %}
-                                    </div>
-                                    <div class="chat-message {{ 'outgoing' if chat.direction == 'out' else 'incoming' }} 
-                                                {{ 'slip-bot' if chat.sender == 'slip_bot' else '' }}
-                                                {{ 'duplicate' if chat.sender == 'slip_bot_duplicate' else '' }}
-                                                {{ 'system' if chat.sender == 'system' else '' }}">
-                                        {% if chat.message_type == 'image' %}
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-image me-2"></i>
-                                                <span>ส่งรูปภาพ (สลิป)</span>
-                                            </div>
-                                        {% else %}
-                                            <div class="message-content">
-                                                {{ chat.message_text|replace('\n', '<br>')|safe }}
-                                            </div>
-                                        {% endif %}
-                                        <div class="message-meta">
-                                            <i class="fas fa-clock me-1"></i>
-                                            {{ chat.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
-                                            {% if chat.direction == 'out' %}
-                                                <span class="ms-2">
-                                                    <i class="fas fa-user-tag me-1"></i>
-                                                    {% if chat.sender == 'slip_bot' %}
-                                                        ตรวจสอบสลิป
-                                                    {% elif chat.sender == 'slip_bot_duplicate' %}
-                                                        สลิปซ้ำ
-                                                    {% elif chat.sender == 'bot' %}
-                                                        AI Bot
-                                                    {% elif chat.sender == 'system' %}
-                                                        ระบบ
-                                                    {% else %}
-                                                        {{ chat.sender }}
-                                                    {% endif %}
-                                                </span>
-                                            {% else %}
-                                                <span class="ms-2">
-                                                    <i class="fas fa-user me-1"></i>
-                                                    {{ chat.user_id[:8] }}...
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-center text-muted py-5">
-                                    <i class="fas fa-comments fa-3x mb-3"></i>
-                                    <h5>ยังไม่มีประวัติการแชท</h5>
-                                    <p>ประวัติการสนทนาจะแสดงที่นี่เมื่อมีผู้ใช้ส่งข้อความมา</p>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+            <div class="col-md-3">
+                <label for="filter-direction" class="form-label">Direction</label>
+                <select class="form-select" id="filter-direction" onchange="filterHistory()">
+                    <option value="">All</option>
+                    <option value="in">Incoming</option>
+                    <option value="out">Outgoing</option>
+                </select>
             </div>
-        </div>
-
-        <!-- Export/Clear Actions -->
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <button class="btn btn-outline-success" onclick="exportData()">
-                            <i class="fas fa-download me-1"></i>ส่งออกข้อมูล
-                        </button>
-                        <button class="btn btn-outline-info ms-2" onclick="refreshData()">
-                            <i class="fas fa-sync me-1"></i>รีเฟรช
-                        </button>
-                    </div>
-                    <div>
-                        <button class="btn btn-outline-danger" onclick="clearHistory()">
-                            <i class="fas fa-trash me-1"></i>ล้างประวัติ
-                        </button>
-                    </div>
-                </div>
+            <div class="col-md-3">
+                <label for="filter-sender" class="form-label">Sender</label>
+                <select class="form-select" id="filter-sender" onchange="filterHistory()">
+                    <option value="">All</option>
+                    <option value="user">User</option>
+                    <option value="ai_bot">AI Bot</option>
+                    <option value="slip_bot">Slip Bot</option>
+                    <option value="system">System</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filter-search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="filter-search" 
+                       placeholder="Search messages..." onkeyup="filterHistory()">
+            </div>
+            <div class="col-md-3">
+                <label for="filter-limit" class="form-label">Show</label>
+                <select class="form-select" id="filter-limit" onchange="filterHistory()">
+                    <option value="50">50 messages</option>
+                    <option value="100" selected>100 messages</option>
+                    <option value="200">200 messages</option>
+                    <option value="500">500 messages</option>
+                </select>
             </div>
         </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            calculateStats();
-            bindEvents();
-            scrollToBottom();
-        });
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary" id="total-messages">{{ chat_history|length }}</h4>
+                <p class="text-muted mb-0">Total Messages</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success" id="unique-users">0</h4>
+                <p class="text-muted mb-0">Unique Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info" id="ai-messages">0</h4>
+                <p class="text-muted mb-0">AI Messages</p>
+            <</div>
+   </div>
+   <div class="col-md-3">
+       <div class="card text-center">
+           <div class="card-body">
+               <h4 class="text-warning" id="slip-messages">0</h4>
+               <p class="text-muted mb-0">Slip Messages</p>
+           </div>
+       </div>
+   </div>
+</div>
 
-        function calculateStats() {
-            const messages = document.querySelectorAll('.message-wrapper');
-            const users = new Set();
-            const today = new Date().toDateString();
-            let slipCount = 0;
-            let todayCount = 0;
+<!-- Chat History -->
+<div class="card">
+   <div class="card-header">
+       <h5 class="mb-0">Message History</h5>
+   </div>
+   <div class="card-body p-0">
+       <div id="chat-container" class="table-responsive">
+           <table class="table table-hover mb-0">
+               <thead class="table-light">
+                   <tr>
+                       <th width="120">Time</th>
+                       <th width="100">User</th>
+                       <th width="80">Direction</th>
+                       <th width="100">Type</th>
+                       <th>Message</th>
+                       <th width="100">Sender</th>
+                       <th width="80">Action</th>
+                   </tr>
+               </thead>
+               <tbody id="history-tbody">
+                   {% if chat_history %}
+                       {% for chat in chat_history %}
+                       <tr class="chat-row" 
+                           data-direction="{{ chat.direction }}" 
+                           data-sender="{{ chat.sender }}"
+                           data-message="{{ chat.message_text or '' }}">
+                           <td>
+                               <small class="text-muted">
+                                   {% if chat.created_at %}
+                                       {{ chat.created_at.strftime('%m/%d %H:%M') if chat.created_at.strftime else chat.created_at }}
+                                   {% else %}
+                                       N/A
+                                   {% endif %}
+                               </small>
+                           </td>
+                           <td>
+                               <small class="badge bg-secondary">
+                                   {{ chat.user_id[:8] + '...' if chat.user_id and chat.user_id|length > 8 else chat.user_id or 'N/A' }}
+                               </small>
+                           </td>
+                           <td>
+                               {% if chat.direction == 'in' %}
+                                   <span class="badge bg-info">
+                                       <i class="fas fa-arrow-down me-1"></i>In
+                                   </span>
+                               {% else %}
+                                   <span class="badge bg-success">
+                                       <i class="fas fa-arrow-up me-1"></i>Out
+                                   </span>
+                               {% endif %}
+                           </td>
+                           <td>
+                               <span class="badge bg-light text-dark">
+                                   {{ chat.message_type or 'text' }}
+                               </span>
+                           </td>
+                           <td>
+                               <div class="message-content" style="max-width: 400px;">
+                                   {% if chat.message_text %}
+                                       {% if chat.message_text|length > 100 %}
+                                           <span class="message-preview">{{ chat.message_text[:100] }}...</span>
+                                           <span class="message-full d-none">{{ chat.message_text }}</span>
+                                           <br><small><a href="#" onclick="toggleMessage(this)">Show more</a></small>
+                                       {% else %}
+                                           {{ chat.message_text }}
+                                       {% endif %}
+                                   {% else %}
+                                       <em class="text-muted">No text content</em>
+                                   {% endif %}
+                               </div>
+                           </td>
+                           <td>
+                               {% if chat.sender == 'user' %}
+                                   <span class="badge bg-primary">User</span>
+                               {% elif chat.sender == 'ai_bot' %}
+                                   <span class="badge bg-info">AI Bot</span>
+                               {% elif chat.sender == 'slip_bot' %}
+                                   <span class="badge bg-warning">Slip Bot</span>
+                               {% elif chat.sender == 'system' %}
+                                   <span class="badge bg-secondary">System</span>
+                               {% else %}
+                                   <span class="badge bg-light text-dark">{{ chat.sender or 'Unknown' }}</span>
+                               {% endif %}
+                           </td>
+                           <td>
+                               <button class="btn btn-sm btn-outline-primary" 
+                                       onclick="viewMessageDetails({{ loop.index0 }})"
+                                       title="View Details">
+                                   <i class="fas fa-eye"></i>
+                               </button>
+                           </td>
+                       </tr>
+                       {% endfor %}
+                   {% else %}
+                       <tr>
+                           <td colspan="7" class="text-center py-4">
+                               <div class="text-muted">
+                                   <i class="fas fa-comments fa-3x mb-3"></i>
+                                   <p>No chat history found</p>
+                               </div>
+                           </td>
+                       </tr>
+                   {% endif %}
+               </tbody>
+           </table>
+       </div>
+   </div>
+</div>
 
-            messages.forEach(msg => {
-                const sender = msg.getAttribute('data-sender');
-                const timeElement = msg.querySelector('.message-meta');
-                
-                if (sender === 'user') {
-                    const userId = msg.querySelector('.message-meta').textContent;
-                    users.add(userId);
-                }
-                
-                if (sender === 'slip_bot' || sender === 'slip_bot_duplicate') {
-                    slipCount++;
-                }
+<!-- Message Details Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+   <div class="modal-dialog modal-lg">
+       <div class="modal-content">
+           <div class="modal-header">
+               <h5 class="modal-title">Message Details</h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+           </div>
+           <div class="modal-body">
+               <div id="message-details"></div>
+           </div>
+       </div>
+   </div>
+</div>
+{% endblock %}
 
-                // Count today's messages (simplified)
-                if (timeElement && timeElement.textContent.includes(new Date().toLocaleDateString('th-TH'))) {
-                    todayCount++;
-                }
-            });
-
-            document.getElementById('slipMessages').textContent = slipCount;
-            document.getElementById('uniqueUsers').textContent = users.size;
-            document.getElementById('todayMessages').textContent = todayCount;
-        }
-
-        function bindEvents() {
-            // Search functionality
-            document.getElementById('searchInput').addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase();
-                const messages = document.querySelectorAll('.message-wrapper');
-                
-                messages.forEach(msg => {
-                    const searchData = msg.getAttribute('data-search') || '';
-                    const messageText = msg.querySelector('.message-content')?.textContent.toLowerCase() || '';
-                    const isVisible = searchData.includes(searchTerm) || messageText.includes(searchTerm);
-                    
-                    msg.style.display = isVisible ? 'flex' : 'none';
-                });
-            });
-
-            // Filter functionality
-            document.querySelectorAll('.filter-badge').forEach(badge => {
-                badge.addEventListener('click', function() {
-                    // Update active badge
-                    document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    const filter = this.getAttribute('data-filter');
-                    const messages = document.querySelectorAll('.message-wrapper');
-                    
-                    messages.forEach(msg => {
-                        const sender = msg.getAttribute('data-sender');
-                        let isVisible = false;
-                        
-                        if (filter === 'all') {
-                            isVisible = true;
-                        } else if (filter === 'user') {
-                            isVisible = sender === 'user';
-                        } else if (filter === 'slip_bot') {
-                            isVisible = sender === 'slip_bot';
-                        } else if (filter === 'duplicate') {
-                            isVisible = sender === 'slip_bot_duplicate';
-                        } else if (filter === 'bot') {
-                            isVisible = sender === 'bot';
-                        } else if (filter === 'system') {
-                            isVisible = sender === 'system';
-                        }
-                        
-                        msg.style.display = isVisible ? 'flex' : 'none';
-                    });
-                });
-            });
-        }
-
-        function scrollToBottom() {
-            const container = document.getElementById('chatContainer');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function exportData() {
-            const messages = [];
-            document.querySelectorAll('.message-wrapper').forEach(msg => {
-                const sender = msg.getAttribute('data-sender');
-                const content = msg.querySelector('.message-content')?.textContent || 'รูปภาพ';
-                const time = msg.querySelector('.message-meta').textContent;
-                
-                messages.push({
-                    sender: sender,
-                    content: content,
-                    time: time
-                });
-            });
-
-            const dataStr = JSON.stringify(messages, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-
-            const exportFileDefaultName = `chat_history_${new Date().toISOString().split('T')[0]}.json`;
-
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', exportFileDefaultName);
-            linkElement.click();
-        }
-
-        function refreshData() {
-            window.location.reload();
-        }
-
-        function clearHistory() {
-            if (confirm('ต้องการล้างประวัติการแชททั้งหมดหรือไม่?\n\nคำเตือน: การดำเนินการนี้ไม่สามารถยกเลิกได้')) {
-                // This would need a backend endpoint to actually clear the data
-                alert('ฟีเจอร์นี้จะถูกพัฒนาในเวอร์ชันถัดไป');
-            }
-        }
-
-        // Auto refresh every 30 seconds
-        setInterval(() => {
-            // You could implement auto-refresh logic here
-            console.log('Auto refresh check...');
-        }, 30000);
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey || e.metaKey) {
-                switch(e.key) {
-                    case 'f':
-                        e.preventDefault();
-                        document.getElementById('searchInput').focus();
-                        break;
-                    case 'r':
-                        e.preventDefault();
-                        refreshData();
-                        break;
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+{% block extra_js %}
+<script>
+   let chatHistory = {{ chat_history | tojson }};
+   let filteredHistory = [...chatHistory];
+   
+   // Calculate and update statistics
+   function updateStatistics() {
+       const uniqueUsers = new Set(chatHistory.map(chat => chat.user_id)).size;
+       const aiMessages = chatHistory.filter(chat => chat.sender === 'ai_bot').length;
+       const slipMessages = chatHistory.filter(chat => chat.sender === 'slip_bot').length;
+       
+       document.getElementById('total-messages').textContent = chatHistory.length;
+       document.getElementById('unique-users').textContent = uniqueUsers;
+       document.getElementById('ai-messages').textContent = aiMessages;
+       document.getElementById('slip-messages').textContent = slipMessages;
+   }
+   
+   // Filter history based on current filter values
+   function filterHistory() {
+       const direction = document.getElementById('filter-direction').value;
+       const sender = document.getElementById('filter-sender').value;
+       const search = document.getElementById('filter-search').value.toLowerCase();
+       const limit = parseInt(document.getElementById('filter-limit').value);
+       
+       filteredHistory = chatHistory.filter(chat => {
+           let match = true;
+           
+           if (direction && chat.direction !== direction) match = false;
+           if (sender && chat.sender !== sender) match = false;
+           if (search && !chat.message_text?.toLowerCase().includes(search)) match = false;
+           
+           return match;
+       }).slice(0, limit);
+       
+       renderFilteredHistory();
+   }
+   
+   // Render filtered history
+   function renderFilteredHistory() {
+       const tbody = document.getElementById('history-tbody');
+       tbody.innerHTML = '';
+       
+       if (filteredHistory.length === 0) {
+           tbody.innerHTML = `
+               <tr>
+                   <td colspan="7" class="text-center py-4">
+                       <div class="text-muted">
+                           <i class="fas fa-search fa-2x mb-3"></i>
+                           <p>No messages match your filters</p>
+                       </div>
+                   </td>
+               </tr>
+           `;
+           return;
+       }
+       
+       filteredHistory.forEach((chat, index) => {
+           const row = createHistoryRow(chat, index);
+           tbody.appendChild(row);
+       });
+   }
+   
+   // Create history row element
+   function createHistoryRow(chat, index) {
+       const row = document.createElement('tr');
+       row.className = 'chat-row';
+       row.setAttribute('data-direction', chat.direction);
+       row.setAttribute('data-sender', chat.sender);
+       row.setAttribute('data-message', chat.message_text || '');
+       
+       const time = chat.created_at ? new Date(chat.created_at).toLocaleString('th-TH', {
+           month: '2-digit',
+           day: '2-digit',
+           hour: '2-digit',
+           minute: '2-digit'
+       }) : 'N/A';
+       
+       const userId = chat.user_id ? (chat.user_id.length > 8 ? chat.user_id.substring(0, 8) + '...' : chat.user_id) : 'N/A';
+       
+       const directionBadge = chat.direction === 'in' 
+           ? '<span class="badge bg-info"><i class="fas fa-arrow-down me-1"></i>In</span>'
+           : '<span class="badge bg-success"><i class="fas fa-arrow-up me-1"></i>Out</span>';
+       
+       const senderBadge = getSenderBadge(chat.sender);
+       
+       const messageContent = getMessageContent(chat.message_text);
+       
+       row.innerHTML = `
+           <td><small class="text-muted">${time}</small></td>
+           <td><small class="badge bg-secondary">${userId}</small></td>
+           <td>${directionBadge}</td>
+           <td><span class="badge bg-light text-dark">${chat.message_type || 'text'}</span></td>
+           <td><div class="message-content" style="max-width: 400px;">${messageContent}</div></td>
+           <td>${senderBadge}</td>
+           <td>
+               <button class="btn btn-sm btn-outline-primary" 
+                       onclick="viewMessageDetails(${index})" title="View Details">
+                   <i class="fas fa-eye"></i>
+               </button>
+           </td>
+       `;
+       
+       return row;
+   }
+   
+   // Get sender badge HTML
+   function getSenderBadge(sender) {
+       const badges = {
+           'user': '<span class="badge bg-primary">User</span>',
+           'ai_bot': '<span class="badge bg-info">AI Bot</span>',
+           'slip_bot': '<span class="badge bg-warning">Slip Bot</span>',
+           'system': '<span class="badge bg-secondary">System</span>'
+       };
+       
+       return badges[sender] || `<span class="badge bg-light text-dark">${sender || 'Unknown'}</span>`;
+   }
+   
+   // Get message content HTML
+   function getMessageContent(messageText) {
+       if (!messageText) {
+           return '<em class="text-muted">No text content</em>';
+       }
+       
+       if (messageText.length > 100) {
+           return `
+               <span class="message-preview">${messageText.substring(0, 100)}...</span>
+               <span class="message-full d-none">${messageText}</span>
+               <br><small><a href="#" onclick="toggleMessage(this)">Show more</a></small>
+           `;
+       }
+       
+       return messageText;
+   }
+   
+   // Toggle message visibility
+   function toggleMessage(link) {
+       const messageContent = link.closest('.message-content');
+       const preview = messageContent.querySelector('.message-preview');
+       const full = messageContent.querySelector('.message-full');
+       
+       if (preview.classList.contains('d-none')) {
+           preview.classList.remove('d-none');
+           full.classList.add('d-none');
+           link.textContent = 'Show more';
+       } else {
+           preview.classList.add('d-none');
+           full.classList.remove('d-none');
+           link.textContent = 'Show less';
+       }
+   }
+   
+   // View message details
+   function viewMessageDetails(index) {
+       const chat = filteredHistory[index];
+       
+       let detailsHtml = `
+           <div class="row">
+               <div class="col-md-6">
+                   <h6>Basic Information</h6>
+                   <table class="table table-sm">
+                       <tr><td><strong>User ID:</strong></td><td>${chat.user_id || 'N/A'}</td></tr>
+                       <tr><td><strong>Direction:</strong></td><td>${chat.direction}</td></tr>
+                       <tr><td><strong>Type:</strong></td><td>${chat.message_type || 'text'}</td></tr>
+                       <tr><td><strong>Sender:</strong></td><td>${chat.sender || 'Unknown'}</td></tr>
+                       <tr><td><strong>Time:</strong></td><td>${chat.created_at || 'N/A'}</td></tr>
+                   </table>
+               </div>
+               <div class="col-md-6">
+                   <h6>Message Content</h6>
+                   <div class="code-block">
+                       ${chat.message_text || 'No text content'}
+                   </div>
+               </div>
+           </div>
+       `;
+       
+       if (chat.message_data) {
+           detailsHtml += `
+               <div class="mt-3">
+                   <h6>Raw Message Data</h6>
+                   <pre class="code-block">${JSON.stringify(chat.message_data, null, 2)}</pre>
+               </div>
+           `;
+       }
+       
+       document.getElementById('message-details').innerHTML = detailsHtml;
+       new bootstrap.Modal(document.getElementById('messageModal')).show();
+   }
+   
+   // Refresh history
+   async function refreshHistory() {
+       try {
+           showNotification('กำลังโหลดประวัติแชทใหม่...', 'info');
+           window.location.reload();
+       } catch (error) {
+           showNotification('เกิดข้อผิดพลาดในการโหลดประวัติแชท', 'error');
+       }
+   }
+   
+   // Export history
+   async function exportHistory() {
+       try {
+           const result = await apiCall('/admin/export-data');
+           
+           if (result.status === 'success') {
+               const dataStr = JSON.stringify(result.data.chat_history, null, 2);
+               const dataBlob = new Blob([dataStr], {type: 'application/json'});
+               
+               const link = document.createElement('a');
+               link.href = URL.createObjectURL(dataBlob);
+               link.download = `chat-history-${new Date().toISOString().split('T')[0]}.json`;
+               link.click();
+               
+               showNotification('Export ประวัติแชทสำเร็จ', 'success');
+           } else {
+               showNotification('Export ล้มเหลว', 'error');
+           }
+       } catch (error) {
+           showNotification('เกิดข้อผิดพลาดในการ Export', 'error');
+       }
+   }
+   
+   // Cleanup old data
+   async function cleanupOldData() {
+       if (!confirm('คุณต้องการลบข้อมูลเก่าที่มีอายุมากกว่า 30 วันหรือไม่?')) {
+           return;
+       }
+       
+       try {
+           showNotification('กำลังทำความสะอาดข้อมูลเก่า...', 'info');
+           
+           const result = await apiCall('/admin/cleanup-old-data', {
+               method: 'POST'
+           });
+           
+           if (result.status === 'success') {
+               showNotification(result.message, 'success');
+               setTimeout(() => window.location.reload(), 2000);
+           } else {
+               showNotification(result.message, 'error');
+           }
+       } catch (error) {
+           showNotification('เกิดข้อผิดพลาดในการทำความสะอาดข้อมูล', 'error');
+       }
+   }
+   
+   // Initialize
+   document.addEventListener('DOMContentLoaded', function() {
+       updateStatistics();
+       
+       // Set up real-time search
+       let searchTimeout;
+       document.getElementById('filter-search').addEventListener('keyup', function() {
+           clearTimeout(searchTimeout);
+           searchTimeout = setTimeout(filterHistory, 300);
+       });
+   });
+</script>
+{% endblock %}
