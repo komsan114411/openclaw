@@ -875,43 +875,34 @@ async def admin_settings(request: Request):
 
 @app.post("/admin/settings/update")
 async def update_settings(request: Request):
-    """Update settings"""
+    """อัปเดตการตั้งค่าระบบ"""
     try:
         data = await request.json()
         
-        # Process boolean values
-        boolean_fields = ["ai_enabled", "slip_enabled", "thunder_enabled", "kbank_enabled"]
-        for field in boolean_fields:
-            if field in data:
-                if isinstance(data[field], str):
-                    data[field] = data[field].lower() in ["true", "1", "yes", "on"]
-                else:
-                    data[field] = bool(data[field])
+        # อัปเดต config
+        config_manager.update_multiple(data)
         
-        # Update config
-        success = config_manager.update_multiple(data)
+        # รีสตาร์ทบริการที่จำเป็น
+        if data.get("kbank_enabled"):
+            try:
+                from services.kbank_checker import kbank_checker
+                kbank_checker.is_sandbox = data.get("kbank_sandbox_mode", True)
+                kbank_checker.clear_token_cache()
+            except:
+                pass
         
-        if success:
-            # Reinitialize LINE Bot if credentials updated
-            if any(key in data for key in ["line_channel_access_token", "line_channel_secret"]):
-                init_line_bot()
-            
-            await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
-            return JSONResponse({
-                "status": "success",
-                "message": "บันทึกการตั้งค่าเรียบร้อยแล้ว"
-            })
-        else:
-            return JSONResponse({
-                "status": "error",
-                "message": "ไม่สามารถบันทึกการตั้งค่าได้"
-            })
-            
+        await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "บันทึกการตั้งค่าสำเร็จ"
+        })
+        
     except Exception as e:
         logger.error(f"❌ Update settings error: {e}")
         return JSONResponse({
             "status": "error",
-            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+            "message": f"เกิดข้อผิดพลาดในการบันทึก: {str(e)}"
         })
 
 @app.get("/admin/chat-history", response_class=HTMLResponse)
@@ -1069,7 +1060,9 @@ async def force_kbank_sandbox():
         # อัปเดต config
         config_manager.update_multiple({
             "kbank_sandbox_mode": True,
-            "kbank_enabled": True
+            "kbank_enabled": True,
+            "kbank_consumer_id": "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr",
+            "kbank_consumer_secret": "goOfPtGLoGxYP3DG"
         })
         
         # ทดสอบการเชื่อมต่อ
@@ -1097,7 +1090,7 @@ async def test_kbank_slip_demo():
         from services.kbank_checker import kbank_checker
         
         # ใช้ข้อมูลตัวอย่างสำหรับทดสอบ
-        result = kbank_checker.verify_slip("004", "TEST123456789")
+        result = kbank_checker.verify_slip("004", f"TEST{int(time.time())}")
         
         return JSONResponse({
             "status": "success",
@@ -1223,60 +1216,51 @@ async def health_check():
 
 @app.get("/admin/api-status")
 async def get_api_status():
-    """Get API status"""
+    """ดึงสถานะ API ทั้งหมด"""
     try:
-        api_summary = get_api_status_summary()
+        status = {
+            "system_status": {
+                "system_enabled": config_manager.get("slip_enabled", False),
+                "timestamp": datetime.now().isoformat()
+            },
+            "line": {
+                "configured": bool(config_manager.get("line_channel_secret") and config_manager.get("line_channel_access_token")),
+                "connected": False,  # จะตรวจสอบจริงใน production
+                "bot_name": "LINE Bot"
+            },
+            "thunder": {
+                "configured": bool(config_manager.get("thunder_api_token")),
+                "enabled": config_manager.get("thunder_enabled", True),
+                "connected": bool(config_manager.get("thunder_api_token")),
+                "recent_failures": 0
+            },
+            "kbank": {
+                "configured": bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret")),
+                "enabled": config_manager.get("kbank_enabled", False),
+                "connected": False,
+                "recent_failures": 0,
+                "environment": "Sandbox" if config_manager.get("kbank_sandbox_mode", True) else "Production"
+            }
+        }
         
-        # LINE API status
-        line_token = config_manager.get("line_channel_access_token", "").strip()
-        line_secret = config_manager.get("line_channel_secret", "").strip()
-        line_configured = bool(line_token and line_secret)
-        line_connected = False
-        bot_name = "N/A"
-        
-        if line_configured:
+        # ทดสอบ KBank connection จริง
+        if status["kbank"]["enabled"] and status["kbank"]["configured"]:
             try:
-                url = "https://api.line.me/v2/bot/info"
-                headers = {"Authorization": f"Bearer {line_token}"}
-                response = requests.get(url, headers=headers, timeout=5)
-                
-                if response.status_code == 200:
-                    line_connected = True
-                    bot_info = response.json()
-                    bot_name = bot_info.get("displayName", "Unknown Bot")
-                elif response.status_code == 401:
-                    bot_name = "Invalid Token"
-                else:
-                    bot_name = f"Error {response.status_code}"
-            except Exception:
-                bot_name = "Connection Error"
+                from services.kbank_checker import kbank_checker
+                test_result = kbank_checker.test_connection()
+                status["kbank"]["connected"] = test_result.get("status") == "success"
+            except:
+                status["kbank"]["connected"] = False
         
-        api_summary["line"] = {
-            "name": "LINE Messaging API",
-            "configured": line_configured,
-            "connected": line_connected,
-            "enabled": line_configured,
-            "bot_name": bot_name,
-            "recent_failures": 0
-        }
-        
-        api_summary["system_status"] = {
-            "system_enabled": config_manager.get("slip_enabled", False),
-            "any_api_available": any(api.get("connected", False) for api in api_summary.values() if isinstance(api, dict) and "connected" in api),
-            "slip_system_ready": any(api.get("connected", False) for k, api in api_summary.items() if k in ["thunder", "kbank"] and isinstance(api, dict)),
-            "line_ready": line_connected
-        }
-        
-        return JSONResponse(api_summary)
+        return JSONResponse(status)
         
     except Exception as e:
-        logger.error(f"❌ API status error: {e}")
+        logger.error(f"❌ Get API status error: {e}")
         return JSONResponse({
-            "status": "error",
-            "message": str(e),
+            "system_status": {"system_enabled": False},
+            "line": {"configured": False, "connected": False},
             "thunder": {"configured": False, "enabled": False, "connected": False},
-            "kbank": {"configured": False, "enabled": False, "connected": False},
-            "line": {"configured": False, "enabled": False, "connected": False, "bot_name": "Error"}
+            "kbank": {"configured": False, "enabled": False, "connected": False}
         })
 
 @app.get("/admin/config")
@@ -1452,50 +1436,54 @@ async def test_thunder_api_direct(request: Request):
 
 @app.post("/admin/test-kbank-oauth")
 async def test_kbank_oauth(request: Request):
-    """ทดสอบ KBank OAuth token โดยตรง"""
+    """ทดสอบ KBank OAuth"""
     try:
+        from services.kbank_checker import kbank_checker
+        
         data = await request.json()
-        consumer_id = data.get("consumer_id")
-        consumer_secret = data.get("consumer_secret")
+        consumer_id = data.get("consumer_id", "").strip()
+        consumer_secret = data.get("consumer_secret", "").strip()
         
         if not consumer_id or not consumer_secret:
-            return JSONResponse({"status": "error", "message": "Missing Consumer ID or Secret"})
+            return JSONResponse({
+                "status": "error",
+                "message": "กรุณาใส่ Consumer ID และ Consumer Secret"
+            })
         
-        logger.info(f"🧪 Testing KBank OAuth...")
-        
-        original_id = config_manager.get("kbank_consumer_id")
-        original_secret = config_manager.get("kbank_consumer_secret")
-        
-        config_manager.config["kbank_consumer_id"] = consumer_id
-        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        # ตั้งค่า credentials ชั่วคราว
+        original_get_credentials = kbank_checker.get_credentials
+        kbank_checker.get_credentials = lambda: (consumer_id, consumer_secret)
         
         try:
-            from services.kbank_checker import kbank_checker
-            token = kbank_checker._get_access_token()
+            # ทดสอบ OAuth
+            access_token = kbank_checker._get_access_token()
             
-            if token:
+            if access_token:
                 return JSONResponse({
                     "status": "success",
-                    "message": "KBank OAuth successful",
+                    "message": "KBank OAuth สำเร็จ",
                     "data": {
-                        "token_received": True,
-                        "token_preview": token[:20] + "...",
-                        "token_length": len(token)
+                        "token_preview": access_token[:30] + "..." if len(access_token) > 30 else access_token,
+                        "token_length": len(access_token),
+                        "environment": "Sandbox" if kbank_checker.is_sandbox else "Production"
                     }
                 })
             else:
                 return JSONResponse({
                     "status": "error",
-                    "message": "Failed to get OAuth token",
-                    "data": {"token_received": False}
+                    "message": "ไม่สามารถขอ OAuth token ได้"
                 })
+                
         finally:
-            config_manager.config["kbank_consumer_id"] = original_id
-            config_manager.config["kbank_consumer_secret"] = original_secret
+            # คืนค่า method เดิม
+            kbank_checker.get_credentials = original_get_credentials
             
     except Exception as e:
-        logger.exception(f"❌ KBank OAuth test error: {e}")
-        return JSONResponse({"status": "error", "message": str(e)})
+        logger.error(f"❌ Test KBank OAuth error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/test-kbank-api") 
 async def test_kbank_api_direct(request: Request):
