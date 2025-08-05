@@ -1,6 +1,9 @@
+
 import logging
 import re
 import time
+# เพิ่มในบรรทัดแรกของ services/enhanced_slip_checker.py
+from services.enhanced_slip_checker import get_detailed_api_status
 from typing import Dict, Any, Optional, List, Tuple
 from utils.config_manager import config_manager
 
