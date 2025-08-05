@@ -24,11 +24,9 @@ def init_database() -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Drop old table if exists and create new one
-    cursor.execute("DROP TABLE IF EXISTS chat_history")
-    
+    # Use CREATE TABLE IF NOT EXISTS to prevent data loss on restarts
     cursor.execute("""
-        CREATE TABLE chat_history (
+        CREATE TABLE IF NOT EXISTS chat_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
             direction TEXT NOT NULL,
@@ -52,7 +50,7 @@ def init_database() -> None:
     
     conn.commit()
     conn.close()
-    print("✅ Database initialized with new schema")
+    print("✅ Database initialized successfully")
 
 def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> None:
     """Save chat history with improved handling"""
