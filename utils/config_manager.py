@@ -1,3 +1,4 @@
+# utils/config_manager.py
 import os
 import json
 from typing import Dict, Any
@@ -44,8 +45,12 @@ class ConfigManager:
                     # ผสมค่า default กับค่าที่บันทึกไว้
                     # ให้ค่าที่บันทึกไว้มีความสำคัญกว่า env vars
                     for key, value in saved_config.items():
-                        if value:  # ถ้ามีค่าที่บันทึกไว้ ให้ใช้ค่านั้น
-                            default_config[key] = value
+                        if value or key in ['ai_enabled', 'slip_enabled', 'kbank_enabled']:  # รวม boolean fields
+                            # แปลง boolean อย่างถูกต้อง
+                            if key in ['ai_enabled', 'slip_enabled', 'kbank_enabled']:
+                                default_config[key] = self._parse_bool(value)
+                            else:
+                                default_config[key] = value
                     
                     logger.info(f"✅ Loaded config from {self.config_file}")
                     logger.info(f"  - AI Prompt length: {len(default_config.get('ai_prompt', ''))} chars")
@@ -58,11 +63,22 @@ class ConfigManager:
         
         return default_config
     
-    def _parse_bool(self, value: str) -> bool:
-        """แปลง string เป็น boolean"""
+    def _parse_bool(self, value: Any) -> bool:
+        """แปลง string เป็น boolean อย่างถูกต้อง"""
         if isinstance(value, bool):
             return value
-        return str(value).lower() in ["true", "1", "yes", "on", "enabled"]
+        if isinstance(value, str):
+            # แปลงเป็นตัวเล็กแล้วเช็ค
+            value_lower = value.lower().strip()
+            if value_lower in ["true", "1", "yes", "on", "enabled"]:
+                return True
+            elif value_lower in ["false", "0", "no", "off", "disabled", ""]:
+                return False
+            else:
+                # ถ้าไม่ใช่ค่าที่รู้จัก ให้ใช้ Python's truthiness
+                return bool(value)
+        # สำหรับประเภทอื่น ๆ ใช้ bool() ปกติ
+        return bool(value)
     
     def save_config_to_file(self, config_data: Dict[str, Any]) -> bool:
         """บันทึก config ลงไฟล์"""
@@ -85,6 +101,11 @@ class ConfigManager:
     def update(self, key: str, value: Any) -> bool:
         """อัปเดตค่า config และบันทึก"""
         old_value = self.config.get(key)
+        
+        # แปลง boolean อย่างถูกต้องสำหรับ boolean fields
+        if key in ['ai_enabled', 'slip_enabled', 'kbank_enabled']:
+            value = self._parse_bool(value)
+        
         self.config[key] = value
         success = self.save_config()
         if success:
@@ -101,15 +122,23 @@ class ConfigManager:
         # เก็บค่าเดิมไว้ log
         old_values = {k: self.config.get(k) for k in updates.keys()}
         
+        # แปลง boolean fields อย่างถูกต้อง
+        processed_updates = {}
+        for key, value in updates.items():
+            if key in ['ai_enabled', 'slip_enabled', 'kbank_enabled']:
+                processed_updates[key] = self._parse_bool(value)
+            else:
+                processed_updates[key] = value
+        
         # อัปเดตค่าใหม่
-        self.config.update(updates)
+        self.config.update(processed_updates)
         
         # บันทึกลงไฟล์
         success = self.save_config()
         
         if success:
             # Log การเปลี่ยนแปลง
-            for key, new_value in updates.items():
+            for key, new_value in processed_updates.items():
                 old_val = old_values.get(key)
                 if key == 'ai_prompt':
                     logger.info(f"✅ Updated AI Prompt: {len(str(old_val or ''))} chars -> {len(str(new_value))} chars")
@@ -154,6 +183,9 @@ class ConfigManager:
         logger.info(f"  - OpenAI: {'✅ Set' if self.get('openai_api_key') else '❌ Not set'}")
         logger.info(f"  - KBank Consumer ID: {'✅ Set' if self.get('kbank_consumer_id') else '❌ Not set'}")
         logger.info(f"  - KBank Consumer Secret: {'✅ Set' if self.get('kbank_consumer_secret') else '❌ Not set'}")
+        logger.info(f"  - AI Enabled: {'✅ True' if self.get('ai_enabled') else '❌ False'}")
+        logger.info(f"  - Slip Enabled: {'✅ True' if self.get('slip_enabled') else '❌ False'}")
+        logger.info(f"  - KBank Enabled: {'✅ True' if self.get('kbank_enabled') else '❌ False'}")
 
 # สร้าง instance เดียวใช้ทั่วระบบ
 config_manager = ConfigManager()
