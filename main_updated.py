@@ -1070,6 +1070,49 @@ async def get_config_value(request: Request):
         return JSONResponse({"status": "success", "key": key, "value": value})
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-sandbox")
+async def test_kbank_sandbox(request: Request):
+    """ทดสอบ KBank Sandbox API โดยเฉพาะ"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id", "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr")
+        consumer_secret = data.get("consumer_secret", "goOfPtGLoGxYP3DG") 
+        bank_id = data.get("bank_id", "004")
+        trans_ref = data.get("trans_ref", "TEST123456789")
+        
+        logger.info(f"🧪 Testing KBank Sandbox API...")
+        
+        # Set temporary credentials
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        original_enabled = config_manager.get("kbank_enabled")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        config_manager.config["kbank_enabled"] = True
+        
+        try:
+            from services.kbank_checker import kbank_checker
+            result = kbank_checker.verify_slip(bank_id, trans_ref)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ KBank Sandbox API เสร็จสิ้น", "info")
+            
+            return JSONResponse({
+                "status": "success" if result.get("status") == "success" else "error",
+                "message": "KBank Sandbox API test completed", 
+                "data": result,
+                "sandbox_note": "This is using KBank Sandbox environment for testing"
+            })
+        finally:
+            # Restore original values
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+            config_manager.config["kbank_enabled"] = original_enabled
+        
+    except Exception as e:
+        logger.exception(f"❌ KBank Sandbox API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
         
 @app.post("/admin/test-thunder-api")
 async def test_thunder_api_direct(request: Request):
