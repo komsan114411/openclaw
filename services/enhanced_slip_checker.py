@@ -1,9 +1,11 @@
-# services/enhanced_slip_checker.py
 import logging
 import re
 import time
 from typing import Dict, Any, Optional, List, Tuple
 from utils.config_manager import config_manager
+# นำเข้าโมดูลทั้งหมดที่นี่เพื่อป้องกัน NameError
+from services.slip_checker import verify_slip_with_thunder
+from services.kbank_checker import kbank_checker
 
 logger = logging.getLogger("enhanced_slip_checker")
 
@@ -117,12 +119,8 @@ def verify_slip_multiple_providers(message_id: str = None,
     
     if thunder_enabled and thunder_token:
         try:
-            # ลองนำเข้า Thunder module
-            from services.slip_checker import verify_slip_with_thunder
             available_apis.append(("thunder", "Thunder API"))
             logger.info("✅ Thunder API available")
-        except ImportError as e:
-            logger.error(f"❌ Thunder API import failed: {e}")
         except Exception as e:
             logger.error(f"❌ Thunder API error: {e}")
     else:
@@ -135,11 +133,8 @@ def verify_slip_multiple_providers(message_id: str = None,
     
     if kbank_enabled and kbank_consumer_id and kbank_consumer_secret:
         try:
-            from services.kbank_checker import kbank_checker
             available_apis.append(("kbank", "KBank API"))
             logger.info("✅ KBank API available")
-        except ImportError as e:
-            logger.error(f"❌ KBank API import failed: {e}")
         except Exception as e:
             logger.error(f"❌ KBank API error: {e}")
     else:
@@ -170,7 +165,6 @@ def verify_slip_multiple_providers(message_id: str = None,
             if api_name == "thunder":
                 # ใช้ Thunder API
                 if message_id or test_image_data:
-                    from services.slip_checker import verify_slip_with_thunder
                     result = verify_slip_with_thunder(message_id, test_image_data)
                 else:
                     logger.info("⏭️ Skipping Thunder API - no image data")
@@ -179,20 +173,17 @@ def verify_slip_multiple_providers(message_id: str = None,
             elif api_name == "kbank":
                 # ใช้ KBank API
                 if bank_code and trans_ref:
-                    from services.kbank_checker import kbank_checker
                     result = kbank_checker.verify_slip(bank_code, trans_ref)
                 elif message_id or test_image_data:
                     # ลองดึงข้อมูลธนาคารจากรูปภาพด้วย Thunder ก่อน
                     logger.info("🔍 Extracting bank data for KBank API")
                     try:
-                        from services.slip_checker import verify_slip_with_thunder
                         thunder_result = verify_slip_with_thunder(message_id, test_image_data)
                         if thunder_result.get("status") == "success":
                             # ใช้ข้อมูลจาก Thunder เพื่อเรียก KBank
                             extracted_bank = thunder_result['data'].get('sender_bank_id', '')
                             extracted_ref = thunder_result['data'].get('reference', '')
                             if extracted_bank and extracted_ref:
-                                from services.kbank_checker import kbank_checker
                                 result = kbank_checker.verify_slip(extracted_bank, extracted_ref)
                             else:
                                 logger.info("⏭️ Could not extract bank data for KBank")
@@ -280,7 +271,6 @@ def convert_bank_name_to_code(bank_name: str) -> Optional[str]:
 def call_thunder_api(message_id: str = None, test_image_data: Optional[bytes] = None) -> Dict[str, Any]:
     """เรียกใช้ Thunder API"""
     try:
-        from services.slip_checker import verify_slip_with_thunder
         return verify_slip_with_thunder(message_id, test_image_data)
     except ImportError:
         return {"status": "error", "message": "Thunder API module not available"}
@@ -290,7 +280,6 @@ def call_thunder_api(message_id: str = None, test_image_data: Optional[bytes] = 
 def call_kbank_api(bank_code: str, trans_ref: str) -> Dict[str, Any]:
     """เรียกใช้ KBank API"""
     try:
-        from services.kbank_checker import kbank_checker
         return kbank_checker.verify_slip(bank_code, trans_ref)
     except ImportError:
         return {"status": "error", "message": "KBank API module not available"}
