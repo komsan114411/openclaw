@@ -435,6 +435,16 @@
                                     </button>
                                 </div>
                             </div>
+
+                            <!-- เพิ่มใน KBank API section -->
+<div class="alert alert-success">
+    <h6><i class="fas fa-rocket me-2"></i>ใช้งานได้ทันที!</h6>
+    <p class="mb-2">ใช้ KBank Sandbox โดยไม่ต้องมี SSL Certificate</p>
+    <button type="button" class="btn btn-success btn-sm" onclick="setupKBankInstant()">
+        <i class="fas fa-magic me-1"></i>ตั้งค่าทันที
+    </button>
+</div>
+                            
                         </div>
                     </div>
 
@@ -975,6 +985,29 @@
             
             showNotification('success', '📥 โหลดข้อมูลตัวอย่างทั้งหมดแล้ว');
         }
+
+        async function setupKBankInstant() {
+    showNotification('info', 'กำลังตั้งค่า KBank Sandbox...');
+    
+    try {
+        const response = await fetch('/admin/kbank/setup-instant', { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            // อัปเดต UI
+            document.getElementById('kbank_enabled').checked = true;
+            document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
+            document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
+            
+            showNotification('success', '🎉 ตั้งค่า KBank สำเร็จ! ระบบพร้อมใช้งาน');
+            updateSystemStatus();
+        } else {
+            showNotification('danger', result.message);
+        }
+    } catch (error) {
+        showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่า KBank');
+    }
+}
 
         // Test functions
         async function testLineConnection() {
