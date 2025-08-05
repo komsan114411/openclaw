@@ -893,6 +893,41 @@ async def health_check():
         "active_connections": len(notification_manager.active_connections)
     })
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_home(request: Request):
+    """Admin home page"""
+    try:
+        total_count = database_functions['get_chat_history_count']()
+        api_statuses = get_api_status_summary()
+        system_enabled = config_manager.get("slip_enabled", False)
+        any_api_available = any(api.get("enabled", False) and api.get("configured", False) for api in api_statuses.values())
+
+        return templates.TemplateResponse(
+            "admin_home.html", # Corrected template name
+            {
+                "request": request,
+                "config": config_manager,
+                "total_chat_history": total_count,
+                "system_status": {
+                    "system_enabled": system_enabled,
+                    "any_api_available": any_api_available
+                },
+                "api_statuses": api_statuses
+            },
+        )
+    except Exception as e:
+        logger.error(f"❌ Admin home error: {e}")
+        return templates.TemplateResponse(
+            "admin_home.html", # Corrected template name
+            {
+                "request": request,
+                "config": config_manager,
+                "total_chat_history": 0,
+                "system_status": {"system_enabled": False, "any_api_available": False},
+                "api_statuses": {}
+            },
+        )
+
 @app.get("/admin/api-status")
 async def get_api_status():
     """Get API status"""
