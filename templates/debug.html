@@ -31,10 +31,13 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="thunderToken" class="form-label">API Token</label>
-                            <input type="text" class="form-control" id="thunderToken" placeholder="Thunder API Token">
-                            <button class="btn btn-sm btn-outline-secondary mt-1" onclick="loadThunderConfig()">
-                                <i class="fas fa-download me-1"></i>ดึงจาก Config
-                            </button>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="thunderToken" placeholder="Loading...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="loadThunderConfig()">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Auto-loaded from config</small>
                         </div>
                         <div class="mb-3">
                             <label for="thunderFile" class="form-label">รูปสลิป</label>
@@ -55,15 +58,29 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="kbankConsumerId" class="form-label">Consumer ID</label>
-                            <input type="text" class="form-control" id="kbankConsumerId" placeholder="KBank Consumer ID">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="kbankConsumerId" placeholder="Loading...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="loadKBankConfig()">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="kbankConsumerSecret" class="form-label">Consumer Secret</label>
-                            <input type="text" class="form-control" id="kbankConsumerSecret" placeholder="KBank Consumer Secret">
-                            <button class="btn btn-sm btn-outline-secondary mt-1" onclick="loadKBankConfig()">
-                                <i class="fas fa-download me-1"></i>ดึงจาก Config
-                            </button>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="kbankConsumerSecret" placeholder="Loading...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="loadKBankConfig()">
+                                    <i class="fas fa-sync"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Auto-loaded from config</small>
                         </div>
+                        
+                        <!-- ปุ่มทดสอบ OAuth -->
+                        <button class="btn btn-info w-100 mb-2" onclick="testKBankOAuth()">
+                            <i class="fas fa-key me-1"></i>ทดสอบ OAuth Token
+                        </button>
+                        
                         <div class="mb-3">
                             <label for="kbankBankId" class="form-label">Bank ID</label>
                             <input type="text" class="form-control" id="kbankBankId" placeholder="004" value="004">
@@ -102,8 +119,8 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5><i class="fas fa-terminal me-2"></i>Debug Log</h5>
                         <div>
-                            <button class="btn btn-sm btn-outline-success me-2" onclick="loadConfigValues()">
-                                <i class="fas fa-sync me-1"></i>Load Config
+                            <button class="btn btn-sm btn-outline-success me-2" onclick="loadAllConfigs()">
+                                <i class="fas fa-sync me-1"></i>Reload All
                             </button>
                             <button class="btn btn-sm btn-outline-secondary" onclick="clearLog()">
                                 <i class="fas fa-trash me-1"></i>Clear
@@ -119,51 +136,15 @@ Ready for testing...
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-    <div class="card">
-        <div class="card-header">
-            <h5><i class="fas fa-university me-2"></i>ทดสอบ KBank API</h5>
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label for="kbankConsumerId" class="form-label">Consumer ID</label>
-                <input type="text" class="form-control" id="kbankConsumerId" placeholder="KBank Consumer ID">
-            </div>
-            <div class="mb-3">
-                <label for="kbankConsumerSecret" class="form-label">Consumer Secret</label>
-                <input type="text" class="form-control" id="kbankConsumerSecret" placeholder="KBank Consumer Secret">
-                <button class="btn btn-sm btn-outline-secondary mt-1" onclick="loadKBankConfig()">
-                    <i class="fas fa-download me-1"></i>ดึงจาก Config
-                </button>
-            </div>
-            
-            <!-- เพิ่มปุ่มทดสอบ OAuth -->
-            <button class="btn btn-info w-100 mb-2" onclick="testKBankOAuth()">
-                <i class="fas fa-key me-1"></i>ทดสอบ OAuth Token
-            </button>
-            
-            <div class="mb-3">
-                <label for="kbankBankId" class="form-label">Bank ID</label>
-                <input type="text" class="form-control" id="kbankBankId" placeholder="004" value="004">
-            </div>
-            <div class="mb-3">
-                <label for="kbankTransRef" class="form-label">Transaction Reference</label>
-                <input type="text" class="form-control" id="kbankTransRef" placeholder="Transaction Reference">
-            </div>
-            <button class="btn btn-primary w-100" onclick="testKBankAPI()">
-                <i class="fas fa-university me-1"></i>ทดสอบ KBank API
-            </button>
-        </div>
-    </div>
-</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let configData = {};
 
         document.addEventListener('DOMContentLoaded', function() {
+            log('Debug Console initialized', 'info');
             updateAPIStatus();
-            loadConfigValues();
+            loadAllConfigs();
             setInterval(updateAPIStatus, 10000);
         });
 
@@ -179,53 +160,81 @@ Ready for testing...
             document.getElementById('debugLog').textContent = 'Log cleared...';
         }
 
+        async function loadAllConfigs() {
+            log('Loading all configurations...', 'info');
+            await loadConfigValues();
+            await loadThunderConfig();
+            await loadKBankConfig();
+            log('All configurations loaded', 'success');
+        }
+
         async function loadConfigValues() {
             try {
                 const response = await fetch('/admin/debug-config');
                 const data = await response.json();
                 configData = data;
                 
-                log('Config values loaded from backend', 'success');
+                log('Config metadata loaded from backend', 'success');
                 log(`Thunder Token: ${data.config_values?.thunder_token ? 'SET' : 'NOT SET'}`);
                 log(`KBank Consumer ID: ${data.config_values?.kbank_consumer_id ? 'SET' : 'NOT SET'}`);
                 log(`KBank Consumer Secret: ${data.config_values?.kbank_consumer_secret ? 'SET' : 'NOT SET'}`);
-                log(`LINE Token: ${data.config_values?.line_token ? 'SET' : 'NOT SET'}`);
                 
             } catch (error) {
-                log(`Failed to load config: ${error.message}`, 'error');
+                log(`Failed to load config metadata: ${error.message}`, 'error');
             }
         }
 
-        function loadThunderConfig() {
-            if (configData.config_values?.thunder_token) {
-                // ดึง token เต็มจาก API
-                fetch('/admin/get-config-value?key=thunder_api_token')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.value) {
-                            document.getElementById('thunderToken').value = data.value;
-                            log('Thunder token loaded from config', 'success');
-                        }
-                    })
-                    .catch(error => log(`Failed to load Thunder token: ${error.message}`, 'error'));
-            } else {
-                log('Thunder token not configured', 'warning');
+        async function loadThunderConfig() {
+            try {
+                const response = await fetch('/admin/get-config-value?key=thunder_api_token');
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.value) {
+                    document.getElementById('thunderToken').value = data.value;
+                    log(`Thunder token loaded: ${data.value.substring(0, 20)}...`, 'success');
+                } else {
+                    document.getElementById('thunderToken').value = '';
+                    document.getElementById('thunderToken').placeholder = 'Thunder token not configured';
+                    log('Thunder token not configured', 'warning');
+                }
+            } catch (error) {
+                log(`Failed to load Thunder token: ${error.message}`, 'error');
+                document.getElementById('thunderToken').placeholder = 'Failed to load';
             }
         }
 
-        function loadKBankConfig() {
-            if (configData.config_values?.kbank_consumer_id) {
-                // ดึง credentials เต็มจาก API
-                Promise.all([
-                    fetch('/admin/get-config-value?key=kbank_consumer_id').then(r => r.json()),
-                    fetch('/admin/get-config-value?key=kbank_consumer_secret').then(r => r.json())
-                ]).then(([idData, secretData]) => {
-                    if (idData.value) document.getElementById('kbankConsumerId').value = idData.value;
-                    if (secretData.value) document.getElementById('kbankConsumerSecret').value = secretData.value;
-                    log('KBank credentials loaded from config', 'success');
-                }).catch(error => log(`Failed to load KBank credentials: ${error.message}`, 'error'));
-            } else {
-                log('KBank credentials not configured', 'warning');
+        async function loadKBankConfig() {
+            try {
+                const [idResponse, secretResponse] = await Promise.all([
+                    fetch('/admin/get-config-value?key=kbank_consumer_id'),
+                    fetch('/admin/get-config-value?key=kbank_consumer_secret')
+                ]);
+                
+                const idData = await idResponse.json();
+                const secretData = await secretResponse.json();
+                
+                if (idData.status === 'success' && idData.value) {
+                    document.getElementById('kbankConsumerId').value = idData.value;
+                    log(`KBank Consumer ID loaded: ${idData.value.substring(0, 20)}...`, 'success');
+                } else {
+                    document.getElementById('kbankConsumerId').value = '';
+                    document.getElementById('kbankConsumerId').placeholder = 'Consumer ID not configured';
+                    log('KBank Consumer ID not configured', 'warning');
+                }
+                
+                if (secretData.status === 'success' && secretData.value) {
+                    document.getElementById('kbankConsumerSecret').value = secretData.value;
+                    log(`KBank Consumer Secret loaded: ${secretData.value.substring(0, 20)}...`, 'success');
+                } else {
+                    document.getElementById('kbankConsumerSecret').value = '';
+                    document.getElementById('kbankConsumerSecret').placeholder = 'Consumer Secret not configured';
+                    log('KBank Consumer Secret not configured', 'warning');
+                }
+                
+            } catch (error) {
+                log(`Failed to load KBank credentials: ${error.message}`, 'error');
+                document.getElementById('kbankConsumerId').placeholder = 'Failed to load';
+                document.getElementById('kbankConsumerSecret').placeholder = 'Failed to load';
             }
         }
 
@@ -286,7 +295,7 @@ Ready for testing...
                 return;
             }
             
-            log('Testing Thunder API...');
+            log('Testing Thunder API...', 'info');
             
             try {
                 const formData = new FormData();
@@ -302,7 +311,8 @@ Ready for testing...
                 
                 if (result.status === 'success') {
                     log('Thunder API test successful!', 'success');
-                    log(`Result: ${JSON.stringify(result.data, null, 2)}`);
+                    log(`Amount: ${result.data?.data?.amount_display || 'N/A'}`);
+                    log(`Bank: ${result.data?.data?.sender_bank || 'N/A'} -> ${result.data?.data?.receiver_bank || 'N/A'}`);
                 } else {
                     log(`Thunder API test failed: ${result.message}`, 'error');
                 }
@@ -313,39 +323,41 @@ Ready for testing...
         }
 
         async function testKBankOAuth() {
-    const consumerId = document.getElementById('kbankConsumerId').value.trim();
-    const consumerSecret = document.getElementById('kbankConsumerSecret').value.trim();
-    
-    if (!consumerId || !consumerSecret) {
-        log('Consumer ID and Secret are required for OAuth test', 'error');
-        return;
-    }
-    
-    log('Testing KBank OAuth...');
-    
-    try {
-        const response = await fetch('/admin/test-kbank-oauth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                consumer_id: consumerId,
-                consumer_secret: consumerSecret
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-            log('KBank OAuth test successful!', 'success');
-            log(`Token received: ${result.data.token_preview}`);
-        } else {
-            log(`KBank OAuth test failed: ${result.message}`, 'error');
+            const consumerId = document.getElementById('kbankConsumerId').value.trim();
+            const consumerSecret = document.getElementById('kbankConsumerSecret').value.trim();
+            
+            if (!consumerId || !consumerSecret) {
+                log('Consumer ID and Secret are required for OAuth test', 'error');
+                return;
+            }
+            
+            log('Testing KBank OAuth...', 'info');
+            log(`Consumer ID: ${consumerId.substring(0, 20)}...`);
+            
+            try {
+                const response = await fetch('/admin/test-kbank-oauth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        consumer_id: consumerId,
+                        consumer_secret: consumerSecret
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    log('KBank OAuth test successful!', 'success');
+                    log(`Token preview: ${result.data.token_preview}`);
+                    log(`Token length: ${result.data.token_length} characters`);
+                } else {
+                    log(`KBank OAuth test failed: ${result.message}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`KBank OAuth test error: ${error.message}`, 'error');
+            }
         }
-        
-    } catch (error) {
-        log(`KBank OAuth test error: ${error.message}`, 'error');
-    }
-}
 
         async function testKBankAPI() {
             const consumerId = document.getElementById('kbankConsumerId').value.trim();
@@ -358,7 +370,8 @@ Ready for testing...
                 return;
             }
             
-            log('Testing KBank API...');
+            log('Testing KBank Slip Verification API...', 'info');
+            log(`Bank ID: ${bankId}, Transaction Ref: ${transRef}`);
             
             try {
                 const response = await fetch('/admin/test-kbank-api', {
@@ -376,7 +389,9 @@ Ready for testing...
                 
                 if (result.status === 'success') {
                     log('KBank API test successful!', 'success');
-                    log(`Result: ${JSON.stringify(result.data, null, 2)}`);
+                    log(`Amount: ${result.data?.data?.amount_display || 'N/A'}`);
+                    log(`Sender: ${result.data?.data?.sender || 'N/A'}`);
+                    log(`Receiver: ${result.data?.data?.receiver_name || 'N/A'}`);
                 } else {
                     log(`KBank API test failed: ${result.message}`, 'error');
                 }
