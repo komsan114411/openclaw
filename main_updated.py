@@ -778,6 +778,41 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         notification_manager.disconnect(websocket)
 
+@app.get("/admin/debug-config-detailed")
+async def debug_config_detailed():
+    """Debug configuration in detail"""
+    try:
+        config_status = {
+            "ai_system": {
+                "ai_enabled": config_manager.get("ai_enabled"),
+                "ai_enabled_type": type(config_manager.get("ai_enabled")).__name__,
+                "openai_api_key": "SET" if config_manager.get("openai_api_key") else "NOT_SET",
+                "openai_key_length": len(config_manager.get("openai_api_key", "")),
+                "ai_prompt": "SET" if config_manager.get("ai_prompt") else "NOT_SET",
+                "ai_prompt_length": len(config_manager.get("ai_prompt", ""))
+            },
+            "slip_system": {
+                "slip_enabled": config_manager.get("slip_enabled"),
+                "slip_enabled_type": type(config_manager.get("slip_enabled")).__name__,
+                "thunder_api_token": "SET" if config_manager.get("thunder_api_token") else "NOT_SET",
+                "thunder_token_length": len(config_manager.get("thunder_api_token", "")),
+                "kbank_enabled": config_manager.get("kbank_enabled"),
+                "kbank_consumer_id": "SET" if config_manager.get("kbank_consumer_id") else "NOT_SET",
+                "kbank_consumer_secret": "SET" if config_manager.get("kbank_consumer_secret") else "NOT_SET"
+            },
+            "line_system": {
+                "line_channel_access_token": "SET" if config_manager.get("line_channel_access_token") else "NOT_SET",
+                "line_token_length": len(config_manager.get("line_channel_access_token", "")),
+                "line_channel_secret": "SET" if config_manager.get("line_channel_secret") else "NOT_SET",
+            },
+            "raw_config": {k: v if k not in ['openai_api_key', 'thunder_api_token', 'line_channel_access_token', 'line_channel_secret', 'kbank_consumer_id', 'kbank_consumer_secret'] else "[HIDDEN]" for k, v in config_manager.config.items()}
+        }
+        
+        return JSONResponse(content=config_status)
+        
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)})
+
 @app.post("/line/webhook")
 async def line_webhook(request: Request, x_line_signature: str = Header(None)) -> JSONResponse:
     """LINE webhook endpoint"""
