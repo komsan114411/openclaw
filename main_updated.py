@@ -550,43 +550,122 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
         await send_message_safe(user_id, reply_token, error_msg, "bot_error")
 
+# แก้ไข handle_slip_verification ใน main_updated.py
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
-    """จัดการตรวจสอบสลิป (ปรับปรุงใหม่)"""
+    """จัดการตรวจสอบสลิป (Fixed version with better error handling)"""
     try:
-        logger.info(f"🔍 Processing slip verification for user {user_id[:8]}...")
+        logger.info(f"🔍 === SLIP VERIFICATION HANDLER START ===")
+        logger.info(f"🔍 User: {user_id[:8]}...")
+        logger.info(f"🔍 Reply token: {'SET' if reply_token else 'NOT SET'}")
+        logger.info(f"🔍 Message ID: {'SET' if message_id else 'NOT SET'}")
+        logger.info(f"🔍 Slip info: {slip_info}")
         
+        # ตรวจสอบว่าระบบตรวจสอบสลิปเปิดอยู่
         slip_enabled = config_manager.get("slip_enabled", False)
         if not slip_enabled:
+            logger.warning("❌ Slip verification system is disabled")
             await send_message_safe(user_id, reply_token, "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งานชั่วคราว", "system_error")
+            return
+        
+        # ตรวจสอบว่ามี API ที่พร้อมใช้งาน
+        thunder_enabled = config_manager.get("thunder_enabled", True)
+        thunder_token = config_manager.get("thunder_api_token", "").strip()
+        kbank_enabled = config_manager.get("kbank_enabled", False)
+        kbank_configured = bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"))
+        
+        logger.info(f"🔧 API Status:")
+        logger.info(f"   - Thunder: enabled={thunder_enabled}, token={'SET' if thunder_token else 'NOT SET'}")
+        logger.info(f"   - KBank: enabled={kbank_enabled}, configured={kbank_configured}")
+        
+        if not thunder_enabled and not kbank_enabled:
+            await send_message_safe(user_id, reply_token, "ระบบตรวจสอบสลิปถูกปิดใช้งาน", "system_error")
+            return
+            
+        if not thunder_token and not kbank_configured:
+            await send_message_safe(user_id, reply_token, "ระบบตรวจสอบสลิปยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแล", "system_error")
             return
 
         # แจ้งผู้ใช้ว่ากำลังตรวจสอบ
-        await send_line_reply(reply_token, "กรุณารอสักครู่ ระบบกำลังตรวจสอบสลิป...", "system")
+        processing_msg = "🔍 กรุณารอสักครู่... ระบบกำลังตรวจสอบสลิป"
+        success = await send_line_reply(reply_token, processing_msg)
+        logger.info(f"📤 Processing message sent: {success}")
 
         # เรียกใช้ระบบตรวจสอบสลิป
-        if slip_info:
-            result = await asyncio.to_thread(verify_slip_multiple_providers, None, None, slip_info.get("bank_code"), slip_info.get("trans_ref"))
+        logger.info("🚀 Calling slip verification system...")
+        
+        if slip_info and slip_info.get("bank_code") and slip_info.get("trans_ref"):
+            logger.info(f"📝 Using slip info: bank={slip_info.get('bank_code')}, ref={slip_info.get('trans_ref')}")
+            result = await asyncio.to_thread(
+                verify_slip_multiple_providers, 
+                None, None, 
+                slip_info.get("bank_code"), 
+                slip_info.get("trans_ref")
+            )
         elif message_id:
-            result = await asyncio.to_thread(verify_slip_multiple_providers, message_id=message_id)
+            logger.info(f"📷 Using image message ID: {message_id}")
+            result = await asyncio.to_thread(
+                verify_slip_multiple_providers, 
+                message_id=message_id
+            )
         else:
+            logger.error("❌ No slip info or message ID provided")
             await send_line_push(user_id, "❌ ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน")
             return
         
-        # ประมวลผลผลลัพธ์และสร้างข้อความตอบกลับ
-        if result.get("status") in ["success", "duplicate"]:
+        logger.info(f"📊 === SLIP VERIFICATION RESULT ===")
+        logger.info(f"📊 Result status: {result.get('status') if result else 'None'}")
+        logger.info(f"📊 Result message: {result.get('message') if result else 'None'}")
+        logger.info(f"📊 Result data keys: {list(result.get('data', {}).keys()) if result and result.get('data') else 'None'}")
+        
+        # ประมวลผลผลลัพธ์
+        if result and result.get("status") in ["success", "duplicate"]:
             reply_message = create_slip_reply_message(result)
-            await send_line_push(user_id, reply_message) # ใช้ push เพื่อส่งข้อความใหม่
-            logger.info(f"✅ Slip verification result sent to user {user_id[:8]}")
+            logger.info("✅ Slip verification successful, sending result...")
+            logger.info(f"✅ Reply message length: {len(reply_message)} characters")
+            
+            # ส่งผลลัพธ์
+            push_success = await send_line_push(user_id, reply_message)
+            if push_success:
+                logger.info(f"✅ Slip verification result sent to user {user_id[:8]}")
+                
+                # บันทึกประวัติ
+                try:
+                    save_chat_history(user_id, "out", {"type": "text", "text": reply_message}, sender="slip_bot")
+                    logger.info("✅ Slip result saved to history")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save slip result: {e}")
+            else:
+                logger.error(f"❌ Failed to send slip result to user {user_id[:8]}")
+                # ลองส่งข้อความสั้น ๆ แทน
+                short_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {result.get('data', {}).get('amount_display', 'N/A')}\n🔍 ตรวจสอบโดย: {result.get('data', {}).get('verified_by', 'ระบบ')}"
+                await send_line_push(user_id, short_msg)
+                
         else:
             # กรณีเกิดข้อผิดพลาด
-            error_msg = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\nสาเหตุ: {result.get('message', 'ไม่ทราบสาเหตุ')}"
-            await send_line_push(user_id, error_msg)
-            logger.error(f"❌ Slip verification failed for {user_id[:8]}: {result.get('message')}")
+            error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
+            suggestions = result.get('suggestions', []) if result else []
+            
+            full_error_msg = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\nสาเหตุ: {error_msg}"
+            
+            if suggestions:
+                full_error_msg += "\n\n💡 คำแนะนำ:\n" + "\n".join([f"• {s}" for s in suggestions[:3]])
+            
+            logger.error(f"❌ Slip verification failed: {error_msg}")
+            await send_line_push(user_id, full_error_msg)
+            
+            # บันทึกประวัติ error
+            try:
+                save_chat_history(user_id, "out", {"type": "text", "text": full_error_msg}, sender="slip_bot_error")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to save error history: {e}")
+        
+        logger.info(f"🔍 === SLIP VERIFICATION HANDLER END ===")
         
     except Exception as e:
-        logger.error(f"❌ Critical slip verification error: {e}")
+        logger.exception(f"💥 Critical slip verification error: {e}")
         error_msg = "เกิดข้อผิดพลาดร้ายแรงในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล"
         await send_line_push(user_id, error_msg)
+        await notification_manager.send_notification(f"💥 Slip verification critical error: {str(e)}", "error")
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
     """Process LINE event (Simplified and more robust)"""
