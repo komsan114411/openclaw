@@ -1,19 +1,19 @@
-# services/chat_bot.py
+# services/chat_bot.py - Updated for stable config
 import logging
 import requests
 import json
 from typing import Dict, Any, List
-from utils.config_manager import config_manager
-from models.database import get_user_chat_history
+from utils.stable_config_manager import config_manager
+from models.postgres_database import get_user_chat_history
 
 logger = logging.getLogger("chat_bot_service")
 
 def get_chat_response(text: str, user_id: str) -> str:
-    """แก้ไขปัญหาการตรวจสอบ AI enabled"""
+    """Enhanced chat response with stable configuration"""
     try:
-        # ตรวจสอบการตั้งค่า AI อย่างละเอียด
-        ai_enabled = config_manager.get("ai_enabled")
-        api_key = config_manager.get("openai_api_key")
+        # ตรวจสอบการตั้งค่า AI อย่างละเอียดด้วย stable config
+        ai_enabled = config_manager.get("ai_enabled", False)
+        api_key = config_manager.get("openai_api_key", "").strip()
         ai_prompt = config_manager.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ")
         
         logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
@@ -23,7 +23,7 @@ def get_chat_response(text: str, user_id: str) -> str:
             logger.info("🚫 AI disabled by configuration")
             return "ระบบ AI ถูกปิดการใช้งานค่ะ"
             
-        if not api_key or len(api_key.strip()) < 10:
+        if not api_key or len(api_key) < 10:
             logger.info("🚫 OpenAI API key not configured")
             return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
 
@@ -35,20 +35,20 @@ def get_chat_response(text: str, user_id: str) -> str:
             {"role": "user", "content": text}
         ]
 
-        # เรียก OpenAI API
+        # เรียก OpenAI API ด้วย enhanced error handling
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         payload: Dict[str, Any] = {
-            "model": "gpt-3.5-turbo",
+            "model": config_manager.get("openai_model", "gpt-3.5-turbo"),
             "messages": messages,
-            "max_tokens": 150,
-            "temperature": 0.7,
+            "max_tokens": config_manager.get("openai_max_tokens", 150),
+            "temperature": config_manager.get("openai_temperature", 0.7),
         }
         
-        logger.info(f"🔄 Calling OpenAI API...")
+        logger.info(f"🔄 Calling OpenAI API with model: {payload['model']}")
         response = requests.post(url, headers=headers, json=payload, timeout=30)
         
         logger.info(f"📊 OpenAI API Response: {response.status_code}")
