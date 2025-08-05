@@ -1,1311 +1,534 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ตั้งค่าระบบ - LINE OA Middleware</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #f8f9fa;
-        }
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 8px;
-        }
-        .status-active { 
-            background-color: #28a745; 
-            animation: pulse 2s infinite; 
-            box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
-        }
-        .status-inactive { 
-            background-color: #dc3545; 
-        }
-        .status-warning { 
-            background-color: #ffc107; 
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.1); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        
-        .config-section {
-            border-left: 4px solid #007bff;
-            background: white;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-radius: 8px;
-        }
-        .config-section:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .save-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
-            max-width: 400px;
-        }
-        
-        .btn-test {
-            font-size: 0.875rem;
-            padding: 0.375rem 0.75rem;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-test:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .password-toggle {
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .password-toggle:hover {
-            background-color: #e9ecef;
-        }
-        
-        .api-status-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            border: none;
-        }
-        
-        .status-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-        }
-        
-        .section-header {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border-radius: 10px 10px 0 0;
-        }
-        
-        .form-control:focus, .form-select:focus {
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-        
-        .credential-example {
-            font-family: 'Courier New', monospace;
-            font-size: 0.8rem;
-            background-color: #f8f9fa;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #dee2e6;
-            margin-top: 0.25rem;
-        }
-        
-        .success-glow {
-            box-shadow: 0 0 15px rgba(40, 167, 69, 0.5);
-            border-color: #28a745 !important;
-        }
-        
-        .error-glow {
-            box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
-            border-color: #dc3545 !important;
-        }
-        
-        .quick-action-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            color: white;
-        }
-        
-        .demo-alert {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-            border: none;
-            color: #721c24;
-        }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid #ffffff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .instant-setup-alert {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-            border: none;
-            color: #155724;
-        }
-    </style>
-</head>
-<body>
-    <!-- Notification Panel -->
-    <div id="saveNotification" class="save-notification"></div>
+{% extends "base.html" %}
 
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/admin">
-                <i class="fas fa-robot me-2"></i>LINE OA Middleware
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin">
-                    <i class="fas fa-arrow-left me-1"></i>กลับหน้าหลัก
-                </a>
+{% block title %}Settings - LINE OA Middleware{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-cogs me-2 text-primary"></i>
+        Settings
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="saveAllSettings()">
+            <i class="fas fa-save me-1"></i> Save All Settings
+        </button>
+        <button class="btn btn-outline-secondary" onclick="resetToDefaults()">
+            <i class="fas fa-undo me-1"></i> Reset to Defaults
+        </button>
+    </div>
+</div>
+
+<form id="settings-form">
+    <!-- LINE Bot Configuration -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fab fa-line me-2 text-success"></i>
+                LINE Bot Configuration
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="line_channel_secret" class="form-label fw-medium">
+                            Channel Secret
+                            <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="line_channel_secret" 
+                                   name="line_channel_secret" value="{{ config.line_channel_secret }}"
+                                   placeholder="Enter LINE Channel Secret">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('line_channel_secret')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">รหัสลับของ LINE Channel จาก LINE Developers Console</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="line_channel_access_token" class="form-label fw-medium">
+                            Channel Access Token
+                            <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="line_channel_access_token" 
+                                   name="line_channel_access_token" value="{{ config.line_channel_access_token }}"
+                                   placeholder="Enter LINE Access Token">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('line_channel_access_token')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Access Token สำหรับการส่งข้อความ</div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-success" onclick="testLineConnection()">
+                    <i class="fas fa-link me-1"></i> Test Connection
+                </button>
+                <button type="button" class="btn btn-outline-info" onclick="showWebhookURL()">
+                    <i class="fas fa-link me-1"></i> Show Webhook URL
+                </button>
             </div>
         </div>
-    </nav>
+    </div>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-8">
-                <h2 class="mb-4">
-                    <i class="fas fa-cog me-2"></i>ตั้งค่าระบบ
-                    <small class="text-muted">กำหนดค่าการทำงานของระบบ</small>
-                </h2>
-
-                <form id="settingsForm">
-                    <!-- Quick Start Card -->
-                    <div class="card mb-4 quick-action-card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-rocket me-2"></i>Quick Start - เริ่มใช้งานเลย!
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <p class="mb-3">เริ่มใช้งานระบบได้ทันทีด้วยการตั้งค่าอัตโนมัติ</p>
-                            <div class="d-flex gap-2 flex-wrap">
-                                <button type="button" class="btn btn-warning" onclick="quickStartSetup()">
-                                    <i class="fas fa-magic me-1"></i>ตั้งค่าอัตโนมัติ (Sandbox)
-                                </button>
-                                <button type="button" class="btn btn-success" onclick="testAllSystems()">
-                                    <i class="fas fa-vial me-1"></i>ทดสอบระบบทั้งหมด
-                                </button>
-                                <button type="button" class="btn btn-info" onclick="loadExampleData()">
-                                    <i class="fas fa-download me-1"></i>โหลดข้อมูลตัวอย่าง
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- LINE Configuration -->
-                    <div class="card mb-4 config-section">
-                        <div class="card-header section-header">
-                            <h5 class="mb-0">
-                                <i class="fab fa-line me-2"></i>LINE Official Account
-                                <span class="status-indicator" id="line_status"></span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="line_channel_secret" class="form-label">
-                                            <i class="fas fa-key me-1"></i>Channel Secret
-                                        </label>
-                                        <div class="input-group">
-                                            <input type="password" class="form-control" id="line_channel_secret" 
-                                                   name="line_channel_secret" value="{{ config.get('line_channel_secret', '') }}"
-                                                   placeholder="Channel Secret จาก LINE Developers Console">
-                                            <button class="btn btn-outline-secondary password-toggle" type="button" 
-                                                    onclick="togglePasswordVisibility('line_channel_secret')">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </div>
-                                        <div class="form-text">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            ใช้สำหรับตรวจสอบ webhook signature
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="line_channel_access_token" class="form-label">
-                                            <i class="fas fa-ticket-alt me-1"></i>Channel Access Token
-                                        </label>
-                                        <div class="input-group">
-                                            <input type="password" class="form-control" id="line_channel_access_token" 
-                                                   name="line_channel_access_token" value="{{ config.get('line_channel_access_token', '') }}"
-                                                   placeholder="Channel Access Token จาก LINE Developers Console">
-                                            <button class="btn btn-outline-secondary password-toggle" type="button" 
-                                                    onclick="togglePasswordVisibility('line_channel_access_token')">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </div>
-                                        <div class="form-text">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            ใช้สำหรับส่งข้อความผ่าน LINE API
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-end">
-                                <button type="button" class="btn btn-outline-success btn-test" onclick="testLineConnection()">
-                                    <i class="fas fa-vial me-1"></i>ทดสอบการเชื่อมต่อ
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Slip Verification System -->
-                    <div class="card mb-4 config-section">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">
-                                <i class="fas fa-receipt me-2"></i>ระบบตรวจสอบสลิป
-                                <span class="status-indicator" id="slip_system_status"></span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="form-check form-switch mb-4">
-                                <input class="form-check-input" type="checkbox" id="slip_enabled" 
-                                       name="slip_enabled" {{ 'checked' if config.get('slip_enabled') }}>
-                                <label class="form-check-label" for="slip_enabled">
-                                    <strong>เปิดใช้งานระบบตรวจสอบสลิป</strong>
-                                </label>
-                                <div class="form-text">เปิด/ปิดระบบตรวจสอบสลิปทั้งหมด</div>
-                            </div>
-
-                            <!-- Thunder API -->
-                            <div class="border rounded p-3 mb-3" style="border-color: #ffc107 !important;">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-bolt text-warning me-2"></i>Thunder API
-                                        <span class="status-indicator" id="thunder_status"></span>
-                                    </h6>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="thunder_enabled" 
-                                               name="thunder_enabled" {{ 'checked' if config.get('thunder_enabled', True) }}>
-                                        <label class="form-check-label" for="thunder_enabled">เปิดใช้งาน</label>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="thunder_api_token" class="form-label">Thunder API Token</label>
-                                    <div class="input-group">
-                                        <input type="password" class="form-control" id="thunder_api_token" 
-                                               name="thunder_api_token" value="{{ config.get('thunder_api_token', '') }}"
-                                               placeholder="API Token จาก thunder.in.th">
-                                        <button class="btn btn-outline-secondary password-toggle" type="button" 
-                                                onclick="togglePasswordVisibility('thunder_api_token')">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </div>
-                                    <div class="form-text">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        ใช้สำหรับตรวจสอบสลิปจากรูปภาพ - 
-                                        <a href="https://thunder.in.th" target="_blank">สมัครที่ thunder.in.th</a>
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-end">
-                                    <button type="button" class="btn btn-outline-warning btn-test" onclick="openThunderTest()">
-                                        <i class="fas fa-vial me-1"></i>ทดสอบ Thunder API
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- KBank API -->
-                            <div class="border rounded p-3 mb-3" style="border-color: #007bff !important;">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="mb-0">
-                                        <i class="fas fa-university text-primary me-2"></i>KBank API
-                                        <span class="status-indicator" id="kbank_status"></span>
-                                    </h6>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="kbank_enabled" 
-                                               name="kbank_enabled" {{ 'checked' if config.get('kbank_enabled', False) }}>
-                                        <label class="form-check-label" for="kbank_enabled">เปิดใช้งาน</label>
-                                    </div>
-                                </div>
-                                
-                                <!-- Instant Setup Alert -->
-                                <div class="alert instant-setup-alert">
-                                    <h6><i class="fas fa-rocket me-2"></i>ใช้งานได้ทันที!</h6>
-                                    <p class="mb-2">ใช้ KBank Sandbox โดยไม่ต้องมี SSL Certificate</p>
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <button type="button" class="btn btn-success btn-sm" onclick="setupKBankInstant()">
-                                            <i class="fas fa-magic me-1"></i>ตั้งค่าทันที
-                                        </button>
-                                        <button type="button" class="btn btn-warning btn-sm" onclick="setupKBankSandbox()">
-                                            <i class="fas fa-cog me-1"></i>ตั้งค่า Sandbox
-                                        </button>
-                                        <button type="button" class="btn btn-info btn-sm" onclick="testKBankDemo()">
-                                            <i class="fas fa-play me-1"></i>ทดสอบทันที
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <!-- Environment Selection -->
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-server me-1"></i>Environment
-                                    </label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="kbank_environment" 
-                                               id="kbank_sandbox" value="sandbox" checked>
-                                        <label class="form-check-label" for="kbank_sandbox">
-                                            🧪 <strong>Sandbox</strong> (ทดสอบ) - ใช้สำหรับการพัฒนาและทดสอบ
-                                            <span class="badge bg-success ms-2">แนะนำ</span>
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="kbank_environment" 
-                                               id="kbank_production" value="production" disabled>
-                                        <label class="form-check-label" for="kbank_production">
-                                            🏦 <strong>Production</strong> (จริง) - ต้องมี SSL Certificate
-                                            <span class="badge bg-warning ms-2">ไม่พร้อมใช้งาน</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <!-- Credentials -->
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="kbank_consumer_id" class="form-label">Consumer ID</label>
-                                            <div class="input-group">
-                                                <input type="text" class="form-control" id="kbank_consumer_id" 
-                                                       name="kbank_consumer_id" value="{{ config.get('kbank_consumer_id', '') }}"
-                                                       placeholder="Consumer ID จาก KBank Developer Portal">
-                                                <button class="btn btn-outline-secondary" type="button" 
-                                                        onclick="useKBankExample()" title="ใช้ Example Sandbox">
-                                                    <i class="fas fa-magic"></i>
-                                                </button>
-                                            </div>
-                                            <div class="credential-example">
-                                                <strong>Sandbox Example:</strong> suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="kbank_consumer_secret" class="form-label">Consumer Secret</label>
-                                            <div class="input-group">
-                                                <input type="password" class="form-control" id="kbank_consumer_secret" 
-                                                       name="kbank_consumer_secret" value="{{ config.get('kbank_consumer_secret', '') }}"
-                                                       placeholder="Consumer Secret จาก KBank Developer Portal">
-                                                <button class="btn btn-outline-secondary password-toggle" type="button" 
-                                                        onclick="togglePasswordVisibility('kbank_consumer_secret')">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                            </div>
-                                            <div class="credential-example">
-                                                <strong>Sandbox Example:</strong> goOfPtGLoGxYP3DG
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Info Alert -->
-                                <div class="alert alert-info">
-                                    <h6><i class="fas fa-info-circle me-2"></i>KBank API Information</h6>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <ul class="mb-0">
-                                                <li><strong>Sandbox URL:</strong><br>
-                                                    <code>https://openapi-sandbox.kasikornbank.com</code>
-                                                </li>
-                                                <li><strong>Status:</strong> Sandbox โหมด (ไม่ต้องใช้ SSL Certificate)</li>
-                                            </ul>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <ul class="mb-0">
-                                                <li><strong>OAuth:</strong> <code>/v2/oauth/token</code></li>
-                                                <li><strong>Slip Verify:</strong> <code>/v1/verslip/kbank/verify</code></li>
-                                                <li><strong>สมัครที่:</strong> 
-                                                    <a href="https://developer.kasikornbank.com" target="_blank">
-                                                        KBank Developer Portal
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Test Buttons -->
-                                <div class="d-flex justify-content-end gap-2">
-                                    <button type="button" class="btn btn-outline-info btn-test" onclick="testKBankOAuth()">
-                                        <i class="fas fa-key me-1"></i>ทดสอบ OAuth
-                                    </button>
-                                    <button type="button" class="btn btn-outline-primary btn-test" onclick="testKBankSlip()">
-                                        <i class="fas fa-receipt me-1"></i>ทดสอบ Slip
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- AI Chatbot -->
-                    <div class="card mb-4 config-section">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0">
-                                <i class="fas fa-brain me-2"></i>AI Chatbot
-                                <span class="status-indicator" id="ai_status"></span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="ai_enabled" 
-                                       name="ai_enabled" {{ 'checked' if config.get('ai_enabled') }}>
-                                <label class="form-check-label" for="ai_enabled">
-                                    <strong>เปิดใช้งาน AI Chatbot</strong>
-                                </label>
-                            </div>
-                            <div class="mb-3">
-                                <label for="openai_api_key" class="form-label">
-                                    <i class="fas fa-key me-1"></i>OpenAI API Key
-                                </label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" id="openai_api_key" 
-                                           name="openai_api_key" value="{{ config.get('openai_api_key', '') }}"
-                                           placeholder="sk-...">
-                                    <button class="btn btn-outline-secondary password-toggle" type="button" 
-                                            onclick="togglePasswordVisibility('openai_api_key')">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                                <div class="form-text">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    API Key สำหรับ ChatGPT - 
-                                    <a href="https://platform.openai.com/api-keys" target="_blank">สร้างที่ OpenAI Platform</a>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="ai_prompt" class="form-label">
-                                    <i class="fas fa-comment-dots me-1"></i>AI Prompt
-                                </label>
-                                <textarea class="form-control" id="ai_prompt" name="ai_prompt" rows="4" 
-                                          placeholder="คุณเป็นผู้ช่วยระบบชำระเงิน...">{{ config.get('ai_prompt', '') }}</textarea>
-                                <div class="form-text">คำสั่งพื้นฐานที่จะส่งให้ AI ในทุกการสนทนา</div>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <button type="button" class="btn btn-outline-secondary btn-test" onclick="loadDefaultPrompt()">
-                                    <i class="fas fa-download me-1"></i>โหลด Prompt เริ่มต้น
-                                </button>
-                                <button type="button" class="btn btn-outline-success btn-test" onclick="testAIChat()">
-                                    <i class="fas fa-robot me-1"></i>ทดสอบ AI Chat
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <button type="submit" class="btn btn-primary w-100 btn-lg">
-                                <i class="fas fa-save me-1"></i>บันทึกการตั้งค่า
+    <!-- Thunder API Configuration -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-bolt me-2 text-warning"></i>
+                Thunder API Configuration
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="mb-3">
+                        <label for="thunder_api_token" class="form-label fw-medium">
+                            Thunder API Token
+                            <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="thunder_api_token" 
+                                   name="thunder_api_token" value="{{ config.thunder_api_token }}"
+                                   placeholder="Enter Thunder API Token">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('thunder_api_token')">
+                                <i class="fas fa-eye"></i>
                             </button>
                         </div>
-                        <div class="col-md-6">
-                            <button type="button" class="btn btn-outline-success w-100 btn-lg" onclick="testAllConfiguration()">
-                                <i class="fas fa-vial me-1"></i>ทดสอบทั้งหมด
-                            </button>
-                        </div>
+                        <div class="form-text">Token สำหรับการตรวจสอบสลิปผ่าน Thunder API</div>
                     </div>
-                    
-                    <!-- Quick Actions -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-secondary text-white">
-                            <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Thunder API Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="thunder_enabled" 
+                                   name="thunder_enabled" {% if config.thunder_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="thunder_enabled">
+                                Enable Thunder API
+                            </label>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <button type="button" class="btn btn-outline-primary w-100 mb-2" onclick="resetToDefaults()">
-                                        <i class="fas fa-undo me-1"></i>Reset ค่าเริ่มต้น
-                                    </button>
-                                </div>
-                                <div class="col-md-3">
-                                    <button type="button" class="btn btn-outline-info w-100 mb-2" onclick="exportConfig()">
-                                        <i class="fas fa-download me-1"></i>Export Config
-                                    </button>
-                                </div>
-                                <div class="col-md-3">
-                                    <button type="button" class="btn btn-outline-warning w-100 mb-2" onclick="importConfig()">
-                                        <i class="fas fa-upload me-1"></i>Import Config
-                                    </button>
-                                </div>
-                                <div class="col-md-3">
-                                    <button type="button" class="btn btn-outline-success w-100 mb-2" onclick="autoSetupDemo()">
-                                        <i class="fas fa-magic me-1"></i>Demo Setup
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="form-text">เปิด/ปิดการใช้งาน Thunder API</div>
                     </div>
-                </form>
+                </div>
             </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-warning" onclick="testThunderAPI()">
+                    <i class="fas fa-bolt me-1"></i> Test Thunder API
+                </button>
+                <button type="button" class="btn btn-outline-info" onclick="showThunderAPIInfo()">
+                    <i class="fas fa-info-circle me-1"></i> API Information
+                </button>
+            </div>
+        </div>
+    </div>
 
-            <!-- Status Sidebar -->
-            <div class="col-md-4">
-                <div class="card sticky-top api-status-card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-info-circle me-2"></i>สถานะระบบ
-                            <button class="btn btn-sm btn-outline-light float-end" onclick="updateSystemStatus()">
-                                <i class="fas fa-sync"></i>
+    <!-- OpenAI Configuration -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-robot me-2 text-info"></i>
+                OpenAI Configuration
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="openai_api_key" class="form-label fw-medium">
+                            OpenAI API Key
+                        </label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="openai_api_key" 
+                                   name="openai_api_key" value="{{ config.openai_api_key }}"
+                                   placeholder="Enter OpenAI API Key">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('openai_api_key')">
+                                <i class="fas fa-eye"></i>
                             </button>
-                        </h5>
+                        </div>
+                        <div class="form-text">API Key สำหรับการใช้งาน OpenAI GPT</div>
                     </div>
-                    <div class="card-body">
-                        <div id="systemStatus">
-                            <div class="text-center">
-                                <div class="spinner-border text-light" role="status">
-                                    <span class="visually-hidden">กำลังโหลด...</span>
-                                </div>
-                                <p class="mt-2">กำลังตรวจสอบสถานะระบบ...</p>
-                            </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">AI Chat Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ai_enabled" 
+                                   name="ai_enabled" {% if config.ai_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="ai_enabled">
+                                Enable AI Chat
+                            </label>
+                        </div>
+                        <div class="form-text">เปิด/ปิดระบบแชท AI</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Slip System Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="slip_enabled" 
+                                   name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="slip_enabled">
+                                Enable Slip Verification
+                            </label>
+                        </div>
+                        <div class="form-text">เปิด/ปิดระบบตรวจสอบสลิป</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="ai_prompt" class="form-label fw-medium">AI System Prompt</label>
+                <textarea class="form-control" id="ai_prompt" name="ai_prompt" rows="4" 
+                          placeholder="Enter custom AI prompt...">{{ config.ai_prompt }}</textarea>
+                <div class="form-text">กำหนดพฤติกรรมของ AI Assistant (เว้นว่างไว้เพื่อใช้ default)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-server me-2 text-secondary"></i>
+                System Settings
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-3">Feature Toggles</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+                        <div>
+                            <strong>Slip Verification System</strong>
+                            <div class="text-muted small">ระบบตรวจสอบสลิปโอนเงิน</div>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="slip_system_toggle" 
+                                   {% if config.slip_enabled %}checked{% endif %}>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+                        <div>
+                            <strong>AI Chat System</strong>
+                            <div class="text-muted small">ระบบตอบกลับอัตโนมัติด้วย AI</div>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ai_system_toggle" 
+                                   {% if config.ai_enabled %}checked{% endif %}>
                         </div>
                     </div>
                 </div>
-
-                <!-- System Info -->
-                <div class="card mt-3">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0"><i class="fas fa-server me-2"></i>ข้อมูลระบบ</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <span>เวอร์ชัน:</span>
-                            <span class="badge bg-primary">v2.0.0</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>สถานะ:</span>
-                            <span class="badge bg-success" id="systemReadyStatus">System Ready</span>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <span>WebSocket:</span>
-                            <span class="badge bg-secondary" id="wsStatus">Connecting...</span>
-                        </div>
-                        <hr>
-                        <div class="text-center">
-                            <a href="/admin/debug" class="btn btn-outline-dark btn-sm me-2" target="_blank">
-                                <i class="fas fa-bug me-1"></i>Debug Console
-                            </a>
-                            <a href="/admin/chat-history" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-comments me-1"></i>Chat History
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Test Results -->
-                <div class="card mt-3" id="testResultsCard" style="display: none;">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0"><i class="fas fa-check-circle me-2"></i>ผลการทดสอบ</h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="testResults"></div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-3">System Actions</h6>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary" onclick="exportConfig()">
+                            <i class="fas fa-download me-1"></i> Export Configuration
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="importConfig()">
+                            <i class="fas fa-upload me-1"></i> Import Configuration
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" onclick="resetAPIFailures()">
+                            <i class="fas fa-redo me-1"></i> Reset API Failures
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="viewSystemInfo()">
+                            <i class="fas fa-info-circle me-1"></i> View System Info
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</form>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let websocket = null;
-        let testResultsVisible = false;
+<!-- Modals -->
+<!-- Webhook URL Modal -->
+<div class="modal fade" id="webhookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">LINE Webhook URL</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>ใช้ URL นี้ใน LINE Developers Console:</p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="webhook-url" readonly>
+                    <button class="btn btn-outline-secondary" onclick="copyToClipboard('webhook-url')">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeWebSocket();
-            updateSystemStatus();
-            loadDefaultPrompt();
-            setInterval(updateSystemStatus, 30000);
-        });
+<!-- Import Config Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="config-file" class="form-label">Select Configuration File</label>
+                    <input type="file" class="form-control" id="config-file" accept=".json">
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    การ import จะเขียนทับการตั้งค่าปัจจุบัน
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processImport()">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-        function initializeWebSocket() {
-            try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-                websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = function() {
-                    document.getElementById('wsStatus').textContent = 'Connected';
-                    document.getElementById('wsStatus').className = 'badge bg-success';
-                };
-                
-                websocket.onmessage = function(event) {
-                    try {
-                        const notification = JSON.parse(event.data);
-                        if (notification.type !== 'heartbeat') {
-                            showNotification(notification.type, notification.message);
-                        }
-                    } catch (e) {
-                        console.error('Error parsing WebSocket message:', e);
-                    }
-                };
-                
-                websocket.onclose = function() {
-                    document.getElementById('wsStatus').textContent = 'Disconnected';
-                    document.getElementById('wsStatus').className = 'badge bg-danger';
-                    setTimeout(initializeWebSocket, 5000);
-                };
-                
-            } catch (error) {
-                console.error('WebSocket initialization error:', error);
-                document.getElementById('wsStatus').textContent = 'Error';
-                document.getElementById('wsStatus').className = 'badge bg-danger';
-            }
+{% block extra_js %}
+<script>
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+        const field = document.getElementById(fieldId);
+        const button = field.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            field.type = 'password';
+            icon.className = 'fas fa-eye';
         }
-
-        // บันทึกการตั้งค่า
-        document.getElementById('settingsForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+    }
+    
+    // Save all settings
+    async function saveAllSettings() {
+        try {
+            const formData = new FormData(document.getElementById('settings-form'));
+            const settings = {};
             
-            const formData = new FormData(this);
-            const data = {};
-            
-            // เก็บค่าจาก form
+            // Convert FormData to object
             for (let [key, value] of formData.entries()) {
-                data[key] = value;
-            }
-            
-            // จัดการ checkbox values
-            data['ai_enabled'] = document.getElementById('ai_enabled').checked;
-            data['slip_enabled'] = document.getElementById('slip_enabled').checked;
-            data['thunder_enabled'] = document.getElementById('thunder_enabled').checked;
-            data['kbank_enabled'] = document.getElementById('kbank_enabled').checked;
-            data['kbank_sandbox_mode'] = document.getElementById('kbank_sandbox').checked;
-            
-            try {
-                const button = e.target.querySelector('button[type="submit"]');
-                const originalText = button.innerHTML;
-                button.innerHTML = '<span class="loading-spinner me-1"></span>กำลังบันทึก...';
-                button.disabled = true;
-                
-                const response = await fetch('/admin/settings/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showNotification('success', result.message);
-                    updateSystemStatus();
-                    addGlowEffect(button, 'success');
+                if (document.getElementById(key).type === 'checkbox') {
+                    settings[key] = document.getElementById(key).checked;
                 } else {
-                    showNotification('danger', result.message);
-                    addGlowEffect(button, 'error');
+                    settings[key] = value;
                 }
-                
-                button.innerHTML = originalText;
-                button.disabled = false;
-                
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('danger', 'เกิดข้อผิดพลาดในการบันทึกการตั้งค่า');
-                
-                const button = e.target.querySelector('button[type="submit"]');
-                button.innerHTML = '<i class="fas fa-save me-1"></i>บันทึกการตั้งค่า';
-                button.disabled = false;
-                addGlowEffect(button, 'error');
-            }
-        });
-
-        // อัปเดตสถานะระบบ
-        async function updateSystemStatus() {
-            try {
-                const response = await fetch('/admin/api-status');
-                const data = await response.json();
-                
-                // อัปเดต status indicators
-                updateStatusIndicator('slip_system_status', data.system_status?.system_enabled);
-                updateStatusIndicator('thunder_status', data.thunder?.connected);
-                updateStatusIndicator('kbank_status', data.kbank?.connected);
-                updateStatusIndicator('ai_status', data.line?.configured);
-                updateStatusIndicator('line_status', data.line?.connected);
-                
-                // สร้าง HTML สำหรับแสดงสถานะ
-                const statusHtml = `
-                    <div class="mb-3">
-                        <h6><i class="fab fa-line me-2"></i>LINE API</h6>
-                        <div class="d-flex justify-content-between">
-                            <span>สถานะ:</span>
-                            <span class="badge ${data.line?.connected ? 'bg-success' : 'bg-danger'} status-badge">
-                                ${data.line?.connected ? 'เชื่อมต่อแล้ว' : 'ไม่เชื่อมต่อ'}
-                            </span>
-                        </div>
-                        ${data.line?.bot_name ? `<small class="text-light opacity-75">Bot: ${data.line.bot_name}</small>` : ''}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>ตั้งค่าแล้ว:</span>
-                            <span class="badge ${data.thunder?.configured ? 'bg-success' : 'bg-danger'} status-badge">
-                                ${data.thunder?.configured ? 'ใช่' : 'ไม่'}
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>เปิดใช้งาน:</span>
-                            <span class="badge ${data.thunder?.enabled ? 'bg-primary' : 'bg-secondary'} status-badge">
-                                ${data.thunder?.enabled ? 'ใช่' : 'ไม่'}
-                            </span>
-                        </div>
-                        <small class="text-light opacity-75">ความล้มเหลว: ${data.thunder?.recent_failures || 0}</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>ตั้งค่าแล้ว:</span>
-                            <span class="badge ${data.kbank?.configured ? 'bg-success' : 'bg-danger'} status-badge">
-                                ${data.kbank?.configured ? 'ใช่' : 'ไม่'}
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>เปิดใช้งาน:</span>
-                            <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'} status-badge">
-                                ${data.kbank?.enabled ? 'ใช่' : 'ไม่'}
-                            </span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>Environment:</span>
-                            <span class="badge bg-info status-badge">${data.kbank?.environment || 'N/A'}</span>
-                        </div>
-                        <small class="text-light opacity-75">ความล้มเหลว: ${data.kbank?.recent_failures || 0}</small>
-                    </div>
-                    
-                    <hr class="border-light">
-                    <div class="text-center">
-                        <h6>สถานะระบบโดยรวม</h6>
-                        <span class="badge ${data.system_status?.system_enabled ? 'bg-success' : 'bg-danger'} fs-6">
-                            ${data.system_status?.system_enabled ? 'ระบบพร้อมใช้งาน' : 'ระบบไม่พร้อม'}
-                        </span>
-                    </div>
-                `;
-                
-                document.getElementById('systemStatus').innerHTML = statusHtml;
-                
-            } catch (error) {
-                console.error('Error updating system status:', error);
-                document.getElementById('systemStatus').innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        ไม่สามารถโหลดสถานะระบบได้
-                    </div>
-                `;
-            }
-        }
-
-        // Quick Start Functions
-        async function quickStartSetup() {
-            showNotification('info', 'กำลังตั้งค่าระบบอัตโนมัติ...');
-            
-            try {
-                // ตั้งค่า KBank Sandbox
-                await setupKBankSandbox();
-                
-                // เปิดใช้งานระบบ
-                document.getElementById('slip_enabled').checked = true;
-                document.getElementById('thunder_enabled').checked = true;
-                document.getElementById('ai_enabled').checked = true;
-                
-                // โหลด default prompt
-                loadDefaultPrompt();
-                
-                // บันทึกการตั้งค่า
-                document.getElementById('settingsForm').dispatchEvent(new Event('submit'));
-                
-                showNotification('success', '🎉 ตั้งค่าอัตโนมัติเสร็จสิ้น! ระบบพร้อมใช้งาน');
-                
-            } catch (error) {
-                showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่าอัตโนมัติ');
-            }
-        }
-
-        // KBank Functions
-        async function setupKBankInstant() {
-            showNotification('info', 'กำลังตั้งค่า KBank Sandbox...');
-            
-            try {
-                const response = await fetch('/admin/kbank/setup-instant', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    // อัปเดต UI
-                    document.getElementById('kbank_enabled').checked = true;
-                    document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
-                    document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
-                    document.getElementById('kbank_sandbox').checked = true;
-                    
-                    addGlowEffect(document.getElementById('kbank_consumer_id'), 'success');
-                    addGlowEffect(document.getElementById('kbank_consumer_secret'), 'success');
-                    
-                    showNotification('success', '🎉 ตั้งค่า KBank สำเร็จ! ระบบพร้อมใช้งาน');
-                    updateSystemStatus();
-                } else {
-                    showNotification('danger', result.message || 'ไม่สามารถตั้งค่า KBank ได้');
-                }
-            } catch (error) {
-                console.error('Setup KBank instant error:', error);
-                showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่า KBank');
-            }
-        }
-
-        async function setupKBankSandbox() {
-            try {
-                const response = await fetch('/admin/kbank/force-sandbox', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    // อัปเดต UI
-                    document.getElementById('kbank_sandbox').checked = true;
-                    document.getElementById('kbank_enabled').checked = true;
-                    document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
-                    document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
-                    
-                    addGlowEffect(document.getElementById('kbank_consumer_id'), 'success');
-                    addGlowEffect(document.getElementById('kbank_consumer_secret'), 'success');
-                    
-                    showNotification('success', '🧪 ตั้งค่า KBank Sandbox สำเร็จ!');
-                    updateSystemStatus();
-                    
-                    return true;
-                } else {
-                    showNotification('danger', result.message || 'ไม่สามารถตั้งค่า KBank Sandbox ได้');
-                    return false;
-                }
-            } catch (error) {
-                console.error('Setup KBank Sandbox error:', error);
-                showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่า KBank Sandbox');
-                return false;
-            }
-        }
-
-        async function testKBankDemo() {
-            showNotification('info', 'กำลังทดสอบ KBank Slip Verification...');
-            
-            try {
-                const response = await fetch('/admin/kbank/test-slip-demo', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    const slipResult = result.result;
-                    if (slipResult && slipResult.status === 'success') {
-                        const testInfo = {
-                            amount: slipResult.data?.amount_display || '฿1,000',
-                            sender: `${slipResult.data?.sender || 'ทดสอบ'} (${slipResult.data?.sender_bank || 'KBANK'})`,
-                            receiver: `${slipResult.data?.receiver_name || 'ผู้รับทดสอบ'} (${slipResult.data?.receiver_bank || 'KBANK'})`,
-                            verified_by: slipResult.data?.verified_by || 'KBank Sandbox API'
-                        };
-                        
-                        showTestResult('KBank Slip Test', testInfo, true);
-                        showNotification('success', '✅ ทดสอบ KBank Slip สำเร็จ!');
-                    } else {
-                        showTestResult('KBank Slip Test', { message: slipResult?.message || 'ไม่มีข้อมูล' }, false);
-                        showNotification('warning', `⚠️ ${slipResult?.message || 'การทดสอบไม่สำเร็จ'}`);
-                    }
-                } else {
-                    showTestResult('KBank Slip Test', { error: result.message }, false);
-                    showNotification('danger', result.message || 'การทดสอบล้มเหลว');
-                }
-            } catch (error) {
-                console.error('Test KBank demo error:', error);
-                showTestResult('KBank Slip Test', { error: 'Connection failed' }, false);
-                showNotification('danger', 'เกิดข้อผิดพลาดในการทดสอบ');
-            }
-        }
-
-        async function testKBankOAuth() {
-            const consumerId = document.getElementById('kbank_consumer_id').value.trim();
-            const consumerSecret = document.getElementById('kbank_consumer_secret').value.trim();
-            
-            if (!consumerId || !consumerSecret) {
-                showNotification('warning', 'กรุณาใส่ Consumer ID และ Secret');
-                return;
             }
             
-            showNotification('info', 'กำลังทดสอบ KBank OAuth...');
+            showNotification('กำลังบันทึกการตั้งค่า...', 'info');
             
-            try {
-                const response = await fetch('/admin/test-kbank-oauth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        consumer_id: consumerId,
-                        consumer_secret: consumerSecret
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showTestResult('KBank OAuth', { 
-                        token_preview: result.data?.token_preview || 'Token received',
-                        token_length: result.data?.token_length || 0
-                    }, true);
-                    showNotification('success', `✅ KBank OAuth สำเร็จ!`);
-                } else {
-                    showTestResult('KBank OAuth', { error: result.message }, false);
-                    showNotification('danger', `❌ KBank OAuth ล้มเหลว: ${result.message}`);
-                }
-            } catch (error) {
-                console.error('Test KBank OAuth error:', error);
-                showTestResult('KBank OAuth', { error: 'Connection failed' }, false);
-                showNotification('danger', '❌ เกิดข้อผิดพลาดในการทดสอบ OAuth');
-            }
-        }
-
-        async function testKBankSlip() {
-            await testKBankDemo();
-        }
-
-        async function testAllSystems() {
-            showNotification('info', 'กำลังทดสอบระบบทั้งหมด...');
+            const result = await apiCall('/admin/settings/update', {
+                method: 'POST',
+                body: JSON.stringify(settings)
+            });
             
-            const results = {};
-            
-            // Test LINE API
-            try {
-                const lineResult = await fetch('/admin/test-line-connection', { method: 'POST' });
-                const lineData = await lineResult.json();
-                results['LINE API'] = {
-                    success: lineData.status === 'success',
-                    data: lineData.status === 'success' ? { bot_name: lineData.data?.bot_name } : { error: lineData.message }
-                };
-            } catch (error) {
-                results['LINE API'] = { success: false, data: { error: 'Connection failed' } };
-            }
-            
-            // Test KBank API
-            try {
-                const kbankResult = await fetch('/admin/kbank/test-slip-demo', { method: 'POST' });
-                const kbankData = await kbankResult.json();
-                results['KBank API'] = {
-                    success: kbankData.status === 'success' && kbankData.result?.status === 'success',
-                    data: kbankData.status === 'success' ? kbankData.result?.data : { error: kbankData.message }
-                };
-            } catch (error) {
-                results['KBank API'] = { success: false, data: { error: 'Connection failed' } };
-            }
-            
-            // แสดงผลรวม
-            showAllTestResults(results);
-            
-            const successCount = Object.values(results).filter(r => r.success).length;
-            const totalCount = Object.keys(results).length;
-            
-            if (successCount === totalCount) {
-                showNotification('success', `🎉 ทดสอบระบบสำเร็จ ${successCount}/${totalCount} ระบบ`);
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
             } else {
-                showNotification('warning', `⚠️ ทดสอบเสร็จสิ้น ${successCount}/${totalCount} ระบบใช้งานได้`);
+                showNotification(result.message, 'error');
             }
-        }
-
-        // Utility Functions
-        function updateStatusIndicator(elementId, isActive) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.className = `status-indicator ${isActive ? 'status-active' : 'status-inactive'}`;
-            }
-        }
-
-        function togglePasswordVisibility(fieldId) {
-            const field = document.getElementById(fieldId);
-            const button = field.closest('.input-group').querySelector('.password-toggle i');
             
-            if (field.type === 'password') {
-                field.type = 'text';
-                button.className = 'fas fa-eye-slash';
-            } else {
-                field.type = 'password';
-                button.className = 'fas fa-eye';
-            }
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'error');
         }
-
-        function useKBankExample() {
-            document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
-            document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
-            document.getElementById('kbank_sandbox').checked = true;
+    }
+    
+    // Test LINE connection
+    async function testLineConnection() {
+        try {
+            showNotification('กำลังทดสอบการเชื่อมต่อ LINE API...', 'info');
             
-            addGlowEffect(document.getElementById('kbank_consumer_id'), 'success');
-            addGlowEffect(document.getElementById('kbank_consumer_secret'), 'success');
+            const result = await apiCall('/admin/test-line-connection', {
+                method: 'POST'
+            });
             
-            showNotification('info', '✨ ใส่ KBank Sandbox Example Credentials แล้ว');
-        }
-
-        function loadDefaultPrompt() {
-            const promptField = document.getElementById('ai_prompt');
-            if (!promptField.value.trim()) {
-                promptField.value = 'คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง มีความรู้เรื่องธนาคารไทยทุกธนาคาร และสามารถแนะนำวิธีการโอนเงินได้';
-                addGlowEffect(promptField, 'success');
-            }
-        }
-
-        function loadExampleData() {
-            useKBankExample();
-            loadDefaultPrompt();
-            showNotification('success', '📥 โหลดข้อมูลตัวอย่างทั้งหมดแล้ว');
-        }
-
-        // Test Functions
-        async function testLineConnection() {
-            showNotification('info', 'กำลังทดสอบ LINE API...');
-            try {
-                const response = await fetch('/admin/test-line-connection', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showTestResult('LINE API', { bot_name: result.data?.bot_name }, true);
-                    showNotification('success', `✅ LINE API ทำงานได้! Bot: ${result.data?.bot_name}`);
-                } else {
-                    showTestResult('LINE API', { error: result.message }, false);
-                    showNotification('danger', `❌ LINE API ล้มเหลว: ${result.message}`);
+            if (result.status === 'success') {
+                showNotification(`LINE API: ${result.message}`, 'success');
+                if (result.data) {
+                    showNotification(`Bot: ${result.data.bot_name}`, 'info');
                 }
-            } catch (error) {
-                showTestResult('LINE API', { error: 'Connection failed' }, false);
-                showNotification('danger', '❌ ไม่สามารถทดสอบ LINE API ได้');
+            } else {
+                showNotification(`LINE API Error: ${result.message}`, 'error');
             }
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการทดสอบ LINE API', 'error');
         }
-
-        function openThunderTest() {
-            showNotification('info', 'เปิด Debug Console สำหรับทดสอบ Thunder API...');
-            window.open('/admin/debug', '_blank');
-        }
-
-        async function testAIChat() {
-            const apiKey = document.getElementById('openai_api_key').value.trim();
-            const enabled = document.getElementById('ai_enabled').checked;
+    }
+    
+    // Test Thunder API
+    async function testThunderAPI() {
+        try {
+            showNotification('กำลังทดสอบ Thunder API...', 'info');
             
-            if (!enabled) {
-                showNotification('warning', 'กรุณาเปิดใช้งาน AI Chatbot ก่อน');
-                return;
+            const result = await apiCall('/admin/test-thunder-connection', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification('Thunder API: ทดสอบสำเร็จ', 'success');
+            } else {
+                showNotification(`Thunder API Error: ${result.message}`, 'error');
             }
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการทดสอบ Thunder API', 'error');
+        }
+    }
+    
+    // Show webhook URL
+    function showWebhookURL() {
+        const webhookURL = `${window.location.origin}/line/webhook`;
+        document.getElementById('webhook-url').value = webhookURL;
+        new bootstrap.Modal(document.getElementById('webhookModal')).show();
+    }
+    
+    // Show Thunder API info
+    function showThunderAPIInfo() {
+        showNotification('Thunder API ใช้สำหรับตรวจสอบสลิปโอนเงิน รองรับธนาคารหลักในประเทศไทย', 'info', 8000);
+    }
+    
+    // Copy to clipboard
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        document.execCommand('copy');
+        showNotification('คัดลอกแล้ว!', 'success', 2000);
+    }
+    
+    // Export configuration
+    async function exportConfig() {
+        try {
+            const result = await apiCall('/admin/export-data');
             
-            if (!apiKey) {
-                showNotification('warning', 'กรุณาใส่ OpenAI API Key');
-                return;
+            if (result.status === 'success') {
+                const dataStr = JSON.stringify(result.data, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `line-oa-config-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                
+                showNotification('Export สำเร็จ', 'success');
+            } else {
+                showNotification('Export ล้มเหลว', 'error');
             }
-            
-            showNotification('info', 'กำลังทดสอบ AI Chat...');
-            showTestResult('AI Chat', { status: 'Ready', api_key_configured: true }, true);
-            showNotification('success', '✅ AI Chat พร้อมใช้งาน!');
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการ Export', 'error');
         }
-
-        async function testAllConfiguration() {
-            await testAllSystems();
+    }
+    
+    // Import configuration
+    function importConfig() {
+        new bootstrap.Modal(document.getElementById('importModal')).show();
+    }
+    
+    function processImport() {
+        const fileInput = document.getElementById('config-file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showNotification('กรุณาเลือกไฟล์', 'warning');
+            return;
         }
-
-        // Quick Actions
-        async function resetToDefaults() {
-            if (!confirm('ต้องการรีเซ็ตการตั้งค่าเป็นค่าเริ่มต้นหรือไม่?')) return;
-            
-            document.getElementById('ai_enabled').checked = true;
-            document.getElementById('slip_enabled').checked = true;
-            document.getElementById('thunder_enabled').checked = true;
-            document.getElementById('kbank_enabled').checked = false;
-            document.getElementById('kbank_sandbox').checked = true;
-            loadDefaultPrompt();
-            
-            showNotification('info', '🔄 รีเซ็ตการตั้งค่าแล้ว กรุณาบันทึกการตั้งค่า');
-        }
-
-        async function autoSetupDemo() {
-            showNotification('info', 'กำลังตั้งค่า Demo...');
-            
-            await setupKBankSandbox();
-            
-            document.getElementById('slip_enabled').checked = true;
-            document.getElementById('thunder_enabled').checked = true;
-            document.getElementById('ai_enabled').checked = true;
-            
-            loadDefaultPrompt();
-            
-            showNotification('success', '🎮 ตั้งค่า Demo เสร็จสิ้น!');
-        }
-
-        async function exportConfig() {
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
             try {
-                const config = {
-                    ai_enabled: document.getElementById('ai_enabled').checked,
-                    slip_enabled: document.getElementById('slip_enabled').checked,
-                    thunder_enabled: document.getElementById('thunder_enabled').checked,
-                    kbank_enabled: document.getElementById('kbank_enabled').checked,
-                    kbank_sandbox_mode: document.getElementById('kbank_sandbox').checked,
-                    ai_prompt: document.getElementById('ai_prompt').value,
-                    export_timestamp: new Date().toISOString(),
-                    export_version: 'v2.0.0'
-                };
+                const config = JSON.parse(e.target.result);
                 
-                const dataStr = JSON.stringify(config, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const exportFileDefaultName = `line_oa_config_${new Date().toISOString().split('T')[0]}.json`;
-                
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', exportFileDefaultName);
-                linkElement.click();
-                
-                showNotification('success', '📤 ส่งออกการตั้งค่าสำเร็จ');
-            } catch (error) {
-                showNotification('danger', '❌ เกิดข้อผิดพลาดในการส่งออก');
-            }
-        }
-
-        function importConfig() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = function(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        try {
-                            const config = JSON.parse(e.target.result);
-                            
-                            if (config.ai_enabled !== undefined) {
-                                document.getElementById('ai_enabled').checked = config.ai_enabled;
+                // Apply configuration to form
+                if (config.system_config) {
+                    Object.keys(config.system_config).forEach(key => {
+                        const element = document.getElementById(key);
+                        if (element) {
+                            if (element.type === 'checkbox') {
+                                element.checked = config.system_config[key];
+                            } else {
+                                element.value = config.system_config[key];
                             }
-                            if (config.slip_enabled !== undefined) {
-                                document.getElementById('slip_enabled').checked = config.slip_enabled;
-                            }
-                            if (config.thunder_enabled !== undefined) {
-                                document.getElementById('thunder_enabled').checked = config.thunder_enabled;
-                            }
-                            if (config.kbank_enabled !== undefined) {
-                                document.getElementById('kbank_enabled').checked = config.kbank_enabled;
-                            }
-                            if (config.kbank_sandbox_mode !== undefined) {
-                                if (config.kbank_sandbox_mode) {
-                                    document.getElementById('kbank_sandbox').checked = true;
-                                } else {
-                                    document.getElementById('kbank_production').checked = true;
-                                }
-                            }
-                            if (config.ai_prompt) {
-                                document.getElementById('ai_prompt').value = config.ai_prompt;
-                            }
-                            
-                            showNotification('success', '📥 นำเข้าการตั้งค่าสำเร็จ กรุณาบันทึกการตั้งค่า');
-                        } catch (error) {
-                            showNotification('danger', '❌ ไฟล์ config ไม่ถูกต้อง');
                         }
-                    };
-                    reader.readAsText(file);
+                    });
                 }
-            };
-            input.click();
+                
+                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+                showNotification('Import สำเร็จ กรุณาบันทึกการตั้งค่า', 'success');
+                
+            } catch (error) {
+                showNotification('ไฟล์ configuration ไม่ถูกต้อง', 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    // Reset API failures
+    async function resetAPIFailures() {
+        try {
+            const result = await apiCall('/admin/reset-failures', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
+            } else {
+                showNotification(result.message, 'error');
+            }
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการรีเซ็ต API failures', 'error');
         }
-
-        // Visual Effects
-        function addGlowEffect(element, type) {
-            const glowClass = type === 'success' ? 'success-glow' : 'error-glow';
-            element.classList.add(glowClass);
-            setTimeout(() => {
-                element.classList.remove(glowClass);
-            }, 2000);
+    }
+    
+    // View system info
+    async function viewSystemInfo() {
+        try {
+            const result = await apiCall('/admin/system-info');
+            
+            if (result.status === 'success') {
+                const info = result.system_info;
+                let message = `Database: ${info.database_type}\n`;
+                message += `Config: ${info.config_type}\n`;
+                message += `Status: ${info.ready ? 'Ready' : 'Not Ready'}\n`;
+                message += `Thunder API: ${info.features.thunder_api ? 'Available' : 'Unavailable'}`;
+                
+                alert(message);
+            }
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการดึงข้อมูลระบบ', 'error');
         }
-
-        function showTestResult(testName, data, success) {
-           const card = document.getElementById('testResultsCard');
-           const resultsDiv = document.getElementById('testResults');
-           
-           let resultHtml = resultsDiv.innerHTML;
-           
-           const icon = success ? '✅' : '❌';
-           const statusClass = success ? 'text-success' : 'text-danger';
-           
-           resultHtml += `
-               <div class="mb-2">
-                   <div class="d-flex justify-content-between">
-                       <span><strong>${testName}</strong></span>
-                       <span class="${statusClass}">${icon}</span>
-                   </div>
-                   <small class="text-muted">
-                       ${Object.entries(data).map(([key, value]) => `${key}: ${value}`).join(', ')}
-                   </small>
-               </div>
-           `;
-           
-           resultsDiv.innerHTML = resultHtml;
-           card.style.display = 'block';
-           
-           // Auto hide after 10 seconds
-           setTimeout(() => {
-               if (resultsDiv.children.length > 3) {
-                   resultsDiv.removeChild(resultsDiv.firstElementChild);
-               }
-           }, 10000);
-       }
-
-       function showAllTestResults(results) {
-           const card = document.getElementById('testResultsCard');
-           const resultsDiv = document.getElementById('testResults');
-           
-           let resultHtml = '<h6>ผลการทดสอบทั้งหมด:</h6>';
-           
-           for (const [testName, result] of Object.entries(results)) {
-               const icon = result.success ? '✅' : '❌';
-               const statusClass = result.success ? 'text-success' : 'text-danger';
-               
-               resultHtml += `
-                   <div class="mb-2">
-                       <div class="d-flex justify-content-between">
-                           <span><strong>${testName}</strong></span>
-                           <span class="${statusClass}">${icon}</span>
-                       </div>
-                       <small class="text-muted">
-                           ${Object.entries(result.data).map(([key, value]) => `${key}: ${value}`).join(', ')}
-                       </small>
-                   </div>
-               `;
-           }
-           
-           resultsDiv.innerHTML = resultHtml;
-           card.style.display = 'block';
-       }
-
-       // แสดง notification
-       function showNotification(type, message) {
-           const alertClass = {
-               'success': 'alert-success',
-               'danger': 'alert-danger',
-               'warning': 'alert-warning',
-               'info': 'alert-info'
-           }[type] || 'alert-info';
-           
-           const icon = {
-               'success': '✅',
-               'danger': '❌', 
-               'warning': '⚠️',
-               'info': 'ℹ️'
-           }[type] || 'ℹ️';
-          
-           const notification = document.createElement('div');
-           notification.className = `alert ${alertClass} alert-dismissible fade show`;
-           notification.innerHTML = `
-               <strong>${icon}</strong>
-               ${message.replace(/\n/g, '<br>')}
-               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-           `;
-          
-           document.getElementById('saveNotification').appendChild(notification);
-          
-           // Auto remove after 5 seconds
-           setTimeout(() => {
-               if (notification.parentNode) {
-                   notification.remove();
-               }
-           }, 5000);
-       }
-   </script>
-</body>
-</html>
+    }
+    
+    // Reset to defaults
+    function resetToDefaults() {
+        if (confirm('คุณต้องการรีเซ็ตการตั้งค่าทั้งหมดหรือไม่?')) {
+            document.getElementById('settings-form').reset();
+            showNotification('รีเซ็ตการตั้งค่าแล้ว กรุณาบันทึกการตั้งค่า', 'warning');
+        }
+    }
+    
+    // Sync toggles with main switches
+    document.getElementById('slip_enabled').addEventListener('change', function() {
+        document.getElementById('slip_system_toggle').checked = this.checked;
+    });
+    
+    document.getElementById('ai_enabled').addEventListener('change', function() {
+        document.getElementById('ai_system_toggle').checked = this.checked;
+    });
+    
+    document.getElementById('slip_system_toggle').addEventListener('change', function() {
+        document.getElementById('slip_enabled').checked = this.checked;
+    });
+    
+    document.getElementById('ai_system_toggle').addEventListener('change', function() {
+        document.getElementById('ai_enabled').checked = this.checked;
+    });
+</script>
+{% endblock %}
