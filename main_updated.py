@@ -812,7 +812,7 @@ async def websocket_endpoint(websocket: WebSocket):
         await notification_manager.disconnect(websocket)
         
         
-        @app.get("/admin/users", response_class=HTMLResponse)
+@app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users(request: Request):
     """User management page"""
     try:
@@ -1544,196 +1544,196 @@ async def config_management_page(request: Request):
         return templates.TemplateResponse("config_management.html", {
             "request": request,
             "configs": {},
-        "config_count": 0,
-           "error": str(e)
-       })
+            "config_count": 0,
+            "error": str(e)
+        })
 
 @app.post("/admin/config-management/update")
 async def update_config_via_web(request: Request):
-   """อัปเดต Configuration ผ่านหน้าเว็บ"""
-   try:
-       data = await request.json()
-       
-       # แยกประเภทของ config
-       sensitive_fields = ['line_channel_access_token', 'line_channel_secret', 
-                         'thunder_api_token', 'openai_api_key']
-       
-       updates = {}
-       for key, value in data.items():
-           if key.startswith('_'):  # Skip system fields
-               continue
-               
-           # Handle boolean fields
-           if key in ['ai_enabled', 'slip_enabled', 'thunder_enabled']:
-               updates[key] = bool(value)
-           else:
-               updates[key] = value
-       
-       success = config_manager.update_multiple(updates)
-       
-       if success:
-           # Log sensitive updates without showing values
-           for key in updates:
-               if key in sensitive_fields:
-                   logger.info(f"🔐 Updated sensitive config: {key}")
-               else:
-                   logger.info(f"⚙️ Updated config: {key} = {updates[key]}")
-           
-           await notification_manager.send_notification(
-               f"✅ Updated {len(updates)} configurations", "success"
-           )
-           
-           return JSONResponse({
-               "status": "success",
-               "message": f"อัปเดต {len(updates)} การตั้งค่าเรียบร้อย",
-               "updated_count": len(updates)
-           })
-       else:
-           return JSONResponse({
-               "status": "error",
-               "message": "ไม่สามารถบันทึกการตั้งค่าได้"
-           })
-           
-   except Exception as e:
-       logger.error(f"❌ Config update error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """อัปเดต Configuration ผ่านหน้าเว็บ"""
+    try:
+        data = await request.json()
+        
+        # แยกประเภทของ config
+        sensitive_fields = ['line_channel_access_token', 'line_channel_secret', 
+                            'thunder_api_token', 'openai_api_key']
+        
+        updates = {}
+        for key, value in data.items():
+            if key.startswith('_'):  # Skip system fields
+                continue
+                
+            # Handle boolean fields
+            if key in ['ai_enabled', 'slip_enabled', 'thunder_enabled']:
+                updates[key] = bool(value)
+            else:
+                updates[key] = value
+        
+        success = config_manager.update_multiple(updates)
+        
+        if success:
+            # Log sensitive updates without showing values
+            for key in updates:
+                if key in sensitive_fields:
+                    logger.info(f"🔐 Updated sensitive config: {key}")
+                else:
+                    logger.info(f"⚙️ Updated config: {key} = {updates[key]}")
+            
+            await notification_manager.send_notification(
+                f"✅ Updated {len(updates)} configurations", "success"
+            )
+            
+            return JSONResponse({
+                "status": "success",
+                "message": f"อัปเดต {len(updates)} การตั้งค่าเรียบร้อย",
+                "updated_count": len(updates)
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "ไม่สามารถบันทึกการตั้งค่าได้"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Config update error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/cleanup-old-data")
 async def cleanup_old_data_endpoint():
-   """ทำความสะอาดข้อมูลเก่า"""
-   try:
-       result = database_functions['cleanup_old_data'](days=30)
-       
-       if result:
-           await notification_manager.send_notification(
-               f"🧹 ทำความสะอาดข้อมูลเสร็จสิ้น: ลบ {result.get('deleted_chats', 0)} chat, {result.get('deleted_logs', 0)} logs", 
-               "success"
-           )
-           
-           return JSONResponse({
-               "status": "success",
-               "message": "ทำความสะอาดข้อมูลเสร็จสิ้น",
-               "result": result
-           })
-       else:
-           return JSONResponse({
-               "status": "info",
-               "message": "ไม่มีข้อมูลเก่าที่ต้องลบ"
-           })
-       
-   except Exception as e:
-       logger.error(f"❌ Cleanup error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ทำความสะอาดข้อมูลเก่า"""
+    try:
+        result = database_functions['cleanup_old_data'](days=30)
+        
+        if result:
+            await notification_manager.send_notification(
+                f"🧹 ทำความสะอาดข้อมูลเสร็จสิ้น: ลบ {result.get('deleted_chats', 0)} chat, {result.get('deleted_logs', 0)} logs", 
+                "success"
+            )
+            
+            return JSONResponse({
+                "status": "success",
+                "message": "ทำความสะอาดข้อมูลเสร็จสิ้น",
+                "result": result
+            })
+        else:
+            return JSONResponse({
+                "status": "info",
+                "message": "ไม่มีข้อมูลเก่าที่ต้องลบ"
+            })
+        
+    except Exception as e:
+        logger.error(f"❌ Cleanup error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/system-info")
 async def get_system_info():
-   """ดึงข้อมูลระบบที่ใช้งานอยู่"""
-   try:
-       is_postgres_db = 'postgres_database' in str(database_functions.get('init_database', ''))
-       is_postgres_config = hasattr(config_manager, '_cache')
-       
-       return JSONResponse({
-           "status": "success",
-           "system_info": {
-               "database_type": "PostgreSQL" if is_postgres_db else "SQLite",
-               "config_type": "PostgreSQL" if is_postgres_config else "JSON File",
-               "ready": IS_READY,
-               "features": {
-                   "postgresql_support": is_postgres_db,
-                   "api_logging": is_postgres_db,
-                   "advanced_config": is_postgres_config,
-                   "data_cleanup": is_postgres_db,
-                   "thunder_api": True,
-                   "kbank_api": False  # ลบ KBank support
-               }
-           }
-       })
-   except Exception as e:
-       return JSONResponse({
-           "status": "error",
-           "message": str(e)
-       })
+    """ดึงข้อมูลระบบที่ใช้งานอยู่"""
+    try:
+        is_postgres_db = 'postgres_database' in str(database_functions.get('init_database', ''))
+        is_postgres_config = hasattr(config_manager, '_cache')
+        
+        return JSONResponse({
+            "status": "success",
+            "system_info": {
+                "database_type": "PostgreSQL" if is_postgres_db else "SQLite",
+                "config_type": "PostgreSQL" if is_postgres_config else "JSON File",
+                "ready": IS_READY,
+                "features": {
+                    "postgresql_support": is_postgres_db,
+                    "api_logging": is_postgres_db,
+                    "advanced_config": is_postgres_config,
+                    "data_cleanup": is_postgres_db,
+                    "thunder_api": True,
+                    "kbank_api": False  # ลบ KBank support
+                }
+            }
+        })
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
 
 # Thunder API specific endpoints
 @app.post("/admin/test-thunder-api")
 async def test_thunder_api_direct(request: Request):
-   """ทดสอบ Thunder API โดยตรง"""
-   try:
-       form = await request.form()
-       token = form.get("token")
-       file = form.get("file")
-       
-       if not token:
-           return JSONResponse({
-               "status": "error", 
-               "message": "Missing Thunder API token"
-           })
-       
-       if not file:
-           return JSONResponse({
-               "status": "error",
-               "message": "Missing file for testing"
-           })
-       
-       image_data = await file.read()
-       
-       logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
-       logger.info(f"🧪 Image size: {len(image_data)} bytes")
-       
-       # Test connection first
-       test_result = slip_functions['test_thunder_api_connection'](token)
-       
-       if test_result.get("status") == "success":
-           return JSONResponse({
-               "status": "success", 
-               "message": "Thunder API connection test successful",
-               "data": test_result
-           })
-       else:
-           return JSONResponse({
-               "status": "error",
-               "message": test_result.get("message", "Thunder API test failed"),
-               "data": test_result
-           })
-           
-   except Exception as e:
-       logger.exception(f"❌ Thunder API test error: {e}")
-       return JSONResponse({
-           "status": "error", 
-           "message": str(e)
-       })
+    """ทดสอบ Thunder API โดยตรง"""
+    try:
+        form = await request.form()
+        token = form.get("token")
+        file = form.get("file")
+        
+        if not token:
+            return JSONResponse({
+                "status": "error", 
+                "message": "Missing Thunder API token"
+            })
+        
+        if not file:
+            return JSONResponse({
+                "status": "error",
+                "message": "Missing file for testing"
+            })
+        
+        image_data = await file.read()
+        
+        logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
+        logger.info(f"🧪 Image size: {len(image_data)} bytes")
+        
+        # Test connection first
+        test_result = slip_functions['test_thunder_api_connection'](token)
+        
+        if test_result.get("status") == "success":
+            return JSONResponse({
+                "status": "success", 
+                "message": "Thunder API connection test successful",
+                "data": test_result
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": test_result.get("message", "Thunder API test failed"),
+                "data": test_result
+            })
+            
+    except Exception as e:
+        logger.exception(f"❌ Thunder API test error: {e}")
+        return JSONResponse({
+            "status": "error", 
+            "message": str(e)
+        })
 
 @app.post("/admin/test-thunder-connection")
 async def test_thunder_connection():
-   """ทดสอบการเชื่อมต่อ Thunder API"""
-   try:
-       token = config_manager.get("thunder_api_token", "")
-       if not token:
-           return JSONResponse({
-               "status": "error",
-               "message": "Thunder API Token ไม่ได้ตั้งค่า"
-           })
-       
-       result = slip_functions['test_thunder_api_connection'](token)
-       
-       return JSONResponse({
-           "status": result.get("status", "error"),
-           "message": result.get("message", "Unknown error"),
-           "data": result
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Test Thunder connection error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ทดสอบการเชื่อมต่อ Thunder API"""
+    try:
+        token = config_manager.get("thunder_api_token", "")
+        if not token:
+            return JSONResponse({
+                "status": "error",
+                "message": "Thunder API Token ไม่ได้ตั้งค่า"
+            })
+        
+        result = slip_functions['test_thunder_api_connection'](token)
+        
+        return JSONResponse({
+            "status": result.get("status", "error"),
+            "message": result.get("message", "Unknown error"),
+            "data": result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Test Thunder connection error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 # Fallback endpoints for removed KBank functionality
 @app.post("/admin/kbank/setup-instant")
@@ -1745,172 +1745,172 @@ async def test_thunder_connection():
 @app.post("/admin/kbank/test-credentials")
 @app.get("/admin/kbank/status")
 async def kbank_endpoints_removed():
-   """KBank endpoints removed - fallback response"""
-   return JSONResponse({
-       "status": "info",
-       "message": "KBank API support has been removed from this system. Only Thunder API is supported."
-   })
+    """KBank endpoints removed - fallback response"""
+    return JSONResponse({
+        "status": "info",
+        "message": "KBank API support has been removed from this system. Only Thunder API is supported."
+    })
 
 # Demo and testing endpoints
 @app.post("/admin/test-slip-demo")
 async def test_slip_demo():
-   """ทดสอบการตรวจสอบสลิปแบบ Demo"""
-   try:
-       # สร้างผลลัพธ์จำลองสำหรับ demo
-       demo_result = {
-           "status": "success",
-           "message": "ทดสอบการตรวจสอบสลิปสำเร็จ (Demo Mode)",
-           "data": {
-               "amount": "1000",
-               "amount_display": "฿1,000",
-               "date": datetime.now().strftime("%d/%m/%Y"),
-               "time": datetime.now().strftime("%H:%M:%S"),
-               "sender": "ทดสอบ Thunder API",
-               "receiver_name": "ผู้รับทดสอบ",
-               "sender_bank": "Test Bank",
-               "receiver_bank": "Test Bank",
-               "verified_by": "Thunder API (Demo)",
-               "reference": f"DEMO{int(time.time())}"
-           }
-       }
-       
-       return JSONResponse({
-           "status": "success",
-           "message": "Demo slip verification completed",
-           "result": demo_result
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Test slip demo error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ทดสอบการตรวจสอบสลิปแบบ Demo"""
+    try:
+        # สร้างผลลัพธ์จำลองสำหรับ demo
+        demo_result = {
+            "status": "success",
+            "message": "ทดสอบการตรวจสอบสลิปสำเร็จ (Demo Mode)",
+            "data": {
+                "amount": "1000",
+                "amount_display": "฿1,000",
+                "date": datetime.now().strftime("%d/%m/%Y"),
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "sender": "ทดสอบ Thunder API",
+                "receiver_name": "ผู้รับทดสอบ",
+                "sender_bank": "Test Bank",
+                "receiver_bank": "Test Bank",
+                "verified_by": "Thunder API (Demo)",
+                "reference": f"DEMO{int(time.time())}"
+            }
+        }
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "Demo slip verification completed",
+            "result": demo_result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Test slip demo error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/send-test-notification")
 async def send_test_notification():
-   """ส่งการแจ้งเตือนทดสอบ"""
-   try:
-       await notification_manager.send_notification(
-           "🧪 นี่คือการแจ้งเตือนทดสอบ", 
-           "info",
-           {"test": True, "timestamp": datetime.now().isoformat()}
-       )
-       
-       return JSONResponse({
-           "status": "success",
-           "message": "ส่งการแจ้งเตือนทดสอบแล้ว"
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Send test notification error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ส่งการแจ้งเตือนทดสอบ"""
+    try:
+        await notification_manager.send_notification(
+            "🧪 นี่คือการแจ้งเตือนทดสอบ", 
+            "info",
+            {"test": True, "timestamp": datetime.now().isoformat()}
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "ส่งการแจ้งเตือนทดสอบแล้ว"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Send test notification error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.get("/admin/stats")
 async def get_admin_stats():
-   """ดึงสถิติของระบบ"""
-   try:
-       total_chats = database_functions['get_chat_history_count']()
-       recent_chats = database_functions['get_recent_chat_history'](10)
-       
-       # นับจำนวน user ที่ active
-       unique_users = len(set(chat.user_id for chat in recent_chats))
-       
-       # API status
-       api_status = get_api_status_summary()
-       
-       stats = {
-           "total_messages": total_chats,
-           "unique_users": unique_users,
-           "websocket_connections": len(notification_manager.active_connections),
-           "system_ready": IS_READY,
-           "thunder_configured": api_status.get("thunder", {}).get("configured", False),
-           "thunder_enabled": api_status.get("thunder", {}).get("enabled", False),
-           "slip_system_enabled": config_manager.get("slip_enabled", False),
-           "ai_system_enabled": config_manager.get("ai_enabled", False)
-       }
-       
-       return JSONResponse({
-           "status": "success",
-           "stats": stats
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Get admin stats error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """ดึงสถิติของระบบ"""
+    try:
+        total_chats = database_functions['get_chat_history_count']()
+        recent_chats = database_functions['get_recent_chat_history'](10)
+        
+        # นับจำนวน user ที่ active
+        unique_users = len(set(chat.user_id for chat in recent_chats))
+        
+        # API status
+        api_status = get_api_status_summary()
+        
+        stats = {
+            "total_messages": total_chats,
+            "unique_users": unique_users,
+            "websocket_connections": len(notification_manager.active_connections),
+            "system_ready": IS_READY,
+            "thunder_configured": api_status.get("thunder", {}).get("configured", False),
+            "thunder_enabled": api_status.get("thunder", {}).get("enabled", False),
+            "slip_system_enabled": config_manager.get("slip_enabled", False),
+            "ai_system_enabled": config_manager.get("ai_enabled", False)
+        }
+        
+        return JSONResponse({
+            "status": "success",
+            "stats": stats
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get admin stats error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 @app.post("/admin/restart-services")
 async def restart_services():
-   """รีสตาร์ทบริการต่างๆ"""
-   try:
-       # รีสตาร์ท LINE Bot
-       init_line_bot()
-       
-       # รีเซ็ต failure cache
-       reset_api_failure_cache()
-       
-       await notification_manager.send_notification("🔄 รีสตาร์ทบริการแล้ว", "success")
-       
-       return JSONResponse({
-           "status": "success",
-           "message": "รีสตาร์ทบริการสำเร็จ"
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Restart services error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """รีสตาร์ทบริการต่างๆ"""
+    try:
+        # รีสตาร์ท LINE Bot
+        init_line_bot()
+        
+        # รีเซ็ต failure cache
+        reset_api_failure_cache()
+        
+        await notification_manager.send_notification("🔄 รีสตาร์ทบริการแล้ว", "success")
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "รีสตาร์ทบริการสำเร็จ"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Restart services error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 # Error handlers
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
-   """Handle 404 errors"""
-   return JSONResponse(
-       status_code=404,
-       content={"status": "error", "message": "Endpoint not found"}
-   )
+    """Handle 404 errors"""
+    return JSONResponse(
+        status_code=404,
+        content={"status": "error", "message": "Endpoint not found"}
+    )
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc: HTTPException):
-   """Handle 500 errors"""
-   logger.error(f"Internal server error: {exc}")
-   return JSONResponse(
-       status_code=500,
-       content={"status": "error", "message": "Internal server error"}
-   )
+    """Handle 500 errors"""
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": "Internal server error"}
+    )
 
 # ====================== Main Entry Point ======================
 
 if __name__ == "__main__":
-   import uvicorn
-   
-   print("🚀 Starting LINE OA Middleware (Production - Thunder API Only)...")
-   print("🔗 Admin UI: http://localhost:8000/admin")  
-   print("🔗 Debug Console: http://localhost:8000/admin/debug")
-   print("🔗 Health Check: http://localhost:8000/health")
-   print("⚡ Thunder API Support: Enabled")
-   print("❌ KBank API Support: Removed")
-   
-   try:
-       uvicorn.run(
-           "main_updated:app",
-           host="0.0.0.0",
-           port=int(os.getenv("PORT", 8000)),
-           workers=1,  # Single worker for stability
-           reload=False,  # Disable reload in production
-           log_level="info",
-           access_log=True,
-           timeout_keep_alive=5,
-           timeout_graceful_shutdown=10
-       )
-   except Exception as e:
-       logger.error(f"❌ Server startup failed: {e}")
-       sys.exit(1)
+    import uvicorn
+    
+    print("🚀 Starting LINE OA Middleware (Production - Thunder API Only)...")
+    print("🔗 Admin UI: http://localhost:8000/admin")  
+    print("🔗 Debug Console: http://localhost:8000/admin/debug")
+    print("🔗 Health Check: http://localhost:8000/health")
+    print("⚡ Thunder API Support: Enabled")
+    print("❌ KBank API Support: Removed")
+    
+    try:
+        uvicorn.run(
+            "main_updated:app",
+            host="0.0.0.0",
+            port=int(os.getenv("PORT", 8000)),
+            workers=1,  # Single worker for stability
+            reload=False,  # Disable reload in production
+            log_level="info",
+            access_log=True,
+            timeout_keep_alive=5,
+            timeout_graceful_shutdown=10
+        )
+    except Exception as e:
+        logger.error(f"❌ Server startup failed: {e}")
+        sys.exit(1)
