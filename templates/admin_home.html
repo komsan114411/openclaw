@@ -1,389 +1,407 @@
-<!-- templates/admin_home.html - แก้ไขเวอร์ชัน -->
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - LINE OA Middleware</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .status-indicator { 
-            width: 12px; 
-            height: 12px; 
-            border-radius: 50%; 
-            display: inline-block; 
-            margin-right: 8px; 
-        }
-        .status-online { background-color: #28a745; }
-        .status-offline { background-color: #dc3545; }
-        .status-warning { background-color: #ffc107; }
-        .api-status-card { 
-            transition: all 0.3s ease; 
-            cursor: pointer;
-        }
-        .api-status-card:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .metric-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            transition: all 0.3s ease;
-        }
-        .metric-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        }
-        .notification-panel {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
-            max-width: 400px;
-        }
-    </style>
-</head>
-<body class="bg-light">
-    <!-- Notification Panel -->
-    <div id="notificationPanel" class="notification-panel"></div>
+{% extends "base.html" %}
 
-    <!-- Include navbar -->
-    {% include 'components/navbar.html' %}
+{% block title %}Dashboard - LINE OA Middleware{% endblock %}
 
-    <div class="container mt-4">
-        <!-- System Status Overview -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-tachometer-alt me-2"></i>System Status Overview</h5>
-                        <div>
-                            <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshAllStatus()" id="refreshBtn">
-                                <i class="fas fa-sync me-1"></i>Refresh All
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row" id="systemStatusOverview">
-                            <div class="col-md-3">
-                                <div class="card metric-card">
-                                    <div class="card-body text-center">
-                                        <div class="h2" id="systemStatus">
-                                            <div class="spinner-border" role="status"></div>
-                                        </div>
-                                        <div>System Status</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                                    <div class="card-body text-center">
-                                        <div class="h2" id="apiCount">
-                                            <div class="spinner-border" role="status"></div>
-                                        </div>
-                                        <div>APIs Ready</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                                    <div class="card-body text-center">
-                                        <div class="h2">{{ total_chat_history or 0 }}</div>
-                                        <div>Total Messages</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                                    <div class="card-body text-center">
-                                        <div class="h2" id="activeConnections">0</div>
-                                        <div>Active Connections</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+        Dashboard
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+        <button class="btn btn-success" onclick="sendTestNotification()">
+            <i class="fas fa-bell me-1"></i> Test Notification
+        </button>
+    </div>
+</div>
 
-        <!-- API Status Cards -->
-        <div class="row mb-4">
-            <!-- Thunder API -->
-            <div class="col-md-4">
-                <div class="card api-status-card" onclick="openDebugConsole()">
-                    <div class="card-header bg-warning text-dark">
-                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
+<!-- System Status Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number" id="total-messages">{{ total_chat_history }}</div>
+                        <div class="text-white-50">Total Messages</div>
                     </div>
-                    <div class="card-body" id="thunderApiStatus">
-                        <div class="text-center">
-                            <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
-                            <span class="ms-2">กำลังตรวจสอบ...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- KBank API -->
-            <div class="col-md-4">
-                <div class="card api-status-card" onclick="openDebugConsole()">
-                    <div class="card-header bg-primary text-white">
-                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
-                    </div>
-                    <div class="card-body" id="kbankApiStatus">
-                        <div class="text-center">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                            <span class="ms-2">กำลังตรวจสอบ...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- LINE API -->
-            <div class="col-md-4">
-                <div class="card api-status-card" onclick="testLineConnection()">
-                    <div class="card-header bg-success text-white">
-                        <h6><i class="fab fa-line me-2"></i>LINE API</h6>
-                    </div>
-                    <div class="card-body" id="lineApiStatus">
-                        <div class="text-center">
-                            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
-                            <span class="ms-2">กำลังตรวจสอบ...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h6><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button class="btn btn-outline-success" onclick="toggleSlipSystem()">
-                                <i class="fas fa-toggle-on me-1"></i>Toggle Slip System
-                            </button>
-                            <button class="btn btn-outline-primary" onclick="resetAPIFailures()">
-                                <i class="fas fa-redo me-1"></i>Reset API Failures
-                            </button>
-                            <button class="btn btn-outline-warning" onclick="testLineConnection()">
-                                <i class="fab fa-line me-1"></i>Test LINE API
-                            </button>
-                            <a href="/admin/settings" class="btn btn-outline-secondary">
-                                <i class="fas fa-cog me-1"></i>Settings
-                            </a>
-                            <a href="/admin/debug" class="btn btn-outline-dark">
-                                <i class="fas fa-bug me-1"></i>Debug Console
-                            </a>
-                        </div>
+                    <div class="feature-icon bg-white bg-opacity-20">
+                        <i class="fas fa-comments text-white"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let websocket = null;
-        let refreshInterval = null;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeWebSocket();
-            refreshAllStatus();
-            
-            // Auto refresh every 30 seconds
-            refreshInterval = setInterval(refreshAllStatus, 30000);
-        });
-
-        function initializeWebSocket() {
-            try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-                websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = function() {
-                    console.log('WebSocket connected');
-                    updateNavbarStatus(true);
-                };
-                
-                websocket.onmessage = function(event) {
-                    try {
-                        const notification = JSON.parse(event.data);
-                        if (notification.type !== 'heartbeat') {
-                            showNotification(notification.message, notification.type);
-                        }
-                        
-                        // Update connection count if provided
-                        if (notification.active_connections !== undefined) {
-                            document.getElementById('activeConnections').textContent = notification.active_connections;
-                        }
-                    } catch (e) {
-                        console.error('Error parsing WebSocket message:', e);
-                    }
-                };
-                
-                websocket.onclose = function() {
-                    console.log('WebSocket disconnected');
-                    updateNavbarStatus(false);
-                    
-                    // Try to reconnect after 5 seconds
-                    setTimeout(initializeWebSocket, 5000);
-                };
-                
-                websocket.onerror = function(error) {
-                    console.error('WebSocket error:', error);
-                    updateNavbarStatus(false);
-                };
-            } catch (error) {
-                console.error('WebSocket initialization error:', error);
-            }
-        }
-
-        function showNotification(message, type = 'info') {
-            const alertClass = {
-                'success': 'alert-success',
-                'error': 'alert-danger', 
-                'warning': 'alert-warning',
-                'info': 'alert-info'
-            }[type] || 'alert-info';
-            
-            const notification = document.createElement('div');
-            notification.className = `alert ${alertClass} alert-dismissible fade show`;
-            notification.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            
-            document.getElementById('notificationPanel').appendChild(notification);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 5000);
-        }
-
-        async function refreshAllStatus() {
-            const refreshBtn = document.getElementById('refreshBtn');
-            const originalText = refreshBtn.innerHTML;
-            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
-            refreshBtn.disabled = true;
-
-            try {
-                const response = await fetch('/admin/api-status');
-                const data = await response.json();
-                
-                // Update system status
-                const systemReady = data.system_status?.slip_system_ready && data.system_status?.line_ready;
-                document.getElementById('systemStatus').innerHTML = systemReady ? 
-                    '<i class="fas fa-check-circle"></i>' : 
-                    '<i class="fas fa-exclamation-circle"></i>';
-                
-                // Update API count
-                const connectedAPIs = [
-                    data.thunder?.connected, 
-                    data.kbank?.connected, 
-                    data.line?.connected
-                ].filter(Boolean).length;
-                document.getElementById('apiCount').textContent = `${connectedAPIs}/3`;
-                
-                // Update API status cards
-                updateAPIStatusCard('thunderApiStatus', data.thunder);
-                updateAPIStatusCard('kbankApiStatus', data.kbank);
-                updateAPIStatusCard('lineApiStatus', data.line, data.line?.bot_name);
-                
-            } catch (error) {
-                console.error('Failed to refresh status:', error);
-                showNotification('ไม่สามารถโหลดสถานะระบบได้', 'error');
-            } finally {
-                refreshBtn.innerHTML = originalText;
-                refreshBtn.disabled = false;
-            }
-        }
-
-        function updateAPIStatusCard(elementId, apiData, extraInfo = null) {
-            const element = document.getElementById(elementId);
-            if (!apiData) {
-                element.innerHTML = '<div class="text-center text-muted">No data</div>';
-                return;
-            }
-            
-            const statusColor = apiData.connected ? 'success' : apiData.configured ? 'warning' : 'danger';
-            const statusText = apiData.connected ? 'Connected' : apiData.configured ? 'Configured' : 'Not Configured';
-            
-            element.innerHTML = `
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Status:</span>
-                    <span class="badge bg-${statusColor}">${statusText}</span>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number" id="websocket-connections">0</div>
+                        <div class="text-white-50">Active Connections</div>
+                    </div>
+                    <div class="feature-icon bg-white bg-opacity-20">
+                        <i class="fas fa-users text-white"></i>
+                    </div>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Enabled:</span>
-                    <span class="badge ${apiData.enabled ? 'bg-primary' : 'bg-secondary'}">
-                        ${apiData.enabled ? 'Yes' : 'No'}
-                    </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number">
+                            {% if system_status.system_enabled %}
+                                <i class="fas fa-check text-white"></i>
+                            {% else %}
+                                <i class="fas fa-times text-white"></i>
+                            {% endif %}
+                        </div>
+                        <div class="text-white-50">Slip System</div>
+                    </div>
+                    <div class="feature-icon bg-white bg-opacity-20">
+                        <i class="fas fa-receipt text-white"></i>
+                    </div>
                 </div>
-                ${extraInfo ? `<small class="text-muted">${extraInfo}</small>` : `<small class="text-muted">Failures: ${apiData.recent_failures || 0}</small>`}
-            `;
-        }
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number">
+                            {% if system_status.any_api_available %}
+                                <i class="fas fa-check text-white"></i>
+                            {% else %}
+                                <i class="fas fa-times text-white"></i>
+                            {% endif %}
+                        </div>
+                        <div class="text-white-50">API Status</div>
+                    </div>
+                    <div class="feature-icon bg-white bg-opacity-20">
+                        <i class="fas fa-plug text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        async function toggleSlipSystem() {
-            try {
-                const response = await fetch('/admin/toggle-slip-system', { method: 'POST' });
-                const result = await response.json();
-                showNotification(result.message, result.status);
-                refreshAllStatus();
-            } catch (error) {
-                showNotification('Failed to toggle slip system', 'error');
-            }
-        }
+<!-- API Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-server me-2"></i>
+                    API Status Monitor
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="api-status-grid" id="api-status-grid">
+                    <!-- API status cards will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        async function resetAPIFailures() {
-            try {
-                const response = await fetch('/admin/reset-failures', { method: 'POST' });
-                const result = await response.json();
-                showNotification(result.message, result.status);
-                refreshAllStatus();
-            } catch (error) {
-                showNotification('Failed to reset API failures', 'error');
-            }
-        }
+<!-- System Controls -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    System Controls
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="toggleSlipSystem()">
+                        <i class="fas fa-toggle-on me-2"></i>
+                        Toggle Slip System
+                    </button>
+                    <button class="btn btn-info" onclick="testThunderAPI()">
+                        <i class="fas fa-bolt me-2"></i>
+                        Test Thunder API
+                    </button>
+                    <button class="btn btn-success" onclick="testLineConnection()">
+                        <i class="fab fa-line me-2"></i>
+                        Test LINE Connection
+                    </button>
+                    <button class="btn btn-warning" onclick="resetAPIFailures()">
+                        <i class="fas fa-redo me-2"></i>
+                        Reset API Failures
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    System Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="system-info">
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">System Status:</span>
+                        <span class="badge bg-success" id="system-status">Ready</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">Database:</span>
+                        <span class="badge bg-info" id="database-type">Loading...</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">Thunder API:</span>
+                        <span class="badge bg-secondary" id="thunder-status">Checking...</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span class="fw-medium">Last Updated:</span>
+                        <span class="text-muted" id="last-updated">Just now</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        async function testLineConnection() {
-            showNotification('กำลังทดสอบ LINE API...', 'info');
-            try {
-                const response = await fetch('/admin/test-line-connection', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showNotification(`LINE API Test Success: ${result.data.bot_name}`, 'success');
-                } else {
-                    showNotification(`LINE API Test Failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showNotification('Failed to test LINE API', 'error');
-            }
-        }
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Recent Activity
+                </h5>
+                <a href="/admin/chat-history" class="btn btn-sm btn-outline-primary">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                <div id="recent-activity">
+                    <div class="text-center py-4">
+                        <div class="loading"></div>
+                        <p class="text-muted mt-2">Loading recent activity...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-        function openDebugConsole() {
-            window.open('/admin/debug', '_blank');
+{% block extra_js %}
+<script>
+    let dashboardData = {};
+    
+    // Load dashboard data
+    async function loadDashboardData() {
+        try {
+            // Load API status
+            const apiStatus = await apiCall('/admin/api-status');
+            updateAPIStatusGrid(apiStatus);
+            
+            // Load system info
+            const systemInfo = await apiCall('/admin/system-info');
+            updateSystemInfo(systemInfo);
+            
+            // Load stats
+            const stats = await apiCall('/admin/stats');
+            updateStats(stats);
+            
+        } catch (error) {
+            console.error('Failed to load dashboard data:', error);
         }
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
+    }
+    
+    function updateAPIStatusGrid(data) {
+        const grid = document.getElementById('api-status-grid');
+        grid.innerHTML = '';
+        
+        // LINE API Status
+        if (data.line) {
+            grid.appendChild(createAPIStatusCard('LINE API', data.line, 'fab fa-line', '#00C300'));
+        }
+        
+        // Thunder API Status
+        if (data.thunder) {
+            grid.appendChild(createAPIStatusCard('Thunder API', data.thunder, 'fas fa-bolt', '#FFA500'));
+        }
+        
+        // System Status
+        if (data.system_status) {
+            grid.appendChild(createSystemStatusCard('System Status', data.system_status));
+        }
+    }
+    
+    function createAPIStatusCard(name, status, icon, color) {
+        const card = document.createElement('div');
+        card.className = 'feature-card';
+        
+        const isConnected = status.connected && status.configured && status.enabled;
+        const statusClass = isConnected ? 'success' : 'danger';
+        const statusText = isConnected ? 'Connected' : 'Disconnected';
+        
+        card.innerHTML = `
+            <div class="feature-icon" style="background-color: ${color}20; color: ${color};">
+                <i class="${icon}"></i>
+            </div>
+            <h6 class="fw-bold">${name}</h6>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-muted">Status</small>
+                <span class="badge bg-${statusClass}">${statusText}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">Configured</small>
+                <span class="badge bg-${status.configured ? 'success' : 'secondary'}">
+                    ${status.configured ? 'Yes' : 'No'}
+                </span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">Enabled</small>
+                <span class="badge bg-${status.enabled ? 'success' : 'secondary'}">
+                    ${status.enabled ? 'Yes' : 'No'}
+                </span>
+            </div>
+        `;
+        
+        return card;
+    }
+    
+    function createSystemStatusCard(name, status) {
+        const card = document.createElement('div');
+        card.className = 'feature-card';
+        
+        card.innerHTML = `
+            <div class="feature-icon bg-primary bg-opacity-20 text-primary">
+                <i class="fas fa-server"></i>
+            </div>
+            <h6 class="fw-bold">${name}</h6>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-muted">System</small>
+                <span class="badge bg-${status.system_enabled ? 'success' : 'warning'}">
+                    ${status.system_enabled ? 'Enabled' : 'Disabled'}
+                </span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">LINE Ready</small>
+                <span class="badge bg-${status.line_ready ? 'success' : 'danger'}">
+                    ${status.line_ready ? 'Ready' : 'Not Ready'}
+                </span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">Updated</small>
+                <small class="text-muted">${new Date(status.timestamp).toLocaleTimeString()}</small>
+            </div>
+        `;
+        
+        return card;
+    }
+    
+    function updateSystemInfo(data) {
+        if (data.system_info) {
+            const info = data.system_info;
+            
+            document.getElementById('database-type').textContent = info.database_type;
+            document.getElementById('database-type').className = `badge bg-${info.database_type === 'PostgreSQL' ? 'success' : 'info'}`;
+            
+            document.getElementById('system-status').textContent = info.ready ? 'Ready' : 'Not Ready';
+            document.getElementById('system-status').className = `badge bg-${info.ready ? 'success' : 'danger'}`;
+            
+            document.getElementById('thunder-status').textContent = info.features.thunder_api ? 'Available' : 'Unavailable';
+            document.getElementById('thunder-status').className = `badge bg-${info.features.thunder_api ? 'success' : 'danger'}`;
+        }
+        
+        document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+    }
+    
+    function updateStats(data) {
+        if (data.stats) {
+            const stats = data.stats;
+            
+            document.getElementById('total-messages').textContent = stats.total_messages || 0;
+            document.getElementById('websocket-connections').textContent = stats.websocket_connections || 0;
+        }
+    }
+    
+    // Control functions
+    async function testThunderAPI() {
+        try {
+            showNotification('กำลังทดสอบ Thunder API...', 'info');
+            
+            const result = await apiCall('/admin/test-thunder-connection', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification('Thunder API: ทดสอบสำเร็จ', 'success');
+            } else {
+                showNotification(`Thunder API Error: ${result.message}`, 'error');
             }
-            if (websocket) {
-                websocket.close();
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการทดสอบ Thunder API', 'error');
+        }
+    }
+    
+    async function resetAPIFailures() {
+        try {
+            const result = await apiCall('/admin/reset-failures', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
+                setTimeout(refreshDashboard, 1000);
+            } else {
+                showNotification(result.message, 'error');
             }
-        });
-    </script>
-</body>
-</html>
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการรีเซ็ต API failures', 'error');
+        }
+    }
+    
+    async function sendTestNotification() {
+        try {
+            const result = await apiCall('/admin/send-test-notification', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification('ส่งการแจ้งเตือนทดสอบแล้ว', 'success');
+            }
+        } catch (error) {
+            showNotification('เกิดข้อผิดพลาดในการส่งการแจ้งเตือน', 'error');
+        }
+    }
+    
+    function refreshDashboard() {
+        showNotification('กำลังโหลดข้อมูลใหม่...', 'info', 2000);
+        loadDashboardData();
+    }
+    
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDashboardData();
+        
+        // Auto refresh every 30 seconds
+        setInterval(loadDashboardData, 30000);
+    });
+</script>
+{% endblock %}
