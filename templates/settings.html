@@ -145,6 +145,12 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        .instant-setup-alert {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            border: none;
+            color: #155724;
+        }
     </style>
 </head>
 <body>
@@ -325,15 +331,18 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Quick Setup Alert -->
-                                <div class="alert demo-alert">
-                                    <h6><i class="fas fa-rocket me-2"></i>เริ่มใช้งานเลย!</h6>
-                                    <p class="mb-2">ใช้ KBank Sandbox สำหรับการทดสอบ ไม่ต้องใส่ credentials เอง</p>
+                                <!-- Instant Setup Alert -->
+                                <div class="alert instant-setup-alert">
+                                    <h6><i class="fas fa-rocket me-2"></i>ใช้งานได้ทันที!</h6>
+                                    <p class="mb-2">ใช้ KBank Sandbox โดยไม่ต้องมี SSL Certificate</p>
                                     <div class="d-flex gap-2 flex-wrap">
-                                        <button type="button" class="btn btn-warning btn-sm" onclick="setupKBankSandbox()">
-                                            <i class="fas fa-magic me-1"></i>ตั้งค่า Sandbox อัตโนมัติ
+                                        <button type="button" class="btn btn-success btn-sm" onclick="setupKBankInstant()">
+                                            <i class="fas fa-magic me-1"></i>ตั้งค่าทันที
                                         </button>
-                                        <button type="button" class="btn btn-success btn-sm" onclick="testKBankDemo()">
+                                        <button type="button" class="btn btn-warning btn-sm" onclick="setupKBankSandbox()">
+                                            <i class="fas fa-cog me-1"></i>ตั้งค่า Sandbox
+                                        </button>
+                                        <button type="button" class="btn btn-info btn-sm" onclick="testKBankDemo()">
                                             <i class="fas fa-play me-1"></i>ทดสอบทันที
                                         </button>
                                     </div>
@@ -354,14 +363,15 @@
                                     </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="kbank_environment" 
-                                               id="kbank_production" value="production">
+                                               id="kbank_production" value="production" disabled>
                                         <label class="form-check-label" for="kbank_production">
                                             🏦 <strong>Production</strong> (จริง) - ต้องมี SSL Certificate
-                                            <span class="badge bg-warning ms-2">ต้องใช้ SSL</span>
+                                            <span class="badge bg-warning ms-2">ไม่พร้อมใช้งาน</span>
                                         </label>
                                     </div>
                                 </div>
                                 
+                                <!-- Credentials -->
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -399,6 +409,7 @@
                                     </div>
                                 </div>
                                 
+                                <!-- Info Alert -->
                                 <div class="alert alert-info">
                                     <h6><i class="fas fa-info-circle me-2"></i>KBank API Information</h6>
                                     <div class="row">
@@ -407,9 +418,7 @@
                                                 <li><strong>Sandbox URL:</strong><br>
                                                     <code>https://openapi-sandbox.kasikornbank.com</code>
                                                 </li>
-                                                <li><strong>Production URL:</strong><br>
-                                                    <code>https://openapi.kasikornbank.com</code>
-                                                </li>
+                                                <li><strong>Status:</strong> Sandbox โหมด (ไม่ต้องใช้ SSL Certificate)</li>
                                             </ul>
                                         </div>
                                         <div class="col-md-6">
@@ -426,6 +435,7 @@
                                     </div>
                                 </div>
                                 
+                                <!-- Test Buttons -->
                                 <div class="d-flex justify-content-end gap-2">
                                     <button type="button" class="btn btn-outline-info btn-test" onclick="testKBankOAuth()">
                                         <i class="fas fa-key me-1"></i>ทดสอบ OAuth
@@ -435,16 +445,6 @@
                                     </button>
                                 </div>
                             </div>
-
-                            <!-- เพิ่มใน KBank API section -->
-<div class="alert alert-success">
-    <h6><i class="fas fa-rocket me-2"></i>ใช้งานได้ทันที!</h6>
-    <p class="mb-2">ใช้ KBank Sandbox โดยไม่ต้องมี SSL Certificate</p>
-    <button type="button" class="btn btn-success btn-sm" onclick="setupKBankInstant()">
-        <i class="fas fa-magic me-1"></i>ตั้งค่าทันที
-    </button>
-</div>
-                            
                         </div>
                     </div>
 
@@ -769,11 +769,15 @@
                                 ${data.kbank?.configured ? 'ใช่' : 'ไม่'}
                             </span>
                         </div>
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between mb-1">
                             <span>เปิดใช้งาน:</span>
                             <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'} status-badge">
                                 ${data.kbank?.enabled ? 'ใช่' : 'ไม่'}
                             </span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Environment:</span>
+                            <span class="badge bg-info status-badge">${data.kbank?.environment || 'N/A'}</span>
                         </div>
                         <small class="text-light opacity-75">ความล้มเหลว: ${data.kbank?.recent_failures || 0}</small>
                     </div>
@@ -826,6 +830,35 @@
             }
         }
 
+        // KBank Functions
+        async function setupKBankInstant() {
+            showNotification('info', 'กำลังตั้งค่า KBank Sandbox...');
+            
+            try {
+                const response = await fetch('/admin/kbank/setup-instant', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // อัปเดต UI
+                    document.getElementById('kbank_enabled').checked = true;
+                    document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
+                    document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
+                    document.getElementById('kbank_sandbox').checked = true;
+                    
+                    addGlowEffect(document.getElementById('kbank_consumer_id'), 'success');
+                    addGlowEffect(document.getElementById('kbank_consumer_secret'), 'success');
+                    
+                    showNotification('success', '🎉 ตั้งค่า KBank สำเร็จ! ระบบพร้อมใช้งาน');
+                    updateSystemStatus();
+                } else {
+                    showNotification('danger', result.message || 'ไม่สามารถตั้งค่า KBank ได้');
+                }
+            } catch (error) {
+                console.error('Setup KBank instant error:', error);
+                showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่า KBank');
+            }
+        }
+
         async function setupKBankSandbox() {
             try {
                 const response = await fetch('/admin/kbank/force-sandbox', { method: 'POST' });
@@ -846,10 +879,11 @@
                     
                     return true;
                 } else {
-                    showNotification('danger', result.message);
+                    showNotification('danger', result.message || 'ไม่สามารถตั้งค่า KBank Sandbox ได้');
                     return false;
                 }
             } catch (error) {
+                console.error('Setup KBank Sandbox error:', error);
                 showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่า KBank Sandbox');
                 return false;
             }
@@ -864,174 +898,29 @@
                 
                 if (result.status === 'success') {
                     const slipResult = result.result;
-                    if (slipResult.status === 'success') {
+                    if (slipResult && slipResult.status === 'success') {
                         const testInfo = {
-                            amount: slipResult.data.amount_display,
-                            sender: `${slipResult.data.sender} (${slipResult.data.sender_bank})`,
-                            receiver: `${slipResult.data.receiver_name} (${slipResult.data.receiver_bank})`,
-                            verified_by: slipResult.data.verified_by
+                            amount: slipResult.data?.amount_display || '฿1,000',
+                            sender: `${slipResult.data?.sender || 'ทดสอบ'} (${slipResult.data?.sender_bank || 'KBANK'})`,
+                            receiver: `${slipResult.data?.receiver_name || 'ผู้รับทดสอบ'} (${slipResult.data?.receiver_bank || 'KBANK'})`,
+                            verified_by: slipResult.data?.verified_by || 'KBank Sandbox API'
                         };
                         
                         showTestResult('KBank Slip Test', testInfo, true);
                         showNotification('success', '✅ ทดสอบ KBank Slip สำเร็จ!');
                     } else {
-                        showTestResult('KBank Slip Test', { message: slipResult.message }, false);
-                        showNotification('warning', `⚠️ ${slipResult.message}`);
+                        showTestResult('KBank Slip Test', { message: slipResult?.message || 'ไม่มีข้อมูล' }, false);
+                        showNotification('warning', `⚠️ ${slipResult?.message || 'การทดสอบไม่สำเร็จ'}`);
                     }
                 } else {
                     showTestResult('KBank Slip Test', { error: result.message }, false);
-                    showNotification('danger', result.message);
+                    showNotification('danger', result.message || 'การทดสอบล้มเหลว');
                 }
             } catch (error) {
+                console.error('Test KBank demo error:', error);
                 showTestResult('KBank Slip Test', { error: 'Connection failed' }, false);
                 showNotification('danger', 'เกิดข้อผิดพลาดในการทดสอบ');
             }
-        }
-
-        async function testAllSystems() {
-            showNotification('info', 'กำลังทดสอบระบบทั้งหมด...');
-            
-            const results = {};
-            
-            // Test LINE API
-            try {
-                const lineResult = await fetch('/admin/test-line-connection', { method: 'POST' });
-                const lineData = await lineResult.json();
-                results['LINE API'] = {
-                    success: lineData.status === 'success',
-                    data: lineData.status === 'success' ? { bot_name: lineData.data.bot_name } : { error: lineData.message }
-                };
-            } catch (error) {
-                results['LINE API'] = { success: false, data: { error: 'Connection failed' } };
-            }
-            
-            // Test KBank API
-            try {
-                const kbankResult = await fetch('/admin/kbank/test-slip-demo', { method: 'POST' });
-                const kbankData = await kbankResult.json();
-                results['KBank API'] = {
-                    success: kbankData.status === 'success' && kbankData.result.status === 'success',
-                    data: kbankData.status === 'success' ? kbankData.result.data : { error: kbankData.message }
-                };
-            } catch (error) {
-                results['KBank API'] = { success: false, data: { error: 'Connection failed' } };
-            }
-            
-            // แสดงผลรวม
-            showAllTestResults(results);
-            
-            const successCount = Object.values(results).filter(r => r.success).length;
-            const totalCount = Object.keys(results).length;
-            
-            if (successCount === totalCount) {
-                showNotification('success', `🎉 ทดสอบระบบสำเร็จ ${successCount}/${totalCount} ระบบ`);
-            } else {
-                showNotification('warning', `⚠️ ทดสอบเสร็จสิ้น ${successCount}/${totalCount} ระบบใช้งานได้`);
-            }
-        }
-
-        // อัปเดต status indicator
-        function updateStatusIndicator(elementId, isActive) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.className = `status-indicator ${isActive ? 'status-active' : 'status-inactive'}`;
-            }
-        }
-
-        // Toggle password visibility
-        function togglePasswordVisibility(fieldId) {
-            const field = document.getElementById(fieldId);
-            const button = field.closest('.input-group').querySelector('.password-toggle i');
-            
-            if (field.type === 'password') {
-                field.type = 'text';
-                button.className = 'fas fa-eye-slash';
-            } else {
-                field.type = 'password';
-                button.className = 'fas fa-eye';
-            }
-        }
-
-        // Use KBank example credentials
-        function useKBankExample() {
-            document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
-            document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
-            document.getElementById('kbank_sandbox').checked = true;
-            
-            addGlowEffect(document.getElementById('kbank_consumer_id'), 'success');
-            addGlowEffect(document.getElementById('kbank_consumer_secret'), 'success');
-            
-            showNotification('info', '✨ ใส่ KBank Sandbox Example Credentials แล้ว');
-        }
-
-        // Load default AI prompt
-        function loadDefaultPrompt() {
-            const promptField = document.getElementById('ai_prompt');
-            if (!promptField.value.trim()) {
-                promptField.value = 'คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง มีความรู้เรื่องธนาคารไทยทุกธนาคาร และสามารถแนะนำวิธีการโอนเงินได้';
-                addGlowEffect(promptField, 'success');
-            }
-        }
-
-        function loadExampleData() {
-            // Load LINE example data (if needed)
-            // Load Thunder example data (if needed) 
-            
-            // Load KBank example data
-            useKBankExample();
-            
-            // Load AI example data
-            loadDefaultPrompt();
-            
-            showNotification('success', '📥 โหลดข้อมูลตัวอย่างทั้งหมดแล้ว');
-        }
-
-        async function setupKBankInstant() {
-    showNotification('info', 'กำลังตั้งค่า KBank Sandbox...');
-    
-    try {
-        const response = await fetch('/admin/kbank/setup-instant', { method: 'POST' });
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-            // อัปเดต UI
-            document.getElementById('kbank_enabled').checked = true;
-            document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
-            document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
-            
-            showNotification('success', '🎉 ตั้งค่า KBank สำเร็จ! ระบบพร้อมใช้งาน');
-            updateSystemStatus();
-        } else {
-            showNotification('danger', result.message);
-        }
-    } catch (error) {
-        showNotification('danger', 'เกิดข้อผิดพลาดในการตั้งค่า KBank');
-    }
-}
-
-        // Test functions
-        async function testLineConnection() {
-            showNotification('info', 'กำลังทดสอบ LINE API...');
-            try {
-                const response = await fetch('/admin/test-line-connection', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showTestResult('LINE API', { bot_name: result.data.bot_name }, true);
-                    showNotification('success', `✅ LINE API ทำงานได้! Bot: ${result.data.bot_name}`);
-                } else {
-                    showTestResult('LINE API', { error: result.message }, false);
-                    showNotification('danger', `❌ LINE API ล้มเหลว: ${result.message}`);
-                }
-            } catch (error) {
-                showTestResult('LINE API', { error: 'Connection failed' }, false);
-                showNotification('danger', '❌ ไม่สามารถทดสอบ LINE API ได้');
-            }
-        }
-
-        function openThunderTest() {
-            showNotification('info', 'เปิด Debug Console สำหรับทดสอบ Thunder API...');
-            window.open('/admin/debug', '_blank');
         }
 
         async function testKBankOAuth() {
@@ -1059,8 +948,8 @@
                 
                 if (result.status === 'success') {
                     showTestResult('KBank OAuth', { 
-                        token_preview: result.data.token_preview,
-                        token_length: result.data.token_length 
+                        token_preview: result.data?.token_preview || 'Token received',
+                        token_length: result.data?.token_length || 0
                     }, true);
                     showNotification('success', `✅ KBank OAuth สำเร็จ!`);
                 } else {
@@ -1068,6 +957,7 @@
                     showNotification('danger', `❌ KBank OAuth ล้มเหลว: ${result.message}`);
                 }
             } catch (error) {
+                console.error('Test KBank OAuth error:', error);
                 showTestResult('KBank OAuth', { error: 'Connection failed' }, false);
                 showNotification('danger', '❌ เกิดข้อผิดพลาดในการทดสอบ OAuth');
             }
@@ -1075,6 +965,119 @@
 
         async function testKBankSlip() {
             await testKBankDemo();
+        }
+
+        async function testAllSystems() {
+            showNotification('info', 'กำลังทดสอบระบบทั้งหมด...');
+            
+            const results = {};
+            
+            // Test LINE API
+            try {
+                const lineResult = await fetch('/admin/test-line-connection', { method: 'POST' });
+                const lineData = await lineResult.json();
+                results['LINE API'] = {
+                    success: lineData.status === 'success',
+                    data: lineData.status === 'success' ? { bot_name: lineData.data?.bot_name } : { error: lineData.message }
+                };
+            } catch (error) {
+                results['LINE API'] = { success: false, data: { error: 'Connection failed' } };
+            }
+            
+            // Test KBank API
+            try {
+                const kbankResult = await fetch('/admin/kbank/test-slip-demo', { method: 'POST' });
+                const kbankData = await kbankResult.json();
+                results['KBank API'] = {
+                    success: kbankData.status === 'success' && kbankData.result?.status === 'success',
+                    data: kbankData.status === 'success' ? kbankData.result?.data : { error: kbankData.message }
+                };
+            } catch (error) {
+                results['KBank API'] = { success: false, data: { error: 'Connection failed' } };
+            }
+            
+            // แสดงผลรวม
+            showAllTestResults(results);
+            
+            const successCount = Object.values(results).filter(r => r.success).length;
+            const totalCount = Object.keys(results).length;
+            
+            if (successCount === totalCount) {
+                showNotification('success', `🎉 ทดสอบระบบสำเร็จ ${successCount}/${totalCount} ระบบ`);
+            } else {
+                showNotification('warning', `⚠️ ทดสอบเสร็จสิ้น ${successCount}/${totalCount} ระบบใช้งานได้`);
+            }
+        }
+
+        // Utility Functions
+        function updateStatusIndicator(elementId, isActive) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status-indicator ${isActive ? 'status-active' : 'status-inactive'}`;
+            }
+        }
+
+        function togglePasswordVisibility(fieldId) {
+            const field = document.getElementById(fieldId);
+            const button = field.closest('.input-group').querySelector('.password-toggle i');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                button.className = 'fas fa-eye-slash';
+            } else {
+                field.type = 'password';
+                button.className = 'fas fa-eye';
+            }
+        }
+
+        function useKBankExample() {
+            document.getElementById('kbank_consumer_id').value = 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr';
+            document.getElementById('kbank_consumer_secret').value = 'goOfPtGLoGxYP3DG';
+            document.getElementById('kbank_sandbox').checked = true;
+            
+            addGlowEffect(document.getElementById('kbank_consumer_id'), 'success');
+            addGlowEffect(document.getElementById('kbank_consumer_secret'), 'success');
+            
+            showNotification('info', '✨ ใส่ KBank Sandbox Example Credentials แล้ว');
+        }
+
+        function loadDefaultPrompt() {
+            const promptField = document.getElementById('ai_prompt');
+            if (!promptField.value.trim()) {
+                promptField.value = 'คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญเรื่องการโอนเงินและตรวจสอบสลิป ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น กรุณาตอบด้วยภาษาไทยที่สุภาพและเป็นกันเอง มีความรู้เรื่องธนาคารไทยทุกธนาคาร และสามารถแนะนำวิธีการโอนเงินได้';
+                addGlowEffect(promptField, 'success');
+            }
+        }
+
+        function loadExampleData() {
+            useKBankExample();
+            loadDefaultPrompt();
+            showNotification('success', '📥 โหลดข้อมูลตัวอย่างทั้งหมดแล้ว');
+        }
+
+        // Test Functions
+        async function testLineConnection() {
+            showNotification('info', 'กำลังทดสอบ LINE API...');
+            try {
+                const response = await fetch('/admin/test-line-connection', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showTestResult('LINE API', { bot_name: result.data?.bot_name }, true);
+                    showNotification('success', `✅ LINE API ทำงานได้! Bot: ${result.data?.bot_name}`);
+                } else {
+                    showTestResult('LINE API', { error: result.message }, false);
+                    showNotification('danger', `❌ LINE API ล้มเหลว: ${result.message}`);
+                }
+            } catch (error) {
+                showTestResult('LINE API', { error: 'Connection failed' }, false);
+                showNotification('danger', '❌ ไม่สามารถทดสอบ LINE API ได้');
+            }
+        }
+
+        function openThunderTest() {
+            showNotification('info', 'เปิด Debug Console สำหรับทดสอบ Thunder API...');
+            window.open('/admin/debug', '_blank');
         }
 
         async function testAIChat() {
@@ -1100,7 +1103,7 @@
             await testAllSystems();
         }
 
-        // Utility functions
+        // Quick Actions
         async function resetToDefaults() {
             if (!confirm('ต้องการรีเซ็ตการตั้งค่าเป็นค่าเริ่มต้นหรือไม่?')) return;
             
@@ -1117,15 +1120,12 @@
         async function autoSetupDemo() {
             showNotification('info', 'กำลังตั้งค่า Demo...');
             
-            // Setup KBank Sandbox
             await setupKBankSandbox();
             
-            // Enable systems
             document.getElementById('slip_enabled').checked = true;
             document.getElementById('thunder_enabled').checked = true;
             document.getElementById('ai_enabled').checked = true;
             
-            // Load defaults
             loadDefaultPrompt();
             
             showNotification('success', '🎮 ตั้งค่า Demo เสร็จสิ้น!');
@@ -1171,7 +1171,6 @@
                         try {
                             const config = JSON.parse(e.target.result);
                             
-                            // Apply imported config
                             if (config.ai_enabled !== undefined) {
                                 document.getElementById('ai_enabled').checked = config.ai_enabled;
                             }
@@ -1206,7 +1205,7 @@
             input.click();
         }
 
-        // Visual effects
+        // Visual Effects
         function addGlowEffect(element, type) {
             const glowClass = type === 'success' ? 'success-glow' : 'error-glow';
             element.classList.add(glowClass);
@@ -1216,80 +1215,80 @@
         }
 
         function showTestResult(testName, data, success) {
-            const card = document.getElementById('testResultsCard');
-            const resultsDiv = document.getElementById('testResults');
-            
-            let resultHtml = resultsDiv.innerHTML;
-            
-            const icon = success ? '✅' : '❌';
-            const statusClass = success ? 'text-success' : 'text-danger';
-            
-            resultHtml += `
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between">
-                        <span><strong>${testName}</strong></span>
-                        <span class="${statusClass}">${icon}</span>
-                    </div>
-                    <small class="text-muted">
-                        ${Object.entries(data).map(([key, value]) => `${key}: ${value}`).join(', ')}
-                    </small>
-                </div>
-            `;
-            
-            resultsDiv.innerHTML = resultHtml;
-            card.style.display = 'block';
-            
-            // Auto hide after 10 seconds
-            setTimeout(() => {
-                if (resultsDiv.children.length > 3) {
-                    resultsDiv.removeChild(resultsDiv.firstElementChild);
-                }
-            }, 10000);
-        }
-
-        function showAllTestResults(results) {
-            const card = document.getElementById('testResultsCard');
-            const resultsDiv = document.getElementById('testResults');
-            
-            let resultHtml = '<h6>ผลการทดสอบทั้งหมด:</h6>';
-            
-            for (const [testName, result] of Object.entries(results)) {
-                const icon = result.success ? '✅' : '❌';
-                const statusClass = result.success ? 'text-success' : 'text-danger';
-                
-                resultHtml += `
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span><strong>${testName}</strong></span>
-                            <span class="${statusClass}">${icon}</span>
-                        </div>
-                        <small class="text-muted">
-                            ${Object.entries(result.data).map(([key, value]) => `${key}: ${value}`).join(', ')}
-                        </small>
-                    </div>
-                `;
-            }
-            
-            resultsDiv.innerHTML = resultHtml;
-            card.style.display = 'block';
-        }
-
-        // แสดง notification
-        function showNotification(type, message) {
-            const alertClass = {
-                'success': 'alert-success',
-                'danger': 'alert-danger',
-                'warning': 'alert-warning',
-                'info': 'alert-info'
-            }[type] || 'alert-info';
-            
-            const icon = {
-                'success': '✅',
-                'danger': '❌', 
-                'warning': '⚠️',
-                'info': 'ℹ️'
-            }}[type] || 'ℹ️';
+           const card = document.getElementById('testResultsCard');
+           const resultsDiv = document.getElementById('testResults');
            
+           let resultHtml = resultsDiv.innerHTML;
+           
+           const icon = success ? '✅' : '❌';
+           const statusClass = success ? 'text-success' : 'text-danger';
+           
+           resultHtml += `
+               <div class="mb-2">
+                   <div class="d-flex justify-content-between">
+                       <span><strong>${testName}</strong></span>
+                       <span class="${statusClass}">${icon}</span>
+                   </div>
+                   <small class="text-muted">
+                       ${Object.entries(data).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                   </small>
+               </div>
+           `;
+           
+           resultsDiv.innerHTML = resultHtml;
+           card.style.display = 'block';
+           
+           // Auto hide after 10 seconds
+           setTimeout(() => {
+               if (resultsDiv.children.length > 3) {
+                   resultsDiv.removeChild(resultsDiv.firstElementChild);
+               }
+           }, 10000);
+       }
+
+       function showAllTestResults(results) {
+           const card = document.getElementById('testResultsCard');
+           const resultsDiv = document.getElementById('testResults');
+           
+           let resultHtml = '<h6>ผลการทดสอบทั้งหมด:</h6>';
+           
+           for (const [testName, result] of Object.entries(results)) {
+               const icon = result.success ? '✅' : '❌';
+               const statusClass = result.success ? 'text-success' : 'text-danger';
+               
+               resultHtml += `
+                   <div class="mb-2">
+                       <div class="d-flex justify-content-between">
+                           <span><strong>${testName}</strong></span>
+                           <span class="${statusClass}">${icon}</span>
+                       </div>
+                       <small class="text-muted">
+                           ${Object.entries(result.data).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                       </small>
+                   </div>
+               `;
+           }
+           
+           resultsDiv.innerHTML = resultHtml;
+           card.style.display = 'block';
+       }
+
+       // แสดง notification
+       function showNotification(type, message) {
+           const alertClass = {
+               'success': 'alert-success',
+               'danger': 'alert-danger',
+               'warning': 'alert-warning',
+               'info': 'alert-info'
+           }[type] || 'alert-info';
+           
+           const icon = {
+               'success': '✅',
+               'danger': '❌', 
+               'warning': '⚠️',
+               'info': 'ℹ️'
+           }[type] || 'ℹ️';
+          
            const notification = document.createElement('div');
            notification.className = `alert ${alertClass} alert-dismissible fade show`;
            notification.innerHTML = `
@@ -1297,9 +1296,9 @@
                ${message.replace(/\n/g, '<br>')}
                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
            `;
-           
+          
            document.getElementById('saveNotification').appendChild(notification);
-           
+          
            // Auto remove after 5 seconds
            setTimeout(() => {
                if (notification.parentNode) {
