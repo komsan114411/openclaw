@@ -573,58 +573,47 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
     
     return message
 
-# ====================== Event Processing ======================
+# ====================== Event Processing Handlers ======================
 
-async def dispatch_event_async(event: Dict[str, Any]) -> None:
-    """Process LINE event (Simplified and more robust)"""
+async def send_message_safe(user_id: str, reply_token: str, message: str, message_type: str = "general") -> bool:
+    """ส่งข้อความอย่างปลอดภัย (Simplified)"""
     try:
-        # ตรวจสอบประเภท event
-        if event.get("type") != "message":
-            logger.info(f"⏭️ Skipping non-message event: {event.get('type')}")
-            return
+        success = False
         
-        message = event.get("message", {})
-        user_id = event.get("source", {}).get("userId", "unknown_user")
-        reply_token = event.get("replyToken")
-        message_type = message.get("type")
-        
-        logger.info(f"🔄 Processing {message_type} from user {user_id[:10]}...")
-        
-        # บันทึกประวัติข้อความเข้า
-        try:
-            save_chat_history(user_id, "in", message, sender="user")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to save chat history: {e}")
-        
-        # จัดการตามประเภทข้อความ
-        if message_type == "text":
-            user_text = message.get("text", "")
-            logger.info(f"💬 Text message: {user_text[:50]}...")
-            
-            # ตรวจสอบว่าเป็นข้อมูลสลิปหรือไม่
-            slip_info = extract_slip_info_from_text(user_text)
-            
-            if slip_info.get("bank_code") and slip_info.get("trans_ref"):
-                # เป็นข้อมูลสลิป
-                await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
+        # ลอง reply ก่อน
+        if reply_token and len(reply_token.strip()) > 10:
+            logger.info(f"📤 Trying reply message...")
+            success = await send_line_reply(reply_token, message)
+            if success:
+                logger.info("✅ Reply sent successfully")
             else:
-                # เป็นข้อความปกติ - ใช้ AI
-                await handle_ai_chat(user_id, reply_token, user_text)
-                
-        elif message_type == "image":
-            # รูปภาพ - ตรวจสอบสลิป
-            logger.info(f"🖼️ Image message from user {user_id[:8]}...")
-            await handle_slip_verification(user_id, reply_token, message_id=message.get("id"))
-            
+                logger.warning("⚠️ Reply failed, trying push...")
+        
+        # ถ้า reply ไม่ได้ ลอง push
+        if not success:
+            logger.info(f"📤 Trying push message...")
+            success = await send_line_push(user_id, message)
+            if success:
+                logger.info("✅ Push sent successfully")
+            else:
+                logger.error("❌ Push also failed")
+        
+        # บันทึกประวัติ
+        if success:
+            try:
+                save_chat_history(user_id, "out", {"type": "text", "text": message}, sender=message_type)
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to save outgoing chat: {e}")
         else:
-            logger.info(f"📝 Unsupported message type: {message_type}")
-            await send_message_safe(user_id, reply_token, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น", "system")
+            await notification_manager.send_notification(f"❌ Failed to send message to {user_id[:8]}...", "error")
+        
+        return success
         
     except Exception as e:
-        logger.exception(f"❌ Critical error in dispatch_event: {e}")
-        await notification_manager.send_notification(f"💥 Event processing error: {str(e)}", "error")
-        
-        async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
+        logger.error(f"❌ send_message_safe error: {e}")
+        return False
+
+async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
     """จัดการแชท AI"""
     try:
         logger.info(f"🤖 Processing AI chat...")
@@ -685,10 +674,13 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
         
         # ประมวลผลผลลัพธ์
         if result.get("status") == "success":
-            amount = result.get('data', {}).get('amount_display', 'ไม่ระบุ')
-            success_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n\n💰 จำนวนเงิน: {amount}\n🔍 ตรวจสอบโดย: {result.get('verified_by', 'ระบบ')}\n\n🎉 การโอนเงินได้รับการยืนยันแล้ว"
+            success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
             await send_message_safe(user_id, reply_token, success_msg, "slip_bot")
             logger.info("✅ Slip verification successful")
+        elif result.get("status") == "duplicate":
+            duplicate_msg = create_detailed_slip_message(result['data'], is_duplicate=True) if result.get('data') else "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
+            await send_message_safe(user_id, reply_token, duplicate_msg, "slip_bot_duplicate")
+            logger.info("🔄 Duplicate slip detected")
         else:
             error_msg = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\nสาเหตุ: {result.get('message', 'ไม่ทราบสาเหตุ')}"
             await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
@@ -697,140 +689,50 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
     except Exception as e:
         logger.error(f"❌ Slip verification error: {e}")
         error_msg = "เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง"
-        a
-
-async def handle_regular_text(user_id: str, reply_token: str, user_text: str):
-    """จัดการข้อความปกติด้วย AI"""
-    try:
-        logger.info(f"🤖 Processing AI chat for user {user_id[:8]}...")
-        
-        # ตรวจสอบว่า AI เปิดใช้งานหรือไม่
-        ai_enabled = config_manager.get("ai_enabled", False)
-        openai_key = config_manager.get("openai_api_key", "")
-        
-        if not ai_enabled:
-            response = "ขออภัย ระบบ AI ถูกปิดการใช้งานค่ะ"
-        elif not openai_key:
-            response = "ขออภัย ระบบ AI ยังไม่ได้ตั้งค่าค่ะ"
-        else:
-            # เรียกใช้ AI
-            response = await asyncio.to_thread(get_chat_response, user_text, user_id)
-        
-        # ส่งข้อความตอบกลับ
-        await send_message_safe(user_id, reply_token, response, "bot")
-        
-    except Exception as e:
-        logger.error(f"❌ AI processing error: {e}")
-        error_msg = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
-        await send_message_safe(user_id, reply_token, error_msg, "bot_error")
-
-async def handle_slip_from_text(user_id: str, reply_token: str, slip_info: dict, original_text: str):
-    """จัดการข้อมูลสลิปจากข้อความ"""
-    try:
-        logger.info(f"🏦 Processing slip from text: bank={slip_info['bank_code']}, ref={slip_info['trans_ref']}")
-        
-        # ตรวจสอบสถานะระบบสลิป
-        if not config_manager.get("slip_enabled", False):
-            error_msg = "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งานชั่วคราว"
-            await send_message_safe(user_id, reply_token, error_msg, "system_error")
-            return
-        
-        # ตรวจสอบสลิป
-        result = await asyncio.to_thread(
-            verify_slip_multiple_providers, 
-            None, None, 
-            slip_info["bank_code"], 
-            slip_info["trans_ref"]
-        )
-        
-        if result["status"] == "success":
-            amount = result['data'].get('amount_display', f"฿{result['data'].get('amount', '0')}")
-            success_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n\n💰 จำนวนเงิน: {amount}\n🏦 ธนาคาร: {slip_info['bank_code']}\n📋 เลขอ้างอิง: {slip_info['trans_ref']}\n\n🎉 การโอนเงินได้รับการยืนยันแล้ว"
-            await send_message_safe(user_id, reply_token, success_msg, "slip_bot")
-        else:
-            error_msg = f"❌ ไม่พบข้อมูลสลิปในระบบธนาคาร\n\nสาเหตุ: {result.get('message', 'ไม่ทราบสาเหตุ')}"
-            await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
-            
-    except Exception as e:
-        logger.error(f"❌ Slip from text error: {e}")
-        error_msg = "เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง"
         await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
 
-async def handle_slip_image(user_id: str, reply_token: str, message: dict):
-    """จัดการรูปภาพสลิป"""
+async def dispatch_event_async(event: Dict[str, Any]) -> None:
+    """Process LINE event (Simplified and more robust)"""
     try:
-        logger.info(f"📸 Processing slip image from user {user_id[:8]}...")
-        
-        # ตรวจสอบสถานะระบบสลิป
-        if not config_manager.get("slip_enabled", False):
-            error_msg = "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งานชั่วคราว"
-            await send_message_safe(user_id, reply_token, error_msg, "system_error")
+        if event.get("type") != "message":
+            logger.info(f"⏭️ Skipping non-message event: {event.get('type')}")
             return
         
-        # ตรวจสอบสลิป
-        result = await asyncio.to_thread(
-            verify_slip_multiple_providers,
-            message_id=message.get("id"),
-            test_image_data=None
-        )
+        message = event.get("message", {})
+        user_id = event.get("source", {}).get("userId", "unknown_user")
+        reply_token = event.get("replyToken")
+        message_type = message.get("type")
         
-        if result["status"] == "success":
-            amount = result['data'].get('amount_display', f"฿{result['data'].get('amount', '0')}")
-            success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
-            await send_message_safe(user_id, reply_token, success_msg, "slip_bot")
-        elif result.get("status") == "duplicate":
-            if result.get('data'):
-                duplicate_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
-                await send_message_safe(user_id, reply_token, duplicate_msg, "slip_bot_duplicate")
-            else:
-                error_msg = "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
-                await send_message_safe(user_id, reply_token, error_msg, "slip_bot_duplicate")
-        else:
-            error_msg = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\nสาเหตุ: {result.get('message', 'ไม่ทราบสาเหตุ')}"
-            await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
+        logger.info(f"🔄 Processing {message_type} from user {user_id[:10]}...")
+        
+        try:
+            save_chat_history(user_id, "in", message, sender="user")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to save chat history: {e}")
+        
+        if message_type == "text":
+            user_text = message.get("text", "")
+            logger.info(f"💬 Text message: {user_text[:50]}...")
             
-    except Exception as e:
-        logger.error(f"❌ Slip image processing error: {e}")
-        error_msg = "เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง"
-        await send_message_safe(user_id, reply_token, error_msg, "slip_bot_error")
-
-async def send_message_safe(user_id: str, reply_token: str, message: str, message_type: str = "general") -> bool:
-    """ส่งข้อความอย่างปลอดภัย (Simplified)"""
-    try:
-        success = False
-        
-        # ลอง reply ก่อน
-        if reply_token and len(reply_token.strip()) > 10:
-            logger.info(f"📤 Trying reply message...")
-            success = await send_line_reply(reply_token, message)
-            if success:
-                logger.info("✅ Reply sent successfully")
+            slip_info = extract_slip_info_from_text(user_text)
+            
+            if slip_info.get("bank_code") and slip_info.get("trans_ref"):
+                await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
             else:
-                logger.warning("⚠️ Reply failed, trying push...")
-        
-        # ถ้า reply ไม่ได้ ลอง push
-        if not success:
-            logger.info(f"📤 Trying push message...")
-            success = await send_line_push(user_id, message)
-            if success:
-                logger.info("✅ Push sent successfully")
-            else:
-                logger.error("❌ Push also failed")
-        
-        # บันทึกประวัติ
-        if success:
-            try:
-                save_chat_history(user_id, "out", {"type": "text", "text": message}, sender=message_type)
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to save outgoing chat: {e}")
+                await handle_ai_chat(user_id, reply_token, user_text)
+                
+        elif message_type == "image":
+            logger.info(f"🖼️ Image message from user {user_id[:8]}...")
+            await handle_slip_verification(user_id, reply_token, message_id=message.get("id"))
+            
         else:
-            await notification_manager.send_notification(f"❌ Failed to send message to {user_id[:8]}...", "error")
-        
-        return success
+            logger.info(f"📝 Unsupported message type: {message_type}")
+            await send_message_safe(user_id, reply_token, "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น", "system")
         
     except Exception as e:
-        logger.error(f"❌ send_message_safe error: {e}")
-        return False
+        logger.exception(f"❌ Critical error in dispatch_event: {e}")
+        await notification_manager.send_notification(f"💥 Event processing error: {str(e)}", "error")
+
 # ====================== API Routes ======================
 
 @app.websocket("/ws/notifications")
@@ -895,8 +797,8 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)) -
         
         # Verify signature (ปิดการตรวจสอบชั่วคราวสำหรับ debug)
         # if not verify_line_signature(body, signature, channel_secret):
-        #     logger.error("❌ Invalid LINE signature")
-        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+        #    logger.error("❌ Invalid LINE signature")
+        #    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
         
         try:
             payload = json.loads(body.decode("utf-8"))
@@ -911,7 +813,6 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)) -
             logger.info("📝 No events to process")
             return JSONResponse(content={"status": "ok", "message": "No events to process"})
         
-        # Process events one by one (แทนที่จะ parallel)
         processed = 0
         for event in events:
             try:
@@ -920,7 +821,6 @@ async def line_webhook(request: Request, x_line_signature: str = Header(None)) -
                 logger.info(f"✅ Event {processed}/{len(events)} processed successfully")
             except Exception as e:
                 logger.error(f"❌ Event processing failed: {e}")
-                # ส่งข้อความขออภัย
                 try:
                     user_id = event.get("source", {}).get("userId", "")
                     reply_token = event.get("replyToken")
@@ -1392,7 +1292,6 @@ async def test_line_capabilities():
                 "recommendations": []
             }
             
-            # ให้คำแนะนำตามผลการทดสอบ
             if not result.get("can_push"):
                 if "not available" in (result.get("push_error", "")).lower():
                     capabilities["recommendations"].append("❌ Push Message API ไม่รองรับ - ต้องอัปเกรด LINE Official Account เป็น Developer Trial หรือ Pro Plan")
@@ -1650,7 +1549,7 @@ if __name__ == "__main__":
     print()
     try:
         uvicorn.run(
-            "main_updated:app",
+            "__main__:app",
             host="0.0.0.0",
             port=8000,
             reload=False,
