@@ -618,6 +618,87 @@ async def admin_home(request: Request):
         },
     )
 
+# เพิ่มใน main_updated.py
+
+@app.get("/admin/debug", response_class=HTMLResponse)
+async def admin_debug(request: Request):
+    """Admin debug page"""
+    return templates.TemplateResponse("debug.html", {"request": request})
+
+@app.post("/admin/test-thunder-api")
+async def test_thunder_api_direct(request: Request):
+    """ทดสอบ Thunder API โดยตรง"""
+    try:
+        form = await request.form()
+        token = form.get("token")
+        file = form.get("file")
+        
+        if not token or not file:
+            return JSONResponse({"status": "error", "message": "Missing token or file"})
+        
+        image_data = await file.read()
+        
+        # จำลองการเรียก Thunder API
+        logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
+        
+        # ในที่นี้คุณสามารถใส่ endpoint ที่ถูกต้องของ Thunder Solution
+        # หรือทดสอบกับ API จริง
+        
+        await notification_manager.send_notification("🧪 ทดสอบ Thunder API เสร็จสิ้น", "info")
+        
+        return JSONResponse({
+            "status": "success", 
+            "message": "Thunder API test completed",
+            "data": {
+                "token_provided": bool(token),
+                "image_size": len(image_data),
+                "note": "This is a test response. Replace with actual Thunder API call."
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Thunder API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-api") 
+async def test_kbank_api_direct(request: Request):
+    """ทดสอบ KBank API โดยตรง"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id")
+        consumer_secret = data.get("consumer_secret")
+        bank_id = data.get("bank_id")
+        trans_ref = data.get("trans_ref")
+        
+        if not all([consumer_id, consumer_secret, bank_id, trans_ref]):
+            return JSONResponse({"status": "error", "message": "Missing required fields"})
+        
+        logger.info(f"🧪 Testing KBank API...")
+        
+        # ทดสอบ KBank API จริง
+        from services.kbank_checker import KBankSlipChecker
+        kbank_checker = KBankSlipChecker()
+        
+        # ตั้งค่า credentials ชั่วคราว
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        
+        try:
+            result = kbank_checker.verify_slip(bank_id, trans_ref)
+            await notification_manager.send_notification("🧪 ทดสอบ KBank API เสร็จสิ้น", "info")
+            return JSONResponse({"status": "success", "message": "KBank API test completed", "data": result})
+        finally:
+            # คืนค่าเดิม
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+        
+    except Exception as e:
+        logger.error(f"❌ KBank API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
 @app.get("/admin/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request):
     """Admin settings page"""
