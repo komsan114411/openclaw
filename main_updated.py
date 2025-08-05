@@ -1487,6 +1487,90 @@ async def test_kbank_api_direct(request: Request):
         logger.exception(f"❌ KBank API test error: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
 
+
+
+
+# เพิ่มใน main_updated.py
+
+@app.post("/admin/kbank/update-credentials")
+async def update_kbank_credentials_endpoint(request: Request):
+    """อัปเดต KBank credentials"""
+    try:
+        data = await request.json()
+        
+        consumer_id = data.get("consumer_id", "").strip()
+        consumer_secret = data.get("consumer_secret", "").strip()
+        is_sandbox = data.get("is_sandbox", True)
+        enabled = data.get("enabled", True)
+        
+        if not consumer_id or not consumer_secret:
+            return JSONResponse({
+                "status": "error",
+                "message": "กรุณาใส่ Consumer ID และ Secret"
+            })
+        
+        from services.kbank_checker import update_kbank_credentials
+        result = update_kbank_credentials(consumer_id, consumer_secret, is_sandbox, enabled)
+        
+        await notification_manager.send_notification(
+            f"🏦 {'อัปเดต' if result['status'] == 'success' else 'ไม่สามารถอัปเดต'} KBank credentials", 
+            result['status']
+        )
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Update KBank credentials error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.post("/admin/kbank/test-credentials")
+async def test_kbank_credentials_endpoint(request: Request):
+    """ทดสอบ KBank credentials แบบไม่บันทึก"""
+    try:
+        data = await request.json()
+        
+        consumer_id = data.get("consumer_id", "").strip()
+        consumer_secret = data.get("consumer_secret", "").strip()
+        is_sandbox = data.get("is_sandbox", True)
+        
+        if not consumer_id or not consumer_secret:
+            return JSONResponse({
+                "status": "error",
+                "message": "กรุณาใส่ Consumer ID และ Secret"
+            })
+        
+        from services.kbank_checker import test_kbank_with_credentials
+        result = test_kbank_with_credentials(consumer_id, consumer_secret, is_sandbox)
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Test KBank credentials error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.get("/admin/kbank/status")
+async def get_kbank_status():
+    """ดึงสถานะ KBank API"""
+    try:
+        from services.kbank_checker import kbank_checker
+        status = kbank_checker.get_status()
+        return JSONResponse({
+            "status": "success",
+            "data": status
+        })
+    except Exception as e:
+        logger.error(f"❌ Get KBank status error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
 # ====================== Main Entry Point ======================
 
 if __name__ == "__main__":
