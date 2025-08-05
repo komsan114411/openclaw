@@ -889,6 +889,134 @@ async def get_api_status():
     
     return JSONResponse(api_summary)
 
+# เพิ่มหลัง route อื่น ๆ ใน main_updated.py
+
+@app.get("/admin/debug-config")
+async def get_debug_config():
+    """ดึงข้อมูล config สำหรับ debug"""
+    try:
+        detailed_status = get_detailed_api_status()
+        return JSONResponse(detailed_status)
+    except Exception as e:
+        logger.error(f"❌ Error getting debug config: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/get-config-value")
+async def get_config_value(request: Request):
+    """ดึงค่า config เฉพาะ key"""
+    try:
+        key = request.query_params.get("key")
+        if not key:
+            return JSONResponse({"status": "error", "message": "Key is required"})
+        
+        value = config_manager.get(key, "")
+        return JSONResponse({"status": "success", "key": key, "value": value})
+    except Exception as e:
+        logger.error(f"❌ Error getting config value: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-thunder-api")
+async def test_thunder_api_direct(request: Request):
+    """ทดสอบ Thunder API โดยตรง (Enhanced)"""
+    try:
+        form = await request.form()
+        token = form.get("token")
+        file = form.get("file")
+        
+        if not token or not file:
+            return JSONResponse({"status": "error", "message": "Missing token or file"})
+        
+        image_data = await file.read()
+        
+        logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
+        logger.info(f"🧪 Image size: {len(image_data)} bytes")
+        
+        # ตั้งค่า token ชั่วคราว
+        original_token = config_manager.get("thunder_api_token")
+        config_manager.config["thunder_api_token"] = token
+        
+        try:
+            # เรียกใช้ Thunder API จริง
+            from services.slip_checker import verify_slip_with_thunder
+            result = verify_slip_with_thunder(None, image_data)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ Thunder API เสร็จสิ้น", "info")
+            
+            if result and result.get("status") == "success":
+                return JSONResponse({
+                    "status": "success", 
+                    "message": "Thunder API test successful",
+                    "data": result
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": result.get("message", "Thunder API test failed"),
+                    "data": result
+                })
+        finally:
+            # คืนค่าเดิม
+            config_manager.config["thunder_api_token"] = original_token
+        
+    except Exception as e:
+        logger.exception(f"❌ Thunder API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-api") 
+async def test_kbank_api_direct(request: Request):
+    """ทดสอบ KBank API โดยตรง (Enhanced)"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id")
+        consumer_secret = data.get("consumer_secret")
+        bank_id = data.get("bank_id")
+        trans_ref = data.get("trans_ref")
+        
+        if not all([consumer_id, consumer_secret, bank_id, trans_ref]):
+            return JSONResponse({"status": "error", "message": "Missing required fields"})
+        
+        logger.info(f"🧪 Testing KBank API...")
+        logger.info(f"🧪 Consumer ID: {consumer_id[:10]}...")
+        logger.info(f"🧪 Bank ID: {bank_id}, Trans Ref: {trans_ref}")
+        
+        # ตั้งค่า credentials ชั่วคราว
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        original_enabled = config_manager.get("kbank_enabled")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        config_manager.config["kbank_enabled"] = True
+        
+        try:
+            # ทดสอบ KBank API จริง
+            from services.kbank_checker import kbank_checker
+            result = kbank_checker.verify_slip(bank_id, trans_ref)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ KBank API เสร็จสิ้น", "info")
+            
+            if result and result.get("status") == "success":
+                return JSONResponse({
+                    "status": "success", 
+                    "message": "KBank API test successful", 
+                    "data": result
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": result.get("message", "KBank API test failed"),
+                    "data": result
+                })
+        finally:
+            # คืนค่าเดิม
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+            config_manager.config["kbank_enabled"] = original_enabled
+        
+    except Exception as e:
+        logger.exception(f"❌ KBank API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
 @app.get("/admin/system-status")
 async def get_system_status():
     """Get system status for the dashboard"""
