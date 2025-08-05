@@ -9,21 +9,33 @@ from models.database import get_user_chat_history
 logger = logging.getLogger("chat_bot_service")
 
 def get_chat_response(text: str, user_id: str) -> str:
-    api_key = config_manager.get("openai_api_key")
-    ai_prompt = config_manager.get("ai_prompt")  # โหลด Prompt ล่าสุด
-    ai_enabled = config_manager.get("ai_enabled")
-
-    # ถ้าไม่เปิด AI ให้ตอบตามข้อความแจ้ง
-    if not ai_enabled:
-        return "ระบบ AI ถูกปิดการใช้งานค่ะ"
-    if not api_key:
-        return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
-
+    """แก้ไขปัญหาการตรวจสอบ AI enabled"""
     try:
-        # ดึงประวัติแชทมากขึ้นเพื่อจำบริบท (เช่น 15 รายการ)
-        chat_history = get_user_chat_history(user_id, limit=15)
-        messages: List[Dict[str, str]] = [{"role": "system", "content": ai_prompt}] + chat_history + [{"role": "user", "content": text}]
+        # ตรวจสอบการตั้งค่า AI อย่างละเอียด
+        ai_enabled = config_manager.get("ai_enabled")
+        api_key = config_manager.get("openai_api_key")
+        ai_prompt = config_manager.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ")
+        
+        logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
+        
+        # ตรวจสอบว่า AI เปิดใช้งานจริง ๆ
+        if not ai_enabled:
+            logger.info("🚫 AI disabled by configuration")
+            return "ระบบ AI ถูกปิดการใช้งานค่ะ"
+            
+        if not api_key or len(api_key.strip()) < 10:
+            logger.info("🚫 OpenAI API key not configured")
+            return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
 
+        # ดึงประวัติแชท
+        chat_history = get_user_chat_history(user_id, limit=10)
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": ai_prompt}
+        ] + chat_history + [
+            {"role": "user", "content": text}
+        ]
+
+        # เรียก OpenAI API
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -35,14 +47,33 @@ def get_chat_response(text: str, user_id: str) -> str:
             "max_tokens": 150,
             "temperature": 0.7,
         }
-        r = requests.post(url, headers=headers, data=json.dumps(payload), timeout=20)
-        r.raise_for_status()
-        data = r.json()
-        response = data["choices"][0]["message"]["content"].strip()
-        return response
+        
+        logger.info(f"🔄 Calling OpenAI API...")
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        logger.info(f"📊 OpenAI API Response: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            ai_response = data["choices"][0]["message"]["content"].strip()
+            logger.info(f"✅ AI response generated successfully ({len(ai_response)} chars)")
+            return ai_response
+        elif response.status_code == 401:
+            logger.error("❌ OpenAI API 401 Unauthorized - Invalid API key")
+            return "ขออภัย API Key ไม่ถูกต้อง กรุณาตรวจสอบการตั้งค่า"
+        elif response.status_code == 429:
+            logger.error("❌ OpenAI API 429 Too Many Requests")
+            return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้ กรุณาลองใหม่ในภายหลัง"
+        else:
+            logger.error(f"❌ OpenAI API Error: {response.status_code} - {response.text}")
+            return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
+            
+    except requests.exceptions.Timeout:
+        logger.error("❌ OpenAI API timeout")
+        return "ขออภัย ระบบ AI ตอบสนองช้า กรุณาลองใหม่อีกครั้ง"
     except requests.exceptions.RequestException as e:
-        logger.error("OpenAI API error: %s", e)
+        logger.error(f"❌ OpenAI API request error: {e}")
         return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
     except Exception as e:
-        logger.error("Chat bot error: %s", e)
+        logger.error(f"❌ Chat bot unexpected error: {e}")
         return "ขออภัย เกิดข้อผิดพลาดในระบบ AI"
