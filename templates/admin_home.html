@@ -1,4 +1,4 @@
-<!-- templates/admin_home.html - ปรับปรุงเวอร์ชัน -->
+<!-- templates/admin_home.html - แก้ไขเวอร์ชัน -->
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -43,51 +43,14 @@
             z-index: 1050;
             max-width: 400px;
         }
-        .log-viewer {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .pulse-animation {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
     </style>
 </head>
 <body class="bg-light">
     <!-- Notification Panel -->
     <div id="notificationPanel" class="notification-panel"></div>
 
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/admin">
-                <i class="fas fa-cogs me-2"></i>LINE OA Admin Dashboard
-                <span class="badge bg-light text-dark ms-2" id="connectionStatus">Connecting...</span>
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin/chat-history">
-                    <i class="fas fa-comments me-1"></i>Chat History
-                </a>
-                <a class="nav-link" href="/admin/settings">
-                    <i class="fas fa-cog me-1"></i>Settings
-                </a>
-                <a class="nav-link" href="/admin/debug">
-                    <i class="fas fa-bug me-1"></i>Debug Console
-                </a>
-                <a class="nav-link" href="/health" target="_blank">
-                    <i class="fas fa-heartbeat me-1"></i>Health
-                </a>
-            </div>
-        </div>
-    </nav>
+    <!-- Include navbar -->
+    {% include 'components/navbar.html' %}
 
     <div class="container mt-4">
         <!-- System Status Overview -->
@@ -99,9 +62,6 @@
                         <div>
                             <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshAllStatus()" id="refreshBtn">
                                 <i class="fas fa-sync me-1"></i>Refresh All
-                            </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="exportSystemData()">
-                                <i class="fas fa-download me-1"></i>Export Data
                             </button>
                         </div>
                     </div>
@@ -212,9 +172,6 @@
                             <button class="btn btn-outline-primary" onclick="resetAPIFailures()">
                                 <i class="fas fa-redo me-1"></i>Reset API Failures
                             </button>
-                            <button class="btn btn-outline-info" onclick="testKBankSandbox()">
-                                <i class="fas fa-university me-1"></i>Test KBank Sandbox
-                            </button>
                             <button class="btn btn-outline-warning" onclick="testLineConnection()">
                                 <i class="fab fa-line me-1"></i>Test LINE API
                             </button>
@@ -229,23 +186,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- System Logs Preview -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6><i class="fas fa-terminal me-2"></i>System Logs (Last 10 entries)</h6>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshLogs()">
-                            <i class="fas fa-sync me-1"></i>Refresh
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <pre id="systemLogs" class="log-viewer p-3 rounded">กำลังโหลด logs...</pre>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -256,13 +196,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeWebSocket();
             refreshAllStatus();
-            refreshLogs();
             
             // Auto refresh every 30 seconds
-            refreshInterval = setInterval(() => {
-                refreshAllStatus();
-                refreshLogs();
-            }, 30000);
+            refreshInterval = setInterval(refreshAllStatus, 30000);
         });
 
         function initializeWebSocket() {
@@ -272,36 +208,47 @@
                 websocket = new WebSocket(wsUrl);
                 
                 websocket.onopen = function() {
-                    document.getElementById('connectionStatus').textContent = 'Connected';
-                    document.getElementById('connectionStatus').className = 'badge bg-success text-white ms-2';
+                    console.log('WebSocket connected');
+                    updateNavbarStatus(true);
                 };
                 
                 websocket.onmessage = function(event) {
-                    const notification = JSON.parse(event.data);
-                    showNotification(notification.message, notification.type);
+                    try {
+                        const notification = JSON.parse(event.data);
+                        if (notification.type !== 'heartbeat') {
+                            showNotification(notification.message, notification.type);
+                        }
+                        
+                        // Update connection count if provided
+                        if (notification.active_connections !== undefined) {
+                            document.getElementById('activeConnections').textContent = notification.active_connections;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
                 };
                 
                 websocket.onclose = function() {
-                    document.getElementById('connectionStatus').textContent = 'Disconnected';
-                    document.getElementById('connectionStatus').className = 'badge bg-danger text-white ms-2';
+                    console.log('WebSocket disconnected');
+                    updateNavbarStatus(false);
                     
                     // Try to reconnect after 5 seconds
                     setTimeout(initializeWebSocket, 5000);
                 };
                 
-                websocket.onerror = function() {
-                    document.getElementById('connectionStatus').textContent = 'Error';
-                    document.getElementById('connectionStatus').className = 'badge bg-warning text-dark ms-2';
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateNavbarStatus(false);
                 };
             } catch (error) {
-                console.error('WebSocket error:', error);
+                console.error('WebSocket initialization error:', error);
             }
         }
 
         function showNotification(message, type = 'info') {
             const alertClass = {
                 'success': 'alert-success',
-                'error': 'alert-danger',
+                'error': 'alert-danger', 
                 'warning': 'alert-warning',
                 'info': 'alert-info'
             }[type] || 'alert-info';
@@ -336,8 +283,8 @@
                 // Update system status
                 const systemReady = data.system_status?.slip_system_ready && data.system_status?.line_ready;
                 document.getElementById('systemStatus').innerHTML = systemReady ? 
-                    '<i class="fas fa-check-circle text-success"></i>' : 
-                    '<i class="fas fa-exclamation-circle text-danger"></i>';
+                    '<i class="fas fa-check-circle"></i>' : 
+                    '<i class="fas fa-exclamation-circle"></i>';
                 
                 // Update API count
                 const connectedAPIs = [
@@ -386,23 +333,6 @@
             `;
         }
 
-        async function refreshLogs() {
-            try {
-                const response = await fetch('/admin/system-logs');
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    const logs = result.logs.slice(-10).join('');
-                    document.getElementById('systemLogs').textContent = logs || 'No logs available';
-                } else {
-                    document.getElementById('systemLogs').textContent = 'Error loading logs';
-                }
-            } catch (error) {
-                console.error('Failed to refresh logs:', error);
-                document.getElementById('systemLogs').textContent = 'Error loading logs';
-            }
-        }
-
         async function toggleSlipSystem() {
             try {
                 const response = await fetch('/admin/toggle-slip-system', { method: 'POST' });
@@ -425,27 +355,6 @@
             }
         }
 
-        async function testKBankSandbox() {
-            showNotification('กำลังทดสอบ KBank Sandbox...', 'info');
-            try {
-                const response = await fetch('/admin/test-kbank-sandbox', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        consumer_id: 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr',
-                        consumer_secret: 'goOfPtGLoGxYP3DG',
-                        bank_id: '004',
-                        trans_ref: 'TEST123456789'
-                    })
-                });
-                const result = await response.json();
-                showNotification(`KBank Sandbox Test: ${result.message}`, result.status);
-                console.log('KBank Test Result:', result);
-            } catch (error) {
-                showNotification('Failed to test KBank Sandbox', 'error');
-            }
-        }
-
         async function testLineConnection() {
             showNotification('กำลังทดสอบ LINE API...', 'info');
             try {
@@ -459,30 +368,6 @@
                 }
             } catch (error) {
                 showNotification('Failed to test LINE API', 'error');
-            }
-        }
-
-        async function exportSystemData() {
-            try {
-                const response = await fetch('/admin/export-data');
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    const dataStr = JSON.stringify(result.data, null, 2);
-                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                    const exportFileDefaultName = `system_export_${new Date().toISOString().split('T')[0]}.json`;
-                    
-                    const linkElement = document.createElement('a');
-                    linkElement.setAttribute('href', dataUri);
-                    linkElement.setAttribute('download', exportFileDefaultName);
-                    linkElement.click();
-                    
-                    showNotification('Export successful', 'success');
-                } else {
-                    showNotification('Export failed', 'error');
-                }
-            } catch (error) {
-                showNotification('Export error', 'error');
             }
         }
 
