@@ -9,6 +9,9 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 import os
 import sys
+# เพิ่มใน import section
+import requests
+from requests.exceptions import RequestException, Timeout, ConnectionError
 
 import httpx
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header
@@ -1090,40 +1093,137 @@ async def toggle_slip_system():
 async def get_api_status():
     """Get status of all configured APIs for the dashboard"""
     if not IS_READY:
-        return JSONResponse({"status": "error", "message": "ระบบไม่พร้อมใช้งาน", "thunder": {"configured": False, "enabled": False}, "kbank": {"configured": False, "enabled": False}, "line": {"configured": False, "enabled": False}})
-
-    # ดึงสถานะ Thunder และ KBank จาก enhanced_slip_checker
-    api_summary = get_api_status_summary()
-
-    # ดึงสถานะ LINE จาก main_updated
-    line_token = config_manager.get("line_channel_access_token")
-    line_secret = config_manager.get("line_channel_secret")
-    line_configured = bool(line_token and line_secret)
-    line_connected = False
-    bot_name = "N/A"
+        return JSONResponse({
+            "status": "error", 
+            "message": "ระบบไม่พร้อมใช้งาน", 
+            "thunder": {"configured": False, "enabled": False, "connected": False, "recent_failures": 0}, 
+            "kbank": {"configured": False, "enabled": False, "connected": False, "recent_failures": 0}, 
+            "line": {"configured": False, "enabled": False, "connected": False, "bot_name": "N/A"}
+        })
     
-    if line_configured:
-        # ลองทดสอบการเชื่อมต่อกับ LINE API (ตัวอย่าง)
-        try:
-            import requests
-            url = "https://api.line.me/v2/bot/info"
-            headers = {"Authorization": f"Bearer {line_token}"}
-            response = requests.get(url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                line_connected = True
-                bot_name = response.json().get("displayName", "Unknown Bot")
-        except:
-            pass # ไม่เป็นไรถ้าทดสอบไม่สำเร็จ
-
-    api_summary["line"] = {
-        "configured": line_configured,
-        "connected": line_connected,
-        "bot_name": bot_name,
-        "enabled": True, # LINE API ถือว่าเปิดใช้งานตลอดหากมีการตั้งค่า
-        "can_push": False, # Mock value, implementation not provided
-    }
-    
-    return JSONResponse(api_summary)
+    try:
+        # ดึงสถานะ Thunder และ KBank จาก enhanced_slip_checker
+        from services.enhanced_slip_checker import get_api_status_summary
+        api_summary = get_api_status_summary()
+        
+        # ดึงสถานะ LINE จาก config
+        line_token = config_manager.get("line_channel_access_token", "").strip()
+        line_secret = config_manager.get("line_channel_secret", "").strip()
+        line_configured = bool(line_token and line_secret)
+        line_connected = False
+        bot_name = "N/A"
+        can_push = False
+        
+        if line_configured:
+            # ทดสอบการเชื่อมต่อกับ LINE API
+            try:
+                import requests
+                url = "https://api.line.me/v2/bot/info"
+                headers = {
+                    "Authorization": f"Bearer {line_token}",
+                    "User-Agent": "LINE-OA-Middleware/2.0"
+                }
+                response = requests.get(url, headers=headers, timeout=10)
+                
+                logger.info(f"🔍 LINE API test: {response.status_code}")
+                
+                if response.status_code == 200:
+                    line_connected = True
+                    bot_info = response.json()
+                    bot_name = bot_info.get("displayName", "Unknown Bot")
+                    can_push = True
+                    logger.info(f"✅ LINE API connected: {bot_name}")
+                elif response.status_code == 401:
+                    logger.warning("⚠️ LINE API 401: Invalid access token")
+                    bot_name = "Invalid Token"
+                else:
+                    logger.warning(f"⚠️ LINE API {response.status_code}: {response.text[:100]}")
+                    bot_name = f"Error {response.status_code}"
+                    
+            except requests.exceptions.Timeout:
+                logger.warning("⚠️ LINE API timeout")
+                bot_name = "Timeout"
+            except requests.exceptions.ConnectionError:
+                logger.warning("⚠️ LINE API connection error")
+                bot_name = "Connection Error"
+            except Exception as e:
+                logger.warning(f"⚠️ LINE API test failed: {e}")
+                bot_name = "Test Failed"
+        
+        # เพิ่มข้อมูล LINE API เข้าไปใน summary
+        api_summary["line"] = {
+            "name": "LINE Messaging API",
+            "configured": line_configured,
+            "connected": line_connected,
+            "enabled": line_configured,  # LINE API เปิดใช้งานถ้ามีการตั้งค่า
+            "bot_name": bot_name,
+            "can_push": can_push,
+            "recent_failures": 0,  # LINE API ไม่มี failure tracking
+            "last_failure": 0,
+            "recently_failed": False
+        }
+        
+        # เพิ่มข้อมูลสรุประบบ
+        any_api_working = any([
+            api_summary.get("thunder", {}).get("connected", False),
+            api_summary.get("kbank", {}).get("connected", False),
+            api_summary.get("line", {}).get("connected", False)
+        ])
+        
+        slip_system_ready = any([
+            api_summary.get("thunder", {}).get("connected", False),
+            api_summary.get("kbank", {}).get("connected", False)
+        ])
+        
+        api_summary["system_status"] = {
+            "system_enabled": config_manager.get("slip_enabled", False),
+            "any_api_available": any_api_working,
+            "slip_system_ready": slip_system_ready,
+            "line_ready": api_summary["line"]["connected"]
+        }
+        
+        logger.info(f"📊 API Status Summary:")
+        logger.info(f"   Thunder: {api_summary.get('thunder', {}).get('connected', False)}")
+        logger.info(f"   KBank: {api_summary.get('kbank', {}).get('connected', False)}")
+        logger.info(f"   LINE: {api_summary['line']['connected']}")
+        
+        return JSONResponse(api_summary)
+        
+    except Exception as e:
+        logger.exception(f"❌ Error getting API status: {e}")
+        # Fallback response
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}",
+            "thunder": {
+                "name": "Thunder API",
+                "configured": bool(config_manager.get("thunder_api_token")),
+                "enabled": config_manager.get("thunder_enabled", True),
+                "connected": False,
+                "recent_failures": 0
+            },
+            "kbank": {
+                "name": "KBank API", 
+                "configured": bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret")),
+                "enabled": config_manager.get("kbank_enabled", False),
+                "connected": False,
+                "recent_failures": 0
+            },
+            "line": {
+                "name": "LINE Messaging API",
+                "configured": bool(config_manager.get("line_channel_access_token")),
+                "enabled": True,
+                "connected": False,
+                "bot_name": "Error",
+                "can_push": False
+            },
+            "system_status": {
+                "system_enabled": config_manager.get("slip_enabled", False),
+                "any_api_available": False,
+                "slip_system_ready": False,
+                "line_ready": False
+            }
+        })
 
 # เพิ่มหลัง route อื่น ๆ ใน main_updated.py
 
@@ -1131,7 +1231,32 @@ async def get_api_status():
 async def get_debug_config():
     """ดึงข้อมูล config สำหรับ debug"""
     try:
-        detailed_status = get_detailed_api_status()
+        # ดึงข้อมูลสถานะ API โดยตรง
+        from services.enhanced_slip_checker import get_api_status_summary
+        
+        api_status = get_api_status_summary()
+        
+        detailed_status = {
+            "api_status": api_status,
+            "config_status": {
+                "slip_system_enabled": config_manager.get("slip_enabled", False),
+                "thunder_enabled": config_manager.get("thunder_enabled", True),
+                "thunder_token_configured": bool(config_manager.get("thunder_api_token")),
+                "kbank_enabled": config_manager.get("kbank_enabled", False),
+                "kbank_credentials_configured": bool(
+                    config_manager.get("kbank_consumer_id") and 
+                    config_manager.get("kbank_consumer_secret")
+                )
+            },
+            "config_values": {
+                "thunder_token": config_manager.get("thunder_api_token", "")[:20] + "..." if config_manager.get("thunder_api_token") else "",
+                "kbank_consumer_id": config_manager.get("kbank_consumer_id", "")[:20] + "..." if config_manager.get("kbank_consumer_id") else "",
+                "kbank_consumer_secret": config_manager.get("kbank_consumer_secret", "")[:20] + "..." if config_manager.get("kbank_consumer_secret") else "",
+                "line_token": config_manager.get("line_channel_access_token", "")[:20] + "..." if config_manager.get("line_channel_access_token") else "",
+                "line_secret": config_manager.get("line_channel_secret", "")[:20] + "..." if config_manager.get("line_channel_secret") else "",
+            }
+        }
+        
         return JSONResponse(detailed_status)
     except Exception as e:
         logger.error(f"❌ Error getting debug config: {e}")
