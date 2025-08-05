@@ -1011,9 +1011,10 @@ async def test_push_message(request: Request):
         return JSONResponse({"status": "error", "message": f"เกิดข้อผิดพลาด: {str(e)}"})
 
 # เพิ่มใน main_updated.py
+# เพิ่มใน main_updated.py
 @app.post("/admin/test-kbank-oauth")
 async def test_kbank_oauth(request: Request):
-    """ทดสอบ KBank OAuth แยกต่างหาก"""
+    """ทดสอบ KBank OAuth โดยเฉพาะ"""
     try:
         data = await request.json()
         consumer_id = data.get("consumer_id")
@@ -1023,44 +1024,54 @@ async def test_kbank_oauth(request: Request):
             return JSONResponse({"status": "error", "message": "Missing Consumer ID or Secret"})
         
         logger.info(f"🧪 Testing KBank OAuth...")
+        logger.info(f"🧪 Consumer ID: {consumer_id}")
         
         # Set temporary credentials
         original_id = config_manager.get("kbank_consumer_id")
         original_secret = config_manager.get("kbank_consumer_secret")
+        original_enabled = config_manager.get("kbank_enabled")
         
         config_manager.config["kbank_consumer_id"] = consumer_id
         config_manager.config["kbank_consumer_secret"] = consumer_secret
+        config_manager.config["kbank_enabled"] = True
         
         try:
             from services.kbank_checker import kbank_checker
-            # ลองขอ token
+            # Clear any cached token first
+            kbank_checker._access_token = None
+            kbank_checker._token_expires_at = 0
+            
+            # Try to get token
             token = kbank_checker._get_access_token()
             
             if token:
+                await notification_manager.send_notification("🧪 KBank OAuth ทดสอบสำเร็จ", "info")
                 return JSONResponse({
                     "status": "success",
                     "message": "KBank OAuth successful",
                     "data": {
                         "token_received": True,
-                        "token_preview": token[:20] + "...",
+                        "token_preview": token[:30] + "...",
                         "token_length": len(token)
                     }
                 })
             else:
+                await notification_manager.send_notification("🧪 KBank OAuth ทดสอบล้มเหลว", "error")
                 return JSONResponse({
                     "status": "error",
-                    "message": "Failed to get OAuth token",
+                    "message": "Failed to get OAuth token - ตรวจสอบ Consumer ID และ Secret",
                     "data": {"token_received": False}
                 })
         finally:
             # Restore original values
             config_manager.config["kbank_consumer_id"] = original_id
             config_manager.config["kbank_consumer_secret"] = original_secret
+            config_manager.config["kbank_enabled"] = original_enabled
         
     except Exception as e:
         logger.exception(f"❌ KBank OAuth test error: {e}")
+        await notification_manager.send_notification(f"🧪 KBank OAuth error: {str(e)}", "error")
         return JSONResponse({"status": "error", "message": str(e)})
-        
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
     """Toggle slip checking system on/off"""
