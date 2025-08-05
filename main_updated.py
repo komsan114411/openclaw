@@ -16,7 +16,12 @@ from contextlib import asynccontextmanager
 # เพิ่มใน import section
 import requests
 from requests.exceptions import RequestException, Timeout, ConnectionError
-
+from utils.postgres_config_manager import config_manager
+from models.postgres_database import (
+    init_database, save_chat_history, get_chat_history_count, 
+    get_recent_chat_history, get_user_chat_history, log_api_call, 
+    get_api_statistics, cleanup_old_data
+)
 import httpx
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -1234,7 +1239,205 @@ async def health_check():
         "active_connections": len(notification_manager.active_connections)
     })
 
-
+@app.get("/admin/database-info")
+async def get_database_info():
+    """ดึงข้อมูลเกี่ยวกับฐานข้อมูล"""
+    try:
+        from models.postgres_models import db_manager
+        
+        # Check connection
+        db = db_manager.get_session()
+        
+        # Get basic statistics
+        from sqlalchemy import text
+        
+        # Database type
+        db_type = "PostgreSQL" if "postgresql" in str(db_manager.engine.url) else "SQLite"
+        
+        # Table counts
+        chat_count = db.execute(text("SELECT COUNT(*) FROM chat_history")).scalar()
+        config_count = db.execute(text("SELECT COUNT(*) FROM system_config")).scalar()
+        api_logs_count = db.execute(text("SELECT COUNT(*) FROM api_logs")).scalar()
+        
+        db.close()
+        
+        return JSONResponse({
+            "status": "success",
+            "database": {
+                "type": db_type,
+                "url": str(db_manager.engine.url).replace(db_manager.engine.url.password or '', '***') if db_manager.engine.url.password else str(db_manager.engine.url),
+                "connected": True,
+                "tables": {
+                    "chat_history": chat_count,
+                    "system_config": config_count,
+                    "api_logs": api_logs_count
+                }
+            }
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": str(e),
+            "database": {
+                "type": "Unknown",
+                "connected": False
+            }
+        })
+        
+        @app.post("/admin/migrate-config-vars")
+async def migrate_config_vars():
+    """Migrate จาก Heroku Config Vars ไปยัง PostgreSQL"""
+    try:
+        import os
+        migrated = 0
+        
+        # Environment variables ที่ต้อง migrate
+        env_vars = [
+            'LINE_CHANNEL_SECRET',
+            'LINE_CHANNEL_ACCESS_TOKEN', 
+            'THUNDER_API_TOKEN',
+            'OPENAI_API_KEY',
+            'KBANK_CONSUMER_ID',
+            'KBANK_CONSUMER_SECRET',
+            'AI_ENABLED',
+            'SLIP_ENABLED',
+            'THUNDER_ENABLED',
+            'KBANK_ENABLED',
+            'WALLET_PHONE_NUMBER'
+        ]
+        
+        updates = {}
+        for env_var in env_vars:
+            value = os.environ.get(env_var)
+            if value:
+                # แปลงชื่อให้เป็น lowercase และใช้ underscore
+                config_key = env_var.lower()
+                updates[config_key] = value
+                migrated += 1
+        
+        if updates:
+            success = config_manager.update_multiple(updates)
+            if success:
+                return JSONResponse({
+                    "status": "success",
+                    "message": f"Migrated {migrated} config vars to PostgreSQL",
+                    "migrated_keys": list(updates.keys())
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": "Failed to update database"
+                })
+        else:
+            return JSONResponse({
+                "status": "info",
+                "message": "No config vars found to migrate"
+            })
+            
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": f"Migration failed: {str(e)}"
+        })
+        
+        
+        @app.post("/admin/config-management/update")
+async def update_config_via_web(request: Request):
+    """อัปเดต Configuration ผ่านหน้าเว็บ"""
+    try:
+        data = await request.json()
+        
+        # แยกประเภทของ config
+        sensitive_fields = ['line_channel_access_token', 'line_channel_secret', 
+                          'thunder_api_token', 'openai_api_key', 
+                          'kbank_consumer_id', 'kbank_consumer_secret']
+        
+        updates = {}
+        for key, value in data.items():
+            if key.startswith('_'):  # Skip system fields
+                continue
+                
+            # Handle boolean fields
+            if key in ['ai_enabled', 'slip_enabled', 'thunder_enabled', 'kbank_enabled', 'kbank_sandbox_mode']:
+                updates[key] = bool(value)
+            else:
+                updates[key] = value
+        
+        success = config_manager.update_multiple(updates)
+        
+        if success:
+            # Log sensitive updates without showing values
+            for key in updates:
+                if key in sensitive_fields:
+                    logger.info(f"🔐 Updated sensitive config: {key}")
+                else:
+                    logger.info(f"⚙️ Updated config: {key} = {updates[key]}")
+            
+            await notification_manager.send_notification(
+                f"✅ Updated {len(updates)} configurations", "success"
+            )
+            
+            return JSONResponse({
+                "status": "success",
+                "message": f"อัปเดต {len(updates)} การตั้งค่าเรียบร้อย",
+                "updated_count": len(updates)
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "ไม่สามารถบันทึกการตั้งค่าได้"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Config update error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+        
+        @app.post("/admin/cleanup-old-data")
+async def cleanup_old_data_endpoint():
+    """ทำความสะอาดข้อมูลเก่า"""
+    try:
+        result = cleanup_old_data(days=30)
+        
+        await notification_manager.send_notification(
+            f"🧹 ทำความสะอาดข้อมูลเสร็จสิ้น: ลบ {result.get('deleted_chats', 0)} chat, {result.get('deleted_logs', 0)} logs", 
+            "success"
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "ทำความสะอาดข้อมูลเสร็จสิ้น",
+            "result": result
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+        
+        @app.get("/admin/config-management", response_class=HTMLResponse)
+async def config_management_page(request: Request):
+    """หน้าจัดการ Configuration แบบใหม่"""
+    try:
+        all_configs = config_manager.get_all()
+        
+        return templates.TemplateResponse("config_management.html", {
+            "request": request,
+            "configs": all_configs,
+            "config_count": len(all_configs)
+        })
+    except Exception as e:
+        logger.error(f"❌ Config management page error: {e}")
+        return templates.TemplateResponse("config_management.html", {
+            "request": request,
+            "configs": {},
+            "config_count": 0,
+            "error": str(e)
+        })
 
 @app.get("/admin/api-status")
 async def get_api_status():
