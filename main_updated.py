@@ -852,7 +852,7 @@ async def admin_home(request: Request):
         any_api_available = any(api.get("enabled", False) and api.get("configured", False) for api in api_statuses.values())
 
         return templates.TemplateResponse(
-            "admin.html",
+            "admin_home.html",
             {
                 "request": request,
                 "config": config_manager,
@@ -867,7 +867,7 @@ async def admin_home(request: Request):
     except Exception as e:
         logger.error(f"❌ Admin home error: {e}")
         return templates.TemplateResponse(
-            "admin.html",
+            "admin_home.html",
             {
                 "request": request,
                 "config": config_manager,
