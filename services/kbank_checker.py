@@ -1,4 +1,4 @@
-# services/kbank_checker.py (แก้ไขเต็ม)
+# services/kbank_checker.py (แก้ไขใหม่ทั้งหมด)
 import logging
 import requests
 import base64
@@ -13,7 +13,7 @@ logger = logging.getLogger("kbank_checker_service")
 
 class KBankSlipChecker:
     def __init__(self):
-        # ใช้ Production URL
+        # ใช้ Production URL (ไม่ใช่ sandbox)
         self.base_url = "https://openapi.kasikornbank.com"
         self.oauth_url = f"{self.base_url}/v2/oauth/token"
         self.verify_url = f"{self.base_url}/v1/verslip/kbank/verify"
@@ -21,7 +21,7 @@ class KBankSlipChecker:
         self._token_expires_at = 0
         
     def _get_access_token(self) -> Optional[str]:
-        """ขอ OAuth 2.0 access token ด้วย Client Credentials flow"""
+        """ขอ OAuth 2.0 access token ด้วย Client Credentials flow (Production)"""
         try:
             # ตรวจสอบว่า token ยังไม่หมดอายุ
             if self._access_token and time.time() < self._token_expires_at:
@@ -40,9 +40,17 @@ class KBankSlipChecker:
                 logger.error("❌ KBank credentials ยังไม่ได้ตั้งค่าหรือมีค่า placeholder")
                 return None
                 
+            logger.info(f"🔑 === KBANK OAUTH START ===")
+            logger.info(f"🔑 Consumer ID: {consumer_id}")
+            logger.info(f"🔑 Consumer Secret: {consumer_secret[:10]}...")
+            logger.info(f"🔑 URL: {self.oauth_url}")
+                
             # สร้าง Basic Auth header ตาม KBank documentation
             credentials = f"{consumer_id}:{consumer_secret}"
             encoded_credentials = base64.b64encode(credentials.encode()).decode()
+            
+            logger.info(f"🔑 Credentials string: {credentials}")
+            logger.info(f"🔑 Base64 encoded: {encoded_credentials}")
             
             headers = {
                 "Authorization": f"Basic {encoded_credentials}",
@@ -53,9 +61,10 @@ class KBankSlipChecker:
             
             data = "grant_type=client_credentials"
             
-            logger.info(f"🔑 Requesting KBank OAuth token...")
-            logger.info(f"🔑 Consumer ID: {consumer_id[:10]}...")
-            logger.info(f"🔑 URL: {self.oauth_url}")
+            logger.info(f"🔑 Request headers: {json.dumps({k: v if k != 'Authorization' else f'Basic {encoded_credentials[:20]}...' for k, v in headers.items()}, indent=2)}")
+            logger.info(f"🔑 Request data: {data}")
+            
+            logger.info(f"🔑 Sending OAuth request...")
             
             response = requests.post(
                 self.oauth_url,
@@ -64,17 +73,23 @@ class KBankSlipChecker:
                 timeout=30
             )
             
-            logger.info(f"🔑 KBank OAuth response: {response.status_code}")
+            logger.info(f"🔑 OAuth response status: {response.status_code}")
+            logger.info(f"🔑 OAuth response headers: {dict(response.headers)}")
+            logger.info(f"🔑 OAuth response body: {response.text}")
             
             if response.status_code == 401:
                 logger.error(f"❌ KBank OAuth 401 Unauthorized")
-                logger.error(f"❌ Consumer ID หรือ Secret ไม่ถูกต้อง")
-                logger.error(f"❌ Response: {response.text}")
+                logger.error(f"❌ ตรวจสอบ Consumer ID และ Secret ในหน้า Settings")
+                logger.error(f"❌ Consumer ID ที่ใช้: {consumer_id}")
+                logger.error(f"❌ Base64 encoded: {encoded_credentials}")
                 return None
             elif response.status_code == 403:
-                logger.error(f"❌ KBank OAuth 403 Forbidden")
+                logger.error(f"❌ KBank OAuth 403 Forbidden") 
                 logger.error(f"❌ บัญชีอาจถูกระงับหรือไม่มีสิทธิ์")
-                logger.error(f"❌ Response: {response.text}")
+                return None
+            elif response.status_code == 400:
+                logger.error(f"❌ KBank OAuth 400 Bad Request")
+                logger.error(f"❌ Request format ผิด: {response.text}")
                 return None
             elif response.status_code != 200:
                 logger.error(f"❌ KBank OAuth failed: {response.status_code}")
@@ -83,7 +98,7 @@ class KBankSlipChecker:
             
             try:
                 token_data = response.json()
-                logger.info(f"🔑 Token response: {json.dumps(token_data, indent=2)}")
+                logger.info(f"🔑 Token response parsed: {json.dumps(token_data, indent=2)}")
             except ValueError:
                 logger.error(f"❌ KBank OAuth response is not valid JSON: {response.text}")
                 return None
@@ -91,7 +106,8 @@ class KBankSlipChecker:
             access_token = token_data.get("access_token")
             
             if not access_token:
-                logger.error(f"❌ No access token in response: {token_data}")
+                logger.error(f"❌ No access token in response")
+                logger.error(f"❌ Full response: {token_data}")
                 return None
             
             expires_in = token_data.get("expires_in", 1800)  # Default 30 minutes
@@ -101,9 +117,10 @@ class KBankSlipChecker:
             self._access_token = access_token
             self._token_expires_at = time.time() + expires_in - 60  # Refresh 1 minute before expiry
             
-            logger.info(f"✅ ได้รับ KBank {token_type} access token แล้ว")
-            logger.info(f"✅ Token หมดอายุใน {expires_in} วินาที")
-            logger.info(f"✅ Token: {access_token[:20]}...")
+            logger.info(f"✅ === KBANK OAUTH SUCCESS ===")
+            logger.info(f"✅ Got {token_type} access token")
+            logger.info(f"✅ Token expires in {expires_in} seconds") 
+            logger.info(f"✅ Token preview: {access_token[:30]}...")
             
             return access_token
             
@@ -118,18 +135,19 @@ class KBankSlipChecker:
             return None
     
     def verify_slip(self, sending_bank_id: str, trans_ref: str) -> Dict[str, Any]:
-        """ตรวจสอบสลิปด้วย KBank API (Production with proper OAuth)"""
+        """ตรวจสอบสลิปด้วย KBank API (Production with detailed logging)"""
         try:
             if not config_manager.get("kbank_enabled", False):
                 return {"status": "error", "message": "ระบบตรวจสอบสลิป KBank ถูกปิดใช้งาน"}
                 
-            logger.info(f"🏦 === KBANK API VERIFICATION START ===")
-            logger.info(f"🏦 Verifying slip: Bank {sending_bank_id}, Ref {trans_ref}")
+            logger.info(f"🏦 === KBANK SLIP VERIFICATION START ===")
+            logger.info(f"🏦 Bank ID: {sending_bank_id}")
+            logger.info(f"🏦 Trans Ref: {trans_ref}")
             
             # ขอ access token
             access_token = self._get_access_token()
             if not access_token:
-                return {"status": "error", "message": "ไม่สามารถยืนยันตัวตนกับ KBank API ได้"}
+                return {"status": "error", "message": "ไม่สามารถขอ OAuth token จาก KBank ได้"}
                 
             # เตรียมข้อมูลส่ง request
             headers = {
@@ -139,7 +157,7 @@ class KBankSlipChecker:
                 "User-Agent": "LINE-OA-Middleware/2.0"
             }
             
-            # สร้าง request ID และ timestamp ที่ไม่ซ้ำ
+            # สร้าง request ID และ timestamp
             request_id = uuid.uuid4().hex
             request_time = datetime.now(timezone.utc).isoformat()
             
@@ -152,11 +170,12 @@ class KBankSlipChecker:
                 }
             }
             
-            logger.info(f"🔍 กำลังตรวจสอบสลิปด้วย KBank API")
-            logger.info(f"📋 Request URL: {self.verify_url}")
-            logger.info(f"📋 Request ID: {request_id}")
-            logger.info(f"📋 Headers: {json.dumps({k: v[:20] + '...' if k == 'Authorization' else v for k, v in headers.items()}, indent=2)}")
-            logger.info(f"📋 Payload: {json.dumps(payload, indent=2)}")
+            logger.info(f"🔍 === KBANK VERIFY REQUEST ===")
+            logger.info(f"🔍 URL: {self.verify_url}")
+            logger.info(f"🔍 Request ID: {request_id}")
+            logger.info(f"🔍 Request Time: {request_time}")
+            logger.info(f"🔍 Headers: {json.dumps({k: v[:50] + '...' if k == 'Authorization' else v for k, v in headers.items()}, indent=2)}")
+            logger.info(f"🔍 Payload: {json.dumps(payload, indent=2)}")
             
             response = requests.post(
                 self.verify_url,
@@ -165,31 +184,33 @@ class KBankSlipChecker:
                 timeout=30
             )
             
-            logger.info(f"📋 KBank API response: {response.status_code}")
-            response_text = response.text[:500] + "..." if len(response.text) > 500 else response.text
-            logger.info(f"📋 Response: {response_text}")
+            logger.info(f"🔍 === KBANK VERIFY RESPONSE ===")
+            logger.info(f"🔍 Status: {response.status_code}")
+            logger.info(f"🔍 Headers: {dict(response.headers)}")
+            logger.info(f"🔍 Body: {response.text}")
             
             if response.status_code == 401:
                 # Token expired, clear cached token
                 self._access_token = None
                 self._token_expires_at = 0
-                return {"status": "error", "message": "KBank API: Token หมดอายุ (401) - กรุณาลองใหม่"}
+                return {"status": "error", "message": "KBank API: Token หมดอายุ กรุณาลองใหม่"}
             elif response.status_code == 403:
-                return {"status": "error", "message": "KBank API: ไม่มีสิทธิ์ใช้ API นี้ (403) - ตรวจสอบ permissions"}
+                return {"status": "error", "message": "KBank API: ไม่มีสิทธิ์ใช้ API นี้"}
             elif response.status_code == 404:
-                return {"status": "error", "message": "KBank API: ไม่พบ endpoint (404) - URL อาจไม่ถูกต้อง"}
+                return {"status": "error", "message": "KBank API: ไม่พบ endpoint"}
             elif response.status_code == 400:
                 try:
                     error_data = response.json()
                     error_msg = error_data.get("message", "Bad Request")
                     return {"status": "error", "message": f"KBank API: {error_msg}"}
                 except:
-                    return {"status": "error", "message": f"KBank API: Bad Request (400)"}
+                    return {"status": "error", "message": f"KBank API: Bad Request"}
             elif response.status_code != 200:
-                return {"status": "error", "message": f"KBank API HTTP {response.status_code}: {response.text[:100]}..."}
+                return {"status": "error", "message": f"KBank API HTTP {response.status_code}: {response.text[:100]}"}
             
             try:
                 result = response.json()
+                logger.info(f"🔍 Parsed response: {json.dumps(result, indent=2)}")
             except ValueError:
                 return {"status": "error", "message": "KBank API ตอบกลับข้อมูลที่ไม่ใช่ JSON"}
             
@@ -197,14 +218,13 @@ class KBankSlipChecker:
             status_code = result.get("status_code")
             status_message = result.get("status_message", "")
             
-            logger.info(f"📊 KBank response structure: {json.dumps(result, indent=2)}")
-            logger.info(f"📊 KBank status: code={status_code}, message={status_message}")
+            logger.info(f"🔍 KBank result: status_code={status_code}, message={status_message}")
             
             if status_code == "200" and status_message == "SUCCESS":
                 data = result.get("data", {})
                 
-                logger.info(f"✅ === KBANK API VERIFICATION SUCCESS ===")
-                logger.info(f"✅ Slip data: {json.dumps(data, indent=2)}")
+                logger.info(f"✅ === KBANK VERIFICATION SUCCESS ===")
+                logger.info(f"✅ Data: {json.dumps(data, indent=2)}")
                 
                 return {
                     "status": "success",
@@ -254,7 +274,7 @@ class KBankSlipChecker:
                 }
             else:
                 # จัดการข้อผิดพลาดเฉพาะ
-                logger.error(f"❌ === KBANK API VERIFICATION FAILED ===")
+                logger.error(f"❌ === KBANK VERIFICATION FAILED ===")
                 logger.error(f"❌ Status: {status_code}, Message: {status_message}")
                 
                 if status_code == "400":
