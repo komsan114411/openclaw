@@ -1,4 +1,4 @@
-# services/kbank_checker.py - ปรับปรุงสำหรับ KBank Production API
+# services/kbank_checker.py - แก้ไขปัญหา token และรองรับการตั้งค่าจากหลังบ้าน
 import logging
 import requests
 import base64
@@ -6,15 +6,15 @@ import json
 import uuid
 import time
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from utils.config_manager import config_manager
 
 logger = logging.getLogger("kbank_checker_service")
 
 class KBankSlipChecker:
     def __init__(self):
-        # ใช้ Production URL หรือ Sandbox URL
-        self.is_sandbox = config_manager.get("kbank_sandbox_mode", True)  # เปลี่ยนเป็น False สำหรับ Production
+        # ตั้งค่า environment จาก config (default เป็น sandbox)
+        self.is_sandbox = config_manager.get("kbank_sandbox_mode", True)
         
         if self.is_sandbox:
             self.base_url = "https://openapi-sandbox.kasikornbank.com"
@@ -28,6 +28,76 @@ class KBankSlipChecker:
         self._access_token = None
         self._token_expires_at = 0
         
+    def _safe_int(self, value: Union[str, int, float], default: int = 1740) -> int:
+        """แปลงค่าเป็น int อย่างปลอดภัย"""
+        try:
+            if isinstance(value, str):
+                # ลบ whitespace และตรวจสอบว่าเป็นตัวเลข
+                value = value.strip()
+                if value.isdigit():
+                    return int(value)
+                elif '.' in value:
+                    return int(float(value))
+                else:
+                    logger.warning(f"⚠️ Invalid expires_in format: {value}, using default: {default}")
+                    return default
+            elif isinstance(value, (int, float)):
+                return int(value)
+            else:
+                logger.warning(f"⚠️ Unexpected expires_in type: {type(value)}, using default: {default}")
+                return default
+        except (ValueError, TypeError) as e:
+            logger.warning(f"⚠️ Error parsing expires_in: {e}, using default: {default}")
+            return default
+    
+    def get_credentials(self) -> tuple[str, str]:
+        """ดึง credentials จาก config หรือใช้ default สำหรับ sandbox"""
+        consumer_id = config_manager.get("kbank_consumer_id", "").strip()
+        consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
+        
+        # ถ้าเป็น sandbox และไม่มี credentials ให้ใช้ example credentials
+        if self.is_sandbox and (not consumer_id or not consumer_secret):
+            consumer_id = "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr"
+            consumer_secret = "goOfPtGLoGxYP3DG"
+            logger.info("🧪 Using KBank Sandbox example credentials")
+        
+        return consumer_id, consumer_secret
+    
+    def update_credentials(self, consumer_id: str, consumer_secret: str, save_to_config: bool = True):
+        """อัปเดต credentials และบันทึกลง config (ถ้าต้องการ)"""
+        if save_to_config:
+            success = config_manager.update_multiple({
+                "kbank_consumer_id": consumer_id.strip(),
+                "kbank_consumer_secret": consumer_secret.strip()
+            })
+            if success:
+                logger.info("✅ KBank credentials updated in config")
+            else:
+                logger.error("❌ Failed to save KBank credentials to config")
+        
+        # ล้าง token cache เพื่อใช้ credentials ใหม่
+        self.clear_token_cache()
+        
+    def set_environment(self, is_sandbox: bool = True, save_to_config: bool = True):
+        """เปลี่ยน environment (sandbox/production)"""
+        self.is_sandbox = is_sandbox
+        
+        if is_sandbox:
+            self.base_url = "https://openapi-sandbox.kasikornbank.com"
+            logger.info("🧪 Switched to KBank Sandbox Environment")
+        else:
+            self.base_url = "https://openapi.kasikornbank.com"
+            logger.info("🏦 Switched to KBank Production Environment")
+            
+        self.oauth_url = f"{self.base_url}/v2/oauth/token"
+        self.verify_url = f"{self.base_url}/v1/verslip/kbank/verify"
+        
+        if save_to_config:
+            config_manager.update("kbank_sandbox_mode", is_sandbox)
+        
+        # ล้าง token cache เมื่อเปลี่ยน environment
+        self.clear_token_cache()
+        
     def _get_access_token(self) -> Optional[str]:
         """ขอ OAuth 2.0 access token ตาม KBank Documentation"""
         try:
@@ -36,14 +106,7 @@ class KBankSlipChecker:
                 logger.info("🔑 Using cached access token")
                 return self._access_token
             
-            consumer_id = config_manager.get("kbank_consumer_id", "").strip()
-            consumer_secret = config_manager.get("kbank_consumer_secret", "").strip()
-            
-            # ถ้าเป็น sandbox ให้ใช้ example credentials
-            if self.is_sandbox and (not consumer_id or not consumer_secret):
-                consumer_id = "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr"
-                consumer_secret = "goOfPtGLoGxYP3DG"
-                logger.info("🧪 Using KBank Sandbox example credentials")
+            consumer_id, consumer_secret = self.get_credentials()
             
             if not consumer_id or not consumer_secret:
                 logger.error("❌ ไม่พบ KBank Consumer ID หรือ Secret")
@@ -56,7 +119,6 @@ class KBankSlipChecker:
             logger.info(f"🔑 URL: {self.oauth_url}")
                 
             # สร้าง Basic Auth header ตาม KBank specification
-            # Format: <Consumer ID>:<Consumer Secret>
             credentials = f"{consumer_id}:{consumer_secret}"
             encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
             
@@ -80,7 +142,6 @@ class KBankSlipChecker:
             data = "grant_type=client_credentials"
             
             logger.info(f"🔑 Sending OAuth request...")
-            logger.info(f"🔑 Headers: {json.dumps({k: v for k, v in headers.items() if k != 'Authorization'}, indent=2)}")
             
             response = requests.post(
                 self.oauth_url,
@@ -90,7 +151,6 @@ class KBankSlipChecker:
             )
             
             logger.info(f"🔑 OAuth response status: {response.status_code}")
-            logger.info(f"🔑 OAuth response headers: {dict(response.headers)}")
             logger.info(f"🔑 OAuth response body: {response.text}")
             
             if response.status_code != 200:
@@ -100,7 +160,7 @@ class KBankSlipChecker:
             
             try:
                 token_data = response.json()
-                logger.info(f"🔑 Token response parsed: {json.dumps(token_data, indent=2)}")
+                logger.info(f"🔑 Token response parsed successfully")
             except ValueError as e:
                 logger.error(f"❌ KBank OAuth response is not valid JSON: {response.text}")
                 return None
@@ -108,12 +168,17 @@ class KBankSlipChecker:
             access_token = token_data.get("access_token")
             
             if not access_token:
-                logger.error(f"❌ No access token in response")
+                logger.error(f"❌ No access_token in response")
                 logger.error(f"❌ Available fields: {list(token_data.keys()) if isinstance(token_data, dict) else 'Not a dict'}")
                 return None
             
-            # อายุของ token (default 1740 วินาที = 29 นาที)
-            expires_in = token_data.get("expires_in", 1740)
+            # แก้ไขปัญหา expires_in ที่อาจเป็น string
+            expires_in_raw = token_data.get("expires_in", 1740)
+            expires_in = self._safe_int(expires_in_raw, 1740)
+            
+            logger.info(f"🔑 Raw expires_in: {expires_in_raw} (type: {type(expires_in_raw)})")
+            logger.info(f"🔑 Parsed expires_in: {expires_in} seconds")
+            
             self._access_token = access_token
             self._token_expires_at = time.time() + expires_in - 120  # ลบ 2 นาทีเพื่อ safety margin
             
@@ -121,6 +186,7 @@ class KBankSlipChecker:
             logger.info(f"✅ Token type: {token_data.get('token_type', 'N/A')}")
             logger.info(f"✅ Expires in: {expires_in} seconds ({expires_in/60:.1f} minutes)")
             logger.info(f"✅ Token preview: {access_token[:50]}...")
+            logger.info(f"✅ Token will be refreshed at: {datetime.fromtimestamp(self._token_expires_at).strftime('%Y-%m-%d %H:%M:%S')}")
             
             return access_token
             
@@ -173,10 +239,7 @@ class KBankSlipChecker:
                 }
             }
             
-            logger.info(f"🔍 Sending verify request...")
-            logger.info(f"🔍 URL: {self.verify_url}")
-            logger.info(f"🔍 Headers: {json.dumps({k: v for k, v in headers.items() if k != 'Authorization'}, indent=2)}")
-            logger.info(f"🔍 Payload: {json.dumps(payload, indent=2)}")
+            logger.info(f"🔍 Sending verify request to {self.verify_url}")
             
             response = requests.post(
                 self.verify_url,
@@ -186,16 +249,13 @@ class KBankSlipChecker:
             )
             
             logger.info(f"🔍 Verify response status: {response.status_code}")
-            logger.info(f"🔍 Verify response headers: {dict(response.headers)}")
             logger.info(f"🔍 Verify response: {response.text}")
             
             if response.status_code != 200:
                 error_msg = f"KBank API HTTP {response.status_code}"
                 if response.status_code == 401:
                     error_msg = "Access token หมดอายุหรือไม่ถูกต้อง"
-                    # ลบ token เก่าให้ขอใหม่ครั้งต่อไป
-                    self._access_token = None
-                    self._token_expires_at = 0
+                    self.clear_token_cache()  # ล้าง token เก่า
                 elif response.status_code == 403:
                     error_msg = "ไม่มีสิทธิ์เข้าถึง KBank API"
                 elif response.status_code == 404:
@@ -216,9 +276,6 @@ class KBankSlipChecker:
             status_code = result.get("status_code") or result.get("statusCode")
             status_message = result.get("status_message") or result.get("message", "")
             
-            logger.info(f"🔍 API Status Code: {status_code}")
-            logger.info(f"🔍 API Status Message: {status_message}")
-            
             if status_code == "200" or status_code == 200 or status_message == "SUCCESS":
                 data = result.get("data", {})
                 
@@ -230,42 +287,23 @@ class KBankSlipChecker:
                     "trans_ref": trans_ref,
                     "date": data.get("transDate", datetime.now().strftime("%d/%m/%Y")),
                     "time": data.get("transTime", datetime.now().strftime("%H:%M:%S")),
-                    "trans_date": data.get("transDate", ""),
-                    "trans_time": data.get("transTime", ""),
                     
                     # ข้อมูลผู้ส่ง
                     "sender": data.get("senderName", data.get("senderAccount", "ผู้ส่ง")),
                     "sender_name_th": data.get("senderName", ""),
-                    "sender_name_en": data.get("senderNameEn", ""),
-                    "sender_account": data.get("senderAccount", ""),
                     "sender_bank": self._get_bank_short(sending_bank_id),
-                    "sender_bank_id": sending_bank_id,
-                    "sender_bank_name": self._get_bank_name(sending_bank_id),
                     "sender_bank_short": self._get_bank_short(sending_bank_id),
                     
                     # ข้อมูลผู้รับ
-                    "receiver": data.get("receiverName", data.get("receiverAccount", "ผู้รับ")),
                     "receiver_name": data.get("receiverName", data.get("receiverAccount", "ผู้รับ")),
                     "receiver_name_th": data.get("receiverName", ""),
-                    "receiver_name_en": data.get("receiverNameEn", ""),
-                    "receiver_account": data.get("receiverAccount", ""),
                     "receiver_bank": "KBANK",
-                    "receiver_bank_id": "004",
-                    "receiver_bank_name": "ธนาคารกสิกรไทย",
                     "receiver_bank_short": "KBANK",
-                    
-                    # ข้อมูลเพิ่มเติม
-                    "fee": data.get("fee", 0),
-                    "channel": data.get("channel", ""),
-                    "location": data.get("location", ""),
                     
                     # ข้อมูลการตรวจสอบ
                     "verified_by": f"KBank {'Sandbox' if self.is_sandbox else 'Production'} API",
                     "verification_time": datetime.now().isoformat(),
                     "request_id": request_id,
-                    
-                    # Raw data สำหรับ debug
-                    "raw_data": data
                 }
                 
                 return {
@@ -278,50 +316,14 @@ class KBankSlipChecker:
             elif status_code == "404" or status_message == "NOT_FOUND":
                 return {
                     "status": "not_found",
-                    "message": "ไม่พบข้อมูลสลิปในระบบธนาคาร",
-                    "suggestions": [
-                        "ตรวจสอบหมายเลขอ้างอิงให้ถูกต้อง",
-                        "ตรวจสอบรหัสธนาคารผู้ส่ง",
-                        "สลิปอาจยังไม่อัปเดตในระบบธนาคาร"
-                    ]
-                }
-            elif status_code == "400" or status_message == "BAD_REQUEST":
-                return {
-                    "status": "error",
-                    "message": "ข้อมูลที่ส่งไม่ถูกต้อง",
-                    "details": result.get("details", [])
-                }
-            elif status_code == "401" or status_message == "UNAUTHORIZED":
-                return {
-                    "status": "error",
-                    "message": "Access token หมดอายุ กรุณาลองใหม่อีกครั้ง"
-                }
-            elif status_code == "403" or status_message == "FORBIDDEN":
-                return {
-                    "status": "error",
-                    "message": "ไม่มีสิทธิ์เข้าถึง KBank API"
-                }
-            elif status_code == "429" or status_message == "TOO_MANY_REQUESTS":
-                return {
-                    "status": "error",
-                    "message": "เรียก API เกินจำนวนที่กำหนด กรุณารอสักครู่"
+                    "message": "ไม่พบข้อมูลสลิปในระบบธนาคาร"
                 }
             else:
                 return {
                     "status": "error",
-                    "message": f"KBank API Error: {status_message or 'Unknown error'}",
-                    "status_code": status_code
+                    "message": f"KBank API Error: {status_message or 'Unknown error'}"
                 }
                 
-        except requests.exceptions.Timeout:
-            logger.error(f"❌ KBank API timeout")
-            return {"status": "error", "message": "KBank API ตอบสนองช้าเกินไป"}
-        except requests.exceptions.ConnectionError:
-            logger.error(f"❌ KBank API connection error")
-            return {"status": "error", "message": "ไม่สามารถเชื่อมต่อกับ KBank API ได้"}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ KBank API request error: {e}")
-            return {"status": "error", "message": f"เกิดข้อผิดพลาดในการเชื่อมต่อ: {str(e)}"}
         except Exception as e:
             logger.exception(f"❌ KBank verification error: {e}")
             return {"status": "error", "message": f"เกิดข้อผิดพลาดไม่คาดคิด: {str(e)}"}
@@ -341,29 +343,14 @@ class KBankSlipChecker:
                     "api_test": False
                 }
             
-            # ทดสอบ API call ด้วยข้อมูลตัวอย่าง
-            if self.is_sandbox:
-                # ใช้ข้อมูล test สำหรับ sandbox
-                test_result = self.verify_slip("004", "TEST123456789")
-                
-                return {
-                    "status": "success",
-                    "message": "KBank API connection test successful",
-                    "environment": "Sandbox",
-                    "oauth_test": True,
-                    "api_test": test_result.get("status") in ["success", "not_found"],  # not_found ก็ถือว่า API ทำงาน
-                    "test_result": test_result
-                }
-            else:
-                # Production - เพียงทดสอบ OAuth
-                return {
-                    "status": "success",
-                    "message": "KBank OAuth test successful",
-                    "environment": "Production",
-                    "oauth_test": True,
-                    "api_test": "not_tested",
-                    "note": "API test skipped in production environment"
-                }
+            return {
+                "status": "success",
+                "message": f"KBank {'Sandbox' if self.is_sandbox else 'Production'} API connection test successful",
+                "environment": "Sandbox" if self.is_sandbox else "Production",
+                "oauth_test": True,
+                "token_preview": access_token[:30] + "..." if access_token else None,
+                "credentials_from": "config" if config_manager.get("kbank_consumer_id") else "sandbox_example"
+            }
                 
         except Exception as e:
             logger.exception(f"❌ KBank connection test error: {e}")
@@ -373,6 +360,21 @@ class KBankSlipChecker:
                 "oauth_test": False,
                 "api_test": False
             }
+    
+    def get_status(self) -> Dict[str, Any]:
+        """ดึงสถานะปัจจุบันของ KBank checker"""
+        consumer_id, consumer_secret = self.get_credentials()
+        
+        return {
+            "environment": "Sandbox" if self.is_sandbox else "Production",
+            "base_url": self.base_url,
+            "enabled": config_manager.get("kbank_enabled", False),
+            "configured": bool(consumer_id and consumer_secret),
+            "credentials_source": "config" if config_manager.get("kbank_consumer_id") else "sandbox_example",
+            "has_cached_token": bool(self._access_token),
+            "token_expires_at": datetime.fromtimestamp(self._token_expires_at).isoformat() if self._token_expires_at > 0 else None,
+            "token_valid": time.time() < (self._token_expires_at - 120) if self._token_expires_at > 0 else False
+        }
     
     def _get_bank_name(self, bank_id: str) -> str:
         """แปลงรหัสธนาคารเป็นชื่อเต็ม"""
@@ -411,83 +413,64 @@ class KBankSlipChecker:
 # สร้าง instance สำหรับใช้งานทั่วระบบ
 kbank_checker = KBankSlipChecker()
 
-# ฟังก์ชันสำหรับทดสอบ
-def test_kbank_oauth(consumer_id: str = None, consumer_secret: str = None) -> Dict[str, Any]:
-    """ทดสอบ KBank OAuth โดยตรง"""
+# ฟังก์ชันสำหรับใช้งานจาก API endpoints
+def update_kbank_credentials(consumer_id: str, consumer_secret: str, 
+                           is_sandbox: bool = True, enabled: bool = True) -> Dict[str, Any]:
+    """อัปเดต KBank credentials จาก admin interface"""
     try:
-        # ใช้ credentials ที่ส่งมาหรือใช้จาก config
-        if consumer_id and consumer_secret:
-            original_id = config_manager.get("kbank_consumer_id")
-            original_secret = config_manager.get("kbank_consumer_secret")
-            
-            config_manager.config["kbank_consumer_id"] = consumer_id
-            config_manager.config["kbank_consumer_secret"] = consumer_secret
-            
-            try:
-                # ล้าง token cache
-                kbank_checker.clear_token_cache()
-                
-                # ทดสอบ OAuth
-                token = kbank_checker._get_access_token()
-                
-                if token:
-                    return {
-                        "status": "success",
-                        "message": "KBank OAuth test successful",
-                        "token_preview": token[:50] + "...",
-                        "token_length": len(token)
-                    }
-                else:
-                    return {
-                        "status": "error",
-                        "message": "Failed to get OAuth token"
-                    }
-            finally:
-                # คืนค่า config เดิม
-                config_manager.config["kbank_consumer_id"] = original_id
-                config_manager.config["kbank_consumer_secret"] = original_secret
-                kbank_checker.clear_token_cache()
-        else:
-            return kbank_checker.test_connection()
-            
+        # อัปเดต credentials
+        kbank_checker.update_credentials(consumer_id, consumer_secret, save_to_config=True)
+        
+        # ตั้งค่า environment
+        kbank_checker.set_environment(is_sandbox, save_to_config=True)
+        
+        # เปิด/ปิดการใช้งาน
+        config_manager.update("kbank_enabled", enabled)
+        
+        # ทดสอบการเชื่อมต่อ
+        test_result = kbank_checker.test_connection()
+        
+        return {
+            "status": "success",
+            "message": "อัปเดต KBank credentials สำเร็จ",
+            "connection_test": test_result,
+            "current_status": kbank_checker.get_status()
+        }
+        
     except Exception as e:
-        logger.exception(f"❌ KBank OAuth test error: {e}")
+        logger.exception(f"❌ Error updating KBank credentials: {e}")
         return {
             "status": "error",
-            "message": f"OAuth test failed: {str(e)}"
+            "message": f"เกิดข้อผิดพลาดในการอัปเดต credentials: {str(e)}"
         }
 
-def test_kbank_slip_verification(consumer_id: str, consumer_secret: str, 
-                                bank_id: str, trans_ref: str) -> Dict[str, Any]:
-    """ทดสอบ KBank Slip Verification โดยตรง"""
+def test_kbank_with_credentials(consumer_id: str, consumer_secret: str, 
+                              is_sandbox: bool = True) -> Dict[str, Any]:
+    """ทดสอบ KBank API ด้วย credentials ที่กำหนด (ไม่บันทึกลง config)"""
     try:
-        original_id = config_manager.get("kbank_consumer_id")
-        original_secret = config_manager.get("kbank_consumer_secret")
-        original_enabled = config_manager.get("kbank_enabled")
+        # สำรองค่าเดิม
+        original_status = kbank_checker.get_status()
         
-        config_manager.config["kbank_consumer_id"] = consumer_id
-        config_manager.config["kbank_consumer_secret"] = consumer_secret
-        config_manager.config["kbank_enabled"] = True
+        # ตั้งค่าชั่วคราว
+        kbank_checker.set_environment(is_sandbox, save_to_config=False)
+        kbank_checker.update_credentials(consumer_id, consumer_secret, save_to_config=False)
         
-        try:
-            # ล้าง token cache
-            kbank_checker.clear_token_cache()
-            
-            # ทดสอบ Slip Verification
-            result = kbank_checker.verify_slip(bank_id, trans_ref)
-            
-            return result
-            
-        finally:
-            # คืนค่า config เดิม
-            config_manager.config["kbank_consumer_id"] = original_id
-            config_manager.config["kbank_consumer_secret"] = original_secret
-            config_manager.config["kbank_enabled"] = original_enabled
-            kbank_checker.clear_token_cache()
-            
+        # ทดสอบ
+        test_result = kbank_checker.test_connection()
+        
+        # คืนค่าเดิม (ถ้าจำเป็น)
+        if original_status["credentials_source"] == "config":
+            original_id = config_manager.get("kbank_consumer_id", "")
+            original_secret = config_manager.get("kbank_consumer_secret", "")
+            kbank_checker.update_credentials(original_id, original_secret, save_to_config=False)
+        
+        kbank_checker.set_environment(original_status["environment"] == "Sandbox", save_to_config=False)
+        
+        return test_result
+        
     except Exception as e:
-        logger.exception(f"❌ KBank slip verification test error: {e}")
+        logger.exception(f"❌ Error testing KBank credentials: {e}")
         return {
             "status": "error",
-            "message": f"Slip verification test failed: {str(e)}"
+            "message": f"เกิดข้อผิดพลาดในการทดสอบ: {str(e)}"
         }
