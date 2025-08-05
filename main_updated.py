@@ -383,6 +383,101 @@ def create_slip_reply_message(result: Dict[str, Any]) -> str:
     
     return message
 
+# เพิ่มใน main_updated.py (แทนที่ create_slip_reply_message เดิม)
+def create_slip_reply_message(result: Dict[str, Any]) -> str:
+    """สร้างข้อความตอบกลับสำหรับผลการตรวจสอบสลิปให้สวยงามและครบถ้วน"""
+    status = result.get("status")
+    data = result.get("data", {})
+
+    if not data:
+        error_msg = result.get("message", "ไม่ทราบสาเหตุ")
+        return f"❌ ไม่สามารถดึงข้อมูลสลิปได้\n\nสาเหตุ: {error_msg}"
+
+    # ดึงข้อมูลต่างๆ พร้อมค่าสำรอง
+    amount_display = data.get("amount_display", f"฿{data.get('amount', 'N/A')}")
+    date = data.get("date", data.get("trans_date", "N/A"))
+    time_str = data.get("time", data.get("trans_time", ""))
+    trans_ref = data.get("reference", data.get("transRef", "N/A"))
+    
+    # ชื่อผู้ส่งและผู้รับ
+    sender_name = (
+        data.get("sender_name_th") or 
+        data.get("sender_name_en") or 
+        data.get("sender", "ไม่พบชื่อผู้โอน")
+    )
+    
+    receiver_name = (
+        data.get("receiver_name_th") or 
+        data.get("receiver_name_en") or 
+        data.get("receiver_name", data.get("receiver", "ไม่พบชื่อผู้รับ"))
+    )
+    
+    # ธนาคาร
+    sender_bank = (
+        data.get("sender_bank_short") or 
+        data.get("sender_bank", "")
+    )
+    
+    receiver_bank = (
+        data.get("receiver_bank_short") or 
+        data.get("receiver_bank", "")
+    )
+    
+    verified_by = data.get("verified_by", "ระบบ")
+
+    # กำหนดหัวข้อตามสถานะ
+    if status == "success":
+        header = "✅ สลิปถูกต้อง ตรวจสอบสำเร็จ"
+        emoji = "🎉"
+    elif status == "duplicate":
+        header = "🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
+        emoji = "⚠️"
+    else:
+        header = "ℹ️ ผลการตรวจสอบสลิป"
+        emoji = "📋"
+
+    # สร้างข้อความตอบกลับ
+    message_parts = [
+        f"{emoji} {header}",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"💰 จำนวนเงิน: {amount_display}",
+        f"📅 วันที่: {date}" + (f" {time_str}" if time_str else ""),
+        f"🔢 เลขที่อ้างอิง: {trans_ref}",
+        "",
+        f"👤 ผู้โอน: {sender_name}"
+    ]
+    
+    if sender_bank:
+        message_parts.append(f"🏦 จาก: ธ.{sender_bank}")
+    
+    message_parts.extend([
+        "",
+        f"🎯 ผู้รับ: {receiver_name}"
+    ])
+    
+    if receiver_bank:
+        message_parts.append(f"🏦 ไปยัง: ธ.{receiver_bank}")
+    
+    message_parts.extend([
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"🔍 ตรวจสอบโดย: {verified_by}"
+    ])
+    
+    # เพิ่มข้อความเพิ่มเติมตามสถานะ
+    if status == "duplicate":
+        message_parts.extend([
+            "",
+            "⚠️ หมายเหตุ: สลิปนี้เคยถูกใช้แล้ว",
+            "กรุณาตรวจสอบการทำรายการ"
+        ])
+    elif status == "success":
+        message_parts.extend([
+            "",
+            "✅ สลิปนี้ถูกต้องและยืนยันแล้ว"
+        ])
+    
+    return "\n".join(message_parts)
+
 # ====================== Event Processing Handlers ======================
 
 async def send_message_safe(user_id: str, reply_token: str, message: str, message_type: str = "general") -> bool:
