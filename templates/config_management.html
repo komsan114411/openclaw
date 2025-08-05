@@ -1,455 +1,590 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการการตั้งค่า - LINE OA Middleware</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .config-table th { background-color: #f8f9fa; }
-        .sensitive-value { font-family: monospace; }
-        .config-group { border-left: 4px solid #007bff; }
-        .success-flash { background-color: #d4edda; }
-        .error-flash { background-color: #f8d7da; }
-        .database-info { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    </style>
-</head>
-<body class="bg-light">
-    <!-- Include navbar -->
-    {% include 'components/navbar.html' %}
+{% extends "base.html" %}
 
-    <div class="container mt-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h2>
-                    <i class="fas fa-database me-2"></i>จัดการการตั้งค่าระบบ
-                    <small class="text-muted">PostgreSQL Backend</small>
-                </h2>
-            </div>
-            <div class="col-md-4">
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success" onclick="migrateConfigVars()">
-                        <i class="fas fa-download me-1"></i>Migrate Config Vars
-                    </button>
-                    <button class="btn btn-outline-primary" onclick="reloadConfigs()">
-                        <i class="fas fa-sync me-1"></i>Reload
-                    </button>
-                </div>
-            </div>
-        </div>
+{% block title %}Config Management - LINE OA Middleware{% endblock %}
 
-        <!-- Database Info Card -->
-        <div class="card mb-4 database-info text-white">
-            <div class="card-header">
-                <h5><i class="fas fa-database me-2"></i>Database Information</h5>
-            </div>
-            <div class="card-body" id="databaseInfo">
-                <div class="spinner-border text-light" role="status"></div>
-                <span class="ms-2">Loading database info...</span>
-            </div>
-        </div>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-database me-2 text-primary"></i>
+        Configuration Management
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="saveAllConfigs()">
+            <i class="fas fa-save me-1"></i> Save All
+        </button>
+        <button class="btn btn-outline-primary" onclick="loadConfigs()">
+            <i class="fas fa-sync me-1"></i> Reload
+        </button>
+        <button class="btn btn-outline-secondary" onclick="exportConfigs()">
+            <i class="fas fa-download me-1"></i> Export
+        </button>
+    </div>
+</div>
 
-        <!-- Configuration Groups -->
-        <div class="row">
-            <!-- LINE Settings -->
-            <div class="col-md-6">
-                <div class="card mb-4 config-group">
-                    <div class="card-header bg-success text-white">
-                        <h6><i class="fab fa-line me-2"></i>LINE Configuration</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Channel Secret</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control sensitive-value" 
-                                       id="line_channel_secret" 
-                                       value="{{ configs.get('line_channel_secret', '') }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="togglePassword('line_channel_secret')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Access Token</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control sensitive-value" 
-                                       id="line_channel_access_token" 
-                                       value="{{ configs.get('line_channel_access_token', '') }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="togglePassword('line_channel_access_token')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- API Settings -->
-            <div class="col-md-6">
-                <div class="card mb-4 config-group">
-                    <div class="card-header bg-warning text-dark">
-                        <h6><i class="fas fa-key me-2"></i>API Configuration</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Thunder API Token</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control sensitive-value" 
-                                       id="thunder_api_token" 
-                                       value="{{ configs.get('thunder_api_token', '') }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="togglePassword('thunder_api_token')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">OpenAI API Key</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control sensitive-value" 
-                                       id="openai_api_key" 
-                                       value="{{ configs.get('openai_api_key', '') }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="togglePassword('openai_api_key')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- KBank Settings -->
-            <div class="col-md-6">
-                <div class="card mb-4 config-group">
-                    <div class="card-header bg-primary text-white">
-                        <h6><i class="fas fa-university me-2"></i>KBank Configuration</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Consumer ID</label>
-                            <input type="text" class="form-control" 
-                                   id="kbank_consumer_id" 
-                                   value="{{ configs.get('kbank_consumer_id', '') }}">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Consumer Secret</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control sensitive-value" 
-                                       id="kbank_consumer_secret" 
-                                       value="{{ configs.get('kbank_consumer_secret', '') }}">
-                                <button class="btn btn-outline-secondary" type="button" 
-                                        onclick="togglePassword('kbank_consumer_secret')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- System Settings -->
-            <div class="col-md-6">
-                <div class="card mb-4 config-group">
-                    <div class="card-header bg-secondary text-white">
-                        <h6><i class="fas fa-cog me-2"></i>System Configuration</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="ai_enabled" 
-                                   {{ 'checked' if configs.get('ai_enabled') }}>
-                            <label class="form-check-label" for="ai_enabled">AI Chatbot</label>
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="slip_enabled" 
-                                   {{ 'checked' if configs.get('slip_enabled') }}>
-                            <label class="form-check-label" for="slip_enabled">Slip Verification</label>
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="thunder_enabled" 
-                                   {{ 'checked' if configs.get('thunder_enabled') }}>
-                            <label class="form-check-label" for="thunder_enabled">Thunder API</label>
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="kbank_enabled" 
-                                   {{ 'checked' if configs.get('kbank_enabled') }}>
-                            <label class="form-check-label" for="kbank_enabled">KBank API</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- AI Prompt -->
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white">
-                <h6><i class="fas fa-brain me-2"></i>AI Prompt Configuration</h6>
-            </div>
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
             <div class="card-body">
-                <textarea class="form-control" id="ai_prompt" rows="4" 
-                          placeholder="AI system prompt...">{{ configs.get('ai_prompt', '') }}</textarea>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <button class="btn btn-primary w-100 btn-lg" onclick="saveAllConfigs()">
-                    <i class="fas fa-save me-1"></i>บันทึกการตั้งค่าทั้งหมด
-                </button>
-            </div>
-            <div class="col-md-6">
-                <button class="btn btn-outline-danger w-100 btn-lg" onclick="cleanupOldData()">
-                    <i class="fas fa-broom me-1"></i>ทำความสะอาดข้อมูลเก่า
-                </button>
-            </div>
-        </div>
-
-        <!-- All Configurations Table -->
-        <div class="card">
-            <div class="card-header">
-                <h6><i class="fas fa-list me-2"></i>การตั้งค่าทั้งหมด ({{ config_count }} รายการ)</h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped config-table">
-                        <thead>
-                            <tr>
-                                <th>Key</th>
-                                <th>Value</th>
-                                <th>Type</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="configTableBody">
-                            {% for key, value in configs.items() %}
-                            <tr data-config-key="{{ key }}">
-                                <td><code>{{ key }}</code></td>
-                                <td>
-                                    {% if key in ['line_channel_access_token', 'line_channel_secret', 'thunder_api_token', 'openai_api_key', 'kbank_consumer_secret'] %}
-                                        <span class="sensitive-value">{{ value[:10] + '...' if value else 'Not set' }}</span>
-                                    {% else %}
-                                        {{ value if value != '' else 'Not set' }}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary">
-                                        {{ 'boolean' if key.endswith('_enabled') else 'string' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary" 
-                                            onclick="editConfig('{{ key }}', '{{ value }}')">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                <h4 class="text-primary">{{ config_count }}</h4>
+                <p class="text-muted mb-0">Total Configurations</p>
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success" id="sensitive-count">0</h4>
+                <p class="text-muted mb-0">Sensitive Keys</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info" id="boolean-count">0</h4>
+                <p class="text-muted mb-0">Boolean Settings</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning" id="empty-count">0</h4>
+                <p class="text-muted mb-0">Empty Values</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <!-- Success/Error Messages -->
-    <div id="messages" class="position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+<!-- Configuration Editor -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Configuration Editor</h5>
+        <div>
+            <button class="btn btn-sm btn-outline-success" onclick="addNewConfig()">
+                <i class="fas fa-plus me-1"></i> Add New
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteSelected()">
+                <i class="fas fa-trash me-1"></i> Delete Selected
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">
+                            <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                        </th>
+                        <th width="200">Key</th>
+                        <th width="100">Type</th>
+                        <th>Value</th>
+                        <th width="120">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="config-tbody">
+                    {% if configs %}
+                        {% for key, value in configs.items() %}
+                            <tr data-key="{{ key }}">
+                                <td>
+                                    <input type="checkbox" class="config-select" value="{{ key }}">
+                                </td>
+                                <td>
+                                    <strong>{{ key }}</strong>
+                                    {% if key in ['line_channel_secret', 'line_channel_access_token', 'thunder_api_token', 'openai_api_key'] %}
+                                        <small class="badge bg-warning ms-1">Sensitive</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">
+                                        {% if value is sameas true or value is sameas false %}
+                                            boolean
+                                        {% elif value is number %}
+                                            number
+                                        {% else %}
+                                            string
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="config-value-container">
+                                        {% if key in ['line_channel_secret', 'line_channel_access_token', 'thunder_api_token', 'openai_api_key'] %}
+                                            <!-- Sensitive field -->
+                                            <div class="input-group">
+                                                <input type="password" class="form-control config-input" 
+                                                       data-key="{{ key }}" value="{{ value or '' }}"
+                                                       placeholder="Enter {{ key.replace('_', ' ').title() }}">
+                                                <button class="btn btn-outline-secondary" type="button" 
+                                                        onclick="togglePasswordVisibility(this)">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        {% elif value is sameas true or value is sameas false %}
+                                            <!-- Boolean field -->
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input config-input" type="checkbox" 
+                                                       data-key="{{ key }}" {% if value %}checked{% endif %}>
+                                            </div>
+                                        {% else %}
+                                            <!-- Regular field -->
+                                            <input type="text" class="form-control config-input" 
+                                                   data-key="{{ key }}" value="{{ value or '' }}"
+                                                   placeholder="Enter {{ key.replace('_', ' ').title() }}">
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-success" onclick="saveConfig('{{ key }}')"
+                                                title="Save">
+                                            <i class="fas fa-save"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteConfig('{{ key }}')"
+                                                title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-cogs fa-3x mb-3"></i>
+                                    <p>No configurations found</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            loadDatabaseInfo();
+<!-- Add New Config Modal -->
+<div class="modal fade" id="addConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-config-form">
+                    <div class="mb-3">
+                        <label for="new-config-key" class="form-label">Configuration Key</label>
+                        <input type="text" class="form-control" id="new-config-key" 
+                               placeholder="e.g., new_setting_name" required>
+                        <div class="form-text">Use lowercase letters, numbers, and underscores only</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-config-type" class="form-label">Value Type</label>
+                        <select class="form-select" id="new-config-type" onchange="updateValueField()">
+                            <option value="string">String</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="number">Number</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-config-value" class="form-label">Value</label>
+                        <div id="value-field-container">
+                            <input type="text" class="form-control" id="new-config-value" 
+                                   placeholder="Enter value">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is-sensitive">
+                            <label class="form-check-label" for="is-sensitive">
+                                This is a sensitive value (will be masked)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addConfig()">Add Configuration</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const sensitiveKeys = ['line_channel_secret', 'line_channel_access_token', 'thunder_api_token', 'openai_api_key'];
+    
+    // Update statistics
+    function updateStatistics() {
+        const configs = document.querySelectorAll('.config-input');
+        let sensitiveCount = 0;
+        let booleanCount = 0;
+        let emptyCount = 0;
+        
+        configs.forEach(input => {
+            const key = input.dataset.key;
+            
+            if (sensitiveKeys.includes(key)) {
+                sensitiveCount++;
+            }
+            
+            if (input.type === 'checkbox') {
+                booleanCount++;
+            }
+            
+            if (!input.value || input.value.trim() === '') {
+                emptyCount++;
+            }
         });
-
-        async function loadDatabaseInfo() {
-            try {
-                const response = await fetch('/admin/database-info');
-                const data = await response.json();
+        
+        document.getElementById('sensitive-count').textContent = sensitiveCount;
+        document.getElementById('boolean-count').textContent = booleanCount;
+        document.getElementById('empty-count').textContent = emptyCount;
+    }
+    
+    // Toggle password visibility
+    function togglePasswordVisibility(button) {
+        const input = button.previousElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    }
+    
+    // Toggle select all
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('select-all');
+        const checkboxes = document.querySelectorAll('.config-select');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+    }
+    
+    // Save single configuration
+    async function saveConfig(key) {
+        try {
+            const input = document.querySelector(`.config-input[data-key="${key}"]`);
+            let value;
+            
+            if (input.type === 'checkbox') {
+                value = input.checked;
+            } else {
+                value = input.value;
+            }
+            
+            const updates = {};
+            updates[key] = value;
+            
+            showNotification(`Saving ${key}...`, 'info');
+            
+            const result = await apiCall('/admin/config-management/update', {
+                method: 'POST',
+                body: JSON.stringify(updates)
+            });
+            
+            if (result.status === 'success') {
+                showNotification(`${key} saved successfully`, 'success');
+            } else {
+                showNotification(`Failed to save ${key}: ${result.message}`, 'error');
+            }
+            
+        } catch (error) {
+            showNotification(`Error saving ${key}`, 'error');
+        }
+    }
+    
+    // Save all configurations
+    async function saveAllConfigs() {
+        try {
+            const inputs = document.querySelectorAll('.config-input');
+            const updates = {};
+            
+            inputs.forEach(input => {
+                const key = input.dataset.key;
                 
-                if (data.status === 'success') {
-                    const info = data.database;
-                    document.getElementById('databaseInfo').innerHTML = `
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>Type:</strong> ${info.type}<br>
-                                <strong>Status:</strong> <span class="badge bg-success">Connected</span><br>
-                                <strong>URL:</strong> <code>${info.url}</code>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>Tables:</strong><br>
-                                • Chat History: ${info.tables.chat_history} records<br>
-                                • System Config: ${info.tables.system_config} items<br>
-                                • API Logs: ${info.tables.api_logs} entries
-                            </div>
-                        </div>
-                    `;
+                if (input.type === 'checkbox') {
+                    updates[key] = input.checked;
                 } else {
-                    document.getElementById('databaseInfo').innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Database connection failed: ${data.message}
-                        </div>
-                    `;
+                    updates[key] = input.value;
                 }
-            } catch (error) {
-                document.getElementById('databaseInfo').innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Cannot load database info: ${error.message}
+            });
+            
+            showNotification('Saving all configurations...', 'info');
+            
+            const result = await apiCall('/admin/config-management/update', {
+                method: 'POST',
+                body: JSON.stringify(updates)
+            });
+            
+            if (result.status === 'success') {
+                showNotification(`Saved ${result.updated_count} configurations`, 'success');
+            } else {
+                showNotification(`Failed to save configurations: ${result.message}`, 'error');
+            }
+            
+        } catch (error) {
+            showNotification('Error saving configurations', 'error');
+        }
+    }
+    
+    // Delete single configuration
+    async function deleteConfig(key) {
+        if (!confirm(`Are you sure you want to delete the configuration "${key}"?`)) {
+            return;
+        }
+        
+        try {
+            // In a real implementation, you'd call a delete endpoint
+            const row = document.querySelector(`tr[data-key="${key}"]`);
+            row.remove();
+            
+            showNotification(`Configuration "${key}" deleted`, 'warning');
+            updateStatistics();
+            
+        } catch (error) {
+            showNotification(`Error deleting ${key}`, 'error');
+        }
+    }
+    
+    // Delete selected configurations
+    function deleteSelected() {
+        const selected = document.querySelectorAll('.config-select:checked');
+        
+        if (selected.length === 0) {
+            showNotification('No configurations selected', 'warning');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${selected.length} selected configurations?`)) {
+            return;
+        }
+        
+        selected.forEach(checkbox => {
+            const key = checkbox.value;
+            const row = document.querySelector(`tr[data-key="${key}"]`);
+            row.remove();
+        });
+        
+        showNotification(`${selected.length} configurations deleted`, 'warning');
+        updateStatistics();
+    }
+    
+    // Add new configuration modal
+    function addNewConfig() {
+        document.getElementById('add-config-form').reset();
+        updateValueField();
+        new bootstrap.Modal(document.getElementById('addConfigModal')).show();
+    }
+    
+    // Update value field based on type
+    function updateValueField() {
+        const type = document.getElementById('new-config-type').value;
+        const container = document.getElementById('value-field-container');
+        
+        let html = '';
+        
+        switch (type) {
+            case 'boolean':
+                html = `
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="new-config-value">
+                        <label class="form-check-label" for="new-config-value">Enabled</label>
                     </div>
                 `;
-            }
+                break;
+            case 'number':
+                html = '<input type="number" class="form-control" id="new-config-value" placeholder="Enter number">';
+                break;
+            default:
+                html = '<input type="text" class="form-control" id="new-config-value" placeholder="Enter value">';
         }
-
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const button = field.nextElementSibling.querySelector('i');
+        
+        container.innerHTML = html;
+    }
+    
+    // Add new configuration
+    async function addConfig() {
+        try {
+            const key = document.getElementById('new-config-key').value.trim();
+            const type = document.getElementById('new-config-type').value;
+            const isSensitive = document.getElementById('is-sensitive').checked;
             
-            if (field.type === 'password') {
-                field.type = 'text';
-                button.className = 'fas fa-eye-slash';
+            if (!key) {
+                showNotification('Configuration key is required', 'warning');
+                return;
+            }
+            
+            // Validate key format
+            if (!/^[a-z0-9_]+$/.test(key)) {
+                showNotification('Key must contain only lowercase letters, numbers, and underscores', 'warning');
+                return;
+            }
+            
+            // Check if key already exists
+            if (document.querySelector(`tr[data-key="${key}"]`)) {
+                showNotification('Configuration key already exists', 'warning');
+                return;
+            }
+            
+            let value;
+            const valueInput = document.getElementById('new-config-value');
+            
+            if (type === 'boolean') {
+                value = valueInput.checked;
+            } else if (type === 'number') {
+                value = parseFloat(valueInput.value) || 0;
             } else {
-                field.type = 'password';
-                button.className = 'fas fa-eye';
+                value = valueInput.value || '';
             }
-        }
-
-        async function saveAllConfigs() {
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก...';
-            button.disabled = true;
-
-            try {
-                // รวบรวมข้อมูลการตั้งค่าทั้งหมด
-                const configs = {
-                    line_channel_secret: document.getElementById('line_channel_secret').value,
-                    line_channel_access_token: document.getElementById('line_channel_access_token').value,
-                    thunder_api_token: document.getElementById('thunder_api_token').value,
-                    openai_api_key: document.getElementById('openai_api_key').value,
-                    kbank_consumer_id: document.getElementById('kbank_consumer_id').value,
-                    kbank_consumer_secret: document.getElementById('kbank_consumer_secret').value,
-                    ai_enabled: document.getElementById('ai_enabled').checked,
-                    slip_enabled: document.getElementById('slip_enabled').checked,
-                    thunder_enabled: document.getElementById('thunder_enabled').checked,
-                    kbank_enabled: document.getElementById('kbank_enabled').checked,
-                    ai_prompt: document.getElementById('ai_prompt').value
-                };
-
-                const response = await fetch('/admin/config-management/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(configs)
-                });
-
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showMessage('success', result.message);
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showMessage('error', result.message);
-                }
-
-            } catch (error) {
-                showMessage('error', `เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                button.innerHTML = originalText;
-                button.disabled = false;
+            
+            // Add row to table
+            const tbody = document.getElementById('config-tbody');
+            const row = createConfigRow(key, value, type, isSensitive);
+            tbody.appendChild(row);
+            
+            // Save to backend
+            const updates = {};
+            updates[key] = value;
+            
+            const result = await apiCall('/admin/config-management/update', {
+                method: 'POST',
+                body: JSON.stringify(updates)
+            });
+            
+            if (result.status === 'success') {
+                showNotification(`Configuration "${key}" added successfully`, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('addConfigModal')).hide();
+                updateStatistics();
+            } else {
+                showNotification(`Failed to add configuration: ${result.message}`, 'error');
+                row.remove();
             }
+            
+        } catch (error) {
+            showNotification('Error adding configuration', 'error');
         }
-
-        async function migrateConfigVars() {
-            if (!confirm('ต้องการ migrate Config Vars จาก Heroku มายัง PostgreSQL หรือไม่?')) return;
-
-            try {
-                const response = await fetch('/admin/migrate-config-vars', { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showMessage('success', result.message);
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    showMessage(result.status, result.message);
-                }
-                
-            } catch (error) {
-                showMessage('error', `Migration failed: ${error.message}`);
-            }
-        }
-
-        async function cleanupOldData() {
-            if (!confirm('ต้องการทำความสะอาดข้อมูลเก่า (30 วัน) หรือไม่?')) return;
-
-            try {
-                const response = await fetch('/admin/cleanup-old-data', { method: 'POST' });
-                const result = await response.json();
-                
-                showMessage(result.status, result.message);
-                
-                if (result.status === 'success') {
-                    setTimeout(() => loadDatabaseInfo(), 1000);
-                }
-                
-            } catch (error) {
-                showMessage('error', `Cleanup failed: ${error.message}`);
-            }
-        }
-
-        function reloadConfigs() {
-            location.reload();
-        }
-
-        function editConfig(key, currentValue) {
-            const newValue = prompt(`Edit ${key}:`, currentValue);
-            if (newValue !== null && newValue !== currentValue) {
-                // Update the config
-                const configs = {};
-                configs[key] = newValue;
-                
-                fetch('/admin/config-management/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(configs)
-                }).then(response => response.json())
-                .then(result => {
-                    if (result.status === 'success') {
-                        showMessage('success', `Updated ${key}`);
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        showMessage('error', result.message);
-                    }
-                });
-            }
-        }
-
-        function showMessage(type, message) {
-            const alertClass = {
-                'success': 'alert-success',
-                'error': 'alert-danger',
-                'warning': 'alert-warning',
-                'info': 'alert-info'
-            }[type] || 'alert-info';
-
-            const alert = document.createElement('div');
-            alert.className = `alert ${alertClass} alert-dismissible fade show`;
-            alert.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    }
+    
+    // Create configuration row
+    function createConfigRow(key, value, type, isSensitive) {
+        const row = document.createElement('tr');
+        row.setAttribute('data-key', key);
+        
+        let valueHtml = '';
+        
+        if (isSensitive) {
+            valueHtml = `
+                <div class="input-group">
+                    <input type="password" class="form-control config-input" 
+                           data-key="${key}" value="${value}"
+                           placeholder="Enter ${key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}">
+                    <button class="btn btn-outline-secondary" type="button" 
+                            onclick="togglePasswordVisibility(this)">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
             `;
-
-            document.getElementById('messages').appendChild(alert);
-
-            setTimeout(() => {
-                if (alert.parentNode) {
-                    alert.remove();
-                }
-            }, 5000);
+        } else if (type === 'boolean') {
+            valueHtml = `
+                <div class="form-check form-switch">
+                    <input class="form-check-input config-input" type="checkbox" 
+                           data-key="${key}" ${value ? 'checked' : ''}>
+                </div>
+            `;
+        } else {
+            valueHtml = `
+                <input type="${type === 'number' ? 'number' : 'text'}" class="form-control config-input" 
+                       data-key="${key}" value="${value}"
+                       placeholder="Enter ${key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}">
+            `;
         }
-    </script>
-</body>
-</html>
+        
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="config-select" value="${key}">
+            </td>
+            <td>
+                <strong>${key}</strong>
+                ${isSensitive ? '<small class="badge bg-warning ms-1">Sensitive</small>' : ''}
+            </td>
+            <td>
+                <span class="badge bg-light text-dark">${type}</span>
+            </td>
+            <td>
+                <div class="config-value-container">
+                    ${valueHtml}
+                </div>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-success" onclick="saveConfig('${key}')" title="Save">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteConfig('${key}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        
+        return row;
+    }
+    
+    // Load configurations
+    async function loadConfigs() {
+        try {
+            showNotification('Reloading configurations...', 'info');
+            window.location.reload();
+        } catch (error) {
+            showNotification('Error reloading configurations', 'error');
+        }
+    }
+    
+    // Export configurations
+    async function exportConfigs() {
+        try {
+            const result = await apiCall('/admin/export-data');
+            
+            if (result.status === 'success') {
+                const dataStr = JSON.stringify(result.data.system_config, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `system-config-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                
+                showNotification('Configuration exported successfully', 'success');
+            } else {
+                showNotification('Export failed', 'error');
+            }
+        } catch (error) {
+            showNotification('Error exporting configurations', 'error');
+        }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateStatistics();
+        
+        // Add change listeners to inputs for auto-save indication
+        document.querySelectorAll('.config-input').forEach(input => {
+            input.addEventListener('change', function() {
+                this.style.borderColor = '#ffc107';
+                this.style.borderWidth = '2px';
+            });
+        });
+    });
+</script>
+{% endblock %}
