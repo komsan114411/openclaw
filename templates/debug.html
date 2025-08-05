@@ -119,6 +119,43 @@ Ready for testing...
             </div>
         </div>
     </div>
+    <div class="col-md-4">
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-university me-2"></i>ทดสอบ KBank API</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="kbankConsumerId" class="form-label">Consumer ID</label>
+                <input type="text" class="form-control" id="kbankConsumerId" placeholder="KBank Consumer ID">
+            </div>
+            <div class="mb-3">
+                <label for="kbankConsumerSecret" class="form-label">Consumer Secret</label>
+                <input type="text" class="form-control" id="kbankConsumerSecret" placeholder="KBank Consumer Secret">
+                <button class="btn btn-sm btn-outline-secondary mt-1" onclick="loadKBankConfig()">
+                    <i class="fas fa-download me-1"></i>ดึงจาก Config
+                </button>
+            </div>
+            
+            <!-- เพิ่มปุ่มทดสอบ OAuth -->
+            <button class="btn btn-info w-100 mb-2" onclick="testKBankOAuth()">
+                <i class="fas fa-key me-1"></i>ทดสอบ OAuth Token
+            </button>
+            
+            <div class="mb-3">
+                <label for="kbankBankId" class="form-label">Bank ID</label>
+                <input type="text" class="form-control" id="kbankBankId" placeholder="004" value="004">
+            </div>
+            <div class="mb-3">
+                <label for="kbankTransRef" class="form-label">Transaction Reference</label>
+                <input type="text" class="form-control" id="kbankTransRef" placeholder="Transaction Reference">
+            </div>
+            <button class="btn btn-primary w-100" onclick="testKBankAPI()">
+                <i class="fas fa-university me-1"></i>ทดสอบ KBank API
+            </button>
+        </div>
+    </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -274,6 +311,41 @@ Ready for testing...
                 log(`Thunder API test error: ${error.message}`, 'error');
             }
         }
+
+        async function testKBankOAuth() {
+    const consumerId = document.getElementById('kbankConsumerId').value.trim();
+    const consumerSecret = document.getElementById('kbankConsumerSecret').value.trim();
+    
+    if (!consumerId || !consumerSecret) {
+        log('Consumer ID and Secret are required for OAuth test', 'error');
+        return;
+    }
+    
+    log('Testing KBank OAuth...');
+    
+    try {
+        const response = await fetch('/admin/test-kbank-oauth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                consumer_id: consumerId,
+                consumer_secret: consumerSecret
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            log('KBank OAuth test successful!', 'success');
+            log(`Token received: ${result.data.token_preview}`);
+        } else {
+            log(`KBank OAuth test failed: ${result.message}`, 'error');
+        }
+        
+    } catch (error) {
+        log(`KBank OAuth test error: ${error.message}`, 'error');
+    }
+}
 
         async function testKBankAPI() {
             const consumerId = document.getElementById('kbankConsumerId').value.trim();
