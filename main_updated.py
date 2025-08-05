@@ -173,14 +173,16 @@ def safe_import_modules():
         
         # Slip verification functions
         try:
-            from services.slip_checker import verify_slip_with_thunder
-            from services.kbank_checker import kbank_checker
+            from services.slip_checker import verify_slip_with_thunder, test_thunder_api_connection
+            from services.kbank_checker import KBankSlipChecker
+            kbank_checker = KBankSlipChecker()
             from services.enhanced_slip_checker import (
                 verify_slip_multiple_providers,
                 extract_slip_info_from_text
             )
             slip_functions = {
                 'verify_slip_with_thunder': verify_slip_with_thunder,
+                'test_thunder_api_connection': test_thunder_api_connection,
                 'kbank_checker': kbank_checker,
                 'verify_slip_multiple_providers': verify_slip_multiple_providers,
                 'extract_slip_info_from_text': extract_slip_info_from_text
@@ -193,10 +195,11 @@ def safe_import_modules():
                 def verify_slip(self, bank_id, trans_ref):
                     return {"status": "error", "message": "KBank API ไม่พร้อมใช้งาน"}
                 def _get_access_token(self):
-                    return None
-            
+                    return {"status": "error", "message": "KBank OAuth ไม่พร้อมใช้งาน"}
+
             slip_functions = {
                 'verify_slip_with_thunder': lambda m, d: {"status": "error", "message": "Thunder API ไม่พร้อมใช้งาน"},
+                'test_thunder_api_connection': lambda token: {"status": "error", "message": "Thunder API Test ไม่พร้อมใช้งาน"},
                 'kbank_checker': DummyKBankChecker(),
                 'verify_slip_multiple_providers': lambda **k: {"status": "error", "message": "ระบบตรวจสอบสลิปไม่พร้อมใช้งาน"},
                 'extract_slip_info_from_text': lambda t: {"bank_code": None, "trans_ref": None}
@@ -1031,6 +1034,146 @@ async def get_config_value(request: Request):
         value = config_manager.get(key, "")
         return JSONResponse({"status": "success", "key": key, "value": value})
     except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)})
+        
+@app.post("/admin/test-thunder-api")
+async def test_thunder_api_direct(request: Request):
+    """ทดสอบ Thunder API โดยตรง"""
+    try:
+        form = await request.form()
+        token = form.get("token")
+        file = form.get("file")
+        
+        if not token or not file:
+            return JSONResponse({"status": "error", "message": "Missing token or file"})
+        
+        image_data = await file.read()
+        
+        logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
+        logger.info(f"🧪 Image size: {len(image_data)} bytes")
+        
+        original_token = config_manager.get("thunder_api_token")
+        config_manager.config["thunder_api_token"] = token
+        
+        try:
+            from services.slip_checker import verify_slip_with_thunder
+            result = verify_slip_with_thunder(None, image_data)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ Thunder API เสร็จสิ้น", "info")
+            
+            if result and result.get("status") == "success":
+                return JSONResponse({
+                    "status": "success", 
+                    "message": "Thunder API test successful",
+                    "data": result
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": result.get("message", "Thunder API test failed"),
+                    "data": result
+                })
+        finally:
+            config_manager.config["thunder_api_token"] = original_token
+    except Exception as e:
+        logger.exception(f"❌ Thunder API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-oauth")
+async def test_kbank_oauth(request: Request):
+    """ทดสอบ KBank OAuth token โดยตรง"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id")
+        consumer_secret = data.get("consumer_secret")
+        
+        if not consumer_id or not consumer_secret:
+            return JSONResponse({"status": "error", "message": "Missing Consumer ID or Secret"})
+        
+        logger.info(f"🧪 Testing KBank OAuth...")
+        
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        
+        try:
+            from services.kbank_checker import kbank_checker
+            token = kbank_checker._get_access_token()
+            
+            if token:
+                return JSONResponse({
+                    "status": "success",
+                    "message": "KBank OAuth successful",
+                    "data": {
+                        "token_received": True,
+                        "token_preview": token[:20] + "...",
+                        "token_length": len(token)
+                    }
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": "Failed to get OAuth token",
+                    "data": {"token_received": False}
+                })
+        finally:
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+            
+    except Exception as e:
+        logger.exception(f"❌ KBank OAuth test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-api") 
+async def test_kbank_api_direct(request: Request):
+    """ทดสอบ KBank API โดยตรง"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id")
+        consumer_secret = data.get("consumer_secret")
+        bank_id = data.get("bank_id")
+        trans_ref = data.get("trans_ref")
+        
+        if not all([consumer_id, consumer_secret, bank_id, trans_ref]):
+            return JSONResponse({"status": "error", "message": "Missing required fields"})
+        
+        logger.info(f"🧪 Testing KBank API...")
+        
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        original_enabled = config_manager.get("kbank_enabled")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        config_manager.config["kbank_enabled"] = True
+        
+        try:
+            from services.kbank_checker import kbank_checker
+            result = kbank_checker.verify_slip(bank_id, trans_ref)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ KBank API เสร็จสิ้น", "info")
+            
+            if result and result.get("status") == "success":
+                return JSONResponse({
+                    "status": "success", 
+                    "message": "KBank API test successful", 
+                    "data": result
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": result.get("message", "KBank API test failed"),
+                    "data": result
+                })
+        finally:
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+            config_manager.config["kbank_enabled"] = original_enabled
+            
+    except Exception as e:
+        logger.exception(f"❌ KBank API test error: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
 
 # ====================== Main Entry Point ======================
