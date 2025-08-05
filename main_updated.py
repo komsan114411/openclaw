@@ -420,13 +420,13 @@ async def check_line_account_type():
         return {"error": str(e), "status": "error"}
 
 async def send_slip_result_safe(user_id: str, reply_token: str, message: str, message_type: str = "slip_result"):
-    """ส่งผลลัพธ์สลิปอย่างปลอดภัย - ลอง reply ก่อน แล้วค่อย push"""
+    """ส่งผลลัพธ์สลิปอย่างปลอดภัย - ลอง reply ก่อน แล้วค่อย push (Enhanced fallback)"""
     reply_sent = False
     push_sent = False
     
-    # ลอง reply message ก่อน (ถ้ามี reply token)
-    if reply_token:
-        logger.info(f"🔄 Attempting to send reply message first...")
+    # ลอง reply message ก่อน (ถ้ามี reply token และ token ยังใช้ได้)
+    if reply_token and reply_token.strip() and len(reply_token.strip()) >= 10:
+        logger.info(f"🔄 Attempting to send reply message first (token: {reply_token[:10]}...)")
         reply_sent = await send_line_reply(reply_token, message)
         if reply_sent:
             logger.info("✅ Reply message sent successfully")
@@ -435,10 +435,14 @@ async def send_slip_result_safe(user_id: str, reply_token: str, message: str, me
             except:
                 pass
             return True
+        else:
+            logger.warning("⚠️ Reply message failed, will try push message")
+    else:
+        logger.info(f"🔄 No valid reply token, will use push message directly")
     
     # ถ้า reply ไม่ได้หรือไม่มี reply token ให้ลอง push
     if not reply_sent:
-        logger.info(f"🔄 Reply failed or no reply token, attempting push message...")
+        logger.info(f"🔄 Attempting push message to {user_id[:8]}...")
         push_sent = await send_line_push(user_id, message)
         if push_sent:
             logger.info("✅ Push message sent successfully")
@@ -447,9 +451,11 @@ async def send_slip_result_safe(user_id: str, reply_token: str, message: str, me
             except:
                 pass
             return True
+        else:
+            logger.error("❌ Push message also failed")
     
     # ถ้าทั้งสองวิธีล้มเหลว
-    logger.error("❌ Both reply and push message failed")
+    logger.error(f"❌ Both reply and push message failed for user {user_id[:8]}...")
     await notification_manager.send_notification(f"❌ ไม่สามารถส่งข้อความถึง {user_id[:8]}... ได้ (ทั้ง reply และ push)", "error")
     
     # บันทึกข้อมูลแม้จะส่งไม่ได้
@@ -570,7 +576,7 @@ def create_detailed_slip_message(data: Dict, duplicate_count: int = 0, is_duplic
 # ====================== Event Processing ======================
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
-    """Process LINE event asynchronously (Enhanced version)"""
+    """Process LINE event asynchronously (Enhanced version with improved fallback)"""
     try:
         if event.get("type") != "message":
             return
@@ -592,21 +598,14 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         if not system_status["system_enabled"] or not system_status["any_api_available"]:
             error_msg_user = "ขออภัยค่ะ ระบบตรวจสอบสลิปอัตโนมัติปิดใช้งานชั่วคราว หรือมีปัญหา กรุณาติดต่อแอดมิน"
             await notification_manager.send_notification("❌ ระบบตรวจสอบสลิปไม่พร้อมใช้งาน", "error")
-            if reply_token:
-                await send_slip_result_safe(user_id, reply_token, error_msg_user, "system_error")
-            else:
-                # กรณีไม่มี reply_token หรือใช้ไปแล้ว ให้แจ้งเตือนแอดมินแทน
-                logger.warning(f"⚠️ Cannot reply to user {user_id[:8]}... as reply token is missing or used.")
+            await send_slip_result_safe(user_id, reply_token, error_msg_user, "system_error")
             return
 
         if message_type == "image":
             await notification_manager.send_notification(f"🖼️ ได้รับรูปสลิปจากผู้ใช้ {user_id[:8]}...", "info")
             
-            # ส่งข้อความแจ้งให้รอก่อน (ใช้ reply ถ้ามี)
-            processing_msg = "⏳ กำลังตรวจสอบสลิปของคุณ...\n🔍 รอซักครู่ ระบบกำลังวิเคราะห์ข้อมูล"
-            if reply_token:
-                await send_line_reply(reply_token, processing_msg)
-
+            # **แก้ไขจุดสำคัญ: ไม่ส่งข้อความแจ้งล่วงหน้า เก็บ reply_token ไว้ส่งผลลัพธ์**
+            # ดาวน์โหลดรูปภาพก่อน
             line_token = config_manager.get("line_channel_access_token")
             image_data = None
             if line_token:
@@ -621,7 +620,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 except Exception as e:
                     logger.error(f"❌ ไม่สามารถดาวน์โหลดรูปภาพได้: {e}")
                     error_msg_user = f"💥 ไม่สามารถดาวน์โหลดรูปภาพได้ค่ะ\n\n🔧 กรุณาลองส่งรูปภาพใหม่อีกครั้งนะคะ"
-                    await send_slip_result_safe(user_id, None, error_msg_user, "slip_bot_error")  # ไม่ใช้ reply_token เพราะใช้ไปแล้ว
+                    await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_error")
                     return
             
             slip_hash = None
@@ -638,7 +637,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                     await notification_manager.send_notification(f"🔄 พบสลิปซ้ำ! แสดงผลตรวจสอบเดิม จำนวน {amount_display} (ครั้งที่ {duplicate_count})", "warning")
                     
                     success_msg = create_detailed_slip_message(duplicate_data['data'], duplicate_count=duplicate_count, is_duplicate=True)
-                    await send_slip_result_safe(user_id, None, success_msg, "slip_bot_duplicate")  # ไม่ใช้ reply_token เพราะใช้ไปแล้ว
+                    await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot_duplicate")
                     
                     if slip_hash:
                         save_duplicate_slip_data(slip_hash, duplicate_data['data'])
@@ -650,7 +649,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                         amount_display = result['data'].get('amount_display') or f"฿{result['data'].get('amount', '0')}"
                         await notification_manager.send_notification(f"✅ ตรวจสอบสลิปสำเร็จ! จำนวน {amount_display}", "success")
                         success_msg = create_detailed_slip_message(result['data'], is_duplicate=False)
-                        await send_slip_result_safe(user_id, None, success_msg, "slip_bot")  # ไม่ใช้ reply_token เพราะใช้ไปแล้ว
+                        await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot")
                         
                         if slip_hash and image_data:
                             save_duplicate_slip_data(slip_hash, result['data'])
@@ -660,12 +659,12 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 
                         if result.get('data'):
                             success_msg = create_detailed_slip_message(result['data'], is_duplicate=True)
-                            await send_slip_result_safe(user_id, None, success_msg, "slip_bot_duplicate")
+                            await send_slip_result_safe(user_id, reply_token, success_msg, "slip_bot_duplicate")
                             if slip_hash and image_data:
                                 save_duplicate_slip_data(slip_hash, result['data'])
                         else:
                             error_msg_user = "🔄 สลิปนี้เคยถูกตรวจสอบแล้วค่ะ"
-                            await send_slip_result_safe(user_id, None, error_msg_user, "slip_bot_duplicate")
+                            await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_duplicate")
                     else:
                         error_message_tech = result.get("message", "ตรวจสอบสลิปไม่สำเร็จ")
                         error_message_user = "❌ ไม่พบข้อมูลสลิปที่ถูกต้องในระบบธนาคารค่ะ"
@@ -677,12 +676,12 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 
                         await notification_manager.send_notification(f"❌ ตรวจสอบสลิปล้มเหลว: {error_message_tech}", "error")
                         
-                        await send_slip_result_safe(user_id, None, error_message_user, "slip_bot_error")
+                        await send_slip_result_safe(user_id, reply_token, error_message_user, "slip_bot_error")
             except Exception as e:
                 error_msg_user = f"💥 เกิดข้อผิดพลาดในการตรวจสอบสลิป\n\n🔧 กรุณาลองใหม่อีกครั้ง หรือติดต่อแอดมิน"
                 logger.error(f"❌ Slip verification exception: {e}", exc_info=True)
                 await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
-                await send_slip_result_safe(user_id, None, error_msg_user, "slip_bot_error")
+                await send_slip_result_safe(user_id, reply_token, error_msg_user, "slip_bot_error")
             
         elif message_type == "text":
             user_text = message.get("text", "")
@@ -748,7 +747,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
     except Exception as e:
         logger.exception(f"❌ Critical error in dispatch_event: {e}")
         await notification_manager.send_notification(f"💥 เกิดข้อผิดพลาดร้ายแรง: {str(e)}", "error")
-
 # ====================== API Routes ======================
 
 @app.websocket("/ws/notifications")
@@ -970,10 +968,12 @@ async def get_slip_processing_status():
 
 @app.post("/admin/settings/update")
 async def update_settings(request: Request) -> JSONResponse:
-    """Update settings"""
+    """Update settings (Enhanced boolean handling)"""
     try:
         data = await request.json()
         updates = {}
+        
+        # Text fields
         for key in [
             "line_channel_secret", "line_channel_access_token", "thunder_api_token",
             "openai_api_key", "ai_prompt", "wallet_phone_number",
@@ -981,19 +981,42 @@ async def update_settings(request: Request) -> JSONResponse:
         ]:
             if key in data:
                 updates[key] = data[key].strip()
-        updates["ai_enabled"] = bool(data.get("ai_enabled"))
-        updates["slip_enabled"] = bool(data.get("slip_enabled"))
-        updates["kbank_enabled"] = bool(data.get("kbank_enabled"))
         
-        config_manager.update_multiple(updates)
+        # Boolean fields - แปลงอย่างถูกต้อง
+        for key in ["ai_enabled", "slip_enabled", "kbank_enabled"]:
+            if key in data:
+                value = data[key]
+                # แปลง boolean อย่างถูกต้อง
+                if isinstance(value, bool):
+                    updates[key] = value
+                elif isinstance(value, str):
+                    updates[key] = value.lower().strip() in ["true", "1", "yes", "on", "enabled"]
+                else:
+                    updates[key] = bool(value)
         
-        # Reinitialize LINE Bot if credentials changed
-        if any(key in updates for key in ["line_channel_access_token", "line_channel_secret"]):
-            init_line_bot()
+        # Log การปรับปรุง
+        logger.info(f"🔄 Processing settings update:")
+        for key, value in updates.items():
+            if key in ['thunder_api_token', 'line_channel_access_token', 'openai_api_key', 'kbank_consumer_id', 'kbank_consumer_secret']:
+                logger.info(f"  - {key}: {'[SET]' if value else '[REMOVED]'}")
+            else:
+                logger.info(f"  - {key}: {value}")
         
-        await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าระบบแล้ว", "success")
-        return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
+        # อัปเดต config
+        success = config_manager.update_multiple(updates)
+        
+        if success:
+            # Reinitialize LINE Bot if credentials changed
+            if any(key in updates for key in ["line_channel_access_token", "line_channel_secret"]):
+                init_line_bot()
+            
+            await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าระบบแล้ว", "success")
+            return JSONResponse(content={"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
+        else:
+            return JSONResponse(content={"status": "error", "message": "ไม่สามารถบันทึกการตั้งค่าได้"})
+            
     except Exception as e:
+        logger.error(f"❌ Settings update error: {e}")
         return JSONResponse(content={"status": "error", "message": str(e)})
 
 @app.post("/admin/test-slip-upload")
