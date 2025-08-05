@@ -7,7 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .status-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-indicator { 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 8px; 
+        }
         .status-online { background-color: #28a745; }
         .status-offline { background-color: #dc3545; }
         .status-warning { background-color: #ffc107; }
@@ -15,63 +21,115 @@
         .metric-value { font-size: 2rem; font-weight: bold; }
         .metric-label { color: #6c757d; font-size: 0.875rem; }
         .settings-section { margin-bottom: 2rem; }
-        .api-test-result { margin-top: 10px; padding: 10px; border-radius: 5px; display: none; }
-        .test-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .test-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .api-status-card {
+            transition: all 0.3s ease;
+        }
+        .api-status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .notification-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            width: 350px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="bg-light">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="text-center text-white">
+            <div class="spinner-border mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5>กำลังโหลด...</h5>
+        </div>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notificationArea" class="notification-area"></div>
+
+    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="/admin">
                 <i class="fas fa-cogs me-2"></i>LINE OA Admin Dashboard
             </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/admin/debug">
-                    <i class="fas fa-bug me-1"></i>Debug Console
-                </a>
-                <a class="nav-link" href="/admin/logs">
-                    <i class="fas fa-file-alt me-1"></i>Logs
-                </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/admin/debug">
+                        <i class="fas fa-bug me-1"></i>Debug Console
+                    </a>
+                    <a class="nav-link" href="/admin/chat">
+                        <i class="fas fa-comments me-1"></i>Chat History
+                    </a>
+                    <a class="nav-link" href="/admin/settings">
+                        <i class="fas fa-cog me-1"></i>Settings
+                    </a>
+                    <a class="nav-link" href="/health" target="_blank">
+                        <i class="fas fa-heartbeat me-1"></i>Health
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
 
     <div class="container mt-4">
-        <!-- Status Overview -->
+        <!-- System Status Overview -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-tachometer-alt me-2"></i>System Status</h5>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshStatus()">
-                            <i class="fas fa-sync me-1"></i>Refresh
+                        <h5><i class="fas fa-tachometer-alt me-2"></i>System Status Overview</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshAllStatus()" id="refreshBtn">
+                            <i class="fas fa-sync me-1"></i>Refresh All
                         </button>
                     </div>
                     <div class="card-body">
-                        <div class="row" id="statusOverview">
+                        <div class="row" id="systemStatusOverview">
                             <div class="col-md-3">
                                 <div class="card-metric">
-                                    <div class="metric-value text-primary" id="systemStatus">Loading...</div>
+                                    <div class="metric-value text-primary" id="systemStatus">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                    </div>
                                     <div class="metric-label">System Status</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="card-metric">
-                                    <div class="metric-value text-success" id="apiCount">0/3</div>
-                                    <div class="metric-label">APIs Connected</div>
+                                    <div class="metric-value text-success" id="apiCount">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                    </div>
+                                    <div class="metric-label">APIs Ready</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="card-metric">
-                                    <div class="metric-value text-info" id="totalFailures">0</div>
-                                    <div class="metric-label">Total Failures</div>
+                                    <div class="metric-value text-info" id="totalChats">{{ total_chat_history }}</div>
+                                    <div class="metric-label">Total Messages</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="card-metric">
-                                    <div class="metric-value text-warning" id="botName">Loading...</div>
-                                    <div class="metric-label">LINE Bot</div>
+                                    <div class="metric-value text-warning" id="activeConnections">0</div>
+                                    <div class="metric-label">Active Connections</div>
                                 </div>
                             </div>
                         </div>
@@ -82,201 +140,54 @@
 
         <!-- API Status Cards -->
         <div class="row mb-4">
+            <!-- Thunder API -->
             <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
+                <div class="card api-status-card">
+                    <div class="card-header bg-warning text-dark">
                         <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
                     </div>
-                    <div class="card-body" id="thunderStatus">
+                    <div class="card-body" id="thunderApiStatus">
                         <div class="text-center">
-                            <div class="spinner-border spinner-border-sm" role="status"></div>
-                            <span class="ms-2">Loading...</span>
+                            <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+                            <span class="ms-2">กำลังตรวจสอบ...</span>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- KBank API -->
             <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
+                <div class="card api-status-card">
+                    <div class="card-header bg-primary text-white">
                         <h6><i class="fas fa-university me-2"></i>KBank API</h6>
                     </div>
-                    <div class="card-body" id="kbankStatus">
+                    <div class="card-body" id="kbankApiStatus">
                         <div class="text-center">
-                            <div class="spinner-border spinner-border-sm" role="status"></div>
-                            <span class="ms-2">Loading...</span>
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <span class="ms-2">กำลังตรวจสอบ...</span>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- LINE API -->
             <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
+                <div class="card api-status-card">
+                    <div class="card-header bg-success text-white">
                         <h6><i class="fab fa-line me-2"></i>LINE API</h6>
                     </div>
-                    <div class="card-body" id="lineStatus">
+                    <div class="card-body" id="lineApiStatus">
                         <div class="text-center">
-                            <div class="spinner-border spinner-border-sm" role="status"></div>
-                            <span class="ms-2">Loading...</span>
+                            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                            <span class="ms-2">กำลังตรวจสอบ...</span>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Settings Sections -->
-        <div class="row">
-            <div class="col-md-6">
-                <!-- System Settings -->
-                <div class="card settings-section">
-                    <div class="card-header">
-                        <h6><i class="fas fa-cog me-2"></i>System Settings</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="slipEnabled">
-                            <label class="form-check-label" for="slipEnabled">
-                                <strong>เปิดใช้งานระบบตรวจสอบสลิป</strong>
-                            </label>
-                            <small class="form-text text-muted d-block">เปิด/ปิดการทำงานของระบบตรวจสอบสลิปทั้งหมด</small>
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="aiEnabled">
-                            <label class="form-check-label" for="aiEnabled">
-                                <strong>เปิดใช้งาน AI Chat</strong>
-                            </label>
-                            <small class="form-text text-muted d-block">เปิด/ปิดการตอบกลับอัตโนมัติด้วย AI</small>
-                        </div>
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="notificationEnabled">
-                            <label class="form-check-label" for="notificationEnabled">
-                                <strong>เปิดการแจ้งเตือน</strong>
-                            </label>
-                            <small class="form-text text-muted d-block">รับการแจ้งเตือนเมื่อเกิดข้อผิดพลาด</small>
-                        </div>
-                        <button class="btn btn-primary" onclick="saveSystemSettings()">
-                            <i class="fas fa-save me-1"></i>บันทึกการตั้งค่า
-                        </button>
-                    </div>
-                </div>
-
-                <!-- LINE Settings -->
-                <div class="card settings-section">
-                    <div class="card-header">
-                        <h6><i class="fab fa-line me-2"></i>LINE Messaging API</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="lineAccessToken" class="form-label">Channel Access Token</label>
-                            <input type="password" class="form-control" id="lineAccessToken" placeholder="LINE Channel Access Token">
-                            <small class="text-muted">ได้จาก LINE Developers Console</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="lineChannelSecret" class="form-label">Channel Secret</label>
-                            <input type="password" class="form-control" id="lineChannelSecret" placeholder="LINE Channel Secret">
-                            <small class="text-muted">ใช้สำหรับตรวจสอบ Webhook</small>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-success" onclick="saveLINESettings()">
-                                <i class="fas fa-save me-1"></i>บันทึก
-                            </button>
-                            <button class="btn btn-info" onclick="testLINEConnection()">
-                                <i class="fas fa-vial me-1"></i>ทดสอบ
-                            </button>
-                        </div>
-                        <div id="lineTestResult" class="api-test-result"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <!-- Thunder API Settings -->
-                <div class="card settings-section">
-                    <div class="card-header">
-                        <h6><i class="fas fa-bolt me-2"></i>Thunder API</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="thunderEnabled">
-                            <label class="form-check-label" for="thunderEnabled">เปิดใช้งาน Thunder API</label>
-                        </div>
-                        <div class="mb-3">
-                            <label for="thunderApiToken" class="form-label">API Token</label>
-                            <input type="password" class="form-control" id="thunderApiToken" placeholder="Thunder API Token">
-                            <small class="text-muted">ได้จาก Thunder Solution Portal</small>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-warning" onclick="saveThunderSettings()">
-                                <i class="fas fa-save me-1"></i>บันทึก
-                            </button>
-                            <button class="btn btn-info" onclick="testThunderConnection()">
-                                <i class="fas fa-vial me-1"></i>ทดสอบ
-                            </button>
-                        </div>
-                        <div id="thunderTestResult" class="api-test-result"></div>
-                    </div>
-                </div>
-
-                <!-- KBank API Settings -->
-                <div class="card settings-section">
-                    <div class="card-header">
-                        <h6><i class="fas fa-university me-2"></i>KBank API</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="kbankEnabled">
-                            <label class="form-check-label" for="kbankEnabled">เปิดใช้งาน KBank API</label>
-                        </div>
-                        <div class="mb-3">
-                            <label for="kbankConsumerId" class="form-label">Consumer ID</label>
-                            <input type="text" class="form-control" id="kbankConsumerId" placeholder="KBank Consumer ID">
-                            <small class="text-muted">ได้จาก KBank Developer Portal</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="kbankConsumerSecret" class="form-label">Consumer Secret</label>
-                            <input type="password" class="form-control" id="kbankConsumerSecret" placeholder="KBank Consumer Secret">
-                            <small class="text-muted">เก็บเป็นความลับ</small>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary" onclick="saveKBankSettings()">
-                                <i class="fas fa-save me-1"></i>บันทึก
-                            </button>
-                            <button class="btn btn-info" onclick="testKBankConnection()">
-                                <i class="fas fa-vial me-1"></i>ทดสอบ
-                            </button>
-                        </div>
-                        <div id="kbankTestResult" class="api-test-result"></div>
-                    </div>
-                </div>
-
-                <!-- OpenAI Settings -->
-                <div class="card settings-section">
-                    <div class="card-header">
-                        <h6><i class="fas fa-robot me-2"></i>OpenAI API</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="openaiApiKey" class="form-label">API Key</label>
-                            <input type="password" class="form-control" id="openaiApiKey" placeholder="OpenAI API Key">
-                            <small class="text-muted">ได้จาก OpenAI Platform</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="openaiModel" class="form-label">Model</label>
-                            <select class="form-select" id="openaiModel">
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                <option value="gpt-4">GPT-4</option>
-                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-success" onclick="saveOpenAISettings()">
-                            <i class="fas fa-save me-1"></i>บันทึก
-                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Quick Actions -->
-        <div class="row mt-4">
+        <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -284,19 +195,22 @@
                     </div>
                     <div class="card-body">
                         <div class="d-flex gap-2 flex-wrap">
-                            <button class="btn btn-outline-primary" onclick="refreshAllConfigs()">
-                                <i class="fas fa-sync me-1"></i>Refresh All
+                            <button class="btn btn-outline-success" onclick="toggleSlipSystem()" id="toggleSlipBtn">
+                                <i class="fas fa-toggle-on me-1"></i>Toggle Slip System
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="resetAPIFailures()">
+                                <i class="fas fa-redo me-1"></i>Reset API Failures
                             </button>
                             <button class="btn btn-outline-info" onclick="testAllAPIs()">
                                 <i class="fas fa-vial me-1"></i>Test All APIs
                             </button>
-                            <button class="btn btn-outline-success" onclick="resetAPIFailures()">
-                                <i class="fas fa-redo me-1"></i>Reset Failures
+                            <button class="btn btn-outline-warning" onclick="clearCache()">
+                                <i class="fas fa-trash me-1"></i>Clear Cache
                             </button>
-                            <button class="btn btn-outline-secondary" onclick="exportSettings()">
-                                <i class="fas fa-download me-1"></i>Export Settings
-                            </button>
-                            <a href="/admin/debug" class="btn btn-outline-warning">
+                            <a href="/admin/settings" class="btn btn-outline-secondary">
+                                <i class="fas fa-cog me-1"></i>Settings
+                            </a>
+                            <a href="/admin/debug" class="btn btn-outline-dark">
                                 <i class="fas fa-bug me-1"></i>Debug Console
                             </a>
                         </div>
@@ -304,361 +218,358 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Toast Container -->
-    <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="successToast" class="toast" role="alert">
-            <div class="toast-header text-success">
-                <i class="fas fa-check-circle me-2"></i>
-                <strong class="me-auto">Success</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        <!-- Recent Activities (if available) -->
+        {% if system_status %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-clock me-2"></i>System Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Slip System:</strong> 
+                                    <span class="badge {{ 'bg-success' if system_status.system_enabled else 'bg-danger' }}">
+                                        {{ 'Enabled' if system_status.system_enabled else 'Disabled' }}
+                                    </span>
+                                </p>
+                                <p><strong>APIs Available:</strong> 
+                                    <span class="badge {{ 'bg-success' if system_status.any_api_available else 'bg-warning' }}">
+                                        {{ 'Yes' if system_status.any_api_available else 'No' }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Total Messages:</strong> {{ total_chat_history }}</p>
+                                <p><strong>Last Updated:</strong> <span id="lastUpdated">Just now</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="toast-body"></div>
         </div>
-        <div id="errorToast" class="toast" role="alert">
-            <div class="toast-header text-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                <strong class="me-auto">Error</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <small class="text-muted">
+                            LINE OA Middleware v2.0 - Admin Dashboard
+                            <br>
+                            <a href="/health" target="_blank" class="text-muted me-3">
+                                <i class="fas fa-heartbeat me-1"></i>Health Check
+                            </a>
+                            <a href="/admin/debug" class="text-muted me-3">
+                                <i class="fas fa-terminal me-1"></i>Debug Console
+                            </a>
+                            <a href="/ws/notifications" class="text-muted" onclick="connectWebSocket(); return false;">
+                                <i class="fas fa-plug me-1"></i>Connect WebSocket
+                            </a>
+                        </small>
+                    </div>
+                </div>
             </div>
-            <div class="toast-body"></div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let statusUpdateInterval;
-        let apiStatusData = {};
+        let websocket = null;
 
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Admin Dashboard initialized');
-            loadAllSettings();
-            refreshStatus();
+            console.log('🚀 Admin Dashboard initialized');
+            refreshAllStatus();
+            connectWebSocket();
             
             // Auto-refresh every 30 seconds
-            statusUpdateInterval = setInterval(refreshStatus, 30000);
+            statusUpdateInterval = setInterval(refreshAllStatus, 30000);
+            
+            // Update last updated time
+            setInterval(updateLastUpdated, 1000);
         });
 
-        // Toast functions
-        function showToast(type, message) {
-            const toastElement = document.getElementById(type + 'Toast');
-            const toastBody = toastElement.querySelector('.toast-body');
-            toastBody.textContent = message;
-            
-            const toast = new bootstrap.Toast(toastElement);
-            toast.show();
-        }
-
-        function showSuccess(message) {
-            showToast('success', message);
-        }
-
-        function showError(message) {
-            showToast('error', message);
-        }
-
-        // Status functions
-        async function refreshStatus() {
+        // WebSocket connection
+        function connectWebSocket() {
             try {
-                const response = await fetch('/admin/api-status');
-                const data = await response.json();
-                apiStatusData = data;
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+                websocket = new WebSocket(wsUrl);
                 
-                updateStatusOverview(data);
-                updateAPIStatusCards(data);
+                websocket.onopen = function(event) {
+                    console.log('✅ WebSocket connected');
+                    showNotification('WebSocket connected', 'success');
+                };
                 
+                websocket.onmessage = function(event) {
+                    const notification = JSON.parse(event.data);
+                    showNotification(notification.message, notification.type);
+                    
+                    // Refresh status if needed
+                    if (notification.type === 'error' || notification.type === 'success') {
+                        setTimeout(refreshAllStatus, 1000);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('❌ WebSocket disconnected');
+                    // Try to reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('❌ WebSocket error:', error);
+                };
             } catch (error) {
-                console.error('Failed to refresh status:', error);
-                showError('ไม่สามารถอัปเดตสถานะได้');
+                console.error('❌ WebSocket connection failed:', error);
             }
         }
 
-        function updateStatusOverview(data) {
-            const systemReady = data.system_status?.slip_system_ready && data.system_status?.line_ready;
-            const connectedAPIs = [data.thunder?.connected, data.kbank?.connected, data.line?.connected].filter(Boolean).length;
-            const totalFailures = (data.thunder?.recent_failures || 0) + (data.kbank?.recent_failures || 0);
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notificationArea = document.getElementById('notificationArea');
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
             
-            document.getElementById('systemStatus').textContent = systemReady ? 'Online' : 'Offline';
-            document.getElementById('systemStatus').className = `metric-value ${systemReady ? 'text-success' : 'text-danger'}`;
-            
-            document.getElementById('apiCount').textContent = `${connectedAPIs}/3`;
-            document.getElementById('totalFailures').textContent = totalFailures;
-            document.getElementById('botName').textContent = data.line?.bot_name || 'N/A';
-        }
-
-        function updateAPIStatusCards(data) {
-            // Thunder API
-            document.getElementById('thunderStatus').innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>Status:</span>
-                    <span class="badge ${data.thunder?.connected ? 'bg-success' : data.thunder?.configured ? 'bg-warning' : 'bg-danger'}">
-                        ${data.thunder?.connected ? 'Connected' : data.thunder?.configured ? 'Configured' : 'Not Configured'}
-                    </span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>Enabled:</span>
-                    <span class="badge ${data.thunder?.enabled ? 'bg-primary' : 'bg-secondary'}">
-                        ${data.thunder?.enabled ? 'Yes' : 'No'}
-                    </span>
-                </div>
-                <small class="text-muted">Failures: ${data.thunder?.recent_failures || 0}</small>
+            const notification = document.createElement('div');
+            notification.className = `alert ${alertClass} alert-dismissible fade show`;
+            notification.innerHTML = `
+                <strong>${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-
-            // KBank API
-            document.getElementById('kbankStatus').innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>Status:</span>
-                    <span class="badge ${data.kbank?.connected ? 'bg-success' : data.kbank?.configured ? 'bg-warning' : 'bg-danger'}">
-                        ${data.kbank?.connected ? 'Connected' : data.kbank?.configured ? 'Configured' : 'Not Configured'}
-                    </span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>Enabled:</span>
-                    <span class="badge ${data.kbank?.enabled ? 'bg-primary' : 'bg-secondary'}">
-                        ${data.kbank?.enabled ? 'Yes' : 'No'}
-                    </span>
-                </div>
-                <small class="text-muted">Failures: ${data.kbank?.recent_failures || 0}</small>
-            `;
-
-            // LINE API
-            document.getElementById('lineStatus').innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>Status:</span>
-                    <span class="badge ${data.line?.connected ? 'bg-success' : data.line?.configured ? 'bg-warning' : 'bg-danger'}">
-                        ${data.line?.connected ? 'Connected' : data.line?.configured ? 'Configured' : 'Not Configured'}
-                    </span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>Bot:</span>
-                    <span class="text-muted">${data.line?.bot_name || 'N/A'}</span>
-                </div>
-                <small class="text-muted">Push: ${data.line?.can_push ? 'Available' : 'Unavailable'}</small>
-            `;
-        }
-
-        // Settings loading functions
-        async function loadAllSettings() {
-            try {
-                const response = await fetch('/admin/config');
-                const config = await response.json();
-                
-                // System settings
-                document.getElementById('slipEnabled').checked = config.slip_enabled || false;
-                document.getElementById('aiEnabled').checked = config.ai_enabled || false;
-                document.getElementById('notificationEnabled').checked = config.notification_enabled || false;
-                
-                // LINE settings
-                document.getElementById('lineAccessToken').value = config.line_channel_access_token || '';
-                document.getElementById('lineChannelSecret').value = config.line_channel_secret || '';
-                
-                // Thunder settings
-                document.getElementById('thunderEnabled').checked = config.thunder_enabled || false;
-                document.getElementById('thunderApiToken').value = config.thunder_api_token || '';
-                
-                // KBank settings
-                document.getElementById('kbankEnabled').checked = config.kbank_enabled || false;
-                document.getElementById('kbankConsumerId').value = config.kbank_consumer_id || '';
-                document.getElementById('kbankConsumerSecret').value = config.kbank_consumer_secret || '';
-                
-                // OpenAI settings
-                document.getElementById('openaiApiKey').value = config.openai_api_key || '';
-                document.getElementById('openaiModel').value = config.openai_model || 'gpt-3.5-turbo';
-                
-            } catch (error) {
-                console.error('Failed to load settings:', error);
-                showError('ไม่สามารถโหลดการตั้งค่าได้');
-            }
-        }
-
-        // Settings saving functions
-        async function saveSystemSettings() {
-            const settings = {
-                slip_enabled: document.getElementById('slipEnabled').checked,
-                ai_enabled: document.getElementById('aiEnabled').checked,
-                notification_enabled: document.getElementById('notificationEnabled').checked
-            };
             
-            await saveConfig(settings, 'System settings saved successfully');
-        }
-
-        async function saveLINESettings() {
-            const settings = {
-                line_channel_access_token: document.getElementById('lineAccessToken').value,
-                line_channel_secret: document.getElementById('lineChannelSecret').value
-            };
+            notificationArea.appendChild(notification);
             
-            await saveConfig(settings, 'LINE settings saved successfully');
-        }
-
-        async function saveThunderSettings() {
-            const settings = {
-                thunder_enabled: document.getElementById('thunderEnabled').checked,
-                thunder_api_token: document.getElementById('thunderApiToken').value
-            };
-            
-            await saveConfig(settings, 'Thunder settings saved successfully');
-        }
-
-        async function saveKBankSettings() {
-            const settings = {
-                kbank_enabled: document.getElementById('kbankEnabled').checked,
-                kbank_consumer_id: document.getElementById('kbankConsumerId').value,
-                kbank_consumer_secret: document.getElementById('kbankConsumerSecret').value
-            };
-            
-            await saveConfig(settings, 'KBank settings saved successfully');
-        }
-
-        async function saveOpenAISettings() {
-            const settings = {
-                openai_api_key: document.getElementById('openaiApiKey').value,
-                openai_model: document.getElementById('openaiModel').value
-            };
-            
-            await saveConfig(settings, 'OpenAI settings saved successfully');
-        }
-
-        async function saveConfig(settings, successMessage) {
-            try {
-                const response = await fetch('/admin/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(settings)
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showSuccess(successMessage);
-                    setTimeout(refreshStatus, 1000); // Refresh status after save
-                } else {
-                    showError(result.message || 'Failed to save settings');
-                }
-            } catch (error) {
-                console.error('Save config error:', error);
-                showError('เกิดข้อผิดพลาดในการบันทึก');
-            }
-        }
-
-        // API testing functions
-        async function testLINEConnection() {
-            const token = document.getElementById('lineAccessToken').value;
-            if (!token) {
-                showError('กรุณาใส่ LINE Access Token');
-                return;
-            }
-            
-            await testAPI('line', { access_token: token }, 'lineTestResult');
-        }
-
-        async function testThunderConnection() {
-            const token = document.getElementById('thunderApiToken').value;
-            if (!token) {
-                showError('กรุณาใส่ Thunder API Token');
-                return;
-            }
-            
-            await testAPI('thunder', { api_token: token }, 'thunderTestResult');
-        }
-
-        async function testKBankConnection() {
-            const consumerId = document.getElementById('kbankConsumerId').value;
-            const consumerSecret = document.getElementById('kbankConsumerSecret').value;
-            
-            if (!consumerId || !consumerSecret) {
-                showError('กรุณาใส่ KBank Consumer ID และ Secret');
-                return;
-            }
-            
-            await testAPI('kbank', { 
-                consumer_id: consumerId, 
-                consumer_secret: consumerSecret 
-            }, 'kbankTestResult');
-        }
-
-        async function testAPI(apiType, credentials, resultElementId) {
-            const resultElement = document.getElementById(resultElementId);
-            resultElement.style.display = 'block';
-            resultElement.className = 'api-test-result';
-            resultElement.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
-            
-            try {
-                const response = await fetch(`/admin/test-${apiType}-api`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(credentials)
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    resultElement.className = 'api-test-result test-success';
-                    resultElement.innerHTML = `<i class="fas fa-check-circle me-2"></i>${result.message}`;
-                } else {
-                    resultElement.className = 'api-test-result test-error';
-                    resultElement.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${result.message}`;
-                }
-            } catch (error) {
-                resultElement.className = 'api-test-result test-error';
-                resultElement.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>Test failed: ${error.message}`;
-            }
-            
+            // Auto-remove after 5 seconds
             setTimeout(() => {
-                resultElement.style.display = 'none';
+                if (notification.parentNode) {
+                    notification.remove();
+                }
             }, 5000);
         }
 
-        // Quick actions
-        async function refreshAllConfigs() {
-            await loadAllSettings();
-            await refreshStatus();
-            showSuccess('All configurations refreshed');
+        // Show loading overlay
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
         }
 
-        async function testAllAPIs() {
-            showSuccess('Testing all APIs...');
+        // Hide loading overlay
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        // Refresh all status
+        async function refreshAllStatus() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+            refreshBtn.disabled = true;
             
-            setTimeout(() => testLINEConnection(), 500);
-            setTimeout(() => testThunderConnection(), 1500);
-            setTimeout(() => testKBankConnection(), 2500);
-        }
-
-        async function resetAPIFailures() {
             try {
-                const response = await fetch('/admin/reset-failures', { method: 'POST' });
-                const result = await response.json();
+                await Promise.all([
+                    updateSystemStatus(),
+                    updateAPIStatus()
+                ]);
                 
-                if (result.status === 'success') {
-                    showSuccess('API failures reset successfully');
-                    refreshStatus();
-                } else {
-                    showError('Failed to reset failures');
-                }
+                document.getElementById('lastUpdated').textContent = 'Just now';
+                
             } catch (error) {
-                showError('Error resetting failures');
+                console.error('❌ Failed to refresh status:', error);
+                showNotification('Failed to refresh system status', 'error');
+            } finally {
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
             }
         }
 
-        async function exportSettings() {
+        // Update system status
+        async function updateSystemStatus() {
             try {
-                const response = await fetch('/admin/config');
-                const config = await response.json();
+                const response = await fetch('/admin/api-status');
+                const data = await response.json();
                 
-                const dataStr = JSON.stringify(config, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                // Update system status
+                const systemReady = data.system_status?.slip_system_ready && data.system_status?.line_ready;
+                document.getElementById('systemStatus').innerHTML = systemReady ? 
+                    '<i class="fas fa-check-circle text-success"></i>' : 
+                    '<i class="fas fa-exclamation-circle text-danger"></i>';
                 
-                const exportFileDefaultName = `line-oa-config-${new Date().toISOString().split('T')[0]}.json`;
+                // Update API count
+                const connectedAPIs = [
+                    data.thunder?.connected, 
+                    data.kbank?.connected, 
+                    data.line?.connected
+                ].filter(Boolean).length;
+                document.getElementById('apiCount').textContent = `${connectedAPIs}/3`;
                 
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', exportFileDefaultName);
-                linkElement.click();
-                
-                showSuccess('Settings exported successfully');
+                return data;
             } catch (error) {
-                showError('Failed to export settings');
+                console.error('❌ Failed to get system status:', error);
+                document.getElementById('systemStatus').innerHTML = '<i class="fas fa-question-circle text-warning"></i>';
+                document.getElementById('apiCount').textContent = '?/3';
+                throw error;
+            }
+        }
+
+        // Update API status
+        async function updateAPIStatus() {
+            try {
+                const response = await fetch('/admin/api-status');
+                const data = await response.json();
+                
+                // Update Thunder API status
+                document.getElementById('thunderApiStatus').innerHTML = createAPIStatusHTML(data.thunder);
+                
+                // Update KBank API status
+                document.getElementById('kbankApiStatus').innerHTML = createAPIStatusHTML(data.kbank);
+                
+                // Update LINE API status
+                document.getElementById('lineApiStatus').innerHTML = createAPIStatusHTML(data.line, data.line?.bot_name);
+                
+            } catch (error) {
+                console.error('❌ Failed to get API status:', error);
+                ['thunderApiStatus', 'kbankApiStatus', 'lineApiStatus'].forEach(id => {
+                    document.getElementById(id).innerHTML = `
+                        <div class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span class="ms-2">Failed to load</span>
+                        </div>
+                    `;
+                });
+                throw error;
+            }
+        }
+
+        // Create API status HTML
+        function createAPIStatusHTML(apiData, extraInfo = null) {
+            if (!apiData) {
+                return `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="ms-2">No data</span>
+                    </div>
+                `;
+            }
+            
+            const statusColor = apiData.connected ? 'success' : apiData.configured ? 'warning' : 'danger';
+            const statusIcon = apiData.connected ? 'check-circle' : apiData.configured ? 'exclamation-triangle' : 'times-circle';
+            const statusText = apiData.connected ? 'Connected' : apiData.configured ? 'Configured' : 'Not Configured';
+            
+            return `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Status:</span>
+                    <span class="badge bg-${statusColor}">
+                        <i class="fas fa-${statusIcon} me-1"></i>${statusText}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Enabled:</span>
+                    <span class="badge ${apiData.enabled ? 'bg-primary' : 'bg-secondary'}">
+                        ${apiData.enabled ? 'Yes' : 'No'}
+                    </span>
+                </div>
+                ${extraInfo ? `
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Info:</span>
+                    <small class="text-muted">${extraInfo}</small>
+                </div>
+                ` : `
+                <small class="text-muted">
+                    Failures: ${apiData.recent_failures || 0}
+                </small>
+                `}
+            `;
+        }
+
+        // Toggle slip system
+        async function toggleSlipSystem() {
+            const btn = document.getElementById('toggleSlipBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Toggling...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/admin/toggle-slip-system', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showNotification(result.message, 'success');
+                    setTimeout(refreshAllStatus, 1000);
+                } else {
+                    showNotification(result.message || 'Failed to toggle system', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Toggle slip system error:', error);
+                showNotification('Failed to toggle slip system', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Reset API failures
+        async function resetAPIFailures() {
+            try {
+                const response = await fetch('/admin/reset-failures', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showNotification('API failures reset successfully', 'success');
+                    refreshAllStatus();
+                } else {
+                    showNotification('Failed to reset API failures', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Reset failures error:', error);
+                showNotification('Failed to reset API failures', 'error');
+            }
+        }
+
+        // Test all APIs
+        function testAllAPIs() {
+            showLoading();
+            showNotification('Starting API tests...', 'info');
+            
+            // Simulate API testing (you can implement actual API testing here)
+            setTimeout(() => {
+                hideLoading();
+                showNotification('API testing completed. Check debug console for details.', 'info');
+                refreshAllStatus();
+            }, 3000);
+        }
+
+        // Clear cache
+        async function clearCache() {
+            try {
+                const response = await fetch('/admin/clear-duplicate-cache');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showNotification(result.message, 'success');
+                } else {
+                    showNotification('Failed to clear cache', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Clear cache error:', error);
+                showNotification('Failed to clear cache', 'error');
+            }
+        }
+
+        // Update last updated time
+        function updateLastUpdated() {
+            const lastUpdatedElement = document.getElementById('lastUpdated');
+            if (lastUpdatedElement && lastUpdatedElement.textContent !== 'Just now') {
+                const now = new Date();
+                lastUpdatedElement.textContent = now.toLocaleTimeString('th-TH');
             }
         }
 
@@ -666,6 +577,9 @@
         window.addEventListener('beforeunload', function() {
             if (statusUpdateInterval) {
                 clearInterval(statusUpdateInterval);
+            }
+            if (websocket) {
+                websocket.close();
             }
         });
     </script>
