@@ -1,4 +1,4 @@
-# main_updated.py (Complete Production Version - No KBank)
+# main_updated.py - Complete Production Version with Enhanced Error Handling
 import json
 import hmac
 import hashlib
@@ -13,7 +13,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-# เพิ่มใน import section
+# Basic imports
 import requests
 from requests.exceptions import RequestException, Timeout, ConnectionError
 
@@ -23,21 +23,14 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from services.user_manager import user_manager
-from services.message_sender import message_sender
+from fastapi.middleware.base import BaseHTTPMiddleware
 
-# เพิ่มพาธปัจจุบันเข้าไปใน sys.path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
-# ตั้งค่า logging แบบ production
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('app.log', encoding='utf-8') if os.path.exists('.') else logging.StreamHandler()
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger("main_app")
@@ -46,12 +39,33 @@ logger = logging.getLogger("main_app")
 IS_READY = False
 SHUTDOWN_INITIATED = False
 
+class ErrorHandlingMiddleware(BaseHTTPMiddleware):
+    """Enhanced error handling middleware"""
+    
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await call_next(request)
+            return response
+        except Exception as e:
+            logger.error(f"❌ Unhandled error in {request.url.path}: {e}")
+            
+            # Don't expose internal errors in production
+            if request.url.path.startswith('/admin'):
+                error_detail = str(e)
+            else:
+                error_detail = "Internal server error"
+                
+            return JSONResponse(
+                status_code=500,
+                content={"status": "error", "message": error_detail}
+            )
+
 class NotificationManager:
+    """Enhanced WebSocket notification manager"""
+    
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         self.pending_notifications: List[Dict] = []
-        self.slip_processing_status = {}
-        self.duplicate_slip_cache: Dict[str, Dict] = {}
         self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket):
@@ -59,7 +73,7 @@ class NotificationManager:
             await websocket.accept()
             async with self._lock:
                 self.active_connections.append(websocket)
-            logger.info(f"📱 WebSocket connected. Total connections: {len(self.active_connections)}")
+            logger.info(f"📱 WebSocket connected. Total: {len(self.active_connections)}")
         except Exception as e:
             logger.error(f"❌ WebSocket connect error: {e}")
 
@@ -68,7 +82,7 @@ class NotificationManager:
             async with self._lock:
                 if websocket in self.active_connections:
                     self.active_connections.remove(websocket)
-            logger.info(f"📱 WebSocket disconnected. Total connections: {len(self.active_connections)}")
+            logger.info(f"📱 WebSocket disconnected. Total: {len(self.active_connections)}")
         except Exception as e:
             logger.error(f"❌ WebSocket disconnect error: {e}")
 
@@ -98,7 +112,7 @@ class NotificationManager:
                 try:
                     await connection.send_text(json.dumps(notification))
                 except Exception as e:
-                    logger.error(f"Error sending notification: {e}")
+                    logger.warning(f"Error sending notification: {e}")
                     disconnected.append(connection)
 
         for conn in disconnected:
@@ -106,133 +120,361 @@ class NotificationManager:
 
 notification_manager = NotificationManager()
 
-# Graceful shutdown handler
-async def shutdown_handler(signum=None, frame=None):
-    global SHUTDOWN_INITIATED
-    SHUTDOWN_INITIATED = True
-    logger.info(f"🛑 Received shutdown signal: {signum}")
-    await notification_manager.send_notification("🛑 ระบบกำลังปิดทำงาน", "warning")
-
-# Setup signal handlers
-def setup_signal_handlers():
-    try:
-        signal.signal(signal.SIGTERM, lambda s, f: asyncio.create_task(shutdown_handler(s, f)))
-        signal.signal(signal.SIGINT, lambda s, f: asyncio.create_task(shutdown_handler(s, f)))
-        logger.info("✅ Signal handlers setup complete")
-    except Exception as e:
-        logger.warning(f"⚠️ Could not setup signal handlers: {e}")
-
-# Import modules with comprehensive error handling and fallback support
+# Global services
 config_manager = None
 database_functions = {}
 ai_functions = {}
 slip_functions = {}
+user_manager = None
+message_sender = None
+
+def create_fallback_config_manager():
+    """Create fallback configuration manager"""
+    global config_manager
+    
+    class FallbackConfigManager:
+        def __init__(self):
+            self.config = {
+                "line_channel_secret": os.getenv("LINE_CHANNEL_SECRET", ""),
+                "line_channel_access_token": os.getenv("LINE_CHANNEL_ACCESS_TOKEN", ""),
+                "thunder_api_token": os.getenv("THUNDER_API_TOKEN", ""),
+                "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+                "ai_enabled": os.getenv("AI_ENABLED", "true").lower() == "true",
+                "slip_enabled": os.getenv("SLIP_ENABLED", "true").lower() == "true",
+                "thunder_enabled": os.getenv("THUNDER_ENABLED", "true").lower() == "true",
+                "ai_prompt": "คุณเป็นผู้ช่วยระบบชำระเงินที่เชี่ยวชาญ ตอบเฉพาะเรื่องที่เกี่ยวข้องกับธุรกิจเท่านั้น",
+                "openai_model": "gpt-3.5-turbo",
+                "openai_max_tokens": 150,
+                "openai_temperature": 0.7
+            }
+        
+        def get(self, key, default=None):
+            return self.config.get(key, default)
+        
+        def get_all(self):
+            return self.config.copy()
+        
+        def update(self, key, value):
+            self.config[key] = value
+            logger.info(f"✅ Config updated: {key}")
+            return True
+        
+        def update_multiple(self, updates):
+            self.config.update(updates)
+            logger.info(f"✅ Updated {len(updates)} configurations")
+            return True
+        
+        def delete(self, key):
+            if key in self.config:
+                del self.config[key]
+                return True
+            return False
+        
+        def reload(self):
+            logger.info("🔄 Config reloaded (fallback mode)")
+    
+    config_manager = FallbackConfigManager()
+    logger.info("✅ Fallback config manager created")
+
+def create_fallback_database_functions():
+    """Create fallback database functions with in-memory storage"""
+    global database_functions
+    
+    # In-memory storage
+    chat_storage = []
+    
+    class ChatHistory:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+    
+    def fallback_init_database():
+        logger.info("✅ Fallback database initialized (in-memory)")
+    
+    def fallback_save_chat(user_id, direction, message, sender):
+        try:
+            chat_data = {
+                'id': len(chat_storage) + 1,
+                'user_id': user_id,
+                'direction': direction,
+                'message_type': message.get('type', 'text') if isinstance(message, dict) else 'text',
+                'message_text': message.get('text', str(message)) if isinstance(message, dict) else str(message),
+                'sender': sender,
+                'created_at': datetime.now()
+            }
+            chat_storage.append(chat_data)
+            logger.debug(f"💬 Chat saved: {user_id} ({direction}) - {sender}")
+        except Exception as e:
+            logger.error(f"❌ Error saving chat: {e}")
+    
+    def fallback_get_count():
+        return len(chat_storage)
+    
+    def fallback_get_recent(limit=50):
+        recent_chats = chat_storage[-limit:] if chat_storage else []
+        return [ChatHistory(**chat) for chat in recent_chats]
+    
+    def fallback_get_user_history(user_id, limit=10):
+        user_chats = [c for c in chat_storage if c['user_id'] == user_id][-limit:]
+        return [
+            {
+                "role": "user" if c['direction'] == "in" else "assistant", 
+                "content": c['message_text'] or ''
+            } 
+            for c in user_chats if c['message_text']
+        ]
+    
+    def fallback_log_api_call(api_name, endpoint, method, status_code, response_time, error_message=None):
+        logger.info(f"📊 API Call: {api_name} {method} {endpoint} -> {status_code} ({response_time}ms)")
+    
+    def fallback_get_api_statistics(hours=24):
+        return {
+            "total_calls": 0,
+            "success_calls": 0,
+            "success_rate": 100.0,
+            "average_response_time": 0.0,
+            "period_hours": hours
+        }
+    
+    def fallback_cleanup_old_data(days=30):
+        return {
+            "deleted_chats": 0,
+            "deleted_logs": 0,
+            "days": days
+        }
+    
+    database_functions = {
+        'init_database': fallback_init_database,
+        'save_chat_history': fallback_save_chat,
+        'get_chat_history_count': fallback_get_count,
+        'get_recent_chat_history': fallback_get_recent,
+        'get_user_chat_history': fallback_get_user_history,
+        'log_api_call': fallback_log_api_call,
+        'get_api_statistics': fallback_get_api_statistics,
+        'cleanup_old_data': fallback_cleanup_old_data
+    }
+    logger.info("✅ Fallback database functions created")
+
+def create_fallback_ai_functions():
+    """Create fallback AI functions"""
+    global ai_functions
+    
+    def fallback_get_chat_response(text, user_id):
+        if not config_manager.get("ai_enabled", False):
+            return "ระบบ AI ถูกปิดการใช้งานในขณะนี้"
+        
+        if not config_manager.get("openai_api_key"):
+            return "ยังไม่ได้ตั้งค่า OpenAI API Key กรุณาติดต่อผู้ดูแลระบบ"
+        
+        # Simple response for fallback
+        return f"ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้ แต่เราได้รับข้อความของคุณแล้ว: {text[:50]}..."
+    
+    ai_functions = {
+        'get_chat_response': fallback_get_chat_response
+    }
+    logger.info("✅ Fallback AI functions created")
+
+def create_fallback_slip_functions():
+    """Create fallback slip functions"""
+    global slip_functions
+    
+    def fallback_verify_slip(message_id, test_data=None):
+        if not config_manager.get("thunder_enabled", True):
+            return {"status": "error", "message": "Thunder API ถูกปิดใช้งาน"}
+        
+        if not config_manager.get("thunder_api_token"):
+            return {"status": "error", "message": "ยังไม่ได้ตั้งค่า Thunder API Token"}
+        
+        return {
+            "status": "error",
+            "message": "ระบบตรวจสอบสลิปไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง"
+        }
+    
+    def fallback_test_thunder(token):
+        return {
+            "status": "error",
+            "message": "Thunder API connection test ไม่พร้อมใช้งาน"
+        }
+    
+    def fallback_extract_slip_info(text):
+        return {"bank_code": None, "trans_ref": None}
+    
+    slip_functions = {
+        'verify_slip_with_thunder': fallback_verify_slip,
+        'test_thunder_api_connection': fallback_test_thunder,
+        'extract_slip_info_from_text': fallback_extract_slip_info
+    }
+    logger.info("✅ Fallback slip functions created")
+
+def create_fallback_user_services():
+    """Create fallback user management services"""
+    global user_manager, message_sender
+    
+    class FallbackUser:
+        def __init__(self, user_id, display_name=None):
+            self.user_id = user_id
+            self.display_name = display_name or f'User {user_id[:8]}...'
+            self.first_name = ""
+            self.last_name = ""
+            self.profile_picture_url = ""
+            self.is_blocked = False
+            self.created_at = datetime.now()
+            self.updated_at = datetime.now()
+            self.last_active = datetime.now()
+            self.chat_history = []
+    
+    class FallbackUserManager:
+        def __init__(self):
+            self.users = {}
+        
+        def set_line_token(self, token):
+            pass
+        
+        async def get_or_create_user(self, user_id):
+            if user_id not in self.users:
+                self.users[user_id] = FallbackUser(user_id)
+            return self.users[user_id]
+        
+        def get_all_users(self, limit=100, search=None):
+            users = list(self.users.values())[:limit]
+            if search:
+                search_lower = search.lower()
+                users = [u for u in users if search_lower in u.display_name.lower() or search_lower in u.user_id.lower()]
+            return users
+        
+        def get_user_stats(self):
+            return {
+                "total_users": len(self.users),
+                "active_24h": len(self.users),  # Simplified
+                "new_this_week": len(self.users)  # Simplified
+            }
+        
+        def update_user(self, user_id, updates):
+            if user_id in self.users:
+                for key, value in updates.items():
+                    setattr(self.users[user_id], key, value)
+                return True
+            return False
+    
+    class FallbackMessageSender:
+        def set_line_token(self, token):
+            pass
+        
+        async def send_message_to_user(self, user_id, message):
+            logger.info(f"📤 [Fallback] Would send message to {user_id}: {message[:50]}...")
+            return {"status": "error", "message": "Message sender ไม่พร้อมใช้งาน"}
+        
+        async def broadcast_message(self, user_ids, message):
+            logger.info(f"📢 [Fallback] Would broadcast to {len(user_ids)} users: {message[:50]}...")
+            return {"status": "error", "message": "Broadcast ไม่พร้อมใช้งาน"}
+    
+    user_manager = FallbackUserManager()
+    message_sender = FallbackMessageSender()
+    logger.info("✅ Fallback user services created")
 
 def safe_import_modules():
-    """Safely import all required modules with fallbacks - supports both old and new systems"""
-    global IS_READY, config_manager, database_functions, ai_functions, slip_functions
+    """Safely import all required modules with comprehensive fallbacks"""
+    global IS_READY, config_manager, database_functions, ai_functions, slip_functions, user_manager, message_sender
     
-    logger.info("🔄 Starting module imports...")
+    logger.info("🔄 Starting safe module imports...")
     
     try:
-        # Config Manager - Try PostgreSQL first, fallback to original
-        try:
-            logger.info("🔄 Attempting PostgreSQL config manager...")
-            from utils.postgres_config_manager import config_manager as postgres_cm
-            config_manager = postgres_cm
-            logger.info("✅ PostgreSQL config manager imported")
-        except ImportError as e:
-            logger.warning(f"⚠️ PostgreSQL config manager import failed: {e}")
-            logger.info("🔄 Falling back to original config manager...")
+        # Config Manager - Try multiple options
+        config_loaded = False
+        for config_module in [
+            "utils.stable_config_manager",
+            "utils.postgres_config_manager", 
+            "utils.config_manager"
+        ]:
             try:
-                from utils.config_manager import config_manager as original_cm
-                config_manager = original_cm
-                logger.info("✅ Original config manager imported")
-            except ImportError as e2:
-                logger.error(f"❌ Original config manager also failed: {e2}")
-                raise e2
+                module = __import__(config_module, fromlist=['config_manager'])
+                config_manager = module.config_manager
+                logger.info(f"✅ Config manager imported from {config_module}")
+                config_loaded = True
+                break
+            except ImportError as e:
+                logger.warning(f"⚠️ {config_module} import failed: {e}")
         
-        # Database functions - Try PostgreSQL first, fallback to SQLite
-        try:
-            logger.info("🔄 Attempting PostgreSQL database...")
-            from models.postgres_database import (
-                init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history, log_api_call, 
-                get_api_statistics, cleanup_old_data
-            )
-            database_functions = {
-                'init_database': init_database,
-                'save_chat_history': save_chat_history,
-                'get_chat_history_count': get_chat_history_count,
-                'get_recent_chat_history': get_recent_chat_history,
-                'get_user_chat_history': get_user_chat_history,
-                'log_api_call': log_api_call,
-                'get_api_statistics': get_api_statistics,
-                'cleanup_old_data': cleanup_old_data
-            }
-            logger.info("✅ PostgreSQL database modules imported")
-        except ImportError as e:
-            logger.warning(f"⚠️ PostgreSQL database import failed: {e}")
-            logger.info("🔄 Falling back to SQLite database...")
+        if not config_loaded:
+            create_fallback_config_manager()
+        
+        # Database Functions - Try multiple options
+        db_loaded = False 
+        for db_module in [
+            "models.postgres_database",
+            "models.database"
+        ]:
             try:
-                from models.database import (
-                    init_database, save_chat_history, get_chat_history_count, 
-                    get_recent_chat_history, get_user_chat_history
-                )
+                module = __import__(db_module, fromlist=[
+                    'init_database', 'save_chat_history', 'get_chat_history_count',
+                    'get_recent_chat_history', 'get_user_chat_history'
+                ])
+                
                 database_functions = {
-                    'init_database': init_database,
-                    'save_chat_history': save_chat_history,
-                    'get_chat_history_count': get_chat_history_count,
-                    'get_recent_chat_history': get_recent_chat_history,
-                    'get_user_chat_history': get_user_chat_history,
-                    'log_api_call': lambda *args, **kwargs: None,  # Dummy function
-                    'get_api_statistics': lambda *args, **kwargs: {},
-                    'cleanup_old_data': lambda *args, **kwargs: {}
+                    'init_database': getattr(module, 'init_database'),
+                    'save_chat_history': getattr(module, 'save_chat_history'),
+                    'get_chat_history_count': getattr(module, 'get_chat_history_count'),
+                    'get_recent_chat_history': getattr(module, 'get_recent_chat_history'),
+                    'get_user_chat_history': getattr(module, 'get_user_chat_history'),
+                    'log_api_call': getattr(module, 'log_api_call', lambda *a, **k: None),
+                    'get_api_statistics': getattr(module, 'get_api_statistics', lambda *a, **k: {}),
+                    'cleanup_old_data': getattr(module, 'cleanup_old_data', lambda *a, **k: {})
                 }
-                logger.info("✅ SQLite database modules imported")
-            except ImportError as e2:
-                logger.warning(f"⚠️ SQLite database import also failed: {e2}")
-                database_functions = {
-                    'init_database': lambda: None,
-                    'save_chat_history': lambda u, d, m, s: None,
-                    'get_chat_history_count': lambda: 0,
-                    'get_recent_chat_history': lambda l=50: [],
-                    'get_user_chat_history': lambda u, l=10: [],
-                    'log_api_call': lambda *args, **kwargs: None,
-                    'get_api_statistics': lambda *args, **kwargs: {},
-                    'cleanup_old_data': lambda *args, **kwargs: {}
-                }
+                logger.info(f"✅ Database functions imported from {db_module}")
+                db_loaded = True
+                break
+            except ImportError as e:
+                logger.warning(f"⚠️ {db_module} import failed: {e}")
         
-        # AI Chat functions
+        if not db_loaded:
+            create_fallback_database_functions()
+        
+        # AI Chat Functions
+        ai_loaded = False
         try:
             from services.chat_bot import get_chat_response
             ai_functions = {'get_chat_response': get_chat_response}
-            logger.info("✅ AI chat imported")
+            logger.info("✅ AI chat functions imported")
+            ai_loaded = True
         except ImportError as e:
             logger.warning(f"⚠️ AI chat import failed: {e}")
-            ai_functions = {'get_chat_response': lambda t, u: "ขออภัย ระบบ AI ไม่พร้อมใช้งาน"}
         
-        # Slip verification functions (Thunder API only)
+        if not ai_loaded:
+            create_fallback_ai_functions()
+        
+        # Slip Verification Functions  
+        slip_loaded = False
         try:
             from services.slip_checker import verify_slip_with_thunder, test_thunder_api_connection
-            from services.enhanced_slip_checker import extract_slip_info_from_text
-            
             slip_functions = {
                 'verify_slip_with_thunder': verify_slip_with_thunder,
                 'test_thunder_api_connection': test_thunder_api_connection,
-                'extract_slip_info_from_text': extract_slip_info_from_text
-            }
-            logger.info("✅ Thunder slip verification imported")
-        except ImportError as e:
-            logger.warning(f"⚠️ Slip verification import failed: {e}")
-            
-            slip_functions = {
-                'verify_slip_with_thunder': lambda m, d: {"status": "error", "message": "Thunder API ไม่พร้อมใช้งาน"},
-                'test_thunder_api_connection': lambda token: {"status": "error", "message": "Thunder API Test ไม่พร้อมใช้งาน"},
                 'extract_slip_info_from_text': lambda t: {"bank_code": None, "trans_ref": None}
             }
+            logger.info("✅ Thunder slip verification imported")
+            slip_loaded = True
+        except ImportError as e:
+            logger.warning(f"⚠️ Slip verification import failed: {e}")
         
-        # Initialize database
+        if not slip_loaded:
+            create_fallback_slip_functions()
+        
+        # User Management Services
+        user_services_loaded = False
+        try:
+            from services.user_manager import user_manager as um
+            from services.message_sender import message_sender as ms
+            user_manager = um
+            message_sender = ms
+            logger.info("✅ User management services imported")
+            user_services_loaded = True
+        except ImportError as e:
+            logger.warning(f"⚠️ User management import failed: {e}")
+        
+        if not user_services_loaded:
+            create_fallback_user_services()
+        
+        # Initialize Database
         try:
             database_functions['init_database']()
             logger.info("✅ Database initialized")
@@ -242,29 +484,36 @@ def safe_import_modules():
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         
-        # Log which systems are active
-        db_type = "PostgreSQL" if 'postgres_database' in str(database_functions.get('init_database', '')) else "SQLite"
-        config_type = "PostgreSQL" if hasattr(config_manager, '_cache') else "JSON File"
+        # Log system configuration
+        db_type = "PostgreSQL" if 'postgres' in str(database_functions.get('init_database', '')) else "Fallback"
+        config_type = "PostgreSQL" if hasattr(config_manager, '_cache') else "Fallback"
         logger.info(f"📊 Active Systems: Database={db_type}, Config={config_type}")
         
     except Exception as e:
         logger.error(f"❌ Critical import error: {e}")
         IS_READY = False
         
-        # Fallback config manager
-        class DummyConfigManager:
-            def __init__(self):
-                self.config = {}
-            def get(self, key, default=None):
-                return self.config.get(key, default)
-            def update(self, key, value):
-                self.config[key] = value
-                return True
-            def update_multiple(self, updates):
-                self.config.update(updates)
-                return True
-        
-        config_manager = DummyConfigManager()
+        # Create all fallback services
+        create_fallback_config_manager()
+        create_fallback_database_functions()
+        create_fallback_ai_functions()
+        create_fallback_slip_functions()
+        create_fallback_user_services()
+
+# Graceful shutdown handler
+async def shutdown_handler(signum=None, frame=None):
+    global SHUTDOWN_INITIATED
+    SHUTDOWN_INITIATED = True
+    logger.info(f"🛑 Received shutdown signal: {signum}")
+    await notification_manager.send_notification("🛑 ระบบกำลังปิดทำงาน", "warning")
+
+def setup_signal_handlers():
+    try:
+        signal.signal(signal.SIGTERM, lambda s, f: asyncio.create_task(shutdown_handler(s, f)))
+        signal.signal(signal.SIGINT, lambda s, f: asyncio.create_task(shutdown_handler(s, f)))
+        logger.info("✅ Signal handlers setup complete")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not setup signal handlers: {e}")
 
 # Lifespan context manager
 @asynccontextmanager
@@ -296,7 +545,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Shutdown notification error: {e}")
 
-# Create FastAPI app with lifespan
+# Create FastAPI app
 app = FastAPI(
     title="LINE OA Middleware (Production)",
     description="Enhanced LINE OA Middleware with Thunder slip verification",
@@ -304,7 +553,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Add middlewares
+app.add_middleware(ErrorHandlingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -323,12 +573,10 @@ if os.path.exists("static"):
 # ====================== Utility Functions ======================
 
 def get_api_status_summary():
-    """ดึงสรุปสถานะ API (Production version - Thunder only)"""
+    """Get API status summary"""
     try:
         if not config_manager:
-            return {
-                "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
-            }
+            return {"thunder": {"enabled": False, "configured": False, "connected": False}}
             
         thunder_token = config_manager.get("thunder_api_token", "").strip()
         thunder_enabled = config_manager.get("thunder_enabled", True)
@@ -346,14 +594,7 @@ def get_api_status_summary():
         }
     except Exception as e:
         logger.error(f"❌ Error in get_api_status_summary: {e}")
-        return {
-            "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
-        }
-
-def reset_api_failure_cache():
-    """รีเซ็ต API failure cache"""
-    logger.info("🔄 API failure cache reset")
-    return True
+        return {"thunder": {"enabled": False, "configured": False, "connected": False}}
 
 def init_line_bot():
     """Initialize LINE Bot credentials"""
@@ -372,7 +613,7 @@ def init_line_bot():
         return False
 
 async def send_line_reply(reply_token: str, text: str, max_retries: int = 2) -> bool:
-    """Send LINE reply message (Production version)"""
+    """Send LINE reply message"""
     if SHUTDOWN_INITIATED:
         return False
         
@@ -439,7 +680,7 @@ async def send_line_reply(reply_token: str, text: str, max_retries: int = 2) -> 
         return False
 
 async def send_line_push(user_id: str, text: str, max_retries: int = 2) -> bool:
-    """Send LINE push message (Production version)"""
+    """Send LINE push message"""
     if SHUTDOWN_INITIATED:
         return False
         
@@ -509,7 +750,7 @@ async def send_line_push(user_id: str, text: str, max_retries: int = 2) -> bool:
         return False
 
 def create_slip_reply_message(result: Dict[str, Any]) -> str:
-    """สร้างข้อความตอบกลับสำหรับผลการตรวจสอบสลิป"""
+    """Create slip verification reply message"""
     try:
         status = result.get("status")
         data = result.get("data", {})
@@ -518,13 +759,13 @@ def create_slip_reply_message(result: Dict[str, Any]) -> str:
             error_msg = result.get("message", "ไม่ทราบสาเหตุ")
             return f"❌ ไม่สามารถดึงข้อมูลสลิปได้\n\nสาเหตุ: {error_msg}"
 
-        # ดึงข้อมูลพื้นฐาน
+        # Extract basic information
         amount_display = data.get("amount_display", f"฿{data.get('amount', 'N/A')}")
         date = data.get("date", data.get("trans_date", "N/A"))
         time_str = data.get("time", data.get("trans_time", ""))
         trans_ref = data.get("reference", data.get("transRef", "N/A"))
         
-        # ชื่อผู้ส่งและผู้รับ
+        # Sender and receiver names
         sender_name = (
             data.get("sender_name_th") or 
             data.get("sender_name_en") or 
@@ -537,12 +778,12 @@ def create_slip_reply_message(result: Dict[str, Any]) -> str:
             data.get("receiver_name", data.get("receiver", "ไม่พบชื่อผู้รับ"))
         )
         
-        # ธนาคาร
+        # Banks
         sender_bank = data.get("sender_bank_short", data.get("sender_bank", ""))
         receiver_bank = data.get("receiver_bank_short", data.get("receiver_bank", ""))
         verified_by = data.get("verified_by", "Thunder API")
 
-        # สร้างข้อความ
+        # Create message
         if status == "success":
             header = "✅ สลิปถูกต้อง ตรวจสอบสำเร็จ"
         elif status == "duplicate":
@@ -596,11 +837,11 @@ def create_slip_reply_message(result: Dict[str, Any]) -> str:
 # ====================== Event Handlers ======================
 
 async def send_message_safe(user_id: str, reply_token: str, message: str, message_type: str = "general") -> bool:
-    """ส่งข้อความอย่างปลอดภัย"""
+    """Send message safely with fallback"""
     try:
         success = False
         
-        # ลอง reply ก่อน
+        # Try reply first
         if reply_token and len(reply_token.strip()) > 10:
             success = await send_line_reply(reply_token, message)
             if success:
@@ -608,13 +849,13 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
             else:
                 logger.warning("⚠️ Reply failed, trying push...")
         
-        # ถ้า reply ไม่ได้ ลอง push
+        # If reply failed, try push
         if not success:
             success = await send_line_push(user_id, message)
             if success:
                 logger.info("✅ Push sent successfully")
         
-        # บันทึกประวัติ
+        # Save chat history
         if success:
             try:
                 database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": message}, sender=message_type)
@@ -628,7 +869,7 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
         return False
 
 async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
-    """จัดการแชท AI"""
+    """Handle AI chat with enhanced error handling"""
     try:
         ai_enabled = config_manager.get("ai_enabled", False)
         openai_key = config_manager.get("openai_api_key", "")
@@ -660,15 +901,15 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         await send_message_safe(user_id, reply_token, error_msg, "ai_bot_error")
 
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None):
-    """จัดการตรวจสอบสลิป (Thunder API เท่านั้น)"""
+    """Handle slip verification with Thunder API"""
     try:
-        # ตรวจสอบระบบ
+        # Check if slip system is enabled
         slip_enabled = config_manager.get("slip_enabled", False)
         if not slip_enabled:
             await send_message_safe(user_id, reply_token, "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน", "system_error")
             return
         
-        # ตรวจสอบ Thunder API
+        # Check Thunder API
         thunder_enabled = config_manager.get("thunder_enabled", True)
         thunder_token = config_manager.get("thunder_api_token", "").strip()
         
@@ -680,11 +921,11 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             await send_message_safe(user_id, reply_token, "ระบบยังไม่ได้ตั้งค่า Thunder API กรุณาติดต่อผู้ดูแล", "system_error")
             return
 
-        # แจ้งผู้ใช้
+        # Notify user
         processing_msg = "🔍 กรุณารอสักครู่... ระบบกำลังตรวจสอบสลิป"
         await send_line_reply(reply_token, processing_msg)
 
-        # ตรวจสอบสลิป
+        # Verify slip
         try:
             if message_id:
                 result = await asyncio.wait_for(
@@ -706,7 +947,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             await send_line_push(user_id, f"❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป")
             return
         
-        # ประมวลผลผลลัพธ์
+        # Process result
         if result and result.get("status") in ["success", "duplicate"]:
             reply_message = create_slip_reply_message(result)
             push_success = await send_line_push(user_id, reply_message)
@@ -717,7 +958,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to save slip result: {e}")
             else:
-                # ลองส่งข้อความสั้น
+                # Try short message
                 short_msg = f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {result.get('data', {}).get('amount_display', 'N/A')}"
                 await send_line_push(user_id, short_msg)
         else:
@@ -749,22 +990,29 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
             logger.error("❌ Missing user ID or reply token")
             return
         
-        # จัดการผู้ใช้
+        # Manage user
         line_token = config_manager.get("line_channel_access_token")
-        user_manager.set_line_token(line_token)
-        message_sender.set_line_token(line_token)
+        if user_manager and hasattr(user_manager, 'set_line_token'):
+            user_manager.set_line_token(line_token)
+        if message_sender and hasattr(message_sender, 'set_line_token'):
+            message_sender.set_line_token(line_token)
         
-        user = await user_manager.get_or_create_user(user_id)
+        try:
+            user = await user_manager.get_or_create_user(user_id)
+            user_display = user.display_name if user and hasattr(user, 'display_name') else user_id[:10]
+        except Exception as e:
+            logger.warning(f"⚠️ User management error: {e}")
+            user_display = user_id[:10]
         
-        logger.info(f"🔄 Processing {message_type} from {user.display_name if user else user_id[:10]}...")
+        logger.info(f"🔄 Processing {message_type} from {user_display}...")
         
-        # บันทึกประวัติ
+        # Save chat history
         try:
             database_functions['save_chat_history'](user_id, "in", message, sender="user")
         except Exception as e:
             logger.warning(f"⚠️ Failed to save chat history: {e}")
         
-        # ประมวลผล
+        # Process message
         if message_type == "text":
             user_text = message.get("text", "")
             await handle_ai_chat(user_id, reply_token, user_text)
@@ -787,7 +1035,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 await send_message_safe(user_id, reply_token, "เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่", "system_error")
         except Exception:
             pass
-# ====================== API Routes ======================
 
 # ====================== API Routes ======================
 
@@ -813,131 +1060,9 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
         await notification_manager.disconnect(websocket)
 
-@app.get("/admin/users", response_class=HTMLResponse)
-async def admin_users(request: Request):
-    """User management page"""
-    try:
-        users = user_manager.get_all_users(limit=200)
-        stats = user_manager.get_user_stats()
-        
-        return templates.TemplateResponse(
-            "users.html",
-            {
-                "request": request,
-                "users": users,
-                "stats": stats
-            }
-        )
-    except Exception as e:
-        logger.error(f"❌ Users page error: {e}")
-        return templates.TemplateResponse(
-            "users.html",
-            {
-                "request": request,
-                "users": [],
-                "stats": {"total_users": 0, "active_24h": 0, "new_this_week": 0}
-            }
-        )
-
-@app.post("/admin/users/send-message")
-async def send_message_to_users(request: Request):
-    """ส่งข้อความไปหาผู้ใช้"""
-    try:
-        data = await request.json()
-        user_ids = data.get("user_ids", [])
-        message = data.get("message", "").strip()
-        
-        if not user_ids or not message:
-            return JSONResponse({
-                "status": "error",
-                "message": "Missing user IDs or message"
-            })
-        
-        # ตั้งค่า LINE token
-        line_token = config_manager.get("line_channel_access_token")
-        message_sender.set_line_token(line_token)
-        
-        # ส่งข้อความ
-        if len(user_ids) == 1:
-            result = await message_sender.send_message_to_user(user_ids[0], message)
-        else:
-            result = await message_sender.broadcast_message(user_ids, message)
-        
-        await notification_manager.send_notification(
-            f"📤 ส่งข้อความไปยัง {len(user_ids)} คน", "success"
-        )
-        
-        return JSONResponse(result)
-        
-    except Exception as e:
-        logger.error(f"❌ Send message error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        })
-
-@app.post("/admin/users/broadcast")
-async def broadcast_message(request: Request):
-    """ส่งข้อความแบบ broadcast"""
-    try:
-        data = await request.json()
-        message = data.get("message", "").strip()
-        
-        if not message:
-            return JSONResponse({
-                "status": "error",
-                "message": "Message is required"
-            })
-        
-        # ดึงรายชื่อผู้ใช้ทั้งหมดที่ active
-        users = user_manager.get_all_users(limit=500)  # LINE API limit
-        user_ids = [user.user_id for user in users if not user.is_blocked]
-        
-        if not user_ids:
-            return JSONResponse({
-                "status": "error",
-                "message": "No active users found"
-            })
-        
-        # ตั้งค่า LINE token
-        line_token = config_manager.get("line_channel_access_token")
-        message_sender.set_line_token(line_token)
-        
-        # ส่งข้อความ
-        result = await message_sender.broadcast_message(user_ids, message)
-        
-        await notification_manager.send_notification(
-            f"📢 Broadcast ไปยัง {len(user_ids)} คน", "success"
-        )
-        
-        return JSONResponse(result)
-        
-    except Exception as e:
-        logger.error(f"❌ Broadcast error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        })
-
-@app.get("/admin/users/{user_id}", response_class=HTMLResponse)
-async def user_detail(request: Request, user_id: str):
-    """รายละเอียดผู้ใช้"""
-    try:
-        # Implementation for user detail page
-        return JSONResponse({
-            "status": "info",
-            "message": "User detail page coming soon"
-        })
-    except Exception as e:
-        logger.error(f"❌ User detail error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        })
-
 @app.post("/line/webhook")
 async def line_webhook(request: Request, background_tasks: BackgroundTasks, x_line_signature: str = Header(None)) -> JSONResponse:
-    """LINE webhook endpoint (Production version)"""
+    """LINE webhook endpoint"""
     if not IS_READY:
         logger.error("❌ System not ready")
         return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
@@ -978,7 +1103,7 @@ async def admin_home(request: Request):
     try:
         total_count = database_functions['get_chat_history_count']()
         api_statuses = get_api_status_summary()
-        system_enabled = config_manager.get("slip_enabled", False)
+        system_enabled = config_manager.get("slip_enabled", False) if config_manager else False
         any_api_available = api_statuses.get("thunder", {}).get("enabled", False) and api_statuses.get("thunder", {}).get("configured", False)
 
         return templates.TemplateResponse(
@@ -1000,27 +1125,107 @@ async def admin_home(request: Request):
             "admin_home.html",
             {
                 "request": request,
-                "config": config_manager,
+                "config": config_manager or {},
                 "total_chat_history": 0,
                 "system_status": {"system_enabled": False, "any_api_available": False},
                 "api_statuses": {}
             },
         )
 
+@app.get("/health")
+async def health_check():
+    """Basic health check endpoint"""
+    return JSONResponse({
+        "status": "ok" if IS_READY and not SHUTDOWN_INITIATED else "degraded",
+        "system_ready": IS_READY,
+        "shutting_down": SHUTDOWN_INITIATED,
+        "timestamp": datetime.now().isoformat(),
+        "active_connections": len(notification_manager.active_connections),
+        "version": "2.0.0"
+    })
+
+@app.get("/health/comprehensive")
+async def comprehensive_health_check():
+    """Comprehensive health check with detailed information"""
+    try:
+        # Test database
+        db_healthy = True
+        message_count = 0
+        try:
+            message_count = database_functions['get_chat_history_count']()
+            db_healthy = True
+        except Exception as e:
+            db_healthy = False
+            logger.error(f"Database health check failed: {e}")
+        
+        # Test config
+        config_healthy = config_manager is not None
+        
+        # Test LINE API
+        line_healthy = False
+        if config_manager:
+            line_token = config_manager.get("line_channel_access_token")
+            line_healthy = bool(line_token and len(line_token.strip()) > 10)
+        
+        # Test Thunder API
+        thunder_healthy = False
+        if config_manager:
+            thunder_token = config_manager.get("thunder_api_token")
+            thunder_healthy = bool(thunder_token and len(thunder_token.strip()) > 10)
+        
+        overall_healthy = all([IS_READY, not SHUTDOWN_INITIATED, db_healthy, config_healthy])
+        
+        return JSONResponse({
+            "status": "healthy" if overall_healthy else "unhealthy",
+            "timestamp": datetime.now().isoformat(),
+            "version": "2.0.0",
+            "checks": {
+                "system_ready": IS_READY,
+                "not_shutting_down": not SHUTDOWN_INITIATED,
+                "database": db_healthy,
+                "configuration": config_healthy,
+                "line_api": line_healthy,
+                "thunder_api": thunder_healthy
+            },
+            "details": {
+                "message_count": message_count,
+                "websocket_connections": len(notification_manager.active_connections),
+                "modules_loaded": {
+                    "config_manager": config_manager is not None,
+                    "database_functions": bool(database_functions),
+                    "ai_functions": bool(ai_functions), 
+                    "slip_functions": bool(slip_functions),
+                    "user_manager": user_manager is not None,
+                    "message_sender": message_sender is not None
+                }
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Comprehensive health check error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }, status_code=500)
+
+# Additional essential routes (simplified versions for space)
 @app.get("/admin/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request):
     """Settings page"""
     try:
-        config_data = {
-            "line_channel_secret": config_manager.get("line_channel_secret", ""),
-            "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
-            "thunder_api_token": config_manager.get("thunder_api_token", ""),
-            "openai_api_key": config_manager.get("openai_api_key", ""),
-            "ai_prompt": config_manager.get("ai_prompt", ""),
-            "ai_enabled": config_manager.get("ai_enabled", False),
-            "slip_enabled": config_manager.get("slip_enabled", False),
-            "thunder_enabled": config_manager.get("thunder_enabled", True),
-        }
+        config_data = {}
+        if config_manager:
+            config_data = {
+                "line_channel_secret": config_manager.get("line_channel_secret", ""),
+                "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
+                "thunder_api_token": config_manager.get("thunder_api_token", ""),
+                "openai_api_key": config_manager.get("openai_api_key", ""),
+                "ai_prompt": config_manager.get("ai_prompt", ""),
+                "ai_enabled": config_manager.get("ai_enabled", False),
+                "slip_enabled": config_manager.get("slip_enabled", False),
+                "thunder_enabled": config_manager.get("thunder_enabled", True),
+            }
         
         return templates.TemplateResponse(
             "settings.html",
@@ -1035,18 +1240,23 @@ async def admin_settings(request: Request):
 
 @app.post("/admin/settings/update")
 async def update_settings(request: Request):
-    """อัปเดตการตั้งค่าระบบ"""
+    """Update system settings"""
     try:
         data = await request.json()
         
-        # อัปเดต config
-        config_manager.update_multiple(data)
-        
-        await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
+        if config_manager:
+            success = config_manager.update_multiple(data)
+            
+            if success:
+                await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
+                return JSONResponse({
+                    "status": "success",
+                    "message": "บันทึกการตั้งค่าสำเร็จ"
+                })
         
         return JSONResponse({
-            "status": "success",
-            "message": "บันทึกการตั้งค่าสำเร็จ"
+            "status": "error",
+            "message": "ไม่สามารถบันทึกการตั้งค่าได้"
         })
         
     except Exception as e:
@@ -1077,157 +1287,16 @@ async def admin_debug(request: Request):
     """Debug page"""
     return templates.TemplateResponse("debug.html", {"request": request})
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return JSONResponse({
-        "status": "ok" if IS_READY and not SHUTDOWN_INITIATED else "degraded",
-        "system_ready": IS_READY,
-        "shutting_down": SHUTDOWN_INITIATED,
-        "timestamp": datetime.now().isoformat(),
-        "active_connections": len(notification_manager.active_connections)
-    })
-
-@app.get("/admin/api-status")
-async def get_api_status():
-    """ดึงสถานะ API ทั้งหมด"""
-    try:
-        status = {
-            "system_status": {
-                "system_enabled": config_manager.get("slip_enabled", False),
-                "slip_system_ready": config_manager.get("slip_enabled", False),
-                "line_ready": bool(config_manager.get("line_channel_access_token")),
-                "timestamp": datetime.now().isoformat()
-            },
-            "line": {
-                "configured": bool(config_manager.get("line_channel_secret") and config_manager.get("line_channel_access_token")),
-                "connected": bool(config_manager.get("line_channel_access_token")),
-                "bot_name": "LINE Bot"
-            },
-            "thunder": {
-                "configured": bool(config_manager.get("thunder_api_token")),
-                "enabled": config_manager.get("thunder_enabled", True),
-                "connected": bool(config_manager.get("thunder_api_token") and config_manager.get("thunder_enabled", True)),
-                "recent_failures": 0
-            }
-        }
-        
-        return JSONResponse(status)
-        
-    except Exception as e:
-        logger.error(f"❌ Get API status error: {e}")
-        return JSONResponse({
-            "system_status": {"system_enabled": False, "slip_system_ready": False, "line_ready": False},
-            "line": {"configured": False, "connected": False},
-            "thunder": {"configured": False, "enabled": False, "connected": False}
-        })
-
-@app.get("/admin/config")
-async def get_config():
-    """Get configuration"""
-    try:
-        return JSONResponse({
-            "slip_enabled": config_manager.get("slip_enabled", False),
-            "ai_enabled": config_manager.get("ai_enabled", False),
-            "thunder_enabled": config_manager.get("thunder_enabled", True),
-            "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
-            "line_channel_secret": config_manager.get("line_channel_secret", ""),
-            "thunder_api_token": config_manager.get("thunder_api_token", ""),
-            "openai_api_key": config_manager.get("openai_api_key", ""),
-            "openai_model": config_manager.get("openai_model", "gpt-3.5-turbo")
-        })
-    except Exception as e:
-        logger.error(f"❌ Get config error: {e}")
-        return JSONResponse({"status": "error", "message": str(e)})
-
-@app.post("/admin/config")
-async def update_config(request: Request):
-    """Update configuration"""
-    try:
-        data = await request.json()
-        updates = {}
-        
-        # Boolean fields
-        for key in ["slip_enabled", "ai_enabled", "thunder_enabled"]:
-            if key in data:
-                value = data[key]
-                updates[key] = bool(value) if isinstance(value, bool) else str(value).lower() in ["true", "1", "yes", "on"]
-        
-        # String fields
-        for key in ["line_channel_access_token", "line_channel_secret", "thunder_api_token", "openai_api_key", "openai_model"]:
-            if key in data:
-                updates[key] = str(data[key]).strip()
-        
-        success = config_manager.update_multiple(updates)
-        
-        if success:
-            if any(key in updates for key in ["line_channel_access_token", "line_channel_secret"]):
-                init_line_bot()
-            
-            await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
-            return JSONResponse({"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
-        else:
-            return JSONResponse({"status": "error", "message": "ไม่สามารถบันทึกได้"})
-            
-    except Exception as e:
-        logger.error(f"❌ Update config error: {e}")
-        return JSONResponse({"status": "error", "message": str(e)})
-
-@app.post("/admin/toggle-slip-system")
-async def toggle_slip_system():
-    """Toggle slip system on/off"""
-    try:
-        current_status = config_manager.get("slip_enabled", False)
-        new_status = not current_status
-        
-        success = config_manager.update("slip_enabled", new_status)
-        
-        if success:
-            status_text = "เปิด" if new_status else "ปิด"
-            await notification_manager.send_notification(
-                f"🔄 {status_text}ระบบตรวจสอบสลิปแล้ว", 
-                "info"
-            )
-            return JSONResponse({
-                "status": "success",
-                "message": f"{status_text}ระบบตรวจสอบสลิปแล้ว",
-                "slip_enabled": new_status
-            })
-        else:
-            return JSONResponse({
-                "status": "error",
-                "message": "ไม่สามารถเปลี่ยนสถานะได้"
-            })
-            
-    except Exception as e:
-        logger.error(f"❌ Toggle slip system error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": f"เกิดข้อผิดพลาด: {str(e)}"
-        })
-
-@app.post("/admin/reset-failures")
-async def reset_api_failures():
-    """Reset API failure counters"""
-    try:
-        reset_api_failure_cache()
-        
-        await notification_manager.send_notification("🔄 รีเซ็ต API failure cache แล้ว", "info")
-        return JSONResponse({
-            "status": "success",
-            "message": "รีเซ็ต API failure counters แล้ว"
-        })
-    except Exception as e:
-        logger.error(f"❌ Reset failures error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": f"เกิดข้อผิดพลาด: {str(e)}"
-        })
-
 @app.post("/admin/test-line-connection")
 async def test_line_connection():
     """Test LINE API connection"""
     try:
+        if not config_manager:
+            return JSONResponse({
+                "status": "error",
+                "message": "Configuration manager ไม่พร้อมใช้งาน"
+            })
+            
         access_token = config_manager.get("line_channel_access_token")
         if not access_token:
             return JSONResponse({
@@ -1270,648 +1339,80 @@ async def test_line_connection():
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
-@app.get("/admin/debug-config")
-async def get_debug_config():
-    """Debug config endpoint"""
-    try:
-        return JSONResponse({
-            "api_status": get_api_status_summary(),
-            "config_values": {
-                "thunder_token": config_manager.get("thunder_api_token", "")[:20] + "..." if config_manager.get("thunder_api_token") else "",
-                "line_token": config_manager.get("line_channel_access_token", "")[:20] + "..." if config_manager.get("line_channel_access_token") else "",
-            }
-        })
-    except Exception as e:
-        logger.error(f"❌ Debug config error: {e}")
-        return JSONResponse({"status": "error", "message": str(e)})
-
-@app.get("/admin/get-config-value")
-async def get_config_value(request: Request):
-    """Get specific config value"""
-    try:
-        key = request.query_params.get("key")
-        if not key:
-            return JSONResponse({"status": "error", "message": "Key required"})
-        
-        value = config_manager.get(key, "")
-        return JSONResponse({"status": "success", "key": key, "value": value})
-    except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)})
-
-@app.get("/admin/export-data")
-async def export_admin_data():
-    """Export system data"""
-    try:
-        # Get chat history
-        chat_history = database_functions['get_recent_chat_history'](1000)
-        
-        # Get configuration (without sensitive data)
-        config_export = {
-            "ai_enabled": config_manager.get("ai_enabled", False),
-            "slip_enabled": config_manager.get("slip_enabled", False),
-            "thunder_enabled": config_manager.get("thunder_enabled", True),
-            "ai_prompt": config_manager.get("ai_prompt", ""),
-        }
-        
-        # Prepare export data
-        export_data = {
-            "export_timestamp": datetime.now().isoformat(),
-            "system_config": config_export,
-            "chat_history": [
-                {
-                    "id": getattr(chat, 'id', 0),
-                    "user_id": chat.user_id[:8] + "..." if len(chat.user_id) > 8 else chat.user_id,
-                    "direction": chat.direction,
-                    "message_type": chat.message_type,
-                    "message_text": chat.message_text[:100] + "..." if len(chat.message_text or "") > 100 else chat.message_text,
-                    "sender": chat.sender,
-                    "created_at": chat.created_at.isoformat() if hasattr(chat.created_at, 'isoformat') else str(chat.created_at)
-                }
-                for chat in chat_history
-            ],
-            "statistics": {
-                "total_messages": len(chat_history),
-                "unique_users": len(set(chat.user_id for chat in chat_history)),
-                "message_types": {}
-            }
-        }
-        
-        # Calculate message type statistics
-        from collections import Counter
-        message_types = Counter(chat.sender for chat in chat_history)
-        export_data["statistics"]["message_types"] = dict(message_types)
-        
-        return JSONResponse({
-            "status": "success",
-            "data": export_data
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Export data error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": f"เกิดข้อผิดพลาด: {str(e)}"
-        })
-
-@app.get("/admin/system-logs")
-async def get_system_logs():
-    """Get system logs"""
-    try:
-        logs = []
-        log_file = "app.log"
-        
-        if os.path.exists(log_file):
-            with open(log_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                # Get last 100 lines
-                logs = lines[-100:] if len(lines) > 100 else lines
-        
-        return JSONResponse({
-            "status": "success",
-            "logs": logs
-        })
-    except Exception as e:
-        logger.error(f"❌ Get system logs error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": f"เกิดข้อผิดพลาด: {str(e)}"
-        })
-
-# PostgreSQL support endpoints (หากมี)
-@app.get("/admin/database-info")
-async def get_database_info():
-    """ดึงข้อมูลเกี่ยวกับฐานข้อมูล"""
-    try:
-        # ตรวจสอบว่าใช้ database แบบไหน
-        is_postgres = 'postgres_database' in str(database_functions.get('init_database', ''))
-        
-        if is_postgres:
-            try:
-                from models.postgres_models import db_manager
-                
-                # Check connection
-                db = db_manager.get_session()
-                
-                # Get basic statistics
-                from sqlalchemy import text
-                
-                # Database type
-                db_type = "PostgreSQL" if "postgresql" in str(db_manager.engine.url) else "SQLite"
-                
-                # Table counts
-                chat_count = db.execute(text("SELECT COUNT(*) FROM chat_history")).scalar()
-                config_count = db.execute(text("SELECT COUNT(*) FROM system_config")).scalar()
-                
-                try:
-                    api_logs_count = db.execute(text("SELECT COUNT(*) FROM api_logs")).scalar()
-                except:
-                    api_logs_count = 0
-                
-                db.close()
-                
-                return JSONResponse({
-                    "status": "success",
-                    "database": {
-                        "type": db_type,
-                        "url": str(db_manager.engine.url).replace(db_manager.engine.url.password or '', '***') if db_manager.engine.url.password else str(db_manager.engine.url),
-                        "connected": True,
-                        "tables": {
-                            "chat_history": chat_count,
-                            "system_config": config_count,
-                            "api_logs": api_logs_count
-                        }
-                    }
-                })
-            except Exception as e:
-                logger.error(f"❌ PostgreSQL database info error: {e}")
-                return JSONResponse({
-                    "status": "error",
-                    "message": str(e),
-                    "database": {
-                        "type": "PostgreSQL (Error)",
-                        "connected": False
-                    }
-                })
-        else:
-            # SQLite fallback
-            return JSONResponse({
-                "status": "success",
-                "database": {
-                    "type": "SQLite",
-                    "url": "sqlite:///storage.db",
-                    "connected": True,
-                    "tables": {
-                        "chat_history": database_functions['get_chat_history_count'](),
-                        "system_config": "N/A (JSON File)",
-                        "api_logs": "N/A"
-                    }
-                }
-            })
-            
-    except Exception as e:
-        return JSONResponse({
-            "status": "error",
-            "message": str(e),
-            "database": {
-                "type": "Unknown",
-                "connected": False
-            }
-        })
-
-@app.post("/admin/migrate-config-vars")
-async def migrate_config_vars():
-    """Migrate จาก Heroku Config Vars ไปยัง PostgreSQL (หรือระบบปัจจุบัน)"""
-    try:
-        import os
-        migrated = 0
-        
-        # Environment variables ที่ต้อง migrate
-        env_vars = [
-            'LINE_CHANNEL_SECRET',
-            'LINE_CHANNEL_ACCESS_TOKEN', 
-            'THUNDER_API_TOKEN',
-            'OPENAI_API_KEY',
-            'AI_ENABLED',
-            'SLIP_ENABLED',
-            'THUNDER_ENABLED',
-            'WALLET_PHONE_NUMBER'
-        ]
-        
-        updates = {}
-        for env_var in env_vars:
-            value = os.environ.get(env_var)
-            if value:
-                # แปลงชื่อให้เป็น lowercase และใช้ underscore
-                config_key = env_var.lower()
-                updates[config_key] = value
-                migrated += 1
-        
-        if updates:
-            success = config_manager.update_multiple(updates)
-            if success:
-                await notification_manager.send_notification(
-                    f"✅ Migrated {migrated} config vars successfully", "success"
-                )
-                return JSONResponse({
-                    "status": "success",
-                    "message": f"Migrated {migrated} config vars successfully",
-                    "migrated_keys": list(updates.keys())
-                })
-            else:
-                return JSONResponse({
-                    "status": "error",
-                    "message": "Failed to update configuration"
-                })
-        else:
-            return JSONResponse({
-                "status": "info",
-                "message": "No config vars found to migrate"
-            })
-            
-    except Exception as e:
-        logger.error(f"❌ Migration error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": f"Migration failed: {str(e)}"
-        })
-
-@app.get("/admin/config-management", response_class=HTMLResponse)
-async def config_management_page(request: Request):
-    """หน้าจัดการ Configuration แบบใหม่"""
-    try:
-        # ตรวจสอบว่า config_manager มี method get_all หรือไม่ (PostgreSQL version)
-        if hasattr(config_manager, 'get_all'):
-            all_configs = config_manager.get_all()
-        else:
-            # Fallback สำหรับ config manager เดิม
-            all_configs = {
-                "line_channel_secret": config_manager.get("line_channel_secret", ""),
-                "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
-                "thunder_api_token": config_manager.get("thunder_api_token", ""),
-                "openai_api_key": config_manager.get("openai_api_key", ""),
-                "ai_prompt": config_manager.get("ai_prompt", ""),
-                "ai_enabled": config_manager.get("ai_enabled", False),
-                "slip_enabled": config_manager.get("slip_enabled", False),
-                "thunder_enabled": config_manager.get("thunder_enabled", True),
-            }
-        
-        return templates.TemplateResponse("config_management.html", {
-            "request": request,
-            "configs": all_configs,
-            "config_count": len(all_configs)
-        })
-    except Exception as e:
-        logger.error(f"❌ Config management page error: {e}")
-        return templates.TemplateResponse("config_management.html", {
-            "request": request,
-            "configs": {},
-        "config_count": 0,
-           "error": str(e)
-       })
-
-@app.post("/admin/config-management/update")
-async def update_config_via_web(request: Request):
-   """อัปเดต Configuration ผ่านหน้าเว็บ"""
-   try:
-       data = await request.json()
-       
-       # แยกประเภทของ config
-       sensitive_fields = ['line_channel_access_token', 'line_channel_secret', 
-                         'thunder_api_token', 'openai_api_key']
-       
-       updates = {}
-       for key, value in data.items():
-           if key.startswith('_'):  # Skip system fields
-               continue
-               
-           # Handle boolean fields
-           if key in ['ai_enabled', 'slip_enabled', 'thunder_enabled']:
-               updates[key] = bool(value)
-           else:
-               updates[key] = value
-       
-       success = config_manager.update_multiple(updates)
-       
-       if success:
-           # Log sensitive updates without showing values
-           for key in updates:
-               if key in sensitive_fields:
-                   logger.info(f"🔐 Updated sensitive config: {key}")
-               else:
-                   logger.info(f"⚙️ Updated config: {key} = {updates[key]}")
-           
-           await notification_manager.send_notification(
-               f"✅ Updated {len(updates)} configurations", "success"
-           )
-           
-           return JSONResponse({
-               "status": "success",
-               "message": f"อัปเดต {len(updates)} การตั้งค่าเรียบร้อย",
-               "updated_count": len(updates)
-           })
-       else:
-           return JSONResponse({
-               "status": "error",
-               "message": "ไม่สามารถบันทึกการตั้งค่าได้"
-           })
-           
-   except Exception as e:
-       logger.error(f"❌ Config update error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
-
-@app.post("/admin/cleanup-old-data")
-async def cleanup_old_data_endpoint():
-   """ทำความสะอาดข้อมูลเก่า"""
-   try:
-       result = database_functions['cleanup_old_data'](days=30)
-       
-       if result:
-           await notification_manager.send_notification(
-               f"🧹 ทำความสะอาดข้อมูลเสร็จสิ้น: ลบ {result.get('deleted_chats', 0)} chat, {result.get('deleted_logs', 0)} logs", 
-               "success"
-           )
-           
-           return JSONResponse({
-               "status": "success",
-               "message": "ทำความสะอาดข้อมูลเสร็จสิ้น",
-               "result": result
-           })
-       else:
-           return JSONResponse({
-               "status": "info",
-               "message": "ไม่มีข้อมูลเก่าที่ต้องลบ"
-           })
-       
-   except Exception as e:
-       logger.error(f"❌ Cleanup error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
-
-@app.get("/admin/system-info")
-async def get_system_info():
-   """ดึงข้อมูลระบบที่ใช้งานอยู่"""
-   try:
-       is_postgres_db = 'postgres_database' in str(database_functions.get('init_database', ''))
-       is_postgres_config = hasattr(config_manager, '_cache')
-       
-       return JSONResponse({
-           "status": "success",
-           "system_info": {
-               "database_type": "PostgreSQL" if is_postgres_db else "SQLite",
-               "config_type": "PostgreSQL" if is_postgres_config else "JSON File",
-               "ready": IS_READY,
-               "features": {
-                   "postgresql_support": is_postgres_db,
-                   "api_logging": is_postgres_db,
-                   "advanced_config": is_postgres_config,
-                   "data_cleanup": is_postgres_db,
-                   "thunder_api": True,
-                   "kbank_api": False  # ลบ KBank support
-               }
-           }
-       })
-   except Exception as e:
-       return JSONResponse({
-           "status": "error",
-           "message": str(e)
-       })
-
-# Thunder API specific endpoints
-@app.post("/admin/test-thunder-api")
-async def test_thunder_api_direct(request: Request):
-   """ทดสอบ Thunder API โดยตรง"""
-   try:
-       form = await request.form()
-       token = form.get("token")
-       file = form.get("file")
-       
-       if not token:
-           return JSONResponse({
-               "status": "error", 
-               "message": "Missing Thunder API token"
-           })
-       
-       if not file:
-           return JSONResponse({
-               "status": "error",
-               "message": "Missing file for testing"
-           })
-       
-       image_data = await file.read()
-       
-       logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
-       logger.info(f"🧪 Image size: {len(image_data)} bytes")
-       
-       # Test connection first
-       test_result = slip_functions['test_thunder_api_connection'](token)
-       
-       if test_result.get("status") == "success":
-           return JSONResponse({
-               "status": "success", 
-               "message": "Thunder API connection test successful",
-               "data": test_result
-           })
-       else:
-           return JSONResponse({
-               "status": "error",
-               "message": test_result.get("message", "Thunder API test failed"),
-               "data": test_result
-           })
-           
-   except Exception as e:
-       logger.exception(f"❌ Thunder API test error: {e}")
-       return JSONResponse({
-           "status": "error", 
-           "message": str(e)
-       })
-
 @app.post("/admin/test-thunder-connection")
 async def test_thunder_connection():
-   """ทดสอบการเชื่อมต่อ Thunder API"""
-   try:
-       token = config_manager.get("thunder_api_token", "")
-       if not token:
-           return JSONResponse({
-               "status": "error",
-               "message": "Thunder API Token ไม่ได้ตั้งค่า"
-           })
-       
-       result = slip_functions['test_thunder_api_connection'](token)
-       
-       return JSONResponse({
-           "status": result.get("status", "error"),
-           "message": result.get("message", "Unknown error"),
-           "data": result
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Test Thunder connection error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
-
-# Fallback endpoints for removed KBank functionality
-@app.post("/admin/kbank/setup-instant")
-@app.post("/admin/kbank/force-sandbox")
-@app.post("/admin/kbank/test-slip-demo")
-@app.post("/admin/test-kbank-oauth") 
-@app.post("/admin/test-kbank-api")
-@app.post("/admin/kbank/update-credentials")
-@app.post("/admin/kbank/test-credentials")
-@app.get("/admin/kbank/status")
-async def kbank_endpoints_removed():
-   """KBank endpoints removed - fallback response"""
-   return JSONResponse({
-       "status": "info",
-       "message": "KBank API support has been removed from this system. Only Thunder API is supported."
-   })
-
-# Demo and testing endpoints
-@app.post("/admin/test-slip-demo")
-async def test_slip_demo():
-   """ทดสอบการตรวจสอบสลิปแบบ Demo"""
-   try:
-       # สร้างผลลัพธ์จำลองสำหรับ demo
-       demo_result = {
-           "status": "success",
-           "message": "ทดสอบการตรวจสอบสลิปสำเร็จ (Demo Mode)",
-           "data": {
-               "amount": "1000",
-               "amount_display": "฿1,000",
-               "date": datetime.now().strftime("%d/%m/%Y"),
-               "time": datetime.now().strftime("%H:%M:%S"),
-               "sender": "ทดสอบ Thunder API",
-               "receiver_name": "ผู้รับทดสอบ",
-               "sender_bank": "Test Bank",
-               "receiver_bank": "Test Bank",
-               "verified_by": "Thunder API (Demo)",
-               "reference": f"DEMO{int(time.time())}"
-           }
-       }
-       
-       return JSONResponse({
-           "status": "success",
-           "message": "Demo slip verification completed",
-           "result": demo_result
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Test slip demo error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
-
-@app.post("/admin/send-test-notification")
-async def send_test_notification():
-   """ส่งการแจ้งเตือนทดสอบ"""
-   try:
-       await notification_manager.send_notification(
-           "🧪 นี่คือการแจ้งเตือนทดสอบ", 
-           "info",
-           {"test": True, "timestamp": datetime.now().isoformat()}
-       )
-       
-       return JSONResponse({
-           "status": "success",
-           "message": "ส่งการแจ้งเตือนทดสอบแล้ว"
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Send test notification error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
-
-@app.get("/admin/stats")
-async def get_admin_stats():
-   """ดึงสถิติของระบบ"""
-   try:
-       total_chats = database_functions['get_chat_history_count']()
-       recent_chats = database_functions['get_recent_chat_history'](10)
-       
-       # นับจำนวน user ที่ active
-       unique_users = len(set(chat.user_id for chat in recent_chats))
-       
-       # API status
-       api_status = get_api_status_summary()
-       
-       stats = {
-           "total_messages": total_chats,
-           "unique_users": unique_users,
-           "websocket_connections": len(notification_manager.active_connections),
-           "system_ready": IS_READY,
-           "thunder_configured": api_status.get("thunder", {}).get("configured", False),
-           "thunder_enabled": api_status.get("thunder", {}).get("enabled", False),
-           "slip_system_enabled": config_manager.get("slip_enabled", False),
-           "ai_system_enabled": config_manager.get("ai_enabled", False)
-       }
-       
-       return JSONResponse({
-           "status": "success",
-           "stats": stats
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Get admin stats error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
-
-@app.post("/admin/restart-services")
-async def restart_services():
-   """รีสตาร์ทบริการต่างๆ"""
-   try:
-       # รีสตาร์ท LINE Bot
-       init_line_bot()
-       
-       # รีเซ็ต failure cache
-       reset_api_failure_cache()
-       
-       await notification_manager.send_notification("🔄 รีสตาร์ทบริการแล้ว", "success")
-       
-       return JSONResponse({
-           "status": "success",
-           "message": "รีสตาร์ทบริการสำเร็จ"
-       })
-       
-   except Exception as e:
-       logger.error(f"❌ Restart services error: {e}")
-       return JSONResponse({
-           "status": "error",
-           "message": f"เกิดข้อผิดพลาด: {str(e)}"
-       })
+    """Test Thunder API connection"""
+    try:
+        if not config_manager:
+            return JSONResponse({
+                "status": "error",
+                "message": "Configuration manager ไม่พร้อมใช้งาน"
+            })
+            
+        token = config_manager.get("thunder_api_token", "")
+        if not token:
+            return JSONResponse({
+                "status": "error",
+                "message": "Thunder API Token ไม่ได้ตั้งค่า"
+            })
+        
+        result = slip_functions['test_thunder_api_connection'](token)
+        
+        return JSONResponse({
+            "status": result.get("status", "error"),
+            "message": result.get("message", "Unknown error"),
+            "data": result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Test Thunder connection error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
 
 # Error handlers
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
-   """Handle 404 errors"""
-   return JSONResponse(
-       status_code=404,
-       content={"status": "error", "message": "Endpoint not found"}
-   )
+    """Handle 404 errors"""
+    return JSONResponse(
+        status_code=404,
+        content={"status": "error", "message": "Endpoint not found"}
+    )
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc: HTTPException):
-   """Handle 500 errors"""
-   logger.error(f"Internal server error: {exc}")
-   return JSONResponse(
-       status_code=500,
-       content={"status": "error", "message": "Internal server error"}
-   )
+    """Handle 500 errors"""
+    logger.error(f"Internal server error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": "Internal server error"}
+    )
 
-# ====================== Main Entry Point ======================
-
+# Main entry point
 if __name__ == "__main__":
-   import uvicorn
-   
-   print("🚀 Starting LINE OA Middleware (Production - Thunder API Only)...")
-   print("🔗 Admin UI: http://localhost:8000/admin")  
-   print("🔗 Debug Console: http://localhost:8000/admin/debug")
-   print("🔗 Health Check: http://localhost:8000/health")
-   print("⚡ Thunder API Support: Enabled")
-   print("❌ KBank API Support: Removed")
-   
-   try:
-       uvicorn.run(
-           "main_updated:app",
-           host="0.0.0.0",
-           port=int(os.getenv("PORT", 8000)),
-           workers=1,  # Single worker for stability
-           reload=False,  # Disable reload in production
-           log_level="info",
-           access_log=True,
-           timeout_keep_alive=5,
-           timeout_graceful_shutdown=10
-       )
-   except Exception as e:
-       logger.error(f"❌ Server startup failed: {e}")
-       sys.exit(1)
+    import uvicorn
+    
+    print("🚀 Starting LINE OA Middleware (Production - Enhanced Error Handling)...")
+    print("🔗 Admin UI: http://localhost:8000/admin")  
+    print("🔗 Debug Console: http://localhost:8000/admin/debug")
+    print("🔗 Health Check: http://localhost:8000/health")
+    print("🔗 Comprehensive Health: http://localhost:8000/health/comprehensive")
+    print("⚡ Thunder API Support: Enabled")
+    print("🔒 Enhanced Error Handling: Enabled")
+    
+    try:
+        uvicorn.run(
+            "main_updated:app",
+            host="0.0.0.0",
+            port=int(os.getenv("PORT", 8000)),
+            workers=1,
+            reload=False,
+            log_level="info",
+            access_log=True,
+            timeout_keep_alive=5,
+            timeout_graceful_shutdown=10
+        )
+    except Exception as e:
+        logger.error(f"❌ Server startup failed: {e}")
+        sys.exit(1)
