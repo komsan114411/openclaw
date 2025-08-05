@@ -16,79 +16,33 @@
         }
         .status-online { background-color: #28a745; }
         .status-offline { background-color: #dc3545; }
-        .status-warning { background-color: #ffc107; }
-        .card-metric { text-align: center; }
-        .metric-value { font-size: 2rem; font-weight: bold; }
-        .metric-label { color: #6c757d; font-size: 0.875rem; }
-        .settings-section { margin-bottom: 2rem; }
-        .api-status-card {
-            transition: all 0.3s ease;
-        }
-        .api-status-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        .notification-area {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1050;
-            width: 350px;
-        }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
+        .api-status-card { transition: all 0.3s ease; }
+        .api-status-card:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body class="bg-light">
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="text-center text-white">
-            <div class="spinner-border mb-3" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <h5>กำลังโหลด...</h5>
-        </div>
-    </div>
-
-    <div id="notificationArea" class="notification-area"></div>
-
+    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="/admin">
                 <i class="fas fa-cogs me-2"></i>LINE OA Admin Dashboard
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <div class="navbar-nav ms-auto">
-                    <a class="nav-link" href="/admin/debug">
-                        <i class="fas fa-bug me-1"></i>Debug Console
-                    </a>
-                    <a class="nav-link" href="/admin/chat">
-                        <i class="fas fa-comments me-1"></i>Chat History
-                    </a>
-                    <a class="nav-link" href="/admin/settings">
-                        <i class="fas fa-cog me-1"></i>Settings
-                    </a>
-                    <a class="nav-link" href="/health" target="_blank">
-                        <i class="fas fa-heartbeat me-1"></i>Health
-                    </a>
-                </div>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/admin/debug">
+                    <i class="fas fa-bug me-1"></i>Debug Console
+                </a>
+                <a class="nav-link" href="/admin/settings">
+                    <i class="fas fa-cog me-1"></i>Settings
+                </a>
+                <a class="nav-link" href="/health" target="_blank">
+                    <i class="fas fa-heartbeat me-1"></i>Health
+                </a>
             </div>
         </div>
     </nav>
 
     <div class="container mt-4">
+        <!-- System Status Overview -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -101,31 +55,31 @@
                     <div class="card-body">
                         <div class="row" id="systemStatusOverview">
                             <div class="col-md-3">
-                                <div class="card-metric">
-                                    <div class="metric-value text-primary" id="systemStatus">
-                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                <div class="text-center">
+                                    <div class="h2 text-primary" id="systemStatus">
+                                        <div class="spinner-border" role="status"></div>
                                     </div>
-                                    <div class="metric-label">System Status</div>
+                                    <div class="text-muted">System Status</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="card-metric">
-                                    <div class="metric-value text-success" id="apiCount">
-                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                <div class="text-center">
+                                    <div class="h2 text-success" id="apiCount">
+                                        <div class="spinner-border" role="status"></div>
                                     </div>
-                                    <div class="metric-label">APIs Ready</div>
+                                    <div class="text-muted">APIs Ready</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="card-metric">
-                                    <div class="metric-value text-info" id="totalChats">{{ total_chat_history }}</div>
-                                    <div class="metric-label">Total Messages</div>
+                                <div class="text-center">
+                                    <div class="h2 text-info">{{ total_chat_history or 0 }}</div>
+                                    <div class="text-muted">Total Messages</div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <div class="card-metric">
-                                    <div class="metric-value text-warning" id="activeConnections">0</div>
-                                    <div class="metric-label">Active Connections</div>
+                                <div class="text-center">
+                                    <div class="h2 text-warning" id="activeConnections">0</div>
+                                    <div class="text-muted">Active Connections</div>
                                 </div>
                             </div>
                         </div>
@@ -134,7 +88,9 @@
             </div>
         </div>
 
+        <!-- API Status Cards -->
         <div class="row mb-4">
+            <!-- Thunder API -->
             <div class="col-md-4">
                 <div class="card api-status-card">
                     <div class="card-header bg-warning text-dark">
@@ -149,6 +105,7 @@
                 </div>
             </div>
 
+            <!-- KBank API -->
             <div class="col-md-4">
                 <div class="card api-status-card">
                     <div class="card-header bg-primary text-white">
@@ -163,6 +120,7 @@
                 </div>
             </div>
 
+            <!-- LINE API -->
             <div class="col-md-4">
                 <div class="card api-status-card">
                     <div class="card-header bg-success text-white">
@@ -178,6 +136,7 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -186,17 +145,14 @@
                     </div>
                     <div class="card-body">
                         <div class="d-flex gap-2 flex-wrap">
-                            <button class="btn btn-outline-success" onclick="toggleSlipSystem()" id="toggleSlipBtn">
+                            <button class="btn btn-outline-success" onclick="toggleSlipSystem()">
                                 <i class="fas fa-toggle-on me-1"></i>Toggle Slip System
                             </button>
                             <button class="btn btn-outline-primary" onclick="resetAPIFailures()">
                                 <i class="fas fa-redo me-1"></i>Reset API Failures
                             </button>
-                            <button class="btn btn-outline-info" onclick="testAllAPIs()">
-                                <i class="fas fa-vial me-1"></i>Test All APIs
-                            </button>
-                            <button class="btn btn-outline-warning" onclick="clearCache()">
-                                <i class="fas fa-trash me-1"></i>Clear Cache
+                            <button class="btn btn-outline-info" onclick="testKBankSandbox()">
+                                <i class="fas fa-university me-1"></i>Test KBank Sandbox
                             </button>
                             <a href="/admin/settings" class="btn btn-outline-secondary">
                                 <i class="fas fa-cog me-1"></i>Settings
@@ -209,175 +165,16 @@
                 </div>
             </div>
         </div>
-
-        {% if system_status %}
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h6><i class="fas fa-clock me-2"></i>System Information</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Slip System:</strong> 
-                                    <span class="badge {{ 'bg-success' if system_status.system_enabled else 'bg-danger' }}">
-                                        {{ 'Enabled' if system_status.system_enabled else 'Disabled' }}
-                                    </span>
-                                </p>
-                                <p><strong>APIs Available:</strong> 
-                                    <span class="badge {{ 'bg-success' if system_status.any_api_available else 'bg-warning' }}">
-                                        {{ 'Yes' if system_status.any_api_available else 'No' }}
-                                    </span>
-                                </p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>Total Messages:</strong> {{ total_chat_history }}</p>
-                                <p><strong>Last Updated:</strong> <span id="lastUpdated">Just now</span></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <small class="text-muted">
-                            LINE OA Middleware v2.0 - Admin Dashboard
-                            <br>
-                            <a href="/health" target="_blank" class="text-muted me-3">
-                                <i class="fas fa-heartbeat me-1"></i>Health Check
-                            </a>
-                            <a href="/admin/debug" class="text-muted me-3">
-                                <i class="fas fa-terminal me-1"></i>Debug Console
-                            </a>
-                            <a href="/ws/notifications" class="text-muted" onclick="connectWebSocket(); return false;">
-                                <i class="fas fa-plug me-1"></i>Connect WebSocket
-                            </a>
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let statusUpdateInterval;
-        let websocket = null;
-
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Admin Dashboard initialized');
             refreshAllStatus();
-            connectWebSocket();
-            
-            // Auto-refresh every 30 seconds
-            statusUpdateInterval = setInterval(refreshAllStatus, 30000);
-            
-            // Update last updated time
-            setInterval(updateLastUpdated, 1000);
+            setInterval(refreshAllStatus, 30000);
         });
 
-        // WebSocket connection
-        function connectWebSocket() {
-            try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-                websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = function(event) {
-                    console.log('✅ WebSocket connected');
-                    showNotification('WebSocket connected', 'success');
-                };
-                
-                websocket.onmessage = function(event) {
-                    const notification = JSON.parse(event.data);
-                    showNotification(notification.message, notification.type);
-                    
-                    // Refresh status if needed
-                    if (notification.type === 'error' || notification.type === 'success') {
-                        setTimeout(refreshAllStatus, 1000);
-                    }
-                };
-                
-                websocket.onclose = function(event) {
-                    console.log('❌ WebSocket disconnected');
-                    // Try to reconnect after 5 seconds
-                    setTimeout(connectWebSocket, 5000);
-                };
-                
-                websocket.onerror = function(error) {
-                    console.error('❌ WebSocket error:', error);
-                };
-            } catch (error) {
-                console.error('❌ WebSocket connection failed:', error);
-            }
-        }
-
-        // Show notification
-        function showNotification(message, type = 'info') {
-            const notificationArea = document.getElementById('notificationArea');
-            const alertClass = type === 'success' ? 'alert-success' : 
-                                 type === 'error' ? 'alert-danger' : 
-                                 type === 'warning' ? 'alert-warning' : 'alert-info';
-            
-            const notification = document.createElement('div');
-            notification.className = `alert ${alertClass} alert-dismissible fade show`;
-            notification.innerHTML = `
-                <strong>${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            
-            notificationArea.appendChild(notification);
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 5000);
-        }
-
-        // Show loading overlay
-        function showLoading() {
-            document.getElementById('loadingOverlay').style.display = 'flex';
-        }
-
-        // Hide loading overlay
-        function hideLoading() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
-
-        // Refresh all status
         async function refreshAllStatus() {
-            const refreshBtn = document.getElementById('refreshBtn');
-            const originalText = refreshBtn.innerHTML;
-            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
-            refreshBtn.disabled = true;
-            
-            try {
-                await Promise.all([
-                    updateSystemStatus(),
-                    updateAPIStatus()
-                ]);
-                
-                document.getElementById('lastUpdated').textContent = 'Just now';
-                
-            } catch (error) {
-                console.error('❌ Failed to refresh status:', error);
-                showNotification('Failed to refresh system status', 'error');
-            } finally {
-                refreshBtn.innerHTML = originalText;
-                refreshBtn.disabled = false;
-            }
-        }
-
-        // Update system status
-        async function updateSystemStatus() {
             try {
                 const response = await fetch('/admin/api-status');
                 const data = await response.json();
@@ -396,181 +193,82 @@
                 ].filter(Boolean).length;
                 document.getElementById('apiCount').textContent = `${connectedAPIs}/3`;
                 
-                return data;
+                // Update API status cards
+                updateAPIStatusCard('thunderApiStatus', data.thunder);
+                updateAPIStatusCard('kbankApiStatus', data.kbank);
+                updateAPIStatusCard('lineApiStatus', data.line, data.line?.bot_name);
+                
             } catch (error) {
-                console.error('❌ Failed to get system status:', error);
-                document.getElementById('systemStatus').innerHTML = '<i class="fas fa-question-circle text-warning"></i>';
-                document.getElementById('apiCount').textContent = '?/3';
-                throw error;
+                console.error('Failed to refresh status:', error);
             }
         }
 
-        // Update API status
-        async function updateAPIStatus() {
-            try {
-                const response = await fetch('/admin/api-status');
-                const data = await response.json();
-                
-                // Update Thunder API status
-                document.getElementById('thunderApiStatus').innerHTML = createAPIStatusHTML(data.thunder);
-                
-                // Update KBank API status
-                document.getElementById('kbankApiStatus').innerHTML = createAPIStatusHTML(data.kbank);
-                
-                // Update LINE API status
-                document.getElementById('lineApiStatus').innerHTML = createAPIStatusHTML(data.line, data.line?.bot_name);
-                
-            } catch (error) {
-                console.error('❌ Failed to get API status:', error);
-                ['thunderApiStatus', 'kbankApiStatus', 'lineApiStatus'].forEach(id => {
-                    document.getElementById(id).innerHTML = `
-                        <div class="text-center text-danger">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <span class="ms-2">Failed to load</span>
-                        </div>
-                    `;
-                });
-                throw error;
-            }
-        }
-
-        // Create API status HTML
-        function createAPIStatusHTML(apiData, extraInfo = null) {
+        function updateAPIStatusCard(elementId, apiData, extraInfo = null) {
+            const element = document.getElementById(elementId);
             if (!apiData) {
-                return `
-                    <div class="text-center text-muted">
-                        <i class="fas fa-question-circle"></i>
-                        <span class="ms-2">No data</span>
-                    </div>
-                `;
+                element.innerHTML = '<div class="text-center text-muted">No data</div>';
+                return;
             }
             
             const statusColor = apiData.connected ? 'success' : apiData.configured ? 'warning' : 'danger';
-            const statusIcon = apiData.connected ? 'check-circle' : apiData.configured ? 'exclamation-triangle' : 'times-circle';
             const statusText = apiData.connected ? 'Connected' : apiData.configured ? 'Configured' : 'Not Configured';
             
-            return `
-                <div class="d-flex justify-content-between align-items-center mb-2">
+            element.innerHTML = `
+                <div class="d-flex justify-content-between mb-2">
                     <span>Status:</span>
-                    <span class="badge bg-${statusColor}">
-                        <i class="fas fa-${statusIcon} me-1"></i>${statusText}
-                    </span>
+                    <span class="badge bg-${statusColor}">${statusText}</span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex justify-content-between mb-2">
                     <span>Enabled:</span>
                     <span class="badge ${apiData.enabled ? 'bg-primary' : 'bg-secondary'}">
                         ${apiData.enabled ? 'Yes' : 'No'}
                     </span>
                 </div>
-                ${extraInfo ? `
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Info:</span>
-                    <small class="text-muted">${extraInfo}</small>
-                </div>
-                ` : `
-                <small class="text-muted">
-                    Failures: ${apiData.recent_failures || 0}
-                </small>
-                `}
+                ${extraInfo ? `<small class="text-muted">${extraInfo}</small>` : `<small class="text-muted">Failures: ${apiData.recent_failures || 0}</small>`}
             `;
         }
 
-        // Toggle slip system
         async function toggleSlipSystem() {
-            const btn = document.getElementById('toggleSlipBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Toggling...';
-            btn.disabled = true;
-            
             try {
-                const response = await fetch('/admin/toggle-slip-system', {
-                    method: 'POST'
-                });
+                const response = await fetch('/admin/toggle-slip-system', { method: 'POST' });
                 const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showNotification(result.message, 'success');
-                    setTimeout(refreshAllStatus, 1000);
-                } else {
-                    showNotification(result.message || 'Failed to toggle system', 'error');
-                }
+                alert(result.message);
+                refreshAllStatus();
             } catch (error) {
-                console.error('❌ Toggle slip system error:', error);
-                showNotification('Failed to toggle slip system', 'error');
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                alert('Failed to toggle slip system');
             }
         }
 
-        // Reset API failures
         async function resetAPIFailures() {
             try {
-                const response = await fetch('/admin/reset-failures', {
-                    method: 'POST'
+                const response = await fetch('/admin/reset-failures', { method: 'POST' });
+                const result = await response.json();
+                alert(result.message);
+                refreshAllStatus();
+            } catch (error) {
+                alert('Failed to reset API failures');
+            }
+        }
+
+        async function testKBankSandbox() {
+            try {
+                const response = await fetch('/admin/test-kbank-sandbox', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        consumer_id: 'suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr',
+                        consumer_secret: 'goOfPtGLoGxYP3DG',
+                        bank_id: '004',
+                        trans_ref: 'TEST123456789'
+                    })
                 });
                 const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showNotification('API failures reset successfully', 'success');
-                    refreshAllStatus();
-                } else {
-                    showNotification('Failed to reset API failures', 'error');
-                }
+                alert(`KBank Sandbox Test: ${result.message}`);
+                console.log('KBank Test Result:', result);
             } catch (error) {
-                console.error('❌ Reset failures error:', error);
-                showNotification('Failed to reset API failures', 'error');
+                alert('Failed to test KBank Sandbox');
             }
         }
-
-        // Test all APIs
-        function testAllAPIs() {
-            showLoading();
-            showNotification('Starting API tests...', 'info');
-            
-            // Simulate API testing (you can implement actual API testing here)
-            setTimeout(() => {
-                hideLoading();
-                showNotification('API testing completed. Check debug console for details.', 'info');
-                refreshAllStatus();
-            }, 3000);
-        }
-
-        // Clear cache
-        async function clearCache() {
-            try {
-                const response = await fetch('/admin/clear-duplicate-cache');
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showNotification(result.message, 'success');
-                } else {
-                    showNotification('Failed to clear cache', 'error');
-                }
-            } catch (error) {
-                console.error('❌ Clear cache error:', error);
-                showNotification('Failed to clear cache', 'error');
-            }
-        }
-
-        // Update last updated time
-        function updateLastUpdated() {
-            const lastUpdatedElement = document.getElementById('lastUpdated');
-            if (lastUpdatedElement && lastUpdatedElement.textContent !== 'Just now') {
-                const now = new Date();
-                lastUpdatedElement.textContent = now.toLocaleTimeString('th-TH');
-            }
-        }
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
-            if (statusUpdateInterval) {
-                clearInterval(statusUpdateInterval);
-            }
-            if (websocket) {
-                websocket.close();
-            }
-        });
     </script>
 </body>
 </html>
