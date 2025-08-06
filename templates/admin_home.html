@@ -429,5 +429,133 @@
         // Auto refresh every 30 seconds
         setInterval(loadDashboardData, 30000);
     });
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+    loadMySQLStatus();
+    // Auto-refresh every 30 seconds
+    setInterval(loadMySQLStatus, 30000);
+});
+
+async function loadMySQLStatus() {
+    try {
+        const response = await fetch('/admin/mysql-status');
+        const data = await response.json();
+        
+        if (data.mysql) {
+            const mysql = data.mysql;
+            let statusHtml = '';
+            
+            if (mysql.status === 'connected') {
+                statusHtml = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>MySQL Connected</strong>
+                            </div>
+                            <table class="table table-sm">
+                                <tr><td><strong>Host:</strong></td><td>${mysql.host}</td></tr>
+                                <tr><td><strong>Database:</strong></td><td>${mysql.database}</td></tr>
+                                <tr><td><strong>User:</strong></td><td>${mysql.user}</td></tr>
+                                <tr><td><strong>Version:</strong></td><td>${mysql.version}</td></tr>
+                                <tr><td><strong>Tables:</strong></td><td>${mysql.table_count}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Record Counts</h6>
+                            <table class="table table-sm">
+                                ${Object.entries(mysql.record_counts || {}).map(([table, count]) => 
+                                    `<tr><td>${table}:</td><td><span class="badge bg-info">${count}</span></td></tr>`
+                                ).join('')}
+                            </table>
+                            ${mysql.activity_24h !== undefined ? 
+                                `<div class="mt-3">
+                                    <strong>Activity (24h):</strong> 
+                                    <span class="badge bg-primary">${mysql.activity_24h} messages</span>
+                                </div>` : ''
+                            }
+                        </div>
+                    </div>
+                `;
+            } else {
+                statusHtml = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>
+                        <strong>MySQL Disconnected</strong>
+                        <br>
+                        <small>${mysql.error || 'Connection failed'}</small>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-warning" onclick="initMySQLTables()">
+                            <i class="fas fa-database me-1"></i> Initialize Tables
+                        </button>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('mysql-status-content').innerHTML = statusHtml;
+        }
+    } catch (error) {
+        document.getElementById('mysql-status-content').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error loading MySQL status: ${error.message}
+            </div>
+        `;
+    }
+}
+
+async function testMySQLConnection() {
+    try {
+        showNotification('Testing MySQL connection...', 'info');
+        
+        const response = await fetch('/admin/test-mysql', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.status === 'connected') {
+            showNotification('✅ MySQL connection successful', 'success');
+        } else {
+            showNotification(`❌ MySQL connection failed: ${data.error}`, 'error');
+        }
+        
+        // Reload status
+        loadMySQLStatus();
+        
+    } catch (error) {
+        showNotification('Error testing connection', 'error');
+    }
+}
+
+async function initMySQLTables() {
+    if (!confirm('Initialize MySQL tables? This will create missing tables.')) {
+        return;
+    }
+    
+    try {
+        showNotification('Initializing MySQL tables...', 'info');
+        
+        const response = await fetch('/admin/init-mysql-tables', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('✅ All tables initialized successfully', 'success');
+        } else if (data.status === 'partial') {
+            showNotification('⚠️ Some tables failed to initialize', 'warning');
+        } else {
+            showNotification(`❌ Failed: ${data.message}`, 'error');
+        }
+        
+        // Reload status
+        setTimeout(loadMySQLStatus, 1000);
+        
+    } catch (error) {
+        showNotification('Error initializing tables', 'error');
+    }
+}
 </script>
 {% endblock %}
