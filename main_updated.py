@@ -126,7 +126,8 @@ database_functions = {}
 ai_functions = {}
 slip_functions = {}
 
-def safe_import_modules():
+# ในส่วน safe_import_modules() แก้ไขเป็น:
+async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
     global IS_READY, config_manager, database_functions, ai_functions, slip_functions
     
@@ -138,22 +139,30 @@ def safe_import_modules():
         config_manager = cm
         logger.info("✅ Config manager imported")
         
-        # Database functions
+        # Database functions - Initialize async
         try:
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history
+                get_recent_chat_history, get_user_chat_history, test_connection
             )
+            
+            # Initialize database asynchronously
+            await init_database()
+            logger.info("✅ Database initialized")
+            
             database_functions = {
                 'init_database': init_database,
                 'save_chat_history': save_chat_history,
                 'get_chat_history_count': get_chat_history_count,
                 'get_recent_chat_history': get_recent_chat_history,
-                'get_user_chat_history': get_user_chat_history
+                'get_user_chat_history': get_user_chat_history,
+                'test_connection': test_connection
             }
             logger.info("✅ Database modules imported")
+            
         except ImportError as e:
             logger.warning(f"⚠️ Database import failed: {e}")
+            # Fallback functions...
             database_functions = {
                 'init_database': lambda: None,
                 'save_chat_history': lambda u, d, m, s: None,
