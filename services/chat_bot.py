@@ -1,24 +1,37 @@
-# services/chat_bot.py - Updated for stable config
+# services/chat_bot.py - แก้ไข import path
 import logging
 import requests
 import json
 from typing import Dict, Any, List
-from utils.stable_config_manager import config_manager
-from models.postgres_database import get_user_chat_history
+
+# แก้ไข: ใช้ import path ที่ถูกต้อง
+try:
+    # ลองใช้ stable_config_manager ก่อน
+    from utils.stable_config_manager import config_manager
+except ImportError:
+    # ถ้าไม่มีให้ใช้ config_manager ปกติ
+    from utils.config_manager import config_manager
+
+# แก้ไข: import ที่ถูกต้อง
+try:
+    from models.postgres_database import get_user_chat_history
+except ImportError:
+    # Fallback function if postgres not available
+    def get_user_chat_history(user_id: str, limit: int = 10):
+        return []
 
 logger = logging.getLogger("chat_bot_service")
 
 def get_chat_response(text: str, user_id: str) -> str:
     """Enhanced chat response with stable configuration"""
     try:
-        # ตรวจสอบการตั้งค่า AI อย่างละเอียดด้วย stable config
+        # ตรวจสอบการตั้งค่า AI
         ai_enabled = config_manager.get("ai_enabled", False)
         api_key = config_manager.get("openai_api_key", "").strip()
         ai_prompt = config_manager.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ")
         
         logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
         
-        # ตรวจสอบว่า AI เปิดใช้งานจริง ๆ
         if not ai_enabled:
             logger.info("🚫 AI disabled by configuration")
             return "ระบบ AI ถูกปิดการใช้งานค่ะ"
@@ -35,7 +48,7 @@ def get_chat_response(text: str, user_id: str) -> str:
             {"role": "user", "content": text}
         ]
 
-        # เรียก OpenAI API ด้วย enhanced error handling
+        # เรียก OpenAI API
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
