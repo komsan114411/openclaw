@@ -1670,6 +1670,29 @@ async def test_kbank_api_direct(request: Request):
 
 # เพิ่มใน main_updated.py
 
+# เพิ่มใน main_updated.py
+
+@app.get("/admin/db-status")
+async def get_db_status():
+    """Get detailed database connection status"""
+    from models.database import get_connection_info, test_connection
+    
+    # Get current connection info
+    connection_info = get_connection_info()
+    
+    # Test current connection
+    test_result = test_connection()
+    
+    return JSONResponse({
+        "timestamp": datetime.now().isoformat(),
+        "connection": connection_info,
+        "test": test_result,
+        "environment": {
+            "USE_MONGODB": os.getenv('USE_MONGODB'),
+            "MONGODB_URI_EXISTS": bool(os.getenv('MONGODB_URI'))
+        }
+    })
+
 @app.post("/admin/kbank/update-credentials")
 async def update_kbank_credentials_endpoint(request: Request):
     """อัปเดต KBank credentials"""
