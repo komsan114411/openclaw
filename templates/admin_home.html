@@ -18,6 +18,32 @@
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-database me-2"></i>
+                    MySQL Database Status
+                </h5>
+                <button class="btn btn-sm btn-primary" onclick="testMySQLConnection()">
+                    <i class="fas fa-plug me-1"></i> Test Connection
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="mysql-status-content">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Checking MySQL connection...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- System Status Cards -->
 <div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-3">
