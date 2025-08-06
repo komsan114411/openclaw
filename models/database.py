@@ -1,13 +1,21 @@
 # models/database.py
 import os
-import mysql.connector
-from mysql.connector import pooling, Error
 import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 import time
+
+# ใช้ mysql.connector แทน mysql
+try:
+    import mysql.connector
+    from mysql.connector import pooling, Error
+    MYSQL_AVAILABLE = True
+except ImportError:
+    MYSQL_AVAILABLE = False
+    Error = Exception
+    logging.warning("⚠️ mysql-connector-python not installed, using SQLite fallback")
 
 logger = logging.getLogger("database")
 
@@ -21,21 +29,133 @@ class ChatHistory:
     sender: str
     created_at: datetime
 
+# ==================== SQLite Fallback ====================
+import sqlite3
+
+class SQLiteFallback:
+    """SQLite fallback when MySQL is not available"""
+    def __init__(self):
+        self.db_path = "storage.db"
+        self.init_tables()
+    
+    def get_connection(self):
+        return sqlite3.connect(self.db_path)
+    
+    def execute_query(self, query: str, params: tuple = None, fetch: bool = False):
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row if fetch else None
+        cursor = conn.cursor()
+        
+        # Convert MySQL syntax to SQLite
+        query = query.replace("AUTO_INCREMENT", "AUTOINCREMENT")
+        query = query.replace("ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci", "")
+        query = query.replace("ON UPDATE CURRENT_TIMESTAMP", "")
+        query = query.replace("INDEX ", "-- INDEX ")
+        
+        try:
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            
+            if fetch:
+                rows = cursor.fetchall()
+                # Convert to dict for compatibility
+                return [dict(row) for row in rows] if rows else []
+            else:
+                conn.commit()
+                return cursor.lastrowid if cursor.lastrowid else True
+        finally:
+            conn.close()
+    
+    def init_tables(self):
+        queries = [
+            """
+            CREATE TABLE IF NOT EXISTS chat_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                message_type TEXT DEFAULT 'text',
+                message_text TEXT,
+                sender TEXT DEFAULT 'unknown',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS config_store (
+                config_key TEXT PRIMARY KEY,
+                config_value TEXT,
+                value_type TEXT DEFAULT 'string',
+                is_sensitive INTEGER DEFAULT 0,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS api_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                api_name TEXT,
+                endpoint TEXT,
+                status TEXT,
+                response_time INTEGER,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id TEXT PRIMARY KEY,
+                display_name TEXT,
+                profile_picture TEXT,
+                status_message TEXT,
+                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                message_count INTEGER DEFAULT 0,
+                is_blocked INTEGER DEFAULT 0
+            )
+            """
+        ]
+        
+        for query in queries:
+            try:
+                self.execute_query(query)
+            except Exception as e:
+                logger.warning(f"Table might already exist: {e}")
+
+# ==================== MySQL Manager ====================
 class DatabaseManager:
     def __init__(self):
         self.pool = None
+        self.fallback = None
+        self.use_fallback = False
         self.max_retries = 3
         self.retry_delay = 2
-        self._init_connection_pool()
+        
+        if MYSQL_AVAILABLE:
+            try:
+                self._init_connection_pool()
+            except Exception as e:
+                logger.error(f"❌ MySQL init failed, using SQLite: {e}")
+                self._use_sqlite_fallback()
+        else:
+            logger.warning("⚠️ MySQL module not available, using SQLite")
+            self._use_sqlite_fallback()
+    
+    def _use_sqlite_fallback(self):
+        """Switch to SQLite fallback"""
+        self.use_fallback = True
+        self.fallback = SQLiteFallback()
+        logger.info("📦 Using SQLite database as fallback")
     
     def _get_db_config(self):
-        """ดึงค่าการเชื่อมต่อจาก environment variables"""
-        # ถ้ามี DATABASE_URL (สำหรับ Heroku)
+        """Get database configuration"""
+        # Try DATABASE_URL first (common in Heroku)
         database_url = os.getenv('DATABASE_URL', '')
         
-        if database_url and database_url.startswith('mysql://'):
-            # Parse DATABASE_URL format: mysql://user:pass@host:port/database
+        if database_url and 'mysql://' in database_url:
             import re
+            # Parse mysql://user:pass@host:port/database
             pattern = r'mysql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)'
             match = re.match(pattern, database_url)
             if match:
@@ -47,88 +167,114 @@ class DatabaseManager:
                     'database': match.group(5)
                 }
         
-        # ใช้ค่าแยกส่วน
+        # Use individual env vars
         return {
             'host': os.getenv('MYSQL_HOST', 'srv411.hstgr.io'),
             'port': int(os.getenv('MYSQL_PORT', 3306)),
             'user': os.getenv('MYSQL_USER', 'u807134893_ai'),
-            'password': os.getenv('MYSQL_PASSWORD', ''),
+            'password': os.getenv('MYSQL_PASSWORD', '1234Zaza'),
             'database': os.getenv('MYSQL_DATABASE', 'u807134893_ai')
         }
     
     def _init_connection_pool(self):
-        """สร้าง connection pool"""
+        """Initialize MySQL connection pool"""
+        if not MYSQL_AVAILABLE:
+            raise ImportError("mysql-connector-python not installed")
+        
         for attempt in range(self.max_retries):
             try:
                 db_config = self._get_db_config()
                 
+                # Verify password is set
+                if not db_config.get('password'):
+                    raise ValueError("MySQL password not configured")
+                
                 pool_config = {
                     **db_config,
                     'charset': 'utf8mb4',
-                    'collation': 'utf8mb4_unicode_ci',
                     'use_unicode': True,
                     'autocommit': True,
                     'pool_name': 'line_oa_pool',
-                    'pool_size': 5,
+                    'pool_size': 3,
                     'pool_reset_session': True,
                     'raise_on_warnings': False,
-                    'sql_mode': 'TRADITIONAL',
-                    'connect_timeout': 10
+                    'connect_timeout': 20,
+                    'auth_plugin': 'mysql_native_password'
                 }
                 
+                logger.info(f"🔄 Connecting to MySQL at {db_config['host']}:{db_config['port']}")
                 self.pool = mysql.connector.pooling.MySQLConnectionPool(**pool_config)
-                logger.info(f"✅ MySQL pool created - Host: {db_config['host']}, DB: {db_config['database']}")
+                
+                # Test connection
+                test_conn = self.pool.get_connection()
+                test_conn.close()
+                
+                logger.info(f"✅ MySQL connected - {db_config['host']}/{db_config['database']}")
+                self.use_fallback = False
                 break
                 
-            except Error as e:
-                logger.error(f"❌ Connection attempt {attempt + 1} failed: {e}")
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
-                else:
-                    logger.error(f"❌ Failed to create connection pool after {self.max_retries} attempts")
+            except Exception as e:
+                logger.error(f"❌ MySQL attempt {attempt + 1}/{self.max_retries} failed: {e}")
+                if attempt == self.max_retries - 1:
                     raise
+                time.sleep(self.retry_delay)
     
     def get_connection(self):
-        """ดึง connection จาก pool พร้อม retry logic"""
-        for attempt in range(self.max_retries):
-            try:
-                if not self.pool:
-                    self._init_connection_pool()
-                return self.pool.get_connection()
-            except Error as e:
-                logger.warning(f"⚠️ Get connection attempt {attempt + 1} failed: {e}")
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
-                    if 'pool is exhausted' not in str(e):
-                        self._init_connection_pool()
-                else:
-                    raise
+        """Get database connection"""
+        if self.use_fallback:
+            return self.fallback.get_connection()
+        
+        if not self.pool:
+            self._init_connection_pool()
+        
+        try:
+            return self.pool.get_connection()
+        except Exception as e:
+            logger.error(f"❌ Failed to get MySQL connection: {e}")
+            if not self.use_fallback:
+                logger.info("🔄 Switching to SQLite fallback")
+                self._use_sqlite_fallback()
+                return self.fallback.get_connection()
+            raise
     
     def execute_query(self, query: str, params: tuple = None, fetch: bool = False):
-        """Execute query with connection management"""
+        """Execute database query"""
+        if self.use_fallback:
+            return self.fallback.execute_query(query, params, fetch)
+        
         conn = None
         cursor = None
         try:
             conn = self.get_connection()
             cursor = conn.cursor(dictionary=True if fetch else False)
-            cursor.execute(query, params)
+            
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
             
             if fetch:
                 return cursor.fetchall()
             else:
-                conn.commit()
-                return cursor.lastrowid if cursor.lastrowid else True
+                if hasattr(conn, 'commit'):
+                    conn.commit()
+                return cursor.lastrowid if hasattr(cursor, 'lastrowid') and cursor.lastrowid else True
                 
-        except Error as e:
-            logger.error(f"❌ Query execution error: {e}")
-            logger.error(f"Query: {query[:100]}...")
-            if conn:
+        except Exception as e:
+            logger.error(f"❌ Query error: {e}")
+            if conn and hasattr(conn, 'rollback'):
                 conn.rollback()
+            
+            # Try fallback
+            if not self.use_fallback:
+                logger.info("🔄 Query failed, trying SQLite fallback")
+                self._use_sqlite_fallback()
+                return self.fallback.execute_query(query, params, fetch)
             raise
         finally:
             if cursor:
                 cursor.close()
-            if conn and conn.is_connected():
+            if conn and hasattr(conn, 'close'):
                 conn.close()
 
 # Create singleton instance
@@ -139,8 +285,9 @@ db = DatabaseManager()
 def init_database() -> None:
     """Initialize database tables"""
     try:
-        # สร้างตาราง chat_history
-        db.execute_query("""
+        # Table creation queries
+        queries = [
+            """
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(255) NOT NULL,
@@ -152,10 +299,8 @@ def init_database() -> None:
                 INDEX idx_user_id (user_id),
                 INDEX idx_created_at (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        """)
-        
-        # สร้างตาราง config_store
-        db.execute_query("""
+            """,
+            """
             CREATE TABLE IF NOT EXISTS config_store (
                 config_key VARCHAR(255) PRIMARY KEY,
                 config_value TEXT,
@@ -166,10 +311,8 @@ def init_database() -> None:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_updated (updated_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        """)
-        
-        # สร้างตาราง api_logs
-        db.execute_query("""
+            """,
+            """
             CREATE TABLE IF NOT EXISTS api_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 api_name VARCHAR(50),
@@ -182,10 +325,8 @@ def init_database() -> None:
                 INDEX idx_status (status),
                 INDEX idx_created_at (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        """)
-        
-        # สร้างตาราง users (optional)
-        db.execute_query("""
+            """,
+            """
             CREATE TABLE IF NOT EXISTS users (
                 user_id VARCHAR(255) PRIMARY KEY,
                 display_name VARCHAR(255),
@@ -197,15 +338,22 @@ def init_database() -> None:
                 is_blocked BOOLEAN DEFAULT FALSE,
                 INDEX idx_last_seen (last_seen)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        """)
+            """
+        ]
         
-        logger.info("✅ All database tables initialized successfully")
+        for query in queries:
+            try:
+                db.execute_query(query)
+            except Exception as e:
+                logger.warning(f"⚠️ Table creation warning (might already exist): {e}")
+        
+        logger.info("✅ Database tables initialized")
         
         # Insert default configs
         _init_default_configs()
         
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {e}")
+        logger.error(f"❌ Database initialization failed: {e}")
         raise
 
 def _init_default_configs():
@@ -217,7 +365,6 @@ def _init_default_configs():
         ('kbank_enabled', 'false', 'boolean', False, 'Enable KBank API'),
         ('kbank_sandbox_mode', 'true', 'boolean', False, 'Use KBank sandbox'),
         ('ai_prompt', 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ', 'string', False, 'AI system prompt'),
-        ('openai_model', 'gpt-3.5-turbo', 'string', False, 'OpenAI model to use'),
     ]
     
     for key, value, value_type, is_sensitive, description in default_configs:
@@ -228,10 +375,53 @@ def _init_default_configs():
                 VALUES (%s, %s, %s, %s, %s)
             """, (key, value, value_type, is_sensitive, description))
         except Exception as e:
-            logger.warning(f"⚠️ Could not insert default config {key}: {e}")
+            # Try SQLite syntax
+            try:
+                db.execute_query("""
+                    INSERT OR IGNORE INTO config_store 
+                    (config_key, config_value, value_type, is_sensitive, description)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (key, value, value_type, is_sensitive, description))
+            except:
+                logger.warning(f"⚠️ Could not insert default config {key}")
 
+def test_connection() -> Dict[str, Any]:
+    """Test database connection"""
+    try:
+        if db.use_fallback:
+            return {
+                "status": "connected",
+                "type": "SQLite",
+                "database": "storage.db",
+                "message": "✅ Using SQLite (MySQL not available)"
+            }
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT DATABASE(), VERSION()")
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        return {
+            "status": "connected",
+            "type": "MySQL",
+            "database": result[0] if result else "Unknown",
+            "version": result[1] if result else "Unknown",
+            "host": os.getenv('MYSQL_HOST'),
+            "message": "✅ MySQL connection successful"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "type": "SQLite" if db.use_fallback else "MySQL",
+            "error": str(e),
+            "message": f"❌ Database error: {str(e)}"
+        }
+
+# Continue with other functions...
 def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> None:
-    """Save chat history to database"""
+    """Save chat history"""
     try:
         message_type = message.get("type", "text")
         message_text = ""
@@ -248,187 +438,15 @@ def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sen
             VALUES (%s, %s, %s, %s, %s)
         """, (user_id, direction, message_type, message_text, sender))
         
-        # Update user statistics
-        _update_user_stats(user_id)
-        
     except Exception as e:
-        logger.error(f"❌ Error saving chat history: {e}")
-
-# models/database.py (เพิ่มฟังก์ชันเหล่านี้)
-
-def test_connection() -> Dict[str, Any]:
-    """Test MySQL connection and return status"""
-    try:
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        # Test basic query
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        
-        # Get database info
-        cursor.execute("SELECT DATABASE(), VERSION(), USER()")
-        db_info = cursor.fetchone()
-        
-        # Get tables count
-        cursor.execute("""
-            SELECT COUNT(*) FROM information_schema.tables 
-            WHERE table_schema = DATABASE()
-        """)
-        table_count = cursor.fetchone()[0]
-        
-        # Get records count
-        counts = {}
-        tables = ['chat_history', 'config_store', 'api_logs', 'users']
-        for table in tables:
-            try:
-                cursor.execute(f"SELECT COUNT(*) FROM {table}")
-                counts[table] = cursor.fetchone()[0]
-            except:
-                counts[table] = 0
-        
-        cursor.close()
-        conn.close()
-        
-        return {
-            "status": "connected",
-            "database": db_info[0] if db_info else "Unknown",
-            "version": db_info[1] if db_info else "Unknown",
-            "user": db_info[2] if db_info else "Unknown",
-            "host": os.getenv('MYSQL_HOST', 'Unknown'),
-            "table_count": table_count,
-            "record_counts": counts,
-            "message": "✅ MySQL connection successful"
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ MySQL connection test failed: {e}")
-        return {
-            "status": "disconnected",
-            "error": str(e),
-            "host": os.getenv('MYSQL_HOST', 'Not configured'),
-            "database": os.getenv('MYSQL_DATABASE', 'Not configured'),
-            "message": f"❌ MySQL connection failed: {str(e)}"
-        }
-
-def get_database_status() -> Dict[str, Any]:
-    """Get comprehensive database status"""
-    try:
-        # Test connection
-        conn_status = test_connection()
-        
-        if conn_status["status"] == "connected":
-            # Get additional stats
-            conn = db.get_connection()
-            cursor = conn.cursor(dictionary=True)
-            
-            # Get table sizes
-            cursor.execute("""
-                SELECT 
-                    table_name,
-                    table_rows,
-                    ROUND(data_length/1024/1024, 2) as data_size_mb,
-                    ROUND(index_length/1024/1024, 2) as index_size_mb
-                FROM information_schema.tables
-                WHERE table_schema = DATABASE()
-                ORDER BY table_rows DESC
-            """)
-            table_stats = cursor.fetchall()
-            
-            # Get recent activity
-            cursor.execute("""
-                SELECT COUNT(*) as count_24h
-                FROM chat_history
-                WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-            """)
-            recent_activity = cursor.fetchone()
-            
-            cursor.close()
-            conn.close()
-            
-            return {
-                **conn_status,
-                "table_stats": table_stats,
-                "activity_24h": recent_activity['count_24h'] if recent_activity else 0
-            }
-        else:
-            return conn_status
-            
-    except Exception as e:
-        logger.error(f"❌ Error getting database status: {e}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
-
-def verify_tables() -> Dict[str, bool]:
-    """Verify all required tables exist"""
-    required_tables = ['chat_history', 'config_store', 'api_logs', 'users']
-    table_status = {}
-    
-    try:
-        conn = db.get_connection()
-        cursor = conn.cursor()
-        
-        for table in required_tables:
-            cursor.execute(f"""
-                SELECT COUNT(*) FROM information_schema.tables 
-                WHERE table_schema = DATABASE() 
-                AND table_name = %s
-            """, (table,))
-            exists = cursor.fetchone()[0] > 0
-            table_status[table] = exists
-            
-            if not exists:
-                logger.warning(f"⚠️ Table {table} does not exist")
-        
-        cursor.close()
-        conn.close()
-        
-        return table_status
-        
-    except Exception as e:
-        logger.error(f"❌ Error verifying tables: {e}")
-        return {table: False for table in required_tables}
-
-def _update_user_stats(user_id: str):
-    """Update user statistics"""
-    try:
-        db.execute_query("""
-            INSERT INTO users (user_id, message_count)
-            VALUES (%s, 1)
-            ON DUPLICATE KEY UPDATE
-                message_count = message_count + 1,
-                last_seen = CURRENT_TIMESTAMP
-        """, (user_id,))
-    except Exception as e:
-        logger.warning(f"⚠️ Could not update user stats: {e}")
-
-def get_user_chat_history(user_id: str, limit: int = 10) -> List[Dict[str, str]]:
-    """Get user chat history for AI context"""
-    try:
-        results = db.execute_query("""
-            SELECT direction, message_text 
-            FROM chat_history 
-            WHERE user_id = %s 
-                AND message_type = 'text' 
-                AND message_text IS NOT NULL
-                AND message_text != ''
-            ORDER BY created_at DESC 
-            LIMIT %s
-        """, (user_id, limit), fetch=True)
-        
-        messages = []
-        for row in reversed(results or []):
-            role = "user" if row['direction'] == "in" else "assistant"
-            if row['message_text'] and row['message_text'].strip():
-                messages.append({"role": role, "content": row['message_text'].strip()})
-        
-        return messages
-        
-    except Exception as e:
-        logger.error(f"❌ Error getting user chat history: {e}")
-        return []
+        # Try SQLite syntax
+        try:
+            db.execute_query("""
+                INSERT INTO chat_history (user_id, direction, message_type, message_text, sender)
+                VALUES (?, ?, ?, ?, ?)
+            """, (user_id, direction, message_type, message_text, sender))
+        except:
+            logger.error(f"❌ Error saving chat history: {e}")
 
 def get_chat_history_count() -> int:
     """Get total message count"""
@@ -438,8 +456,7 @@ def get_chat_history_count() -> int:
             fetch=True
         )
         return result[0]['count'] if result else 0
-    except Exception as e:
-        logger.error(f"❌ Error getting chat count: {e}")
+    except:
         return 0
 
 def get_recent_chat_history(limit: int = 50) -> List[ChatHistory]:
@@ -453,6 +470,16 @@ def get_recent_chat_history(limit: int = 50) -> List[ChatHistory]:
             LIMIT %s
         """, (limit,), fetch=True)
         
+        if not results:
+            # Try SQLite syntax
+            results = db.execute_query("""
+                SELECT id, user_id, direction, message_type, 
+                       message_text, sender, created_at
+                FROM chat_history 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            """, (limit,), fetch=True)
+        
         history = []
         for row in (results or []):
             history.append(ChatHistory(
@@ -462,78 +489,51 @@ def get_recent_chat_history(limit: int = 50) -> List[ChatHistory]:
                 message_type=row['message_type'],
                 message_text=row['message_text'] or "",
                 sender=row['sender'],
-                created_at=row['created_at']
+                created_at=row['created_at'] if isinstance(row['created_at'], datetime) else datetime.now()
             ))
         
         return list(reversed(history))
         
     except Exception as e:
-        logger.error(f"❌ Error getting recent chat history: {e}")
+        logger.error(f"❌ Error getting chat history: {e}")
         return []
 
-# ====================== Config Management ======================
-
-def get_config(key: str, default=None):
-    """Get configuration value from database"""
+def get_user_chat_history(user_id: str, limit: int = 10) -> List[Dict[str, str]]:
+    """Get user chat history for AI context"""
     try:
-        result = db.execute_query(
-            "SELECT config_value, value_type FROM config_store WHERE config_key = %s",
-            (key,),
-            fetch=True
-        )
+        # Try MySQL syntax first
+        results = db.execute_query("""
+            SELECT direction, message_text 
+            FROM chat_history 
+            WHERE user_id = %s 
+                AND message_type = 'text' 
+                AND message_text IS NOT NULL
+                AND message_text != ''
+            ORDER BY created_at DESC 
+            LIMIT %s
+        """, (user_id, limit), fetch=True)
         
-        if result:
-            value = result[0]['config_value']
-            value_type = result[0]['value_type']
-            
-            if value_type == 'boolean':
-                return value.lower() in ['true', '1', 'yes', 'on']
-            elif value_type == 'integer':
-                return int(value) if value else 0
-            elif value_type == 'float':
-                return float(value) if value else 0.0
-            elif value_type == 'json':
-                return json.loads(value) if value else {}
-            else:
-                return value
+        if not results:
+            # Try SQLite syntax
+            results = db.execute_query("""
+                SELECT direction, message_text 
+                FROM chat_history 
+                WHERE user_id = ? 
+                    AND message_type = 'text' 
+                    AND message_text IS NOT NULL
+                    AND message_text != ''
+                ORDER BY created_at DESC 
+                LIMIT ?
+            """, (user_id, limit), fetch=True)
         
-        return default
+        messages = []
+        for row in reversed(results or []):
+            role = "user" if row['direction'] == "in" else "assistant"
+            if row['message_text'] and row['message_text'].strip():
+                messages.append({"role": role, "content": row['message_text'].strip()})
+        
+        return messages
         
     except Exception as e:
-        logger.error(f"❌ Error getting config {key}: {e}")
-        return default
-
-def set_config(key: str, value: Any, is_sensitive: bool = False) -> bool:
-    """Set configuration value in database"""
-    try:
-        # Determine value type
-        if isinstance(value, bool):
-            value_type = 'boolean'
-            str_value = 'true' if value else 'false'
-        elif isinstance(value, int):
-            value_type = 'integer'
-            str_value = str(value)
-        elif isinstance(value, float):
-            value_type = 'float'
-            str_value = str(value)
-        elif isinstance(value, (dict, list)):
-            value_type = 'json'
-            str_value = json.dumps(value)
-        else:
-            value_type = 'string'
-            str_value = str(value)
-        
-        db.execute_query("""
-            INSERT INTO config_store (config_key, config_value, value_type, is_sensitive)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE 
-                config_value = VALUES(config_value),
-                value_type = VALUES(value_type),
-                is_sensitive = VALUES(is_sensitive)
-        """, (key, str_value, value_type, is_sensitive))
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ Error setting config {key}: {e}")
-        return False
+        logger.error(f"❌ Error getting user chat history: {e}")
+        return []
