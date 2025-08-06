@@ -1,5 +1,6 @@
 # utils/stable_config_manager.py - Production Config Manager
 import logging
+from datetime import datetime  # เพิ่ม import datetime
 from typing import Dict, Any, Optional
 from models.stable_db_manager import db_manager, ConfigModel
 
@@ -89,7 +90,7 @@ class ProductionConfigManager:
                         config.value = str(value) if value is not None else ''
                         self._cache[key] = str(value) if value is not None else ''
                     
-                    config.updated_at = datetime.utcnow() if 'datetime' in globals() else None
+                    config.updated_at = datetime.utcnow()  # ใช้ datetime ที่ import แล้ว
                 else:
                     # Create new
                     value_type = 'boolean' if isinstance(value, bool) else 'string'
@@ -129,7 +130,7 @@ class ProductionConfigManager:
                             config.value = str(value) if value is not None else ''
                             self._cache[key] = str(value) if value is not None else ''
                         
-                        config.updated_at = datetime.utcnow() if 'datetime' in globals() else None
+                        config.updated_at = datetime.utcnow()  # ใช้ datetime ที่ import แล้ว
                         updated_count += 1
                     else:
                         # Create new
