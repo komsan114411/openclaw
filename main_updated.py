@@ -1285,6 +1285,114 @@ async def get_api_status():
             "kbank": {"configured": False, "enabled": False, "connected": False}
         })
 
+@app.get("/admin/mysql-status")
+async def get_mysql_status():
+    """Get MySQL connection status"""
+    try:
+        from models.database import get_database_status
+        status = get_database_status()
+        return JSONResponse({
+            "status": "success",
+            "mysql": status
+        })
+    except Exception as e:
+        logger.error(f"❌ Get MySQL status error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e),
+            "mysql": {
+                "status": "disconnected",
+                "message": "Cannot check MySQL status"
+            }
+        })
+
+@app.post("/admin/test-mysql")
+async def test_mysql_connection():
+    """Test MySQL connection"""
+    try:
+        from models.database import test_connection
+        result = test_connection()
+        
+        await notification_manager.send_notification(
+            result["message"],
+            "success" if result["status"] == "connected" else "error"
+        )
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Test MySQL error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"Test failed: {str(e)}"
+        })
+
+@app.post("/admin/init-mysql-tables")
+async def init_mysql_tables():
+    """Initialize MySQL tables"""
+    try:
+        from models.database import init_database, verify_tables
+        
+        # Initialize tables
+        init_database()
+        
+        # Verify tables
+        table_status = verify_tables()
+        
+        all_created = all(table_status.values())
+        
+        if all_created:
+            await notification_manager.send_notification(
+                "✅ All MySQL tables initialized successfully",
+                "success"
+            )
+        else:
+            failed_tables = [t for t, exists in table_status.items() if not exists]
+            await notification_manager.send_notification(
+                f"⚠️ Some tables failed: {', '.join(failed_tables)}",
+                "warning"
+            )
+        
+        return JSONResponse({
+            "status": "success" if all_created else "partial",
+            "tables": table_status,
+            "message": "Tables initialized" if all_created else "Some tables failed"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Init MySQL tables error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint with MySQL status"""
+    try:
+        from models.database import test_connection
+        
+        mysql_status = test_connection()
+        
+        return JSONResponse({
+            "status": "ok" if IS_READY and mysql_status["status"] == "connected" else "degraded",
+            "system_ready": IS_READY,
+            "mysql_connected": mysql_status["status"] == "connected",
+            "mysql_info": {
+                "host": mysql_status.get("host"),
+                "database": mysql_status.get("database"),
+                "status": mysql_status.get("status")
+            },
+            "timestamp": datetime.now().isoformat(),
+            "active_connections": len(notification_manager.active_connections)
+        })
+    except Exception as e:
+        logger.error(f"❌ Health check error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=503)
+
 @app.get("/admin/config")
 async def get_config():
     """Get configuration"""
