@@ -1,6 +1,6 @@
 # models/database.py
 """
-Enhanced Database Module with MongoDB Atlas Support
+Enhanced Database Module with Priority Selection
 """
 
 import os
@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 import sqlite3
 import time
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -32,7 +33,6 @@ def get_connection_status():
     """Get current database connection status"""
     return CONNECTION_STATUS
 
-# ==================== Data Classes ====================
 @dataclass
 class ChatHistory:
     id: Optional[str]
@@ -43,269 +43,150 @@ class ChatHistory:
     sender: str
     created_at: datetime
 
+# ==================== Database Priority Detection ====================
+def detect_database_priority():
+    """Detect which database to use based on environment variables"""
+    
+    # Priority 1: MongoDB (if explicitly enabled)
+    use_mongodb = os.getenv('USE_MONGODB', 'false').lower() == 'true'
+    mongodb_uri = os.getenv('MONGODB_URI', '')
+    
+    # Priority 2: MySQL (if configured)
+    mysql_host = os.getenv('MYSQL_HOST', '')
+    mysql_user = os.getenv('MYSQL_USER', '')
+    mysql_password = os.getenv('MYSQL_PASSWORD', '')
+    mysql_database = os.getenv('MYSQL_DATABASE', '')
+    
+    logger.info("=" * 60)
+    logger.info("🔍 DATABASE PRIORITY DETECTION")
+    logger.info(f"   USE_MONGODB: {use_mongodb}")
+    logger.info(f"   MONGODB_URI: {'Yes' if mongodb_uri else 'No'}")
+    logger.info(f"   MySQL configured: {'Yes' if all([mysql_host, mysql_user, mysql_database]) else 'No'}")
+    logger.info("=" * 60)
+    
+    if use_mongodb and mongodb_uri:
+        return "mongodb", {"uri": mongodb_uri}
+    elif all([mysql_host, mysql_user, mysql_database]):
+        return "mysql", {
+            "host": mysql_host,
+            "user": mysql_user, 
+            "password": mysql_password,
+            "database": mysql_database,
+            "port": int(os.getenv('MYSQL_PORT', 3306))
+        }
+    else:
+        return "sqlite", {"path": "chat_history.db"}
+
 # ==================== MongoDB Implementation ====================
 try:
     from motor.motor_asyncio import AsyncIOMotorClient
     import certifi
     from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
     MONGODB_AVAILABLE = True
-    logger.info("✅ Motor and pymongo modules loaded successfully")
+    logger.info("✅ Motor/pymongo available")
 except ImportError as e:
     MONGODB_AVAILABLE = False
-    logger.error(f"❌ Motor/pymongo not available: {e}")
+    logger.warning(f"⚠️ Motor/pymongo not available: {e}")
 
 class MongoDatabase:
-    """MongoDB Atlas Database Handler with Enhanced Connection Management"""
+    """MongoDB Atlas Database Handler"""
     
-    def __init__(self):
+    def __init__(self, config):
         self.client = None
         self.db = None
         self.connected = False
-        self.connection_attempts = 0
-        self.max_retries = 3
+        self.mongodb_uri = config["uri"]
         
-    async def _connect(self):
-        """Connect to MongoDB Atlas with retry logic"""
-        global CONNECTION_STATUS
-        
-        # Get MongoDB connection details
-        mongodb_uri = os.getenv('MONGODB_URI', '')
-        use_mongodb = os.getenv('USE_MONGODB', 'false').lower() == 'true'
-        
-        if not mongodb_uri or not use_mongodb:
-            error_msg = f"MongoDB not configured - USE_MONGODB: {use_mongodb}, URI exists: {bool(mongodb_uri)}"
-            logger.warning(f"⚠️ {error_msg}")
-            CONNECTION_STATUS.update({
-                "type": "MongoDB",
-                "connected": False,
-                "error": error_msg,
-                "last_check": datetime.now().isoformat()
-            })
-            raise ValueError(error_msg)
-        
-        # Log connection attempt
-        logger.info("=" * 60)
-        logger.info("🔄 MONGODB CONNECTION ATTEMPT")
-        logger.info(f"📍 URI preview: {mongodb_uri[:50]}...")
-        logger.info(f"🔢 Attempt: {self.connection_attempts + 1}/{self.max_retries}")
-        logger.info("=" * 60)
-        
-        for attempt in range(self.max_retries):
-            self.connection_attempts = attempt + 1
-            
-            try:
-                logger.info(f"🔄 Connecting to MongoDB Atlas (Attempt {self.connection_attempts})...")
-                
-                # Create client with proper configuration
-                self.client = AsyncIOMotorClient(
-                    mongodb_uri,
-                    tlsCAFile=certifi.where(),
-                    serverSelectionTimeoutMS=10000,
-                    connectTimeoutMS=10000,
-                    socketTimeoutMS=10000,
-                    maxPoolSize=50,
-                    retryWrites=True
-                )
-                
-                # Test connection with ping
-                start_time = time.time()
-                await self.client.admin.command('ping')
-                ping_time = (time.time() - start_time) * 1000
-                
-                # Get server info
-                server_info = await self.client.server_info()
-                
-                # Extract database name from URI or use default
-                db_name = self._extract_database_name(mongodb_uri)
-                self.db = self.client[db_name]
-                
-                # Create indexes
-                await self._create_indexes()
-                
-                # Update connection status
-                CONNECTION_STATUS.update({
-                    "type": "MongoDB Atlas",
-                    "connected": True,
-                    "error": None,
-                    "last_check": datetime.now().isoformat(),
-                    "details": {
-                        "database": db_name,
-                        "version": server_info.get('version', 'unknown'),
-                        "ping_ms": round(ping_time, 2),
-                        "connection_attempts": self.connection_attempts,
-                        "server_info": server_info
-                    }
-                })
-                
-                self.connected = True
-                
-                logger.info("=" * 60)
-                logger.info("✅ MONGODB CONNECTION SUCCESS!")
-                logger.info(f"📊 Database: {db_name}")
-                logger.info(f"⚡ Ping: {ping_time:.2f}ms")
-                logger.info(f"🔢 MongoDB Version: {server_info.get('version', 'unknown')}")
-                logger.info("=" * 60)
-                
-                return
-                
-            except ServerSelectionTimeoutError as e:
-                error_msg = f"MongoDB connection timeout (attempt {self.connection_attempts}): Connection timed out"
-                logger.error(f"⏱️ {error_msg}")
-                CONNECTION_STATUS["error"] = error_msg
-                
-            except ConnectionFailure as e:
-                error_msg = f"MongoDB connection failed (attempt {self.connection_attempts}): {str(e)}"
-                logger.error(f"❌ {error_msg}")
-                CONNECTION_STATUS["error"] = error_msg
-                
-            except Exception as e:
-                error_msg = f"Unexpected MongoDB error (attempt {self.connection_attempts}): {str(e)}"
-                logger.error(f"💥 {error_msg}")
-                CONNECTION_STATUS["error"] = error_msg
-            
-            if attempt < self.max_retries - 1:
-                wait_time = 2 ** attempt  # Exponential backoff
-                logger.info(f"⏳ Waiting {wait_time} seconds before retry...")
-                await asyncio.sleep(wait_time)
-        
-        # All attempts failed
-        CONNECTION_STATUS.update({
-            "type": "MongoDB Atlas",
-            "connected": False,
-            "last_check": datetime.now().isoformat(),
-            "details": {"attempts": self.connection_attempts}
-        })
-        
-        self.connected = False
-        raise ConnectionError(f"Failed to connect to MongoDB after {self.max_retries} attempts")
-    
-    def _extract_database_name(self, mongodb_uri: str) -> str:
-        """Extract database name from MongoDB URI"""
-        try:
-            # Try to extract from URI path
-            if '/' in mongodb_uri.split('?')[0]:
-                path_part = mongodb_uri.split('/')[-1].split('?')[0]
-                if path_part and path_part != '':
-                    return path_part
-            
-            # Default database name
-            return 'lineoa'
-        except:
-            return 'lineoa'
-    
-    async def _create_indexes(self):
-        """Create database indexes"""
-        try:
-            # Chat history indexes
-            await self.db.chat_history.create_index([("user_id", 1)])
-            await self.db.chat_history.create_index([("created_at", -1)])
-            
-            # Config store index
-            await self.db.config_store.create_index([("config_key", 1)], unique=True)
-            
-            # Users index
-            await self.db.users.create_index([("user_id", 1)], unique=True)
-            
-            logger.info("✅ MongoDB indexes created/verified")
-            
-        except Exception as e:
-            logger.warning(f"⚠️ Index creation warning: {e}")
-    
     async def initialize(self):
         """Initialize MongoDB connection"""
-        if not self.connected:
-            await self._connect()
-    
-    async def test_connection(self) -> Dict[str, Any]:
-        """Test MongoDB connection with detailed status"""
+        global CONNECTION_STATUS
+        
         try:
-            if not self.client:
-                await self.initialize()
+            logger.info("🚀 Initializing MongoDB Atlas...")
             
-            # Ping database
+            # Create client
+            self.client = AsyncIOMotorClient(
+                self.mongodb_uri,
+                tlsCAFile=certifi.where(),
+                serverSelectionTimeoutMS=10000,
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000,
+                maxPoolSize=50,
+                retryWrites=True
+            )
+            
+            # Test connection
             start_time = time.time()
             await self.client.admin.command('ping')
             ping_time = (time.time() - start_time) * 1000
             
-            # Get database statistics
-            try:
-                stats = await self.db.command('dbstats')
-            except:
-                stats = {}
+            # Get server info
+            server_info = await self.client.server_info()
             
-            # Count documents in collections
-            counts = {}
-            collections = ['chat_history', 'config_store', 'users']
-            for collection in collections:
-                try:
-                    counts[collection] = await self.db[collection].count_documents({})
-                except:
-                    counts[collection] = 0
+            # Extract database name
+            db_name = self._extract_database_name(self.mongodb_uri)
+            self.db = self.client[db_name]
             
-            result = {
-                "status": "connected",
-                "type": "MongoDB Atlas",
-                "database": self.db.name,
-                "ping_ms": round(ping_time, 2),
-                "collections": stats.get('collections', 0),
-                "dataSize": f"{stats.get('dataSize', 0) / 1024 / 1024:.2f} MB",
-                "storageSize": f"{stats.get('storageSize', 0) / 1024 / 1024:.2f} MB",
-                "record_counts": counts,
-                "indexes": stats.get('indexes', 0),
-                "message": f"✅ MongoDB Atlas connected (ping: {ping_time:.2f}ms)"
-            }
+            # Create indexes
+            await self._create_indexes()
             
-            # Update global status
+            self.connected = True
+            
             CONNECTION_STATUS.update({
                 "type": "MongoDB Atlas",
                 "connected": True,
                 "error": None,
                 "last_check": datetime.now().isoformat(),
-                "details": result
+                "details": {
+                    "database": db_name,
+                    "version": server_info.get('version'),
+                    "ping_ms": round(ping_time, 2)
+                }
             })
             
-            return result
+            logger.info(f"✅ MongoDB Atlas connected - Database: {db_name}, Ping: {ping_time:.2f}ms")
             
         except Exception as e:
-            error_result = {
-                "status": "error",
-                "type": "MongoDB Atlas",
-                "error": str(e),
-                "message": f"❌ MongoDB connection error: {str(e)}"
-            }
-            
+            error_msg = f"MongoDB connection failed: {str(e)}"
+            logger.error(f"❌ {error_msg}")
             CONNECTION_STATUS.update({
                 "type": "MongoDB Atlas",
                 "connected": False,
-                "error": str(e),
+                "error": error_msg,
                 "last_check": datetime.now().isoformat()
             })
-            
-            return error_result
+            raise
     
-    async def save_chat_history(self, user_id: str, direction: str, 
-                         message: Dict[str, Any], sender: str) -> None:
-        """Save chat history with connection check"""
-        if not self.connected:
-            logger.error("❌ Cannot save chat: MongoDB not connected")
-            return
-        
+    def _extract_database_name(self, mongodb_uri: str) -> str:
+        """Extract database name from URI"""
         try:
-            message_type = message.get("type", "text")
-            message_text = ""
-            
-            if message_type == "text":
-                message_text = message.get("text", "")
-            elif message_type == "image":
-                message_text = "ส่งรูปภาพ (สลิป)"
-            else:
-                message_text = f"ส่งข้อความประเภท {message_type}"
-            
+            if '/' in mongodb_uri.split('?')[0]:
+                path_part = mongodb_uri.split('/')[-1].split('?')[0]
+                if path_part and path_part != '':
+                    return path_part
+            return 'lineoa'
+        except:
+            return 'lineoa'
+    
+    async def _create_indexes(self):
+        """Create necessary indexes"""
+        try:
+            await self.db.chat_history.create_index([("user_id", 1)])
+            await self.db.chat_history.create_index([("created_at", -1)])
+            await self.db.config_store.create_index([("config_key", 1)], unique=True)
+            await self.db.users.create_index([("user_id", 1)], unique=True)
+            logger.info("✅ MongoDB indexes created")
+        except Exception as e:
+            logger.warning(f"⚠️ Index creation warning: {e}")
+    
+    async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
+        """Save chat history to MongoDB"""
+        try:
             document = {
                 "user_id": user_id,
                 "direction": direction,
-                "message_type": message_type,
-                "message_text": message_text,
+                "message_type": message.get("type", "text"),
+                "message_text": message.get("text", ""),
                 "sender": sender,
                 "created_at": datetime.utcnow()
             }
@@ -318,15 +199,12 @@ class MongoDatabase:
                 {
                     "$set": {"last_seen": datetime.utcnow()},
                     "$inc": {"message_count": 1},
-                    "$setOnInsert": {
-                        "first_seen": datetime.utcnow(),
-                        "is_blocked": False
-                    }
+                    "$setOnInsert": {"first_seen": datetime.utcnow(), "is_blocked": False}
                 },
                 upsert=True
             )
             
-            logger.info(f"✅ Chat saved to MongoDB with ID: {result.inserted_id}")
+            logger.debug(f"✅ Chat saved to MongoDB: {result.inserted_id}")
             
         except Exception as e:
             logger.error(f"❌ Error saving to MongoDB: {e}")
@@ -334,35 +212,23 @@ class MongoDatabase:
     async def get_chat_history_count(self) -> int:
         """Get total message count"""
         try:
-            if not self.connected:
-                await self.initialize()
-            count = await self.db.chat_history.count_documents({})
-            logger.debug(f"📊 Total messages in MongoDB: {count}")
-            return count
+            return await self.db.chat_history.count_documents({})
         except Exception as e:
-            logger.error(f"❌ Error counting messages: {e}")
+            logger.error(f"❌ Error counting MongoDB messages: {e}")
             return 0
     
     async def get_config(self, key: str, default=None):
-        """Get configuration value"""
+        """Get configuration from MongoDB"""
         try:
-            if not self.connected:
-                await self.initialize()
             doc = await self.db.config_store.find_one({"config_key": key})
-            if doc:
-                value = doc.get("config_value")
-                logger.debug(f"📖 Config {key} = {value}")
-                return value
-            return default
+            return doc.get("config_value") if doc else default
         except Exception as e:
             logger.error(f"❌ Error getting config {key}: {e}")
             return default
     
     async def set_config(self, key: str, value: Any, is_sensitive: bool = False) -> bool:
-        """Set configuration value"""
+        """Set configuration in MongoDB"""
         try:
-            if not self.connected:
-                await self.initialize()
             await self.db.config_store.update_one(
                 {"config_key": key},
                 {
@@ -375,22 +241,310 @@ class MongoDatabase:
                 },
                 upsert=True
             )
-            logger.info(f"✅ Config {key} saved to MongoDB")
             return True
         except Exception as e:
             logger.error(f"❌ Error setting config {key}: {e}")
             return False
 
-# ==================== SQLite Fallback Implementation ====================
-class SQLiteDatabase:
-    """SQLite fallback database with same interface"""
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test MongoDB connection"""
+        try:
+            start_time = time.time()
+            await self.client.admin.command('ping')
+            ping_time = (time.time() - start_time) * 1000
+            
+            # Get collection counts
+            counts = {}
+            for collection in ['chat_history', 'config_store', 'users']:
+                try:
+                    counts[collection] = await self.db[collection].count_documents({})
+                except:
+                    counts[collection] = 0
+            
+            return {
+                "status": "connected",
+                "type": "MongoDB Atlas",
+                "database": self.db.name,
+                "ping_ms": round(ping_time, 2),
+                "record_counts": counts,
+                "message": f"✅ MongoDB connected (ping: {ping_time:.2f}ms)"
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "type": "MongoDB Atlas",
+                "error": str(e),
+                "message": f"❌ MongoDB error: {str(e)}"
+            }
+
+# ==================== MySQL Implementation ====================
+try:
+    import mysql.connector
+    from mysql.connector import pooling
+    MYSQL_AVAILABLE = True
+    logger.info("✅ MySQL connector available")
+except ImportError as e:
+    MYSQL_AVAILABLE = False
+    logger.warning(f"⚠️ MySQL connector not available: {e}")
+
+class MySQLDatabase:
+    """MySQL Database Handler"""
     
-    def __init__(self):
-        self.DB_PATH = "chat_history.db"
-        self.init_database()
+    def __init__(self, config):
+        self.pool = None
+        self.connected = False
+        self.config = config
         
-    def init_database(self):
+    async def initialize(self):
+        """Initialize MySQL connection"""
+        global CONNECTION_STATUS
+        
+        try:
+            logger.info("🚀 Initializing MySQL...")
+            
+            # Create connection pool
+            pool_config = {
+                'host': self.config['host'],
+                'port': self.config['port'],
+                'user': self.config['user'],
+                'password': self.config['password'],
+                'database': self.config['database'],
+                'charset': 'utf8mb4',
+                'collation': 'utf8mb4_unicode_ci',
+                'use_unicode': True,
+                'autocommit': True,
+                'pool_name': 'line_oa_pool',
+                'pool_size': 5,
+                'pool_reset_session': True
+            }
+            
+            self.pool = mysql.connector.pooling.MySQLConnectionPool(**pool_config)
+            
+            # Test connection
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT VERSION()")
+            version = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
+            
+            # Initialize tables
+            self._init_tables()
+            
+            self.connected = True
+            
+            CONNECTION_STATUS.update({
+                "type": "MySQL",
+                "connected": True,
+                "error": None,
+                "last_check": datetime.now().isoformat(),
+                "details": {
+                    "host": self.config['host'],
+                    "database": self.config['database'],
+                    "version": version,
+                    "pool_size": 5
+                }
+            })
+            
+            logger.info(f"✅ MySQL connected - Host: {self.config['host']}, Database: {self.config['database']}")
+            
+        except Exception as e:
+            error_msg = f"MySQL connection failed: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            CONNECTION_STATUS.update({
+                "type": "MySQL",
+                "connected": False,
+                "error": error_msg,
+                "last_check": datetime.now().isoformat()
+            })
+            raise
+    
+    def _init_tables(self):
+        """Initialize MySQL tables"""
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            
+            # Chat history table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS chat_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    direction VARCHAR(10) NOT NULL,
+                    message_type VARCHAR(50) DEFAULT 'text',
+                    message_text TEXT,
+                    sender VARCHAR(50) DEFAULT 'unknown',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_user_id (user_id),
+                    INDEX idx_created_at (created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            # Config store table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS config_store (
+                    config_key VARCHAR(255) PRIMARY KEY,
+                    config_value TEXT,
+                    value_type VARCHAR(20) DEFAULT 'string',
+                    is_sensitive BOOLEAN DEFAULT FALSE,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            logger.info("✅ MySQL tables initialized")
+            
+        except Exception as e:
+            logger.error(f"❌ Error initializing MySQL tables: {e}")
+            raise
+    
+    async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
+        """Save chat history to MySQL"""
+        try:
+            message_type = message.get("type", "text")
+            message_text = message.get("text", "") if message_type == "text" else f"ส่งข้อความประเภท {message_type}"
+            
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO chat_history (user_id, direction, message_type, message_text, sender) VALUES (%s, %s, %s, %s, %s)",
+                (user_id, direction, message_type, message_text, sender)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            logger.debug(f"✅ Chat saved to MySQL")
+            
+        except Exception as e:
+            logger.error(f"❌ Error saving to MySQL: {e}")
+    
+    async def get_chat_history_count(self) -> int:
+        """Get total message count"""
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM chat_history")
+            count = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
+            return count
+        except Exception as e:
+            logger.error(f"❌ Error counting MySQL messages: {e}")
+            return 0
+    
+    async def get_config(self, key: str, default=None):
+        """Get configuration from MySQL"""
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT config_value, value_type FROM config_store WHERE config_key = %s", (key,))
+            result = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if result:
+                value = result['config_value']
+                value_type = result['value_type']
+                
+                # Convert to appropriate type
+                if value_type == 'boolean':
+                    return value.lower() in ['true', '1', 'yes', 'on']
+                elif value_type == 'integer':
+                    return int(value) if value else 0
+                elif value_type == 'float':
+                    return float(value) if value else 0.0
+                else:
+                    return value
+            
+            return default
+        except Exception as e:
+            logger.error(f"❌ Error getting MySQL config {key}: {e}")
+            return default
+    
+    async def set_config(self, key: str, value: Any, is_sensitive: bool = False) -> bool:
+        """Set configuration in MySQL"""
+        try:
+            # Determine value type
+            if isinstance(value, bool):
+                value_type = 'boolean'
+                str_value = 'true' if value else 'false'
+            elif isinstance(value, int):
+                value_type = 'integer'
+                str_value = str(value)
+            elif isinstance(value, float):
+                value_type = 'float'
+                str_value = str(value)
+            else:
+                value_type = 'string'
+                str_value = str(value)
+            
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO config_store (config_key, config_value, value_type, is_sensitive)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE 
+                    config_value = VALUES(config_value),
+                    value_type = VALUES(value_type),
+                    is_sensitive = VALUES(is_sensitive),
+                    updated_at = CURRENT_TIMESTAMP
+            """, (key, str_value, value_type, is_sensitive))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error setting MySQL config {key}: {e}")
+            return False
+
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test MySQL connection"""
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT VERSION()")
+            version = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM chat_history")
+            chat_count = cursor.fetchone()[0]
+            cursor.close()
+            conn.close()
+            
+            return {
+                "status": "connected",
+                "type": "MySQL",
+                "host": self.config['host'],
+                "database": self.config['database'],
+                "version": version,
+                "record_counts": {"chat_history": chat_count},
+                "message": f"✅ MySQL connected - {self.config['host']}"
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "type": "MySQL",
+                "error": str(e),
+                "message": f"❌ MySQL error: {str(e)}"
+            }
+
+# ==================== SQLite Fallback ====================
+class SQLiteDatabase:
+    """SQLite fallback database"""
+    
+    def __init__(self, config):
+        self.DB_PATH = config["path"]
+        self.connected = False
+        
+    async def initialize(self):
         """Initialize SQLite database"""
+        global CONNECTION_STATUS
+        
         try:
             conn = sqlite3.connect(self.DB_PATH)
             cursor = conn.cursor()
@@ -420,15 +574,91 @@ class SQLiteDatabase:
             conn.commit()
             conn.close()
             
-            logger.info("✅ SQLite database initialized")
+            self.connected = True
+            
+            CONNECTION_STATUS.update({
+                "type": "SQLite",
+                "connected": True,
+                "error": None,
+                "last_check": datetime.now().isoformat(),
+                "details": {"path": self.DB_PATH}
+            })
+            
+            logger.info(f"✅ SQLite initialized - Path: {self.DB_PATH}")
             
         except Exception as e:
-            logger.error(f"❌ SQLite init error: {e}")
+            error_msg = f"SQLite initialization failed: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            CONNECTION_STATUS.update({
+                "type": "SQLite",
+                "connected": False,
+                "error": error_msg,
+                "last_check": datetime.now().isoformat()
+            })
+            raise
     
-    async def initialize(self):
-        """Initialize SQLite (sync method)"""
-        pass  # Already initialized in __init__
+    async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
+        """Save chat history to SQLite"""
+        try:
+            message_type = message.get("type", "text")
+            message_text = message.get("text", "") if message_type == "text" else f"ส่งข้อความประเภท {message_type}"
+            
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO chat_history (user_id, direction, message_type, message_text, sender) VALUES (?, ?, ?, ?, ?)",
+                (user_id, direction, message_type, message_text, sender)
+            )
+            conn.commit()
+            conn.close()
+            
+            logger.debug(f"✅ Chat saved to SQLite")
+            
+        except Exception as e:
+            logger.error(f"❌ Error saving to SQLite: {e}")
     
+    async def get_chat_history_count(self) -> int:
+        """Get total message count"""
+        try:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM chat_history")
+            count = cursor.fetchone()[0]
+            conn.close()
+            return count
+        except Exception as e:
+            logger.error(f"❌ Error counting SQLite messages: {e}")
+            return 0
+    
+    async def get_config(self, key: str, default=None):
+        """Get configuration from SQLite"""
+        try:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT config_value FROM config_store WHERE config_key = ?", (key,))
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] if result else default
+        except Exception as e:
+            logger.error(f"❌ Error getting SQLite config {key}: {e}")
+            return default
+    
+    async def set_config(self, key: str, value: Any, is_sensitive: bool = False) -> bool:
+        """Set configuration in SQLite"""
+        try:
+            conn = sqlite3.connect(self.DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT OR REPLACE INTO config_store (config_key, config_value, is_sensitive) VALUES (?, ?, ?)",
+                (key, str(value), is_sensitive)
+            )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error setting SQLite config {key}: {e}")
+            return False
+
     async def test_connection(self) -> Dict[str, Any]:
         """Test SQLite connection"""
         try:
@@ -452,74 +682,10 @@ class SQLiteDatabase:
                 "error": str(e),
                 "message": f"❌ SQLite error: {str(e)}"
             }
-    
-    async def save_chat_history(self, user_id: str, direction: str, 
-                         message: Dict[str, Any], sender: str) -> None:
-        """Save chat history to SQLite"""
-        try:
-            message_type = message.get("type", "text")
-            message_text = message.get("text", "") if message_type == "text" else f"ส่งข้อความประเภท {message_type}"
-            
-            conn = sqlite3.connect(self.DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO chat_history (user_id, direction, message_type, message_text, sender) VALUES (?, ?, ?, ?, ?)",
-                (user_id, direction, message_type, message_text, sender)
-            )
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"✅ Chat saved to SQLite")
-            
-        except Exception as e:
-            logger.error(f"❌ Error saving to SQLite: {e}")
-    
-    async def get_chat_history_count(self) -> int:
-        """Get total message count from SQLite"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM chat_history")
-            count = cursor.fetchone()[0]
-            conn.close()
-            return count
-        except Exception as e:
-            logger.error(f"❌ Error counting SQLite messages: {e}")
-            return 0
-    
-    async def get_config(self, key: str, default=None):
-        """Get configuration from SQLite"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT config_value FROM config_store WHERE config_key = ?", (key,))
-            result = cursor.fetchone()
-            conn.close()
-            return result[0] if result else default
-        except Exception as e:
-            logger.error(f"❌ Error getting config {key}: {e}")
-            return default
-    
-    async def set_config(self, key: str, value: Any, is_sensitive: bool = False) -> bool:
-        """Set configuration in SQLite"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT OR REPLACE INTO config_store (config_key, config_value, is_sensitive) VALUES (?, ?, ?)",
-                (key, str(value), is_sensitive)
-            )
-            conn.commit()
-            conn.close()
-            logger.info(f"✅ Config {key} saved to SQLite")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Error setting config {key}: {e}")
-            return False
 
 # ==================== Database Manager ====================
 class DatabaseManager:
-    """Main database manager with async support"""
+    """Main database manager with priority selection"""
     
     def __init__(self):
         self.db = None
@@ -527,53 +693,60 @@ class DatabaseManager:
         self.initialized = False
         
     async def initialize_database(self):
-        """Initialize database with detailed logging"""
+        """Initialize database with priority detection"""
         if self.initialized:
             return
             
-        global CONNECTION_STATUS
-        
         logger.info("=" * 60)
         logger.info("📦 DATABASE INITIALIZATION")
         logger.info("=" * 60)
         
-        # Check configuration
-        use_mongodb = os.getenv('USE_MONGODB', 'false').lower() == 'true'
-        mongodb_uri = os.getenv('MONGODB_URI', '')
+        # Detect database priority
+        db_type, config = detect_database_priority()
         
-        logger.info(f"🔧 Configuration:")
-        logger.info(f"   USE_MONGODB: {use_mongodb}")
-        logger.info(f"   MONGODB_URI exists: {bool(mongodb_uri)}")
-        logger.info(f"   MONGODB_AVAILABLE: {MONGODB_AVAILABLE}")
-        
-        if use_mongodb and mongodb_uri and MONGODB_AVAILABLE:
-            try:
-                logger.info("🚀 Initializing MongoDB Atlas...")
-                self.db = MongoDatabase()
-                await self.db.initialize()
+        try:
+            if db_type == "mongodb" and MONGODB_AVAILABLE:
+                logger.info("🚀 Using MongoDB Atlas")
+                self.db = MongoDatabase(config)
                 self.db_type = "MongoDB"
-                logger.info("✅ MongoDB Atlas initialized successfully!")
-                await self._init_default_configs()
-                self.initialized = True
-                return
                 
-            except Exception as e:
-                logger.error(f"❌ MongoDB initialization failed: {e}")
+            elif db_type == "mysql" and MYSQL_AVAILABLE:
+                logger.info("🚀 Using MySQL")
+                self.db = MySQLDatabase(config)
+                self.db_type = "MySQL"
+                
+            else:
+                logger.info("🚀 Using SQLite (fallback)")
+                self.db = SQLiteDatabase(config)
+                self.db_type = "SQLite"
+            
+            # Initialize the selected database
+            await self.db.initialize()
+            
+            # Initialize default configs
+            await self._init_default_configs()
+            
+            self.initialized = True
+            logger.info(f"✅ Database system ready: {self.db_type}")
+            
+        except Exception as e:
+            logger.error(f"❌ Database initialization failed: {e}")
+            
+            # Ultimate fallback to SQLite
+            if self.db_type != "SQLite":
                 logger.info("🔄 Falling back to SQLite...")
-        
-        # Fallback to SQLite
-        logger.info("📦 Using SQLite database (fallback)")
-        self.db = SQLiteDatabase()
-        self.db_type = "SQLite"
-        await self.db.initialize()
-        CONNECTION_STATUS.update({
-            "type": "SQLite",
-            "connected": True,
-            "error": None,
-            "last_check": datetime.now().isoformat()
-        })
-        await self._init_default_configs()
-        self.initialized = True
+                try:
+                    self.db = SQLiteDatabase({"path": "chat_history.db"})
+                    self.db_type = "SQLite"
+                    await self.db.initialize()
+                    await self._init_default_configs()
+                    self.initialized = True
+                    logger.info("✅ SQLite fallback successful")
+                except Exception as fallback_error:
+                    logger.error(f"❌ SQLite fallback failed: {fallback_error}")
+                    raise
+            else:
+                raise
     
     async def _init_default_configs(self):
         """Initialize default configurations"""
@@ -591,9 +764,6 @@ class DatabaseManager:
                 await self.db.set_config(key, value)
         
         logger.info(f"✅ Default configs initialized in {self.db_type}")
-
-# ==================== Import asyncio ====================
-import asyncio
 
 # ==================== Initialize Database Manager ====================
 logger.info("🚀 Starting database module...")
@@ -649,34 +819,28 @@ async def set_config(key: str, value: Any, is_sensitive: bool = False) -> bool:
 def get_config_sync(key: str, default=None):
     """Sync wrapper for get_config"""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If in async context, create new task
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, get_config(key, default))
-                return future.result()
-        else:
-            return asyncio.run(get_config(key, default))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(get_config(key, default))
+        finally:
+            loop.close()
     except:
-        # Ultimate fallback
         return default
 
 def set_config_sync(key: str, value: Any, is_sensitive: bool = False) -> bool:
     """Sync wrapper for set_config"""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, set_config(key, value, is_sensitive))
-                return future.result()
-        else:
-            return asyncio.run(set_config(key, value, is_sensitive))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(set_config(key, value, is_sensitive))
+        finally:
+            loop.close()
     except:
         return False
 
-# Other backward compatibility functions
+# Other functions for backward compatibility
 def verify_tables() -> Dict[str, bool]:
     return {"chat_history": True, "config_store": True, "users": True}
 
@@ -694,9 +858,8 @@ def update_multiple_configs(configs):
         set_config_sync(key, value)
     return True
 
-# Final status log
 logger.info("=" * 60)
-logger.info(f"📊 DATABASE MODULE STATUS:")
-logger.info(f"   Manager: {db_manager.__class__.__name__}")
+logger.info(f"📊 DATABASE MODULE LOADED")
 logger.info(f"   MongoDB Available: {MONGODB_AVAILABLE}")
+logger.info(f"   MySQL Available: {MYSQL_AVAILABLE}")
 logger.info("=" * 60)
