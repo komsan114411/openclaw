@@ -254,6 +254,143 @@ def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sen
     except Exception as e:
         logger.error(f"❌ Error saving chat history: {e}")
 
+# models/database.py (เพิ่มฟังก์ชันเหล่านี้)
+
+def test_connection() -> Dict[str, Any]:
+    """Test MySQL connection and return status"""
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # Test basic query
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        
+        # Get database info
+        cursor.execute("SELECT DATABASE(), VERSION(), USER()")
+        db_info = cursor.fetchone()
+        
+        # Get tables count
+        cursor.execute("""
+            SELECT COUNT(*) FROM information_schema.tables 
+            WHERE table_schema = DATABASE()
+        """)
+        table_count = cursor.fetchone()[0]
+        
+        # Get records count
+        counts = {}
+        tables = ['chat_history', 'config_store', 'api_logs', 'users']
+        for table in tables:
+            try:
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                counts[table] = cursor.fetchone()[0]
+            except:
+                counts[table] = 0
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "status": "connected",
+            "database": db_info[0] if db_info else "Unknown",
+            "version": db_info[1] if db_info else "Unknown",
+            "user": db_info[2] if db_info else "Unknown",
+            "host": os.getenv('MYSQL_HOST', 'Unknown'),
+            "table_count": table_count,
+            "record_counts": counts,
+            "message": "✅ MySQL connection successful"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ MySQL connection test failed: {e}")
+        return {
+            "status": "disconnected",
+            "error": str(e),
+            "host": os.getenv('MYSQL_HOST', 'Not configured'),
+            "database": os.getenv('MYSQL_DATABASE', 'Not configured'),
+            "message": f"❌ MySQL connection failed: {str(e)}"
+        }
+
+def get_database_status() -> Dict[str, Any]:
+    """Get comprehensive database status"""
+    try:
+        # Test connection
+        conn_status = test_connection()
+        
+        if conn_status["status"] == "connected":
+            # Get additional stats
+            conn = db.get_connection()
+            cursor = conn.cursor(dictionary=True)
+            
+            # Get table sizes
+            cursor.execute("""
+                SELECT 
+                    table_name,
+                    table_rows,
+                    ROUND(data_length/1024/1024, 2) as data_size_mb,
+                    ROUND(index_length/1024/1024, 2) as index_size_mb
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                ORDER BY table_rows DESC
+            """)
+            table_stats = cursor.fetchall()
+            
+            # Get recent activity
+            cursor.execute("""
+                SELECT COUNT(*) as count_24h
+                FROM chat_history
+                WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            """)
+            recent_activity = cursor.fetchone()
+            
+            cursor.close()
+            conn.close()
+            
+            return {
+                **conn_status,
+                "table_stats": table_stats,
+                "activity_24h": recent_activity['count_24h'] if recent_activity else 0
+            }
+        else:
+            return conn_status
+            
+    except Exception as e:
+        logger.error(f"❌ Error getting database status: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+def verify_tables() -> Dict[str, bool]:
+    """Verify all required tables exist"""
+    required_tables = ['chat_history', 'config_store', 'api_logs', 'users']
+    table_status = {}
+    
+    try:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        for table in required_tables:
+            cursor.execute(f"""
+                SELECT COUNT(*) FROM information_schema.tables 
+                WHERE table_schema = DATABASE() 
+                AND table_name = %s
+            """, (table,))
+            exists = cursor.fetchone()[0] > 0
+            table_status[table] = exists
+            
+            if not exists:
+                logger.warning(f"⚠️ Table {table} does not exist")
+        
+        cursor.close()
+        conn.close()
+        
+        return table_status
+        
+    except Exception as e:
+        logger.error(f"❌ Error verifying tables: {e}")
+        return {table: False for table in required_tables}
+
 def _update_user_stats(user_id: str):
     """Update user statistics"""
     try:
