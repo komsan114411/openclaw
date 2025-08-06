@@ -1623,6 +1623,257 @@ async def test_kbank_credentials_endpoint(request: Request):
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
+        
+@app.get("/admin/system-info")
+async def get_system_info():
+    """Get system information"""
+    try:
+        return JSONResponse({
+            "status": "success",
+            "system_info": {
+                "ready": IS_READY,
+                "database_type": "SQLite",
+                "config_type": "JSON File",
+                "features": {
+                    "thunder_api": bool(config_manager.get("thunder_api_token")),
+                    "kbank_api": bool(config_manager.get("kbank_consumer_id")),
+                    "ai_chat": bool(config_manager.get("openai_api_key"))
+                }
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ Get system info error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/stats")
+async def get_admin_stats():
+    """Get admin statistics"""
+    try:
+        total_messages = database_functions['get_chat_history_count']()
+        return JSONResponse({
+            "status": "success",
+            "stats": {
+                "total_messages": total_messages,
+                "websocket_connections": len(notification_manager.active_connections)
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ Get stats error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/database-info")
+async def get_database_info():
+    """Get database information"""
+    try:
+        import sqlite3
+        from models.database import DB_PATH
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get table info
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        
+        table_info = {}
+        for (table_name,) in tables:
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            table_info[table_name] = count
+        
+        conn.close()
+        
+        return JSONResponse({
+            "status": "success",
+            "database": {
+                "type": "SQLite",
+                "connected": True,
+                "tables": table_info
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ Get database info error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.post("/admin/send-test-notification")
+async def send_test_notification():
+    """Send test notification"""
+    try:
+        await notification_manager.send_notification(
+            "🔔 This is a test notification from the admin panel", 
+            "info"
+        )
+        return JSONResponse({
+            "status": "success",
+            "message": "Test notification sent"
+        })
+    except Exception as e:
+        logger.error(f"❌ Send test notification error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.post("/admin/restart-services")
+async def restart_services():
+    """Restart services (placeholder)"""
+    try:
+        # In production, this would trigger actual service restart
+        await notification_manager.send_notification(
+            "🔄 Services restart requested (simulated)", 
+            "warning"
+        )
+        return JSONResponse({
+            "status": "success",
+            "message": "Services restart initiated"
+        })
+    except Exception as e:
+        logger.error(f"❌ Restart services error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.post("/admin/test-thunder-connection")
+async def test_thunder_connection():
+    """Test Thunder API connection"""
+    try:
+        token = config_manager.get("thunder_api_token", "")
+        if not token:
+            return JSONResponse({
+                "status": "error",
+                "message": "Thunder API token not configured"
+            })
+        
+        result = slip_functions['test_thunder_api_connection'](token)
+        return JSONResponse(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Test Thunder connection error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/config-management")
+async def config_management_page(request: Request):
+    """Config management page"""
+    try:
+        configs = {
+            k: v for k, v in config_manager.config.items()
+        }
+        return templates.TemplateResponse(
+            "config_management.html",
+            {
+                "request": request,
+                "configs": configs,
+                "config_count": len(configs)
+            }
+        )
+    except Exception as e:
+        logger.error(f"❌ Config management page error: {e}")
+        return templates.TemplateResponse(
+            "config_management.html",
+            {
+                "request": request,
+                "configs": {},
+                "config_count": 0
+            }
+        )
+
+@app.post("/admin/config-management/update")
+async def update_config_management(request: Request):
+    """Update configuration from config management page"""
+    try:
+        data = await request.json()
+        success = config_manager.update_multiple(data)
+        
+        if success:
+            await notification_manager.send_notification(
+                f"⚙️ Updated {len(data)} configurations", 
+                "success"
+            )
+            return JSONResponse({
+                "status": "success",
+                "message": f"Updated {len(data)} configurations",
+                "updated_count": len(data)
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "Failed to update configurations"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Update config management error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/users")
+async def users_page(request: Request):
+    """Users management page"""
+    try:
+        # Get unique users from chat history
+        chat_history = database_functions['get_recent_chat_history'](1000)
+        
+        users_dict = {}
+        for chat in chat_history:
+            user_id = chat.user_id
+            if user_id not in users_dict:
+                users_dict[user_id] = {
+                    "user_id": user_id,
+                    "display_name": f"User {user_id[:8]}",
+                    "chat_history": [],
+                    "last_active": chat.created_at,
+                    "is_blocked": False
+                }
+            users_dict[user_id]["chat_history"].append(chat)
+            if chat.created_at and (not users_dict[user_id]["last_active"] or chat.created_at > users_dict[user_id]["last_active"]):
+                users_dict[user_id]["last_active"] = chat.created_at
+        
+        users = list(users_dict.values())
+        
+        # Calculate stats
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        active_24h = sum(1 for u in users if u["last_active"] and (now - u["last_active"]) < timedelta(hours=24))
+        new_this_week = sum(1 for u in users if u["last_active"] and (now - u["last_active"]) < timedelta(days=7))
+        
+        stats = {
+            "total_users": len(users),
+            "active_24h": active_24h,
+            "new_this_week": new_this_week
+        }
+        
+        return templates.TemplateResponse(
+            "users.html",
+            {
+                "request": request,
+                "users": users,
+                "stats": stats
+            }
+        )
+    except Exception as e:
+        logger.error(f"❌ Users page error: {e}")
+        return templates.TemplateResponse(
+            "users.html",
+            {
+                "request": request,
+                "users": [],
+                "stats": {"total_users": 0, "active_24h": 0, "new_this_week": 0}
+            }
+        )
 
 @app.get("/admin/kbank/status")
 async def get_kbank_status():
