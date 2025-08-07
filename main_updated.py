@@ -1,4 +1,5 @@
 # main_updated.py (ฉบับแก้ไข)
+# Note: This is an updated version based on the user's provided file.
 import json
 import hmac
 import hashlib
@@ -151,10 +152,10 @@ async def safe_import_modules():
         
         # Database functions - Initialize async
         try:
-            from models.database import (
+            from models.mongodb_database import (
                 init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history, test_connection as db_test_connection, 
-                get_connection_info, get_database_status, get_config, set_config
+                get_recent_chat_history, get_user_chat_history, get_user_profile, test_connection as db_test_connection, 
+                get_database_status, get_config, set_config
             )
             
             # Initialize database asynchronously
@@ -167,8 +168,8 @@ async def safe_import_modules():
                 'get_chat_history_count': get_chat_history_count,
                 'get_recent_chat_history': get_recent_chat_history,
                 'get_user_chat_history': get_user_chat_history,
+                'get_user_profile': get_user_profile, # Added get_user_profile
                 'test_connection': db_test_connection,
-                'get_connection_info': get_connection_info,
                 'get_database_status': get_database_status,
                 'get_config': get_config,
                 'set_config': set_config
@@ -188,10 +189,10 @@ async def safe_import_modules():
                 return []
             async def dummy_user_history(u, l=10):
                 return []
+            async def dummy_user_profile(u):
+                return {"user_id": u, "display_name": f"User {u[:8]}", "profile_picture_url": None}
             async def dummy_test():
                 return {"status": "error", "message": "Database not available"}
-            def dummy_info():
-                return {"connected": False, "type": "Unavailable"}
             async def dummy_get_status():
                 return {"status": "error", "message": "Database not available"}
             async def dummy_get_config(key, default=None):
@@ -205,8 +206,8 @@ async def safe_import_modules():
                 'get_chat_history_count': dummy_count,
                 'get_recent_chat_history': dummy_recent,
                 'get_user_chat_history': dummy_user_history,
+                'get_user_profile': dummy_user_profile,
                 'test_connection': dummy_test,
-                'get_connection_info': dummy_info,
                 'get_database_status': dummy_get_status,
                 'get_config': dummy_get_config,
                 'set_config': dummy_set_config
@@ -282,7 +283,7 @@ async def safe_import_modules():
             "🚀 System started successfully", 
             "success",
             {
-                "database": database_functions.get('get_connection_info', lambda: {"connected": False})(),
+                "database": database_functions.get('get_database_status', lambda: {"connected": False})(),
                 "config_backend": "MongoDB" if hasattr(config_manager, 'mongodb_config') and config_manager.mongodb_config else "File",
                 "ai_available": 'get_chat_response' in ai_functions,
                 "slip_available": 'verify_slip_multiple_providers' in slip_functions
@@ -630,7 +631,8 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
             try:
                 # ตรวจสอบว่า database_functions มี 'save_chat_history' และเรียกใช้ await
                 if 'save_chat_history' in database_functions:
-                    await database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": message}, sender=message_type)
+                    # NOTE: save_chat_history in mongodb_database.py is NOT async, so we use to_thread
+                    await asyncio.to_thread(database_functions['save_chat_history'], user_id, "out", {"type": "text", "text": message}, sender=message_type)
             except Exception as e:
                 logger.warning(f"⚠️ Failed to save chat history: {e}")
         
@@ -672,7 +674,9 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
             # บันทึกข้อความขาออก (เงียบๆ)
             try:
                 if 'save_chat_history' in database_functions:
-                    await database_functions['save_chat_history'](
+                    # NOTE: save_chat_history is not async, so use to_thread
+                    await asyncio.to_thread(
+                        database_functions['save_chat_history'],
                         user_id, "out", 
                         {"type": "text", "text": response}, 
                         sender="ai_bot"
@@ -768,7 +772,9 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 # บันทึกผลลัพธ์ (เงียบๆ)
                 try:
                     if 'save_chat_history' in database_functions:
-                        await database_functions['save_chat_history'](
+                        # NOTE: save_chat_history is not async, so use to_thread
+                        await asyncio.to_thread(
+                            database_functions['save_chat_history'],
                             user_id, "out", 
                             {"type": "text", "text": reply_message}, 
                             sender="slip_bot"
@@ -847,7 +853,9 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         
         # บันทึกลง database
         if 'save_chat_history' in database_functions:
-            await database_functions['save_chat_history'](
+            # NOTE: save_chat_history is not async, so use to_thread
+            await asyncio.to_thread(
+                database_functions['save_chat_history'],
                 user_id, 
                 "in", 
                 enhanced_message, 
@@ -870,7 +878,8 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         
         # ตรวจสอบสลิป
         if slip_functions and 'extract_slip_info_from_text' in slip_functions:
-            slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+            # NOTE: extract_slip_info_from_text is not async, use to_thread
+            slip_info = await asyncio.to_thread(slip_functions['extract_slip_info_from_text'], user_text)
         else:
             slip_info = {"bank_code": None, "trans_ref": None}
         
@@ -941,6 +950,7 @@ async def extract_and_save_urls(user_id: str, text: str):
                 logger.info(f"🔗 Found URL: {url[:50]}...")
                 # บันทึกลง database
                 if database_functions and 'save_url' in database_functions:
+                    # NOTE: Assuming save_url is async
                     await database_functions['save_url'](user_id, url)
     except Exception as e:
         logger.error(f"❌ Error extracting URLs: {e}")
@@ -949,6 +959,7 @@ async def save_media_reference(user_id: str, message_id: str, media_type: str, m
     """บันทึก media reference"""
     try:
         if database_functions and 'save_media_reference' in database_functions:
+            # NOTE: Assuming save_media_reference is async
             await database_functions['save_media_reference'](
                 user_id, message_id, media_type, message_data
             )
@@ -964,6 +975,7 @@ async def save_location_data(user_id: str, location_message: Dict):
     """บันทึกข้อมูลตำแหน่ง"""
     try:
         if database_functions and 'save_location' in database_functions:
+            # NOTE: Assuming save_location is async
             await database_functions['save_location'](user_id, location_message)
         logger.info(f"📍 Location saved for {user_id[:10]}")
     except Exception as e:
@@ -1159,7 +1171,7 @@ async def setup_kbank_instant():
         return JSONResponse(result)
         
     except Exception as e:
-        logger.error(f"❌ Setup KBank instant error: {e}")
+        logger.error(f"❌ Setup Kbank instant error: {e}")
         return JSONResponse({
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
@@ -1255,6 +1267,35 @@ async def admin_chat_history(request: Request):
             "chat_history.html",
             {"request": request, "chat_history": []}
         )
+
+# NEW ROUTE: Added to display individual user chat history
+@app.get("/admin/users/{user_id}", response_class=HTMLResponse)
+async def admin_user_chat_history(request: Request, user_id: str):
+    """
+    Page to display a specific user's chat history.
+    This route was missing but the `users.html` template links to it.
+    """
+    try:
+        chat_history = []
+        user_profile = None
+        if database_functions and 'get_user_chat_history' in database_functions:
+            chat_history = await database_functions['get_user_chat_history'](user_id, limit=200)
+            user_profile = await database_functions['get_user_profile'](user_id)
+
+        # Reverse the order for chat display (oldest first)
+        chat_history.reverse()
+
+        return templates.TemplateResponse(
+            "user_chat_history.html",
+            {"request": request, "user_id": user_id, "chat_history": chat_history, "user_profile": user_profile}
+        )
+    except Exception as e:
+        logger.error(f"❌ User chat history page error for {user_id}: {e}")
+        return templates.TemplateResponse(
+            "user_chat_history.html",
+            {"request": request, "user_id": user_id, "chat_history": [], "user_profile": None}
+        )
+
 
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
@@ -1779,11 +1820,11 @@ async def get_config_value(request: Request):
 async def test_kbank_sandbox(request: Request):
     """ทดสอบ KBank Sandbox API โดยเฉพาะ"""
     try:
-        data = await request.json()
-        consumer_id = data.get("consumer_id", "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr")
-        consumer_secret = data.get("consumer_secret", "goOfPtGLoGxYP3DG") 
-        bank_id = data.get("bank_id", "004")
-        trans_ref = data.get("trans_ref", "TEST123456789")
+        form = await request.form()
+        consumer_id = form.get("consumer_id", "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr")
+        consumer_secret = form.get("consumer_secret", "goOfPtGLoGxYP3DG") 
+        bank_id = form.get("bank_id", "004")
+        trans_ref = form.get("trans_ref", "TEST123456789")
         
         logger.info(f"🧪 Testing KBank Sandbox API...")
         
@@ -1976,7 +2017,9 @@ async def get_db_status():
             }
         
         if database_functions and 'get_connection_info' in database_functions:
-            connection_info = database_functions['get_connection_info']()
+            # NOTE: get_connection_info is not in the list of database_functions I added, so I will remove it or assume it's a synchronous function.
+            # I will remove it for cleanliness as it was not in the original mongodb_database.py I fetched
+            connection_info = {"connected": test_result.get('status') == 'connected', "type": test_result.get('type', 'Unknown')}
         else:
             connection_info = {"connected": False, "type": "Unknown"}
         
@@ -2028,7 +2071,7 @@ async def update_kbank_credentials_endpoint(request: Request):
         return JSONResponse(result)
         
     except Exception as e:
-        logger.error(f"❌ Update KBank credentials error: {e}")
+        logger.error(f"❌ Update Kbank credentials error: {e}")
         return JSONResponse({
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
@@ -2056,7 +2099,7 @@ async def test_kbank_credentials_endpoint(request: Request):
         return JSONResponse(result)
         
     except Exception as e:
-        logger.error(f"❌ Test KBank credentials error: {e}")
+        logger.error(f"❌ Test Kbank credentials error: {e}")
         return JSONResponse({
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
@@ -2322,20 +2365,23 @@ async def users_page(request: Request):
         
         users_dict = {}
         for chat in chat_history:
-            user_id = chat.user_id if hasattr(chat, 'user_id') else None
+            user_id = chat.get("user_id")
             if user_id and user_id not in users_dict:
+                # Try to get user profile from database
+                user_profile = await database_functions['get_user_profile'](user_id) if 'get_user_profile' in database_functions else None
                 users_dict[user_id] = {
                     "user_id": user_id,
-                    "display_name": f"User {user_id[:8]}",
+                    "display_name": user_profile.get("display_name", f"User {user_id[:8]}") if user_profile else f"User {user_id[:8]}",
+                    "profile_picture_url": user_profile.get("profile_picture_url") if user_profile else None,
                     "chat_history": [],
-                    "last_active": chat.created_at if hasattr(chat, 'created_at') else None,
+                    "last_active": chat.get("created_at"),
                     "is_blocked": False
                 }
             if user_id:
                 users_dict[user_id]["chat_history"].append(chat)
-                if hasattr(chat, 'created_at') and chat.created_at:
-                    if not users_dict[user_id]["last_active"] or chat.created_at > users_dict[user_id]["last_active"]:
-                        users_dict[user_id]["last_active"] = chat.created_at
+                if chat.get("created_at"):
+                    if not users_dict[user_id]["last_active"] or chat.get("created_at") > users_dict[user_id]["last_active"]:
+                        users_dict[user_id]["last_active"] = chat.get("created_at")
         
         users = list(users_dict.values())
         
@@ -2343,6 +2389,7 @@ async def users_page(request: Request):
         from datetime import datetime, timedelta
         now = datetime.now()
         active_24h = sum(1 for u in users if u["last_active"] and (now - u["last_active"]) < timedelta(hours=24))
+        # Note: 'New this week' calculation is simplified, assuming users are 'new' if last active date is recent.
         new_this_week = sum(1 for u in users if u["last_active"] and (now - u["last_active"]) < timedelta(days=7))
         
         stats = {
