@@ -1,4 +1,4 @@
-# main_updated.py (Stable Production Version)
+# main_updated.py (ฉบับแก้ไข)
 import json
 import hmac
 import hashlib
@@ -12,19 +12,6 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 import os
 from contextlib import asynccontextmanager
-import asyncio
-from typing import Dict, Any, Optional, List, Union
-
-# เพิ่มใน import section
-import requests
-from requests.exceptions import RequestException, Timeout, ConnectionError
-
-import httpx
-from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header, BackgroundTasks
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 
 # เพิ่มพาธปัจจุบันเข้าไปใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -41,6 +28,13 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger("main_app")
+
+import httpx
+from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header, BackgroundTasks
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 # Global state
 IS_READY = False
@@ -145,7 +139,7 @@ async def safe_import_modules():
         try:
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history, test_connection
+                get_recent_chat_history, get_user_chat_history, test_connection as db_test_connection, get_connection_info
             )
             
             # Initialize database asynchronously
@@ -158,7 +152,8 @@ async def safe_import_modules():
                 'get_chat_history_count': get_chat_history_count,
                 'get_recent_chat_history': get_recent_chat_history,
                 'get_user_chat_history': get_user_chat_history,
-                'test_connection': test_connection
+                'test_connection': db_test_connection,
+                'get_connection_info': get_connection_info
             }
             logger.info("✅ Database modules imported")
             
@@ -177,6 +172,8 @@ async def safe_import_modules():
                 return []
             async def dummy_test():
                 return {"status": "error", "message": "Database not available"}
+            def dummy_info():
+                return {"connected": False, "type": "Unavailable"}
                 
             database_functions = {
                 'init_database': dummy_init,
@@ -184,10 +181,33 @@ async def safe_import_modules():
                 'get_chat_history_count': dummy_count,
                 'get_recent_chat_history': dummy_recent,
                 'get_user_chat_history': dummy_user_history,
-                'test_connection': dummy_test
+                'test_connection': dummy_test,
+                'get_connection_info': dummy_info
             }
         
-        # Rest of imports...
+        # Import AI and Slip modules (should be outside the database try block)
+        try:
+            from services.chat_bot import get_chat_response
+            ai_functions['get_chat_response'] = get_chat_response
+            logger.info("✅ AI modules imported")
+        except ImportError as e:
+            logger.warning(f"⚠️ AI module import failed: {e}")
+
+        try:
+            from services.enhanced_slip_checker import (
+                extract_slip_info_from_text, verify_slip_multiple_providers, 
+                get_api_status_summary, reset_api_failure_cache
+            )
+            from services.slip_checker import test_thunder_api_connection
+            slip_functions['extract_slip_info_from_text'] = extract_slip_info_from_text
+            slip_functions['verify_slip_multiple_providers'] = verify_slip_multiple_providers
+            slip_functions['get_api_status_summary'] = get_api_status_summary
+            slip_functions['reset_api_failure_cache'] = reset_api_failure_cache
+            slip_functions['test_thunder_api_connection'] = test_thunder_api_connection
+            logger.info("✅ Slip modules imported")
+        except ImportError as e:
+            logger.warning(f"⚠️ Slip module import failed: {e}")
+        
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         
@@ -200,7 +220,7 @@ async def safe_import_modules():
 async def lifespan(app: FastAPI):
     # Startup
     setup_signal_handlers()
-    await safe_import_modules()  # Add await here
+    await safe_import_modules()
     
     logger.info("🚀 LINE OA Middleware starting...")
     logger.info(f"🔧 System ready: {IS_READY}")
@@ -239,38 +259,11 @@ if os.path.exists("static"):
 def get_api_status_summary():
     """ดึงสรุปสถานะ API (Production version)"""
     try:
-        if not config_manager:
-            return {
-                "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
-                "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
-            }
-            
-        thunder_token = config_manager.get("thunder_api_token", "").strip()
-        thunder_enabled = config_manager.get("thunder_enabled", True)
-        
-        kbank_id = config_manager.get("kbank_consumer_id", "").strip()
-        kbank_secret = config_manager.get("kbank_consumer_secret", "").strip()
-        kbank_enabled = config_manager.get("kbank_enabled", False)
-        
+        if slip_functions and 'get_api_status_summary' in slip_functions:
+            return slip_functions['get_api_status_summary']()
         return {
-            "thunder": {
-                "name": "Thunder API",
-                "enabled": thunder_enabled,
-                "configured": bool(thunder_token),
-                "connected": bool(thunder_token and thunder_enabled),
-                "recent_failures": 0,
-                "last_failure": 0,
-                "recently_failed": False
-            },
-            "kbank": {
-                "name": "KBank API",
-                "enabled": kbank_enabled,
-                "configured": bool(kbank_id and kbank_secret),
-                "connected": bool(kbank_id and kbank_secret and kbank_enabled),
-                "recent_failures": 0,
-                "last_failure": 0,
-                "recently_failed": False
-            }
+            "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
+            "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
         }
     except Exception as e:
         logger.error(f"❌ Error in get_api_status_summary: {e}")
@@ -281,8 +274,13 @@ def get_api_status_summary():
 
 def reset_api_failure_cache():
     """รีเซ็ต API failure cache"""
-    logger.info("🔄 API failure cache reset")
-    return True
+    try:
+        if slip_functions and 'reset_api_failure_cache' in slip_functions:
+            return slip_functions['reset_api_failure_cache']()
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error in reset_api_failure_cache: {e}")
+        return False
 
 def init_line_bot():
     """Initialize LINE Bot credentials"""
@@ -546,7 +544,9 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
         # บันทึกประวัติ
         if success:
             try:
-                database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": message}, sender=message_type)
+                # ตรวจสอบว่า database_functions มี 'save_chat_history' และเรียกใช้ await
+                if 'save_chat_history' in database_functions:
+                    await database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": message}, sender=message_type)
             except Exception as e:
                 logger.warning(f"⚠️ Failed to save chat history: {e}")
         
@@ -568,6 +568,7 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
             response = "ยังไม่ได้ตั้งค่า OpenAI API Key กรุณาติดต่อผู้ดูแลระบบค่ะ"
         else:
             try:
+                # แก้ไขการเรียกใช้: ai_functions['get_chat_response'] เป็นฟังก์ชัน sync
                 response = await asyncio.wait_for(
                     asyncio.to_thread(ai_functions['get_chat_response'], user_text, user_id),
                     timeout=30.0
@@ -617,6 +618,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
 
         # ตรวจสอบสลิป
         try:
+            # แก้ไขการเรียกใช้: slip_functions['verify_slip_multiple_providers'] เป็นฟังก์ชัน sync
             if slip_info and slip_info.get("bank_code") and slip_info.get("trans_ref"):
                 result = await asyncio.wait_for(
                     asyncio.to_thread(
@@ -654,7 +656,8 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             
             if push_success:
                 try:
-                    database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": reply_message}, sender="slip_bot")
+                    if 'save_chat_history' in database_functions:
+                        await database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": reply_message}, sender="slip_bot")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to save slip result: {e}")
             else:
@@ -694,14 +697,18 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         
         # บันทึกประวัติ
         try:
-            database_functions['save_chat_history'](user_id, "in", message, sender="user")
+            if 'save_chat_history' in database_functions:
+                await database_functions['save_chat_history'](user_id, "in", message, sender="user")
         except Exception as e:
             logger.warning(f"⚠️ Failed to save chat history: {e}")
         
         # ประมวลผล
         if message_type == "text":
             user_text = message.get("text", "")
-            slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+            if slip_functions and 'extract_slip_info_from_text' in slip_functions:
+                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+            else:
+                slip_info = {"bank_code": None, "trans_ref": None}
             
             if slip_info.get("bank_code") and slip_info.get("trans_ref"):
                 await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
@@ -1248,14 +1255,19 @@ async def get_api_status():
         })
 
 
-
-
 @app.get("/admin/mongodb-status")
 async def get_mongodb_status():
     """Get MongoDB connection status"""
     try:
-        from models.database import get_database_status
-        status = await get_database_status()
+        # ใช้ database_functions ที่ถูก import ไว้แล้ว
+        if 'get_database_status' in database_functions:
+            status = await database_functions['get_database_status']()
+        else:
+            status = {
+                "status": "error",
+                "message": "Database function not available"
+            }
+
         return JSONResponse({
             "status": "success",
             "mongodb": status
@@ -1275,8 +1287,10 @@ async def get_mongodb_status():
 async def test_mongodb_connection():
     """Test MongoDB connection"""
     try:
-        from models.database import test_connection
-        result = await test_connection()
+        if 'test_connection' in database_functions:
+            result = await database_functions['test_connection']()
+        else:
+            result = {"status": "error", "message": "Database function not available"}
         
         await notification_manager.send_notification(
             result["message"],
@@ -1292,33 +1306,28 @@ async def test_mongodb_connection():
             "message": f"Test failed: {str(e)}"
         })
 
-
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with MySQL status"""
+    """Health check endpoint with database status"""
+    db_connected = False
+    db_info = {}
     try:
-        from models.database import test_connection
-        
-        mysql_status = test_connection()
-        
-        return JSONResponse({
-            "status": "ok" if IS_READY and mysql_status["status"] == "connected" else "degraded",
-            "system_ready": IS_READY,
-            "mysql_connected": mysql_status["status"] == "connected",
-            "mysql_info": {
-                "host": mysql_status.get("host"),
-                "database": mysql_status.get("database"),
-                "status": mysql_status.get("status")
-            },
-            "timestamp": datetime.now().isoformat(),
-            "active_connections": len(notification_manager.active_connections)
-        })
+        if 'test_connection' in database_functions:
+            db_status = await database_functions['test_connection']()
+            db_connected = db_status["status"] == "connected"
+            db_info = db_status
     except Exception as e:
-        logger.error(f"❌ Health check error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        }, status_code=503)
+        logger.error(f"❌ Health check DB test error: {e}")
+
+    return JSONResponse({
+        "status": "ok" if IS_READY and db_connected and not SHUTDOWN_INITIATED else "degraded",
+        "system_ready": IS_READY,
+        "database_connected": db_connected,
+        "database_info": db_info,
+        "shutting_down": SHUTDOWN_INITIATED,
+        "timestamp": datetime.now().isoformat(),
+        "active_connections": len(notification_manager.active_connections)
+    })
 
 @app.get("/admin/config")
 async def get_config():
@@ -1601,18 +1610,11 @@ async def test_kbank_api_direct(request: Request):
         return JSONResponse({"status": "error", "message": str(e)})
 
 
-
-
-# เพิ่มใน main_updated.py
-
-# เพิ่มใน main_updated.py
-
 @app.get("/admin/db-status")
 async def get_db_status():
     """Get database connection status"""
     try:
         if database_functions and 'test_connection' in database_functions:
-            # Call async function properly
             test_result = await database_functions['test_connection']()
         else:
             test_result = {
@@ -1620,8 +1622,10 @@ async def get_db_status():
                 "message": "Database not initialized"
             }
         
-        from models.database import get_connection_info
-        connection_info = get_connection_info()
+        if database_functions and 'get_connection_info' in database_functions:
+            connection_info = database_functions['get_connection_info']()
+        else:
+            connection_info = {"connected": False, "type": "Unknown"}
         
         return JSONResponse({
             "timestamp": datetime.now().isoformat(),
@@ -1642,7 +1646,6 @@ async def get_db_status():
                 "error": str(e)
             }
         })
-
 
 @app.post("/admin/kbank/update-credentials")
 async def update_kbank_credentials_endpoint(request: Request):
@@ -1714,7 +1717,7 @@ async def get_system_info():
             "status": "success",
             "system_info": {
                 "ready": IS_READY,
-                "database_type": "SQLite",
+                "database_type": "MongoDB",
                 "config_type": "JSON File",
                 "features": {
                     "thunder_api": bool(config_manager.get("thunder_api_token")),
@@ -1810,37 +1813,28 @@ async def get_admin_stats():
 async def get_database_info():
     """Get database information"""
     try:
-        import sqlite3
-        from models.database import DB_PATH
+        db_status = await test_database_connection()
+        db_status_json = json.loads(db_status.body)
         
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        # Get table info
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cursor.fetchall()
-        
-        table_info = {}
-        for (table_name,) in tables:
-            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-            count = cursor.fetchone()[0]
-            table_info[table_name] = count
-        
-        conn.close()
+        db_info = {
+            "type": db_status_json.get('type', 'MongoDB'),
+            "connected": db_status_json.get('status') == 'connected',
+            "tables": db_status_json.get('record_counts', {})
+        }
         
         return JSONResponse({
             "status": "success",
-            "database": {
-                "type": "SQLite",
-                "connected": True,
-                "tables": table_info
-            }
+            "database": db_info
         })
     except Exception as e:
         logger.error(f"❌ Get database info error: {e}")
         return JSONResponse({
             "status": "error",
-            "message": str(e)
+            "message": str(e),
+            "database": {
+                "type": "Unknown",
+                "connected": False
+            }
         })
 
 @app.post("/admin/send-test-notification")
