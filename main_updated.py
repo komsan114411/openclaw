@@ -130,16 +130,31 @@ async def safe_import_modules():
     logger.info("🔄 Starting module imports...")
     
     try:
-        # Config Manager - Critical
-        from utils.config_manager import config_manager as cm
-        config_manager = cm
-        logger.info("✅ Config manager imported")
+        # Initialize MongoDB Config Manager first
+        try:
+            from utils.mongodb_config import get_config_manager
+            mongodb_config = await get_config_manager()
+            logger.info("✅ MongoDB Config Manager initialized")
+            
+            # Update config_manager to use MongoDB
+            from utils.config_manager import config_manager as cm
+            cm.mongodb_config = mongodb_config
+            cm._initialized = True
+            config_manager = cm
+            logger.info("✅ Config manager using MongoDB backend")
+        except Exception as e:
+            logger.error(f"❌ MongoDB Config init failed: {e}")
+            # Fallback to file-based config
+            from utils.config_manager import config_manager as cm
+            config_manager = cm
+            logger.warning("⚠️ Using fallback config manager")
         
         # Database functions - Initialize async
         try:
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history, test_connection as db_test_connection, get_connection_info
+                get_recent_chat_history, get_user_chat_history, test_connection as db_test_connection, 
+                get_connection_info, get_database_status, get_config, set_config
             )
             
             # Initialize database asynchronously
@@ -153,7 +168,10 @@ async def safe_import_modules():
                 'get_recent_chat_history': get_recent_chat_history,
                 'get_user_chat_history': get_user_chat_history,
                 'test_connection': db_test_connection,
-                'get_connection_info': get_connection_info
+                'get_connection_info': get_connection_info,
+                'get_database_status': get_database_status,
+                'get_config': get_config,
+                'set_config': set_config
             }
             logger.info("✅ Database modules imported")
             
@@ -174,6 +192,12 @@ async def safe_import_modules():
                 return {"status": "error", "message": "Database not available"}
             def dummy_info():
                 return {"connected": False, "type": "Unavailable"}
+            async def dummy_get_status():
+                return {"status": "error", "message": "Database not available"}
+            async def dummy_get_config(key, default=None):
+                return default
+            async def dummy_set_config(key, value, is_sensitive=False):
+                return False
                 
             database_functions = {
                 'init_database': dummy_init,
@@ -182,23 +206,32 @@ async def safe_import_modules():
                 'get_recent_chat_history': dummy_recent,
                 'get_user_chat_history': dummy_user_history,
                 'test_connection': dummy_test,
-                'get_connection_info': dummy_info
+                'get_connection_info': dummy_info,
+                'get_database_status': dummy_get_status,
+                'get_config': dummy_get_config,
+                'set_config': dummy_set_config
             }
+            logger.warning("⚠️ Using dummy database functions")
         
-        # Import AI and Slip modules (should be outside the database try block)
+        # Import AI modules
         try:
             from services.chat_bot import get_chat_response
             ai_functions['get_chat_response'] = get_chat_response
             logger.info("✅ AI modules imported")
         except ImportError as e:
             logger.warning(f"⚠️ AI module import failed: {e}")
+            def dummy_chat_response(text, user_id):
+                return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
+            ai_functions['get_chat_response'] = dummy_chat_response
 
+        # Import Slip verification modules
         try:
             from services.enhanced_slip_checker import (
                 extract_slip_info_from_text, verify_slip_multiple_providers, 
                 get_api_status_summary, reset_api_failure_cache
             )
             from services.slip_checker import test_thunder_api_connection
+            
             slip_functions['extract_slip_info_from_text'] = extract_slip_info_from_text
             slip_functions['verify_slip_multiple_providers'] = verify_slip_multiple_providers
             slip_functions['get_api_status_summary'] = get_api_status_summary
@@ -207,13 +240,64 @@ async def safe_import_modules():
             logger.info("✅ Slip modules imported")
         except ImportError as e:
             logger.warning(f"⚠️ Slip module import failed: {e}")
+            def dummy_extract(text):
+                return {"bank_code": None, "trans_ref": None}
+            def dummy_verify(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
+                return {"status": "error", "message": "Slip verification not available"}
+            def dummy_api_status():
+                return {
+                    "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
+                    "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
+                }
+            def dummy_reset():
+                return False
+            def dummy_test_thunder(token):
+                return {"status": "error", "message": "Thunder API not available"}
+            
+            slip_functions['extract_slip_info_from_text'] = dummy_extract
+            slip_functions['verify_slip_multiple_providers'] = dummy_verify
+            slip_functions['get_api_status_summary'] = dummy_api_status
+            slip_functions['reset_api_failure_cache'] = dummy_reset
+            slip_functions['test_thunder_api_connection'] = dummy_test_thunder
+        
+        # Import KBank modules
+        try:
+            from services.kbank_checker import (
+                kbank_checker, update_kbank_credentials, 
+                test_kbank_with_credentials, setup_kbank_sandbox_instantly
+            )
+            slip_functions['kbank_checker'] = kbank_checker
+            slip_functions['update_kbank_credentials'] = update_kbank_credentials
+            slip_functions['test_kbank_with_credentials'] = test_kbank_with_credentials
+            slip_functions['setup_kbank_sandbox_instantly'] = setup_kbank_sandbox_instantly
+            logger.info("✅ KBank modules imported")
+        except ImportError as e:
+            logger.warning(f"⚠️ KBank module import failed: {e}")
         
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         
+        # Send startup notification
+        await notification_manager.send_notification(
+            "🚀 System started successfully", 
+            "success",
+            {
+                "database": database_functions.get('get_connection_info', lambda: {"connected": False})(),
+                "config_backend": "MongoDB" if hasattr(config_manager, 'mongodb_config') and config_manager.mongodb_config else "File",
+                "ai_available": 'get_chat_response' in ai_functions,
+                "slip_available": 'verify_slip_multiple_providers' in slip_functions
+            }
+        )
+        
     except Exception as e:
         logger.error(f"❌ Critical import error: {e}")
         IS_READY = False
+        
+        # Send error notification
+        await notification_manager.send_notification(
+            f"❌ System startup error: {str(e)}", 
+            "error"
+        )
 
 # Lifespan context manager
 @asynccontextmanager
