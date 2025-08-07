@@ -164,7 +164,7 @@ class MongoDBManager:
                 "message_data": message,
                 "sender": sender,
                 "created_at": datetime.utcnow()
-            )
+            }
             
             result = await self.db.chat_history.insert_one(document)
             
