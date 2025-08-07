@@ -1865,14 +1865,19 @@ async def restart_services():
 async def test_thunder_connection():
     """Test Thunder API connection"""
     try:
-        token = config_manager.get("thunder_api_token", "")
+        token = config_manager.get("thunder_api_token", "") if config_manager else ""
         if not token:
             return JSONResponse({
                 "status": "error",
                 "message": "Thunder API token not configured"
             })
         
-        result = slip_functions['test_thunder_api_connection'](token)
+        # Import the correct function
+        if slip_functions and 'test_thunder_api_connection' in slip_functions:
+            result = slip_functions['test_thunder_api_connection'](token)
+        else:
+            result = {"status": "error", "message": "Thunder API test function not available"}
+            
         return JSONResponse(result)
         
     except Exception as e:
