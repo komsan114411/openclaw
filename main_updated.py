@@ -543,11 +543,10 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
             if success:
                 logger.info("✅ Push sent successfully")
         
-        # บันทึกประวัติ - ใช้ await properly
+        # บันทึกประวัติ
         if success:
             try:
-                if database_functions and 'save_chat_history' in database_functions:
-                    await database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": message}, sender=message_type)
+                database_functions['save_chat_history'](user_id, "out", {"type": "text", "text": message}, sender=message_type)
             except Exception as e:
                 logger.warning(f"⚠️ Failed to save chat history: {e}")
         
@@ -556,7 +555,6 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
     except Exception as e:
         logger.error(f"❌ send_message_safe error: {e}")
         return False
-
 
 async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
     """จัดการแชท AI"""
@@ -694,22 +692,16 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         
         logger.info(f"🔄 Processing {message_type} from user {user_id[:10]}...")
         
-        # บันทึกประวัติ - ใช้ await properly
+        # บันทึกประวัติ
         try:
-            if database_functions and 'save_chat_history' in database_functions:
-                await database_functions['save_chat_history'](user_id, "in", message, sender="user")
+            database_functions['save_chat_history'](user_id, "in", message, sender="user")
         except Exception as e:
             logger.warning(f"⚠️ Failed to save chat history: {e}")
         
         # ประมวลผล
         if message_type == "text":
             user_text = message.get("text", "")
-            
-            # ใช้ slip_functions ที่ import มาแล้ว
-            if slip_functions and 'extract_slip_info_from_text' in slip_functions:
-                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
-            else:
-                slip_info = {"bank_code": None, "trans_ref": None}
+            slip_info = slip_functions['extract_slip_info_from_text'](user_text)
             
             if slip_info.get("bank_code") and slip_info.get("trans_ref"):
                 await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
@@ -734,7 +726,6 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
                 await send_message_safe(user_id, reply_token, "เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่", "system_error")
         except Exception:
             pass
-
 
 # ====================== API Routes ======================
 
@@ -1763,32 +1754,18 @@ async def get_recent_chat_history_endpoint(limit: int = 5):
     try:
         history = []
         if database_functions and 'get_recent_chat_history' in database_functions:
-            try:
-                history = await database_functions['get_recent_chat_history'](limit)
-            except Exception as e:
-                logger.error(f"Error getting recent history: {e}")
-                history = []
+            history = await database_functions['get_recent_chat_history'](limit)
         
-        # Convert to serializable format - check if objects exist properly
+        # Convert to serializable format
         history_data = []
         for chat in history:
-            if chat:  # Check if chat object exists
-                chat_dict = {
-                    "user_id": getattr(chat, 'user_id', None),
-                    "direction": getattr(chat, 'direction', None),
-                    "message_text": getattr(chat, 'message_text', None),
-                    "created_at": None,
-                    "sender": getattr(chat, 'sender', None)
-                }
-                
-                # Handle created_at separately
-                if hasattr(chat, 'created_at') and chat.created_at:
-                    try:
-                        chat_dict["created_at"] = chat.created_at.isoformat()
-                    except:
-                        chat_dict["created_at"] = str(chat.created_at)
-                
-                history_data.append(chat_dict)
+            history_data.append({
+                "user_id": chat.user_id if hasattr(chat, 'user_id') else None,
+                "direction": chat.direction if hasattr(chat, 'direction') else None,
+                "message_text": chat.message_text if hasattr(chat, 'message_text') else None,
+                "created_at": chat.created_at.isoformat() if hasattr(chat, 'created_at') and chat.created_at else None,
+                "sender": chat.sender if hasattr(chat, 'sender') else None
+            })
         
         return JSONResponse({
             "status": "success",
@@ -1802,23 +1779,20 @@ async def get_recent_chat_history_endpoint(limit: int = 5):
             "history": []
         })
 
+
 @app.get("/admin/stats")
 async def get_admin_stats():
     """Get admin statistics"""
     try:
         total_messages = 0
         if database_functions and 'get_chat_history_count' in database_functions:
-            try:
-                total_messages = await database_functions['get_chat_history_count']()
-            except Exception as e:
-                logger.error(f"Error getting chat count: {e}")
-                total_messages = 0
+            total_messages = await database_functions['get_chat_history_count']()
         
         return JSONResponse({
             "status": "success",
             "stats": {
                 "total_messages": total_messages,
-                "websocket_connections": len(notification_manager.active_connections) if notification_manager else 0
+                "websocket_connections": len(notification_manager.active_connections)
             }
         })
     except Exception as e:
