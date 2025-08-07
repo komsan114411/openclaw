@@ -1,7 +1,7 @@
 # models/database.py
 """
 MongoDB-Only Database Module with Motor AsyncIO
-Fixed async/await issues and sync wrappers
+Fixed authentication and async issues
 """
 
 import os
@@ -12,9 +12,10 @@ from dataclasses import dataclass
 import time
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, OperationFailure
 import asyncio
 import threading
+import urllib.parse
 
 # Configure logging
 logging.basicConfig(
@@ -48,11 +49,17 @@ class MongoDBManager:
         self.client = None
         self.db = None
         self.connected = False
-        # ดึง MONGODB_URI จาก environment variable เท่านั้น
+        # ดึง MONGODB_URI จาก environment variable
         self.mongodb_uri = os.getenv('MONGODB_URI')
         
         if not self.mongodb_uri:
             logger.warning("⚠️ MONGODB_URI environment variable is not set - using local cache mode")
+        else:
+            # Log URI สำหรับ debug (ซ่อน password)
+            uri_parts = self.mongodb_uri.split('@')
+            if len(uri_parts) > 1:
+                safe_uri = uri_parts[0].split('://')[0] + '://***:***@' + uri_parts[1]
+                logger.info(f"📍 MongoDB URI configured: {safe_uri[:50]}...")
             
     async def initialize(self):
         """Initialize MongoDB connection"""
@@ -61,21 +68,21 @@ class MongoDBManager:
         if not self.mongodb_uri:
             logger.warning("⚠️ No MongoDB URI - running in cache mode")
             self.connected = False
-            return
+            return False
         
         try:
             logger.info("🚀 Initializing MongoDB...")
-            logger.info(f"📍 URI: {self.mongodb_uri[:30]}...")  # Log first 30 chars only
             
-            # Create async client
+            # สร้าง async client พร้อม authentication
             self.client = AsyncIOMotorClient(
                 self.mongodb_uri,
-                tlsCAFile=certifi.where() if 'mongodb+srv' in self.mongodb_uri else None,
                 serverSelectionTimeoutMS=10000,
                 connectTimeoutMS=10000,
                 socketTimeoutMS=10000,
                 maxPoolSize=50,
-                retryWrites=True
+                minPoolSize=1,
+                retryWrites=True,
+                tlsCAFile=certifi.where() if 'mongodb+srv' in self.mongodb_uri else None
             )
             
             # Test connection
@@ -84,7 +91,11 @@ class MongoDBManager:
             ping_time = (time.time() - start_time) * 1000
             
             # Get server info
-            server_info = await self.client.server_info()
+            try:
+                server_info = await self.client.server_info()
+                version = server_info.get('version', 'Unknown')
+            except:
+                version = 'Unknown'
             
             # Extract database name from URI
             db_name = self._extract_database_name(self.mongodb_uri)
@@ -102,12 +113,36 @@ class MongoDBManager:
                 "last_check": datetime.now().isoformat(),
                 "details": {
                     "database": db_name,
-                    "version": server_info.get('version'),
+                    "version": version,
                     "ping_ms": round(ping_time, 2)
                 }
             })
             
             logger.info(f"✅ MongoDB connected - Database: {db_name}, Ping: {ping_time:.2f}ms")
+            return True
+            
+        except OperationFailure as e:
+            error_msg = f"MongoDB authentication failed: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            logger.error("Please check your MongoDB credentials:")
+            logger.error("1. Verify username and password are correct")
+            logger.error("2. Make sure user has proper permissions")
+            logger.error("3. Check if the database name in URI is correct")
+            
+            CONNECTION_STATUS.update({
+                "type": "MongoDB",
+                "connected": False,
+                "error": error_msg,
+                "last_check": datetime.now().isoformat()
+            })
+            self.connected = False
+            
+            # Close client if auth failed
+            if self.client:
+                self.client.close()
+                self.client = None
+            
+            return False
             
         except Exception as e:
             error_msg = f"MongoDB connection failed: {str(e)}"
@@ -118,12 +153,19 @@ class MongoDBManager:
                 "error": error_msg,
                 "last_check": datetime.now().isoformat()
             })
-            # Don't raise, just log the error
             self.connected = False
+            
+            # Close client on error
+            if self.client:
+                self.client.close()
+                self.client = None
+                
+            return False
     
     def _extract_database_name(self, mongodb_uri: str) -> str:
         """Extract database name from MongoDB URI"""
         try:
+            # Parse the URI to get database name
             if '/' in mongodb_uri.split('?')[0]:
                 path_part = mongodb_uri.split('/')[-1].split('?')[0]
                 if path_part and path_part != '':
@@ -254,6 +296,16 @@ class MongoDBManager:
     
     async def get_config(self, key: str, default=None):
         """Get configuration from MongoDB"""
+        # Check environment variable first
+        env_value = os.getenv(key.upper())
+        if env_value:
+            # Convert boolean strings
+            if env_value.lower() in ['true', '1', 'yes']:
+                return True
+            elif env_value.lower() in ['false', '0', 'no']:
+                return False
+            return env_value
+            
         if not self.connected or not self.db:
             return default
             
@@ -313,6 +365,10 @@ class MongoDBManager:
     
     async def test_connection(self) -> Dict[str, Any]:
         """Test MongoDB connection"""
+        if not self.client:
+            # Try to initialize if not connected
+            await self.initialize()
+            
         if not self.client:
             return {
                 "status": "error",
@@ -394,8 +450,12 @@ def _get_sync_loop():
 # ==================== Export Functions ====================
 async def init_database():
     """Initialize database"""
-    await db_manager.initialize()
-    logger.info(f"✅ MongoDB initialization completed")
+    success = await db_manager.initialize()
+    if success:
+        logger.info("✅ MongoDB initialization completed")
+    else:
+        logger.error("❌ MongoDB initialization failed")
+    return success
 
 def get_connection_info():
     """Get detailed connection information"""
@@ -427,8 +487,6 @@ async def get_user_chat_history(user_id: str, limit: int = 10):
 
 async def test_connection() -> Dict[str, Any]:
     """Test database connection"""
-    if not db_manager.connected:
-        await init_database()
     return await db_manager.test_connection()
 
 async def get_database_status() -> Dict[str, Any]:
@@ -459,15 +517,20 @@ async def get_all_configs() -> Dict[str, Any]:
 def get_config_sync(key: str, default=None):
     """Sync wrapper for get_config"""
     try:
+        # Check environment variable first
+        env_value = os.getenv(key.upper())
+        if env_value:
+            if env_value.lower() in ['true', '1', 'yes']:
+                return True
+            elif env_value.lower() in ['false', '0', 'no']:
+                return False
+            return env_value
+            
         # Check if we're already in an async context
         try:
             loop = asyncio.get_running_loop()
             # We're in async context, can't use sync version
             logger.warning(f"get_config_sync called from async context for key: {key}")
-            # Try to return from cache or environment
-            env_value = os.getenv(key.upper())
-            if env_value:
-                return env_value
             return default
         except RuntimeError:
             # Not in async context, safe to proceed
@@ -521,38 +584,6 @@ def get_user_chat_history_sync(user_id: str, limit: int = 10):
         logger.error(f"Error in get_user_chat_history_sync: {e}")
         return []
 
-def get_chat_history_count_sync() -> int:
-    """Sync wrapper for get_chat_history_count"""
-    try:
-        try:
-            loop = asyncio.get_running_loop()
-            return 0
-        except RuntimeError:
-            pass
-        
-        loop = _get_sync_loop()
-        future = asyncio.run_coroutine_threadsafe(get_chat_history_count(), loop)
-        return future.result(timeout=5)
-    except Exception as e:
-        logger.error(f"Error in get_chat_history_count_sync: {e}")
-        return 0
-
-def get_recent_chat_history_sync(limit: int = 50):
-    """Sync wrapper for get_recent_chat_history"""
-    try:
-        try:
-            loop = asyncio.get_running_loop()
-            return []
-        except RuntimeError:
-            pass
-        
-        loop = _get_sync_loop()
-        future = asyncio.run_coroutine_threadsafe(get_recent_chat_history(limit), loop)
-        return future.result(timeout=5)
-    except Exception as e:
-        logger.error(f"Error in get_recent_chat_history_sync: {e}")
-        return []
-
 # ==================== Additional Compatibility Functions ====================
 def verify_tables() -> Dict[str, bool]:
     """Verify collections exist (always returns True for MongoDB)"""
@@ -568,7 +599,7 @@ def get_all_configs():
         except RuntimeError:
             pass
         
-        if not db_manager.connected or not db_manager.db:
+        if not db_manager.connected:
             return {}
             
         loop = _get_sync_loop()
