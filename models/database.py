@@ -1,7 +1,7 @@
 # models/database.py
 """
 MongoDB-Only Database Module with Motor AsyncIO
-Fixed authentication and async issues
+Enhanced version with complete data storage capabilities
 """
 
 import os
@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 import time
+import re
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, OperationFailure
@@ -174,13 +175,51 @@ class MongoDBManager:
         except:
             return 'lineoa'
     
+    def _extract_urls(self, text: str) -> List[str]:
+        """Extract URLs from text"""
+        url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        urls = re.findall(url_pattern, text)
+        return urls
+    
     async def _create_indexes(self):
         """Create necessary indexes"""
         try:
             # Chat history indexes
             await self.db.chat_history.create_index([("user_id", 1)])
             await self.db.chat_history.create_index([("created_at", -1)])
+            await self.db.chat_history.create_index([("message_type", 1)])
             await self.db.chat_history.create_index([("sender", 1)])
+            
+            # Media references indexes
+            await self.db.media_references.create_index([("user_id", 1)])
+            await self.db.media_references.create_index([("message_id", 1)], unique=True, sparse=True)
+            await self.db.media_references.create_index([("media_type", 1)])
+            await self.db.media_references.create_index([("created_at", -1)])
+            
+            # Events indexes
+            await self.db.line_events.create_index([("identifier", 1)])
+            await self.db.line_events.create_index([("event_type", 1)])
+            await self.db.line_events.create_index([("created_at", -1)])
+            
+            # Raw events indexes
+            await self.db.raw_events.create_index([("event_type", 1)])
+            await self.db.raw_events.create_index([("timestamp", -1)])
+            await self.db.raw_events.create_index([("created_at", -1)])
+            
+            # URLs indexes
+            await self.db.urls.create_index([("user_id", 1)])
+            await self.db.urls.create_index([("url", 1)])
+            await self.db.urls.create_index([("created_at", -1)])
+            
+            # Locations indexes
+            await self.db.locations.create_index([("user_id", 1)])
+            await self.db.locations.create_index([("created_at", -1)])
+            await self.db.locations.create_index([("latitude", 1), ("longitude", 1)])
+            
+            # Slip verifications indexes
+            await self.db.slip_verifications.create_index([("user_id", 1)])
+            await self.db.slip_verifications.create_index([("status", 1)])
+            await self.db.slip_verifications.create_index([("created_at", -1)])
             
             # Config store indexes
             await self.db.config_store.create_index([("config_key", 1)], unique=True)
@@ -188,35 +227,112 @@ class MongoDBManager:
             # Users indexes
             await self.db.users.create_index([("user_id", 1)], unique=True)
             await self.db.users.create_index([("last_seen", -1)])
+            await self.db.users.create_index([("message_count", -1)])
             
             logger.info("✅ MongoDB indexes created")
         except Exception as e:
             logger.warning(f"⚠️ Index creation warning: {e}")
     
     async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
-        """Save chat history to MongoDB"""
+        """Save chat history to MongoDB with complete message data"""
         if not self.connected or not self.db:
             logger.debug("⚠️ MongoDB not connected, skipping save")
             return
             
         try:
+            # เตรียมข้อมูลพื้นฐาน
             document = {
                 "user_id": user_id,
                 "direction": direction,
-                "message_type": message.get("type", "text"),
-                "message_text": message.get("text", ""),
-                "message_data": message,
+                "message_type": message.get("type", "unknown"),
                 "sender": sender,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
+                "raw_message": message  # เก็บข้อมูลดิบทั้งหมด
             }
             
+            # แยกประเภทข้อมูลและจัดเก็บ
+            message_type = message.get("type", "unknown")
+            
+            if message_type == "text":
+                document["message_text"] = message.get("text", "")
+                # ตรวจหา URLs ในข้อความ
+                text = message.get("text", "")
+                urls = self._extract_urls(text)
+                if urls:
+                    document["urls"] = urls
+                    
+            elif message_type == "image":
+                document["message_text"] = "[รูปภาพ]"
+                document["image_data"] = {
+                    "id": message.get("id"),
+                    "contentProvider": message.get("contentProvider", {})
+                }
+                
+            elif message_type == "video":
+                document["message_text"] = "[วิดีโอ]"
+                document["video_data"] = {
+                    "id": message.get("id"),
+                    "duration": message.get("duration"),
+                    "contentProvider": message.get("contentProvider", {})
+                }
+                
+            elif message_type == "audio":
+                document["message_text"] = "[ไฟล์เสียง]"
+                document["audio_data"] = {
+                    "id": message.get("id"),
+                    "duration": message.get("duration"),
+                    "contentProvider": message.get("contentProvider", {})
+                }
+                
+            elif message_type == "file":
+                document["message_text"] = f"[ไฟล์: {message.get('fileName', 'unknown')}]"
+                document["file_data"] = {
+                    "id": message.get("id"),
+                    "fileName": message.get("fileName"),
+                    "fileSize": message.get("fileSize")
+                }
+                
+            elif message_type == "location":
+                document["message_text"] = f"[ตำแหน่ง: {message.get('title', 'Unknown location')}]"
+                document["location_data"] = {
+                    "title": message.get("title"),
+                    "address": message.get("address"),
+                    "latitude": message.get("latitude"),
+                    "longitude": message.get("longitude")
+                }
+                
+            elif message_type == "sticker":
+                document["message_text"] = "[สติกเกอร์]"
+                document["sticker_data"] = {
+                    "packageId": message.get("packageId"),
+                    "stickerId": message.get("stickerId"),
+                    "stickerResourceType": message.get("stickerResourceType"),
+                    "keywords": message.get("keywords", [])
+                }
+                
+            else:
+                document["message_text"] = f"[{message_type}]"
+                document["unknown_data"] = message
+            
+            # เพิ่ม metadata ถ้ามี
+            if message.get("timestamp"):
+                document["timestamp"] = message.get("timestamp")
+            if message.get("source"):
+                document["source"] = message.get("source")
+            if message.get("webhookEventId"):
+                document["webhookEventId"] = message.get("webhookEventId")
+            
+            # บันทึกลง MongoDB
             result = await self.db.chat_history.insert_one(document)
             
-            # Update user stats
+            # อัปเดตข้อมูล user
             await self.db.users.update_one(
                 {"user_id": user_id},
                 {
-                    "$set": {"last_seen": datetime.utcnow()},
+                    "$set": {
+                        "last_seen": datetime.utcnow(),
+                        "last_message_type": message_type
+                    },
                     "$inc": {"message_count": 1},
                     "$setOnInsert": {
                         "first_seen": datetime.utcnow(),
@@ -227,10 +343,192 @@ class MongoDBManager:
                 upsert=True
             )
             
-            logger.debug(f"✅ Chat saved to MongoDB: {result.inserted_id}")
+            # บันทึก media references แยก (สำหรับดึงข้อมูลภายหลัง)
+            if message_type in ["image", "video", "audio", "file"] and message.get("id"):
+                await self.db.media_references.insert_one({
+                    "user_id": user_id,
+                    "message_id": message.get("id"),
+                    "message_type": message_type,
+                    "chat_history_id": result.inserted_id,
+                    "created_at": datetime.utcnow(),
+                    "downloaded": False,
+                    "file_info": {
+                        "fileName": message.get("fileName"),
+                        "fileSize": message.get("fileSize"),
+                        "duration": message.get("duration")
+                    }
+                })
+            
+            logger.debug(f"✅ Chat saved to MongoDB: {result.inserted_id} (type: {message_type})")
             
         except Exception as e:
             logger.error(f"❌ Error saving to MongoDB: {e}")
+    
+    async def save_raw_event(self, event: Dict[str, Any]) -> bool:
+        """บันทึก raw event ทั้งหมด"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            await self.db.raw_events.insert_one({
+                "event": event,
+                "event_type": event.get("type"),
+                "source": event.get("source", {}),
+                "timestamp": event.get("timestamp"),
+                "webhookEventId": event.get("webhookEventId"),
+                "created_at": datetime.utcnow()
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving raw event: {e}")
+            return False
+    
+    async def save_event(self, identifier: str, event_type: str, event_data: Dict[str, Any]) -> bool:
+        """บันทึก LINE events"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            await self.db.line_events.insert_one({
+                "identifier": identifier,  # user_id หรือ group_id
+                "event_type": event_type,
+                "event_data": event_data,
+                "source": event_data.get("source", {}),
+                "timestamp": event_data.get("timestamp"),
+                "created_at": datetime.utcnow()
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving event: {e}")
+            return False
+    
+    async def save_url(self, user_id: str, url: str) -> bool:
+        """บันทึก URL จากข้อความ"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            # ตรวจสอบว่ามี URL นี้แล้วหรือไม่
+            existing = await self.db.urls.find_one({
+                "user_id": user_id,
+                "url": url
+            })
+            
+            if not existing:
+                await self.db.urls.insert_one({
+                    "user_id": user_id,
+                    "url": url,
+                    "domain": urllib.parse.urlparse(url).netloc,
+                    "created_at": datetime.utcnow()
+                })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving URL: {e}")
+            return False
+    
+    async def save_media_reference(self, user_id: str, message_id: str, media_type: str, message_data: Dict) -> bool:
+        """บันทึก media reference"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            await self.db.media_references.update_one(
+                {"message_id": message_id},
+                {
+                    "$set": {
+                        "user_id": user_id,
+                        "message_id": message_id,
+                        "media_type": media_type,
+                        "message_data": message_data,
+                        "downloaded": False,
+                        "file_info": {
+                            "fileName": message_data.get("fileName"),
+                            "fileSize": message_data.get("fileSize"),
+                            "duration": message_data.get("duration"),
+                            "contentProvider": message_data.get("contentProvider", {})
+                        },
+                        "created_at": datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error saving media reference: {e}")
+            return False
+    
+    async def save_location(self, user_id: str, location_data: Dict) -> bool:
+        """บันทึกข้อมูลตำแหน่ง"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            await self.db.locations.insert_one({
+                "user_id": user_id,
+                "title": location_data.get("title"),
+                "address": location_data.get("address"),
+                "latitude": location_data.get("latitude"),
+                "longitude": location_data.get("longitude"),
+                "raw_data": location_data,
+                "created_at": datetime.utcnow()
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving location: {e}")
+            return False
+    
+    async def save_slip_data(self, user_id: str, slip_result: Dict) -> bool:
+        """บันทึกข้อมูลสลิป"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            await self.db.slip_verifications.insert_one({
+                "user_id": user_id,
+                "status": slip_result.get("status"),
+                "type": slip_result.get("type"),
+                "data": slip_result.get("data", {}),
+                "message": slip_result.get("message"),
+                "verified_by": slip_result.get("data", {}).get("verified_by"),
+                "amount": slip_result.get("data", {}).get("amount"),
+                "trans_ref": slip_result.get("data", {}).get("transRef"),
+                "created_at": datetime.utcnow()
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving slip data: {e}")
+            return False
+    
+    async def save_media_content(self, message_id: str, content: bytes, content_type: str) -> bool:
+        """บันทึก media content (สำหรับไฟล์เล็ก)"""
+        if not self.connected or not self.db:
+            return False
+            
+        try:
+            # จำกัดขนาด 16MB (MongoDB limit)
+            if len(content) < 16 * 1024 * 1024:
+                await self.db.media_content.insert_one({
+                    "message_id": message_id,
+                    "content_type": content_type,
+                    "content_size": len(content),
+                    "content": content,  # Binary data
+                    "downloaded_at": datetime.utcnow(),
+                    "created_at": datetime.utcnow()
+                })
+                
+                # อัปเดตสถานะ downloaded
+                await self.db.media_references.update_one(
+                    {"message_id": message_id},
+                    {"$set": {"downloaded": True, "downloaded_at": datetime.utcnow()}}
+                )
+                
+                return True
+            else:
+                logger.warning(f"Media too large ({len(content)} bytes), consider using GridFS or S3")
+                return False
+        except Exception as e:
+            logger.error(f"Error saving media content: {e}")
+            return False
     
     async def get_chat_history_count(self) -> int:
         """Get total message count"""
@@ -241,6 +539,17 @@ class MongoDBManager:
             return await self.db.chat_history.count_documents({})
         except Exception as e:
             logger.error(f"❌ Error counting MongoDB messages: {e}")
+            return 0
+    
+    async def get_user_message_count(self, user_id: str) -> int:
+        """Get message count for specific user"""
+        if not self.connected or not self.db:
+            return 0
+            
+        try:
+            return await self.db.chat_history.count_documents({"user_id": user_id})
+        except Exception as e:
+            logger.error(f"Error counting user messages: {e}")
             return 0
     
     async def get_recent_chat_history(self, limit: int = 50) -> List[ChatHistory]:
@@ -385,7 +694,12 @@ class MongoDBManager:
             # Get collection counts
             counts = {}
             if self.db:
-                for collection in ['chat_history', 'config_store', 'users']:
+                collections = [
+                    'chat_history', 'config_store', 'users', 
+                    'media_references', 'line_events', 'raw_events',
+                    'urls', 'locations', 'slip_verifications'
+                ]
+                for collection in collections:
                     try:
                         counts[collection] = await self.db[collection].count_documents({})
                     except:
@@ -473,6 +787,12 @@ async def get_chat_history_count() -> int:
         await init_database()
     return await db_manager.get_chat_history_count()
 
+async def get_user_message_count(user_id: str) -> int:
+    """Get user message count"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.get_user_message_count(user_id)
+
 async def get_recent_chat_history(limit: int = 50):
     """Get recent chat history"""
     if not db_manager.connected:
@@ -512,6 +832,49 @@ async def get_all_configs() -> Dict[str, Any]:
     if not db_manager.connected:
         await init_database()
     return await db_manager.get_all_configs()
+
+# ==================== New Export Functions ====================
+async def save_raw_event(event: Dict[str, Any]) -> bool:
+    """Save raw event"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_raw_event(event)
+
+async def save_event(identifier: str, event_type: str, event_data: Dict[str, Any]) -> bool:
+    """Save LINE event"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_event(identifier, event_type, event_data)
+
+async def save_url(user_id: str, url: str) -> bool:
+    """Save URL"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_url(user_id, url)
+
+async def save_media_reference(user_id: str, message_id: str, media_type: str, message_data: Dict) -> bool:
+    """Save media reference"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_media_reference(user_id, message_id, media_type, message_data)
+
+async def save_location(user_id: str, location_data: Dict) -> bool:
+    """Save location"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_location(user_id, location_data)
+
+async def save_slip_data(user_id: str, slip_result: Dict) -> bool:
+    """Save slip verification data"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_slip_data(user_id, slip_result)
+
+async def save_media_content(message_id: str, content: bytes, content_type: str) -> bool:
+    """Save media content"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_media_content(message_id, content, content_type)
 
 # ==================== Sync Wrappers for Backward Compatibility ====================
 def get_config_sync(key: str, default=None):
@@ -587,7 +950,17 @@ def get_user_chat_history_sync(user_id: str, limit: int = 10):
 # ==================== Additional Compatibility Functions ====================
 def verify_tables() -> Dict[str, bool]:
     """Verify collections exist (always returns True for MongoDB)"""
-    return {"chat_history": True, "config_store": True, "users": True}
+    return {
+        "chat_history": True, 
+        "config_store": True, 
+        "users": True,
+        "media_references": True,
+        "line_events": True,
+        "raw_events": True,
+        "urls": True,
+        "locations": True,
+        "slip_verifications": True
+    }
 
 def get_all_configs():
     """Get all configurations (sync)"""
@@ -623,4 +996,7 @@ DB_PATH = None  # No SQLite
 logger.info("=" * 60)
 logger.info("📊 MONGODB DATABASE MODULE LOADED")
 logger.info(f"   MongoDB URI: {'Set' if os.getenv('MONGODB_URI') else 'Not Set (Cache Mode)'}")
+logger.info("   Collections: chat_history, users, media_references,")
+logger.info("                line_events, raw_events, urls, locations,")
+logger.info("                slip_verifications, config_store")
 logger.info("=" * 60)
