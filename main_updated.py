@@ -873,11 +873,15 @@ async def update_settings(request: Request):
             "message": f"เกิดข้อผิดพลาดในการบันทึก: {str(e)}"
         })
 
-@app.get("/admin/chat-history", response_class=HTMLResponse)
+@app.get("/admin/chat-history")
 async def admin_chat_history(request: Request):
     """Chat history page"""
     try:
-        chat_history = database_functions['get_recent_chat_history'](100)
+        # Fix: ใช้ await กับ async function
+        chat_history = []
+        if database_functions and 'get_recent_chat_history' in database_functions:
+            chat_history = await database_functions['get_recent_chat_history'](100)
+        
         return templates.TemplateResponse(
             "chat_history.html",
             {"request": request, "chat_history": chat_history}
@@ -1077,16 +1081,18 @@ async def test_kbank_slip_demo():
 async def export_admin_data():
     """Export system data"""
     try:
-        # Get chat history
-        chat_history = database_functions['get_recent_chat_history'](1000)
+        # Get chat history with await
+        chat_history = []
+        if database_functions and 'get_recent_chat_history' in database_functions:
+            chat_history = await database_functions['get_recent_chat_history'](1000)
         
         # Get configuration (without sensitive data)
         config_export = {
-            "ai_enabled": config_manager.get("ai_enabled", False),
-            "slip_enabled": config_manager.get("slip_enabled", False),
-            "thunder_enabled": config_manager.get("thunder_enabled", True),
-            "kbank_enabled": config_manager.get("kbank_enabled", False),
-            "ai_prompt": config_manager.get("ai_prompt", ""),
+            "ai_enabled": config_manager.get("ai_enabled", False) if config_manager else False,
+            "slip_enabled": config_manager.get("slip_enabled", False) if config_manager else False,
+            "thunder_enabled": config_manager.get("thunder_enabled", True) if config_manager else True,
+            "kbank_enabled": config_manager.get("kbank_enabled", False) if config_manager else False,
+            "ai_prompt": config_manager.get("ai_prompt", "") if config_manager else "",
         }
         
         # Prepare export data
@@ -1095,26 +1101,26 @@ async def export_admin_data():
             "system_config": config_export,
             "chat_history": [
                 {
-                    "id": chat.id,
-                    "user_id": chat.user_id[:8] + "..." if len(chat.user_id) > 8 else chat.user_id,
-                    "direction": chat.direction,
-                    "message_type": chat.message_type,
-                    "message_text": chat.message_text[:100] + "..." if len(chat.message_text or "") > 100 else chat.message_text,
-                    "sender": chat.sender,
-                    "created_at": chat.created_at.isoformat() if chat.created_at else None
+                    "id": str(chat.id) if hasattr(chat, 'id') else None,
+                    "user_id": chat.user_id[:8] + "..." if hasattr(chat, 'user_id') and len(chat.user_id) > 8 else chat.user_id if hasattr(chat, 'user_id') else None,
+                    "direction": chat.direction if hasattr(chat, 'direction') else None,
+                    "message_type": chat.message_type if hasattr(chat, 'message_type') else None,
+                    "message_text": chat.message_text[:100] + "..." if hasattr(chat, 'message_text') and chat.message_text and len(chat.message_text) > 100 else chat.message_text if hasattr(chat, 'message_text') else None,
+                    "sender": chat.sender if hasattr(chat, 'sender') else None,
+                    "created_at": chat.created_at.isoformat() if hasattr(chat, 'created_at') and chat.created_at else None
                 }
                 for chat in chat_history
             ],
             "statistics": {
                 "total_messages": len(chat_history),
-                "unique_users": len(set(chat.user_id for chat in chat_history)),
+                "unique_users": len(set(chat.user_id for chat in chat_history if hasattr(chat, 'user_id'))),
                 "message_types": {}
             }
         }
         
         # Calculate message type statistics
         from collections import Counter
-        message_types = Counter(chat.sender for chat in chat_history)
+        message_types = Counter(chat.sender for chat in chat_history if hasattr(chat, 'sender'))
         export_data["statistics"]["message_types"] = dict(message_types)
         
         return JSONResponse({
@@ -1129,20 +1135,27 @@ async def export_admin_data():
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin")
 async def admin_home(request: Request):
     """Admin home page"""
     try:
-        total_count = database_functions['get_chat_history_count']()
+        # Fix: ใช้ await กับ async functions
+        total_count = 0
+        if database_functions and 'get_chat_history_count' in database_functions:
+            total_count = await database_functions['get_chat_history_count']()
+        
         api_statuses = get_api_status_summary()
-        system_enabled = config_manager.get("slip_enabled", False)
-        any_api_available = any(api.get("enabled", False) and api.get("configured", False) for api in api_statuses.values())
+        system_enabled = config_manager.get("slip_enabled", False) if config_manager else False
+        any_api_available = any(
+            api.get("enabled", False) and api.get("configured", False) 
+            for api in api_statuses.values()
+        )
 
         return templates.TemplateResponse(
             "admin_home.html",
             {
                 "request": request,
-                "config": config_manager,
+                "config": config_manager.config if config_manager else {},
                 "total_chat_history": total_count,
                 "system_status": {
                     "system_enabled": system_enabled,
@@ -1157,7 +1170,7 @@ async def admin_home(request: Request):
             "admin_home.html",
             {
                 "request": request,
-                "config": config_manager,
+                "config": {},
                 "total_chat_history": 0,
                 "system_status": {"system_enabled": False, "any_api_available": False},
                 "api_statuses": {}
@@ -1948,22 +1961,26 @@ async def users_page(request: Request):
     """Users management page"""
     try:
         # Get unique users from chat history
-        chat_history = database_functions['get_recent_chat_history'](1000)
+        chat_history = []
+        if database_functions and 'get_recent_chat_history' in database_functions:
+            chat_history = await database_functions['get_recent_chat_history'](1000)
         
         users_dict = {}
         for chat in chat_history:
-            user_id = chat.user_id
-            if user_id not in users_dict:
+            user_id = chat.user_id if hasattr(chat, 'user_id') else None
+            if user_id and user_id not in users_dict:
                 users_dict[user_id] = {
                     "user_id": user_id,
                     "display_name": f"User {user_id[:8]}",
                     "chat_history": [],
-                    "last_active": chat.created_at,
+                    "last_active": chat.created_at if hasattr(chat, 'created_at') else None,
                     "is_blocked": False
                 }
-            users_dict[user_id]["chat_history"].append(chat)
-            if chat.created_at and (not users_dict[user_id]["last_active"] or chat.created_at > users_dict[user_id]["last_active"]):
-                users_dict[user_id]["last_active"] = chat.created_at
+            if user_id:
+                users_dict[user_id]["chat_history"].append(chat)
+                if hasattr(chat, 'created_at') and chat.created_at:
+                    if not users_dict[user_id]["last_active"] or chat.created_at > users_dict[user_id]["last_active"]:
+                        users_dict[user_id]["last_active"] = chat.created_at
         
         users = list(users_dict.values())
         
