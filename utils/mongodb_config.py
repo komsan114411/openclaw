@@ -2,26 +2,31 @@
 import os
 import logging
 from typing import Dict, Any
-from motor.motor_asyncio import AsyncIOMotorClient
-import certifi
+from datetime import datetime
 import asyncio
 
 logger = logging.getLogger("mongodb_config")
 
 class MongoDBConfigManager:
     def __init__(self):
-        self.client = None
-        self.db = None
         self.config_cache = {}
         self.mongodb_uri = os.getenv('MONGODB_URI')
+        self.client = None
+        self.db = None
         
         if not self.mongodb_uri:
-            logger.error("❌ MONGODB_URI not set!")
-            raise ValueError("MONGODB_URI required")
+            logger.warning("⚠️ MONGODB_URI not set, using local cache")
     
     async def initialize(self):
         """Initialize MongoDB connection"""
+        if not self.mongodb_uri:
+            logger.warning("⚠️ MongoDB URI not available, using memory cache")
+            return
+            
         try:
+            from motor.motor_asyncio import AsyncIOMotorClient
+            import certifi
+            
             self.client = AsyncIOMotorClient(
                 self.mongodb_uri,
                 tlsCAFile=certifi.where() if 'mongodb+srv' in self.mongodb_uri else None,
@@ -42,12 +47,11 @@ class MongoDBConfigManager:
             
         except Exception as e:
             logger.error(f"❌ MongoDB connection failed: {e}")
-            raise
+            # Don't raise, just use cache
     
     def _extract_database_name(self, mongodb_uri: str) -> str:
         """Extract database name from MongoDB URI"""
         try:
-            # Format: mongodb+srv://.../<database>?...
             if '/' in mongodb_uri.split('?')[0]:
                 path_part = mongodb_uri.split('/')[-1].split('?')[0]
                 if path_part:
@@ -58,6 +62,9 @@ class MongoDBConfigManager:
     
     async def _load_all_configs(self):
         """Load all configs from MongoDB to cache"""
+        if not self.db:
+            return
+            
         try:
             cursor = self.db.config_store.find()
             async for doc in cursor:
@@ -70,7 +77,7 @@ class MongoDBConfigManager:
             logger.error(f"❌ Error loading configs: {e}")
     
     def get(self, key: str, default=None):
-        """Get config value (sync wrapper for compatibility)"""
+        """Get config value"""
         # Check environment variables first for sensitive keys
         env_mappings = {
             "line_channel_secret": "LINE_CHANNEL_SECRET",
@@ -92,17 +99,22 @@ class MongoDBConfigManager:
     async def set_async(self, key: str, value: Any) -> bool:
         """Set config value in MongoDB"""
         try:
-            await self.db.config_store.update_one(
-                {"config_key": key},
-                {"$set": {
-                    "config_key": key,
-                    "config_value": value,
-                    "updated_at": datetime.utcnow()
-                }},
-                upsert=True
-            )
             self.config_cache[key] = value
-            logger.info(f"✅ Updated config: {key}")
+            
+            if self.db:
+                await self.db.config_store.update_one(
+                    {"config_key": key},
+                    {"$set": {
+                        "config_key": key,
+                        "config_value": value,
+                        "updated_at": datetime.utcnow()
+                    }},
+                    upsert=True
+                )
+                logger.info(f"✅ Updated config in MongoDB: {key}")
+            else:
+                logger.info(f"✅ Updated config in cache: {key}")
+            
             return True
         except Exception as e:
             logger.error(f"❌ Error setting config {key}: {e}")
@@ -111,11 +123,13 @@ class MongoDBConfigManager:
     def update(self, key: str, value: Any) -> bool:
         """Update config (sync wrapper)"""
         try:
-            # Run async operation in sync context
-            loop = asyncio.new_event_loop()
-            result = loop.run_until_complete(self.set_async(key, value))
-            loop.close()
-            return result
+            self.config_cache[key] = value
+            
+            if self.db:
+                # Schedule async update
+                asyncio.create_task(self.set_async(key, value))
+            
+            return True
         except Exception as e:
             logger.error(f"❌ Error in sync update: {e}")
             return False
@@ -123,11 +137,13 @@ class MongoDBConfigManager:
     def update_multiple(self, updates: Dict[str, Any]) -> bool:
         """Update multiple configs"""
         try:
-            success_count = 0
-            for key, value in updates.items():
-                if self.update(key, value):
-                    success_count += 1
-            return success_count > 0
+            self.config_cache.update(updates)
+            
+            if self.db:
+                for key, value in updates.items():
+                    asyncio.create_task(self.set_async(key, value))
+            
+            return True
         except Exception as e:
             logger.error(f"❌ Error updating multiple configs: {e}")
             return False
