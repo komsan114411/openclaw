@@ -1294,33 +1294,36 @@ async def get_api_status():
             "kbank": {"configured": False, "enabled": False, "connected": False}
         })
 
-@app.get("/admin/mysql-status")
-async def get_mysql_status():
-    """Get MySQL connection status"""
+
+
+
+@app.get("/admin/mongodb-status")
+async def get_mongodb_status():
+    """Get MongoDB connection status"""
     try:
         from models.database import get_database_status
-        status = get_database_status()
+        status = await get_database_status()
         return JSONResponse({
             "status": "success",
-            "mysql": status
+            "mongodb": status
         })
     except Exception as e:
-        logger.error(f"❌ Get MySQL status error: {e}")
+        logger.error(f"❌ Get MongoDB status error: {e}")
         return JSONResponse({
             "status": "error",
             "message": str(e),
-            "mysql": {
+            "mongodb": {
                 "status": "disconnected",
-                "message": "Cannot check MySQL status"
+                "message": "Cannot check MongoDB status"
             }
         })
 
-@app.post("/admin/test-mysql")
-async def test_mysql_connection():
-    """Test MySQL connection"""
+@app.post("/admin/test-mongodb")
+async def test_mongodb_connection():
+    """Test MongoDB connection"""
     try:
         from models.database import test_connection
-        result = test_connection()
+        result = await test_connection()
         
         await notification_manager.send_notification(
             result["message"],
@@ -1330,50 +1333,12 @@ async def test_mysql_connection():
         return JSONResponse(result)
         
     except Exception as e:
-        logger.error(f"❌ Test MySQL error: {e}")
+        logger.error(f"❌ Test MongoDB error: {e}")
         return JSONResponse({
             "status": "error",
             "message": f"Test failed: {str(e)}"
         })
 
-@app.post("/admin/init-mysql-tables")
-async def init_mysql_tables():
-    """Initialize MySQL tables"""
-    try:
-        from models.database import init_database, verify_tables
-        
-        # Initialize tables
-        init_database()
-        
-        # Verify tables
-        table_status = verify_tables()
-        
-        all_created = all(table_status.values())
-        
-        if all_created:
-            await notification_manager.send_notification(
-                "✅ All MySQL tables initialized successfully",
-                "success"
-            )
-        else:
-            failed_tables = [t for t, exists in table_status.items() if not exists]
-            await notification_manager.send_notification(
-                f"⚠️ Some tables failed: {', '.join(failed_tables)}",
-                "warning"
-            )
-        
-        return JSONResponse({
-            "status": "success" if all_created else "partial",
-            "tables": table_status,
-            "message": "Tables initialized" if all_created else "Some tables failed"
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Init MySQL tables error: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        })
 
 @app.get("/health")
 async def health_check():
