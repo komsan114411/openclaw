@@ -142,9 +142,14 @@ async def safe_import_modules():
                 get_connection_info, get_database_status, get_config, set_config, get_all_configs
             )
             
-            # Initialize database asynchronously
-            await init_database()
-            logger.info("✅ Database initialized")
+            # Initialize database asynchronously with timeout
+            try:
+                await asyncio.wait_for(init_database(), timeout=30.0)
+                logger.info("✅ Database initialized successfully")
+            except asyncio.TimeoutError:
+                logger.warning("⚠️ Database initialization timeout - continuing with cache mode")
+            except Exception as e:
+                logger.warning(f"⚠️ Database initialization failed: {e} - continuing with cache mode")
             
             database_functions = {
                 'init_database': init_database,
@@ -164,17 +169,38 @@ async def safe_import_modules():
         except ImportError as e:
             logger.warning(f"⚠️ Database import failed: {e}")
             # Fallback functions
-            async def dummy_init(): pass
-            async def dummy_save(u, d, m, s): pass
-            async def dummy_count(): return 0
-            async def dummy_recent(l=50): return []
-            async def dummy_user_history(u, l=10): return []
-            async def dummy_test(): return {"status": "error", "message": "Database not available"}
-            def dummy_info(): return {"connected": False, "type": "Unavailable"}
-            async def dummy_get_status(): return {"status": "error", "message": "Database not available"}
-            async def dummy_get_config(key, default=None): return default
-            async def dummy_set_config(key, value, is_sensitive=False): return False
-            async def dummy_get_all_configs(): return {}
+            async def dummy_init(): 
+                return None
+            
+            async def dummy_save(u, d, m, s): 
+                pass
+            
+            async def dummy_count(): 
+                return 0
+            
+            async def dummy_recent(l=50): 
+                return []
+            
+            async def dummy_user_history(u, l=10): 
+                return []
+            
+            async def dummy_test(): 
+                return {"status": "error", "message": "Database not available"}
+            
+            def dummy_info(): 
+                return {"connected": False, "type": "Unavailable"}
+            
+            async def dummy_get_status(): 
+                return {"status": "error", "message": "Database not available"}
+            
+            async def dummy_get_config(key, default=None): 
+                return default
+            
+            async def dummy_set_config(key, value, is_sensitive=False): 
+                return False
+            
+            async def dummy_get_all_configs(): 
+                return {}
                 
             database_functions = {
                 'init_database': dummy_init,
@@ -221,12 +247,23 @@ async def safe_import_modules():
             logger.info("✅ Slip modules imported")
         except ImportError as e:
             logger.warning(f"⚠️ Slip module import failed: {e}")
-            def dummy_extract(text): return {"bank_code": None, "trans_ref": None}
+            def dummy_extract(text): 
+                return {"bank_code": None, "trans_ref": None}
+            
             def dummy_verify(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
                 return {"status": "error", "message": "Slip verification not available"}
-            def dummy_api_status(): return { "thunder": {"enabled": False, "configured": False}, "kbank": {"enabled": False, "configured": False} }
-            def dummy_reset(): return False
-            def dummy_test_thunder(token): return {"status": "error", "message": "Thunder API not available"}
+            
+            def dummy_api_status(): 
+                return { 
+                    "thunder": {"enabled": False, "configured": False}, 
+                    "kbank": {"enabled": False, "configured": False} 
+                }
+            
+            def dummy_reset(): 
+                return False
+            
+            def dummy_test_thunder(token): 
+                return {"status": "error", "message": "Thunder API not available"}
             
             slip_functions['extract_slip_info_from_text'] = dummy_extract
             slip_functions['verify_slip_multiple_providers'] = dummy_verify
@@ -252,15 +289,21 @@ async def safe_import_modules():
         logger.info("✅ All modules loaded successfully - System READY")
         
         # Send startup notification
-        db_status = await database_functions.get('test_connection', async def(): return {'status': 'error', 'message': 'DB not ready'})()
+        db_status = {'status': 'error', 'message': 'DB not ready'}
+        if 'test_connection' in database_functions:
+            try:
+                db_status = await database_functions['test_connection']()
+            except:
+                pass
+                
         await notification_manager.send_notification(
             "🚀 System started successfully", 
             "success",
             {
                 "database": db_status,
                 "config_backend": "MongoDB" if hasattr(config_manager, 'db_functions') and config_manager.db_functions else "Local File",
-                "ai_available": 'get_chat_response' in ai_functions,
-                "slip_available": 'verify_slip_multiple_providers' in slip_functions
+                "ai_available": bool(ai_functions.get('get_chat_response')),
+                "slip_available": bool(slip_functions.get('verify_slip_multiple_providers'))
             }
         )
         
