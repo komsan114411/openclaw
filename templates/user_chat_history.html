@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Chat with {{ user_profile.display_name or user_id[:10] }} - LINE OA Middleware{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-comment-dots me-2 text-primary"></i>
+        Chat History with {{ user_profile.display_name or user_id[:10] }}
+    </h1>
+    <a href="/admin/users" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Users
+    </a>
+</div>
+
+<!-- User Profile Info -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center">
+            {% if user_profile.profile_picture_url %}
+                <img src="{{ user_profile.profile_picture_url }}" class="rounded-circle me-3" width="60" height="60">
+            {% else %}
+                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                    <i class="fas fa-user text-white fa-2x"></i>
+                </div>
+            {% endif %}
+            <div>
+                <h5 class="mb-0">{{ user_profile.display_name or 'Unknown User' }}</h5>
+                <small class="text-muted font-monospace">User ID: {{ user_id }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Container -->
+<div class="card">
+    <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+        <div class="d-flex flex-column gap-3">
+            {% if chat_history %}
+                {% for chat in chat_history %}
+                    {% if chat.sender == 'user' %}
+                        <!-- User Message (Incoming) -->
+                        <div class="d-flex justify-content-start">
+                            <div class="p-3 rounded-3 shadow-sm" style="max-width: 70%; background-color: #e2e6ea;">
+                                <small class="text-muted float-end ms-2">{{ chat.created_at.strftime('%H:%M') }}</small>
+                                <strong>{{ user_profile.display_name or 'User' }}</strong>
+                                <hr class="my-1">
+                                <p class="mb-0">{{ chat.message_text }}</p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Bot Message (Outgoing) -->
+                        <div class="d-flex justify-content-end">
+                            <div class="p-3 rounded-3 shadow-sm text-end" style="max-width: 70%; background-color: #d1e7dd;">
+                                <small class="text-muted float-start me-2">{{ chat.created_at.strftime('%H:%M') }}</small>
+                                <strong>{{ chat.sender|upper }}</strong>
+                                <hr class="my-1">
+                                <p class="mb-0">{{ chat.message_text }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <p>No chat history found for this user.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
