@@ -1,4 +1,4 @@
-# main_updated.py (ฉบับแก้ไขสมบูรณ์)
+# main_updated.py (ฉบับแก้ไข)
 import json
 import hmac
 import hashlib
@@ -122,6 +122,7 @@ database_functions = {}
 ai_functions = {}
 slip_functions = {}
 
+# ในส่วน safe_import_modules() แก้ไขเป็น:
 async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
     global IS_READY, config_manager, database_functions, ai_functions, slip_functions
@@ -129,27 +130,36 @@ async def safe_import_modules():
     logger.info("🔄 Starting module imports...")
     
     try:
-        # Config Manager - Critical
-        from utils.config_manager import config_manager as cm
-        config_manager = cm
-        logger.info("✅ Config manager imported")
+        # Initialize MongoDB Config Manager first
+        try:
+            from utils.mongodb_config import get_config_manager
+            mongodb_config = await get_config_manager()
+            logger.info("✅ MongoDB Config Manager initialized")
+            
+            # Update config_manager to use MongoDB
+            from utils.config_manager import config_manager as cm
+            cm.mongodb_config = mongodb_config
+            cm._initialized = True
+            config_manager = cm
+            logger.info("✅ Config manager using MongoDB backend")
+        except Exception as e:
+            logger.error(f"❌ MongoDB Config init failed: {e}")
+            # Fallback to file-based config
+            from utils.config_manager import config_manager as cm
+            config_manager = cm
+            logger.warning("⚠️ Using fallback config manager")
         
         # Database functions - Initialize async
         try:
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
                 get_recent_chat_history, get_user_chat_history, test_connection as db_test_connection, 
-                get_connection_info, get_database_status, get_config, set_config, get_all_configs
+                get_connection_info, get_database_status, get_config, set_config
             )
             
-            # Initialize database asynchronously with timeout
-            try:
-                await asyncio.wait_for(init_database(), timeout=30.0)
-                logger.info("✅ Database initialized successfully")
-            except asyncio.TimeoutError:
-                logger.warning("⚠️ Database initialization timeout - continuing with cache mode")
-            except Exception as e:
-                logger.warning(f"⚠️ Database initialization failed: {e} - continuing with cache mode")
+            # Initialize database asynchronously
+            await init_database()
+            logger.info("✅ Database initialized")
             
             database_functions = {
                 'init_database': init_database,
@@ -161,46 +171,33 @@ async def safe_import_modules():
                 'get_connection_info': get_connection_info,
                 'get_database_status': get_database_status,
                 'get_config': get_config,
-                'set_config': set_config,
-                'get_all_configs': get_all_configs,
+                'set_config': set_config
             }
             logger.info("✅ Database modules imported")
             
         except ImportError as e:
             logger.warning(f"⚠️ Database import failed: {e}")
             # Fallback functions
-            async def dummy_init(): 
-                return None
-            
-            async def dummy_save(u, d, m, s): 
+            async def dummy_init():
                 pass
-            
-            async def dummy_count(): 
+            async def dummy_save(u, d, m, s):
+                pass
+            async def dummy_count():
                 return 0
-            
-            async def dummy_recent(l=50): 
+            async def dummy_recent(l=50):
                 return []
-            
-            async def dummy_user_history(u, l=10): 
+            async def dummy_user_history(u, l=10):
                 return []
-            
-            async def dummy_test(): 
+            async def dummy_test():
                 return {"status": "error", "message": "Database not available"}
-            
-            def dummy_info(): 
+            def dummy_info():
                 return {"connected": False, "type": "Unavailable"}
-            
-            async def dummy_get_status(): 
+            async def dummy_get_status():
                 return {"status": "error", "message": "Database not available"}
-            
-            async def dummy_get_config(key, default=None): 
+            async def dummy_get_config(key, default=None):
                 return default
-            
-            async def dummy_set_config(key, value, is_sensitive=False): 
+            async def dummy_set_config(key, value, is_sensitive=False):
                 return False
-            
-            async def dummy_get_all_configs(): 
-                return {}
                 
             database_functions = {
                 'init_database': dummy_init,
@@ -212,13 +209,9 @@ async def safe_import_modules():
                 'get_connection_info': dummy_info,
                 'get_database_status': dummy_get_status,
                 'get_config': dummy_get_config,
-                'set_config': dummy_set_config,
-                'get_all_configs': dummy_get_all_configs,
+                'set_config': dummy_set_config
             }
             logger.warning("⚠️ Using dummy database functions")
-        
-        # Update config_manager instance with async db functions
-        config_manager.db_functions = database_functions
         
         # Import AI modules
         try:
@@ -247,22 +240,18 @@ async def safe_import_modules():
             logger.info("✅ Slip modules imported")
         except ImportError as e:
             logger.warning(f"⚠️ Slip module import failed: {e}")
-            def dummy_extract(text): 
+            def dummy_extract(text):
                 return {"bank_code": None, "trans_ref": None}
-            
             def dummy_verify(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
                 return {"status": "error", "message": "Slip verification not available"}
-            
-            def dummy_api_status(): 
-                return { 
-                    "thunder": {"enabled": False, "configured": False}, 
-                    "kbank": {"enabled": False, "configured": False} 
+            def dummy_api_status():
+                return {
+                    "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
+                    "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
                 }
-            
-            def dummy_reset(): 
+            def dummy_reset():
                 return False
-            
-            def dummy_test_thunder(token): 
+            def dummy_test_thunder(token):
                 return {"status": "error", "message": "Thunder API not available"}
             
             slip_functions['extract_slip_info_from_text'] = dummy_extract
@@ -289,21 +278,14 @@ async def safe_import_modules():
         logger.info("✅ All modules loaded successfully - System READY")
         
         # Send startup notification
-        db_status = {'status': 'error', 'message': 'DB not ready'}
-        if 'test_connection' in database_functions:
-            try:
-                db_status = await database_functions['test_connection']()
-            except:
-                pass
-                
         await notification_manager.send_notification(
             "🚀 System started successfully", 
             "success",
             {
-                "database": db_status,
-                "config_backend": "MongoDB" if hasattr(config_manager, 'db_functions') and config_manager.db_functions else "Local File",
-                "ai_available": bool(ai_functions.get('get_chat_response')),
-                "slip_available": bool(slip_functions.get('verify_slip_multiple_providers'))
+                "database": database_functions.get('get_connection_info', lambda: {"connected": False})(),
+                "config_backend": "MongoDB" if hasattr(config_manager, 'mongodb_config') and config_manager.mongodb_config else "File",
+                "ai_available": 'get_chat_response' in ai_functions,
+                "slip_available": 'verify_slip_multiple_providers' in slip_functions
             }
         )
         
@@ -661,8 +643,8 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
 async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
     """จัดการแชท AI"""
     try:
-        ai_enabled = await config_manager.get_config_async("ai_enabled", False)
-        openai_key = await config_manager.get_config_async("openai_api_key", "")
+        ai_enabled = config_manager.get("ai_enabled", False)
+        openai_key = config_manager.get("openai_api_key", "")
         
         if not ai_enabled:
             response = "ระบบ AI ถูกปิดการใช้งานในขณะนี้ค่ะ"
@@ -695,16 +677,16 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
     """จัดการตรวจสอบสลิป"""
     try:
         # ตรวจสอบระบบ
-        slip_enabled = await config_manager.get_config_async("slip_enabled", False)
+        slip_enabled = config_manager.get("slip_enabled", False)
         if not slip_enabled:
             await send_message_safe(user_id, reply_token, "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน", "system_error")
             return
         
         # ตรวจสอบ API
-        thunder_enabled = await config_manager.get_config_async("thunder_enabled", True)
-        thunder_token = (await config_manager.get_config_async("thunder_api_token", "")).strip()
-        kbank_enabled = await config_manager.get_config_async("kbank_enabled", False)
-        kbank_configured = bool(await config_manager.get_config_async("kbank_consumer_id") and await config_manager.get_config_async("kbank_consumer_secret"))
+        thunder_enabled = config_manager.get("thunder_enabled", True)
+        thunder_token = config_manager.get("thunder_api_token", "").strip()
+        kbank_enabled = config_manager.get("kbank_enabled", False)
+        kbank_configured = bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"))
         
         if not thunder_enabled and not kbank_enabled:
             await send_message_safe(user_id, reply_token, "ระบบตรวจสอบสลิปถูกปิดใช้งาน", "system_error")
@@ -836,6 +818,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         except Exception:
             pass
 
+# ====================== API Routes ======================
+
 @app.websocket("/ws/notifications")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time notifications"""
@@ -895,14 +879,8 @@ async def line_webhook(request: Request, background_tasks: BackgroundTasks, x_li
 async def setup_kbank_instant():
     """ตั้งค่า KBank ให้ใช้งานได้ทันที"""
     try:
-        # การเรียกใช้ฟังก์ชันใน Services
-        if 'setup_kbank_sandbox_instantly' not in slip_functions:
-            return JSONResponse({
-                "status": "error",
-                "message": "KBank service is not available"
-            })
-            
-        result = slip_functions['setup_kbank_sandbox_instantly']()
+        from services.kbank_checker import setup_kbank_sandbox_instantly
+        result = setup_kbank_sandbox_instantly()
         
         await notification_manager.send_notification(
             f"🏦 {result.get('message', 'ตั้งค่า KBank เสร็จสิ้น')}", 
@@ -923,14 +901,25 @@ async def root():
     """Root redirect"""
     return RedirectResponse(url="/admin")
 
+# เพิ่มใน main_updated.py หลัง line 755
+
 @app.get("/admin/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request):
     """Settings page"""
     try:
-        if 'get_all_configs' in database_functions:
-            config_data = await database_functions['get_all_configs']()
-        else:
-            config_data = {}
+        config_data = {
+            "line_channel_secret": config_manager.get("line_channel_secret", ""),
+            "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
+            "thunder_api_token": config_manager.get("thunder_api_token", ""),
+            "kbank_consumer_id": config_manager.get("kbank_consumer_id", ""),
+            "kbank_consumer_secret": config_manager.get("kbank_consumer_secret", ""),
+            "openai_api_key": config_manager.get("openai_api_key", ""),
+            "ai_prompt": config_manager.get("ai_prompt", ""),
+            "ai_enabled": config_manager.get("ai_enabled", False),
+            "slip_enabled": config_manager.get("slip_enabled", False),
+            "thunder_enabled": config_manager.get("thunder_enabled", True),
+            "kbank_enabled": config_manager.get("kbank_enabled", False),
+        }
         
         return templates.TemplateResponse(
             "settings.html",
@@ -949,23 +938,28 @@ async def update_settings(request: Request):
     try:
         data = await request.json()
         
-        success = await config_manager.update_multiple_async(data)
-        
-        if success:
-            if any(key in data for key in ["line_channel_access_token", "line_channel_secret"]):
-                init_line_bot()
-            
-            await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
-            return JSONResponse({
-                "status": "success",
-                "message": "บันทึกการตั้งค่าสำเร็จ"
-            })
+        # ใช้ sync version ของ config_manager
+        if config_manager:
+            success = config_manager.update_multiple(data)
         else:
-            return JSONResponse({
-                "status": "error",
-                "message": "บันทึกการตั้งค่าล้มเหลว"
-            })
-            
+            success = False
+        
+        # รีสตาร์ทบริการที่จำเป็น
+        if data.get("kbank_enabled"):
+            try:
+                from services.kbank_checker import kbank_checker
+                kbank_checker.is_sandbox = data.get("kbank_sandbox_mode", True)
+                kbank_checker.clear_token_cache()
+            except:
+                pass
+        
+        await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
+        
+        return JSONResponse({
+            "status": "success" if success else "error",
+            "message": "บันทึกการตั้งค่าสำเร็จ" if success else "บันทึกการตั้งค่าล้มเหลว"
+        })
+        
     except Exception as e:
         logger.error(f"❌ Update settings error: {e}")
         return JSONResponse({
@@ -977,8 +971,9 @@ async def update_settings(request: Request):
 async def admin_chat_history(request: Request):
     """Chat history page"""
     try:
+        # Fix: ใช้ await กับ async function
         chat_history = []
-        if 'get_recent_chat_history' in database_functions:
+        if database_functions and 'get_recent_chat_history' in database_functions:
             chat_history = await database_functions['get_recent_chat_history'](100)
         
         return templates.TemplateResponse(
@@ -996,10 +991,10 @@ async def admin_chat_history(request: Request):
 async def toggle_slip_system():
     """Toggle slip system on/off"""
     try:
-        current_status = await config_manager.get_config_async("slip_enabled", False)
+        current_status = config_manager.get("slip_enabled", False)
         new_status = not current_status
         
-        success = await config_manager.set_config_async("slip_enabled", new_status)
+        success = config_manager.update("slip_enabled", new_status)
         
         if success:
             status_text = "เปิด" if new_status else "ปิด"
@@ -1029,8 +1024,8 @@ async def toggle_slip_system():
 async def reset_api_failures():
     """Reset API failure counters"""
     try:
-        if 'reset_api_failure_cache' in slip_functions:
-            slip_functions['reset_api_failure_cache']()
+        from services.enhanced_slip_checker import reset_api_failure_cache
+        reset_api_failure_cache()
         
         await notification_manager.send_notification("🔄 รีเซ็ต API failure cache แล้ว", "info")
         return JSONResponse({
@@ -1054,6 +1049,7 @@ async def get_system_logs():
         if os.path.exists(log_file):
             with open(log_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
+                # Get last 100 lines
                 logs = lines[-100:] if len(lines) > 100 else lines
         
         return JSONResponse({
@@ -1071,7 +1067,7 @@ async def get_system_logs():
 async def test_line_connection():
     """Test LINE API connection"""
     try:
-        access_token = await config_manager.get_config_async("line_channel_access_token")
+        access_token = config_manager.get("line_channel_access_token")
         if not access_token:
             return JSONResponse({
                 "status": "error",
@@ -1113,6 +1109,7 @@ async def test_line_connection():
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
+
 @app.post("/admin/kbank/force-sandbox")
 async def force_kbank_sandbox():
     """บังคับใช้ KBank Sandbox mode"""
@@ -1127,7 +1124,7 @@ async def force_kbank_sandbox():
         kbank_checker.clear_token_cache()
         
         # อัปเดต config
-        await config_manager.update_multiple_async({
+        config_manager.update_multiple({
             "kbank_sandbox_mode": True,
             "kbank_enabled": True,
             "kbank_consumer_id": "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr",
@@ -1180,20 +1177,22 @@ async def export_admin_data():
     try:
         # Get chat history with await
         chat_history = []
-        if 'get_recent_chat_history' in database_functions:
+        if database_functions and 'get_recent_chat_history' in database_functions:
             chat_history = await database_functions['get_recent_chat_history'](1000)
         
         # Get configuration (without sensitive data)
-        config_export = await config_manager.get_all_configs_async()
+        config_export = {
+            "ai_enabled": config_manager.get("ai_enabled", False) if config_manager else False,
+            "slip_enabled": config_manager.get("slip_enabled", False) if config_manager else False,
+            "thunder_enabled": config_manager.get("thunder_enabled", True) if config_manager else True,
+            "kbank_enabled": config_manager.get("kbank_enabled", False) if config_manager else False,
+            "ai_prompt": config_manager.get("ai_prompt", "") if config_manager else "",
+        }
         
-        # Remove sensitive keys for export
-        sensitive_keys = ['line_channel_secret', 'line_channel_access_token', 'thunder_api_token', 'openai_api_key']
-        config_export_safe = {k: v for k, v in config_export.items() if k not in sensitive_keys}
-
         # Prepare export data
         export_data = {
             "export_timestamp": datetime.now().isoformat(),
-            "system_config": config_export_safe,
+            "system_config": config_export,
             "chat_history": [
                 {
                     "id": str(chat.id) if hasattr(chat, 'id') else None,
@@ -1234,23 +1233,23 @@ async def export_admin_data():
 async def admin_home(request: Request):
     """Admin home page"""
     try:
+        # Fix: ใช้ await กับ async functions
         total_count = 0
-        if 'get_chat_history_count' in database_functions:
+        if database_functions and 'get_chat_history_count' in database_functions:
             total_count = await database_functions['get_chat_history_count']()
         
         api_statuses = get_api_status_summary()
-        system_enabled = await config_manager.get_config_async("slip_enabled", False)
+        system_enabled = config_manager.get("slip_enabled", False) if config_manager else False
         any_api_available = any(
             api.get("enabled", False) and api.get("configured", False) 
             for api in api_statuses.values()
         )
-        configs = await config_manager.get_all_configs_async()
 
         return templates.TemplateResponse(
             "admin_home.html",
             {
                 "request": request,
-                "config": configs,
+                "config": config_manager.config if config_manager else {},
                 "total_chat_history": total_count,
                 "system_status": {
                     "system_enabled": system_enabled,
@@ -1280,31 +1279,21 @@ async def admin_debug(request: Request):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    db_connected = False
-    db_info = {}
-    try:
-        if 'test_connection' in database_functions:
-            db_status = await database_functions['test_connection']()
-            db_connected = db_status["status"] == "connected"
-            db_info = db_status
-    except Exception as e:
-        logger.error(f"❌ Health check DB test error: {e}")
-
     return JSONResponse({
-        "status": "ok" if IS_READY and db_connected and not SHUTDOWN_INITIATED else "degraded",
+        "status": "ok" if IS_READY and not SHUTDOWN_INITIATED else "degraded",
         "system_ready": IS_READY,
-        "database_connected": db_connected,
-        "database_info": db_info,
         "shutting_down": SHUTDOWN_INITIATED,
         "timestamp": datetime.now().isoformat(),
         "active_connections": len(notification_manager.active_connections)
     })
 
 
+
 @app.get("/admin/api-status")
 async def get_api_status():
     """ดึงสถานะ API ทั้งหมด"""
     try:
+        # ตรวจสอบว่า config_manager พร้อมใช้งาน
         if not config_manager:
             return JSONResponse({
                 "system_status": {"system_enabled": False},
@@ -1315,23 +1304,23 @@ async def get_api_status():
             
         status = {
             "system_status": {
-                "system_enabled": await config_manager.get_config_async("slip_enabled", False),
+                "system_enabled": config_manager.get("slip_enabled", False) if config_manager else False,
                 "timestamp": datetime.now().isoformat()
             },
             "line": {
-                "configured": bool(await config_manager.get_config_async("line_channel_secret") and await config_manager.get_config_async("line_channel_access_token")),
+                "configured": bool(config_manager.get("line_channel_secret") and config_manager.get("line_channel_access_token")) if config_manager else False,
                 "connected": False,
                 "bot_name": "LINE Bot"
             },
             "thunder": {
-                "configured": bool(await config_manager.get_config_async("thunder_api_token")),
-                "enabled": await config_manager.get_config_async("thunder_enabled", True),
-                "connected": bool(await config_manager.get_config_async("thunder_api_token")),
+                "configured": bool(config_manager.get("thunder_api_token")) if config_manager else False,
+                "enabled": config_manager.get("thunder_enabled", True) if config_manager else False,
+                "connected": bool(config_manager.get("thunder_api_token")) if config_manager else False,
                 "recent_failures": 0
             },
             "kbank": {
-                "configured": bool(await config_manager.get_config_async("kbank_consumer_id") and await config_manager.get_config_async("kbank_consumer_secret")),
-                "enabled": await config_manager.get_config_async("kbank_enabled", False),
+                "configured": bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret")) if config_manager else False,
+                "enabled": config_manager.get("kbank_enabled", False) if config_manager else False,
                 "connected": False,
                 "recent_failures": 0,
                 "environment": "Sandbox"
@@ -1349,10 +1338,12 @@ async def get_api_status():
             "kbank": {"configured": False, "enabled": False, "connected": False}
         })
 
+
 @app.get("/admin/mongodb-status")
 async def get_mongodb_status():
     """Get MongoDB connection status"""
     try:
+        # ใช้ database_functions ที่ถูก import ไว้แล้ว
         if 'get_database_status' in database_functions:
             status = await database_functions['get_database_status']()
         else:
@@ -1399,6 +1390,347 @@ async def test_mongodb_connection():
             "message": f"Test failed: {str(e)}"
         })
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint with database status"""
+    db_connected = False
+    db_info = {}
+    try:
+        if 'test_connection' in database_functions:
+            db_status = await database_functions['test_connection']()
+            db_connected = db_status["status"] == "connected"
+            db_info = db_status
+    except Exception as e:
+        logger.error(f"❌ Health check DB test error: {e}")
+
+    return JSONResponse({
+        "status": "ok" if IS_READY and db_connected and not SHUTDOWN_INITIATED else "degraded",
+        "system_ready": IS_READY,
+        "database_connected": db_connected,
+        "database_info": db_info,
+        "shutting_down": SHUTDOWN_INITIATED,
+        "timestamp": datetime.now().isoformat(),
+        "active_connections": len(notification_manager.active_connections)
+    })
+
+@app.get("/admin/config")
+async def get_config():
+    """Get configuration"""
+    try:
+        if not config_manager:
+            return JSONResponse({})
+            
+        return JSONResponse({
+            "slip_enabled": config_manager.get("slip_enabled", False),
+            "ai_enabled": config_manager.get("ai_enabled", False),
+            "thunder_enabled": config_manager.get("thunder_enabled", True),
+            "kbank_enabled": config_manager.get("kbank_enabled", False),
+            "line_channel_access_token": config_manager.get("line_channel_access_token", ""),
+            "line_channel_secret": config_manager.get("line_channel_secret", ""),
+            "thunder_api_token": config_manager.get("thunder_api_token", ""),
+            "kbank_consumer_id": config_manager.get("kbank_consumer_id", ""),
+            "kbank_consumer_secret": config_manager.get("kbank_consumer_secret", ""),
+            "openai_api_key": config_manager.get("openai_api_key", ""),
+            "openai_model": config_manager.get("openai_model", "gpt-3.5-turbo")
+        })
+    except Exception as e:
+        logger.error(f"❌ Get config error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/config")
+async def update_config(request: Request):
+    """Update configuration"""
+    try:
+        data = await request.json()
+        updates = {}
+        
+        # Boolean fields
+        for key in ["slip_enabled", "ai_enabled", "thunder_enabled", "kbank_enabled"]:
+            if key in data:
+                value = data[key]
+                updates[key] = bool(value) if isinstance(value, bool) else str(value).lower() in ["true", "1", "yes", "on"]
+        
+        # String fields
+        for key in ["line_channel_access_token", "line_channel_secret", "thunder_api_token", 
+                   "kbank_consumer_id", "kbank_consumer_secret", "openai_api_key", "openai_model"]:
+            if key in data:
+                updates[key] = str(data[key]).strip()
+        
+        # Use sync version
+        if config_manager:
+            success = config_manager.update_multiple(updates)
+        else:
+            success = False
+        
+        if success:
+            if any(key in updates for key in ["line_channel_access_token", "line_channel_secret"]):
+                init_line_bot()
+            
+            await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
+            return JSONResponse({"status": "success", "message": "บันทึกการตั้งค่าแล้ว"})
+        else:
+            return JSONResponse({"status": "error", "message": "ไม่สามารถบันทึกได้"})
+            
+    except Exception as e:
+        logger.error(f"❌ Update config error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+# Additional endpoints for testing
+@app.get("/admin/debug-config")
+async def get_debug_config():
+    """Debug config endpoint"""
+    try:
+        return JSONResponse({
+            "api_status": get_api_status_summary(),
+            "config_values": {
+                "thunder_token": config_manager.get("thunder_api_token", "")[:20] + "..." if config_manager.get("thunder_api_token") else "",
+                "kbank_consumer_id": config_manager.get("kbank_consumer_id", "")[:20] + "..." if config_manager.get("kbank_consumer_id") else "",
+                "kbank_consumer_secret": config_manager.get("kbank_consumer_secret", "")[:20] + "..." if config_manager.get("kbank_consumer_secret") else "",
+                "line_token": config_manager.get("line_channel_access_token", "")[:20] + "..." if config_manager.get("line_channel_access_token") else "",
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ Debug config error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/get-config-value")
+async def get_config_value(request: Request):
+    """Get specific config value"""
+    try:
+        key = request.query_params.get("key")
+        if not key:
+            return JSONResponse({"status": "error", "message": "Key required"})
+        
+        value = config_manager.get(key, "")
+        return JSONResponse({"status": "success", "key": key, "value": value})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-sandbox")
+async def test_kbank_sandbox(request: Request):
+    """ทดสอบ KBank Sandbox API โดยเฉพาะ"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id", "suDxvMLTLYsQwL1R0L9UL1m8Ceoibmcr")
+        consumer_secret = data.get("consumer_secret", "goOfPtGLoGxYP3DG") 
+        bank_id = data.get("bank_id", "004")
+        trans_ref = data.get("trans_ref", "TEST123456789")
+        
+        logger.info(f"🧪 Testing KBank Sandbox API...")
+        
+        # Set temporary credentials
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        original_enabled = config_manager.get("kbank_enabled")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        config_manager.config["kbank_enabled"] = True
+        
+        try:
+            from services.kbank_checker import kbank_checker
+            result = kbank_checker.verify_slip(bank_id, trans_ref)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ KBank Sandbox API เสร็จสิ้น", "info")
+            
+            return JSONResponse({
+                "status": "success" if result.get("status") == "success" else "error",
+                "message": "KBank Sandbox API test completed", 
+                "data": result,
+                "sandbox_note": "This is using KBank Sandbox environment for testing"
+            })
+        finally:
+            # Restore original values
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+            config_manager.config["kbank_enabled"] = original_enabled
+        
+    except Exception as e:
+        logger.exception(f"❌ KBank Sandbox API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+        
+@app.post("/admin/test-thunder-api")
+async def test_thunder_api_direct(request: Request):
+    """ทดสอบ Thunder API โดยตรง"""
+    try:
+        form = await request.form()
+        token = form.get("token")
+        file = form.get("file")
+        
+        if not token or not file:
+            return JSONResponse({"status": "error", "message": "Missing token or file"})
+        
+        image_data = await file.read()
+        
+        logger.info(f"🧪 Testing Thunder API with token: {token[:10]}...")
+        logger.info(f"🧪 Image size: {len(image_data)} bytes")
+        
+        original_token = config_manager.get("thunder_api_token")
+        config_manager.config["thunder_api_token"] = token
+        
+        try:
+            from services.slip_checker import verify_slip_with_thunder
+            result = verify_slip_with_thunder(None, image_data)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ Thunder API เสร็จสิ้น", "info")
+            
+            if result and result.get("status") == "success":
+                return JSONResponse({
+                    "status": "success", 
+                    "message": "Thunder API test successful",
+                    "data": result
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": result.get("message", "Thunder API test failed"),
+                    "data": result
+                })
+        finally:
+            config_manager.config["thunder_api_token"] = original_token
+    except Exception as e:
+        logger.exception(f"❌ Thunder API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.post("/admin/test-kbank-oauth")
+async def test_kbank_oauth(request: Request):
+    """ทดสอบ KBank OAuth"""
+    try:
+        from services.kbank_checker import kbank_checker
+        
+        data = await request.json()
+        consumer_id = data.get("consumer_id", "").strip()
+        consumer_secret = data.get("consumer_secret", "").strip()
+        
+        if not consumer_id or not consumer_secret:
+            return JSONResponse({
+                "status": "error",
+                "message": "กรุณาใส่ Consumer ID และ Consumer Secret"
+            })
+        
+        # ตั้งค่า credentials ชั่วคราว
+        original_get_credentials = kbank_checker.get_credentials
+        kbank_checker.get_credentials = lambda: (consumer_id, consumer_secret)
+        
+        try:
+            # ทดสอบ OAuth
+            access_token = kbank_checker._get_access_token()
+            
+            if access_token:
+                return JSONResponse({
+                    "status": "success",
+                    "message": "KBank OAuth สำเร็จ",
+                    "data": {
+                        "token_preview": access_token[:30] + "..." if len(access_token) > 30 else access_token,
+                        "token_length": len(access_token),
+                        "environment": "Sandbox" if kbank_checker.is_sandbox else "Production"
+                    }
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": "ไม่สามารถขอ OAuth token ได้"
+                })
+                
+        finally:
+            # คืนค่า method เดิม
+            kbank_checker.get_credentials = original_get_credentials
+            
+    except Exception as e:
+        logger.error(f"❌ Test KBank OAuth error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": f"เกิดข้อผิดพลาด: {str(e)}"
+        })
+
+@app.post("/admin/test-kbank-api") 
+async def test_kbank_api_direct(request: Request):
+    """ทดสอบ KBank API โดยตรง"""
+    try:
+        data = await request.json()
+        consumer_id = data.get("consumer_id")
+        consumer_secret = data.get("consumer_secret")
+        bank_id = data.get("bank_id")
+        trans_ref = data.get("trans_ref")
+        
+        if not all([consumer_id, consumer_secret, bank_id, trans_ref]):
+            return JSONResponse({"status": "error", "message": "Missing required fields"})
+        
+        logger.info(f"🧪 Testing KBank API...")
+        
+        original_id = config_manager.get("kbank_consumer_id")
+        original_secret = config_manager.get("kbank_consumer_secret")
+        original_enabled = config_manager.get("kbank_enabled")
+        
+        config_manager.config["kbank_consumer_id"] = consumer_id
+        config_manager.config["kbank_consumer_secret"] = consumer_secret
+        config_manager.config["kbank_enabled"] = True
+        
+        try:
+            from services.kbank_checker import kbank_checker
+            result = kbank_checker.verify_slip(bank_id, trans_ref)
+            
+            await notification_manager.send_notification("🧪 ทดสอบ KBank API เสร็จสิ้น", "info")
+            
+            if result and result.get("status") == "success":
+                return JSONResponse({
+                    "status": "success", 
+                    "message": "KBank API test successful", 
+                    "data": result
+                })
+            else:
+                return JSONResponse({
+                    "status": "error",
+                    "message": result.get("message", "KBank API test failed"),
+                    "data": result
+                })
+        finally:
+            config_manager.config["kbank_consumer_id"] = original_id
+            config_manager.config["kbank_consumer_secret"] = original_secret
+            config_manager.config["kbank_enabled"] = original_enabled
+            
+    except Exception as e:
+        logger.exception(f"❌ KBank API test error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+
+@app.get("/admin/db-status")
+async def get_db_status():
+    """Get database connection status"""
+    try:
+        if database_functions and 'test_connection' in database_functions:
+            test_result = await database_functions['test_connection']()
+        else:
+            test_result = {
+                "status": "error",
+                "message": "Database not initialized"
+            }
+        
+        if database_functions and 'get_connection_info' in database_functions:
+            connection_info = database_functions['get_connection_info']()
+        else:
+            connection_info = {"connected": False, "type": "Unknown"}
+        
+        return JSONResponse({
+            "timestamp": datetime.now().isoformat(),
+            "connection": connection_info,
+            "test": test_result,
+            "environment": {
+                "USE_MONGODB": "true",
+                "MONGODB_URI_EXISTS": bool(os.getenv('MONGODB_URI'))
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ Get DB status error: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e),
+            "connection": {
+                "connected": False,
+                "error": str(e)
+            }
+        })
+
 @app.post("/admin/kbank/update-credentials")
 async def update_kbank_credentials_endpoint(request: Request):
     """อัปเดต KBank credentials"""
@@ -1416,14 +1748,8 @@ async def update_kbank_credentials_endpoint(request: Request):
                 "message": "กรุณาใส่ Consumer ID และ Secret"
             })
         
-        # การเรียกใช้ฟังก์ชันใน Services
-        if 'update_kbank_credentials' not in slip_functions:
-            return JSONResponse({
-                "status": "error",
-                "message": "KBank service is not available"
-            })
-        
-        result = slip_functions['update_kbank_credentials'](consumer_id, consumer_secret, is_sandbox, enabled)
+        from services.kbank_checker import update_kbank_credentials
+        result = update_kbank_credentials(consumer_id, consumer_secret, is_sandbox, enabled)
         
         await notification_manager.send_notification(
             f"🏦 {'อัปเดต' if result['status'] == 'success' else 'ไม่สามารถอัปเดต'} KBank credentials", 
@@ -1455,14 +1781,8 @@ async def test_kbank_credentials_endpoint(request: Request):
                 "message": "กรุณาใส่ Consumer ID และ Secret"
             })
         
-        # การเรียกใช้ฟังก์ชันใน Services
-        if 'test_kbank_with_credentials' not in slip_functions:
-            return JSONResponse({
-                "status": "error",
-                "message": "KBank service is not available"
-            })
-            
-        result = slip_functions['test_kbank_with_credentials'](consumer_id, consumer_secret, is_sandbox)
+        from services.kbank_checker import test_kbank_with_credentials
+        result = test_kbank_with_credentials(consumer_id, consumer_secret, is_sandbox)
         
         return JSONResponse(result)
         
@@ -1482,11 +1802,11 @@ async def get_system_info():
             "system_info": {
                 "ready": IS_READY,
                 "database_type": "MongoDB",
-                "config_type": "MongoDB",
+                "config_type": "JSON File",
                 "features": {
-                    "thunder_api": bool(await config_manager.get_config_async("thunder_api_token")),
-                    "kbank_api": bool(await config_manager.get_config_async("kbank_consumer_id")),
-                    "ai_chat": bool(await config_manager.get_config_async("openai_api_key"))
+                    "thunder_api": bool(config_manager.get("thunder_api_token")),
+                    "kbank_api": bool(config_manager.get("kbank_consumer_id")),
+                    "ai_chat": bool(config_manager.get("openai_api_key"))
                 }
             }
         })
@@ -1502,7 +1822,7 @@ async def get_system_info():
 async def test_database_connection():
     """Test database connection"""
     try:
-        if 'test_connection' in database_functions:
+        if database_functions and 'test_connection' in database_functions:
             result = await database_functions['test_connection']()
         else:
             result = {"status": "error", "message": "Database not initialized"}
@@ -1520,9 +1840,10 @@ async def get_recent_chat_history_endpoint(limit: int = 5):
     """Get recent chat history"""
     try:
         history = []
-        if 'get_recent_chat_history' in database_functions:
+        if database_functions and 'get_recent_chat_history' in database_functions:
             history = await database_functions['get_recent_chat_history'](limit)
         
+        # Convert to serializable format
         history_data = []
         for chat in history:
             history_data.append({
@@ -1551,7 +1872,7 @@ async def get_admin_stats():
     """Get admin statistics"""
     try:
         total_messages = 0
-        if 'get_chat_history_count' in database_functions:
+        if database_functions and 'get_chat_history_count' in database_functions:
             total_messages = await database_functions['get_chat_history_count']()
         
         return JSONResponse({
@@ -1576,22 +1897,13 @@ async def get_admin_stats():
 async def get_database_info():
     """Get database information"""
     try:
-        if 'get_database_status' not in database_functions:
-            return JSONResponse({
-                "status": "error",
-                "message": "Database functions are not available",
-                "database": {
-                    "type": "Unknown",
-                    "connected": False
-                }
-            })
-        
-        db_status = await database_functions['get_database_status']()
+        db_status = await test_database_connection()
+        db_status_json = json.loads(db_status.body)
         
         db_info = {
-            "type": db_status.get('type', 'MongoDB'),
-            "connected": db_status.get('connected', False),
-            "tables": db_status.get('record_counts', {})
+            "type": db_status_json.get('type', 'MongoDB'),
+            "connected": db_status_json.get('status') == 'connected',
+            "tables": db_status_json.get('record_counts', {})
         }
         
         return JSONResponse({
@@ -1652,18 +1964,18 @@ async def restart_services():
 async def test_thunder_connection():
     """Test Thunder API connection"""
     try:
-        token = await config_manager.get_config_async("thunder_api_token", "")
+        token = config_manager.get("thunder_api_token", "") if config_manager else ""
         if not token:
             return JSONResponse({
                 "status": "error",
                 "message": "Thunder API token not configured"
             })
         
-        if 'test_thunder_api_connection' not in slip_functions:
-            return JSONResponse({"status": "error", "message": "Thunder API test function not available"})
-            
-        # การเรียกใช้ฟังก์ชันใน Services
-        result = slip_functions['test_thunder_api_connection'](token)
+        # Import the correct function
+        if slip_functions and 'test_thunder_api_connection' in slip_functions:
+            result = slip_functions['test_thunder_api_connection'](token)
+        else:
+            result = {"status": "error", "message": "Thunder API test function not available"}
             
         return JSONResponse(result)
         
@@ -1678,7 +1990,9 @@ async def test_thunder_connection():
 async def config_management_page(request: Request):
     """Config management page"""
     try:
-        configs = await config_manager.get_all_configs_async()
+        configs = {
+            k: v for k, v in config_manager.config.items()
+        }
         return templates.TemplateResponse(
             "config_management.html",
             {
@@ -1703,7 +2017,7 @@ async def update_config_management(request: Request):
     """Update configuration from config management page"""
     try:
         data = await request.json()
-        success = await config_manager.update_multiple_async(data)
+        success = config_manager.update_multiple(data)
         
         if success:
             await notification_manager.send_notification(
@@ -1732,8 +2046,9 @@ async def update_config_management(request: Request):
 async def users_page(request: Request):
     """Users management page"""
     try:
+        # Get unique users from chat history
         chat_history = []
-        if 'get_recent_chat_history' in database_functions:
+        if database_functions and 'get_recent_chat_history' in database_functions:
             chat_history = await database_functions['get_recent_chat_history'](1000)
         
         users_dict = {}
@@ -1755,6 +2070,7 @@ async def users_page(request: Request):
         
         users = list(users_dict.values())
         
+        # Calculate stats
         from datetime import datetime, timedelta
         now = datetime.now()
         active_24h = sum(1 for u in users if u["last_active"] and (now - u["last_active"]) < timedelta(hours=24))
@@ -1817,8 +2133,8 @@ if __name__ == "__main__":
             "main_updated:app",
             host="0.0.0.0",
             port=int(os.getenv("PORT", 8000)),
-            workers=1,
-            reload=False,
+            workers=1,  # Single worker for stability
+            reload=False,  # Disable reload in production
             log_level="info",
             access_log=True,
             timeout_keep_alive=5,
