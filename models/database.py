@@ -44,18 +44,16 @@ class ChatHistory:
 
 # ==================== MongoDB Database Manager ====================
 class MongoDBManager:
-    """MongoDB Database Manager using Motor AsyncIO"""
-    
     def __init__(self):
         self.client = None
         self.db = None
         self.connected = False
-        self.mongodb_uri = os.getenv('MONGODB_URI', '')
+        # ดึง MONGODB_URI จาก environment variable เท่านั้น (ไม่ใช้ fallback)
+        self.mongodb_uri = os.getenv('MONGODB_URI')
         
         if not self.mongodb_uri:
-            logger.warning("⚠️ MONGODB_URI environment variable is not set")
-            # Use a fallback for development
-            self.mongodb_uri = "mongodb://localhost:27017/lineoa"
+            logger.error("❌ MONGODB_URI environment variable is not set!")
+            raise ValueError("MONGODB_URI must be set in environment variables")
             
     async def initialize(self):
         """Initialize MongoDB connection"""
