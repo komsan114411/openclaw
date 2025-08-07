@@ -847,8 +847,11 @@ async def update_settings(request: Request):
     try:
         data = await request.json()
         
-        # อัปเดต config
-        config_manager.update_multiple(data)
+        # ใช้ sync version ของ config_manager
+        if config_manager:
+            success = config_manager.update_multiple(data)
+        else:
+            success = False
         
         # รีสตาร์ทบริการที่จำเป็น
         if data.get("kbank_enabled"):
@@ -862,8 +865,8 @@ async def update_settings(request: Request):
         await notification_manager.send_notification("⚙️ อัปเดตการตั้งค่าแล้ว", "success")
         
         return JSONResponse({
-            "status": "success",
-            "message": "บันทึกการตั้งค่าสำเร็จ"
+            "status": "success" if success else "error",
+            "message": "บันทึกการตั้งค่าสำเร็จ" if success else "บันทึกการตั้งค่าล้มเหลว"
         })
         
     except Exception as e:
@@ -1355,11 +1358,16 @@ async def update_config(request: Request):
                 updates[key] = bool(value) if isinstance(value, bool) else str(value).lower() in ["true", "1", "yes", "on"]
         
         # String fields
-        for key in ["line_channel_access_token", "line_channel_secret", "thunder_api_token", "kbank_consumer_id", "kbank_consumer_secret", "openai_api_key", "openai_model"]:
+        for key in ["line_channel_access_token", "line_channel_secret", "thunder_api_token", 
+                   "kbank_consumer_id", "kbank_consumer_secret", "openai_api_key", "openai_model"]:
             if key in data:
                 updates[key] = str(data[key]).strip()
         
-        success = config_manager.update_multiple(updates)
+        # Use sync version
+        if config_manager:
+            success = config_manager.update_multiple(updates)
+        else:
+            success = False
         
         if success:
             if any(key in updates for key in ["line_channel_access_token", "line_channel_secret"]):
