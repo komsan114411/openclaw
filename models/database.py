@@ -48,16 +48,20 @@ class MongoDBManager:
         self.client = None
         self.db = None
         self.connected = False
-        # ดึง MONGODB_URI จาก environment variable เท่านั้น (ไม่ใช้ fallback)
+        # ดึง MONGODB_URI จาก environment variable เท่านั้น
         self.mongodb_uri = os.getenv('MONGODB_URI')
         
         if not self.mongodb_uri:
-            logger.error("❌ MONGODB_URI environment variable is not set!")
-            raise ValueError("MONGODB_URI must be set in environment variables")
+            logger.warning("⚠️ MONGODB_URI environment variable is not set - using local cache mode")
             
     async def initialize(self):
         """Initialize MongoDB connection"""
         global CONNECTION_STATUS
+        
+        if not self.mongodb_uri:
+            logger.warning("⚠️ No MongoDB URI - running in cache mode")
+            self.connected = False
+            return
         
         try:
             logger.info("🚀 Initializing MongoDB...")
@@ -150,7 +154,7 @@ class MongoDBManager:
     async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
         """Save chat history to MongoDB"""
         if not self.connected or not self.db:
-            logger.warning("⚠️ MongoDB not connected, skipping save")
+            logger.debug("⚠️ MongoDB not connected, skipping save")
             return
             
         try:
@@ -333,7 +337,7 @@ class MongoDBManager:
             
             return {
                 "status": "connected",
-                "type": "MongoDB Atlas" if 'mongodb+srv' in self.mongodb_uri else "MongoDB",
+                "type": "MongoDB Atlas" if self.mongodb_uri and 'mongodb+srv' in self.mongodb_uri else "MongoDB",
                 "database": self.db.name if self.db else "Unknown",
                 "ping_ms": round(ping_time, 2),
                 "record_counts": counts,
@@ -352,6 +356,21 @@ class MongoDBManager:
         status = await self.test_connection()
         status['connection_info'] = CONNECTION_STATUS
         return status
+
+    async def get_all_configs(self) -> Dict[str, Any]:
+        """Get all configurations from MongoDB"""
+        if not self.connected or not self.db:
+            return {}
+            
+        try:
+            configs = {}
+            cursor = self.db.config_store.find()
+            async for doc in cursor:
+                configs[doc['config_key']] = doc['config_value']
+            return configs
+        except Exception as e:
+            logger.error(f"Error getting all configs: {e}")
+            return {}
 
 # ==================== Global Database Instance ====================
 logger.info("🚀 Starting MongoDB database module...")
@@ -429,6 +448,12 @@ async def set_config(key: str, value: Any, is_sensitive: bool = False) -> bool:
     if not db_manager.connected:
         await init_database()
     return await db_manager.set_config(key, value, is_sensitive)
+
+async def get_all_configs() -> Dict[str, Any]:
+    """Get all configurations"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.get_all_configs()
 
 # ==================== Sync Wrappers for Backward Compatibility ====================
 def get_config_sync(key: str, default=None):
@@ -534,7 +559,7 @@ def verify_tables() -> Dict[str, bool]:
     return {"chat_history": True, "config_store": True, "users": True}
 
 def get_all_configs():
-    """Get all configurations"""
+    """Get all configurations (sync)"""
     try:
         try:
             loop = asyncio.get_running_loop()
@@ -547,23 +572,14 @@ def get_all_configs():
             return {}
             
         loop = _get_sync_loop()
-        
-        async def _get_all():
-            configs = {}
-            if db_manager.db:
-                cursor = db_manager.db.config_store.find()
-                async for doc in cursor:
-                    configs[doc['config_key']] = doc['config_value']
-            return configs
-        
-        future = asyncio.run_coroutine_threadsafe(_get_all(), loop)
+        future = asyncio.run_coroutine_threadsafe(db_manager.get_all_configs(), loop)
         return future.result(timeout=5)
     except Exception as e:
         logger.error(f"Error in get_all_configs: {e}")
         return {}
 
 def update_multiple_configs(configs):
-    """Update multiple configurations"""
+    """Update multiple configurations (sync)"""
     success_count = 0
     for key, value in configs.items():
         if set_config_sync(key, value):
@@ -575,5 +591,5 @@ DB_PATH = None  # No SQLite
 
 logger.info("=" * 60)
 logger.info("📊 MONGODB DATABASE MODULE LOADED")
-logger.info(f"   MongoDB URI: {'Set' if os.getenv('MONGODB_URI') else 'Not Set (using localhost)'}")
+logger.info(f"   MongoDB URI: {'Set' if os.getenv('MONGODB_URI') else 'Not Set (Cache Mode)'}")
 logger.info("=" * 60)
