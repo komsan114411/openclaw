@@ -4,36 +4,40 @@ import requests
 import json
 from typing import Dict, Any, List
 from utils.config_manager import config_manager
-from models.database import get_user_chat_history
 
 logger = logging.getLogger("chat_bot_service")
 
 def get_chat_response(text: str, user_id: str) -> str:
-    """แก้ไขปัญหาการตรวจสอบ AI enabled"""
+    """Get AI chat response"""
     try:
-        # ตรวจสอบการตั้งค่า AI อย่างละเอียด
+        # ตรวจสอบการตั้งค่า AI
         ai_enabled = config_manager.get("ai_enabled")
         api_key = config_manager.get("openai_api_key")
         ai_prompt = config_manager.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ")
         
         logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
         
-        # ตรวจสอบว่า AI เปิดใช้งานจริง ๆ
         if not ai_enabled:
             logger.info("🚫 AI disabled by configuration")
             return "ระบบ AI ถูกปิดการใช้งานค่ะ"
             
-        if not api_key or len(api_key.strip()) < 10:
+        if not api_key or len(str(api_key).strip()) < 10:
             logger.info("🚫 OpenAI API key not configured")
             return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
 
-        # ดึงประวัติแชท
-        chat_history = get_user_chat_history(user_id, limit=10)
+        # ดึงประวัติแชท - ใช้ sync version
+        from models.database import get_user_chat_history_sync
+        chat_history = get_user_chat_history_sync(user_id, limit=10)
+        
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": ai_prompt}
-        ] + chat_history + [
-            {"role": "user", "content": text}
         ]
+        
+        # Add chat history if available
+        if chat_history:
+            messages.extend(chat_history)
+            
+        messages.append({"role": "user", "content": text})
 
         # เรียก OpenAI API
         url = "https://api.openai.com/v1/chat/completions"
