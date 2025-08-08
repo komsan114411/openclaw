@@ -2621,8 +2621,65 @@ async def get_kbank_status():
         return JSONResponse({
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
+            
+            
+            
         })
+@app.post("/admin/users/send-message")
+async def admin_send_message(request: Request):
+    """
+    ส่งข้อความถึงผู้ใช้คนเดียวจากหน้าแอดมิน
+    Request body: { "user_id": "<USER_ID>", "message": "<ข้อความ>" }
+    """
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        message = data.get("message", "")
+        if not user_id or not message:
+            return JSONResponse({"status": "error", "message": "Missing user_id or message"}, status_code=400)
+        # ใช้ send_message_safe เพื่อ reply/push ไปที่ LINE
+        success = await send_message_safe(user_id, reply_token="", message=message, message_type="admin")
+        if success:
+            return JSONResponse({"status": "success", "message": "ส่งข้อความสำเร็จ"})
+        else:
+            return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"})
+    except Exception as e:
+        logger.error(f"❌ Admin send message error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
+@app.post("/admin/users/broadcast")
+async def admin_broadcast_message(request: Request):
+    """
+    ส่งข้อความถึงผู้ใช้ทุกคน
+    Request body: { "message": "<ข้อความ>" }
+    """
+    try:
+        data = await request.json()
+        message = data.get("message", "")
+        if not message:
+            return JSONResponse({"status": "error", "message": "Missing message"}, status_code=400)
+        # รวบรวม user_id จากประวัติแชท (หรือจาก collection users หากมี)
+        user_ids = set()
+        if database_functions and 'get_recent_chat_history' in database_functions:
+            all_chats = await database_functions['get_recent_chat_history'](10000)
+            for chat in all_chats:
+                uid = getattr(chat, 'user_id', None)
+                if uid:
+                    user_ids.add(uid)
+        # ส่งข้อความถึงแต่ละ user
+        sent_count = 0
+        for uid in user_ids:
+            if await send_message_safe(uid, reply_token="", message=message, message_type="broadcast"):
+                sent_count += 1
+        return JSONResponse({
+            "status": "success",
+            "total_users": len(user_ids),
+            "sent": sent_count,
+            "message": f"Broadcast message sent to {sent_count} users"
+        })
+    except Exception as e:
+        logger.error(f"❌ Admin broadcast error: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 # ====================== Main Entry Point ======================
 
 if __name__ == "__main__":
