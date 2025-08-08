@@ -661,8 +661,6 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
 
 # แก้ไข handle_ai_chat ใน main_updated.py
 
-# main_updated.py - แก้ไข handle_ai_chat
-
 async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
     """จัดการแชท AI พร้อมบันทึก"""
     try:
@@ -702,24 +700,19 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         if send_success:
             try:
                 if 'save_chat_history' in database_functions:
-                    # บันทึกและตรวจสอบผลลัพธ์
                     result = await database_functions['save_chat_history'](
                         user_id, 
                         "out", 
                         {"type": "text", "text": response}, 
                         "ai_bot"
                     )
-                    # ตรวจสอบผลลัพธ์
-                    if result == True:  # ใช้ == True
+                    if result is True:
                         logger.info(f"✅ AI response saved")
-                    else:
-                        logger.warning(f"⚠️ Failed to save AI response - result: {result}")
             except Exception as e:
                 logger.error(f"❌ Failed to save AI response: {e}")
         
     except Exception as e:
         logger.error(f"❌ AI chat error: {e}")
-        logger.exception(e)
 
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
     """จัดการตรวจสอบสลิป - บันทึกเงียบๆ"""
