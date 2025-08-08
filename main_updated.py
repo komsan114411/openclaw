@@ -1175,31 +1175,43 @@ async def get_user_list():
         
         
 @app.get("/admin/api/chat-messages")
-async def get_chat_messages(limit: int = 100):
+async def get_chat_messages_api(limit: int = 100):
     """API endpoint สำหรับดึงข้อความแชททั้งหมด"""
     try:
         messages = []
-        if 'get_recent_chat_history' in database_functions:
+        
+        if database_functions and 'get_recent_chat_history' in database_functions:
             history = await database_functions['get_recent_chat_history'](limit)
             
             for chat in history:
-                messages.append({
-                    "id": str(chat.id) if hasattr(chat, 'id') else None,
-                    "user_id": chat.user_id if hasattr(chat, 'user_id') else None,
-                    "direction": chat.direction if hasattr(chat, 'direction') else None,
-                    "message_type": chat.message_type if hasattr(chat, 'message_type') else None,
-                    "message_text": chat.message_text if hasattr(chat, 'message_text') else None,
-                    "sender": chat.sender if hasattr(chat, 'sender') else None,
-                    "created_at": chat.created_at.isoformat() if hasattr(chat, 'created_at') and chat.created_at else None
-                })
+                message_dict = {
+                    "id": str(getattr(chat, 'id', '')) if hasattr(chat, 'id') else None,
+                    "user_id": getattr(chat, 'user_id', None),
+                    "direction": getattr(chat, 'direction', None),
+                    "message_type": getattr(chat, 'message_type', None),
+                    "message_text": getattr(chat, 'message_text', None),
+                    "sender": getattr(chat, 'sender', None),
+                    "created_at": None
+                }
+                
+                # Handle datetime
+                if hasattr(chat, 'created_at') and chat.created_at:
+                    try:
+                        message_dict["created_at"] = chat.created_at.isoformat()
+                    except:
+                        message_dict["created_at"] = str(chat.created_at)
+                
+                messages.append(message_dict)
         
         return JSONResponse({
             "status": "success",
             "messages": messages,
             "total": len(messages)
         })
+        
     except Exception as e:
         logger.error(f"❌ Error getting chat messages: {e}")
+        logger.exception(e)
         return JSONResponse({
             "status": "error",
             "message": str(e),
@@ -1332,24 +1344,12 @@ async def update_settings(request: Request):
         })
 
 @app.get("/admin/chat-history")
-async def admin_chat_history(request: Request):
+async def admin_chat_history_page(request: Request):
     """Chat history page"""
-    try:
-        # Fix: ใช้ await กับ async function
-        chat_history = []
-        if database_functions and 'get_recent_chat_history' in database_functions:
-            chat_history = await database_functions['get_recent_chat_history'](100)
-        
-        return templates.TemplateResponse(
-            "chat_history.html",
-            {"request": request, "chat_history": chat_history}
-        )
-    except Exception as e:
-        logger.error(f"❌ Chat history page error: {e}")
-        return templates.TemplateResponse(
-            "chat_history.html",
-            {"request": request, "chat_history": []}
-        )
+    return templates.TemplateResponse(
+        "chat_history.html",
+        {"request": request}
+    )
 
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
