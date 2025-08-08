@@ -164,7 +164,7 @@ class MongoDBManager:
     
     async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
         """Save chat history to MongoDB - FIXED VERSION"""
-        if not self.connected or not self.db:
+        if not self.connected or self.db is None:
             logger.debug("⚠️ MongoDB not connected, skipping save")
             return False  # ต้อง return False อย่างชัดเจน
             
@@ -261,7 +261,7 @@ class MongoDBManager:
     
     async def get_chat_history_count(self) -> int:
         """Get total message count"""
-        if not self.connected or not self.db:
+        if not self.connected or self.db is None:
             return 0
             
         try:
@@ -273,7 +273,7 @@ class MongoDBManager:
     
     async def get_recent_chat_history(self, limit: int = 50) -> List[ChatHistory]:
         """Get recent chat history"""
-        if not self.connected or not self.db:
+        if not self.connected or self.db is None:
             return []
             
         try:
@@ -300,7 +300,7 @@ class MongoDBManager:
     
     async def get_user_chat_history(self, user_id: str, limit: int = 10) -> List[Dict[str, str]]:
         """Get user chat history for AI context"""
-        if not self.connected or not self.db:
+        if not self.connected or self.db is None:
             return []
             
         try:
@@ -334,7 +334,7 @@ class MongoDBManager:
                 return False
             return env_value
             
-        if not self.connected or not self.db:
+        if not self.connected or self.db is None:
             return default
             
         try:
@@ -357,7 +357,7 @@ class MongoDBManager:
     
     async def set_config(self, key: str, value: Any, is_sensitive: bool = False) -> bool:
         """Set configuration in MongoDB"""
-        if not self.connected or not self.db:
+        if not self.connected or self.db is None:
             return False
             
         try:
