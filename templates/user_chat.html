@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Chat with {{ user_id[:10] }} - LINE OA{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 fw-bold">
+            <i class="fas fa-comments me-2"></i>
+            Chat with User: {{ user_id[:10] }}...
+        </h1>
+        <div>
+            <button class="btn btn-primary" onclick="refreshChat()">
+                <i class="fas fa-sync me-1"></i> Refresh
+            </button>
+            <a href="/admin/users" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Chat Container -->
+    <div class="card">
+        <div class="card-body" style="height: 70vh; overflow-y: auto;" id="chat-container">
+            <!-- Messages will be loaded here -->
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading chat history...</p>
+            </div>
+        </div>
+        
+        <!-- Send Message Form -->
+        <div class="card-footer">
+            <div class="input-group">
+                <input type="text" class="form-control" id="message-input" 
+                       placeholder="Type a message to send to this user...">
+                <button class="btn btn-primary" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i> Send
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.message {
+    margin-bottom: 15px;
+    display: flex;
+}
+
+.message.incoming {
+    justify-content: flex-start;
+}
+
+.message.outgoing {
+    justify-content: flex-end;
+}
+
+.message-bubble {
+    max-width: 60%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    position: relative;
+}
+
+.message.incoming .message-bubble {
+    background-color: #f1f3f5;
+    border-bottom-left-radius: 5px;
+}
+
+.message.outgoing .message-bubble {
+    background-color: #007bff;
+    color: white;
+    border-bottom-right-radius: 5px;
+}
+
+.message-sender {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 5px;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    margin-top: 5px;
+}
+
+.message-text {
+    word-wrap: break-word;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const userId = "{{ user_id }}";
+let chatHistory = [];
+
+// Load chat history
+async function loadChatHistory() {
+    try {
+        const response = await fetch(`/admin/api/chat-history/${userId}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            chatHistory = data.chat_history;
+            renderChat();
+        }
+    } catch (error) {
+        console.error('Error loading chat:', error);
+        showNotification('Error loading chat history', 'error');
+    }
+}
+
+// Render chat messages
+function renderChat() {
+    const container = document.getElementById('chat-container');
+    
+    if (chatHistory.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-comments fa-3x mb-3"></i>
+                <p>No messages yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    chatHistory.forEach(msg => {
+        const isIncoming = msg.direction === 'in';
+        const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : '';
+        
+        html += `
+            <div class="message ${isIncoming ? 'incoming' : 'outgoing'}">
+                <div class="message-bubble">
+                    <div class="message-sender">
+                        ${isIncoming ? 'User' : msg.sender || 'Bot'}
+                    </div>
+                    <div class="message-text">
+                        ${msg.message_text || '[No text]'}
+                    </div>
+                    <div class="message-time">${time}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+// Send message to user
+async function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    try {
+        const response = await fetch('/admin/users/send-message', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_ids: [userId],
+                message: message
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Message sent successfully', 'success');
+            input.value = '';
+            
+            // Reload chat after 2 seconds
+            setTimeout(loadChatHistory, 2000);
+        } else {
+            showNotification('Failed to send message', 'error');
+        }
+    } catch (error) {
+        showNotification('Error sending message', 'error');
+    }
+}
+
+// Refresh chat
+function refreshChat() {
+    loadChatHistory();
+    showNotification('Chat refreshed', 'info');
+}
+
+// Auto refresh every 10 seconds
+setInterval(loadChatHistory, 10000);
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadChatHistory);
+
+// Send on Enter key
+document.getElementById('message-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+</script>
+{% endblock %}
