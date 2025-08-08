@@ -3,16 +3,19 @@ import logging
 import requests
 import json
 from typing import Dict, Any, List
-from utils.config_manager import config_manager
+import os
 
 logger = logging.getLogger("chat_bot_service")
 
 def get_chat_response(text: str, user_id: str) -> str:
     """Get AI chat response"""
     try:
-        # ตรวจสอบการตั้งค่า AI
-        ai_enabled = config_manager.get("ai_enabled")
-        api_key = config_manager.get("openai_api_key")
+        # Import here to avoid circular import
+        from utils.config_manager import config_manager
+        
+        # Check AI settings
+        ai_enabled = config_manager.get("ai_enabled", False)
+        api_key = config_manager.get("openai_api_key", "")
         ai_prompt = config_manager.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ")
         
         logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
@@ -25,27 +28,33 @@ def get_chat_response(text: str, user_id: str) -> str:
             logger.info("🚫 OpenAI API key not configured")
             return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
 
-        # ดึงประวัติแชท - ใช้ sync version
-        from models.database import get_user_chat_history_sync
-        chat_history = get_user_chat_history_sync(user_id, limit=10)
+        # Get chat history
+        chat_history = []
+        try:
+            from models.database import get_user_chat_history_sync
+            chat_history = get_user_chat_history_sync(user_id, limit=5)
+            logger.info(f"📚 Retrieved {len(chat_history)} messages from history")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get chat history: {e}")
         
-        messages: List[Dict[str, str]] = [
-            {"role": "system", "content": ai_prompt}
-        ]
+        # Prepare messages
+        messages = [{"role": "system", "content": ai_prompt}]
         
         # Add chat history if available
         if chat_history:
-            messages.extend(chat_history)
+            for msg in chat_history:
+                if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
+                    messages.append(msg)
             
         messages.append({"role": "user", "content": text})
 
-        # เรียก OpenAI API
+        # Call OpenAI API
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        payload: Dict[str, Any] = {
+        payload = {
             "model": "gpt-3.5-turbo",
             "messages": messages,
             "max_tokens": 150,
@@ -80,4 +89,5 @@ def get_chat_response(text: str, user_id: str) -> str:
         return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
     except Exception as e:
         logger.error(f"❌ Chat bot unexpected error: {e}")
+        logger.exception(e)
         return "ขออภัย เกิดข้อผิดพลาดในระบบ AI"
