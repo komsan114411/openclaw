@@ -1,482 +1,66 @@
-{% extends "base.html" %}
+@app.get("/admin/api/chat-messages")
+async def get_chat_messages(limit: int = 100):
+    """API endpoint สำหรับดึงข้อความแชททั้งหมด"""
+    try:
+        messages = []
+        if 'get_recent_chat_history' in database_functions:
+            history = await database_functions['get_recent_chat_history'](limit)
+            
+            for chat in history:
+                messages.append({
+                    "id": str(chat.id) if hasattr(chat, 'id') else None,
+                    "user_id": chat.user_id if hasattr(chat, 'user_id') else None,
+                    "direction": chat.direction if hasattr(chat, 'direction') else None,
+                    "message_type": chat.message_type if hasattr(chat, 'message_type') else None,
+                    "message_text": chat.message_text if hasattr(chat, 'message_text') else None,
+                    "sender": chat.sender if hasattr(chat, 'sender') else None,
+                    "created_at": chat.created_at.isoformat() if hasattr(chat, 'created_at') and chat.created_at else None
+                })
+        
+        return JSONResponse({
+            "status": "success",
+            "messages": messages,
+            "total": len(messages)
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting chat messages: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e),
+            "messages": []
+        })
 
-{% block title %}Chat History - LINE OA Middleware{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 fw-bold text-dark">
-        <i class="fas fa-comments me-2 text-primary"></i>
-        Chat History
-    </h1>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary" onclick="refreshHistory()">
-            <i class="fas fa-sync-alt me-1"></i> Refresh
-        </button>
-        <button class="btn btn-outline-success" onclick="exportHistory()">
-            <i class="fas fa-download me-1"></i> Export
-        </button>
-        <button class="btn btn-outline-warning" onclick="cleanupOldData()">
-            <i class="fas fa-trash me-1"></i> Cleanup Old Data
-        </button>
-    </div>
-</div>
-
-<!-- Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-3">
-                <label for="filter-direction" class="form-label">Direction</label>
-                <select class="form-select" id="filter-direction" onchange="filterHistory()">
-                    <option value="">All</option>
-                    <option value="in">Incoming</option>
-                    <option value="out">Outgoing</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="filter-sender" class="form-label">Sender</label>
-                <select class="form-select" id="filter-sender" onchange="filterHistory()">
-                    <option value="">All</option>
-                    <option value="user">User</option>
-                    <option value="ai_bot">AI Bot</option>
-                    <option value="slip_bot">Slip Bot</option>
-                    <option value="system">System</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="filter-search" class="form-label">Search</label>
-                <input type="text" class="form-control" id="filter-search" 
-                       placeholder="Search messages..." onkeyup="filterHistory()">
-            </div>
-            <div class="col-md-3">
-                <label for="filter-limit" class="form-label">Show</label>
-                <select class="form-select" id="filter-limit" onchange="filterHistory()">
-                    <option value="50">50 messages</option>
-                    <option value="100" selected>100 messages</option>
-                    <option value="200">200 messages</option>
-                    <option value="500">500 messages</option>
-                </select>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Statistics -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4 class="text-primary" id="total-messages">{{ chat_history|length }}</h4>
-                <p class="text-muted mb-0">Total Messages</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4 class="text-success" id="unique-users">0</h4>
-                <p class="text-muted mb-0">Unique Users</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h4 class="text-info" id="ai-messages">0</h4>
-                <p class="text-muted mb-0">AI Messages</p>
-            <</div>
-   </div>
-   <div class="col-md-3">
-       <div class="card text-center">
-           <div class="card-body">
-               <h4 class="text-warning" id="slip-messages">0</h4>
-               <p class="text-muted mb-0">Slip Messages</p>
-           </div>
-       </div>
-   </div>
-</div>
-
-<!-- Chat History -->
-<div class="card">
-   <div class="card-header">
-       <h5 class="mb-0">Message History</h5>
-   </div>
-   <div class="card-body p-0">
-       <div id="chat-container" class="table-responsive">
-           <table class="table table-hover mb-0">
-               <thead class="table-light">
-                   <tr>
-                       <th width="120">Time</th>
-                       <th width="100">User</th>
-                       <th width="80">Direction</th>
-                       <th width="100">Type</th>
-                       <th>Message</th>
-                       <th width="100">Sender</th>
-                       <th width="80">Action</th>
-                   </tr>
-               </thead>
-               <tbody id="history-tbody">
-                   {% if chat_history %}
-                       {% for chat in chat_history %}
-                       <tr class="chat-row" 
-                           data-direction="{{ chat.direction }}" 
-                           data-sender="{{ chat.sender }}"
-                           data-message="{{ chat.message_text or '' }}">
-                           <td>
-                               <small class="text-muted">
-                                   {% if chat.created_at %}
-                                       {{ chat.created_at.strftime('%m/%d %H:%M') if chat.created_at.strftime else chat.created_at }}
-                                   {% else %}
-                                       N/A
-                                   {% endif %}
-                               </small>
-                           </td>
-                           <td>
-                               <small class="badge bg-secondary">
-                                   {{ chat.user_id[:8] + '...' if chat.user_id and chat.user_id|length > 8 else chat.user_id or 'N/A' }}
-                               </small>
-                           </td>
-                           <td>
-                               {% if chat.direction == 'in' %}
-                                   <span class="badge bg-info">
-                                       <i class="fas fa-arrow-down me-1"></i>In
-                                   </span>
-                               {% else %}
-                                   <span class="badge bg-success">
-                                       <i class="fas fa-arrow-up me-1"></i>Out
-                                   </span>
-                               {% endif %}
-                           </td>
-                           <td>
-                               <span class="badge bg-light text-dark">
-                                   {{ chat.message_type or 'text' }}
-                               </span>
-                           </td>
-                           <td>
-                               <div class="message-content" style="max-width: 400px;">
-                                   {% if chat.message_text %}
-                                       {% if chat.message_text|length > 100 %}
-                                           <span class="message-preview">{{ chat.message_text[:100] }}...</span>
-                                           <span class="message-full d-none">{{ chat.message_text }}</span>
-                                           <br><small><a href="#" onclick="toggleMessage(this)">Show more</a></small>
-                                       {% else %}
-                                           {{ chat.message_text }}
-                                       {% endif %}
-                                   {% else %}
-                                       <em class="text-muted">No text content</em>
-                                   {% endif %}
-                               </div>
-                           </td>
-                           <td>
-                               {% if chat.sender == 'user' %}
-                                   <span class="badge bg-primary">User</span>
-                               {% elif chat.sender == 'ai_bot' %}
-                                   <span class="badge bg-info">AI Bot</span>
-                               {% elif chat.sender == 'slip_bot' %}
-                                   <span class="badge bg-warning">Slip Bot</span>
-                               {% elif chat.sender == 'system' %}
-                                   <span class="badge bg-secondary">System</span>
-                               {% else %}
-                                   <span class="badge bg-light text-dark">{{ chat.sender or 'Unknown' }}</span>
-                               {% endif %}
-                           </td>
-                           <td>
-                               <button class="btn btn-sm btn-outline-primary" 
-                                       onclick="viewMessageDetails({{ loop.index0 }})"
-                                       title="View Details">
-                                   <i class="fas fa-eye"></i>
-                               </button>
-                           </td>
-                       </tr>
-                       {% endfor %}
-                   {% else %}
-                       <tr>
-                           <td colspan="7" class="text-center py-4">
-                               <div class="text-muted">
-                                   <i class="fas fa-comments fa-3x mb-3"></i>
-                                   <p>No chat history found</p>
-                               </div>
-                           </td>
-                       </tr>
-                   {% endif %}
-               </tbody>
-           </table>
-       </div>
-   </div>
-</div>
-
-<!-- Message Details Modal -->
-<div class="modal fade" id="messageModal" tabindex="-1">
-   <div class="modal-dialog modal-lg">
-       <div class="modal-content">
-           <div class="modal-header">
-               <h5 class="modal-title">Message Details</h5>
-               <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-           </div>
-           <div class="modal-body">
-               <div id="message-details"></div>
-           </div>
-       </div>
-   </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-   let chatHistory = {{ chat_history | tojson }};
-   let filteredHistory = [...chatHistory];
-   
-   // Calculate and update statistics
-   function updateStatistics() {
-       const uniqueUsers = new Set(chatHistory.map(chat => chat.user_id)).size;
-       const aiMessages = chatHistory.filter(chat => chat.sender === 'ai_bot').length;
-       const slipMessages = chatHistory.filter(chat => chat.sender === 'slip_bot').length;
-       
-       document.getElementById('total-messages').textContent = chatHistory.length;
-       document.getElementById('unique-users').textContent = uniqueUsers;
-       document.getElementById('ai-messages').textContent = aiMessages;
-       document.getElementById('slip-messages').textContent = slipMessages;
-   }
-   
-   // Filter history based on current filter values
-   function filterHistory() {
-       const direction = document.getElementById('filter-direction').value;
-       const sender = document.getElementById('filter-sender').value;
-       const search = document.getElementById('filter-search').value.toLowerCase();
-       const limit = parseInt(document.getElementById('filter-limit').value);
-       
-       filteredHistory = chatHistory.filter(chat => {
-           let match = true;
-           
-           if (direction && chat.direction !== direction) match = false;
-           if (sender && chat.sender !== sender) match = false;
-           if (search && !chat.message_text?.toLowerCase().includes(search)) match = false;
-           
-           return match;
-       }).slice(0, limit);
-       
-       renderFilteredHistory();
-   }
-   
-   // Render filtered history
-   function renderFilteredHistory() {
-       const tbody = document.getElementById('history-tbody');
-       tbody.innerHTML = '';
-       
-       if (filteredHistory.length === 0) {
-           tbody.innerHTML = `
-               <tr>
-                   <td colspan="7" class="text-center py-4">
-                       <div class="text-muted">
-                           <i class="fas fa-search fa-2x mb-3"></i>
-                           <p>No messages match your filters</p>
-                       </div>
-                   </td>
-               </tr>
-           `;
-           return;
-       }
-       
-       filteredHistory.forEach((chat, index) => {
-           const row = createHistoryRow(chat, index);
-           tbody.appendChild(row);
-       });
-   }
-   
-   // Create history row element
-   function createHistoryRow(chat, index) {
-       const row = document.createElement('tr');
-       row.className = 'chat-row';
-       row.setAttribute('data-direction', chat.direction);
-       row.setAttribute('data-sender', chat.sender);
-       row.setAttribute('data-message', chat.message_text || '');
-       
-       const time = chat.created_at ? new Date(chat.created_at).toLocaleString('th-TH', {
-           month: '2-digit',
-           day: '2-digit',
-           hour: '2-digit',
-           minute: '2-digit'
-       }) : 'N/A';
-       
-       const userId = chat.user_id ? (chat.user_id.length > 8 ? chat.user_id.substring(0, 8) + '...' : chat.user_id) : 'N/A';
-       
-       const directionBadge = chat.direction === 'in' 
-           ? '<span class="badge bg-info"><i class="fas fa-arrow-down me-1"></i>In</span>'
-           : '<span class="badge bg-success"><i class="fas fa-arrow-up me-1"></i>Out</span>';
-       
-       const senderBadge = getSenderBadge(chat.sender);
-       
-       const messageContent = getMessageContent(chat.message_text);
-       
-       row.innerHTML = `
-           <td><small class="text-muted">${time}</small></td>
-           <td><small class="badge bg-secondary">${userId}</small></td>
-           <td>${directionBadge}</td>
-           <td><span class="badge bg-light text-dark">${chat.message_type || 'text'}</span></td>
-           <td><div class="message-content" style="max-width: 400px;">${messageContent}</div></td>
-           <td>${senderBadge}</td>
-           <td>
-               <button class="btn btn-sm btn-outline-primary" 
-                       onclick="viewMessageDetails(${index})" title="View Details">
-                   <i class="fas fa-eye"></i>
-               </button>
-           </td>
-       `;
-       
-       return row;
-   }
-   
-   // Get sender badge HTML
-   function getSenderBadge(sender) {
-       const badges = {
-           'user': '<span class="badge bg-primary">User</span>',
-           'ai_bot': '<span class="badge bg-info">AI Bot</span>',
-           'slip_bot': '<span class="badge bg-warning">Slip Bot</span>',
-           'system': '<span class="badge bg-secondary">System</span>'
-       };
-       
-       return badges[sender] || `<span class="badge bg-light text-dark">${sender || 'Unknown'}</span>`;
-   }
-   
-   // Get message content HTML
-   function getMessageContent(messageText) {
-       if (!messageText) {
-           return '<em class="text-muted">No text content</em>';
-       }
-       
-       if (messageText.length > 100) {
-           return `
-               <span class="message-preview">${messageText.substring(0, 100)}...</span>
-               <span class="message-full d-none">${messageText}</span>
-               <br><small><a href="#" onclick="toggleMessage(this)">Show more</a></small>
-           `;
-       }
-       
-       return messageText;
-   }
-   
-   // Toggle message visibility
-   function toggleMessage(link) {
-       const messageContent = link.closest('.message-content');
-       const preview = messageContent.querySelector('.message-preview');
-       const full = messageContent.querySelector('.message-full');
-       
-       if (preview.classList.contains('d-none')) {
-           preview.classList.remove('d-none');
-           full.classList.add('d-none');
-           link.textContent = 'Show more';
-       } else {
-           preview.classList.add('d-none');
-           full.classList.remove('d-none');
-           link.textContent = 'Show less';
-       }
-   }
-   
-   // View message details
-   function viewMessageDetails(index) {
-       const chat = filteredHistory[index];
-       
-       let detailsHtml = `
-           <div class="row">
-               <div class="col-md-6">
-                   <h6>Basic Information</h6>
-                   <table class="table table-sm">
-                       <tr><td><strong>User ID:</strong></td><td>${chat.user_id || 'N/A'}</td></tr>
-                       <tr><td><strong>Direction:</strong></td><td>${chat.direction}</td></tr>
-                       <tr><td><strong>Type:</strong></td><td>${chat.message_type || 'text'}</td></tr>
-                       <tr><td><strong>Sender:</strong></td><td>${chat.sender || 'Unknown'}</td></tr>
-                       <tr><td><strong>Time:</strong></td><td>${chat.created_at || 'N/A'}</td></tr>
-                   </table>
-               </div>
-               <div class="col-md-6">
-                   <h6>Message Content</h6>
-                   <div class="code-block">
-                       ${chat.message_text || 'No text content'}
-                   </div>
-               </div>
-           </div>
-       `;
-       
-       if (chat.message_data) {
-           detailsHtml += `
-               <div class="mt-3">
-                   <h6>Raw Message Data</h6>
-                   <pre class="code-block">${JSON.stringify(chat.message_data, null, 2)}</pre>
-               </div>
-           `;
-       }
-       
-       document.getElementById('message-details').innerHTML = detailsHtml;
-       new bootstrap.Modal(document.getElementById('messageModal')).show();
-   }
-   
-   // Refresh history
-   async function refreshHistory() {
-       try {
-           showNotification('กำลังโหลดประวัติแชทใหม่...', 'info');
-           window.location.reload();
-       } catch (error) {
-           showNotification('เกิดข้อผิดพลาดในการโหลดประวัติแชท', 'error');
-       }
-   }
-   
-   // Export history
-   async function exportHistory() {
-       try {
-           const result = await apiCall('/admin/export-data');
-           
-           if (result.status === 'success') {
-               const dataStr = JSON.stringify(result.data.chat_history, null, 2);
-               const dataBlob = new Blob([dataStr], {type: 'application/json'});
-               
-               const link = document.createElement('a');
-               link.href = URL.createObjectURL(dataBlob);
-               link.download = `chat-history-${new Date().toISOString().split('T')[0]}.json`;
-               link.click();
-               
-               showNotification('Export ประวัติแชทสำเร็จ', 'success');
-           } else {
-               showNotification('Export ล้มเหลว', 'error');
-           }
-       } catch (error) {
-           showNotification('เกิดข้อผิดพลาดในการ Export', 'error');
-       }
-   }
-   
-   // Cleanup old data
-   async function cleanupOldData() {
-       if (!confirm('คุณต้องการลบข้อมูลเก่าที่มีอายุมากกว่า 30 วันหรือไม่?')) {
-           return;
-       }
-       
-       try {
-           showNotification('กำลังทำความสะอาดข้อมูลเก่า...', 'info');
-           
-           const result = await apiCall('/admin/cleanup-old-data', {
-               method: 'POST'
-           });
-           
-           if (result.status === 'success') {
-               showNotification(result.message, 'success');
-               setTimeout(() => window.location.reload(), 2000);
-           } else {
-               showNotification(result.message, 'error');
-           }
-       } catch (error) {
-           showNotification('เกิดข้อผิดพลาดในการทำความสะอาดข้อมูล', 'error');
-       }
-   }
-   
-   // Initialize
-   document.addEventListener('DOMContentLoaded', function() {
-       updateStatistics();
-       
-       // Set up real-time search
-       let searchTimeout;
-       document.getElementById('filter-search').addEventListener('keyup', function() {
-           clearTimeout(searchTimeout);
-           searchTimeout = setTimeout(filterHistory, 300);
-       });
-   });
-</script>
-{% endblock %}
+@app.get("/admin/api/user-list")
+async def get_user_list():
+    """ดึงรายชื่อ users ทั้งหมด"""
+    try:
+        users = {}
+        if 'get_recent_chat_history' in database_functions:
+            history = await database_functions['get_recent_chat_history'](1000)
+            
+            for chat in history:
+                if hasattr(chat, 'user_id') and chat.user_id:
+                    user_id = chat.user_id
+                    if user_id not in users:
+                        users[user_id] = {
+                            "user_id": user_id,
+                            "display_name": f"User {user_id[:8]}",
+                            "message_count": 0,
+                            "last_message": None
+                        }
+                    users[user_id]["message_count"] += 1
+                    if hasattr(chat, 'created_at') and chat.created_at:
+                        if not users[user_id]["last_message"] or chat.created_at > users[user_id]["last_message"]:
+                            users[user_id]["last_message"] = chat.created_at.isoformat()
+        
+        return JSONResponse({
+            "status": "success",
+            "users": list(users.values())
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting user list: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e),
+            "users": []
+        })
