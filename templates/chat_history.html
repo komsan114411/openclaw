@@ -1,66 +1,293 @@
-@app.get("/admin/api/chat-messages")
-async def get_chat_messages(limit: int = 100):
-    """API endpoint สำหรับดึงข้อความแชททั้งหมด"""
-    try:
-        messages = []
-        if 'get_recent_chat_history' in database_functions:
-            history = await database_functions['get_recent_chat_history'](limit)
-            
-            for chat in history:
-                messages.append({
-                    "id": str(chat.id) if hasattr(chat, 'id') else None,
-                    "user_id": chat.user_id if hasattr(chat, 'user_id') else None,
-                    "direction": chat.direction if hasattr(chat, 'direction') else None,
-                    "message_type": chat.message_type if hasattr(chat, 'message_type') else None,
-                    "message_text": chat.message_text if hasattr(chat, 'message_text') else None,
-                    "sender": chat.sender if hasattr(chat, 'sender') else None,
-                    "created_at": chat.created_at.isoformat() if hasattr(chat, 'created_at') and chat.created_at else None
-                })
-        
-        return JSONResponse({
-            "status": "success",
-            "messages": messages,
-            "total": len(messages)
-        })
-    except Exception as e:
-        logger.error(f"❌ Error getting chat messages: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e),
-            "messages": []
-        })
+{% extends "base.html" %}
 
-@app.get("/admin/api/user-list")
-async def get_user_list():
-    """ดึงรายชื่อ users ทั้งหมด"""
-    try:
-        users = {}
-        if 'get_recent_chat_history' in database_functions:
-            history = await database_functions['get_recent_chat_history'](1000)
-            
-            for chat in history:
-                if hasattr(chat, 'user_id') and chat.user_id:
-                    user_id = chat.user_id
-                    if user_id not in users:
-                        users[user_id] = {
-                            "user_id": user_id,
-                            "display_name": f"User {user_id[:8]}",
-                            "message_count": 0,
-                            "last_message": None
-                        }
-                    users[user_id]["message_count"] += 1
-                    if hasattr(chat, 'created_at') and chat.created_at:
-                        if not users[user_id]["last_message"] or chat.created_at > users[user_id]["last_message"]:
-                            users[user_id]["last_message"] = chat.created_at.isoformat()
+{% block title %}Chat History - LINE OA Middleware{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-comments me-2 text-primary"></i>
+        Chat History
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshHistory()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+        <button class="btn btn-outline-success" onclick="exportHistory()">
+            <i class="fas fa-download me-1"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary" id="total-messages">0</h4>
+                <p class="text-muted mb-0">Total Messages</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success" id="unique-users">0</h4>
+                <p class="text-muted mb-0">Unique Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info" id="ai-messages">0</h4>
+                <p class="text-muted mb-0">AI Messages</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning" id="today-messages">0</h4>
+                <p class="text-muted mb-0">Today's Messages</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Direction</label>
+                <select class="form-select" id="filter-direction" onchange="applyFilters()">
+                    <option value="">All</option>
+                    <option value="in">Incoming</option>
+                    <option value="out">Outgoing</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Sender</label>
+                <select class="form-select" id="filter-sender" onchange="applyFilters()">
+                    <option value="">All</option>
+                    <option value="user">User</option>
+                    <option value="ai_bot">AI Bot</option>
+                    <option value="system">System</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <input type="text" class="form-control" id="search-text" 
+                       placeholder="Search messages..." onkeyup="applyFilters()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Limit</label>
+                <select class="form-select" id="limit-select" onchange="loadChatHistory()">
+                    <option value="50">50 messages</option>
+                    <option value="100" selected>100 messages</option>
+                    <option value="200">200 messages</option>
+                    <option value="500">500 messages</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat History Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Message History</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Time</th>
+                        <th>User</th>
+                        <th>Direction</th>
+                        <th>Type</th>
+                        <th>Message</th>
+                        <th>Sender</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="chat-tbody">
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allMessages = [];
+let filteredMessages = [];
+
+// Load chat history
+async function loadChatHistory() {
+    try {
+        const limit = document.getElementById('limit-select').value;
+        const response = await fetch(`/admin/api/chat-messages?limit=${limit}`);
+        const data = await response.json();
         
-        return JSONResponse({
-            "status": "success",
-            "users": list(users.values())
-        })
-    except Exception as e:
-        logger.error(f"❌ Error getting user list: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e),
-            "users": []
-        })
+        if (data.status === 'success') {
+            allMessages = data.messages || [];
+            updateStatistics();
+            applyFilters();
+        }
+    } catch (error) {
+        console.error('Error loading chat history:', error);
+        showNotification('Error loading chat history', 'error');
+    }
+}
+
+// Update statistics
+function updateStatistics() {
+    // Total messages
+    document.getElementById('total-messages').textContent = allMessages.length;
+    
+    // Unique users
+    const uniqueUsers = new Set(allMessages.map(m => m.user_id)).size;
+    document.getElementById('unique-users').textContent = uniqueUsers;
+    
+    // AI messages
+    const aiMessages = allMessages.filter(m => m.sender === 'ai_bot').length;
+    document.getElementById('ai-messages').textContent = aiMessages;
+    
+    // Today's messages
+    const today = new Date().toDateString();
+    const todayMessages = allMessages.filter(m => {
+        if (m.created_at) {
+            return new Date(m.created_at).toDateString() === today;
+        }
+        return false;
+    }).length;
+    document.getElementById('today-messages').textContent = todayMessages;
+}
+
+// Apply filters
+function applyFilters() {
+    const direction = document.getElementById('filter-direction').value;
+    const sender = document.getElementById('filter-sender').value;
+    const searchText = document.getElementById('search-text').value.toLowerCase();
+    
+    filteredMessages = allMessages.filter(msg => {
+        let match = true;
+        
+        if (direction && msg.direction !== direction) match = false;
+        if (sender && msg.sender !== sender) match = false;
+        if (searchText && !msg.message_text?.toLowerCase().includes(searchText)) match = false;
+        
+        return match;
+    });
+    
+    displayMessages();
+}
+
+// Display messages
+function displayMessages() {
+    const tbody = document.getElementById('chat-tbody');
+    
+    if (filteredMessages.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <p>No messages found</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = filteredMessages.map(msg => {
+        const time = msg.created_at ? new Date(msg.created_at).toLocaleString('th-TH') : 'N/A';
+        const userId = msg.user_id ? 
+            (msg.user_id.length > 10 ? msg.user_id.substring(0, 10) + '...' : msg.user_id) : 
+            'Unknown';
+        
+        const directionBadge = msg.direction === 'in' 
+            ? '<span class="badge bg-info"><i class="fas fa-arrow-down me-1"></i>IN</span>'
+            : '<span class="badge bg-success"><i class="fas fa-arrow-up me-1"></i>OUT</span>';
+        
+        const senderBadge = getSenderBadge(msg.sender);
+        const messageText = msg.message_text || '[No text]';
+        const displayText = messageText.length > 100 ? 
+            messageText.substring(0, 100) + '...' : messageText;
+        
+        return `
+            <tr>
+                <td><small>${time}</small></td>
+                <td><small class="badge bg-secondary">${userId}</small></td>
+                <td>${directionBadge}</td>
+                <td><span class="badge bg-light text-dark">${msg.message_type || 'text'}</span></td>
+                <td>${displayText}</td>
+                <td>${senderBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewMessage('${msg.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Get sender badge
+function getSenderBadge(sender) {
+    const badges = {
+        'user': '<span class="badge bg-primary">User</span>',
+        'ai_bot': '<span class="badge bg-info">AI Bot</span>',
+        'slip_bot': '<span class="badge bg-warning">Slip Bot</span>',
+        'system': '<span class="badge bg-secondary">System</span>'
+    };
+    return badges[sender] || `<span class="badge bg-light text-dark">${sender || 'Unknown'}</span>`;
+}
+
+// Refresh history
+function refreshHistory() {
+    showNotification('Refreshing...', 'info');
+    loadChatHistory();
+}
+
+// Export history
+function exportHistory() {
+    try {
+        const dataStr = JSON.stringify(filteredMessages, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `chat-history-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        showNotification('Export successful', 'success');
+    } catch (error) {
+        showNotification('Export failed', 'error');
+    }
+}
+
+// View message details
+function viewMessage(messageId) {
+    // Implementation for viewing message details
+    showNotification('View message: ' + messageId, 'info');
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    loadChatHistory();
+    
+    // Auto refresh every 10 seconds
+    setInterval(loadChatHistory, 10000);
+});
+</script>
+{% endblock %}
