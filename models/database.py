@@ -1,6 +1,6 @@
 # models/database.py
 """
-MongoDB Database Module - Complete Version
+MongoDB Database Module - Fixed Version for Chat History
 """
 
 import os
@@ -162,11 +162,11 @@ class MongoDBManager:
         except Exception as e:
             logger.warning(f"⚠️ Index creation warning: {e}")
     
-    async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
-        """Save chat history to MongoDB"""
+    async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
+        """Save chat history to MongoDB - FIXED VERSION"""
         if not self.connected or not self.db:
             logger.debug("⚠️ MongoDB not connected, skipping save")
-            return False
+            return False  # ต้อง return False อย่างชัดเจน
             
         try:
             # Prepare document
@@ -253,11 +253,11 @@ class MongoDBManager:
             )
             
             logger.info(f"✅ Chat saved: {result.inserted_id} - {user_id[:10]} - {direction} - {sender}")
-            return True
+            return True  # ต้อง return True อย่างชัดเจน
             
         except Exception as e:
             logger.error(f"❌ Error saving to MongoDB: {e}")
-            return False
+            return False  # return False เมื่อ error
     
     async def get_chat_history_count(self) -> int:
         """Get total message count"""
@@ -455,7 +455,7 @@ def _get_sync_loop():
     
     return _sync_loop
 
-# Export Functions
+# Export Functions - FIXED VERSION
 async def init_database():
     """Initialize database"""
     success = await db_manager.initialize()
@@ -469,11 +469,16 @@ def get_connection_info():
     """Get detailed connection information"""
     return CONNECTION_STATUS
 
-async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str):
-    """Save chat history"""
+async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
+    """Save chat history - FIXED TO RETURN BOOLEAN"""
     if not db_manager.connected:
-        await init_database()
-    return await db_manager.save_chat_history(user_id, direction, message, sender)
+        init_result = await init_database()
+        if not init_result:
+            logger.error("❌ Cannot save chat - database not connected")
+            return False
+    
+    result = await db_manager.save_chat_history(user_id, direction, message, sender)
+    return result  # ต้อง return ผลลัพธ์
 
 async def get_chat_history_count() -> int:
     """Get total message count"""
