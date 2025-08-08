@@ -1343,13 +1343,60 @@ async def update_settings(request: Request):
             "message": f"เกิดข้อผิดพลาดในการบันทึก: {str(e)}"
         })
 
+# แทนที่ทุกที่ที่มีการตรวจสอบ database แบบนี้
+# if database:
+# เปลี่ยนเป็น
+# if database is not None:
+
+# ตัวอย่างการแก้ไขในฟังก์ชัน admin_chat_history
 @app.get("/admin/chat-history")
-async def admin_chat_history_page(request: Request):
+async def admin_chat_history(request: Request):
     """Chat history page"""
-    return templates.TemplateResponse(
-        "chat_history.html",
-        {"request": request}
-    )
+    try:
+        # ดึงประวัติแชท
+        chat_history = []
+        if database_functions and 'get_recent_chat_history' in database_functions:
+            chat_history = await database_functions['get_recent_chat_history'](100)
+        
+        # แปลงเป็น list ที่ serialize ได้
+        chat_list = []
+        for chat in chat_history:
+            if chat is not None:  # ตรวจสอบแบบ explicit
+                chat_data = {
+                    "id": str(getattr(chat, 'id', '')) if hasattr(chat, 'id') else None,
+                    "user_id": getattr(chat, 'user_id', '')),
+                    "direction": getattr(chat, 'direction', '')),
+                    "message_type": getattr(chat, 'message_type', 'text')),
+                    "message_text": getattr(chat, 'message_text', '')),
+                    "sender": getattr(chat, 'sender', 'unknown')),
+                    "created_at": None
+                }
+                
+                # จัดการ datetime
+                if hasattr(chat, 'created_at') and chat.created_at is not None:
+                    try:
+                        chat_data["created_at"] = chat.created_at.isoformat()
+                    except:
+                        chat_data["created_at"] = str(chat.created_at))
+                
+                chat_list.append(chat_data)
+        
+        return templates.TemplateResponse(
+            "chat_history.html",
+            {
+                "request": request,
+                "chat_history": chat_list
+            }
+        )
+    except Exception as e:
+        logger.error(f"❌ Chat history page error: {e}")
+        return templates.TemplateResponse(
+            "chat_history.html",
+            {
+                "request": request,
+                "chat_history": []
+            }
+        )
 
 @app.post("/admin/toggle-slip-system")
 async def toggle_slip_system():
