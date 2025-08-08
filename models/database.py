@@ -232,6 +232,22 @@ class MongoDBManager:
             logger.info("✅ MongoDB indexes created")
         except Exception as e:
             logger.warning(f"⚠️ Index creation warning: {e}")
+
+    # เพิ่มฟังก์ชันสำหรับดึงข้อมูล user
+async def get_user_info(user_id: str) -> Dict[str, Any]:
+    """Get user information"""
+    if not db_manager.connected:
+        await init_database()
+    
+    try:
+        user_doc = await db_manager.db.users.find_one({"user_id": user_id})
+        if user_doc:
+            user_doc['_id'] = str(user_doc['_id'])
+            return user_doc
+        return {"user_id": user_id, "display_name": f"User {user_id[:8]}"}
+    except Exception as e:
+        logger.error(f"Error getting user info: {e}")
+        return {"user_id": user_id}
     
     async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str):
         """Save chat history to MongoDB with complete message data"""
