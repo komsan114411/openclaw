@@ -123,6 +123,8 @@ ai_functions = {}
 slip_functions = {}
 
 # ในส่วน safe_import_modules() แก้ไขเป็น:
+# main_updated.py - แก้ไขในส่วน safe_import_modules() บรรทัดประมาณ 100-200
+
 async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
     global IS_READY, config_manager, database_functions, ai_functions, slip_functions
@@ -130,95 +132,123 @@ async def safe_import_modules():
     logger.info("🔄 Starting module imports...")
     
     try:
-        # Initialize MongoDB Config Manager first
+        # Initialize Config Manager
         try:
-            from utils.mongodb_config import get_config_manager
-            mongodb_config = await get_config_manager()
-            logger.info("✅ MongoDB Config Manager initialized")
-            
-            # Update config_manager to use MongoDB
             from utils.config_manager import config_manager as cm
-            cm.mongodb_config = mongodb_config
-            cm._initialized = True
             config_manager = cm
-            logger.info("✅ Config manager using MongoDB backend")
+            logger.info("✅ Config manager initialized")
         except Exception as e:
-            logger.error(f"❌ MongoDB Config init failed: {e}")
-            # Fallback to file-based config
-            from utils.config_manager import config_manager as cm
-            config_manager = cm
-            logger.warning("⚠️ Using fallback config manager")
+            logger.error(f"❌ Config manager init failed: {e}")
+            # Create a simple config manager
+            class SimpleConfigManager:
+                def __init__(self):
+                    self.config = {}
+                def get(self, key, default=None):
+                    return os.getenv(key.upper(), default)
+                def update(self, key, value):
+                    self.config[key] = value
+                    return True
+                def update_multiple(self, updates):
+                    self.config.update(updates)
+                    return True
+            config_manager = SimpleConfigManager()
         
         # Database functions - Initialize async
+        database_import_success = False
         try:
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history, test_connection as db_test_connection, 
-                get_connection_info, get_database_status, get_config, set_config
+                get_recent_chat_history, get_user_chat_history, test_connection,
+                get_connection_info, get_database_status, get_config, set_config,
+                get_user_chat_history_sync
             )
             
-            # Initialize database asynchronously
-            await init_database()
-            logger.info("✅ Database initialized")
+            # Initialize database
+            init_result = await init_database()
             
-            database_functions = {
-                'init_database': init_database,
-                'save_chat_history': save_chat_history,
-                'get_chat_history_count': get_chat_history_count,
-                'get_recent_chat_history': get_recent_chat_history,
-                'get_user_chat_history': get_user_chat_history,
-                'test_connection': db_test_connection,
-                'get_connection_info': get_connection_info,
-                'get_database_status': get_database_status,
-                'get_config': get_config,
-                'set_config': set_config
-            }
-            logger.info("✅ Database modules imported")
+            # Check initialization result properly
+            if init_result is True:  # Use explicit comparison
+                logger.info("✅ Database initialized successfully")
+                
+                database_functions = {
+                    'init_database': init_database,
+                    'save_chat_history': save_chat_history,
+                    'get_chat_history_count': get_chat_history_count,
+                    'get_recent_chat_history': get_recent_chat_history,
+                    'get_user_chat_history': get_user_chat_history,
+                    'get_user_chat_history_sync': get_user_chat_history_sync,
+                    'test_connection': test_connection,
+                    'get_connection_info': get_connection_info,
+                    'get_database_status': get_database_status,
+                    'get_config': get_config,
+                    'set_config': set_config
+                }
+                database_import_success = True
+                logger.info("✅ Database functions imported successfully")
+            else:
+                logger.error("❌ Database initialization returned False")
+                database_import_success = False
+                
+        except Exception as e:
+            logger.error(f"⚠️ Database import/init failed: {e}")
+            logger.exception(e)
+            database_import_success = False
+        
+        # If database import failed, use dummy functions
+        if not database_import_success:
+            logger.warning("⚠️ Using dummy database functions")
             
-        except ImportError as e:
-            logger.warning(f"⚠️ Database import failed: {e}")
-            # Fallback functions
-            async def dummy_init():
-                pass
             async def dummy_save(u, d, m, s):
-                pass
+                logger.debug(f"Dummy save: {u[:10] if u else 'unknown'}")
+                return False
+            
             async def dummy_count():
                 return 0
+            
             async def dummy_recent(l=50):
                 return []
+            
             async def dummy_user_history(u, l=10):
                 return []
+            
+            def dummy_user_history_sync(u, l=10):
+                return []
+            
             async def dummy_test():
                 return {"status": "error", "message": "Database not available"}
+            
             def dummy_info():
                 return {"connected": False, "type": "Unavailable"}
+            
             async def dummy_get_status():
                 return {"status": "error", "message": "Database not available"}
+            
             async def dummy_get_config(key, default=None):
                 return default
+            
             async def dummy_set_config(key, value, is_sensitive=False):
                 return False
                 
             database_functions = {
-                'init_database': dummy_init,
+                'init_database': lambda: False,
                 'save_chat_history': dummy_save,
                 'get_chat_history_count': dummy_count,
                 'get_recent_chat_history': dummy_recent,
                 'get_user_chat_history': dummy_user_history,
+                'get_user_chat_history_sync': dummy_user_history_sync,
                 'test_connection': dummy_test,
                 'get_connection_info': dummy_info,
                 'get_database_status': dummy_get_status,
                 'get_config': dummy_get_config,
                 'set_config': dummy_set_config
             }
-            logger.warning("⚠️ Using dummy database functions")
         
         # Import AI modules
         try:
             from services.chat_bot import get_chat_response
             ai_functions['get_chat_response'] = get_chat_response
             logger.info("✅ AI modules imported")
-        except ImportError as e:
+        except Exception as e:
             logger.warning(f"⚠️ AI module import failed: {e}")
             def dummy_chat_response(text, user_id):
                 return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
@@ -238,7 +268,7 @@ async def safe_import_modules():
             slip_functions['reset_api_failure_cache'] = reset_api_failure_cache
             slip_functions['test_thunder_api_connection'] = test_thunder_api_connection
             logger.info("✅ Slip modules imported")
-        except ImportError as e:
+        except Exception as e:
             logger.warning(f"⚠️ Slip module import failed: {e}")
             def dummy_extract(text):
                 return {"bank_code": None, "trans_ref": None}
@@ -260,20 +290,6 @@ async def safe_import_modules():
             slip_functions['reset_api_failure_cache'] = dummy_reset
             slip_functions['test_thunder_api_connection'] = dummy_test_thunder
         
-        # Import KBank modules
-        try:
-            from services.kbank_checker import (
-                kbank_checker, update_kbank_credentials, 
-                test_kbank_with_credentials, setup_kbank_sandbox_instantly
-            )
-            slip_functions['kbank_checker'] = kbank_checker
-            slip_functions['update_kbank_credentials'] = update_kbank_credentials
-            slip_functions['test_kbank_with_credentials'] = test_kbank_with_credentials
-            slip_functions['setup_kbank_sandbox_instantly'] = setup_kbank_sandbox_instantly
-            logger.info("✅ KBank modules imported")
-        except ImportError as e:
-            logger.warning(f"⚠️ KBank module import failed: {e}")
-        
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         
@@ -282,15 +298,17 @@ async def safe_import_modules():
             "🚀 System started successfully", 
             "success",
             {
-                "database": database_functions.get('get_connection_info', lambda: {"connected": False})(),
-                "config_backend": "MongoDB" if hasattr(config_manager, 'mongodb_config') and config_manager.mongodb_config else "File",
+                "database": database_functions.get('get_connection_info', lambda: {"connected": False})() if database_functions else {"connected": False},
                 "ai_available": 'get_chat_response' in ai_functions,
                 "slip_available": 'verify_slip_multiple_providers' in slip_functions
             }
         )
         
+        return True
+        
     except Exception as e:
         logger.error(f"❌ Critical import error: {e}")
+        logger.exception(e)
         IS_READY = False
         
         # Send error notification
@@ -298,7 +316,8 @@ async def safe_import_modules():
             f"❌ System startup error: {str(e)}", 
             "error"
         )
-
+        
+        return False
 # Lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -640,46 +659,59 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
         logger.error(f"❌ send_message_safe error: {e}")
         return False
 
+# แก้ไข handle_ai_chat ใน main_updated.py
+
 async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
-    """จัดการแชท AI พร้อมบันทึก"""
+    """จัดการแชท AI - บันทึกเงียบๆ"""
     try:
-        ai_enabled = config_manager.get("ai_enabled", False)
+        ai_enabled = config_manager.get("ai_enabled", False) if config_manager else False
+        openai_key = config_manager.get("openai_api_key", "") if config_manager else ""
         
         if not ai_enabled:
             response = "ระบบ AI ถูกปิดการใช้งานค่ะ"
+        elif not openai_key:
+            response = "ยังไม่ได้ตั้งค่า OpenAI API Key กรุณาติดต่อผู้ดูแลระบบค่ะ"
         else:
             try:
                 # เรียกใช้ AI
-                response = await asyncio.wait_for(
-                    asyncio.to_thread(ai_functions['get_chat_response'], user_text, user_id),
-                    timeout=30.0
-                )
-                logger.info(f"🤖 AI response generated")
+                if ai_functions and 'get_chat_response' in ai_functions:
+                    response = await asyncio.wait_for(
+                        asyncio.to_thread(ai_functions['get_chat_response'], user_text, user_id),
+                        timeout=30.0
+                    )
+                    logger.info(f"🤖 AI response generated for {user_id[:10]}")
+                else:
+                    response = "ขออภัย ระบบ AI ไม่พร้อมใช้งาน"
             except asyncio.TimeoutError:
-                response = "ขออภัย AI ตอบสนองช้า กรุณาลองใหม่"
+                response = "ขออภัย AI ตอบสนองช้าเกินไป กรุณาลองใหม่อีกครั้ง"
+                logger.error(f"⏱️ AI timeout for {user_id[:10]}")
             except Exception as e:
-                logger.error(f"❌ AI error: {e}")
-                response = "ขออภัย เกิดข้อผิดพลาด"
+                logger.error(f"❌ AI response error: {e}")
+                response = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
         
         # ส่งข้อความตอบกลับ
         success = await send_line_reply(reply_token, response)
         
-        # บันทึกข้อความขาออก
         if success:
+            # บันทึกข้อความขาออก (เงียบๆ)
             try:
-                if 'save_chat_history' in database_functions:
+                if database_functions and 'save_chat_history' in database_functions:
                     await database_functions['save_chat_history'](
-                        user_id, 
-                        "out",  # ข้อความขาออก
+                        user_id, "out", 
                         {"type": "text", "text": response}, 
                         sender="ai_bot"
                     )
-                    logger.info(f"✅ Saved AI response")
+                    logger.info(f"✅ AI response saved for {user_id[:10]}")
             except Exception as e:
                 logger.error(f"❌ Failed to save AI response: {e}")
+        else:
+            # ลอง push ถ้า reply ไม่ได้
+            await send_line_push(user_id, response)
+            logger.warning(f"⚠️ Used push message for {user_id[:10]}")
         
     except Exception as e:
         logger.error(f"❌ AI chat error: {e}")
+        logger.exception(e)
 
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
     """จัดการตรวจสอบสลิป - บันทึกเงียบๆ"""
@@ -819,8 +851,10 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         logger.error(f"❌ Event processing error: {e}")
         logger.exception(e)
 
+# แก้ไข handle_message_event (บรรทัดประมาณ 400-500)
+
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - บันทึกและตอบกลับ"""
+    """Handle message event - บันทึกทุกอย่างแบบเงียบ"""
     try:
         message = event.get("message", {})
         user_id = event.get("source", {}).get("userId")
@@ -831,57 +865,81 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
             logger.error("❌ Missing user ID")
             return
         
-        logger.info(f"📨 Processing {message_type} from {user_id[:10]}...")
+        logger.info(f"📨 Received {message_type} from {user_id[:10]}...")
         
         # สร้างข้อมูลข้อความที่จะบันทึก
         message_data = {
             "type": message_type,
-            "text": message.get("text", "") if message_type == "text" else f"[{message_type}]",
+            "text": message.get("text", "") if message_type == "text" else "",
             "id": message.get("id"),
             "timestamp": event.get("timestamp"),
-            "raw_data": message
+            "packageId": message.get("packageId"),  # For stickers
+            "stickerId": message.get("stickerId"),  # For stickers
+            "fileName": message.get("fileName"),    # For files
+            "fileSize": message.get("fileSize"),    # For files
+            "title": message.get("title"),          # For location
+            "address": message.get("address"),      # For location
+            "latitude": message.get("latitude"),    # For location
+            "longitude": message.get("longitude"),  # For location
         }
         
-        # บันทึกข้อความขาเข้าจากผู้ใช้
+        # บันทึกข้อความขาเข้า (เงียบๆ)
         try:
-            if 'save_chat_history' in database_functions:
-                await database_functions['save_chat_history'](
+            if database_functions and 'save_chat_history' in database_functions:
+                save_result = await database_functions['save_chat_history'](
                     user_id, 
                     "in",  # ข้อความขาเข้า
                     message_data, 
                     sender="user"
                 )
-                logger.info(f"✅ Saved incoming message from {user_id[:10]}")
+                if save_result:
+                    logger.info(f"✅ Saved {message_type} from {user_id[:10]}")
+                else:
+                    logger.warning(f"⚠️ Could not save message from {user_id[:10]}")
+            else:
+                logger.error("❌ Database function 'save_chat_history' not available")
+                
         except Exception as e:
-            logger.error(f"❌ Failed to save incoming message: {e}")
+            logger.error(f"❌ Failed to save chat: {e}")
+            logger.exception(e)
         
         # ประมวลผลตามประเภทข้อความ
         if message_type == "text":
             user_text = message.get("text", "")
-            logger.info(f"📝 Text: {user_text[:50]}...")
+            logger.info(f"📝 Text message: {user_text[:50]}...")
             
             # ตรวจสอบสลิป
             slip_info = {"bank_code": None, "trans_ref": None}
             if slip_functions and 'extract_slip_info_from_text' in slip_functions:
-                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+                try:
+                    slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+                except Exception as e:
+                    logger.error(f"❌ Error extracting slip info: {e}")
             
             if slip_info.get("bank_code") and slip_info.get("trans_ref"):
-                # ตรวจสอบสลิป
+                # ตรวจสอบสลิปและตอบกลับ
                 await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
             else:
                 # AI Chat
                 await handle_ai_chat(user_id, reply_token, user_text)
                 
         elif message_type == "image":
+            logger.info(f"🖼️ Image message from {user_id[:10]}...")
             message_id = message.get("id")
             if message_id:
                 await handle_slip_verification(user_id, reply_token, message_id=message_id)
                 
+        elif message_type == "sticker":
+            logger.info(f"😊 Sticker from {user_id[:10]}")
+            # ตอบกลับด้วยข้อความ
+            await send_message_safe(user_id, reply_token, "ขอบคุณสำหรับสติกเกอร์ค่ะ 😊", "system")
+            
+        else:
+            logger.info(f"📄 {message_type} message from {user_id[:10]}...")
+            
     except Exception as e:
-        logger.error(f"❌ Error handling message: {e}")
+        logger.error(f"❌ Error handling message event: {e}")
         logger.exception(e)
-        
-    # ไม่ตอบกลับอะไรถ้าไม่จำเป็น
 
 async def enhance_message_data(event: Dict[str, Any], message: Dict[str, Any]) -> Dict[str, Any]:
     """เพิ่มข้อมูลเสริมในข้อความ"""
