@@ -162,82 +162,78 @@ class MongoDBManager:
         except Exception as e:
             logger.warning(f"⚠️ Index creation warning: {e}")
     
-    # models/database.py - แก้ไขฟังก์ชัน save_chat_history ใน class MongoDBManager
-
-async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
-    """Save chat history to MongoDB - FIXED VERSION"""
-    if not self.connected or not self.db:
-        logger.debug("⚠️ MongoDB not connected, skipping save")
-        return False
-        
-    try:
-        # Prepare document
-        document = {
-            "user_id": user_id,
-            "direction": direction,  # "in" or "out"
-            "message_type": message.get("type", "text"),
-            "sender": sender,  # "user", "ai_bot", "slip_bot", "system"
-            "created_at": datetime.utcnow(),
-            "raw_message": message
-        }
-        
-        # Extract message text based on type
-        message_type = message.get("type", "text")
-        
-        if message_type == "text":
-            document["message_text"] = message.get("text", "")
-            # Extract URLs if present
-            text = message.get("text", "")
-            urls = self._extract_urls(text)
-            if urls:
-                document["urls"] = urls
-        elif message_type == "image":
-            document["message_text"] = "[รูปภาพ]"
-            document["image_data"] = {
-                "id": message.get("id"),
-                "contentProvider": message.get("contentProvider", {})
+    async def save_chat_history(self, user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
+        """Save chat history to MongoDB - FIXED VERSION"""
+        if not self.connected or not self.db:
+            logger.debug("⚠️ MongoDB not connected, skipping save")
+            return False  # ต้อง return False อย่างชัดเจน
+            
+        try:
+            # Prepare document
+            document = {
+                "user_id": user_id,
+                "direction": direction,  # "in" or "out"
+                "message_type": message.get("type", "text"),
+                "sender": sender,  # "user", "ai_bot", "slip_bot", "system"
+                "created_at": datetime.utcnow(),
+                "raw_message": message
             }
-        elif message_type == "video":
-            document["message_text"] = "[วิดีโอ]"
-            document["video_data"] = {
-                "id": message.get("id"),
-                "duration": message.get("duration")
-            }
-        elif message_type == "audio":
-            document["message_text"] = "[ไฟล์เสียง]"
-            document["audio_data"] = {
-                "id": message.get("id"),
-                "duration": message.get("duration")
-            }
-        elif message_type == "file":
-            document["message_text"] = f"[ไฟล์: {message.get('fileName', 'unknown')}]"
-            document["file_data"] = {
-                "id": message.get("id"),
-                "fileName": message.get("fileName"),
-                "fileSize": message.get("fileSize")
-            }
-        elif message_type == "location":
-            document["message_text"] = f"[ตำแหน่ง: {message.get('title', 'Unknown')}]"
-            document["location_data"] = {
-                "title": message.get("title"),
-                "address": message.get("address"),
-                "latitude": message.get("latitude"),
-                "longitude": message.get("longitude")
-            }
-        elif message_type == "sticker":
-            document["message_text"] = "[สติกเกอร์]"
-            document["sticker_data"] = {
-                "packageId": message.get("packageId"),
-                "stickerId": message.get("stickerId")
-            }
-        else:
-            document["message_text"] = f"[{message_type}]"
-        
-        # Save to MongoDB
-        result = await self.db.chat_history.insert_one(document)
-        
-        # ตรวจสอบว่า insert สำเร็จหรือไม่ด้วยการเช็ค inserted_id
-        if result and result.inserted_id:
+            
+            # Extract message text based on type
+            message_type = message.get("type", "text")
+            
+            if message_type == "text":
+                document["message_text"] = message.get("text", "")
+                # Extract URLs if present
+                text = message.get("text", "")
+                urls = self._extract_urls(text)
+                if urls:
+                    document["urls"] = urls
+            elif message_type == "image":
+                document["message_text"] = "[รูปภาพ]"
+                document["image_data"] = {
+                    "id": message.get("id"),
+                    "contentProvider": message.get("contentProvider", {})
+                }
+            elif message_type == "video":
+                document["message_text"] = "[วิดีโอ]"
+                document["video_data"] = {
+                    "id": message.get("id"),
+                    "duration": message.get("duration")
+                }
+            elif message_type == "audio":
+                document["message_text"] = "[ไฟล์เสียง]"
+                document["audio_data"] = {
+                    "id": message.get("id"),
+                    "duration": message.get("duration")
+                }
+            elif message_type == "file":
+                document["message_text"] = f"[ไฟล์: {message.get('fileName', 'unknown')}]"
+                document["file_data"] = {
+                    "id": message.get("id"),
+                    "fileName": message.get("fileName"),
+                    "fileSize": message.get("fileSize")
+                }
+            elif message_type == "location":
+                document["message_text"] = f"[ตำแหน่ง: {message.get('title', 'Unknown')}]"
+                document["location_data"] = {
+                    "title": message.get("title"),
+                    "address": message.get("address"),
+                    "latitude": message.get("latitude"),
+                    "longitude": message.get("longitude")
+                }
+            elif message_type == "sticker":
+                document["message_text"] = "[สติกเกอร์]"
+                document["sticker_data"] = {
+                    "packageId": message.get("packageId"),
+                    "stickerId": message.get("stickerId")
+                }
+            else:
+                document["message_text"] = f"[{message_type}]"
+            
+            # Save to MongoDB
+            result = await self.db.chat_history.insert_one(document)
+            
             # Update user info
             await self.db.users.update_one(
                 {"user_id": user_id},
@@ -257,15 +253,11 @@ async def save_chat_history(self, user_id: str, direction: str, message: Dict[st
             )
             
             logger.info(f"✅ Chat saved: {result.inserted_id} - {user_id[:10]} - {direction} - {sender}")
-            return True  # Return True explicitly
-        else:
-            logger.error("❌ Failed to insert document - no inserted_id")
-            return False
+            return True  # ต้อง return True อย่างชัดเจน
             
-    except Exception as e:
-        logger.error(f"❌ Error saving to MongoDB: {e}")
-        logger.exception(e)
-        return False
+        except Exception as e:
+            logger.error(f"❌ Error saving to MongoDB: {e}")
+            return False  # return False เมื่อ error
     
     async def get_chat_history_count(self) -> int:
         """Get total message count"""
