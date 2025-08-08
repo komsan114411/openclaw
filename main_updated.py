@@ -641,15 +641,12 @@ async def send_message_safe(user_id: str, reply_token: str, message: str, messag
         return False
 
 async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
-    """จัดการแชท AI - บันทึกเงียบๆ"""
+    """จัดการแชท AI พร้อมบันทึก"""
     try:
         ai_enabled = config_manager.get("ai_enabled", False)
-        openai_key = config_manager.get("openai_api_key", "")
         
         if not ai_enabled:
-            response = "ระบบ AI ถูกปิดการใช้งานในขณะนี้ค่ะ"
-        elif not openai_key:
-            response = "ยังไม่ได้ตั้งค่า OpenAI API Key กรุณาติดต่อผู้ดูแลระบบค่ะ"
+            response = "ระบบ AI ถูกปิดการใช้งานค่ะ"
         else:
             try:
                 # เรียกใช้ AI
@@ -657,37 +654,32 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
                     asyncio.to_thread(ai_functions['get_chat_response'], user_text, user_id),
                     timeout=30.0
                 )
-                logger.info(f"🤖 AI response generated for {user_id[:10]}")
+                logger.info(f"🤖 AI response generated")
             except asyncio.TimeoutError:
-                response = "ขออภัย AI ตอบสนองช้าเกินไป กรุณาลองใหม่อีกครั้ง"
-                logger.error(f"⏱️ AI timeout for {user_id[:10]}")
+                response = "ขออภัย AI ตอบสนองช้า กรุณาลองใหม่"
             except Exception as e:
-                logger.error(f"❌ AI response error: {e}")
-                response = "ขออภัย เกิดข้อผิดพลาดในการประมวลผล AI"
+                logger.error(f"❌ AI error: {e}")
+                response = "ขออภัย เกิดข้อผิดพลาด"
         
         # ส่งข้อความตอบกลับ
         success = await send_line_reply(reply_token, response)
         
+        # บันทึกข้อความขาออก
         if success:
-            # บันทึกข้อความขาออก (เงียบๆ)
             try:
                 if 'save_chat_history' in database_functions:
                     await database_functions['save_chat_history'](
-                        user_id, "out", 
+                        user_id, 
+                        "out",  # ข้อความขาออก
                         {"type": "text", "text": response}, 
                         sender="ai_bot"
                     )
-                    logger.info(f"✅ AI response saved for {user_id[:10]}")
+                    logger.info(f"✅ Saved AI response")
             except Exception as e:
                 logger.error(f"❌ Failed to save AI response: {e}")
-        else:
-            # ลอง push ถ้า reply ไม่ได้
-            await send_line_push(user_id, response)
-            logger.warning(f"⚠️ Used push message for {user_id[:10]}")
         
     except Exception as e:
         logger.error(f"❌ AI chat error: {e}")
-        logger.exception(e)
 
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
     """จัดการตรวจสอบสลิป - บันทึกเงียบๆ"""
@@ -828,84 +820,66 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
         logger.exception(e)
 
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - บันทึกทุกอย่างแบบเงียบ"""
-    message = event.get("message", {})
-    user_id = event.get("source", {}).get("userId")
-    reply_token = event.get("replyToken")
-    message_type = message.get("type")
-    
-    if not user_id:
-        logger.error("❌ Missing user ID")
-        return
-    
-    logger.info(f"📨 Received {message_type} from {user_id[:10]}...")
-    
-    # บันทึกข้อความขาเข้า (เงียบๆ)
+    """Handle message event - บันทึกและตอบกลับ"""
     try:
-        # เพิ่มข้อมูลเสริม
-        enhanced_message = await enhance_message_data(event, message)
+        message = event.get("message", {})
+        user_id = event.get("source", {}).get("userId")
+        reply_token = event.get("replyToken")
+        message_type = message.get("type")
         
-        # บันทึกลง database
-        if 'save_chat_history' in database_functions:
-            await database_functions['save_chat_history'](
-                user_id, 
-                "in", 
-                enhanced_message, 
-                sender="user"
-            )
-            logger.info(f"✅ Saved {message_type} from {user_id[:10]}")
-        else:
-            logger.error("❌ Database function 'save_chat_history' not available")
+        if not user_id:
+            logger.error("❌ Missing user ID")
+            return
+        
+        logger.info(f"📨 Processing {message_type} from {user_id[:10]}...")
+        
+        # สร้างข้อมูลข้อความที่จะบันทึก
+        message_data = {
+            "type": message_type,
+            "text": message.get("text", "") if message_type == "text" else f"[{message_type}]",
+            "id": message.get("id"),
+            "timestamp": event.get("timestamp"),
+            "raw_data": message
+        }
+        
+        # บันทึกข้อความขาเข้าจากผู้ใช้
+        try:
+            if 'save_chat_history' in database_functions:
+                await database_functions['save_chat_history'](
+                    user_id, 
+                    "in",  # ข้อความขาเข้า
+                    message_data, 
+                    sender="user"
+                )
+                logger.info(f"✅ Saved incoming message from {user_id[:10]}")
+        except Exception as e:
+            logger.error(f"❌ Failed to save incoming message: {e}")
+        
+        # ประมวลผลตามประเภทข้อความ
+        if message_type == "text":
+            user_text = message.get("text", "")
+            logger.info(f"📝 Text: {user_text[:50]}...")
             
-    except Exception as e:
-        logger.error(f"❌ Failed to save chat: {e}")
-        logger.exception(e)
-    
-    # ประมวลผลตามประเภทข้อความ (ตอบกลับเฉพาะที่จำเป็น)
-    if message_type == "text":
-        user_text = message.get("text", "")
-        
-        # บันทึก URLs ถ้ามี
-        await extract_and_save_urls(user_id, user_text)
-        
-        # ตรวจสอบสลิป
-        if slip_functions and 'extract_slip_info_from_text' in slip_functions:
-            slip_info = slip_functions['extract_slip_info_from_text'](user_text)
-        else:
+            # ตรวจสอบสลิป
             slip_info = {"bank_code": None, "trans_ref": None}
-        
-        if slip_info.get("bank_code") and slip_info.get("trans_ref"):
-            # ตรวจสอบสลิปและตอบกลับ
-            await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
-        else:
-            # AI Chat
-            await handle_ai_chat(user_id, reply_token, user_text)
+            if slip_functions and 'extract_slip_info_from_text' in slip_functions:
+                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+            
+            if slip_info.get("bank_code") and slip_info.get("trans_ref"):
+                # ตรวจสอบสลิป
+                await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
+            else:
+                # AI Chat
+                await handle_ai_chat(user_id, reply_token, user_text)
                 
-    elif message_type == "image":
-        # ดาวน์โหลดและบันทึกรูป
-        message_id = message.get("id")
-        if message_id:
-            # บันทึก reference
-            await save_media_reference(user_id, message_id, "image", message)
-            
-            # ตรวจสอบว่าเป็นสลิปหรือไม่
-            await handle_slip_verification(user_id, reply_token, message_id=message_id)
-            
-    elif message_type in ["video", "audio", "file"]:
-        # บันทึก media reference
-        message_id = message.get("id")
-        if message_id:
-            await save_media_reference(user_id, message_id, message_type, message)
-            logger.info(f"📁 Saved {message_type} reference: {message_id}")
-            
-    elif message_type == "location":
-        # บันทึก location data
-        await save_location_data(user_id, message)
-        logger.info(f"📍 Saved location from {user_id[:10]}")
-        
-    elif message_type == "sticker":
-        # บันทึก sticker data
-        logger.info(f"😊 Received sticker from {user_id[:10]}")
+        elif message_type == "image":
+            message_id = message.get("id")
+            if message_id:
+                await handle_slip_verification(user_id, reply_token, message_id=message_id)
+                
+    except Exception as e:
+        logger.error(f"❌ Error handling message: {e}")
+        logger.exception(e)
         
     # ไม่ตอบกลับอะไรถ้าไม่จำเป็น
 
@@ -1774,6 +1748,86 @@ async def get_config_value(request: Request):
         return JSONResponse({"status": "success", "key": key, "value": value})
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)})
+        
+        
+        # เพิ่มหลังบรรทัด 1500
+@app.get("/admin/users/{user_id}/chat")
+async def get_user_chat_history_api(user_id: str, request: Request):
+    """แสดงประวัติแชทของ user แต่ละคน"""
+    try:
+        # ดึงประวัติแชทของ user
+        chat_history = []
+        if database_functions and 'get_user_chat_history' in database_functions:
+            # ดึงข้อความทั้งหมดของ user นี้
+            chat_history = await database_functions['get_user_chat_history'](user_id, limit=100)
+        
+        # ดึงข้อมูล user
+        user_info = {}
+        if database_functions and 'get_user_info' in database_functions:
+            user_info = await database_functions['get_user_info'](user_id)
+        
+        return templates.TemplateResponse(
+            "user_chat.html",
+            {
+                "request": request,
+                "user_id": user_id,
+                "user_info": user_info,
+                "chat_history": chat_history
+            }
+        )
+    except Exception as e:
+        logger.error(f"❌ Error getting user chat: {e}")
+        return templates.TemplateResponse(
+            "user_chat.html",
+            {
+                "request": request,
+                "user_id": user_id,
+                "user_info": {},
+                "chat_history": []
+            }
+        )
+
+@app.get("/admin/api/chat-history/{user_id}")
+async def get_user_chat_api(user_id: str, limit: int = 100):
+    """API สำหรับดึงประวัติแชทของ user"""
+    try:
+        if database_functions and 'get_recent_chat_history' in database_functions:
+            # ดึงเฉพาะของ user นี้
+            all_chats = await database_functions['get_recent_chat_history'](1000)
+            user_chats = [chat for chat in all_chats if hasattr(chat, 'user_id') and chat.user_id == user_id]
+            
+            # จัดเรียงตามเวลา
+            user_chats.sort(key=lambda x: x.created_at if hasattr(x, 'created_at') else datetime.min)
+            
+            # แปลงเป็น JSON serializable
+            chat_data = []
+            for chat in user_chats[:limit]:
+                chat_data.append({
+                    "user_id": chat.user_id if hasattr(chat, 'user_id') else None,
+                    "direction": chat.direction if hasattr(chat, 'direction') else None,
+                    "message_type": chat.message_type if hasattr(chat, 'message_type') else None,
+                    "message_text": chat.message_text if hasattr(chat, 'message_text') else None,
+                    "sender": chat.sender if hasattr(chat, 'sender') else None,
+                    "created_at": chat.created_at.isoformat() if hasattr(chat, 'created_at') and chat.created_at else None
+                })
+            
+            return JSONResponse({
+                "status": "success",
+                "user_id": user_id,
+                "chat_history": chat_data,
+                "total": len(chat_data)
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "Database not available"
+            })
+    except Exception as e:
+        logger.error(f"❌ Error in chat API: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
 
 @app.post("/admin/test-kbank-sandbox")
 async def test_kbank_sandbox(request: Request):
