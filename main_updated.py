@@ -157,6 +157,8 @@ async def safe_import_modules():
         
         # Database functions - Initialize async
         database_import_success = False
+        db_manager = None  # Initialize as None first
+        
         try:
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
@@ -172,6 +174,13 @@ async def safe_import_modules():
             if init_result is True:  # Use explicit comparison
                 logger.info("✅ Database initialized successfully")
                 
+                # Try to get db_manager after successful init
+                try:
+                    from models.database import db_manager as dbm
+                    db_manager = dbm
+                except:
+                    db_manager = None
+                
                 database_functions = {
                     'init_database': init_database,
                     'save_chat_history': save_chat_history,
@@ -183,9 +192,13 @@ async def safe_import_modules():
                     'get_connection_info': get_connection_info,
                     'get_database_status': get_database_status,
                     'get_config': get_config,
-                    'set_config': set_config,
-                    'db_manager': db_manager
+                    'set_config': set_config
                 }
+                
+                # Add db_manager only if it exists
+                if db_manager:
+                    database_functions['db_manager'] = db_manager
+                
                 database_import_success = True
                 logger.info("✅ Database functions imported successfully")
             else:
@@ -292,21 +305,20 @@ async def safe_import_modules():
             slip_functions['get_api_status_summary'] = dummy_api_status
             slip_functions['reset_api_failure_cache'] = dummy_reset
             slip_functions['test_thunder_api_connection'] = dummy_test_thunder
-			
-			 try:
-            if database_functions and 'init_database' in database_functions:
-                from models.database import db_manager
-                if db_manager and db_manager.db:
-                    from models.line_account_db import LineAccountManager
-                    line_account_manager = LineAccountManager(db_manager.db)
-                    await line_account_manager.create_indexes()
-                    logger.info("✅ Line Account Manager initialized")
-                else:
-                    logger.warning("⚠️ Database not ready for Line Account Manager")
+        
+        # Initialize Line Account Manager only if database is ready
+        try:
+            if database_import_success and db_manager and hasattr(db_manager, 'db') and db_manager.db:
+                from models.line_account_db import LineAccountManager
+                line_account_manager = LineAccountManager(db_manager.db)
+                await line_account_manager.create_indexes()
+                logger.info("✅ Line Account Manager initialized")
             else:
-                logger.warning("⚠️ Cannot initialize Line Account Manager - no database")
+                logger.warning("⚠️ Cannot initialize Line Account Manager - database not ready")
+                line_account_manager = None
         except Exception as e:
             logger.error(f"❌ Line Account Manager init failed: {e}")
+            line_account_manager = None
         
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
