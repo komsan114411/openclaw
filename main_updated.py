@@ -31,6 +31,7 @@ logger = logging.getLogger("main_app")
 
 import httpx
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header, BackgroundTasks
+from models.line_account_db import LineAccountManager
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -99,6 +100,7 @@ class NotificationManager:
             await self.disconnect(conn)
 
 notification_manager = NotificationManager()
+line_account_manager = None
 
 # Graceful shutdown handler
 async def shutdown_handler(signum=None, frame=None):
@@ -127,7 +129,7 @@ slip_functions = {}
 
 async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
-    global IS_READY, config_manager, database_functions, ai_functions, slip_functions
+    global IS_READY, config_manager, database_functions, ai_functions, slip_functions, line_account_manager
     
     logger.info("🔄 Starting module imports...")
     
@@ -289,6 +291,21 @@ async def safe_import_modules():
             slip_functions['get_api_status_summary'] = dummy_api_status
             slip_functions['reset_api_failure_cache'] = dummy_reset
             slip_functions['test_thunder_api_connection'] = dummy_test_thunder
+			
+			 try:
+            if database_functions and 'init_database' in database_functions:
+                from models.database import db_manager
+                if db_manager and db_manager.db:
+                    from models.line_account_db import LineAccountManager
+                    line_account_manager = LineAccountManager(db_manager.db)
+                    await line_account_manager.create_indexes()
+                    logger.info("✅ Line Account Manager initialized")
+                else:
+                    logger.warning("⚠️ Database not ready for Line Account Manager")
+            else:
+                logger.warning("⚠️ Cannot initialize Line Account Manager - no database")
+        except Exception as e:
+            logger.error(f"❌ Line Account Manager init failed: {e}")
         
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
@@ -713,7 +730,268 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         
     except Exception as e:
         logger.error(f"❌ AI chat error: {e}")
+		
+		
+# เพิ่มฟังก์ชันใหม่นี้ (หลังฟังก์ชัน save_incoming_message เดิม)
+async def save_chat_with_account(user_id: str, direction: str, message: Dict[str, Any], 
+                                 sender: str, account_id: str = None) -> bool:
+    """บันทึกข้อความพร้อม account_id"""
+    try:
+        if not IS_READY or 'save_chat_history' not in database_functions:
+            logger.error("❌ Database not ready for saving chat")
+            return False
+            
+        logger.info(f"💾 Saving chat from {user_id[:8]}... for account {account_id[:8] if account_id else 'default'}...")
+        
+        # เพิ่ม account_id ในข้อมูลที่จะบันทึก
+        if 'save_chat_history' in database_functions:
+            # สร้าง extended message ที่มี account_id
+            extended_message = message.copy()
+            extended_message['_account_id'] = account_id
+            
+            await database_functions['save_chat_history'](
+                user_id, direction, extended_message, sender
+            )
+            
+            # อัพเดท user กับ account association
+            if db_manager and db_manager.db:
+                await db_manager.db.users.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {"last_account_id": account_id},
+                        "$addToSet": {"account_ids": account_id}
+                    }
+                )
+        
+        logger.info(f"✅ Successfully saved chat with account {account_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to save chat with account: {e}")
+        return False
+		
+# เพิ่มฟังก์ชันใหม่นี้ (หลังฟังก์ชัน dispatch_event_async เดิม)
+async def dispatch_event_with_account(event: Dict[str, Any], account: Dict[str, Any]) -> None:
+    """Process LINE event with account context"""
+    if not IS_READY or SHUTDOWN_INITIATED:
+        logger.error("❌ System not ready or shutting down")
+        return
+        
+    try:
+        # Save original config
+        original_config = {}
+        if config_manager:
+            original_config = config_manager.config.copy()
+            
+            # Override with account-specific config
+            config_manager.config.update({
+                'line_channel_secret': account.get('channel_secret'),
+                'line_channel_access_token': account.get('channel_access_token'),
+                'thunder_api_token': account.get('thunder_api_token'),
+                'openai_api_key': account.get('openai_api_key'),
+                'kbank_consumer_id': account.get('kbank_consumer_id'),
+                'kbank_consumer_secret': account.get('kbank_consumer_secret'),
+                'ai_enabled': account.get('ai_enabled', False),
+                'slip_enabled': account.get('slip_enabled', False),
+                'thunder_enabled': account.get('thunder_enabled', True),
+                'kbank_enabled': account.get('kbank_enabled', False),
+                'ai_prompt': account.get('ai_prompt', 'คุณเป็นผู้ช่วยที่เป็นมิตร')
+            })
+        
+        # Add account context to event
+        event['_account_id'] = str(account.get('_id', ''))
+        event['_account_config'] = account
+        
+        # Process event
+        event_type = event.get("type")
+        
+        if event_type == "message":
+            await handle_message_event_with_account(event)
+        elif event_type == "follow":
+            await handle_follow_event(event)
+        elif event_type == "unfollow":
+            await handle_unfollow_event(event)
+        else:
+            logger.info(f"📋 Received event type: {event_type}")
+            
+        # Restore original config
+        if config_manager and original_config:
+            config_manager.config = original_config
+            
+    except Exception as e:
+        logger.error(f"❌ Event processing with account error: {e}")
+        logger.exception(e)
+		
+# เพิ่มฟังก์ชันใหม่นี้ (หลัง handle_message_event เดิม)
+async def handle_message_event_with_account(event: Dict[str, Any]) -> None:
+    """Handle message event with account context"""
+    message = event.get("message", {})
+    user_id = event.get("source", {}).get("userId")
+    reply_token = event.get("replyToken")
+    message_type = message.get("type")
+    account_id = event.get("_account_id")
+    
+    if not user_id:
+        logger.error("❌ Missing user ID in message event")
+        return
+    
+    logger.info(f"📨 Received {message_type} message from {user_id[:10]}... for account {account_id[:8] if account_id else 'unknown'}...")
+    
+    # สร้างข้อมูลข้อความสำหรับบันทึก
+    save_message = {
+        "type": message_type,
+        "text": "",
+        "id": message.get("id"),
+        "timestamp": event.get("timestamp"),
+        "_account_id": account_id  # เพิ่ม account_id
+    }
+    
+    # จัดการตามประเภทข้อความ (เหมือนเดิม)
+    if message_type == "text":
+        save_message["text"] = message.get("text", "")
+    elif message_type == "image":
+        save_message["text"] = "[รูปภาพ]"
+    elif message_type == "video":
+        save_message["text"] = "[วิดีโอ]"
+    elif message_type == "audio":
+        save_message["text"] = "[ไฟล์เสียง]"
+    elif message_type == "file":
+        save_message["text"] = f"[ไฟล์: {message.get('fileName', 'unknown')}]"
+    elif message_type == "location":
+        save_message["text"] = f"[ตำแหน่ง: {message.get('title', 'Unknown')}]"
+    elif message_type == "sticker":
+        save_message["text"] = "[สติกเกอร์]"
+    else:
+        save_message["text"] = f"[{message_type}]"
+    
+    # บันทึกข้อความขาเข้าพร้อม account_id
+    save_success = False
+    try:
+        save_success = await save_chat_with_account(
+            user_id, "in", save_message, "user", account_id
+        )
+        
+        if save_success:
+            logger.info(f"✅ Message saved with account {account_id[:8] if account_id else 'unknown'}")
+        else:
+            logger.error(f"❌ Failed to save message with account")
+            
+    except Exception as e:
+        logger.error(f"❌ Error saving incoming message: {e}")
+    
+    # ประมวลผลข้อความ (AI, slip verification)
+    if message_type == "text":
+        user_text = message.get("text", "")
+        
+        # ตรวจสอบสลิป
+        slip_info = {"bank_code": None, "trans_ref": None}
+        if slip_functions and 'extract_slip_info_from_text' in slip_functions:
+            try:
+                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
+            except Exception as e:
+                logger.error(f"❌ Error extracting slip info: {e}")
+        
+        if slip_info.get("bank_code") and slip_info.get("trans_ref"):
+            await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
+        else:
+            await handle_ai_chat(user_id, reply_token, user_text)
+            
+    elif message_type == "image":
+        message_id = message.get("id")
+        if message_id:
+            await handle_slip_verification(user_id, reply_token, message_id=message_id)
+			
+			
 
+
+# เพิ่ม endpoint ใหม่นี้หลัง @app.post("/line/webhook") เดิม
+@app.post("/line/{account_id}/webhook")
+async def line_account_webhook(
+    account_id: str, 
+    request: Request, 
+    background_tasks: BackgroundTasks,
+    x_line_signature: str = Header(None)
+) -> JSONResponse:
+    """LINE webhook endpoint for specific account"""
+    if not IS_READY:
+        logger.error("❌ System not ready")
+        return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
+
+    if SHUTDOWN_INITIATED:
+        logger.warning("⚠️ Shutdown in progress, rejecting webhook")
+        return JSONResponse(content={"status": "error", "message": "System shutting down"}, status_code=503)
+
+    try:
+        # Check if line_account_manager is initialized
+        if not line_account_manager:
+            logger.error("❌ Line Account Manager not initialized")
+            return JSONResponse(
+                content={"status": "error", "message": "Account manager not ready"}, 
+                status_code=503
+            )
+        
+        # Get account configuration
+        account = await line_account_manager.get_account(account_id)
+        if not account:
+            logger.error(f"❌ Account not found: {account_id}")
+            return JSONResponse(
+                content={"status": "error", "message": "Account not found"}, 
+                status_code=404
+            )
+        
+        logger.info(f"📨 Webhook called for account: {account.get('display_name')} ({account_id[:8]}...)")
+        
+        body = await request.body()
+        
+        # Verify LINE signature with account's channel secret
+        if x_line_signature and account.get('channel_secret'):
+            import hmac
+            import hashlib
+            import base64
+            
+            channel_secret = account.get('channel_secret')
+            hash = hmac.new(
+                channel_secret.encode('utf-8'),
+                body,
+                hashlib.sha256
+            ).digest()
+            signature = base64.b64encode(hash).decode('utf-8')
+            
+            if signature != x_line_signature:
+                logger.warning(f"⚠️ Invalid signature for account {account_id}")
+                return JSONResponse(
+                    content={"status": "error", "message": "Invalid signature"}, 
+                    status_code=400
+                )
+        
+        # Parse payload
+        try:
+            payload = json.loads(body.decode("utf-8"))
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON decode error: {e}")
+            return JSONResponse(
+                content={"status": "error", "message": "Invalid JSON"}, 
+                status_code=400
+            )
+        
+        events = payload.get("events", [])
+        logger.info(f"🔔 Account {account_id[:8]} received {len(events)} events")
+        
+        # Process events with account context
+        for event in events:
+            background_tasks.add_task(dispatch_event_with_account, event, account)
+            
+        return JSONResponse(content={"status": "ok", "message": f"{len(events)} events queued"})
+        
+    except Exception as e:
+        logger.error(f"❌ Account webhook error: {e}")
+        logger.exception(e)
+        return JSONResponse(
+            content={"status": "error", "message": "Internal error"}, 
+            status_code=500
+        )
+		
+		
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
     """จัดการตรวจสอบสลิป - บันทึกเงียบๆ"""
     try:
@@ -2671,10 +2949,17 @@ async def admin_send_message(request: Request):
         return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"}, status_code=500)
 
 
-# Account Management Endpoints
+# =============== Account Management Endpoints ===============
+
 @app.get("/admin/accounts", response_class=HTMLResponse)
 async def list_accounts_page(request: Request):
     """แสดงหน้ารายการบัญชี LINE OA"""
+    if not line_account_manager:
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "message": "Account manager not initialized"
+        })
+    
     accounts = await line_account_manager.list_accounts()
     return templates.TemplateResponse("accounts_list.html", {
         "request": request,
@@ -2684,6 +2969,12 @@ async def list_accounts_page(request: Request):
 @app.post("/admin/accounts")
 async def create_account_api(request: Request):
     """สร้างบัญชี LINE OA ใหม่"""
+    if not line_account_manager:
+        return JSONResponse({
+            "status": "error",
+            "message": "Account manager not initialized"
+        })
+    
     try:
         data = await request.json()
         account_id = await line_account_manager.create_account(data)
@@ -2693,10 +2984,13 @@ async def create_account_api(request: Request):
             "success"
         )
         
+        # Generate webhook URL
+        webhook_url = f"{request.url.scheme}://{request.url.netloc}/line/{account_id}/webhook"
+        
         return JSONResponse({
             "status": "success",
             "account_id": account_id,
-            "webhook_url": f"/line/{account_id}/webhook"
+            "webhook_url": webhook_url
         })
     except Exception as e:
         logger.error(f"Error creating account: {e}")
@@ -2708,6 +3002,12 @@ async def create_account_api(request: Request):
 @app.get("/admin/accounts/{account_id}", response_class=HTMLResponse)
 async def edit_account_page(request: Request, account_id: str):
     """แสดงหน้าแก้ไขบัญชี"""
+    if not line_account_manager:
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "message": "Account manager not initialized"
+        })
+    
     account = await line_account_manager.get_account(account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -2720,47 +3020,76 @@ async def edit_account_page(request: Request, account_id: str):
 @app.post("/admin/accounts/{account_id}/update")
 async def update_account_api(account_id: str, request: Request):
     """อัปเดตข้อมูลบัญชี"""
+    if not line_account_manager:
+        return JSONResponse({
+            "status": "error",
+            "message": "Account manager not initialized"
+        })
+    
     try:
         updates = await request.json()
         success = await line_account_manager.update_account(account_id, updates)
         
         if success:
+            await notification_manager.send_notification(
+                f"✅ Updated LINE account configuration", 
+                "success"
+            )
             return JSONResponse({"status": "success"})
         else:
             return JSONResponse({"status": "error", "message": "Update failed"})
     except Exception as e:
+        logger.error(f"Error updating account: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
 
 @app.delete("/admin/accounts/{account_id}")
 async def delete_account_api(account_id: str):
     """ลบบัญชี"""
+    if not line_account_manager:
+        return JSONResponse({
+            "status": "error",
+            "message": "Account manager not initialized"
+        })
+    
     try:
         success = await line_account_manager.delete_account(account_id)
         
         if success:
+            await notification_manager.send_notification(
+                f"✅ Deleted LINE account", 
+                "success"
+            )
             return JSONResponse({"status": "success"})
         else:
             return JSONResponse({"status": "error", "message": "Delete failed"})
     except Exception as e:
+        logger.error(f"Error deleting account: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
 
-# ดูประวัติแชทแยกตามบัญชี
-@app.get("/admin/chat-history")
-async def chat_history_page(request: Request):
+@app.get("/admin/chat-history-by-account")
+async def chat_history_by_account_page(request: Request):
+    """ดูประวัติแชทแยกตามบัญชี"""
     account_id = request.query_params.get("account_id")
     
-    # ถ้าระบุ account_id ให้แสดงเฉพาะของบัญชีนั้น
-    if account_id:
-        # Query with account_id filter
-        chats = await db_manager.db.chat_history.find(
-            {"account_id": account_id}
-        ).sort("created_at", -1).limit(100).to_list(100)
+    if not line_account_manager:
+        accounts = []
     else:
-        # Show all
-        chats = await db_manager.db.chat_history.find().sort("created_at", -1).limit(100).to_list(100)
+        accounts = await line_account_manager.list_accounts()
     
-    # Get accounts list for dropdown
-    accounts = await line_account_manager.list_accounts()
+    # Query chat history with account filter
+    chats = []
+    if database_functions and 'get_recent_chat_history' in database_functions:
+        all_chats = await database_functions['get_recent_chat_history'](1000)
+        
+        # Filter by account if specified
+        if account_id:
+            chats = [
+                chat for chat in all_chats 
+                if hasattr(chat, 'raw_message') and 
+                chat.raw_message.get('_account_id') == account_id
+            ]
+        else:
+            chats = all_chats
     
     return templates.TemplateResponse("chat_history.html", {
         "request": request,
@@ -2768,6 +3097,7 @@ async def chat_history_page(request: Request):
         "accounts": accounts,
         "selected_account": account_id
     })
+
 
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
