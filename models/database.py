@@ -497,6 +497,61 @@ async def get_user_chat_history(user_id: str, limit: int = 10):
     if not db_manager.connected:
         await init_database()
     return await db_manager.get_user_chat_history(user_id, limit)
+	
+	
+# เพิ่มใน class MongoDBManager
+async def save_chat_history_with_account(self, user_id: str, direction: str, 
+                                         message: Dict[str, Any], sender: str, 
+                                         account_id: str = None) -> bool:
+    """Save chat history with account_id"""
+    if not self.connected or self.db is None:
+        return False
+        
+    try:
+        document = {
+            "user_id": user_id,
+            "account_id": account_id,  # เพิ่ม account_id
+            "direction": direction,
+            "message_type": message.get("type", "text"),
+            "message_text": self._extract_message_text(message),
+            "sender": sender,
+            "created_at": datetime.utcnow(),
+            "raw_message": message
+        }
+        
+        result = await self.db.chat_history.insert_one(document)
+        
+        # Update user info with account association
+        await self.db.users.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    "last_seen": datetime.utcnow(),
+                    "last_account_id": account_id
+                },
+                "$addToSet": {"account_ids": account_id},  # Track all accounts user interacts with
+                "$inc": {"message_count": 1}
+            },
+            upsert=True
+        )
+        
+        logger.info(f"✅ Chat saved with account {account_id[:8] if account_id else 'default'}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving to MongoDB: {e}")
+        return False
+
+# Export function
+async def save_chat_history_with_account(user_id: str, direction: str, 
+                                         message: Dict[str, Any], sender: str,
+                                         account_id: str = None) -> bool:
+    """Save chat history with account context"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.save_chat_history_with_account(
+        user_id, direction, message, sender, account_id
+    )
 
 async def test_connection() -> Dict[str, Any]:
     """Test database connection"""
