@@ -92,6 +92,17 @@
         </div>
     </div>
 </div>
+<div class="col-md-3">
+    <label class="form-label">Account</label>
+    <select class="form-select" id="filter-account" onchange="filterByAccount()">
+        <option value="">All Accounts</option>
+        {% for acc in accounts %}
+        <option value="{{ acc.id }}" {% if selected_account == acc.id %}selected{% endif %}>
+            {{ acc.display_name }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
 
 <!-- Chat History Table -->
 <div class="card">
@@ -147,6 +158,16 @@ async function loadChatHistory() {
     } catch (error) {
         console.error('Error loading chat history:', error);
         showNotification('Error loading chat history', 'error');
+    }
+}
+
+
+function filterByAccount() {
+    const accountId = document.getElementById('filter-account').value;
+    if (accountId) {
+        window.location.href = `/admin/chat-history?account_id=${accountId}`;
+    } else {
+        window.location.href = '/admin/chat-history';
     }
 }
 
