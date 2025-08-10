@@ -2671,6 +2671,104 @@ async def admin_send_message(request: Request):
         return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"}, status_code=500)
 
 
+# Account Management Endpoints
+@app.get("/admin/accounts", response_class=HTMLResponse)
+async def list_accounts_page(request: Request):
+    """แสดงหน้ารายการบัญชี LINE OA"""
+    accounts = await line_account_manager.list_accounts()
+    return templates.TemplateResponse("accounts_list.html", {
+        "request": request,
+        "accounts": accounts
+    })
+
+@app.post("/admin/accounts")
+async def create_account_api(request: Request):
+    """สร้างบัญชี LINE OA ใหม่"""
+    try:
+        data = await request.json()
+        account_id = await line_account_manager.create_account(data)
+        
+        await notification_manager.send_notification(
+            f"✅ Created LINE account: {data.get('display_name')}", 
+            "success"
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "account_id": account_id,
+            "webhook_url": f"/line/{account_id}/webhook"
+        })
+    except Exception as e:
+        logger.error(f"Error creating account: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/accounts/{account_id}", response_class=HTMLResponse)
+async def edit_account_page(request: Request, account_id: str):
+    """แสดงหน้าแก้ไขบัญชี"""
+    account = await line_account_manager.get_account(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    return templates.TemplateResponse("account_edit.html", {
+        "request": request,
+        "account": account
+    })
+
+@app.post("/admin/accounts/{account_id}/update")
+async def update_account_api(account_id: str, request: Request):
+    """อัปเดตข้อมูลบัญชี"""
+    try:
+        updates = await request.json()
+        success = await line_account_manager.update_account(account_id, updates)
+        
+        if success:
+            return JSONResponse({"status": "success"})
+        else:
+            return JSONResponse({"status": "error", "message": "Update failed"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.delete("/admin/accounts/{account_id}")
+async def delete_account_api(account_id: str):
+    """ลบบัญชี"""
+    try:
+        success = await line_account_manager.delete_account(account_id)
+        
+        if success:
+            return JSONResponse({"status": "success"})
+        else:
+            return JSONResponse({"status": "error", "message": "Delete failed"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)})
+
+# ดูประวัติแชทแยกตามบัญชี
+@app.get("/admin/chat-history")
+async def chat_history_page(request: Request):
+    account_id = request.query_params.get("account_id")
+    
+    # ถ้าระบุ account_id ให้แสดงเฉพาะของบัญชีนั้น
+    if account_id:
+        # Query with account_id filter
+        chats = await db_manager.db.chat_history.find(
+            {"account_id": account_id}
+        ).sort("created_at", -1).limit(100).to_list(100)
+    else:
+        # Show all
+        chats = await db_manager.db.chat_history.find().sort("created_at", -1).limit(100).to_list(100)
+    
+    # Get accounts list for dropdown
+    accounts = await line_account_manager.list_accounts()
+    
+    return templates.TemplateResponse("chat_history.html", {
+        "request": request,
+        "chats": chats,
+        "accounts": accounts,
+        "selected_account": account_id
+    })
+
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
     """
