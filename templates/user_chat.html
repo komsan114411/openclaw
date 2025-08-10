@@ -164,13 +164,13 @@ async function sendMessage() {
     
     try {
         const response = await fetch('/admin/users/send-message', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                user_ids: [userId],
-                message: message
-            })
-        });
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+        user_id: userId,     // ใช้คีย์ user_id แทน
+        message: message
+    })
+});
         
         const data = await response.json();
         
