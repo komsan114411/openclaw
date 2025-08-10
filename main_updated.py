@@ -183,7 +183,8 @@ async def safe_import_modules():
                     'get_connection_info': get_connection_info,
                     'get_database_status': get_database_status,
                     'get_config': get_config,
-                    'set_config': set_config
+                    'set_config': set_config,
+                    'db_manager': db_manager
                 }
                 database_import_success = True
                 logger.info("✅ Database functions imported successfully")
