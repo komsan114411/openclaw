@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 import os
 from contextlib import asynccontextmanager
+import hmac, hashlib, base64
+
 
 # เพิ่มพาธปัจจุบันเข้าไปใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -126,6 +128,7 @@ slip_functions = {}
 # ในส่วน safe_import_modules() แก้ไขเป็น:
 # main_updated.py - แก้ไขในส่วน safe_import_modules() บรรทัดประมาณ 100-200
 
+# ========= 1) safe_import_modules (async, รองรับ multi-account + optional imports) =========
 async def safe_import_modules():
     """Safely import all required modules with multi-account support (fixed)"""
     global IS_READY, config_manager, database_functions, ai_functions, slip_functions, line_account_manager
@@ -156,7 +159,6 @@ async def safe_import_modules():
         # ---------------- Database Functions ----------------
         database_import_success = False
         try:
-            # (สำคัญ) นำเข้าเฉพาะสิ่งที่ "มีแน่" เพื่อกัน ImportError พังยกก้อน
             from models.database import (
                 init_database, save_chat_history, get_chat_history_count, 
                 get_recent_chat_history, get_user_chat_history, test_connection,
@@ -204,8 +206,7 @@ async def safe_import_modules():
                     }
                     database_import_success = True
 
-                    # (ใหม่) พยายาม import แบบ optional: save_event, get_user_info
-                    # ถ้าไม่มี ให้ทำ fallback เป็น dummy แต่ยังคง key ใน dict เพื่อให้ส่วนอื่นเรียกได้
+                    # (ใหม่) import แบบ optional: save_event, get_user_info
                     try:
                         from models.database import save_event as _save_event
                         database_functions['save_event'] = _save_event
@@ -260,7 +261,6 @@ async def safe_import_modules():
             async def dummy_save_raw_event(event): return False
             async def dummy_save_media_reference(user_id, message_id, media_type, message_data, account_id=None): return False
             async def dummy_save_slip_data(user_id, slip_result, account_id=None): return False
-            # (ใหม่) dummies สำหรับ save_event / get_user_info
             async def dummy_save_event(*args, **kwargs): return False
             async def dummy_get_user_info(*args, **kwargs): return {}
                 
@@ -290,17 +290,27 @@ async def safe_import_modules():
                 'save_raw_event': dummy_save_raw_event,
                 'save_media_reference': dummy_save_media_reference,
                 'save_slip_data': dummy_save_slip_data,
-                # (ใหม่) Optional ที่ต้องมี key เสมอ
+                # Optional
                 'save_event': dummy_save_event,
                 'get_user_info': dummy_get_user_info
             }
         
         # ---------------- LINE Account Manager ----------------
         try:
+            # รองรับทั้งสองชื่อไฟล์ในโปรเจกต์
+            try:
+                from models.line_account_db import LineAccountManager
+            except Exception:
+                from models.line_account_manager import LineAccountManager  # เผื่อโปรเจกต์ใช้ชื่อนี้
+            
             if database_import_success:
-                from models.line_account_manager import LineAccountManager
-                from models.database import db_manager
-                line_account_manager = LineAccountManager(db_manager.db)
+                # เอา db จาก models.database ถ้ามี
+                try:
+                    from models.database import db_manager as _dbm
+                    line_account_manager = LineAccountManager(_dbm.db)
+                except Exception:
+                    # ถ้าไม่มี db_manager ก็ให้ LineAccountManager ใช้ภายในเอง (ถ้ารองรับ)
+                    line_account_manager = LineAccountManager(None)
                 logger.info("✅ LINE Account Manager initialized")
                 try:
                     accounts = await line_account_manager.list_accounts()
@@ -370,7 +380,6 @@ async def safe_import_modules():
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         
-        # ส่ง notification สรุปสถานะ
         await notification_manager.send_notification(
             "🚀 System started successfully", 
             "success",
@@ -385,7 +394,7 @@ async def safe_import_modules():
                 },
                 "features": {
                     "ai_available": 'get_chat_response' in ai_functions,
-                    "slip_available": 'verify_slip_multiple_providers' in slip_functions,
+                    "slip_available': 'verify_slip_multiple_providers' in slip_functions,
                     "multi_account_support": line_account_manager is not None
                 }
             }
@@ -477,26 +486,19 @@ async def line_webhook_multi_account(account_id: str, request: Request, backgrou
         return JSONResponse(content={"status": "error", "message": "Internal error"}, status_code=500)
 
 def verify_line_signature(body: bytes, channel_secret: str, signature: str) -> bool:
-    """ตรวจสอบลายเซ็น LINE"""
+    """
+    ตรวจสอบ X-Line-Signature ให้ตรงตามเอกสาร LINE:
+    expected = base64( HMAC_SHA256(channel_secret, body) )
+    แล้วเปรียบเทียบ header == expected (ไม่มี 'Bearer ' ใด ๆ)
+    """
     if not signature or not channel_secret:
         return False
-        
     try:
-        import hmac
-        import hashlib
-        import base64
-        
-        expected_signature = base64.b64encode(
-            hmac.new(
-                channel_secret.encode('utf-8'),
-                body,
-                hashlib.sha256
-            ).digest()
-        ).decode('utf-8')
-        
-        return signature == f"Bearer {expected_signature}"
+        mac = hmac.new(channel_secret.encode("utf-8"), body, hashlib.sha256).digest()
+        expected = base64.b64encode(mac).decode("utf-8")
+        return hmac.compare_digest(signature, expected)
     except Exception as e:
-        logger.error(f"❌ Signature verification error: {e}")
+        logger.error(f"❌ verify_line_signature error: {e}")
         return False
 
 async def dispatch_event_with_account(event: Dict[str, Any], account: Dict[str, Any]) -> None:
