@@ -2628,24 +2628,48 @@ async def get_kbank_status():
 @app.post("/admin/users/send-message")
 async def admin_send_message(request: Request):
     """
-    ส่งข้อความถึงผู้ใช้คนเดียวจากหน้าแอดมิน
-    Request body: { "user_id": "<USER_ID>", "message": "<ข้อความ>" }
+    ส่งข้อความจากหน้าแอดมินไปยังผู้ใช้หนึ่งคนหรือหลายคน
+    body รองรับทั้ง {\"user_id\": \"U123\", \"message\": \"…\"} และ {\"user_ids\": [\"U123\", \"U456\"], …}
     """
     try:
         data = await request.json()
-        user_id = data.get("user_id")
-        message = data.get("message", "")
-        if not user_id or not message:
-            return JSONResponse({"status": "error", "message": "Missing user_id or message"}, status_code=400)
-        # ใช้ send_message_safe เพื่อ reply/push ไปที่ LINE
-        success = await send_message_safe(user_id, reply_token="", message=message, message_type="admin")
-        if success:
-            return JSONResponse({"status": "success", "message": "ส่งข้อความสำเร็จ"})
+    except Exception:
+        data = dict(await request.form())
+
+    # อ่านข้อความ
+    message = (data.get("message") or data.get("text") or "").strip()
+
+    # ดึงรายชื่อผู้รับ
+    recipients = []
+    # กรณีส่งคนเดียว
+    single_id = data.get("user_id") or data.get("userid")
+    if single_id:
+        recipients.append(single_id.strip())
+    # กรณีส่งหลายคน
+    user_ids = data.get("user_ids") or data.get("userIds")
+    if user_ids:
+        if isinstance(user_ids, list):
+            recipients.extend([uid.strip() for uid in user_ids if uid])
         else:
-            return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"})
-    except Exception as e:
-        logger.error(f"❌ Admin send message error: {e}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+            # รองรับการส่งเป็นสตริงคั่นด้วย comma
+            recipients.extend([uid.strip() for uid in str(user_ids).split(",") if uid.strip()])
+
+    if not recipients or not message:
+        return JSONResponse({"status": "error", "message": "Missing recipients or message"}, status_code=400)
+
+    success_count = 0
+    for uid in recipients:
+        if await send_message_safe(uid, reply_token="", message=message, message_type="admin"):
+            success_count += 1
+
+    if success_count == len(recipients):
+        return JSONResponse({"status": "success", "sent": success_count, "message": "ส่งข้อความสำเร็จ"})
+    elif success_count > 0:
+        # ส่งสำเร็จบางส่วน
+        return JSONResponse({"status": "partial", "sent": success_count, "total": len(recipients), "message": "ส่งข้อความบางส่วนสำเร็จ"}, status_code=207)
+    else:
+        return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"}, status_code=500)
+
 
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
