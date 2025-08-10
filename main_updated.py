@@ -2967,17 +2967,26 @@ async def admin_send_message(request: Request):
 @app.get("/admin/accounts", response_class=HTMLResponse)
 async def list_accounts_page(request: Request):
     """แสดงหน้ารายการบัญชี LINE OA"""
-    if not line_account_manager:
-        return templates.TemplateResponse("error.html", {
+    try:
+        if not line_account_manager:
+            # ถ้า account manager ไม่พร้อม ให้แสดงหน้าว่างพร้อมข้อความ
+            return templates.TemplateResponse("accounts_list.html", {
+                "request": request,
+                "accounts": []  # ส่ง empty list แทน
+            })
+        
+        accounts = await line_account_manager.list_accounts()
+        return templates.TemplateResponse("accounts_list.html", {
             "request": request,
-            "message": "Account manager not initialized"
+            "accounts": accounts
         })
-    
-    accounts = await line_account_manager.list_accounts()
-    return templates.TemplateResponse("accounts_list.html", {
-        "request": request,
-        "accounts": accounts
-    })
+    except Exception as e:
+        logger.error(f"Error in list_accounts_page: {e}")
+        # ถ้ามี error ให้แสดงหน้า accounts แบบว่าง
+        return templates.TemplateResponse("accounts_list.html", {
+            "request": request,
+            "accounts": []
+        })
 
 @app.post("/admin/accounts")
 async def create_account_api(request: Request):
