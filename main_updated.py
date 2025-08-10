@@ -31,7 +31,6 @@ logger = logging.getLogger("main_app")
 
 import httpx
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Header, BackgroundTasks
-from models.line_account_db import LineAccountManager
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,7 +38,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Global state
 IS_READY = False
-db_manager = None
 SHUTDOWN_INITIATED = False
 
 class NotificationManager:
@@ -101,7 +99,6 @@ class NotificationManager:
             await self.disconnect(conn)
 
 notification_manager = NotificationManager()
-line_account_manager = None
 
 # Graceful shutdown handler
 async def shutdown_handler(signum=None, frame=None):
@@ -130,10 +127,10 @@ slip_functions = {}
 
 async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
-    global IS_READY, config_manager, database_functions, ai_functions, slip_functions, line_account_manager, db_manager
-
+    global IS_READY, config_manager, database_functions, ai_functions, slip_functions
+    
     logger.info("🔄 Starting module imports...")
-
+    
     try:
         # Initialize Config Manager
         try:
@@ -142,7 +139,7 @@ async def safe_import_modules():
             logger.info("✅ Config manager initialized")
         except Exception as e:
             logger.error(f"❌ Config manager init failed: {e}")
-            # Create simple fallback config manager
+            # Create a simple config manager
             class SimpleConfigManager:
                 def __init__(self):
                     self.config = {}
@@ -155,43 +152,24 @@ async def safe_import_modules():
                     self.config.update(updates)
                     return True
             config_manager = SimpleConfigManager()
-
+        
         # Database functions - Initialize async
         database_import_success = False
-
         try:
             from models.database import (
-                init_database, save_chat_history, get_chat_history_count,
+                init_database, save_chat_history, get_chat_history_count, 
                 get_recent_chat_history, get_user_chat_history, test_connection,
                 get_connection_info, get_database_status, get_config, set_config,
-                get_user_chat_history_sync, save_event, save_raw_event,
-                get_user_info, save_slip_data
+                get_user_chat_history_sync
             )
             
             # Initialize database
             init_result = await init_database()
             
-            if init_result is True:
+            # Check initialization result properly
+            if init_result is True:  # Use explicit comparison
                 logger.info("✅ Database initialized successfully")
                 
-                # IMPORTANT: Import db_manager AFTER successful initialization
-                try:
-                    from models.database import db_manager as dbm
-                    db_manager = dbm  # Assign to global variable
-                    
-                    # Verify db_manager is properly initialized
-                    if db_manager and hasattr(db_manager, 'db') and db_manager.db is not None:
-                        logger.info("✅ db_manager imported and verified successfully")
-                        logger.info(f"   Database name: {db_manager.db.name if db_manager.db else 'Unknown'}")
-                    else:
-                        logger.warning("⚠️ db_manager imported but db is None")
-                        db_manager = None
-                        
-                except ImportError as e:
-                    logger.error(f"❌ Failed to import db_manager: {e}")
-                    db_manager = None
-                
-                # Store all database functions
                 database_functions = {
                     'init_database': init_database,
                     'save_chat_history': save_chat_history,
@@ -203,72 +181,128 @@ async def safe_import_modules():
                     'get_connection_info': get_connection_info,
                     'get_database_status': get_database_status,
                     'get_config': get_config,
-                    'set_config': set_config,
-                    'save_event': save_event,
-                    'save_raw_event': save_raw_event,
-                    'get_user_info': get_user_info,
-                    'save_slip_data': save_slip_data
+                    'set_config': set_config
                 }
-                
-                # Add db_manager to database_functions for alternative access
-                if db_manager:
-                    database_functions['db_manager'] = db_manager
-                    
-                # Initialize LineAccountManager ONLY if db_manager is valid
-                if db_manager and hasattr(db_manager, 'db') and db_manager.db is not None:
-                    try:
-                        from models.line_account_db import LineAccountManager
-                        line_account_manager = LineAccountManager(db_manager.db)
-                        
-                        # Create indexes
-                        try:
-                            await line_account_manager.create_indexes()
-                            logger.info("✅ Line Account Manager indexes created")
-                        except Exception as e:
-                            logger.warning(f"⚠️ Could not create LINE account indexes: {e}")
-                        
-                        logger.info("✅ Line Account Manager initialized successfully")
-                        logger.info(f"   Manager object: {line_account_manager}")
-                        
-                    except Exception as e:
-                        logger.error(f"❌ Line Account Manager init failed: {e}")
-                        logger.exception(e)
-                        line_account_manager = None
-                else:
-                    logger.warning("⚠️ Cannot initialize Line Account Manager - db_manager.db not available")
-                    logger.warning(f"   db_manager exists: {db_manager is not None}")
-                    logger.warning(f"   has db attr: {hasattr(db_manager, 'db') if db_manager else False}")
-                    logger.warning(f"   db is not None: {db_manager.db is not None if db_manager and hasattr(db_manager, 'db') else False}")
-                    line_account_manager = None
-                
                 database_import_success = True
                 logger.info("✅ Database functions imported successfully")
             else:
                 logger.error("❌ Database initialization returned False")
                 database_import_success = False
-                db_manager = None
-                line_account_manager = None
                 
         except Exception as e:
             logger.error(f"⚠️ Database import/init failed: {e}")
             logger.exception(e)
             database_import_success = False
-            db_manager = None
-            line_account_manager = None
+        
+        # If database import failed, use dummy functions
+        if not database_import_success:
+            logger.warning("⚠️ Using dummy database functions")
+            
+            async def dummy_save(u, d, m, s):
+                logger.debug(f"Dummy save: {u[:10] if u else 'unknown'}")
+                return False
+            
+            async def dummy_count():
+                return 0
+            
+            async def dummy_recent(l=50):
+                return []
+            
+            async def dummy_user_history(u, l=10):
+                return []
+            
+            def dummy_user_history_sync(u, l=10):
+                return []
+            
+            async def dummy_test():
+                return {"status": "error", "message": "Database not available"}
+            
+            def dummy_info():
+                return {"connected": False, "type": "Unavailable"}
+            
+            async def dummy_get_status():
+                return {"status": "error", "message": "Database not available"}
+            
+            async def dummy_get_config(key, default=None):
+                return default
+            
+            async def dummy_set_config(key, value, is_sensitive=False):
+                return False
+                
+            database_functions = {
+                'init_database': lambda: False,
+                'save_chat_history': dummy_save,
+                'get_chat_history_count': dummy_count,
+                'get_recent_chat_history': dummy_recent,
+                'get_user_chat_history': dummy_user_history,
+                'get_user_chat_history_sync': dummy_user_history_sync,
+                'test_connection': dummy_test,
+                'get_connection_info': dummy_info,
+                'get_database_status': dummy_get_status,
+                'get_config': dummy_get_config,
+                'set_config': dummy_set_config
+            }
+        
+        # Import AI modules
+        try:
+            from services.chat_bot import get_chat_response
+            ai_functions['get_chat_response'] = get_chat_response
+            logger.info("✅ AI modules imported")
+        except Exception as e:
+            logger.warning(f"⚠️ AI module import failed: {e}")
+            def dummy_chat_response(text, user_id):
+                return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
+            ai_functions['get_chat_response'] = dummy_chat_response
 
-        # Rest of the imports (AI, Slip functions, etc.)...
-        # [Keep the rest of the function as is]
-
+        # Import Slip verification modules
+        try:
+            from services.enhanced_slip_checker import (
+                extract_slip_info_from_text, verify_slip_multiple_providers, 
+                get_api_status_summary, reset_api_failure_cache
+            )
+            from services.slip_checker import test_thunder_api_connection
+            
+            slip_functions['extract_slip_info_from_text'] = extract_slip_info_from_text
+            slip_functions['verify_slip_multiple_providers'] = verify_slip_multiple_providers
+            slip_functions['get_api_status_summary'] = get_api_status_summary
+            slip_functions['reset_api_failure_cache'] = reset_api_failure_cache
+            slip_functions['test_thunder_api_connection'] = test_thunder_api_connection
+            logger.info("✅ Slip modules imported")
+        except Exception as e:
+            logger.warning(f"⚠️ Slip module import failed: {e}")
+            def dummy_extract(text):
+                return {"bank_code": None, "trans_ref": None}
+            def dummy_verify(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
+                return {"status": "error", "message": "Slip verification not available"}
+            def dummy_api_status():
+                return {
+                    "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
+                    "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
+                }
+            def dummy_reset():
+                return False
+            def dummy_test_thunder(token):
+                return {"status": "error", "message": "Thunder API not available"}
+            
+            slip_functions['extract_slip_info_from_text'] = dummy_extract
+            slip_functions['verify_slip_multiple_providers'] = dummy_verify
+            slip_functions['get_api_status_summary'] = dummy_api_status
+            slip_functions['reset_api_failure_cache'] = dummy_reset
+            slip_functions['test_thunder_api_connection'] = dummy_test_thunder
+        
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
-        logger.info(f"📊 Database status: {'Connected' if db_manager and db_manager.connected else 'Not connected'}")
-        logger.info(f"📊 Line Account Manager status: {'Ready' if line_account_manager else 'Not Available'}")
         
-        # Log detailed status for debugging
-        if not line_account_manager:
-            logger.error("❌ Line Account Manager is None - Multi-account features will not work")
-            logger.error(f"   db_manager: {db_manager}")
-            logger.error(f"   db_manager.db: {db_manager.db if db_manager else 'N/A'}")
+        # Send startup notification
+        await notification_manager.send_notification(
+            "🚀 System started successfully", 
+            "success",
+            {
+                "database": database_functions.get('get_connection_info', lambda: {"connected": False})() if database_functions else {"connected": False},
+                "ai_available": 'get_chat_response' in ai_functions,
+                "slip_available": 'verify_slip_multiple_providers' in slip_functions
+            }
+        )
         
         return True
         
@@ -276,8 +310,13 @@ async def safe_import_modules():
         logger.error(f"❌ Critical import error: {e}")
         logger.exception(e)
         IS_READY = False
-        line_account_manager = None
-        db_manager = None
+        
+        # Send error notification
+        await notification_manager.send_notification(
+            f"❌ System startup error: {str(e)}", 
+            "error"
+        )
+        
         return False
 # Lifespan context manager
 @asynccontextmanager
@@ -674,268 +713,7 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         
     except Exception as e:
         logger.error(f"❌ AI chat error: {e}")
-		
-		
-# เพิ่มฟังก์ชันใหม่นี้ (หลังฟังก์ชัน save_incoming_message เดิม)
-async def save_chat_with_account(user_id: str, direction: str, message: Dict[str, Any], 
-                                 sender: str, account_id: str = None) -> bool:
-    """บันทึกข้อความพร้อม account_id"""
-    try:
-        if not IS_READY or 'save_chat_history' not in database_functions:
-            logger.error("❌ Database not ready for saving chat")
-            return False
-            
-        logger.info(f"💾 Saving chat from {user_id[:8]}... for account {account_id[:8] if account_id else 'default'}...")
-        
-        # เพิ่ม account_id ในข้อมูลที่จะบันทึก
-        if 'save_chat_history' in database_functions:
-            # สร้าง extended message ที่มี account_id
-            extended_message = message.copy()
-            extended_message['_account_id'] = account_id
-            
-            await database_functions['save_chat_history'](
-                user_id, direction, extended_message, sender
-            )
-            
-            # อัพเดท user กับ account association
-            if db_manager and db_manager.db:
-                await db_manager.db.users.update_one(
-                    {"user_id": user_id},
-                    {
-                        "$set": {"last_account_id": account_id},
-                        "$addToSet": {"account_ids": account_id}
-                    }
-                )
-        
-        logger.info(f"✅ Successfully saved chat with account {account_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to save chat with account: {e}")
-        return False
-		
-# เพิ่มฟังก์ชันใหม่นี้ (หลังฟังก์ชัน dispatch_event_async เดิม)
-async def dispatch_event_with_account(event: Dict[str, Any], account: Dict[str, Any]) -> None:
-    """Process LINE event with account context"""
-    if not IS_READY or SHUTDOWN_INITIATED:
-        logger.error("❌ System not ready or shutting down")
-        return
-        
-    try:
-        # Save original config
-        original_config = {}
-        if config_manager:
-            original_config = config_manager.config.copy()
-            
-            # Override with account-specific config
-            config_manager.config.update({
-                'line_channel_secret': account.get('channel_secret'),
-                'line_channel_access_token': account.get('channel_access_token'),
-                'thunder_api_token': account.get('thunder_api_token'),
-                'openai_api_key': account.get('openai_api_key'),
-                'kbank_consumer_id': account.get('kbank_consumer_id'),
-                'kbank_consumer_secret': account.get('kbank_consumer_secret'),
-                'ai_enabled': account.get('ai_enabled', False),
-                'slip_enabled': account.get('slip_enabled', False),
-                'thunder_enabled': account.get('thunder_enabled', True),
-                'kbank_enabled': account.get('kbank_enabled', False),
-                'ai_prompt': account.get('ai_prompt', 'คุณเป็นผู้ช่วยที่เป็นมิตร')
-            })
-        
-        # Add account context to event
-        event['_account_id'] = str(account.get('_id', ''))
-        event['_account_config'] = account
-        
-        # Process event
-        event_type = event.get("type")
-        
-        if event_type == "message":
-            await handle_message_event_with_account(event)
-        elif event_type == "follow":
-            await handle_follow_event(event)
-        elif event_type == "unfollow":
-            await handle_unfollow_event(event)
-        else:
-            logger.info(f"📋 Received event type: {event_type}")
-            
-        # Restore original config
-        if config_manager and original_config:
-            config_manager.config = original_config
-            
-    except Exception as e:
-        logger.error(f"❌ Event processing with account error: {e}")
-        logger.exception(e)
-		
-# เพิ่มฟังก์ชันใหม่นี้ (หลัง handle_message_event เดิม)
-async def handle_message_event_with_account(event: Dict[str, Any]) -> None:
-    """Handle message event with account context"""
-    message = event.get("message", {})
-    user_id = event.get("source", {}).get("userId")
-    reply_token = event.get("replyToken")
-    message_type = message.get("type")
-    account_id = event.get("_account_id")
-    
-    if not user_id:
-        logger.error("❌ Missing user ID in message event")
-        return
-    
-    logger.info(f"📨 Received {message_type} message from {user_id[:10]}... for account {account_id[:8] if account_id else 'unknown'}...")
-    
-    # สร้างข้อมูลข้อความสำหรับบันทึก
-    save_message = {
-        "type": message_type,
-        "text": "",
-        "id": message.get("id"),
-        "timestamp": event.get("timestamp"),
-        "_account_id": account_id  # เพิ่ม account_id
-    }
-    
-    # จัดการตามประเภทข้อความ (เหมือนเดิม)
-    if message_type == "text":
-        save_message["text"] = message.get("text", "")
-    elif message_type == "image":
-        save_message["text"] = "[รูปภาพ]"
-    elif message_type == "video":
-        save_message["text"] = "[วิดีโอ]"
-    elif message_type == "audio":
-        save_message["text"] = "[ไฟล์เสียง]"
-    elif message_type == "file":
-        save_message["text"] = f"[ไฟล์: {message.get('fileName', 'unknown')}]"
-    elif message_type == "location":
-        save_message["text"] = f"[ตำแหน่ง: {message.get('title', 'Unknown')}]"
-    elif message_type == "sticker":
-        save_message["text"] = "[สติกเกอร์]"
-    else:
-        save_message["text"] = f"[{message_type}]"
-    
-    # บันทึกข้อความขาเข้าพร้อม account_id
-    save_success = False
-    try:
-        save_success = await save_chat_with_account(
-            user_id, "in", save_message, "user", account_id
-        )
-        
-        if save_success:
-            logger.info(f"✅ Message saved with account {account_id[:8] if account_id else 'unknown'}")
-        else:
-            logger.error(f"❌ Failed to save message with account")
-            
-    except Exception as e:
-        logger.error(f"❌ Error saving incoming message: {e}")
-    
-    # ประมวลผลข้อความ (AI, slip verification)
-    if message_type == "text":
-        user_text = message.get("text", "")
-        
-        # ตรวจสอบสลิป
-        slip_info = {"bank_code": None, "trans_ref": None}
-        if slip_functions and 'extract_slip_info_from_text' in slip_functions:
-            try:
-                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
-            except Exception as e:
-                logger.error(f"❌ Error extracting slip info: {e}")
-        
-        if slip_info.get("bank_code") and slip_info.get("trans_ref"):
-            await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
-        else:
-            await handle_ai_chat(user_id, reply_token, user_text)
-            
-    elif message_type == "image":
-        message_id = message.get("id")
-        if message_id:
-            await handle_slip_verification(user_id, reply_token, message_id=message_id)
-			
-			
 
-
-# เพิ่ม endpoint ใหม่นี้หลัง @app.post("/line/webhook") เดิม
-@app.post("/line/{account_id}/webhook")
-async def line_account_webhook(
-    account_id: str, 
-    request: Request, 
-    background_tasks: BackgroundTasks,
-    x_line_signature: str = Header(None)
-) -> JSONResponse:
-    """LINE webhook endpoint for specific account"""
-    if not IS_READY:
-        logger.error("❌ System not ready")
-        return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
-
-    if SHUTDOWN_INITIATED:
-        logger.warning("⚠️ Shutdown in progress, rejecting webhook")
-        return JSONResponse(content={"status": "error", "message": "System shutting down"}, status_code=503)
-
-    try:
-        # Check if line_account_manager is initialized
-        if not line_account_manager:
-            logger.error("❌ Line Account Manager not initialized")
-            return JSONResponse(
-                content={"status": "error", "message": "Account manager not ready"}, 
-                status_code=503
-            )
-        
-        # Get account configuration
-        account = await line_account_manager.get_account(account_id)
-        if not account:
-            logger.error(f"❌ Account not found: {account_id}")
-            return JSONResponse(
-                content={"status": "error", "message": "Account not found"}, 
-                status_code=404
-            )
-        
-        logger.info(f"📨 Webhook called for account: {account.get('display_name')} ({account_id[:8]}...)")
-        
-        body = await request.body()
-        
-        # Verify LINE signature with account's channel secret
-        if x_line_signature and account.get('channel_secret'):
-            import hmac
-            import hashlib
-            import base64
-            
-            channel_secret = account.get('channel_secret')
-            hash = hmac.new(
-                channel_secret.encode('utf-8'),
-                body,
-                hashlib.sha256
-            ).digest()
-            signature = base64.b64encode(hash).decode('utf-8')
-            
-            if signature != x_line_signature:
-                logger.warning(f"⚠️ Invalid signature for account {account_id}")
-                return JSONResponse(
-                    content={"status": "error", "message": "Invalid signature"}, 
-                    status_code=400
-                )
-        
-        # Parse payload
-        try:
-            payload = json.loads(body.decode("utf-8"))
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON decode error: {e}")
-            return JSONResponse(
-                content={"status": "error", "message": "Invalid JSON"}, 
-                status_code=400
-            )
-        
-        events = payload.get("events", [])
-        logger.info(f"🔔 Account {account_id[:8]} received {len(events)} events")
-        
-        # Process events with account context
-        for event in events:
-            background_tasks.add_task(dispatch_event_with_account, event, account)
-            
-        return JSONResponse(content={"status": "ok", "message": f"{len(events)} events queued"})
-        
-    except Exception as e:
-        logger.error(f"❌ Account webhook error: {e}")
-        logger.exception(e)
-        return JSONResponse(
-            content={"status": "error", "message": "Internal error"}, 
-            status_code=500
-        )
-		
-		
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
     """จัดการตรวจสอบสลิป - บันทึกเงียบๆ"""
     try:
@@ -2891,165 +2669,6 @@ async def admin_send_message(request: Request):
         return JSONResponse({"status": "partial", "sent": success_count, "total": len(recipients), "message": "ส่งข้อความบางส่วนสำเร็จ"}, status_code=207)
     else:
         return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"}, status_code=500)
-
-
-# =============== Account Management Endpoints ===============
-
-@app.get("/admin/accounts", response_class=HTMLResponse)
-async def list_accounts_page(request: Request):
-    """แสดงหน้ารายการบัญชี LINE OA"""
-    try:
-        if not line_account_manager:
-            # ถ้า account manager ไม่พร้อม ให้แสดงหน้าว่างพร้อมข้อความ
-            return templates.TemplateResponse("accounts_list.html", {
-                "request": request,
-                "accounts": []  # ส่ง empty list แทน
-            })
-        
-        accounts = await line_account_manager.list_accounts()
-        return templates.TemplateResponse("accounts_list.html", {
-            "request": request,
-            "accounts": accounts
-        })
-    except Exception as e:
-        logger.error(f"Error in list_accounts_page: {e}")
-        # ถ้ามี error ให้แสดงหน้า accounts แบบว่าง
-        return templates.TemplateResponse("accounts_list.html", {
-            "request": request,
-            "accounts": []
-        })
-
-@app.post("/admin/accounts")
-async def create_account_api(request: Request):
-    """สร้างบัญชี LINE OA ใหม่"""
-    if not line_account_manager:
-        return JSONResponse({
-            "status": "error",
-            "message": "Account manager not initialized"
-        })
-    
-    try:
-        data = await request.json()
-        account_id = await line_account_manager.create_account(data)
-        
-        await notification_manager.send_notification(
-            f"✅ Created LINE account: {data.get('display_name')}", 
-            "success"
-        )
-        
-        # Generate webhook URL
-        webhook_url = f"{request.url.scheme}://{request.url.netloc}/line/{account_id}/webhook"
-        
-        return JSONResponse({
-            "status": "success",
-            "account_id": account_id,
-            "webhook_url": webhook_url
-        })
-    except Exception as e:
-        logger.error(f"Error creating account: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        })
-
-@app.get("/admin/accounts/{account_id}", response_class=HTMLResponse)
-async def edit_account_page(request: Request, account_id: str):
-    """แสดงหน้าแก้ไขบัญชี"""
-    if not line_account_manager:
-        return templates.TemplateResponse("error.html", {
-            "request": request,
-            "message": "Account manager not initialized"
-        })
-    
-    account = await line_account_manager.get_account(account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
-    return templates.TemplateResponse("account_edit.html", {
-        "request": request,
-        "account": account
-    })
-
-@app.post("/admin/accounts/{account_id}/update")
-async def update_account_api(account_id: str, request: Request):
-    """อัปเดตข้อมูลบัญชี"""
-    if not line_account_manager:
-        return JSONResponse({
-            "status": "error",
-            "message": "Account manager not initialized"
-        })
-    
-    try:
-        updates = await request.json()
-        success = await line_account_manager.update_account(account_id, updates)
-        
-        if success:
-            await notification_manager.send_notification(
-                f"✅ Updated LINE account configuration", 
-                "success"
-            )
-            return JSONResponse({"status": "success"})
-        else:
-            return JSONResponse({"status": "error", "message": "Update failed"})
-    except Exception as e:
-        logger.error(f"Error updating account: {e}")
-        return JSONResponse({"status": "error", "message": str(e)})
-
-@app.delete("/admin/accounts/{account_id}")
-async def delete_account_api(account_id: str):
-    """ลบบัญชี"""
-    if not line_account_manager:
-        return JSONResponse({
-            "status": "error",
-            "message": "Account manager not initialized"
-        })
-    
-    try:
-        success = await line_account_manager.delete_account(account_id)
-        
-        if success:
-            await notification_manager.send_notification(
-                f"✅ Deleted LINE account", 
-                "success"
-            )
-            return JSONResponse({"status": "success"})
-        else:
-            return JSONResponse({"status": "error", "message": "Delete failed"})
-    except Exception as e:
-        logger.error(f"Error deleting account: {e}")
-        return JSONResponse({"status": "error", "message": str(e)})
-
-@app.get("/admin/chat-history-by-account")
-async def chat_history_by_account_page(request: Request):
-    """ดูประวัติแชทแยกตามบัญชี"""
-    account_id = request.query_params.get("account_id")
-    
-    if not line_account_manager:
-        accounts = []
-    else:
-        accounts = await line_account_manager.list_accounts()
-    
-    # Query chat history with account filter
-    chats = []
-    if database_functions and 'get_recent_chat_history' in database_functions:
-        all_chats = await database_functions['get_recent_chat_history'](1000)
-        
-        # Filter by account if specified
-        if account_id:
-            chats = [
-                chat for chat in all_chats 
-                if hasattr(chat, 'raw_message') and 
-                chat.raw_message.get('_account_id') == account_id
-            ]
-        else:
-            chats = all_chats
-    
-    return templates.TemplateResponse("chat_history.html", {
-        "request": request,
-        "chats": chats,
-        "accounts": accounts,
-        "selected_account": account_id
-    })
 
 
 @app.post("/admin/users/broadcast")
