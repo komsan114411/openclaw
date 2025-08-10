@@ -13,6 +13,42 @@
     </button>
 </div>
 
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary">{{ accounts|length if accounts else 0 }}</h4>
+                <p class="text-muted mb-0">Total Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success" id="active-accounts">0</h4>
+                <p class="text-muted mb-0">Active Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info" id="ai-enabled">0</h4>
+                <p class="text-muted mb-0">AI Enabled</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning" id="slip-enabled">0</h4>
+                <p class="text-muted mb-0">Slip Enabled</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Accounts Table -->
 <div class="card">
     <div class="card-body p-0">
@@ -22,48 +58,70 @@
                     <tr>
                         <th>Name</th>
                         <th>Webhook URL</th>
-                        <th>Status</th>
+                        <th>Features</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for acc in accounts %}
-                    <tr>
-                        <td>
-                            <strong>{{ acc.display_name }}</strong>
-                            <br><small class="text-muted">ID: {{ acc.id[:8] }}...</small>
-                        </td>
-                        <td>
-                            <code>/line/{{ acc.id }}/webhook</code>
-                            <button class="btn btn-sm btn-outline-secondary ms-2" 
-                                    onclick="copyWebhook('{{ acc.id }}')">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                        </td>
-                        <td>
-                            <span class="badge bg-{{ 'success' if acc.ai_enabled or acc.slip_enabled else 'secondary' }}">
-                                {% if acc.ai_enabled %}AI{% endif %}
-                                {% if acc.slip_enabled %}Slip{% endif %}
-                                {% if not acc.ai_enabled and not acc.slip_enabled %}Inactive{% endif %}
-                            </span>
-                        </td>
-                        <td>{{ acc.created_at.strftime('%Y-%m-%d') if acc.created_at else '' }}</td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="/admin/accounts/{{ acc.id }}" class="btn btn-primary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="/admin/chat-history?account_id={{ acc.id }}" class="btn btn-info">
-                                    <i class="fas fa-comments"></i>
-                                </a>
-                                <button class="btn btn-danger" onclick="deleteAccount('{{ acc.id }}')">
-                                    <i class="fas fa-trash"></i>
+                    {% if accounts %}
+                        {% for acc in accounts %}
+                        <tr>
+                            <td>
+                                <strong>{{ acc.display_name or 'Unnamed Account' }}</strong>
+                                <br><small class="text-muted">ID: {{ acc.id[:8] if acc.id else 'N/A' }}...</small>
+                            </td>
+                            <td>
+                                <code>/line/{{ acc.id }}/webhook</code>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" 
+                                        onclick="copyWebhook('{{ acc.id }}')">
+                                    <i class="fas fa-copy"></i>
                                 </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                            </td>
+                            <td>
+                                {% if acc.ai_enabled %}
+                                    <span class="badge bg-info">AI</span>
+                                {% endif %}
+                                {% if acc.slip_enabled %}
+                                    <span class="badge bg-warning">Slip</span>
+                                {% endif %}
+                                {% if not acc.ai_enabled and not acc.slip_enabled %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if acc.created_at %}
+                                    <small>{{ acc.created_at.strftime('%Y-%m-%d') if hasattr(acc.created_at, 'strftime') else acc.created_at[:10] }}</small>
+                                {% else %}
+                                    <small>N/A</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/admin/accounts/{{ acc.id }}" class="btn btn-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="/admin/chat-history-by-account?account_id={{ acc.id }}" class="btn btn-info" title="Chat History">
+                                        <i class="fas fa-comments"></i>
+                                    </a>
+                                    <button class="btn btn-danger" onclick="deleteAccount('{{ acc.id }}')" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                <i class="fab fa-line fa-3x mb-3"></i>
+                                <p>No LINE accounts configured yet</p>
+                                <button class="btn btn-success" onclick="showAddAccountModal()">
+                                    <i class="fas fa-plus me-1"></i> Add First Account
+                                </button>
+                            </td>
+                        </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
@@ -81,21 +139,27 @@
             <div class="modal-body">
                 <form id="add-account-form">
                     <div class="mb-3">
-                        <label class="form-label">Display Name</label>
-                        <input type="text" class="form-control" name="display_name" required>
+                        <label class="form-label">Display Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="display_name" required 
+                               placeholder="e.g., Main Store Bot">
                     </div>
+                    
+                    <hr>
+                    <h6>LINE Credentials</h6>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Channel Secret</label>
-                                <input type="text" class="form-control" name="channel_secret" required>
+                                <label class="form-label">Channel Secret <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="channel_secret" required
+                                       placeholder="From LINE Developers Console">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Channel Access Token</label>
-                                <input type="text" class="form-control" name="channel_access_token" required>
+                                <label class="form-label">Channel Access Token <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="channel_access_token" required
+                                       placeholder="From LINE Developers Console">
                             </div>
                         </div>
                     </div>
@@ -105,7 +169,8 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Thunder API Token</label>
-                        <input type="text" class="form-control" name="thunder_api_token">
+                        <input type="text" class="form-control" name="thunder_api_token"
+                               placeholder="For slip verification">
                     </div>
                     
                     <div class="row">
@@ -125,35 +190,44 @@
                     
                     <div class="mb-3">
                         <label class="form-label">OpenAI API Key</label>
-                        <input type="text" class="form-control" name="openai_api_key">
+                        <input type="text" class="form-control" name="openai_api_key"
+                               placeholder="For AI chat feature">
                     </div>
                     
                     <div class="mb-3">
                         <label class="form-label">AI Prompt</label>
-                        <textarea class="form-control" name="ai_prompt" rows="3">คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ</textarea>
+                        <textarea class="form-control" name="ai_prompt" rows="3"
+                                  placeholder="คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ">คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ</textarea>
                     </div>
                     
                     <hr>
                     <h6>Enable Features</h6>
                     
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="ai_enabled">
-                        <label class="form-check-label">Enable AI Chat</label>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="slip_enabled">
-                        <label class="form-check-label">Enable Slip Verification</label>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" name="thunder_enabled" checked>
-                        <label class="form-check-label">Enable Thunder API</label>
-                    </div>
-                    
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="kbank_enabled">
-                        <label class="form-check-label">Enable KBank API</label>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled_new">
+                                <label class="form-check-label" for="ai_enabled_new">AI Chat</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="slip_enabled" id="slip_enabled_new">
+                                <label class="form-check-label" for="slip_enabled_new">Slip Verification</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="thunder_enabled" id="thunder_enabled_new" checked>
+                                <label class="form-check-label" for="thunder_enabled_new">Thunder API</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="kbank_enabled" id="kbank_enabled_new">
+                                <label class="form-check-label" for="kbank_enabled_new">KBank API</label>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -166,6 +240,35 @@
 </div>
 
 <script>
+// Update statistics
+document.addEventListener('DOMContentLoaded', function() {
+    updateAccountStats();
+});
+
+function updateAccountStats() {
+    let activeCount = 0;
+    let aiCount = 0;
+    let slipCount = 0;
+    
+    {% if accounts %}
+        {% for acc in accounts %}
+            {% if acc.ai_enabled or acc.slip_enabled %}
+                activeCount++;
+            {% endif %}
+            {% if acc.ai_enabled %}
+                aiCount++;
+            {% endif %}
+            {% if acc.slip_enabled %}
+                slipCount++;
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    document.getElementById('active-accounts').textContent = activeCount;
+    document.getElementById('ai-enabled').textContent = aiCount;
+    document.getElementById('slip-enabled').textContent = slipCount;
+}
+
 function showAddAccountModal() {
     document.getElementById('add-account-form').reset();
     new bootstrap.Modal(document.getElementById('addAccountModal')).show();
@@ -195,24 +298,32 @@ async function createAccount() {
         const result = await response.json();
         
         if (result.status === 'success') {
-            showNotification('Account created successfully', 'success');
+            showNotification('Account created successfully!', 'success');
+            
+            // Show webhook URL
+            alert(`Account created!\n\nWebhook URL:\n${result.webhook_url}\n\nPlease set this URL in LINE Developers Console.`);
+            
             setTimeout(() => window.location.reload(), 1000);
         } else {
-            showNotification('Failed to create account', 'error');
+            showNotification(result.message || 'Failed to create account', 'error');
         }
     } catch (error) {
+        console.error('Error:', error);
         showNotification('Error creating account', 'error');
     }
 }
 
 function copyWebhook(accountId) {
     const webhookUrl = `${window.location.origin}/line/${accountId}/webhook`;
-    navigator.clipboard.writeText(webhookUrl);
-    showNotification('Webhook URL copied!', 'success');
+    navigator.clipboard.writeText(webhookUrl).then(() => {
+        showNotification('Webhook URL copied!', 'success');
+    });
 }
 
 async function deleteAccount(accountId) {
-    if (!confirm('Are you sure you want to delete this account?')) return;
+    if (!confirm('Are you sure you want to delete this account? This action cannot be undone.')) {
+        return;
+    }
     
     try {
         const response = await fetch(`/admin/accounts/${accountId}`, {
@@ -224,6 +335,8 @@ async function deleteAccount(accountId) {
         if (result.status === 'success') {
             showNotification('Account deleted', 'success');
             setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showNotification('Failed to delete account', 'error');
         }
     } catch (error) {
         showNotification('Error deleting account', 'error');
