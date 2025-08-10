@@ -173,10 +173,13 @@ async def safe_import_modules():
             if init_result is True:
                 logger.info("✅ Database initialized successfully")
                 
+                # CRITICAL FIX: Import db_manager
                 try:
                     from models.database import db_manager as dbm
                     db_manager = dbm
-                except ImportError:
+                    logger.info("✅ db_manager imported successfully")
+                except ImportError as e:
+                    logger.error(f"❌ Failed to import db_manager: {e}")
                     db_manager = None
                 
                 database_functions = {
@@ -200,13 +203,34 @@ async def safe_import_modules():
                 if db_manager:
                     database_functions['db_manager'] = db_manager
                     
-                # NOTE: NEW CODE - BIND CONFIG MANAGER TO DB
+                # CRITICAL FIX: Bind config manager to database functions
                 if config_manager and 'get_config' in database_functions and 'set_config' in database_functions:
                     config_manager.db_functions = {
                         'get_config': database_functions['get_config'],
                         'set_config': database_functions['set_config'],
                     }
                     logger.info("✅ Config Manager bound to database functions")
+                
+                # CRITICAL FIX: Initialize LineAccountManager
+                if db_manager and hasattr(db_manager, 'db') and db_manager.db:
+                    try:
+                        from models.line_account_db import LineAccountManager
+                        line_account_manager = LineAccountManager(db_manager.db)
+                        
+                        # Create indexes
+                        try:
+                            await line_account_manager.create_indexes()
+                            logger.info("✅ Line Account Manager indexes created")
+                        except Exception as e:
+                            logger.warning(f"⚠️ Could not create LINE account indexes: {e}")
+                        
+                        logger.info("✅ Line Account Manager initialized successfully")
+                    except Exception as e:
+                        logger.error(f"❌ Line Account Manager init failed: {e}")
+                        line_account_manager = None
+                else:
+                    logger.warning("⚠️ Cannot initialize Line Account Manager - db_manager.db not available")
+                    line_account_manager = None
                 
                 database_import_success = True
                 logger.info("✅ Database functions imported successfully")
@@ -221,6 +245,7 @@ async def safe_import_modules():
 
         if not database_import_success:
             logger.warning("⚠️ Using dummy database functions")
+            # [Keep all the dummy functions as they are]
             async def dummy_save(u, d, m, s): return False
             async def dummy_count(): return 0
             async def dummy_recent(l=50): return []
@@ -253,6 +278,10 @@ async def safe_import_modules():
                 'get_user_info': dummy_get_user_info,
                 'save_slip_data': dummy_save_slip_data
             }
+            
+            # LineAccountManager won't work without database
+            line_account_manager = None
+            logger.warning("⚠️ Line Account Manager disabled - no database")
 
         # Import AI modules
         try:
@@ -294,26 +323,9 @@ async def safe_import_modules():
             slip_functions['reset_api_failure_cache'] = dummy_reset
             slip_functions['test_thunder_api_connection'] = dummy_test_thunder
 
-        # NOTE: NEW LOGIC - REWORKED LINE ACCOUNT MANAGER INIT
-        if db_manager and hasattr(db_manager, 'db') and db_manager.db:
-            try:
-                from models.line_account_db import LineAccountManager
-                line_account_manager = LineAccountManager(db_manager.db)
-                try:
-                    await line_account_manager.create_indexes()
-                    logger.info("✅ Line Account Manager indexes created")
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not create LINE account indexes: {e}")
-                logger.info("✅ Line Account Manager initialized")
-            except Exception as e:
-                logger.error(f"❌ Line Account Manager init failed: {e}")
-                line_account_manager = None
-        else:
-            logger.warning("⚠️ Cannot initialize Line Account Manager - database not ready")
-            line_account_manager = None
-
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
+        logger.info(f"📊 Line Account Manager status: {'Ready' if line_account_manager else 'Not Available'}")
         
         await notification_manager.send_notification(
             "🚀 System started successfully", 
@@ -321,7 +333,8 @@ async def safe_import_modules():
             {
                 "database": database_functions.get('get_connection_info', lambda: {"connected": False})() if database_functions else {"connected": False},
                 "ai_available": 'get_chat_response' in ai_functions,
-                "slip_available": 'verify_slip_multiple_providers' in slip_functions
+                "slip_available": 'verify_slip_multiple_providers' in slip_functions,
+                "accounts_available": line_account_manager is not None
             }
         )
         return True
