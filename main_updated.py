@@ -39,6 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Global state
 IS_READY = False
+db_manager = None
 SHUTDOWN_INITIATED = False
 
 class NotificationManager:
@@ -129,19 +130,21 @@ slip_functions = {}
 
 async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
-    global IS_READY, config_manager, database_functions, ai_functions, slip_functions, line_account_manager
+    global IS_READY, config_manager, database_functions, ai_functions, slip_functions
+    global db_manager, line_account_manager  # เพิ่มประกาศ db_manager และ line_account_manager
 
     logger.info("🔄 Starting module imports...")
 
     try:
-        # Initialize Config Manager
+        # --------------------------------------
+        # 1) Load Config Manager
+        # --------------------------------------
         try:
             from utils.config_manager import config_manager as cm
             config_manager = cm
             logger.info("✅ Config manager initialized")
         except Exception as e:
             logger.error(f"❌ Config manager init failed: {e}")
-            # Create a simple config manager
             class SimpleConfigManager:
                 def __init__(self):
                     self.config = {}
@@ -155,9 +158,11 @@ async def safe_import_modules():
                     return True
             config_manager = SimpleConfigManager()
 
-        # Database functions - Initialize async
+        # --------------------------------------
+        # 2) Load database functions and init DB
+        # --------------------------------------
         database_import_success = False
-        db_manager = None  # Initialize as None first
+        db_manager = None
 
         try:
             from models.database import (
@@ -167,21 +172,17 @@ async def safe_import_modules():
                 get_user_chat_history_sync, save_event, save_raw_event,
                 get_user_info, save_slip_data
             )
-            
+
             init_result = await init_database()
-            
+
             if init_result is True:
                 logger.info("✅ Database initialized successfully")
-                
-                # CRITICAL FIX: Import db_manager
-                try:
-                    from models.database import db_manager as dbm
-                    db_manager = dbm
-                    logger.info("✅ db_manager imported successfully")
-                except ImportError as e:
-                    logger.error(f"❌ Failed to import db_manager: {e}")
-                    db_manager = None
-                
+
+                # ดึงตัวแปร db_manager จากโมดูล
+                from models.database import db_manager as dbm
+                db_manager = dbm
+
+                # รวบรวมฟังก์ชันฐานข้อมูลไว้ใน dict
                 database_functions = {
                     'init_database': init_database,
                     'save_chat_history': save_chat_history,
@@ -197,55 +198,46 @@ async def safe_import_modules():
                     'save_event': save_event,
                     'save_raw_event': save_raw_event,
                     'get_user_info': get_user_info,
-                    'save_slip_data': save_slip_data
+                    'save_slip_data': save_slip_data,
+                    'db_manager': db_manager  # เก็บ db_manager ไว้ด้วย
                 }
-                
-                if db_manager:
-                    database_functions['db_manager'] = db_manager
-                    
-                # CRITICAL FIX: Bind config manager to database functions
-                if config_manager and 'get_config' in database_functions and 'set_config' in database_functions:
+
+                # ผูก config_manager กับฟังก์ชัน get/set_config ของฐานข้อมูล
+                if config_manager:
                     config_manager.db_functions = {
-                        'get_config': database_functions['get_config'],
-                        'set_config': database_functions['set_config'],
+                        'get_config': get_config,
+                        'set_config': set_config,
                     }
                     logger.info("✅ Config Manager bound to database functions")
-                
-                # CRITICAL FIX: Initialize LineAccountManager
-                if db_manager and hasattr(db_manager, 'db') and db_manager.db:
-                    try:
-                        from models.line_account_db import LineAccountManager
+
+                # สร้าง LineAccountManager จาก db_manager.db
+                try:
+                    from models.line_account_db import LineAccountManager
+                    if db_manager and db_manager.db:
                         line_account_manager = LineAccountManager(db_manager.db)
-                        
-                        # Create indexes
                         try:
                             await line_account_manager.create_indexes()
-                            logger.info("✅ Line Account Manager indexes created")
-                        except Exception as e:
-                            logger.warning(f"⚠️ Could not create LINE account indexes: {e}")
-                        
-                        logger.info("✅ Line Account Manager initialized successfully")
-                    except Exception as e:
-                        logger.error(f"❌ Line Account Manager init failed: {e}")
+                        except Exception as ie:
+                            logger.warning(f"⚠️ Could not create LINE account indexes: {ie}")
+                        logger.info("✅ Line Account Manager initialized")
+                    else:
                         line_account_manager = None
-                else:
-                    logger.warning("⚠️ Cannot initialize Line Account Manager - db_manager.db not available")
+                        logger.warning("⚠️ db_manager.db not available; cannot create LineAccountManager")
+                except Exception as e:
+                    logger.error(f"❌ Line Account Manager init failed: {e}")
                     line_account_manager = None
-                
+
                 database_import_success = True
-                logger.info("✅ Database functions imported successfully")
             else:
                 logger.error("❌ Database initialization returned False")
-                database_import_success = False
-                
+
         except Exception as e:
             logger.error(f"⚠️ Database import/init failed: {e}")
             logger.exception(e)
-            database_import_success = False
 
+        # หากเชื่อมต่อฐานข้อมูลไม่สำเร็จ ให้สร้าง dummy functions
         if not database_import_success:
             logger.warning("⚠️ Using dummy database functions")
-            # [Keep all the dummy functions as they are]
             async def dummy_save(u, d, m, s): return False
             async def dummy_count(): return 0
             async def dummy_recent(l=50): return []
@@ -278,12 +270,11 @@ async def safe_import_modules():
                 'get_user_info': dummy_get_user_info,
                 'save_slip_data': dummy_save_slip_data
             }
-            
-            # LineAccountManager won't work without database
             line_account_manager = None
-            logger.warning("⚠️ Line Account Manager disabled - no database")
 
-        # Import AI modules
+        # --------------------------------------
+        # 3) Load AI module
+        # --------------------------------------
         try:
             from services.chat_bot import get_chat_response
             ai_functions['get_chat_response'] = get_chat_response
@@ -294,14 +285,16 @@ async def safe_import_modules():
                 return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
             ai_functions['get_chat_response'] = dummy_chat_response
 
-        # Import Slip verification modules
+        # --------------------------------------
+        # 4) Load slip verification modules
+        # --------------------------------------
         try:
             from services.enhanced_slip_checker import (
                 extract_slip_info_from_text, verify_slip_multiple_providers,
                 get_api_status_summary, reset_api_failure_cache
             )
             from services.slip_checker import test_thunder_api_connection
-            
+
             slip_functions['extract_slip_info_from_text'] = extract_slip_info_from_text
             slip_functions['verify_slip_multiple_providers'] = verify_slip_multiple_providers
             slip_functions['get_api_status_summary'] = get_api_status_summary
@@ -313,39 +306,44 @@ async def safe_import_modules():
             def dummy_extract(text): return {"bank_code": None, "trans_ref": None}
             def dummy_verify(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
                 return {"status": "error", "message": "Slip verification not available"}
-            def dummy_api_status(): return {"thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}}
+            def dummy_api_status():
+                return {"thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}}
             def dummy_reset(): return False
-            def dummy_test_thunder(token): return {"status": "error", "message": "Thunder API not available"}
-            
+            def dummy_test_thunder(token):
+                return {"status": "error", "message": "Thunder API not available"}
+
             slip_functions['extract_slip_info_from_text'] = dummy_extract
             slip_functions['verify_slip_multiple_providers'] = dummy_verify
             slip_functions['get_api_status_summary'] = dummy_api_status
             slip_functions['reset_api_failure_cache'] = dummy_reset
             slip_functions['test_thunder_api_connection'] = dummy_test_thunder
 
+        # --------------------------------------
+        # 5) Finalize startup
+        # --------------------------------------
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         logger.info(f"📊 Line Account Manager status: {'Ready' if line_account_manager else 'Not Available'}")
-        
+
         await notification_manager.send_notification(
-            "🚀 System started successfully", 
+            "🚀 System started successfully",
             "success",
             {
-                "database": database_functions.get('get_connection_info', lambda: {"connected": False})() if database_functions else {"connected": False},
+                "database": database_functions.get('get_connection_info', lambda: {"connected": False})(),
                 "ai_available": 'get_chat_response' in ai_functions,
                 "slip_available": 'verify_slip_multiple_providers' in slip_functions,
                 "accounts_available": line_account_manager is not None
             }
         )
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Critical import error: {e}")
         logger.exception(e)
         IS_READY = False
-        
+
         await notification_manager.send_notification(
-            f"❌ System startup error: {str(e)}", 
+            f"❌ System startup error: {str(e)}",
             "error"
         )
         return False
