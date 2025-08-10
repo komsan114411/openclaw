@@ -130,9 +130,9 @@ slip_functions = {}
 async def safe_import_modules():
     """Safely import all required modules with fallbacks"""
     global IS_READY, config_manager, database_functions, ai_functions, slip_functions, line_account_manager
-    
+
     logger.info("🔄 Starting module imports...")
-    
+
     try:
         # Initialize Config Manager
         try:
@@ -154,31 +154,29 @@ async def safe_import_modules():
                     self.config.update(updates)
                     return True
             config_manager = SimpleConfigManager()
-        
+
         # Database functions - Initialize async
         database_import_success = False
         db_manager = None  # Initialize as None first
-        
+
         try:
             from models.database import (
-                init_database, save_chat_history, get_chat_history_count, 
+                init_database, save_chat_history, get_chat_history_count,
                 get_recent_chat_history, get_user_chat_history, test_connection,
                 get_connection_info, get_database_status, get_config, set_config,
-                get_user_chat_history_sync
+                get_user_chat_history_sync, save_event, save_raw_event,
+                get_user_info, save_slip_data
             )
             
-            # Initialize database
             init_result = await init_database()
             
-            # Check initialization result properly
-            if init_result is True:  # Use explicit comparison
+            if init_result is True:
                 logger.info("✅ Database initialized successfully")
                 
-                # Try to get db_manager after successful init
                 try:
                     from models.database import db_manager as dbm
                     db_manager = dbm
-                except:
+                except ImportError:
                     db_manager = None
                 
                 database_functions = {
@@ -192,12 +190,23 @@ async def safe_import_modules():
                     'get_connection_info': get_connection_info,
                     'get_database_status': get_database_status,
                     'get_config': get_config,
-                    'set_config': set_config
+                    'set_config': set_config,
+                    'save_event': save_event,
+                    'save_raw_event': save_raw_event,
+                    'get_user_info': get_user_info,
+                    'save_slip_data': save_slip_data
                 }
                 
-                # Add db_manager only if it exists
                 if db_manager:
                     database_functions['db_manager'] = db_manager
+                    
+                # NOTE: NEW CODE - BIND CONFIG MANAGER TO DB
+                if config_manager and 'get_config' in database_functions and 'set_config' in database_functions:
+                    config_manager.db_functions = {
+                        'get_config': database_functions['get_config'],
+                        'set_config': database_functions['set_config'],
+                    }
+                    logger.info("✅ Config Manager bound to database functions")
                 
                 database_import_success = True
                 logger.info("✅ Database functions imported successfully")
@@ -209,42 +218,24 @@ async def safe_import_modules():
             logger.error(f"⚠️ Database import/init failed: {e}")
             logger.exception(e)
             database_import_success = False
-        
-        # If database import failed, use dummy functions
+
         if not database_import_success:
             logger.warning("⚠️ Using dummy database functions")
-            
-            async def dummy_save(u, d, m, s):
-                logger.debug(f"Dummy save: {u[:10] if u else 'unknown'}")
-                return False
-            
-            async def dummy_count():
-                return 0
-            
-            async def dummy_recent(l=50):
-                return []
-            
-            async def dummy_user_history(u, l=10):
-                return []
-            
-            def dummy_user_history_sync(u, l=10):
-                return []
-            
-            async def dummy_test():
-                return {"status": "error", "message": "Database not available"}
-            
-            def dummy_info():
-                return {"connected": False, "type": "Unavailable"}
-            
-            async def dummy_get_status():
-                return {"status": "error", "message": "Database not available"}
-            
-            async def dummy_get_config(key, default=None):
-                return default
-            
-            async def dummy_set_config(key, value, is_sensitive=False):
-                return False
-                
+            async def dummy_save(u, d, m, s): return False
+            async def dummy_count(): return 0
+            async def dummy_recent(l=50): return []
+            async def dummy_user_history(u, l=10): return []
+            def dummy_user_history_sync(u, l=10): return []
+            async def dummy_test(): return {"status": "error", "message": "Database not available"}
+            def dummy_info(): return {"connected": False, "type": "Unavailable"}
+            async def dummy_get_status(): return {"status": "error", "message": "Database not available"}
+            async def dummy_get_config(key, default=None): return default
+            async def dummy_set_config(key, value, is_sensitive=False): return False
+            async def dummy_save_event(u, t, e): return False
+            async def dummy_save_raw_event(e): return False
+            async def dummy_get_user_info(u): return {"user_id": u}
+            async def dummy_save_slip_data(u, d): return False
+
             database_functions = {
                 'init_database': lambda: False,
                 'save_chat_history': dummy_save,
@@ -256,9 +247,13 @@ async def safe_import_modules():
                 'get_connection_info': dummy_info,
                 'get_database_status': dummy_get_status,
                 'get_config': dummy_get_config,
-                'set_config': dummy_set_config
+                'set_config': dummy_set_config,
+                'save_event': dummy_save_event,
+                'save_raw_event': dummy_save_raw_event,
+                'get_user_info': dummy_get_user_info,
+                'save_slip_data': dummy_save_slip_data
             }
-        
+
         # Import AI modules
         try:
             from services.chat_bot import get_chat_response
@@ -273,7 +268,7 @@ async def safe_import_modules():
         # Import Slip verification modules
         try:
             from services.enhanced_slip_checker import (
-                extract_slip_info_from_text, verify_slip_multiple_providers, 
+                extract_slip_info_from_text, verify_slip_multiple_providers,
                 get_api_status_summary, reset_api_failure_cache
             )
             from services.slip_checker import test_thunder_api_connection
@@ -286,44 +281,40 @@ async def safe_import_modules():
             logger.info("✅ Slip modules imported")
         except Exception as e:
             logger.warning(f"⚠️ Slip module import failed: {e}")
-            def dummy_extract(text):
-                return {"bank_code": None, "trans_ref": None}
+            def dummy_extract(text): return {"bank_code": None, "trans_ref": None}
             def dummy_verify(message_id=None, test_image_data=None, bank_code=None, trans_ref=None):
                 return {"status": "error", "message": "Slip verification not available"}
-            def dummy_api_status():
-                return {
-                    "thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0},
-                    "kbank": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}
-                }
-            def dummy_reset():
-                return False
-            def dummy_test_thunder(token):
-                return {"status": "error", "message": "Thunder API not available"}
+            def dummy_api_status(): return {"thunder": {"enabled": False, "configured": False, "connected": False, "recent_failures": 0}}
+            def dummy_reset(): return False
+            def dummy_test_thunder(token): return {"status": "error", "message": "Thunder API not available"}
             
             slip_functions['extract_slip_info_from_text'] = dummy_extract
             slip_functions['verify_slip_multiple_providers'] = dummy_verify
             slip_functions['get_api_status_summary'] = dummy_api_status
             slip_functions['reset_api_failure_cache'] = dummy_reset
             slip_functions['test_thunder_api_connection'] = dummy_test_thunder
-        
-        # Initialize Line Account Manager only if database is ready
-        try:
-            if database_import_success and db_manager and hasattr(db_manager, 'db') and db_manager.db:
+
+        # NOTE: NEW LOGIC - REWORKED LINE ACCOUNT MANAGER INIT
+        if db_manager and hasattr(db_manager, 'db') and db_manager.db:
+            try:
                 from models.line_account_db import LineAccountManager
                 line_account_manager = LineAccountManager(db_manager.db)
-                await line_account_manager.create_indexes()
+                try:
+                    await line_account_manager.create_indexes()
+                    logger.info("✅ Line Account Manager indexes created")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not create LINE account indexes: {e}")
                 logger.info("✅ Line Account Manager initialized")
-            else:
-                logger.warning("⚠️ Cannot initialize Line Account Manager - database not ready")
+            except Exception as e:
+                logger.error(f"❌ Line Account Manager init failed: {e}")
                 line_account_manager = None
-        except Exception as e:
-            logger.error(f"❌ Line Account Manager init failed: {e}")
+        else:
+            logger.warning("⚠️ Cannot initialize Line Account Manager - database not ready")
             line_account_manager = None
-        
+
         IS_READY = True
         logger.info("✅ All modules loaded successfully - System READY")
         
-        # Send startup notification
         await notification_manager.send_notification(
             "🚀 System started successfully", 
             "success",
@@ -333,7 +324,6 @@ async def safe_import_modules():
                 "slip_available": 'verify_slip_multiple_providers' in slip_functions
             }
         )
-        
         return True
         
     except Exception as e:
@@ -341,12 +331,10 @@ async def safe_import_modules():
         logger.exception(e)
         IS_READY = False
         
-        # Send error notification
         await notification_manager.send_notification(
             f"❌ System startup error: {str(e)}", 
             "error"
         )
-        
         return False
 # Lifespan context manager
 @asynccontextmanager
