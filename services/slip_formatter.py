@@ -1,12 +1,13 @@
-# services/slip_formatter.py (ไฟล์ใหม่)
+# services/slip_formatter.py
 import logging
 from typing import Dict, Any
 from datetime import datetime
+import pytz
 
 logger = logging.getLogger("slip_formatter")
 
 def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง Flex Message สำหรับแสดงผลสลิป"""
+    """สร้าง Flex Message สำหรับแสดงผลสลิปแบบสวยงาม"""
     try:
         status = result.get("status")
         data = result.get("data", {})
@@ -22,8 +23,15 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         except:
             amount_display = f"฿{amount}"
             
+        # จัดการวันที่และเวลา
         date = data.get("date", data.get("trans_date", ""))
         time_str = data.get("time", data.get("trans_time", ""))
+        
+        # แปลงเป็นเวลาไทย
+        thai_tz = pytz.timezone('Asia/Bangkok')
+        current_time = datetime.now(thai_tz)
+        verification_time = current_time.strftime("%d/%m/%Y %H:%M:%S")
+        
         trans_ref = data.get("reference", data.get("transRef", "N/A"))
         
         # ชื่อผู้ส่งและผู้รับ
@@ -43,44 +51,59 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         sender_bank = data.get("sender_bank_short", data.get("sender_bank", ""))
         receiver_bank = data.get("receiver_bank_short", data.get("receiver_bank", ""))
         
-        # กำหนดสีและไอคอนตามสถานะ
+        # กำหนดสีและสถานะตามผลการตรวจสอบ
         if status == "success":
             header_color = "#06C755"  # สีเขียว LINE
             header_text = "สลิปถูกต้อง"
-            status_icon = "https://img.icons8.com/fluency/96/checked.png"
-            status_text = "ตรวจสอบสำเร็จ"
+            header_icon = "https://i.imgur.com/QXhSKqq.png"  # ไอคอนถูกสีขาว
+            bottom_text = "ตรวจสอบสำเร็จ"
+            bottom_color = "#06C755"
         elif status == "duplicate":
-            header_color = "#FFB400"  # สีเหลือง
+            header_color = "#FFB833"  # สีส้ม
             header_text = "สลิปซ้ำ"
-            status_icon = "https://img.icons8.com/fluency/96/refresh.png"
-            status_text = "เคยใช้แล้ว"
+            header_icon = "https://i.imgur.com/VDuCpZD.png"  # ไอคอนเตือน
+            bottom_text = "สลิปนี้เคยใช้แล้ว"
+            bottom_color = "#FFB833"
         else:
-            header_color = "#FF3333"  # สีแดง
+            header_color = "#FF4444"  # สีแดง
             header_text = "ตรวจสอบไม่ผ่าน"
-            status_icon = "https://img.icons8.com/fluency/96/cancel.png"
-            status_text = "ไม่สำเร็จ"
+            header_icon = "https://i.imgur.com/dwsOWfx.png"  # ไอคอนผิด
+            bottom_text = "ตรวจสอบไม่สำเร็จ"
+            bottom_color = "#FF4444"
         
-        # สร้าง Flex Message
+        # สร้าง Flex Message แบบสวยงาม
         flex_message = {
             "type": "flex",
             "altText": f"ผลการตรวจสอบสลิป: {amount_display}",
             "contents": {
                 "type": "bubble",
                 "size": "kilo",
-                "header": {
+                "body": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
+                        # Header with gradient background
                         {
                             "type": "box",
                             "layout": "horizontal",
                             "contents": [
                                 {
-                                    "type": "image",
-                                    "url": status_icon,
-                                    "size": "30px",
-                                    "flex": 0,
-                                    "aspectRatio": "1:1"
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                        {
+                                            "type": "image",
+                                            "url": header_icon,
+                                            "size": "25px",
+                                            "aspectRatio": "1:1"
+                                        }
+                                    ],
+                                    "width": "25px",
+                                    "height": "25px",
+                                    "backgroundColor": "#FFFFFF",
+                                    "cornerRadius": "13px",
+                                    "justifyContent": "center",
+                                    "alignItems": "center"
                                 },
                                 {
                                     "type": "text",
@@ -88,21 +111,16 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
                                     "size": "lg",
                                     "color": "#FFFFFF",
                                     "weight": "bold",
-                                    "margin": "md",
-                                    "flex": 1
+                                    "margin": "md"
                                 }
                             ],
+                            "backgroundColor": header_color,
+                            "paddingAll": "15px",
+                            "cornerRadius": "12px",
                             "alignItems": "center"
-                        }
-                    ],
-                    "backgroundColor": header_color,
-                    "paddingAll": "15px"
-                },
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        # จำนวนเงิน
+                        },
+                        
+                        # Amount section
                         {
                             "type": "box",
                             "layout": "vertical",
@@ -112,52 +130,258 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
                                     "text": amount_display,
                                     "size": "3xl",
                                     "weight": "bold",
-                                    "color": "#1DB446",
+                                    "color": "#06C755",
                                     "align": "center"
                                 }
                             ],
-                            "margin": "md",
-                            "backgroundColor": "#F0FFF4",
+                            "backgroundColor": "#E8F5E9",
                             "cornerRadius": "8px",
-                            "paddingAll": "15px"
+                            "paddingAll": "12px",
+                            "margin": "md"
                         },
                         
-                        # ข้อมูลธุรกรรม
+                        # Transaction details
                         {
                             "type": "box",
                             "layout": "vertical",
                             "contents": [
-                                # วันที่และเวลา
-                                create_info_row("📅 วันที่", f"{date} {time_str}".strip()),
+                                # Date row
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "📅",
+                                                    "flex": 0,
+                                                    "size": "sm"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "วันที่",
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "margin": "sm"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": f"{date} {time_str}".strip(),
+                                            "color": "#111111",
+                                            "size": "sm",
+                                            "align": "end",
+                                            "weight": "regular"
+                                        }
+                                    ]
+                                },
                                 
-                                # เลขอ้างอิง
-                                create_info_row("🔢 เลขอ้างอิง", trans_ref),
+                                # Reference row
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "🔢",
+                                                    "flex": 0,
+                                                    "size": "sm"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "เลขอ้างอิง",
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "margin": "sm"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": trans_ref,
+                                            "color": "#111111",
+                                            "size": "sm",
+                                            "align": "end",
+                                            "weight": "regular",
+                                            "wrap": True
+                                        }
+                                    ],
+                                    "margin": "md"
+                                },
                                 
                                 # Separator
                                 {
                                     "type": "separator",
-                                    "margin": "md"
+                                    "margin": "lg"
                                 },
                                 
-                                # ผู้โอน
-                                create_info_row("👤 ผู้โอน", sender_name),
-                                create_info_row("🏦 ธนาคาร", f"ธ.{sender_bank}" if sender_bank else "N/A"),
+                                # Sender info
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "👤",
+                                                    "flex": 0,
+                                                    "size": "sm"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "ผู้โอน",
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "margin": "sm"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": sender_name,
+                                            "color": "#111111",
+                                            "size": "sm",
+                                            "align": "end",
+                                            "weight": "regular",
+                                            "wrap": True
+                                        }
+                                    ],
+                                    "margin": "lg"
+                                },
+                                
+                                # Sender bank
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "🏦",
+                                                    "flex": 0,
+                                                    "size": "sm"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "ธนาคาร",
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "margin": "sm"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": f"ธ.{sender_bank}" if sender_bank else "N/A",
+                                            "color": "#111111",
+                                            "size": "sm",
+                                            "align": "end",
+                                            "weight": "regular"
+                                        }
+                                    ],
+                                    "margin": "md"
+                                },
                                 
                                 # Separator
                                 {
                                     "type": "separator",
-                                    "margin": "md"
+                                    "margin": "lg"
                                 },
                                 
-                                # ผู้รับ
-                                create_info_row("🎯 ผู้รับ", receiver_name),
-                                create_info_row("🏦 ธนาคาร", f"ธ.{receiver_bank}" if receiver_bank else "N/A"),
+                                # Receiver info
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "🎯",
+                                                    "flex": 0,
+                                                    "size": "sm"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "ผู้รับ",
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "margin": "sm"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": receiver_name,
+                                            "color": "#111111",
+                                            "size": "sm",
+                                            "align": "end",
+                                            "weight": "regular",
+                                            "wrap": True
+                                        }
+                                    ],
+                                    "margin": "lg"
+                                },
+                                
+                                # Receiver bank
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "🏦",
+                                                    "flex": 0,
+                                                    "size": "sm"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "ธนาคาร",
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "margin": "sm"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": f"ธ.{receiver_bank}" if receiver_bank else "N/A",
+                                            "color": "#111111",
+                                            "size": "sm",
+                                            "align": "end",
+                                            "weight": "regular"
+                                        }
+                                    ],
+                                    "margin": "md"
+                                }
                             ],
                             "margin": "lg",
-                            "spacing": "sm"
+                            "paddingAll": "12px",
+                            "backgroundColor": "#FAFAFA",
+                            "cornerRadius": "8px"
                         },
                         
-                        # สถานะ
+                        # Status section
                         {
                             "type": "box",
                             "layout": "horizontal",
@@ -165,38 +389,42 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
                                 {
                                     "type": "text",
                                     "text": "สถานะ:",
+                                    "color": "#666666",
                                     "size": "sm",
-                                    "color": "#555555",
                                     "flex": 0
                                 },
                                 {
                                     "type": "text",
-                                    "text": status_text,
+                                    "text": bottom_text,
+                                    "color": bottom_color,
                                     "size": "sm",
-                                    "color": header_color,
                                     "weight": "bold",
-                                    "align": "end",
-                                    "flex": 1
+                                    "align": "end"
                                 }
                             ],
                             "margin": "lg"
+                        },
+                        
+                        # Footer timestamp - แก้ไขให้แสดงเวลาจริง
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": f"ตรวจสอบเมื่อ {verification_time} น.",
+                                    "color": "#999999",
+                                    "size": "xs",
+                                    "align": "center"
+                                }
+                            ],
+                            "margin": "lg",
+                            "paddingTop": "8px",
+                            "borderWidth": "1px",
+                            "borderColor": "#EEEEEE"
                         }
                     ],
                     "paddingAll": "20px"
-                },
-                "footer": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": f"ตรวจสอบเมื่อ {datetime.now().strftime('%H:%M น.')}",
-                            "size": "xs",
-                            "color": "#999999",
-                            "align": "center"
-                        }
-                    ],
-                    "paddingAll": "10px"
                 }
             }
         }
@@ -207,92 +435,125 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"❌ Error creating flex message: {e}")
         return create_simple_text_message(result)
 
-def create_info_row(label: str, value: str) -> Dict[str, Any]:
-    """สร้างแถวข้อมูล"""
-    return {
-        "type": "box",
-        "layout": "horizontal",
-        "contents": [
-            {
-                "type": "text",
-                "text": label,
-                "size": "sm",
-                "color": "#555555",
-                "flex": 0,
-                "gravity": "top"
-            },
-            {
-                "type": "text",
-                "text": value or "N/A",
-                "size": "sm",
-                "color": "#111111",
-                "align": "end",
-                "flex": 1,
-                "wrap": True
-            }
-        ],
-        "spacing": "md"
-    }
-
 def create_error_flex_message(error_message: str) -> Dict[str, Any]:
     """สร้าง Flex Message สำหรับแสดงข้อผิดพลาด"""
+    
+    # เวลาปัจจุบัน
+    thai_tz = pytz.timezone('Asia/Bangkok')
+    current_time = datetime.now(thai_tz)
+    verification_time = current_time.strftime("%d/%m/%Y %H:%M:%S")
+    
     return {
         "type": "flex",
         "altText": "ไม่สามารถตรวจสอบสลิปได้",
         "contents": {
             "type": "bubble",
             "size": "kilo",
-            "header": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "❌ ไม่สามารถตรวจสอบสลิปได้",
-                        "size": "lg",
-                        "color": "#FFFFFF",
-                        "weight": "bold"
-                    }
-                ],
-                "backgroundColor": "#FF3333",
-                "paddingAll": "15px"
-            },
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
+                    # Error header
                     {
-                        "type": "text",
-                        "text": error_message,
-                        "size": "md",
-                        "color": "#666666",
-                        "wrap": True
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": "❌",
+                                        "size": "sm",
+                                        "align": "center"
+                                    }
+                                ],
+                                "width": "25px",
+                                "height": "25px",
+                                "backgroundColor": "#FFFFFF",
+                                "cornerRadius": "13px",
+                                "justifyContent": "center",
+                                "alignItems": "center"
+                            },
+                            {
+                                "type": "text",
+                                "text": "ไม่สามารถตรวจสอบสลิปได้",
+                                "size": "lg",
+                                "color": "#FFFFFF",
+                                "weight": "bold",
+                                "margin": "md"
+                            }
+                        ],
+                        "backgroundColor": "#FF4444",
+                        "paddingAll": "15px",
+                        "cornerRadius": "12px",
+                        "alignItems": "center"
                     },
+                    
+                    # Error message
                     {
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
                             {
                                 "type": "text",
-                                "text": "💡 คำแนะนำ:",
-                                "size": "sm",
+                                "text": error_message,
+                                "color": "#666666",
+                                "size": "md",
+                                "wrap": True
+                            }
+                        ],
+                        "margin": "lg",
+                        "paddingAll": "12px",
+                        "backgroundColor": "#FFF3E0",
+                        "cornerRadius": "8px"
+                    },
+                    
+                    # Suggestions
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "💡 คำแนะนำ",
                                 "color": "#111111",
-                                "weight": "bold",
-                                "margin": "md"
+                                "size": "sm",
+                                "weight": "bold"
                             },
                             {
                                 "type": "text",
                                 "text": "• ตรวจสอบให้แน่ใจว่าสลิปชัดเจน\n• ตรวจสอบว่าเป็นสลิปจริง\n• ลองถ่ายรูปใหม่หากไม่ชัด",
-                                "size": "xs",
                                 "color": "#666666",
+                                "size": "xs",
                                 "wrap": True,
                                 "margin": "sm"
                             }
                         ],
                         "margin": "lg",
-                        "backgroundColor": "#FFF3E0",
-                        "cornerRadius": "8px",
-                        "paddingAll": "10px"
+                        "paddingAll": "12px",
+                        "backgroundColor": "#FAFAFA",
+                        "cornerRadius": "8px"
+                    },
+                    
+                    # Footer timestamp
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": f"ตรวจสอบเมื่อ {verification_time} น.",
+                                "color": "#999999",
+                                "size": "xs",
+                                "align": "center"
+                            }
+                        ],
+                        "margin": "lg",
+                        "paddingTop": "8px",
+                        "borderWidth": "1px",
+                        "borderColor": "#EEEEEE"
                     }
                 ],
                 "paddingAll": "20px"
@@ -305,12 +566,34 @@ def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
     status = result.get("status")
     data = result.get("data", {})
     
+    # เวลาปัจจุบัน
+    thai_tz = pytz.timezone('Asia/Bangkok')
+    current_time = datetime.now(thai_tz)
+    verification_time = current_time.strftime("%d/%m/%Y %H:%M:%S")
+    
     if status == "success":
-        message = f"✅ สลิปถูกต้อง\n\n💰 จำนวน: ฿{data.get('amount', 'N/A')}\n📅 วันที่: {data.get('date', 'N/A')}"
+        message = f"""✅ สลิปถูกต้อง
+
+💰 จำนวน: ฿{data.get('amount', 'N/A')}
+📅 วันที่: {data.get('date', 'N/A')}
+🔢 เลขอ้างอิง: {data.get('reference', 'N/A')}
+👤 ผู้โอน: {data.get('sender', 'N/A')}
+🎯 ผู้รับ: {data.get('receiver_name', 'N/A')}
+
+ตรวจสอบเมื่อ {verification_time} น."""
     elif status == "duplicate":
-        message = "🔄 สลิปนี้เคยถูกใช้แล้ว"
+        message = f"""🔄 สลิปนี้เคยถูกใช้แล้ว
+
+💰 จำนวน: ฿{data.get('amount', 'N/A')}
+🔢 เลขอ้างอิง: {data.get('reference', 'N/A')}
+
+ตรวจสอบเมื่อ {verification_time} น."""
     else:
-        message = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\n{result.get('message', '')}"
+        message = f"""❌ ไม่สามารถตรวจสอบสลิปได้
+
+{result.get('message', '')}
+
+ตรวจสอบเมื่อ {verification_time} น."""
     
     return {
         "type": "text",
