@@ -717,83 +717,29 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
     """จัดการตรวจสอบสลิป - ส่ง Flex Message"""
     try:
-        # Import slip formatter
-        from services.slip_formatter import create_slip_flex_message, create_error_flex_message
-        
         # ตรวจสอบระบบ
         slip_enabled = config_manager.get("slip_enabled", False)
         if not slip_enabled:
             logger.info(f"🚫 Slip system disabled for {user_id[:10]}")
-            error_msg = create_error_flex_message("ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน")
-            await send_line_reply_with_flex(reply_token, [error_msg])
+            await send_line_reply(reply_token, "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน")
             return
         
         # ตรวจสอบ API
         thunder_enabled = config_manager.get("thunder_enabled", True)
         thunder_token = config_manager.get("thunder_api_token", "").strip()
-        kbank_enabled = config_manager.get("kbank_enabled", False)
-        kbank_configured = bool(config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"))
         
-        if not thunder_enabled and not kbank_enabled:
+        if not thunder_enabled:
             logger.warning(f"⚠️ No slip API enabled for {user_id[:10]}")
-            error_msg = create_error_flex_message("ระบบตรวจสอบสลิปถูกปิดใช้งาน")
-            await send_line_reply_with_flex(reply_token, [error_msg])
+            await send_line_reply(reply_token, "ระบบตรวจสอบสลิปถูกปิดใช้งาน")
             return
             
-        if not thunder_token and not kbank_configured:
+        if not thunder_token:
             logger.error(f"❌ Slip API not configured for {user_id[:10]}")
-            error_msg = create_error_flex_message("ระบบยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแล")
-            await send_line_reply_with_flex(reply_token, [error_msg])
+            await send_line_reply(reply_token, "ระบบยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแล")
             return
 
-        # แจ้งผู้ใช้ว่ากำลังตรวจสอบด้วย Flex Message สวยๆ
-        processing_msg = {
-            "type": "flex",
-            "altText": "กำลังตรวจสอบสลิป...",
-            "contents": {
-                "type": "bubble",
-                "size": "kilo",
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "image",
-                                    "url": "https://media.tenor.com/wpSo-8CrXqUAAAAi/loading-loading-forever.gif",
-                                    "size": "40px",
-                                    "aspectRatio": "1:1",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "text",
-                                    "text": "กำลังตรวจสอบสลิป",
-                                    "size": "lg",
-                                    "weight": "bold",
-                                    "color": "#1DB446",
-                                    "margin": "md",
-                                    "flex": 1
-                                }
-                            ],
-                            "alignItems": "center"
-                        },
-                        {
-                            "type": "text",
-                            "text": "กรุณารอสักครู่...",
-                            "size": "sm",
-                            "color": "#999999",
-                            "margin": "md"
-                        }
-                    ],
-                    "paddingAll": "20px"
-                }
-            }
-        }
-        
-        await send_line_reply_with_flex(reply_token, [processing_msg])
+        # แจ้งผู้ใช้ว่ากำลังตรวจสอบ (ใช้ text message ธรรมดา)
+        await send_line_reply(reply_token, "🔍 กำลังตรวจสอบสลิป กรุณารอสักครู่...")
         
         logger.info(f"🔍 Starting slip verification for {user_id[:10]}")
 
@@ -821,56 +767,63 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 logger.info(f"📝 Slip verification by image for {user_id[:10]}")
             else:
                 logger.error(f"❌ No slip data for {user_id[:10]}")
-                error_msg = create_error_flex_message("ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน")
-                await send_line_push_with_flex(user_id, [error_msg])
+                await send_line_push(user_id, "ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน")
                 return
                 
         except asyncio.TimeoutError:
             logger.error(f"⏱️ Slip verification timeout for {user_id[:10]}")
-            error_msg = create_error_flex_message("การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่")
-            await send_line_push_with_flex(user_id, [error_msg])
+            await send_line_push(user_id, "การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่")
             return
         except Exception as e:
             logger.error(f"❌ Slip verification error for {user_id[:10]}: {e}")
-            error_msg = create_error_flex_message(f"เกิดข้อผิดพลาดในการตรวจสอบสลิป")
-            await send_line_push_with_flex(user_id, [error_msg])
+            await send_line_push(user_id, f"เกิดข้อผิดพลาดในการตรวจสอบสลิป")
             return
         
-        # ประมวลผลผลลัพธ์และส่ง Flex Message
+        # ประมวลผลผลลัพธ์และส่งเป็น Text Message ก่อน (เพื่อความปลอดภัย)
         if result and result.get("status") in ["success", "duplicate"]:
-            flex_message = create_slip_flex_message(result)
-            push_success = await send_line_push_with_flex(user_id, [flex_message])
+            # Import slip formatter
+            from services.slip_formatter import create_slip_flex_message, create_simple_text_message
+            
+            # ลองส่ง Flex Message ก่อน
+            try:
+                flex_message = create_slip_flex_message(result)
+                push_success = await send_line_push_with_flex(user_id, [flex_message])
+                
+                if not push_success:
+                    # ถ้าส่ง Flex ไม่ได้ ให้ส่งเป็น Text Message แทน
+                    text_message = create_simple_text_message(result)
+                    push_success = await send_line_push(user_id, text_message.get("text", ""))
+                    
+            except Exception as e:
+                logger.error(f"❌ Error sending flex, falling back to text: {e}")
+                # Fallback to text message
+                text_message = create_simple_text_message(result)
+                push_success = await send_line_push(user_id, text_message.get("text", ""))
             
             if push_success:
                 logger.info(f"✅ Slip result sent to {user_id[:10]}")
                 # บันทึกผลลัพธ์
                 try:
                     if 'save_chat_history' in database_functions:
-                        # บันทึกเป็น text version สำหรับประวัติ
                         text_version = f"สลิปจำนวน {result.get('data', {}).get('amount', 'N/A')} บาท - {result.get('status')}"
                         await database_functions['save_chat_history'](
                             user_id, "out", 
-                            {"type": "flex", "altText": text_version, "contents": flex_message}, 
+                            {"type": "text", "text": text_version}, 
                             sender="slip_bot"
                         )
-                        # บันทึกข้อมูลสลิป
-                        if 'save_slip_data' in database_functions:
-                            await database_functions['save_slip_data'](user_id, result)
                 except Exception as e:
                     logger.error(f"❌ Failed to save slip result: {e}")
             else:
                 logger.error(f"❌ Failed to send slip result to {user_id[:10]}")
         else:
             error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
-            flex_error = create_error_flex_message(error_msg)
-            await send_line_push_with_flex(user_id, [flex_error])
+            await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n\n{error_msg}")
             logger.warning(f"⚠️ Slip verification failed for {user_id[:10]}: {error_msg}")
         
     except Exception as e:
         logger.error(f"❌ Critical slip verification error for {user_id[:10]}: {e}")
         logger.exception(e)
-        error_msg = create_error_flex_message("เกิดข้อผิดพลาดในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล")
-        await send_line_push_with_flex(user_id, [error_msg])
+        await send_line_push(user_id, "เกิดข้อผิดพลาดในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล")
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
     """Process LINE event - บันทึกข้อมูลแบบเงียบ"""
