@@ -7,7 +7,7 @@ import pytz
 logger = logging.getLogger("slip_formatter")
 
 def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง Flex Message สำหรับแสดงผลสลิปแบบสวยงาม"""
+    """สร้าง Flex Message สำหรับแสดงผลสลิปแบบการ์ดสวยงาม"""
     try:
         status = result.get("status")
         data = result.get("data", {})
@@ -19,7 +19,7 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         amount = data.get("amount", "0")
         try:
             amount_float = float(amount)
-            amount_display = f"฿{amount_float:,.2f}"
+            amount_display = f"฿{amount_float:,.0f}"
         except:
             amount_display = f"฿{amount}"
             
@@ -30,7 +30,7 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         # แปลงเป็นเวลาไทย
         thai_tz = pytz.timezone('Asia/Bangkok')
         current_time = datetime.now(thai_tz)
-        verification_time = current_time.strftime("%d/%m/%Y %H:%M:%S")
+        verification_time = f"{current_time.strftime('%d ส.ค. %y, %H:%M')} น."
         
         trans_ref = data.get("reference", data.get("transRef", "N/A"))
         
@@ -47,384 +47,333 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
             data.get("receiver_name", data.get("receiver", "ไม่พบชื่อผู้รับ"))
         )
         
+        # ปิดบังข้อมูลส่วนตัว (แสดงเฉพาะบางส่วน)
+        if len(sender_name) > 10:
+            sender_display = f"{sender_name[:8]}..."
+        else:
+            sender_display = sender_name
+            
+        if len(receiver_name) > 10:
+            receiver_display = f"{receiver_name[:8]}..."
+        else:
+            receiver_display = receiver_name
+            
+        # ปิดบังเลขบัญชี
+        if len(trans_ref) > 10:
+            ref_display = f"xxx-x-x{trans_ref[-4:]}-x"
+        else:
+            ref_display = trans_ref
+        
         # ธนาคาร
         sender_bank = data.get("sender_bank_short", data.get("sender_bank", ""))
         receiver_bank = data.get("receiver_bank_short", data.get("receiver_bank", ""))
         
-        # กำหนดสีและสถานะตามผลการตรวจสอบ
+        # กำหนดสีและไอคอนตามสถานะ
         if status == "success":
-            header_color = "#06C755"  # สีเขียว LINE
-            header_text = "สลิปถูกต้อง"
-            header_icon = "https://i.imgur.com/QXhSKqq.png"  # ไอคอนถูกสีขาว
-            bottom_text = "ตรวจสอบสำเร็จ"
-            bottom_color = "#06C755"
+            header_gradient = "https://i.imgur.com/YourOrangeGradient.png"  # ใส่ URL รูป gradient สีส้ม
+            status_text = "สลิปถูกต้อง"
+            status_icon = "✅"
         elif status == "duplicate":
-            header_color = "#FFB833"  # สีส้ม
-            header_text = "สลิปซ้ำ"
-            header_icon = "https://i.imgur.com/VDuCpZD.png"  # ไอคอนเตือน
-            bottom_text = "สลิปนี้เคยใช้แล้ว"
-            bottom_color = "#FFB833"
+            header_gradient = "https://i.imgur.com/YourYellowGradient.png"  
+            status_text = "สลิปซ้ำ"
+            status_icon = "🔄"
         else:
-            header_color = "#FF4444"  # สีแดง
-            header_text = "ตรวจสอบไม่ผ่าน"
-            header_icon = "https://i.imgur.com/dwsOWfx.png"  # ไอคอนผิด
-            bottom_text = "ตรวจสอบไม่สำเร็จ"
-            bottom_color = "#FF4444"
+            header_gradient = "https://i.imgur.com/YourRedGradient.png"
+            status_text = "ตรวจสอบไม่ผ่าน"
+            status_icon = "❌"
         
-        # สร้าง Flex Message แบบสวยงาม
+        # สร้าง Flex Message แบบการ์ดสวยงาม
         flex_message = {
             "type": "flex",
             "altText": f"ผลการตรวจสอบสลิป: {amount_display}",
             "contents": {
                 "type": "bubble",
-                "size": "kilo",
+                "size": "mega",
                 "body": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        # Header with gradient background
+                        # Background Image Container
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "absolute",
                             "contents": [
+                                # Background gradient
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [],
+                                    "backgroundColor": "#FF6B35",
+                                    "background": {
+                                        "type": "linearGradient",
+                                        "angle": "135deg",
+                                        "startColor": "#FF6B35",
+                                        "endColor": "#F7931E"
+                                    },
+                                    "position": "absolute",
+                                    "width": "100%",
+                                    "height": "100%"
+                                },
+                                # Content Container
                                 {
                                     "type": "box",
                                     "layout": "vertical",
                                     "contents": [
+                                        # Header Section
                                         {
-                                            "type": "image",
-                                            "url": header_icon,
-                                            "size": "25px",
-                                            "aspectRatio": "1:1"
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "contents": [
+                                                {
+                                                    "type": "box",
+                                                    "layout": "vertical",
+                                                    "contents": [
+                                                        {
+                                                            "type": "text",
+                                                            "text": status_icon,
+                                                            "size": "xl",
+                                                            "align": "center"
+                                                        }
+                                                    ],
+                                                    "width": "35px",
+                                                    "height": "35px",
+                                                    "backgroundColor": "#FFFFFF",
+                                                    "cornerRadius": "18px",
+                                                    "justifyContent": "center",
+                                                    "alignItems": "center"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": status_text,
+                                                    "size": "lg",
+                                                    "color": "#FFFFFF",
+                                                    "weight": "bold",
+                                                    "margin": "md"
+                                                },
+                                                {
+                                                    "type": "spacer"
+                                                },
+                                                # Decorative icon on right
+                                                {
+                                                    "type": "image",
+                                                    "url": "https://i.imgur.com/CnyParticle.png",  # รูปกราฟิกประดับ
+                                                    "size": "60px",
+                                                    "aspectRatio": "1:1",
+                                                    "position": "relative"
+                                                }
+                                            ],
+                                            "alignItems": "center",
+                                            "paddingAll": "20px"
+                                        },
+                                        
+                                        # White Card Section
+                                        {
+                                            "type": "box",
+                                            "layout": "vertical",
+                                            "contents": [
+                                                # Amount Display
+                                                {
+                                                    "type": "text",
+                                                    "text": amount_display,
+                                                    "size": "4xl",
+                                                    "weight": "bold",
+                                                    "color": "#1A237E",
+                                                    "align": "start",
+                                                    "margin": "none"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": verification_time,
+                                                    "size": "sm",
+                                                    "color": "#999999",
+                                                    "margin": "sm"
+                                                },
+                                                
+                                                # Divider
+                                                {
+                                                    "type": "separator",
+                                                    "margin": "lg"
+                                                },
+                                                
+                                                # Transaction Details Grid
+                                                {
+                                                    "type": "box",
+                                                    "layout": "vertical",
+                                                    "contents": [
+                                                        # Sender Row
+                                                        {
+                                                            "type": "box",
+                                                            "layout": "horizontal",
+                                                            "contents": [
+                                                                {
+                                                                    "type": "box",
+                                                                    "layout": "vertical",
+                                                                    "contents": [
+                                                                        {
+                                                                            "type": "image",
+                                                                            "url": "https://img.icons8.com/fluency/48/user-male-circle.png",
+                                                                            "size": "35px",
+                                                                            "aspectRatio": "1:1"
+                                                                        }
+                                                                    ],
+                                                                    "width": "35px",
+                                                                    "height": "35px",
+                                                                    "backgroundColor": "#E8F5E9",
+                                                                    "cornerRadius": "18px",
+                                                                    "justifyContent": "center",
+                                                                    "alignItems": "center"
+                                                                },
+                                                                {
+                                                                    "type": "box",
+                                                                    "layout": "vertical",
+                                                                    "contents": [
+                                                                        {
+                                                                            "type": "text",
+                                                                            "text": "ผู้โอน",
+                                                                            "size": "xs",
+                                                                            "color": "#999999"
+                                                                        },
+                                                                        {
+                                                                            "type": "text",
+                                                                            "text": sender_display,
+                                                                            "size": "sm",
+                                                                            "color": "#333333",
+                                                                            "weight": "bold"
+                                                                        }
+                                                                    ],
+                                                                    "margin": "md",
+                                                                    "flex": 1
+                                                                }
+                                                            ],
+                                                            "alignItems": "center"
+                                                        },
+                                                        
+                                                        # Receiver Row
+                                                        {
+                                                            "type": "box",
+                                                            "layout": "horizontal",
+                                                            "contents": [
+                                                                {
+                                                                    "type": "box",
+                                                                    "layout": "vertical",
+                                                                    "contents": [
+                                                                        {
+                                                                            "type": "image",
+                                                                            "url": "https://img.icons8.com/fluency/48/money-bag.png",
+                                                                            "size": "35px",
+                                                                            "aspectRatio": "1:1"
+                                                                        }
+                                                                    ],
+                                                                    "width": "35px",
+                                                                    "height": "35px",
+                                                                    "backgroundColor": "#FFE0E0",
+                                                                    "cornerRadius": "18px",
+                                                                    "justifyContent": "center",
+                                                                    "alignItems": "center"
+                                                                },
+                                                                {
+                                                                    "type": "box",
+                                                                    "layout": "vertical",
+                                                                    "contents": [
+                                                                        {
+                                                                            "type": "text",
+                                                                            "text": "ผู้รับ",
+                                                                            "size": "xs",
+                                                                            "color": "#999999"
+                                                                        },
+                                                                        {
+                                                                            "type": "text",
+                                                                            "text": receiver_display,
+                                                                            "size": "sm",
+                                                                            "color": "#333333",
+                                                                            "weight": "bold"
+                                                                        },
+                                                                        {
+                                                                            "type": "text",
+                                                                            "text": ref_display,
+                                                                            "size": "xs",
+                                                                            "color": "#999999"
+                                                                        }
+                                                                    ],
+                                                                    "margin": "md",
+                                                                    "flex": 1
+                                                                }
+                                                            ],
+                                                            "alignItems": "center",
+                                                            "margin": "lg"
+                                                        }
+                                                    ],
+                                                    "margin": "lg"
+                                                },
+                                                
+                                                # Footer with QR Code and Logo
+                                                {
+                                                    "type": "box",
+                                                    "layout": "horizontal",
+                                                    "contents": [
+                                                        {
+                                                            "type": "box",
+                                                            "layout": "vertical",
+                                                            "contents": [
+                                                                {
+                                                                    "type": "image",
+                                                                    "url": "https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=THUNDER",
+                                                                    "size": "50px",
+                                                                    "aspectRatio": "1:1"
+                                                                },
+                                                                {
+                                                                    "type": "text",
+                                                                    "text": "THUNDER",
+                                                                    "size": "xxs",
+                                                                    "color": "#666666",
+                                                                    "align": "center",
+                                                                    "margin": "xs"
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "spacer"
+                                                        },
+                                                        {
+                                                            "type": "text",
+                                                            "text": "รับทรัพย์ รับโชค เงินทองมาเต็ม!",
+                                                            "size": "xs",
+                                                            "color": "#999999",
+                                                            "align": "center",
+                                                            "wrap": True
+                                                        },
+                                                        {
+                                                            "type": "spacer"
+                                                        },
+                                                        {
+                                                            "type": "image",
+                                                            "url": "https://i.imgur.com/MoneyBagIcon.png",  # ไอคอนถุงเงิน
+                                                            "size": "50px",
+                                                            "aspectRatio": "1:1"
+                                                        }
+                                                    ],
+                                                    "margin": "xl",
+                                                    "paddingTop": "md",
+                                                    "borderWidth": "1px",
+                                                    "borderColor": "#EEEEEE",
+                                                    "alignItems": "center"
+                                                }
+                                            ],
+                                            "backgroundColor": "#FFFFFF",
+                                            "cornerRadius": "20px",
+                                            "paddingAll": "20px",
+                                            "margin": "none"
                                         }
                                     ],
-                                    "width": "25px",
-                                    "height": "25px",
-                                    "backgroundColor": "#FFFFFF",
-                                    "cornerRadius": "13px",
-                                    "justifyContent": "center",
-                                    "alignItems": "center"
-                                },
-                                {
-                                    "type": "text",
-                                    "text": header_text,
-                                    "size": "lg",
-                                    "color": "#FFFFFF",
-                                    "weight": "bold",
-                                    "margin": "md"
+                                    "paddingBottom": "20px",
+                                    "paddingStart": "20px",
+                                    "paddingEnd": "20px"
                                 }
-                            ],
-                            "backgroundColor": header_color,
-                            "paddingAll": "15px",
-                            "cornerRadius": "12px",
-                            "alignItems": "center"
-                        },
-                        
-                        # Amount section
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": amount_display,
-                                    "size": "3xl",
-                                    "weight": "bold",
-                                    "color": "#06C755",
-                                    "align": "center"
-                                }
-                            ],
-                            "backgroundColor": "#E8F5E9",
-                            "cornerRadius": "8px",
-                            "paddingAll": "12px",
-                            "margin": "md"
-                        },
-                        
-                        # Transaction details
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                # Date row
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "box",
-                                            "layout": "horizontal",
-                                            "contents": [
-                                                {
-                                                    "type": "text",
-                                                    "text": "📅",
-                                                    "flex": 0,
-                                                    "size": "sm"
-                                                },
-                                                {
-                                                    "type": "text",
-                                                    "text": "วันที่",
-                                                    "color": "#666666",
-                                                    "size": "sm",
-                                                    "margin": "sm"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{date} {time_str}".strip(),
-                                            "color": "#111111",
-                                            "size": "sm",
-                                            "align": "end",
-                                            "weight": "regular"
-                                        }
-                                    ]
-                                },
-                                
-                                # Reference row
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "box",
-                                            "layout": "horizontal",
-                                            "contents": [
-                                                {
-                                                    "type": "text",
-                                                    "text": "🔢",
-                                                    "flex": 0,
-                                                    "size": "sm"
-                                                },
-                                                {
-                                                    "type": "text",
-                                                    "text": "เลขอ้างอิง",
-                                                    "color": "#666666",
-                                                    "size": "sm",
-                                                    "margin": "sm"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": trans_ref,
-                                            "color": "#111111",
-                                            "size": "sm",
-                                            "align": "end",
-                                            "weight": "regular",
-                                            "wrap": True
-                                        }
-                                    ],
-                                    "margin": "md"
-                                },
-                                
-                                # Separator
-                                {
-                                    "type": "separator",
-                                    "margin": "lg"
-                                },
-                                
-                                # Sender info
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "box",
-                                            "layout": "horizontal",
-                                            "contents": [
-                                                {
-                                                    "type": "text",
-                                                    "text": "👤",
-                                                    "flex": 0,
-                                                    "size": "sm"
-                                                },
-                                                {
-                                                    "type": "text",
-                                                    "text": "ผู้โอน",
-                                                    "color": "#666666",
-                                                    "size": "sm",
-                                                    "margin": "sm"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": sender_name,
-                                            "color": "#111111",
-                                            "size": "sm",
-                                            "align": "end",
-                                            "weight": "regular",
-                                            "wrap": True
-                                        }
-                                    ],
-                                    "margin": "lg"
-                                },
-                                
-                                # Sender bank
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "box",
-                                            "layout": "horizontal",
-                                            "contents": [
-                                                {
-                                                    "type": "text",
-                                                    "text": "🏦",
-                                                    "flex": 0,
-                                                    "size": "sm"
-                                                },
-                                                {
-                                                    "type": "text",
-                                                    "text": "ธนาคาร",
-                                                    "color": "#666666",
-                                                    "size": "sm",
-                                                    "margin": "sm"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"ธ.{sender_bank}" if sender_bank else "N/A",
-                                            "color": "#111111",
-                                            "size": "sm",
-                                            "align": "end",
-                                            "weight": "regular"
-                                        }
-                                    ],
-                                    "margin": "md"
-                                },
-                                
-                                # Separator
-                                {
-                                    "type": "separator",
-                                    "margin": "lg"
-                                },
-                                
-                                # Receiver info
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "box",
-                                            "layout": "horizontal",
-                                            "contents": [
-                                                {
-                                                    "type": "text",
-                                                    "text": "🎯",
-                                                    "flex": 0,
-                                                    "size": "sm"
-                                                },
-                                                {
-                                                    "type": "text",
-                                                    "text": "ผู้รับ",
-                                                    "color": "#666666",
-                                                    "size": "sm",
-                                                    "margin": "sm"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": receiver_name,
-                                            "color": "#111111",
-                                            "size": "sm",
-                                            "align": "end",
-                                            "weight": "regular",
-                                            "wrap": True
-                                        }
-                                    ],
-                                    "margin": "lg"
-                                },
-                                
-                                # Receiver bank
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "box",
-                                            "layout": "horizontal",
-                                            "contents": [
-                                                {
-                                                    "type": "text",
-                                                    "text": "🏦",
-                                                    "flex": 0,
-                                                    "size": "sm"
-                                                },
-                                                {
-                                                    "type": "text",
-                                                    "text": "ธนาคาร",
-                                                    "color": "#666666",
-                                                    "size": "sm",
-                                                    "margin": "sm"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"ธ.{receiver_bank}" if receiver_bank else "N/A",
-                                            "color": "#111111",
-                                            "size": "sm",
-                                            "align": "end",
-                                            "weight": "regular"
-                                        }
-                                    ],
-                                    "margin": "md"
-                                }
-                            ],
-                            "margin": "lg",
-                            "paddingAll": "12px",
-                            "backgroundColor": "#FAFAFA",
-                            "cornerRadius": "8px"
-                        },
-                        
-                        # Status section
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": "สถานะ:",
-                                    "color": "#666666",
-                                    "size": "sm",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "text",
-                                    "text": bottom_text,
-                                    "color": bottom_color,
-                                    "size": "sm",
-                                    "weight": "bold",
-                                    "align": "end"
-                                }
-                            ],
-                            "margin": "lg"
-                        },
-                        
-                        # Footer timestamp - แก้ไขให้แสดงเวลาจริง
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": f"ตรวจสอบเมื่อ {verification_time} น.",
-                                    "color": "#999999",
-                                    "size": "xs",
-                                    "align": "center"
-                                }
-                            ],
-                            "margin": "lg",
-                            "paddingTop": "8px",
-                            "borderWidth": "1px",
-                            "borderColor": "#EEEEEE"
+                            ]
                         }
                     ],
-                    "paddingAll": "20px"
+                    "paddingAll": "0px",
+                    "backgroundColor": "#FF6B35"
                 }
             }
         }
@@ -433,6 +382,7 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         
     except Exception as e:
         logger.error(f"❌ Error creating flex message: {e}")
+        logger.exception(e)
         return create_simple_text_message(result)
 
 def create_error_flex_message(error_message: str) -> Dict[str, Any]:
@@ -441,122 +391,147 @@ def create_error_flex_message(error_message: str) -> Dict[str, Any]:
     # เวลาปัจจุบัน
     thai_tz = pytz.timezone('Asia/Bangkok')
     current_time = datetime.now(thai_tz)
-    verification_time = current_time.strftime("%d/%m/%Y %H:%M:%S")
+    verification_time = f"{current_time.strftime('%d ส.ค. %y, %H:%M')} น."
     
     return {
         "type": "flex",
         "altText": "ไม่สามารถตรวจสอบสลิปได้",
         "contents": {
             "type": "bubble",
-            "size": "kilo",
+            "size": "mega",
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    # Error header
                     {
                         "type": "box",
-                        "layout": "horizontal",
+                        "layout": "absolute",
                         "contents": [
+                            # Red gradient background
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [],
+                                "backgroundColor": "#FF4444",
+                                "background": {
+                                    "type": "linearGradient",
+                                    "angle": "135deg",
+                                    "startColor": "#FF6B6B",
+                                    "endColor": "#FF4444"
+                                },
+                                "position": "absolute",
+                                "width": "100%",
+                                "height": "100%"
+                            },
+                            # Content
                             {
                                 "type": "box",
                                 "layout": "vertical",
                                 "contents": [
+                                    # Header
                                     {
-                                        "type": "text",
-                                        "text": "❌",
-                                        "size": "sm",
-                                        "align": "center"
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "box",
+                                                "layout": "vertical",
+                                                "contents": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "❌",
+                                                        "size": "xl",
+                                                        "align": "center"
+                                                    }
+                                                ],
+                                                "width": "35px",
+                                                "height": "35px",
+                                                "backgroundColor": "#FFFFFF",
+                                                "cornerRadius": "18px",
+                                                "justifyContent": "center",
+                                                "alignItems": "center"
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": "ไม่สามารถตรวจสอบสลิปได้",
+                                                "size": "lg",
+                                                "color": "#FFFFFF",
+                                                "weight": "bold",
+                                                "margin": "md"
+                                            }
+                                        ],
+                                        "alignItems": "center",
+                                        "paddingAll": "20px"
+                                    },
+                                    
+                                    # White Card
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "⚠️ เกิดข้อผิดพลาด",
+                                                "size": "lg",
+                                                "weight": "bold",
+                                                "color": "#FF4444"
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": error_message,
+                                                "size": "md",
+                                                "color": "#666666",
+                                                "wrap": True,
+                                                "margin": "md"
+                                            },
+                                            {
+                                                "type": "box",
+                                                "layout": "vertical",
+                                                "contents": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": "💡 คำแนะนำ",
+                                                        "size": "sm",
+                                                        "weight": "bold",
+                                                        "color": "#333333"
+                                                    },
+                                                    {
+                                                        "type": "text",
+                                                        "text": "• ตรวจสอบให้แน่ใจว่าสลิปชัดเจน\n• ตรวจสอบว่าเป็นสลิปจริง\n• ลองถ่ายรูปใหม่หากไม่ชัด",
+                                                        "size": "xs",
+                                                        "color": "#666666",
+                                                        "wrap": True,
+                                                        "margin": "sm"
+                                                    }
+                                                ],
+                                                "backgroundColor": "#FFF3E0",
+                                                "cornerRadius": "8px",
+                                                "paddingAll": "12px",
+                                                "margin": "lg"
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": verification_time,
+                                                "size": "xs",
+                                                "color": "#999999",
+                                                "align": "center",
+                                                "margin": "lg"
+                                            }
+                                        ],
+                                        "backgroundColor": "#FFFFFF",
+                                        "cornerRadius": "20px",
+                                        "paddingAll": "20px"
                                     }
                                 ],
-                                "width": "25px",
-                                "height": "25px",
-                                "backgroundColor": "#FFFFFF",
-                                "cornerRadius": "13px",
-                                "justifyContent": "center",
-                                "alignItems": "center"
-                            },
-                            {
-                                "type": "text",
-                                "text": "ไม่สามารถตรวจสอบสลิปได้",
-                                "size": "lg",
-                                "color": "#FFFFFF",
-                                "weight": "bold",
-                                "margin": "md"
+                                "paddingBottom": "20px",
+                                "paddingStart": "20px",
+                                "paddingEnd": "20px"
                             }
-                        ],
-                        "backgroundColor": "#FF4444",
-                        "paddingAll": "15px",
-                        "cornerRadius": "12px",
-                        "alignItems": "center"
-                    },
-                    
-                    # Error message
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": error_message,
-                                "color": "#666666",
-                                "size": "md",
-                                "wrap": True
-                            }
-                        ],
-                        "margin": "lg",
-                        "paddingAll": "12px",
-                        "backgroundColor": "#FFF3E0",
-                        "cornerRadius": "8px"
-                    },
-                    
-                    # Suggestions
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "💡 คำแนะนำ",
-                                "color": "#111111",
-                                "size": "sm",
-                                "weight": "bold"
-                            },
-                            {
-                                "type": "text",
-                                "text": "• ตรวจสอบให้แน่ใจว่าสลิปชัดเจน\n• ตรวจสอบว่าเป็นสลิปจริง\n• ลองถ่ายรูปใหม่หากไม่ชัด",
-                                "color": "#666666",
-                                "size": "xs",
-                                "wrap": True,
-                                "margin": "sm"
-                            }
-                        ],
-                        "margin": "lg",
-                        "paddingAll": "12px",
-                        "backgroundColor": "#FAFAFA",
-                        "cornerRadius": "8px"
-                    },
-                    
-                    # Footer timestamp
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": f"ตรวจสอบเมื่อ {verification_time} น.",
-                                "color": "#999999",
-                                "size": "xs",
-                                "align": "center"
-                            }
-                        ],
-                        "margin": "lg",
-                        "paddingTop": "8px",
-                        "borderWidth": "1px",
-                        "borderColor": "#EEEEEE"
+                        ]
                     }
                 ],
-                "paddingAll": "20px"
+                "paddingAll": "0px",
+                "backgroundColor": "#FF4444"
             }
         }
     }
