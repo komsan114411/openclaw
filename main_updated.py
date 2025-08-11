@@ -715,13 +715,17 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         logger.error(f"❌ AI chat error: {e}")
 
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
-    """จัดการตรวจสอบสลิป - บันทึกเงียบๆ"""
+    """จัดการตรวจสอบสลิป - ส่ง Flex Message"""
     try:
+        # Import slip formatter
+        from services.slip_formatter import create_slip_flex_message, create_error_flex_message
+        
         # ตรวจสอบระบบ
         slip_enabled = config_manager.get("slip_enabled", False)
         if not slip_enabled:
             logger.info(f"🚫 Slip system disabled for {user_id[:10]}")
-            await send_line_reply(reply_token, "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน")
+            error_msg = create_error_flex_message("ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน")
+            await send_line_reply_with_flex(reply_token, [error_msg])
             return
         
         # ตรวจสอบ API
@@ -732,17 +736,64 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
         
         if not thunder_enabled and not kbank_enabled:
             logger.warning(f"⚠️ No slip API enabled for {user_id[:10]}")
-            await send_line_reply(reply_token, "ระบบตรวจสอบสลิปถูกปิดใช้งาน")
+            error_msg = create_error_flex_message("ระบบตรวจสอบสลิปถูกปิดใช้งาน")
+            await send_line_reply_with_flex(reply_token, [error_msg])
             return
             
         if not thunder_token and not kbank_configured:
             logger.error(f"❌ Slip API not configured for {user_id[:10]}")
-            await send_line_reply(reply_token, "ระบบยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแล")
+            error_msg = create_error_flex_message("ระบบยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแล")
+            await send_line_reply_with_flex(reply_token, [error_msg])
             return
 
-        # แจ้งผู้ใช้ว่ากำลังตรวจสอบ
-        processing_msg = "🔍 กรุณารอสักครู่... ระบบกำลังตรวจสอบสลิป"
-        await send_line_reply(reply_token, processing_msg)
+        # แจ้งผู้ใช้ว่ากำลังตรวจสอบด้วย Flex Message สวยๆ
+        processing_msg = {
+            "type": "flex",
+            "altText": "กำลังตรวจสอบสลิป...",
+            "contents": {
+                "type": "bubble",
+                "size": "kilo",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                {
+                                    "type": "image",
+                                    "url": "https://media.tenor.com/wpSo-8CrXqUAAAAi/loading-loading-forever.gif",
+                                    "size": "40px",
+                                    "aspectRatio": "1:1",
+                                    "flex": 0
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "กำลังตรวจสอบสลิป",
+                                    "size": "lg",
+                                    "weight": "bold",
+                                    "color": "#1DB446",
+                                    "margin": "md",
+                                    "flex": 1
+                                }
+                            ],
+                            "alignItems": "center"
+                        },
+                        {
+                            "type": "text",
+                            "text": "กรุณารอสักครู่...",
+                            "size": "sm",
+                            "color": "#999999",
+                            "margin": "md"
+                        }
+                    ],
+                    "paddingAll": "20px"
+                }
+            }
+        }
+        
+        await send_line_reply_with_flex(reply_token, [processing_msg])
         
         logger.info(f"🔍 Starting slip verification for {user_id[:10]}")
 
@@ -770,35 +821,39 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 logger.info(f"📝 Slip verification by image for {user_id[:10]}")
             else:
                 logger.error(f"❌ No slip data for {user_id[:10]}")
-                await send_line_push(user_id, "❌ ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน")
+                error_msg = create_error_flex_message("ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน")
+                await send_line_push_with_flex(user_id, [error_msg])
                 return
                 
         except asyncio.TimeoutError:
             logger.error(f"⏱️ Slip verification timeout for {user_id[:10]}")
-            await send_line_push(user_id, "❌ การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่")
+            error_msg = create_error_flex_message("การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่")
+            await send_line_push_with_flex(user_id, [error_msg])
             return
         except Exception as e:
             logger.error(f"❌ Slip verification error for {user_id[:10]}: {e}")
-            logger.exception(e)
-            await send_line_push(user_id, f"❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป")
+            error_msg = create_error_flex_message(f"เกิดข้อผิดพลาดในการตรวจสอบสลิป")
+            await send_line_push_with_flex(user_id, [error_msg])
             return
         
-        # ประมวลผลผลลัพธ์
+        # ประมวลผลผลลัพธ์และส่ง Flex Message
         if result and result.get("status") in ["success", "duplicate"]:
-            reply_message = create_slip_reply_message(result)
-            push_success = await send_line_push(user_id, reply_message)
+            flex_message = create_slip_flex_message(result)
+            push_success = await send_line_push_with_flex(user_id, [flex_message])
             
             if push_success:
                 logger.info(f"✅ Slip result sent to {user_id[:10]}")
-                # บันทึกผลลัพธ์ (เงียบๆ)
+                # บันทึกผลลัพธ์
                 try:
                     if 'save_chat_history' in database_functions:
+                        # บันทึกเป็น text version สำหรับประวัติ
+                        text_version = f"สลิปจำนวน {result.get('data', {}).get('amount', 'N/A')} บาท - {result.get('status')}"
                         await database_functions['save_chat_history'](
                             user_id, "out", 
-                            {"type": "text", "text": reply_message}, 
+                            {"type": "flex", "altText": text_version, "contents": flex_message}, 
                             sender="slip_bot"
                         )
-                        # บันทึกข้อมูลสลิปด้วย
+                        # บันทึกข้อมูลสลิป
                         if 'save_slip_data' in database_functions:
                             await database_functions['save_slip_data'](user_id, result)
                 except Exception as e:
@@ -807,14 +862,15 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 logger.error(f"❌ Failed to send slip result to {user_id[:10]}")
         else:
             error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
-            full_error_msg = f"❌ ไม่สามารถตรวจสอบสลิปได้\n\nสาเหตุ: {error_msg}"
-            await send_line_push(user_id, full_error_msg)
+            flex_error = create_error_flex_message(error_msg)
+            await send_line_push_with_flex(user_id, [flex_error])
             logger.warning(f"⚠️ Slip verification failed for {user_id[:10]}: {error_msg}")
         
     except Exception as e:
         logger.error(f"❌ Critical slip verification error for {user_id[:10]}: {e}")
         logger.exception(e)
-        await send_line_push(user_id, "เกิดข้อผิดพลาดในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล")
+        error_msg = create_error_flex_message("เกิดข้อผิดพลาดในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล")
+        await send_line_push_with_flex(user_id, [error_msg])
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
     """Process LINE event - บันทึกข้อมูลแบบเงียบ"""
@@ -2670,6 +2726,132 @@ async def admin_send_message(request: Request):
     else:
         return JSONResponse({"status": "error", "message": "ส่งข้อความไม่สำเร็จ"}, status_code=500)
 
+
+
+# แก้ไขในไฟล์ main_updated.py - ฟังก์ชัน send_line_reply และ send_line_push
+
+async def send_line_reply_with_flex(reply_token: str, messages: list, max_retries: int = 2) -> bool:
+    """Send LINE reply with Flex Message support"""
+    if SHUTDOWN_INITIATED:
+        return False
+        
+    try:
+        access_token = config_manager.get("line_channel_access_token")
+        if not access_token:
+            logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
+            return False
+        
+        if not reply_token or len(reply_token.strip()) < 10:
+            logger.error("❌ Invalid reply token")
+            return False
+        
+        url = "https://api.line.me/v2/bot/message/reply"
+        headers = {
+            "Authorization": f"Bearer {access_token}", 
+            "Content-Type": "application/json",
+            "User-Agent": "LINE-OA-Middleware/2.0",
+        }
+        
+        # Ensure messages is a list
+        if not isinstance(messages, list):
+            messages = [messages]
+            
+        payload = {
+            "replyToken": reply_token, 
+            "messages": messages[:5]  # LINE allows max 5 messages
+        }
+        
+        timeout = httpx.Timeout(15.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"📤 Sending LINE reply with Flex (attempt {attempt + 1}/{max_retries})")
+                    response = await client.post(url, headers=headers, json=payload)
+                    
+                    if response.status_code == 200:
+                        logger.info("✅ LINE Flex reply sent successfully")
+                        return True
+                    elif response.status_code == 400:
+                        logger.error(f"❌ LINE Reply API 400: {response.text}")
+                        return False
+                    elif response.status_code >= 500 and attempt < max_retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+                    else:
+                        logger.error(f"❌ LINE Reply API {response.status_code}: {response.text}")
+                        return False
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ LINE Reply request error (attempt {attempt + 1}): {e}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"❌ send_line_reply_with_flex error: {e}")
+        return False
+
+async def send_line_push_with_flex(user_id: str, messages: list, max_retries: int = 2) -> bool:
+    """Send LINE push message with Flex Message support"""
+    if SHUTDOWN_INITIATED:
+        return False
+        
+    try:
+        access_token = config_manager.get("line_channel_access_token")
+        if not access_token:
+            logger.error("❌ LINE_CHANNEL_ACCESS_TOKEN is missing")
+            return False
+
+        if not user_id or user_id.strip() == "":
+            logger.error("❌ User ID is empty")
+            return False
+
+        url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "User-Agent": "LINE-OA-Middleware/2.0",
+        }
+        
+        # Ensure messages is a list
+        if not isinstance(messages, list):
+            messages = [messages]
+            
+        payload = {
+            "to": user_id,
+            "messages": messages[:5],  # LINE allows max 5 messages
+        }
+
+        timeout = httpx.Timeout(15.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"📤 Sending LINE push with Flex (attempt {attempt + 1}/{max_retries})")
+                    response = await client.post(url, headers=headers, json=payload)
+                    
+                    if response.status_code == 200:
+                        logger.info("✅ Push message with Flex sent successfully")
+                        return True
+                    elif response.status_code >= 500 and attempt < max_retries - 1:
+                        await asyncio.sleep(2)
+                        continue
+                    else:
+                        logger.error(f"❌ LINE Push API {response.status_code}: {response.text}")
+                        return False
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ LINE Push request error (attempt {attempt + 1}): {e}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)
+                        continue
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"❌ send_line_push_with_flex error: {e}")
+        return False
 
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
