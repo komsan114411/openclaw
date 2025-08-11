@@ -12,11 +12,7 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 import os
 from contextlib import asynccontextmanager
-from services.slip_formatter_beautiful import (
-    create_beautiful_slip_flex_message,
-    create_simple_text_message,
-    create_error_flex_message
-)
+
 
 
 # เพิ่มพาธปัจจุบันเข้าไปใน sys.path
