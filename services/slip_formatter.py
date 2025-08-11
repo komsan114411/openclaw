@@ -6,8 +6,28 @@ import pytz
 
 logger = logging.getLogger("slip_formatter")
 
+# เพิ่ม Dictionary สำหรับเก็บ URL โลโก้ธนาคาร (อัปเดตจากข้อมูลที่คุณให้)
+BANK_LOGOS = {
+    "ICBC": "https://www.hood11.com/uploads/ICBC.png",
+    "UOB": "https://www.hood11.com/uploads/UOB.png",
+    "ttb": "https://www.hood11.com/uploads/ttb.png",
+    "กรุงศรี": "https://www.hood11.com/uploads/กรุงศรี 2.png",
+    "กรุงเทพ": "https://www.hood11.com/uploads/กรุงเทพ.png",
+    "กรุงไทย": "https://www.hood11.com/uploads/กรุงไทย.png",
+    "กสิกร": "https://www.hood11.com/uploads/กสิกร.png",
+    "ทิสโก้": "https://www.hood11.com/uploads/ทิสโก้.png",
+    "ธกส": "https://www.hood11.com/uploads/ธนาคาร ธกส.png",
+    "ธนชาติ": "https://www.hood11.com/uploads/ธนาคาร ธนชาติ.png",
+    "ธนาคารอิสลาม": "https://www.hood11.com/uploads/ธนาคารอิสลาม.png",
+    "ธอส": "https://www.hood11.com/uploads/ธอส.png",
+    "ออมสิน": "https://www.hood11.com/uploads/ออมสิน.png",
+    "เกียรตินาคิน": "https://www.hood11.com/uploads/เกียรตินาคิน.png",
+    "แลนด์แลนด์เฮ้าท์": "https://www.hood11.com/uploads/แลนด์แลนด์เฮ้าท์ .png",
+    "ไทยพาณิชย์": "https://www.hood11.com/uploads/ไทยพาณิชย์ SCB.png"
+}
+
 def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง Flex Message สำหรับแสดงผลสลิปแบบการ์ดสวยงาม"""
+    """สร้าง Flex Message สำหรับแสดงผลสลิปแบบการ์ดสวยงามและครบถ้วนยิ่งขึ้น"""
     try:
         status = result.get("status")
         data = result.get("data", {})
@@ -19,13 +39,15 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         amount = data.get("amount", "0")
         try:
             amount_float = float(amount)
-            amount_display = f"฿{amount_float:,.0f}"
-        except:
+            amount_display = f"฿{amount_float:,.2f}" # เพิ่มทศนิยม 2 ตำแหน่ง
+        except (ValueError, TypeError):
             amount_display = f"฿{amount}"
-            
-        date = data.get("date", data.get("trans_date", ""))
-        time_str = data.get("time", data.get("trans_time", ""))
+        
+        date = data.get("date", data.get("trans_date", "N/A"))
+        time_str = data.get("time", data.get("trans_time", "N/A"))
         trans_ref = data.get("reference", data.get("transRef", "N/A"))
+        sender_bank = data.get("sender_bank", "ไม่ระบุ")
+        receiver_bank = data.get("receiver_bank", "ไม่ระบุ")
         
         sender_name = (
             data.get("sender_name_th") or 
@@ -39,100 +61,91 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
             data.get("receiver_name", data.get("receiver", "ไม่พบชื่อผู้รับ"))
         )
         
-        # สร้าง Simple Flex Message ที่ไม่ซับซ้อน
+        # ค้นหาโลโก้ธนาคารจาก Dictionary
+        sender_logo = BANK_LOGOS.get(sender_bank.replace("ธนาคาร", "").strip(), None)
+        receiver_logo = BANK_LOGOS.get(receiver_bank.replace("ธนาคาร", "").strip(), None)
+
+        # สร้าง Flex Message ที่ปรับปรุงดีไซน์
         flex_message = {
             "type": "flex",
             "altText": f"ผลการตรวจสอบสลิป: {amount_display}",
             "contents": {
                 "type": "bubble",
+                "styles": {
+                    "body": {
+                        "backgroundColor": "#F0F2F5"
+                    }
+                },
                 "body": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
                         # Header
                         {
-                            "type": "text",
-                            "text": "✅ สลิปถูกต้อง" if status == "success" else "🔄 สลิปซ้ำ",
-                            "weight": "bold",
-                            "size": "lg",
-                            "color": "#1DB446" if status == "success" else "#FF6B35"
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "สถานะการโอนเงิน",
+                                    "color": "#666666",
+                                    "size": "sm"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "✅ โอนสำเร็จ" if status == "success" else "🔄 สลิปซ้ำ",
+                                    "weight": "bold",
+                                    "size": "xl",
+                                    "color": "#1DB446" if status == "success" else "#FF6B35",
+                                    "margin": "sm"
+                                }
+                            ]
                         },
                         {
                             "type": "separator",
-                            "margin": "md"
-                        },
-                        # Amount
-                        {
-                            "type": "text",
-                            "text": amount_display,
-                            "weight": "bold",
-                            "size": "3xl",
                             "margin": "md",
-                            "color": "#111111"
+                            "color": "#DDDDDD"
                         },
-                        # Date Time
+                        # Sender & Receiver Info
                         {
-                            "type": "text",
-                            "text": f"📅 {date} {time_str}",
-                            "size": "sm",
-                            "color": "#555555",
-                            "margin": "sm"
-                        },
-                        # Reference
-                        {
-                            "type": "text",
-                            "text": f"🔢 อ้างอิง: {trans_ref}",
-                            "size": "sm",
-                            "color": "#555555",
-                            "margin": "sm"
+                            "type": "box",
+                            "layout": "vertical",
+                            "margin": "lg",
+                            "spacing": "sm",
+                            "contents": [
+                                # Sender
+                                create_info_box(
+                                    "ผู้โอน", 
+                                    sender_name, 
+                                    sender_bank, 
+                                    sender_logo
+                                ),
+                                # Receiver
+                                create_info_box(
+                                    "ผู้รับ", 
+                                    receiver_name, 
+                                    receiver_bank, 
+                                    receiver_logo
+                                )
+                            ]
                         },
                         {
                             "type": "separator",
-                            "margin": "md"
+                            "margin": "lg",
+                            "color": "#DDDDDD"
                         },
-                        # Sender
+                        # Transaction Details
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "vertical",
+                            "margin": "lg",
+                            "spacing": "sm",
                             "contents": [
-                                {
-                                    "type": "text",
-                                    "text": "ผู้โอน:",
-                                    "size": "sm",
-                                    "color": "#888888",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "text",
-                                    "text": sender_name,
-                                    "size": "sm",
-                                    "color": "#111111",
-                                    "align": "end"
-                                }
-                            ],
-                            "margin": "md"
-                        },
-                        # Receiver
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": "ผู้รับ:",
-                                    "size": "sm",
-                                    "color": "#888888",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "text",
-                                    "text": receiver_name,
-                                    "size": "sm",
-                                    "color": "#111111",
-                                    "align": "end"
-                                }
-                            ],
-                            "margin": "sm"
+                                create_detail_row("จำนวนเงิน", amount_display, color="#111111", weight="bold", size="xl"),
+                                create_detail_row("วันที่", date),
+                                create_detail_row("เวลา", time_str),
+                                create_detail_row("เลขที่อ้างอิง", trans_ref),
+                            ]
                         }
                     ]
                 }
@@ -145,7 +158,77 @@ def create_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
         logger.error(f"❌ Error creating flex message: {e}")
         return create_simple_text_message(result)
         
-        
+def create_info_box(label: str, name: str, bank: str, logo_url: str = None) -> Dict[str, Any]:
+    """สร้าง Box สำหรับแสดงข้อมูลผู้โอน/ผู้รับ"""
+    contents = [
+        {
+            "type": "text",
+            "text": label,
+            "color": "#666666",
+            "size": "xs",
+            "flex": 0
+        },
+        {
+            "type": "text",
+            "text": name,
+            "color": "#111111",
+            "size": "sm",
+            "weight": "bold",
+            "flex": 1,
+            "margin": "md"
+        }
+    ]
+    
+    if logo_url:
+        contents.insert(0, {
+            "type": "image",
+            "url": logo_url,
+            "size": "xxs",
+            "flex": 0,
+            "margin": "none"
+        })
+    
+    contents.append({
+        "type": "text",
+        "text": bank,
+        "color": "#666666",
+        "size": "xs",
+        "flex": 1,
+        "align": "end"
+    })
+
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": contents,
+        "spacing": "sm"
+    }
+
+def create_detail_row(label: str, value: str, **kwargs) -> Dict[str, Any]:
+    """สร้าง Box สำหรับแสดงรายละเอียดเป็นคู่ (label, value)"""
+    return {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": [
+            {
+                "type": "text",
+                "text": label,
+                "size": "sm",
+                "color": "#888888",
+                "flex": 0
+            },
+            {
+                "type": "text",
+                "text": value,
+                "size": "sm",
+                "color": "#111111",
+                "align": "end",
+                "flex": 1,
+                **kwargs
+            }
+        ]
+    }
+    
 def create_error_flex_message(error_message: str) -> Dict[str, Any]:
     """สร้าง Flex Message สำหรับแสดงข้อผิดพลาด - แบบเรียบง่าย"""
     return {
@@ -196,6 +279,7 @@ def create_error_flex_message(error_message: str) -> Dict[str, Any]:
             }
         }
     }
+
 def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
     """Fallback to simple text message"""
     status = result.get("status")
