@@ -1,4 +1,3 @@
-# services/slip_formatter.py
 import logging
 from typing import Dict, Any
 from datetime import datetime
@@ -6,67 +5,64 @@ import pytz
 
 logger = logging.getLogger("slip_formatter")
 
-# Updated Bank logos mapping with normalized filenames
+# Bank logos mapping
 BANK_LOGOS = {
     "002": "https://www.hood11.com/uploads/khungefl.png",  # BBL (กรุงเทพ)
     "004": "https://www.hood11.com/uploads/kikh.png",  # KBANK (กสิกร)
     "006": "https://www.hood11.com/uploads/khungaifs.png",  # KTB (กรุงไทย)
     "011": "https://www.hood11.com/uploads/ttb.png",  # TMB/TTB
-    "014": "https://www.hood11.com/uploads/aifslanichsscb.png",  # SCB (ไทยพาณิชย์ SCB)
-    "025": "https://www.hood11.com/uploads/khunghhi2.png",  # BAY (กรุงศรี 2)
+    "014": "https://www.hood11.com/uploads/aifslanichsscb.png",  # SCB (ไทยพาณิชย์)
+    "025": "https://www.hood11.com/uploads/khunghhi2.png",  # BAY (กรุงศรี)
     "030": "https://www.hood11.com/uploads/sif.png",  # GSB (ออมสิน)
-    "034": "https://www.hood11.com/uploads/phfakhahphk.png",  # BAAC (ธนาคาร ธกส)
+    "034": "https://www.hood11.com/uploads/phfakhahphk.png",  # BAAC (ธกส.)
     "069": "https://www.hood11.com/uploads/ekishpifakhif.png",  # KKP (เกียรตินาคิน)
     "070": "https://www.hood11.com/uploads/icbc.png",  # ICBC
-    "071": "https://www.hood11.com/uploads/ph.png", # GHB (ธอส)
-    "073": "https://www.hood11.com/uploads/uob.png", # UOB
-    "074": "https://www.hood11.com/uploads/aelfbaelfbeaf.png", # LH Bank (แลนด์แอนด์เฮ้าส์)
-    "075": "https://www.hood11.com/uploads/fiok.png", # TISCO
-    "098": "https://www.hood11.com/uploads/phfakhahphfchapi.png", # Thanachart (ธนชาติ)
-    "099": "https://www.hood11.com/uploads/phfakhahilas.png" # Islamic Bank (ธนาคารอิสลาม)
+    "071": "https://www.hood11.com/uploads/uob.png", # UOB
+    "073": "https://www.hood11.com/uploads/phfakhahphfchapi.png", # ธนชาต (รวมเข้ากับ TTB แล้ว แต่ยังเก็บไว้เพื่อความสมบูรณ์)
+    "076": "https://www.hood11.com/uploads/fiok.png", # TISCO (ทิสโก้)
+    "080": "https://www.hood11.com/uploads/ph.png", # GHB (ธอส.)
+    "081": "https://www.hood11.com/uploads/aelfbaelfbeaf.png", # LH Bank (แลนด์แอนด์เฮ้าส์)
+    "084": "https://www.hood11.com/uploads/phfakhahilas.png", # Islamic Bank (ธนาคารอิสลาม)
 }
 
 def get_bank_logo(bank_code: str = None, bank_name: str = None) -> str:
     """Get bank logo URL from bank code or name"""
-    # Prefer bank code first
     if bank_code and bank_code in BANK_LOGOS:
         return BANK_LOGOS[bank_code]
     
-    # Fallback to name matching (more robust)
+    # Fallback to name matching
     if bank_name:
-        bank_name_lower = bank_name.lower()
-        if "ktb" in bank_name_lower or "กรุงไทย" in bank_name_lower:
+        bank_name_upper = bank_name.upper()
+        if "KTB" in bank_name_upper or "กรุงไทย" in bank_name:
             return BANK_LOGOS["006"]
-        elif "gsb" in bank_name_lower or "ออมสิน" in bank_name_lower:
+        elif "GSB" in bank_name_upper or "ออมสิน" in bank_name:
             return BANK_LOGOS["030"]
-        elif "kbank" in bank_name_lower or "กสิกร" in bank_name_lower:
+        elif "KBANK" in bank_name_upper or "กสิกร" in bank_name:
             return BANK_LOGOS["004"]
-        elif "scb" in bank_name_lower or "ไทยพาณิชย์" in bank_name_lower:
+        elif "SCB" in bank_name_upper or "ไทยพาณิชย์" in bank_name:
             return BANK_LOGOS["014"]
-        elif "bbl" in bank_name_lower or "กรุงเทพ" in bank_name_lower:
+        elif "BBL" in bank_name_upper or "กรุงเทพ" in bank_name:
             return BANK_LOGOS["002"]
-        elif "bay" in bank_name_lower or "กรุงศรี" in bank_name_lower:
+        elif "BAY" in bank_name_upper or "กรุงศรี" in bank_name:
             return BANK_LOGOS["025"]
-        elif "ttb" in bank_name_lower or "ทหารไทยธนชาต" in bank_name_lower:
+        elif "TMB" in bank_name_upper or "TTB" in bank_name or "ทีเอ็มบีธนชาต" in bank_name:
             return BANK_LOGOS["011"]
-        elif "tisco" in bank_name_lower or "ทิสโก้" in bank_name_lower:
-            return BANK_LOGOS["075"]
-        elif "ghb" in bank_name_lower or "ธอส" in bank_name_lower:
+        elif "UOB" in bank_name_upper or "ยูโอบี" in bank_name:
             return BANK_LOGOS["071"]
-        elif "kkp" in bank_name_lower or "เกียรตินาคิน" in bank_name_lower:
-            return BANK_LOGOS["069"]
-        elif "uob" in bank_name_lower:
-            return BANK_LOGOS["073"]
-        elif "lh bank" in bank_name_lower or "แลนด์" in bank_name_lower:
-            return BANK_LOGOS["074"]
-        elif "baac" in bank_name_lower or "ธกส" in bank_name_lower:
+        elif "GHB" in bank_name_upper or "ธอส" in bank_name:
+            return BANK_LOGOS["080"]
+        elif "TISCO" in bank_name_upper or "ทิสโก้" in bank_name:
+            return BANK_LOGOS["076"]
+        elif "BAAC" in bank_name_upper or "ธกส" in bank_name:
             return BANK_LOGOS["034"]
-        elif "isla" in bank_name_lower or "อิสลาม" in bank_name_lower:
-            return BANK_LOGOS["099"]
-        elif "icbc" in bank_name_lower:
-            return BANK_LOGOS["070"]
-        
-    # Default logo if no match is found
+        elif "KKP" in bank_name_upper or "เกียรตินาคิน" in bank_name:
+            return BANK_LOGOS["069"]
+        elif "LAND AND HOUSES" in bank_name_upper or "แลนด์แอนด์เฮ้าส์" in bank_name:
+            return BANK_LOGOS["081"]
+        elif "ISLAMIC" in bank_name_upper or "อิสลาม" in bank_name:
+            return BANK_LOGOS["084"]
+    
+    # Default logo
     return "https://www.hood11.com/uploads/logo.webp"
 
 def format_currency(amount: Any) -> str:
@@ -458,7 +454,7 @@ def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
         message = f"""✅ สลิปถูกต้อง ตรวจสอบสำเร็จ
 ━━━━━━━━━━━━━━━━━━━━
 💰 จำนวนเงิน: {amount}
-📅 วันที่: {data.get('date', 'N/A')} เวลา {data.get('time', '')}
+📅 วันที่: {data.get('date', 'N/A')} {data.get('time', '')}
 🔢 เลขอ้างอิง: {data.get('transRef', data.get('reference', 'N/A'))}
 
 👤 ผู้โอน: {data.get('sender', 'N/A')}
@@ -490,11 +486,6 @@ def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
 
 def create_error_flex_message(error_message: str) -> Dict[str, Any]:
     """สร้าง Error Flex Message แบบสวยงาม"""
-    # เวลาปัจจุบัน
-    thai_tz = pytz.timezone('Asia/Bangkok')
-    current_time = datetime.now(thai_tz)
-    verification_time = current_time.strftime("%d/%m/%Y %H:%M น.")
-
     return {
         "type": "flex",
         "altText": "❌ ไม่สามารถตรวจสอบสลิปได้",
@@ -585,21 +576,6 @@ def create_error_flex_message(error_message: str) -> Dict[str, Any]:
                         "margin": "lg"
                     }
                 ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": f"ตรวจสอบเมื่อ {verification_time}",
-                        "size": "xxs",
-                        "color": "#888888",
-                        "align": "center"
-                    }
-                ],
-                "backgroundColor": "#F8F9FA"
             }
         }
     }
-}
