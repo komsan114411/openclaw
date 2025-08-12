@@ -13,7 +13,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from services.slip_formatter import (
-    create_beautiful_slip_flex_message,
+    create_beautiful_slip_flex_message,  # ← ชื่อที่ถูกต้อง
     create_simple_text_message,
     create_error_flex_message
 )
