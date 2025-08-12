@@ -163,8 +163,8 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         date_th = format_thai_datetime(data.get("date", ""), data.get("time", ""))
         ref_no = data.get("transRef") or data.get("reference") or "-"
 
-        s_name = (data.get("sender_name_th") or data.get("sender_name_en") or "ไม่ระบุชื่อ")[:15] + "..."
-        r_name = (data.get("receiver_name_th") or data.get("receiver_name_en") or "ไม่ระบุชื่อ")[:15] + "..."
+        s_name = (data.get("sender_name_th") or data.get("sender_name_en") or "ไม่ระบุชื่อ")
+        r_name = (data.get("receiver_name_th") or data.get("receiver_name_en") or "ไม่ระบุชื่อ")
 
         s_acc = data.get("sender_account_number", "") or data.get("sender_account", "")
         r_acc = data.get("receiver_account_number", "") or data.get("receiver_account", "")
@@ -175,96 +175,101 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         r_code = data.get("receiver_bank_id", "")
         s_logo = get_bank_logo(s_code)
         r_logo = get_bank_logo(r_code)
-
+        
+        # Determine the header based on status
         if status == "success":
-            header_bg = "#FF715E"
             header_text = "สลิปถูกต้อง"
-            header_icon = "✅"
-            header_image = "https://www.hood11.com/uploads/kngok.png"
-            body_bg_image = "https://www.hood11.com/uploads/khkhkh.png"
-        else: # simplified for other statuses
-            header_bg = "#FF715E"
+            header_bg = "https://www.hood11.com/uploads/header_success.png"
+        else: # For duplicate or invalid status
             header_text = "ตรวจสอบไม่ผ่าน"
-            header_icon = "❌"
-            header_image = "https://www.hood11.com/uploads/kngok.png"
-            body_bg_image = "https://www.hood11.com/uploads/khkhkh.png"
+            header_bg = "https://www.hood11.com/uploads/header_error.png"
 
         return {
             "type": "flex",
-            "altText": f"{header_text} {amount_display}",
+            "altText": f"ผลการตรวจสอบสลิป: {header_text}",
             "contents": {
                 "type": "bubble",
-                "size": "kilo",
-                "styles": {
-                    "header": {"backgroundColor": header_bg, "separator": True},
-                    "body": {"backgroundColor": "#FFFFFF"}
-                },
-                "header": {
+                "size": "giga",  # Use giga size to allow for more content
+                "body": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
+                        # Header with background image
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "vertical",
                             "contents": [
                                 {
                                     "type": "box",
                                     "layout": "horizontal",
                                     "contents": [
-                                        {"type": "text", "text": header_icon, "size": "xl", "color": "#FFFFFF", "flex": 0},
-                                        {"type": "text", "text": header_text, "size": "md", "weight": "bold", "color": "#FFFFFF", "margin": "sm", "flex": 0}
+                                        {"type": "text", "text": "✅", "size": "xl", "color": "#FFFFFF", "flex": 0},
+                                        {"type": "text", "text": header_text, "size": "md", "weight": "bold", "color": "#FFFFFF", "margin": "sm", "flex": 1}
                                     ],
                                     "alignItems": "center"
-                                },
-                                {"type": "image", "url": header_image, "size": "xl", "aspectMode": "cover", "position": "absolute", "offsetEnd": "0px", "offsetBottom": "0px", "flex": 0, "align": "end", "gravity": "top"}
+                                }
                             ],
+                            "paddingAll": "12px",
+                            "background": {
+                                "type": "image",
+                                "url": header_bg,
+                                "size": "full",
+                                "aspectMode": "cover"
+                            },
+                            "cornerRadius": "10px",
+                            "position": "relative",
+                            "height": "60px"
+                        },
+                        # Main body content
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {"type": "text", "text": amount_display, "size": "3xl", "weight": "bold", "margin": "md"},
+                                {"type": "text", "text": date_th, "size": "sm", "color": "#666666", "margin": "xs"},
+                                {"type": "separator", "margin": "lg", "color": "#E5E5E5"},
+                                
+                                # Sender details
+                                {"type": "box", "layout": "horizontal", "contents": [
+                                    {"type": "image", "url": s_logo, "size": "36px", "aspectRatio": "1:1", "flex": 0},
+                                    {"type": "box", "layout": "vertical", "contents": [
+                                        {"type": "text", "text": "ผู้โอน", "size": "xs", "color": "#999999"},
+                                        {"type": "text", "text": s_name, "size": "sm", "weight": "bold", "wrap": True, "color": "#333333"},
+                                        {"type": "text", "text": s_acc_mask, "size": "xs", "color": "#999999", "wrap": True}
+                                    ], "margin": "sm", "spacing": "xs"}
+                                ], "margin": "lg"},
+
+                                # Receiver details
+                                {"type": "box", "layout": "horizontal", "contents": [
+                                    {"type": "image", "url": r_logo, "size": "36px", "aspectRatio": "1:1", "flex": 0},
+                                    {"type": "box", "layout": "vertical", "contents": [
+                                        {"type": "text", "text": "ผู้รับ", "size": "xs", "color": "#999999"},
+                                        {"type": "text", "text": r_name, "size": "sm", "weight": "bold", "wrap": True, "color": "#333333"},
+                                        {"type": "text", "text": r_acc_mask, "size": "xs", "color": "#999999", "wrap": True}
+                                    ], "margin": "sm", "spacing": "xs"}
+                                ], "margin": "md"},
+
+                                # Footer/reference and logo
+                                {"type": "box", "layout": "horizontal", "contents": [
+                                    {"type": "box", "layout": "vertical", "contents": [
+                                        {"type": "text", "text": "เลขอ้างอิง:", "size": "xs", "color": "#999999"},
+                                        {"type": "text", "text": ref_no, "size": "xs", "color": "#666666", "wrap": True}
+                                    ], "flex": 1, "margin": "md", "spacing": "xs"},
+                                    {"type": "image", "url": "https://www.hood11.com/uploads/logo.webp", "size": "42px", "aspectRatio": "1:1", "flex": 0, "align": "end"}
+                                ], "margin": "lg", "paddingAll": "10px", "backgroundColor": "#F8F8F8", "cornerRadius": "8px"}
+                            ],
+                            "margin": "lg"
                         }
                     ],
-                    "paddingAll": "12px"
-                },
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "box", "layout": "vertical", "contents": [], "background": {"type": "image", "url": body_bg_image, "size": "full", "aspectMode": "cover"}},
-                        {"type": "text", "text": amount_display, "size": "3xl", "weight": "bold", "margin": "sm"},
-                        {"type": "text", "text": date_th, "size": "sm", "color": "#666666", "margin": "xs"},
-                        {"type": "separator", "margin": "md"},
-                        
-                        {"type": "box", "layout": "horizontal", "contents": [
-                            {"type": "image", "url": s_logo, "size": "42px", "aspectRatio": "1:1", "flex": 0},
-                            {"type": "box", "layout": "vertical", "contents": [
-                                {"type": "text", "text": "ผู้โอน", "size": "sm", "color": "#666666"},
-                                {"type": "text", "text": s_name, "size": "sm", "weight": "bold", "wrap": True, "color": "#333333"},
-                                {"type": "text", "text": s_acc_mask, "size": "xs", "color": "#999999", "wrap": True}
-                            ], "margin": "md", "spacing": "xs"}
-                        ], "margin": "lg"},
-
-                        {"type": "box", "layout": "horizontal", "contents": [
-                            {"type": "image", "url": r_logo, "size": "42px", "aspectRatio": "1:1", "flex": 0},
-                            {"type": "box", "layout": "vertical", "contents": [
-                                {"type": "text", "text": "ผู้รับ", "size": "sm", "color": "#666666"},
-                                {"type": "text", "text": r_name, "size": "sm", "weight": "bold", "wrap": True, "color": "#333333"},
-                                {"type": "text", "text": r_acc_mask, "size": "xs", "color": "#999999", "wrap": True}
-                            ], "margin": "md", "spacing": "xs"}
-                        ], "margin": "md"},
-
-                        {"type": "separator", "margin": "md"},
-                        {"type": "box", "layout": "horizontal", "contents": [
-                            {"type": "text", "text": "เลขอ้างอิง", "size": "xs", "color": "#666666"},
-                            {"type": "text", "text": ref_no, "size": "xs", "align": "end", "wrap": True, "color": "#333333"}
-                        ], "margin": "md"}
-                    ],
-                    "paddingAll": "16px"
+                    "paddingAll": "10px"
                 }
             }
         }
     except Exception as e:
-        logging.error(f"❌ Error creating flex message: {e}", exc_info=True)
+        logger.error(f"❌ Error creating flex message: {e}", exc_info=True)
         return create_simple_text_message(result)
 
 def create_error_flex_message(error_message: str) -> Dict[str, Any]:
-    # Simplified error message to match the new style and size
     return {
         "type": "flex",
         "altText": "❌ ไม่สามารถตรวจสอบสลิปได้",
@@ -278,7 +283,7 @@ def create_error_flex_message(error_message: str) -> Dict[str, Any]:
                     {"type": "text", "text": "❌", "size": "xl", "flex": 0, "color": "#FFFFFF"},
                     {"type": "text", "text": "ไม่สามารถตรวจสอบสลิปได้", "weight": "bold", "size": "md", "color": "#FFFFFF", "margin": "md"}
                 ],
-                "backgroundColor": "#FF715E",
+                "backgroundColor": "#DC3545",
                 "paddingAll": "15px"
             },
             "body": {
