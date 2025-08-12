@@ -1,3 +1,4 @@
+# services/slip_formatter.py - ฉบับปรับปรุงใหม่
 import logging
 from typing import Dict, Any
 from datetime import datetime
@@ -5,201 +6,425 @@ import pytz
 
 logger = logging.getLogger("slip_formatter")
 
-# Bank logos mapping
+# =========================
+#  Brand & Asset Settings
+# =========================
+
+ASSETS = {
+    "LOGO_DEFAULT": "https://www.hood11.com/uploads/logo.webp",
+    "LOGO_FALLBACK": "https://www.hood11.com/uploads/logo.webp",
+    "THUNDER_LOGO": "https://www.hood11.com/uploads/logo.webp",
+}
+
+# โลโก้ธนาคาร - ครบทุกธนาคารหลัก
 BANK_LOGOS = {
-    "002": "https://www.hood11.com/uploads/khungefl.png",  # BBL (กรุงเทพ)
-    "004": "https://www.hood11.com/uploads/kikh.png",  # KBANK (กสิกร)
-    "006": "https://www.hood11.com/uploads/khungaifs.png",  # KTB (กรุงไทย)
-    "011": "https://www.hood11.com/uploads/ttb.png",  # TMB/TTB
-    "014": "https://www.hood11.com/uploads/aifslanichsscb.png",  # SCB (ไทยพาณิชย์)
-    "025": "https://www.hood11.com/uploads/khunghhi2.png",  # BAY (กรุงศรี)
-    "030": "https://www.hood11.com/uploads/sif.png",  # GSB (ออมสิน)
-    "034": "https://www.hood11.com/uploads/phfakhahphk.png",  # BAAC (ธกส.)
-    "069": "https://www.hood11.com/uploads/ekishpifakhif.png",  # KKP (เกียรตินาคิน)
-    "070": "https://www.hood11.com/uploads/icbc.png",  # ICBC
-    "071": "https://www.hood11.com/uploads/uob.png", # UOB
-    "073": "https://www.hood11.com/uploads/phfakhahphfchapi.png", # ธนชาต (รวมเข้ากับ TTB แล้ว แต่ยังเก็บไว้เพื่อความสมบูรณ์)
-    "076": "https://www.hood11.com/uploads/fiok.png", # TISCO (ทิสโก้)
-    "080": "https://www.hood11.com/uploads/ph.png", # GHB (ธอส.)
-    "081": "https://www.hood11.com/uploads/aelfbaelfbeaf.png", # LH Bank (แลนด์แอนด์เฮ้าส์)
-    "084": "https://www.hood11.com/uploads/phfakhahilas.png", # Islamic Bank (ธนาคารอิสลาม)
+    "002": "https://www.hood11.com/uploads/khungefl.png",          # BBL กรุงเทพ
+    "004": "https://www.hood11.com/uploads/kikh.png",               # KBANK กสิกร
+    "006": "https://www.hood11.com/uploads/khungaifs.png",          # KTB กรุงไทย
+    "011": "https://www.hood11.com/uploads/ttb.png",                # TTB (เดิม TMB)
+    "014": "https://www.hood11.com/uploads/aifslanichsscb.png",     # SCB ไทยพาณิชย์
+    "025": "https://www.hood11.com/uploads/khunghhi2.png",          # BAY กรุงศรี
+    "030": "https://www.hood11.com/uploads/sif.png",                # GSB ออมสิน
+    "034": "https://www.hood11.com/uploads/phfakhahphk.png",        # BAAC ธกส.
+    "069": "https://www.hood11.com/uploads/ekishpifakhif.png",      # KKP เกียรตินาคิน
+    "070": "https://www.hood11.com/uploads/icbc.png",               # ICBC
+    "071": "https://www.hood11.com/uploads/uob.png",                # UOB
+    "073": "https://www.hood11.com/uploads/phfakhahphfchapi.png",   # Thanachart
+    "076": "https://www.hood11.com/uploads/fiok.png",               # TISCO
+    "080": "https://www.hood11.com/uploads/ph.png",                 # GHB ธอส.
+    "081": "https://www.hood11.com/uploads/aelfbaelfbeaf.png",      # LH Bank
+    "084": "https://www.hood11.com/uploads/phfakhahilas.png",       # Islamic Bank
+}
+
+# ชื่อธนาคารภาษาไทยเต็ม
+BANK_NAMES_TH = {
+    "002": "ธนาคารกรุงเทพ",
+    "004": "ธนาคารกสิกรไทย", 
+    "006": "ธนาคารกรุงไทย",
+    "011": "ธนาคารทหารไทยธนชาต",
+    "014": "ธนาคารไทยพาณิชย์",
+    "025": "ธนาคารกรุงศรีอยุธยา",
+    "030": "ธนาคารออมสิน",
+    "034": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร",
+    "069": "ธนาคารเกียรตินาคินภัทร",
+    "070": "ธนาคารไอซีบีซี (ไทย)",
+    "071": "ธนาคารยูโอบี",
+    "073": "ธนาคารธนชาต",
+    "076": "ธนาคารทิสโก้",
+    "080": "ธนาคารอาคารสงเคราะห์",
+    "081": "ธนาคารแลนด์ แอนด์ เฮ้าส์",
+    "084": "ธนาคารอิสลามแห่งประเทศไทย"
 }
 
 def get_bank_logo(bank_code: str = None, bank_name: str = None) -> str:
-    """Get bank logo URL from bank code or name"""
+    """คืนค่า URL โลโก้ธนาคารจากรหัสหรือชื่อ"""
     if bank_code and bank_code in BANK_LOGOS:
         return BANK_LOGOS[bank_code]
     
-    # Fallback to name matching
     if bank_name:
-        bank_name_upper = bank_name.upper()
-        if "KTB" in bank_name_upper or "กรุงไทย" in bank_name:
-            return BANK_LOGOS["006"]
-        elif "GSB" in bank_name_upper or "ออมสิน" in bank_name:
-            return BANK_LOGOS["030"]
-        elif "KBANK" in bank_name_upper or "กสิกร" in bank_name:
-            return BANK_LOGOS["004"]
-        elif "SCB" in bank_name_upper or "ไทยพาณิชย์" in bank_name:
-            return BANK_LOGOS["014"]
-        elif "BBL" in bank_name_upper or "กรุงเทพ" in bank_name:
-            return BANK_LOGOS["002"]
-        elif "BAY" in bank_name_upper or "กรุงศรี" in bank_name:
-            return BANK_LOGOS["025"]
-        elif "TMB" in bank_name_upper or "TTB" in bank_name or "ทีเอ็มบีธนชาต" in bank_name:
-            return BANK_LOGOS["011"]
-        elif "UOB" in bank_name_upper or "ยูโอบี" in bank_name:
-            return BANK_LOGOS["071"]
-        elif "GHB" in bank_name_upper or "ธอส" in bank_name:
-            return BANK_LOGOS["080"]
-        elif "TISCO" in bank_name_upper or "ทิสโก้" in bank_name:
-            return BANK_LOGOS["076"]
-        elif "BAAC" in bank_name_upper or "ธกส" in bank_name:
-            return BANK_LOGOS["034"]
-        elif "KKP" in bank_name_upper or "เกียรตินาคิน" in bank_name:
-            return BANK_LOGOS["069"]
-        elif "LAND AND HOUSES" in bank_name_upper or "แลนด์แอนด์เฮ้าส์" in bank_name:
-            return BANK_LOGOS["081"]
-        elif "ISLAMIC" in bank_name_upper or "อิสลาม" in bank_name:
-            return BANK_LOGOS["084"]
+        name = bank_name.upper()
+        keymap = {
+            "KTB": "006", "กรุงไทย": "006",
+            "GSB": "030", "ออมสิน": "030",
+            "KBANK": "004", "กสิกร": "004",
+            "SCB": "014", "ไทยพาณิชย์": "014",
+            "BBL": "002", "กรุงเทพ": "002",
+            "BAY": "025", "กรุงศรี": "025",
+            "TTB": "011", "TMB": "011", "ธนชาต": "011",
+            "UOB": "071", "ยูโอบี": "071",
+            "GHB": "080", "ธอส": "080",
+            "TISCO": "076", "ทิสโก้": "076",
+            "BAAC": "034", "ธกส": "034",
+            "KKP": "069", "เกียรตินาคิน": "069",
+            "LH": "081", "แลนด์": "081",
+            "ISLAMIC": "084", "อิสลาม": "084",
+            "ICBC": "070"
+        }
+        
+        for key, code in keymap.items():
+            if key in name:
+                return BANK_LOGOS.get(code, ASSETS["LOGO_DEFAULT"])
     
-    # Default logo
-    return "https://www.hood11.com/uploads/logo.webp"
+    return ASSETS["LOGO_DEFAULT"]
+
+def get_bank_full_name(bank_code: str = None, bank_short: str = None) -> str:
+    """คืนค่าชื่อธนาคารภาษาไทยเต็ม"""
+    if bank_code and bank_code in BANK_NAMES_TH:
+        return BANK_NAMES_TH[bank_code]
+    
+    if bank_short:
+        short_map = {
+            "BBL": "ธนาคารกรุงเทพ",
+            "KBANK": "ธนาคารกสิกรไทย",
+            "KTB": "ธนาคารกรุงไทย",
+            "SCB": "ธนาคารไทยพาณิชย์",
+            "BAY": "ธนาคารกรุงศรีอยุธยา",
+            "TTB": "ธนาคารทหารไทยธนชาต",
+            "TMB": "ธนาคารทหารไทยธนชาต",
+            "GSB": "ธนาคารออมสิน",
+            "GHB": "ธนาคารอาคารสงเคราะห์"
+        }
+        return short_map.get(bank_short.upper(), bank_short)
+    
+    return "ธนาคาร"
 
 def format_currency(amount: Any) -> str:
-    """Format amount as Thai currency"""
+    """ฟอร์แมตราคาแบบไทย"""
     try:
         if isinstance(amount, (int, float)):
-            return f"฿{amount:,.2f}"
-        elif isinstance(amount, str):
-            amount_float = float(amount.replace(",", ""))
-            return f"฿{amount_float:,.2f}"
-        else:
-            return f"฿{amount}"
+            return f"฿{amount:,.0f}" if float(amount).is_integer() else f"฿{amount:,.2f}"
+        if isinstance(amount, str):
+            v = float(amount.replace(",", ""))
+            return f"฿{v:,.0f}" if v.is_integer() else f"฿{v:,.2f}"
     except:
-        return f"฿{amount}"
+        pass
+    return f"฿{amount}"
 
-def mask_account(account: str) -> str:
-    """Mask account number for privacy"""
-    if not account or len(account) < 7:
-        return account
-    return f"xxx-x-xx{account[-4:]}-x"
+def format_account_number(account: str) -> str:
+    """แสดงเลขบัญชีทั้งหมด (ไม่ปิดบัง)"""
+    if not account:
+        return ""
+    # แสดงเลขบัญชีเต็มตามที่ระบบส่งมา
+    return account
 
 def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
     """สร้าง Flex Message แบบสวยงามพร้อมโลโก้ธนาคาร"""
     try:
-        status = result.get("status")
-        data = result.get("data", {})
+        status = result.get("status", "error")
+        data = result.get("data", {}) or {}
         
-        if not data:
-            return create_error_flex_message(result.get("message", "ไม่สามารถดึงข้อมูลสลิปได้"))
-        
-        # ดึงข้อมูลจากผลลัพธ์
+        # ดึงข้อมูลหลัก
         amount = data.get("amount", "0")
         amount_display = format_currency(amount)
         
-        # วันที่และเวลา
         date = data.get("date", data.get("trans_date", ""))
         time_str = data.get("time", data.get("trans_time", ""))
         
-        # เวลาปัจจุบัน
+        # Format datetime
         thai_tz = pytz.timezone('Asia/Bangkok')
-        current_time = datetime.now(thai_tz)
-        verification_time = current_time.strftime("%d/%m/%Y %H:%M น.")
+        verification_time = datetime.now(thai_tz).strftime("%d/%m/%y, %H:%M น.")
         
-        # Reference
         trans_ref = data.get("transRef", data.get("reference", "N/A"))
         
-        # ชื่อผู้ส่งและผู้รับ
-        sender_name = (
-            data.get("sender_name_th") or 
-            data.get("sender_name_en") or 
-            data.get("sender", "ไม่ระบุชื่อ")
-        )
-        
-        receiver_name = (
-            data.get("receiver_name_th") or 
-            data.get("receiver_name_en") or 
-            data.get("receiver_name", data.get("receiver", "ไม่ระบุชื่อ"))
-        )
-        
-        # เลขบัญชี
-        sender_account = data.get("sender_account_number", "")
-        receiver_account = data.get("receiver_account_number", "")
-        
-        # ธนาคาร
+        # ข้อมูลผู้โอน
+        sender_name = data.get("sender_name_th") or data.get("sender_name_en") or data.get("sender", "ไม่ระบุชื่อ")
+        sender_acct = data.get("sender_account_number", "")
         sender_bank_code = data.get("sender_bank_id", "")
-        sender_bank_name = data.get("sender_bank_short", data.get("sender_bank", ""))
+        sender_bank_short = data.get("sender_bank_short", data.get("sender_bank", ""))
+        sender_logo = get_bank_logo(sender_bank_code, sender_bank_short)
+        sender_bank_name = get_bank_full_name(sender_bank_code, sender_bank_short)
+        
+        # ข้อมูลผู้รับ
+        receiver_name = data.get("receiver_name_th") or data.get("receiver_name_en") or data.get("receiver_name") or data.get("receiver", "ไม่ระบุชื่อ")
+        receiver_acct = data.get("receiver_account_number", "")
         receiver_bank_code = data.get("receiver_bank_id", "")
-        receiver_bank_name = data.get("receiver_bank_short", data.get("receiver_bank", ""))
+        receiver_bank_short = data.get("receiver_bank_short", data.get("receiver_bank", ""))
+        receiver_logo = get_bank_logo(receiver_bank_code, receiver_bank_short)
+        receiver_bank_name = get_bank_full_name(receiver_bank_code, receiver_bank_short)
         
-        # Get bank logos
-        sender_logo = get_bank_logo(sender_bank_code, sender_bank_name)
-        receiver_logo = get_bank_logo(receiver_bank_code, receiver_bank_name)
-        
-        # Fee (ถ้ามี)
-        fee = data.get("fee", 0)
-        
-        # กำหนดสีและข้อความตามสถานะ
+        # Header style ตาม status
         if status == "success":
-            header_color = "#00B900"
-            status_text = "สลิปถูกต้อง"
+            header_text = "✅ สลิปถูกต้อง"
+            header_color = "#22c55e"
+            header_bg = "#f0fdf4"
             status_icon = "✅"
-            header_bg = "#D4EDDA"
         elif status == "duplicate":
-            header_color = "#FFA500"
-            status_text = "สลิปซ้ำ"
+            header_text = "🔄 สลิปซ้ำ"
+            header_color = "#f59e0b"
+            header_bg = "#fef3c7"
             status_icon = "🔄"
-            header_bg = "#FFF3CD"
+            # นับจำนวนครั้งที่ส่งสลิปซ้ำ (ถ้ามีข้อมูล)
+            duplicate_count = data.get("duplicate_count", 2)
         else:
-            header_color = "#FF4444"
-            status_text = "ตรวจสอบไม่ผ่าน"
+            header_text = "❌ ตรวจสอบไม่ผ่าน"
+            header_color = "#ef4444"
+            header_bg = "#fef2f2"
             status_icon = "❌"
-            header_bg = "#F8D7DA"
         
-        # Flex Message
+        # สร้าง body contents
+        contents_body = [
+            # Amount section
+            {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": amount_display,
+                        "size": "3xl",
+                        "weight": "bold",
+                        "align": "center",
+                        "color": "#1f2937"
+                    },
+                    {
+                        "type": "text",
+                        "text": f"{date} {time_str}",
+                        "size": "sm",
+                        "align": "center",
+                        "color": "#6b7280",
+                        "margin": "xs"
+                    }
+                ],
+                "backgroundColor": "#ffffff",
+                "cornerRadius": "12px",
+                "paddingAll": "20px",
+                "borderWidth": "1px",
+                "borderColor": "#e5e7eb"
+            },
+            
+            {"type": "separator", "margin": "lg", "color": "#e5e7eb"},
+            
+            # ผู้โอน Section
+            {
+                "type": "text",
+                "text": "ผู้โอน",
+                "size": "sm",
+                "color": "#9ca3af",
+                "margin": "lg",
+                "weight": "bold"
+            },
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    # โลโก้ธนาคาร
+                    {
+                        "type": "image",
+                        "url": sender_logo,
+                        "size": "50px",
+                        "aspectRatio": "1:1",
+                        "flex": 0
+                    },
+                    # ข้อมูลผู้โอน
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": sender_name[:40],
+                                "size": "sm",
+                                "weight": "bold",
+                                "color": "#111827",
+                                "wrap": True
+                            },
+                            {
+                                "type": "text",
+                                "text": sender_bank_name,
+                                "size": "xs",
+                                "color": "#4b5563",
+                                "margin": "xxs"
+                            },
+                            {
+                                "type": "text",
+                                "text": f"บัญชี: {format_account_number(sender_acct)}" if sender_acct else "ไม่ระบุเลขบัญชี",
+                                "size": "xs",
+                                "color": "#6b7280",
+                                "margin": "xxs"
+                            }
+                        ],
+                        "margin": "md",
+                        "spacing": "xs",
+                        "flex": 1
+                    }
+                ],
+                "margin": "sm",
+                "paddingAll": "10px",
+                "backgroundColor": "#f9fafb",
+                "cornerRadius": "8px"
+            },
+            
+            # Arrow
+            {
+                "type": "text",
+                "text": "⬇️",
+                "align": "center",
+                "color": "#9ca3af",
+                "margin": "md",
+                "size": "lg"
+            },
+            
+            # ผู้รับ Section
+            {
+                "type": "text",
+                "text": "ผู้รับ",
+                "size": "sm",
+                "color": "#9ca3af",
+                "weight": "bold"
+            },
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    # โลโก้ธนาคาร
+                    {
+                        "type": "image",
+                        "url": receiver_logo,
+                        "size": "50px",
+                        "aspectRatio": "1:1",
+                        "flex": 0
+                    },
+                    # ข้อมูลผู้รับ
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": receiver_name[:40],
+                                "size": "sm",
+                                "weight": "bold",
+                                "color": "#111827",
+                                "wrap": True
+                            },
+                            {
+                                "type": "text",
+                                "text": receiver_bank_name,
+                                "size": "xs",
+                                "color": "#4b5563",
+                                "margin": "xxs"
+                            },
+                            {
+                                "type": "text",
+                                "text": f"บัญชี: {format_account_number(receiver_acct)}" if receiver_acct else "ไม่ระบุเลขบัญชี",
+                                "size": "xs",
+                                "color": "#6b7280",
+                                "margin": "xxs"
+                            }
+                        ],
+                        "margin": "md",
+                        "spacing": "xs",
+                        "flex": 1
+                    }
+                ],
+                "margin": "sm",
+                "paddingAll": "10px",
+                "backgroundColor": "#f9fafb",
+                "cornerRadius": "8px"
+            },
+            
+            {"type": "separator", "margin": "lg", "color": "#e5e7eb"},
+            
+            # Reference
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "เลขอ้างอิง",
+                        "size": "xs",
+                        "color": "#6b7280",
+                        "flex": 3
+                    },
+                    {
+                        "type": "text",
+                        "text": str(trans_ref),
+                        "size": "xs",
+                        "color": "#111827",
+                        "flex": 7,
+                        "wrap": True,
+                        "weight": "bold"
+                    }
+                ],
+                "margin": "md"
+            }
+        ]
+        
+        # เพิ่มข้อความแจ้งเตือนสำหรับสลิปซ้ำ
+        if status == "duplicate":
+            duplicate_count = data.get("duplicate_count", 2)
+            contents_body.append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": f"⚠️ สลิปนี้ถูกใช้แล้ว {duplicate_count} ครั้ง",
+                        "size": "sm",
+                        "weight": "bold",
+                        "align": "center",
+                        "color": "#dc2626"
+                    }
+                ],
+                "backgroundColor": "#fef2f2",
+                "cornerRadius": "8px",
+                "paddingAll": "12px",
+                "margin": "lg",
+                "borderWidth": "1px",
+                "borderColor": "#fca5a5"
+            })
+        
+        # สร้าง Flex Message
         flex_message = {
             "type": "flex",
-            "altText": f"{status_icon} {status_text} {amount_display}",
+            "altText": f"{status_icon} {header_text} {amount_display}",
             "contents": {
                 "type": "bubble",
                 "size": "mega",
                 "header": {
                     "type": "box",
-                    "layout": "horizontal",
+                    "layout": "vertical",
                     "contents": [
                         {
                             "type": "box",
-                            "layout": "vertical",
+                            "layout": "horizontal",
                             "contents": [
                                 {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": status_icon,
-                                            "size": "xl",
-                                            "flex": 0
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": status_text,
-                                            "size": "lg",
-                                            "weight": "bold",
-                                            "color": header_color,
-                                            "margin": "sm",
-                                            "gravity": "center"
-                                        }
-                                    ]
-                                },
-                                {
                                     "type": "text",
-                                    "text": f"ตรวจสอบโดย Thunder API",
-                                    "size": "xxs",
-                                    "color": "#888888",
-                                    "margin": "xs"
+                                    "text": header_text,
+                                    "size": "lg",
+                                    "weight": "bold",
+                                    "color": header_color
                                 }
                             ]
+                        },
+                        {
+                            "type": "text",
+                            "text": "ตรวจสอบโดย Thunder API",
+                            "size": "xxs",
+                            "color": "#6b7280",
+                            "margin": "xs"
                         }
                     ],
                     "backgroundColor": header_bg,
@@ -208,374 +433,115 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                 "body": {
                     "type": "box",
                     "layout": "vertical",
-                    "contents": [
-                        # จำนวนเงิน
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": amount_display,
-                                    "size": "3xl",
-                                    "weight": "bold",
-                                    "color": "#333333",
-                                    "align": "center"
-                                },
-                                {
-                                    "type": "text",
-                                    "text": f"{date} เวลา {time_str}",
-                                    "size": "sm",
-                                    "color": "#666666",
-                                    "align": "center",
-                                    "margin": "xs"
-                                }
-                            ],
-                            "backgroundColor": "#F8F9FA",
-                            "cornerRadius": "12px",
-                            "paddingAll": "15px"
-                        },
-                        
-                        # Separator
-                        {
-                            "type": "separator",
-                            "margin": "lg"
-                        },
-                        
-                        # ข้อมูลผู้โอน
-                        {
-                            "type": "text",
-                            "text": "ผู้โอน",
-                            "size": "sm",
-                            "color": "#888888",
-                            "margin": "lg"
-                        },
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "image",
-                                    "url": sender_logo,
-                                    "size": "40px",
-                                    "aspectRatio": "1:1",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "box",
-                                    "layout": "vertical",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": sender_name[:30],
-                                            "size": "sm",
-                                            "weight": "bold",
-                                            "color": "#333333",
-                                            "wrap": False
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{sender_bank_name} {mask_account(sender_account) if sender_account else ''}",
-                                            "size": "xs",
-                                            "color": "#666666"
-                                        }
-                                    ],
-                                    "margin": "md",
-                                    "spacing": "xs"
-                                }
-                            ],
-                            "margin": "sm"
-                        },
-                        
-                        # Arrow
-                        {
-                            "type": "text",
-                            "text": "⬇",
-                            "align": "center",
-                            "color": "#CCCCCC",
-                            "margin": "md"
-                        },
-                        
-                        # ข้อมูลผู้รับ
-                        {
-                            "type": "text",
-                            "text": "ผู้รับ",
-                            "size": "sm",
-                            "color": "#888888"
-                        },
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "image",
-                                    "url": receiver_logo,
-                                    "size": "40px",
-                                    "aspectRatio": "1:1",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "box",
-                                    "layout": "vertical",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": receiver_name[:30],
-                                            "size": "sm",
-                                            "weight": "bold",
-                                            "color": "#333333",
-                                            "wrap": False
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{receiver_bank_name} {mask_account(receiver_account) if receiver_account else ''}",
-                                            "size": "xs",
-                                            "color": "#666666"
-                                        }
-                                    ],
-                                    "margin": "md",
-                                    "spacing": "xs"
-                                }
-                            ],
-                            "margin": "sm"
-                        },
-                        
-                        # รายละเอียดเพิ่มเติม
-                        {
-                            "type": "separator",
-                            "margin": "lg"
-                        },
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": "เลขอ้างอิง:",
-                                            "size": "xs",
-                                            "color": "#666666",
-                                            "flex": 3
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": trans_ref,
-                                            "size": "xs",
-                                            "color": "#333333",
-                                            "flex": 7,
-                                            "wrap": True
-                                        }
-                                    ]
-                                }
-                            ],
-                            "margin": "md"
-                        }
-                    ]
+                    "contents": contents_body,
+                    "backgroundColor": "#ffffff",
+                    "paddingAll": "20px",
+                    "spacing": "sm"
                 },
                 "footer": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
                         {
-                            "type": "text",
-                            "text": f"ตรวจสอบเมื่อ {verification_time}",
-                            "size": "xxs",
-                            "color": "#888888",
-                            "align": "center"
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                {
+                                    "type": "image",
+                                    "url": ASSETS["THUNDER_LOGO"],
+                                    "size": "xs",
+                                    "flex": 0,
+                                    "aspectRatio": "3:1"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": f"ตรวจสอบเมื่อ {verification_time}",
+                                    "size": "xxs",
+                                    "color": "#9ca3af",
+                                    "align": "end",
+                                    "gravity": "center"
+                                }
+                            ]
                         }
                     ],
-                    "backgroundColor": "#F8F9FA"
+                    "backgroundColor": "#f9fafb",
+                    "paddingAll": "12px"
                 }
             }
         }
         
-        # ถ้าเป็นสลิปซ้ำ เพิ่มข้อความเตือน
-        if status == "duplicate":
-            flex_message["contents"]["body"]["contents"].append({
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "⚠️ สลิปนี้เคยถูกใช้แล้ว",
-                        "size": "sm",
-                        "color": "#FF6B35",
-                        "weight": "bold",
-                        "align": "center"
-                    }
-                ],
-                "backgroundColor": "#FFF3CD",
-                "cornerRadius": "8px",
-                "paddingAll": "10px",
-                "margin": "lg"
-            })
-        
-        # ถ้ามีค่าธรรมเนียม
-        if fee and float(fee) > 0:
-            flex_message["contents"]["body"]["contents"].insert(-1, {
-                "type": "box",
-                "layout": "horizontal",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "ค่าธรรมเนียม:",
-                        "size": "xs",
-                        "color": "#666666",
-                        "flex": 3
-                    },
-                    {
-                        "type": "text",
-                        "text": format_currency(fee),
-                        "size": "xs",
-                        "color": "#FF6B35",
-                        "flex": 7
-                    }
-                ],
-                "margin": "sm"
-            })
-        
         return flex_message
         
     except Exception as e:
-        logger.error(f"❌ Error creating beautiful flex message: {e}")
-        logger.exception(e)
+        logger.error(f"❌ Error creating flex message: {e}", exc_info=True)
         return create_simple_text_message(result)
 
 def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """Fallback to simple text message"""
-    status = result.get("status")
-    data = result.get("data", {})
-    
-    if status == "success":
-        amount = format_currency(data.get('amount', 0))
-        message = f"""✅ สลิปถูกต้อง ตรวจสอบสำเร็จ
-━━━━━━━━━━━━━━━━━━━━
-💰 จำนวนเงิน: {amount}
-📅 วันที่: {data.get('date', 'N/A')} {data.get('time', '')}
-🔢 เลขอ้างอิง: {data.get('transRef', data.get('reference', 'N/A'))}
+    """สร้างข้อความ text ธรรมดา (fallback)"""
+    try:
+        status = result.get("status", "error")
+        data = result.get("data", {})
+        
+        if status == "success":
+            text = f"✅ สลิปถูกต้อง\n\n"
+        elif status == "duplicate":
+            text = f"🔄 สลิปซ้ำ\n\n"
+        else:
+            text = f"❌ ตรวจสอบไม่ผ่าน\n\n"
+        
+        if data:
+            text += f"💰 จำนวน: {format_currency(data.get('amount', 0))}\n"
+            text += f"📅 วันที่: {data.get('date', 'N/A')} {data.get('time', '')}\n"
+            text += f"🔢 อ้างอิง: {data.get('reference', 'N/A')}\n"
+            text += f"👤 ผู้โอน: {data.get('sender_name_th', data.get('sender', 'N/A'))}\n"
+            text += f"🎯 ผู้รับ: {data.get('receiver_name_th', data.get('receiver_name', 'N/A'))}"
+        else:
+            text += result.get("message", "ไม่มีข้อมูล")
+        
+        return {
+            "type": "text",
+            "text": text
+        }
+    except Exception as e:
+        logger.error(f"❌ Error creating text message: {e}")
+        return {
+            "type": "text",
+            "text": "❌ เกิดข้อผิดพลาดในการแสดงผล"
+        }
 
-👤 ผู้โอน: {data.get('sender', 'N/A')}
-🏦 ธนาคาร: {data.get('sender_bank', '')}
-
-🎯 ผู้รับ: {data.get('receiver_name', 'N/A')}
-🏦 ธนาคาร: {data.get('receiver_bank', '')}
-━━━━━━━━━━━━━━━━━━━━
-✓ ตรวจสอบโดย Thunder API"""
-    elif status == "duplicate":
-        amount = format_currency(data.get('amount', 0))
-        message = f"""🔄 สลิปนี้เคยถูกใช้แล้ว
-━━━━━━━━━━━━━━━━━━━━
-💰 จำนวน: {amount}
-🔢 เลขอ้างอิง: {data.get('transRef', 'N/A')}
-━━━━━━━━━━━━━━━━━━━━
-⚠️ กรุณาใช้สลิปใหม่"""
-    else:
-        message = f"""❌ ไม่สามารถตรวจสอบสลิปได้
-
-{result.get('message', 'เกิดข้อผิดพลาด')}
-
-💡 กรุณาตรวจสอบ:
-- รูปสลิปชัดเจน
-- เป็นสลิปจริง
-- ลองถ่ายใหม่"""
-    
-    return {"type": "text", "text": message}
-
-def create_error_flex_message(error_message: str) -> Dict[str, Any]:
-    """สร้าง Error Flex Message แบบสวยงาม"""
-    return {
-        "type": "flex",
-        "altText": "❌ ไม่สามารถตรวจสอบสลิปได้",
-        "contents": {
-            "type": "bubble",
-            "size": "kilo",
-            "header": {
-                "type": "box",
-                "layout": "horizontal",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "❌",
-                        "size": "xl",
-                        "flex": 0
-                    },
-                    {
-                        "type": "text",
-                        "text": "ไม่สามารถตรวจสอบสลิปได้",
-                        "weight": "bold",
-                        "size": "md",
-                        "color": "#CC0000",
-                        "margin": "md",
-                        "gravity": "center"
-                    }
-                ],
-                "backgroundColor": "#FFE5E5",
-                "paddingAll": "15px"
-            },
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": error_message,
-                        "size": "sm",
-                        "color": "#666666",
-                        "wrap": True
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "lg"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "💡 คำแนะนำ:",
-                                "size": "sm",
-                                "weight": "bold",
-                                "color": "#333333"
-                            },
-                            {
-                                "type": "text",
-                                "text": "• ตรวจสอบให้แน่ใจว่าสลิปชัดเจน",
-                                "size": "xs",
-                                "color": "#666666",
-                                "margin": "sm"
-                            },
-                            {
-                                "type": "text",
-                                "text": "• ตรวจสอบว่าเป็นสลิปจริง",
-                                "size": "xs",
-                                "color": "#666666",
-                                "margin": "xs"
-                            },
-                            {
-                                "type": "text",
-                                "text": "• ลองถ่ายรูปใหม่หากไม่ชัด",
-                                "size": "xs",
-                                "color": "#666666",
-                                "margin": "xs"
-                            },
-                            {
-                                "type": "text",
-                                "text": "• ตรวจสอบว่ามี QR Code ในสลิป",
-                                "size": "xs",
-                                "color": "#666666",
-                                "margin": "xs"
-                            }
-                        ],
-                        "backgroundColor": "#FFF9E6",
-                        "paddingAll": "12px",
-                        "cornerRadius": "8px",
-                        "margin": "lg"
-                    }
-                ]
+def create_error_flex_message(error_msg: str) -> Dict[str, Any]:
+    """สร้าง Flex Message สำหรับแสดง error"""
+    try:
+        return {
+            "type": "flex",
+            "altText": f"❌ {error_msg}",
+            "contents": {
+                "type": "bubble",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": "❌ เกิดข้อผิดพลาด",
+                            "weight": "bold",
+                            "size": "lg",
+                            "color": "#ef4444",
+                            "align": "center"
+                        },
+                        {
+                            "type": "text",
+                            "text": error_msg,
+                            "size": "sm",
+                            "color": "#6b7280",
+                            "align": "center",
+                            "margin": "lg",
+                            "wrap": True
+                        }
+                    ],
+                    "paddingAll": "20px"
+                }
             }
         }
-    }
+    except:
+        return create_simple_text_message({"status": "error", "message": error_msg})
