@@ -154,70 +154,81 @@ def format_thai_datetime(date_str: str = "", time_str: str = "") -> str:
 # FLEX
 # -----------------------------
 def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    สลิปสไตล์การ์ดอ่านง่าย โทนอบอุ่นแบบตัวอย่าง
-    - หัวการ์ดโชว์สถานะ/สี
-    - จำนวนเงินตัวหนา
-    - วันที่เป็นภาษาไทย (พ.ศ.)
-    - โลโก้ธนาคาร + ชื่อ + เลขบัญชี (มาสก์ + มีขีด)
-    """
     try:
         status = (result or {}).get("status")
         data = (result or {}).get("data", {}) or {}
         if not data:
             return create_error_flex_message(result.get("message", "ไม่สามารถดึงข้อมูลสลิปได้"))
 
-        amount = data.get("amount", "0")
-        amount_display = format_currency(amount)
-
-        # วันที่/เวลาไทย
+        # --- เงิน/เวลาไทย
+        amount_display = format_currency(data.get("amount", "0"))
         date_th = format_thai_datetime(
             data.get("date", data.get("trans_date", "")) or "",
             data.get("time", data.get("trans_time", "")) or "",
         )
-
-        # เวลาตรวจสอบ
         thai_tz = pytz.timezone("Asia/Bangkok")
-        verified_th = datetime.now(thai_tz).strftime("%d %b %y, %H:%M น.").replace("Jan","ม.ค.").replace("Feb","ก.พ.").replace("Mar","มี.ค.").replace("Apr","เม.ย.").replace("May","พ.ค.").replace("Jun","มิ.ย.").replace("Jul","ก.ค.").replace("Aug","ส.ค.").replace("Sep","ก.ย.").replace("Oct","ต.ค.").replace("Nov","พ.ย.").replace("Dec","ธ.ค.")
+        verified_th = datetime.now(thai_tz).strftime("%d %b %y, %H:%M น.") \
+            .replace("Jan","ม.ค.").replace("Feb","ก.พ.").replace("Mar","มี.ค.") \
+            .replace("Apr","เม.ย.").replace("May","พ.ค.").replace("Jun","มิ.ย.") \
+            .replace("Jul","ก.ค.").replace("Aug","ส.ค.").replace("Sep","ก.ย.") \
+            .replace("Oct","ต.ค.").replace("Nov","พ.ย.").replace("Dec","ธ.ค.")
 
-        # อ้างอิง
-        ref_no = data.get("transRef") or data.get("reference") or "-"
-
-        # ชื่อ/ธนาคาร/เลขบัญชี
+        # --- คน/ธนาคาร/บัญชี
         s_name = data.get("sender_name_th") or data.get("sender_name_en") or data.get("sender") or "ไม่ระบุชื่อ"
         r_name = data.get("receiver_name_th") or data.get("receiver_name_en") or data.get("receiver_name") or data.get("receiver") or "ไม่ระบุชื่อ"
-
-        s_acc = data.get("sender_account_number", "") or data.get("sender_account", "")
-        r_acc = data.get("receiver_account_number", "") or data.get("receiver_account", "")
-        s_acc_mask = mask_account_formatted(s_acc)
-        r_acc_mask = mask_account_formatted(r_acc)
-
-        s_code = data.get("sender_bank_id", "")
+        s_acc = mask_account_formatted(data.get("sender_account_number", "") or data.get("sender_account", ""))
+        r_acc = mask_account_formatted(data.get("receiver_account_number", "") or data.get("receiver_account", ""))
         s_bank = data.get("sender_bank_short", data.get("sender_bank", "")) or ""
-        r_code = data.get("receiver_bank_id", "")
         r_bank = data.get("receiver_bank_short", data.get("receiver_bank", "")) or ""
+        s_logo = get_bank_logo(data.get("sender_bank_id", ""), s_bank)
+        r_logo = get_bank_logo(data.get("receiver_bank_id", ""), r_bank)
+        ref_no = data.get("transRef") or data.get("reference") or "-"
 
-        s_logo = get_bank_logo(s_code, s_bank)
-        r_logo = get_bank_logo(r_code, r_bank)
-
-        # โทนสีตามสถานะ (สไตล์ตัวอย่าง)
+        # --- โทนสีตามสถานะ (ชิปสถานะ)
         if status == "success":
-            badge_bg = "#FFEEE3"   # พื้นหัวการ์ดอุ่นๆ
-            badge_text = "สลิปถูกต้อง"
-            badge_color = "#FF7A1A"  # ส้มอ่านง่าย
-            icon = "✅"
+            badge_bg, badge_fg, badge_txt, badge_emoji = "#FFEBDD", "#F07B1E", "สลิปถูกต้อง", "✅"
         elif status == "duplicate":
-            badge_bg = "#FFF6E0"
-            badge_text = "สลิปซ้ำ"
-            badge_color = "#F4A100"
-            icon = "🔄"
+            badge_bg, badge_fg, badge_txt, badge_emoji = "#FFF4D9", "#B47A00", "สลิปซ้ำ", "🔄"
         else:
-            badge_bg = "#FFE5E5"
-            badge_text = "ตรวจสอบไม่ผ่าน"
-            badge_color = "#D83A3A"
-            icon = "❌"
+            badge_bg, badge_fg, badge_txt, badge_emoji = "#FFE5E5", "#C53A3A", "ตรวจสอบไม่ผ่าน", "❌"
 
-        # การ์ด Flex
+        # --- บล็อคคน/ธนาคาร (reuse)
+        def person_row(logo_url: str, title: str, name: str, bank: str, acc: str) -> Dict[str, Any]:
+            return {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": title, "size": "xs", "color": "#8E8E93"},
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "image", "url": logo_url, "size": "44px", "aspectRatio": "1:1", "flex": 0},
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {"type": "text", "text": name[:48], "size": "sm", "weight": "bold", "wrap": True, "color": "#1C1C1E"},
+                                    {"type": "text", "text": bank, "size": "xs", "color": "#636366"}
+                                ],
+                                "spacing": "xs", "margin": "md"
+                            },
+                            {
+                                "type": "text",
+                                "text": acc,
+                                "size": "xs",
+                                "align": "end",
+                                "color": "#4A4A4A",
+                                "gravity": "center",
+                                "wrap": True
+                            }
+                        ],
+                        "margin": "sm"
+                    }
+                ]
+            }
+
+        # --- การ์ด Flex
         bubble = {
             "type": "bubble",
             "size": "mega",
@@ -229,27 +240,23 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "type": "box",
                         "layout": "baseline",
                         "contents": [
-                            {"type": "text", "text": icon, "size": "lg", "flex": 0},
                             {
-                                "type": "text",
-                                "text": badge_text,
-                                "size": "lg",
-                                "weight": "bold",
-                                "color": badge_color,
-                                "margin": "sm"
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                    {"type": "text", "text": badge_emoji, "size": "md", "flex": 0},
+                                    {"type": "text", "text": badge_txt, "size": "md", "weight": "bold", "color": badge_fg, "margin": "sm"}
+                                ],
+                                "backgroundColor": badge_bg,
+                                "cornerRadius": "999px",
+                                "paddingAll": "8px"
                             },
                         ],
                     },
-                    {
-                        "type": "text",
-                        "text": "ตรวจสอบโดย Thunder",
-                        "size": "xxs",
-                        "color": "#8E8E93",
-                        "margin": "xs"
-                    }
+                    {"type": "text", "text": "ตรวจสอบโดย Thunder", "size": "xxs", "color": "#8E8E93", "margin": "xs"}
                 ],
-                "backgroundColor": badge_bg,
-                "paddingAll": "16px"
+                "backgroundColor": "#FFF4EE",
+                "paddingAll": "18px"
             },
             "body": {
                 "type": "box",
@@ -259,53 +266,24 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
-                            {"type": "text", "text": amount_display, "size": "3xl", "weight": "bold", "color": "#1C1C1E"},
+                            {"type": "text", "text": amount_display, "size": "3xl", "weight": "bold", "color": "#101010"},
                             {"type": "text", "text": date_th, "size": "sm", "color": "#666666", "margin": "xs"}
                         ],
+                        "backgroundColor": "#FAFAFB",
+                        "cornerRadius": "14px",
+                        "paddingAll": "14px"
                     },
+
                     {"type": "separator", "margin": "lg"},
 
-                    {"type": "text", "text": "ผู้โอน", "size": "sm", "color": "#8E8E93", "margin": "lg"},
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "image", "url": s_logo, "size": "42px", "aspectRatio": "1:1", "flex": 0},
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [
-                                    {"type": "text", "text": s_name[:40], "size": "sm", "weight": "bold", "wrap": True, "color": "#1C1C1E"},
-                                    {"type": "text", "text": f"{s_bank}  {s_acc_mask}", "size": "xs", "color": "#636366", "wrap": True}
-                                ],
-                                "margin": "md", "spacing": "xs"
-                            }
-                        ],
-                        "margin": "sm"
-                    },
+                    person_row(s_logo, "ผู้โอน", s_name, s_bank, s_acc),
 
                     {"type": "text", "text": "⬇", "align": "center", "color": "#C7C7CC", "margin": "md"},
 
-                    {"type": "text", "text": "ผู้รับ", "size": "sm", "color": "#8E8E93"},
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "image", "url": r_logo, "size": "42px", "aspectRatio": "1:1", "flex": 0},
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [
-                                    {"type": "text", "text": r_name[:40], "size": "sm", "weight": "bold", "wrap": True, "color": "#1C1C1E"},
-                                    {"type": "text", "text": f"{r_bank}  {r_acc_mask}", "size": "xs", "color": "#636366", "wrap": True}
-                                ],
-                                "margin": "md", "spacing": "xs"
-                            }
-                        ],
-                        "margin": "sm"
-                    },
+                    person_row(r_logo, "ผู้รับ", r_name, r_bank, r_acc),
 
                     {"type": "separator", "margin": "lg"},
+
                     {
                         "type": "box",
                         "layout": "horizontal",
@@ -315,41 +293,50 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         ],
                         "margin": "md"
                     }
-                ]
+                ],
+                "spacing": "sm"
             },
             "footer": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
                     {
-                        "type": "text",
-                        "text": f"ตรวจสอบเมื่อ {verified_th}",
-                        "size": "xxs",
-                        "color": "#8E8E93",
-                        "align": "center"
-                    }
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {"type": "text", "text": "รับทรัพย์ รับโชค เงินทองวิ่งฉิว!", "size": "xs", "align": "center", "color": "#8E8E93"}
+                        ],
+                        "backgroundColor": "#FFF7F0",
+                        "cornerRadius": "12px",
+                        "paddingAll": "10px",
+                        "margin": "sm"
+                    },
+                    {"type": "text", "text": f"ตรวจสอบเมื่อ {verified_th}", "size": "xxs", "color": "#8E8E93", "align": "center", "margin": "sm"}
                 ],
-                "backgroundColor": "#F2F2F7"
+                "backgroundColor": "#F5F5F7"
             }
         }
 
-        # ป้ายเตือนสลิปซ้ำ (โทนอ่อนแบบตัวอย่าง)
+        # ชิปเตือน “สลิปซ้ำ”
         if status == "duplicate":
             bubble["body"]["contents"].append({
                 "type": "box",
-                "layout": "vertical",
-                "contents": [{"type": "text", "text": "สลิปนี้เคยถูกใช้แล้ว", "size": "sm", "weight": "bold", "align": "center", "color": "#B26A00"}],
-                "backgroundColor": "#FFF6E0",
+                "layout": "horizontal",
+                "contents": [
+                    {"type": "text", "text": "สลิปนี้เคยถูกใช้แล้ว", "size": "sm", "weight": "bold", "color": "#B47A00", "align": "center", "flex": 1}
+                ],
+                "backgroundColor": "#FFF4D9",
                 "cornerRadius": "12px",
                 "paddingAll": "12px",
                 "margin": "lg"
             })
 
-        return {"type": "flex", "altText": f"{badge_text} {amount_display}", "contents": bubble}
+        return {"type": "flex", "altText": f"{badge_txt} {amount_display}", "contents": bubble}
 
     except Exception as e:
         logger.error(f"❌ Error creating flex message: {e}", exc_info=True)
         return create_simple_text_message(result)
+
 
 # -----------------------------
 # FALLBACK
