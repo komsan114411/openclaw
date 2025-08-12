@@ -85,7 +85,7 @@ def mask_account(account: str) -> str:
     return f"xxx-x-xx{account[-4:]}-x"
 
 def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง Flex Message แบบสวยงามพร้อมโลโก้ธนาคารและข้อมูลเลขบัญชี"""
+    """สร้าง Flex Message แบบสวยงามตามรูปภาพพร้อมโลโก้ธนาคารและข้อมูลเลขบัญชีที่กระชับ"""
     try:
         status = result.get("status")
         data = result.get("data", {})
@@ -94,7 +94,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
             return create_error_flex_message(result.get("message", "ไม่สามารถดึงข้อมูลสลิปได้"))
         
         amount = data.get("amount", "0")
-        amount_display = format_currency(amount)
+        amount_display = format_currency(amount).replace('.00', '')
         
         date = data.get("date", data.get("trans_date", ""))
         time_str = data.get("time", data.get("trans_time", ""))
@@ -131,22 +131,25 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         fee = data.get("fee", 0)
         
         if status == "success":
-            header_color = "#4CAF50"
-            status_text = "✅ สลิปถูกต้อง"
+            header_color = "#EA7267"
+            header_text = "สลิปถูกต้อง"
+            header_icon = "✅"
         elif status == "duplicate":
             header_color = "#FFC107"
-            status_text = "🔄 สลิปซ้ำ"
+            header_text = "สลิปซ้ำ"
+            header_icon = "🔄"
         else:
             header_color = "#F44336"
-            status_text = "❌ ตรวจสอบไม่ผ่าน"
+            header_text = "ตรวจสอบไม่ผ่าน"
+            header_icon = "❌"
         
         # Flex Message Structure
         flex_message = {
             "type": "flex",
-            "altText": f"{status_text} - {amount_display}",
+            "altText": f"{header_icon} {header_text} - {amount_display}",
             "contents": {
                 "type": "bubble",
-                "size": "kilo",
+                "size": "mega",
                 "body": {
                     "type": "box",
                     "layout": "vertical",
@@ -156,28 +159,42 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                             "layout": "vertical",
                             "contents": [
                                 {
-                                    "type": "text",
-                                    "text": status_text,
-                                    "color": "#FFFFFF",
-                                    "weight": "bold",
-                                    "size": "md"
-                                }
-                            ],
-                            "backgroundColor": header_color,
-                            "cornerRadius": "md",
-                            "paddingAll": "10px",
-                            "paddingStart": "15px"
-                        },
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": header_icon,
+                                            "size": "xl",
+                                            "color": "#ffffff",
+                                            "flex": 0,
+                                            "margin": "sm"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": header_text,
+                                            "color": "#FFFFFF",
+                                            "weight": "bold",
+                                            "size": "md",
+                                            "gravity": "center",
+                                            "margin": "md"
+                                        }
+                                    ],
+                                    "paddingBottom": "10px"
+                                },
                                 {
-                                    "type": "text",
-                                    "text": amount_display,
-                                    "weight": "bold",
-                                    "size": "3xl",
-                                    "margin": "sm"
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": amount_display,
+                                            "weight": "bold",
+                                            "size": "3xl",
+                                            "color": "#333333"
+                                        }
+                                    ],
+                                    "paddingBottom": "5px"
                                 },
                                 {
                                     "type": "text",
@@ -187,124 +204,168 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                                     "margin": "xs"
                                 }
                             ],
-                            "paddingAll": "15px"
+                            "paddingAll": "20px",
+                            "paddingBottom": "10px",
+                            "spacing": "none",
+                            "backgroundColor": "#FFC107" if status == "duplicate" else "#F8F9FA"
                         },
-                        {
-                            "type": "separator",
-                            "margin": "md"
-                        },
-                        # Sender Information
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "vertical",
                             "contents": [
-                                {
-                                    "type": "image",
-                                    "url": sender_logo,
-                                    "size": "40px",
-                                    "flex": 0
-                                },
+                                # Sender Information
                                 {
                                     "type": "box",
-                                    "layout": "vertical",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "image",
+                                            "url": sender_logo,
+                                            "size": "sm",
+                                            "flex": 0,
+                                            "aspectMode": "fit",
+                                            "align": "center"
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "vertical",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ผู้โอน",
+                                                    "size": "xs",
+                                                    "color": "#888888"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": sender_name,
+                                                    "size": "sm",
+                                                    "weight": "bold",
+                                                    "wrap": False
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": f"เลขบัญชี: {mask_account(sender_account) if sender_account else 'N/A'}",
+                                                    "size": "xs",
+                                                    "color": "#666666"
+                                                }
+                                            ],
+                                            "margin": "md",
+                                            "spacing": "xs"
+                                        }
+                                    ],
+                                    "spacing": "md",
+                                    "margin": "md"
+                                },
+                                # Receiver Information
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "image",
+                                            "url": receiver_logo,
+                                            "size": "sm",
+                                            "flex": 0,
+                                            "aspectMode": "fit",
+                                            "align": "center"
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "vertical",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ผู้รับ",
+                                                    "size": "xs",
+                                                    "color": "#888888"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": receiver_name,
+                                                    "size": "sm",
+                                                    "weight": "bold",
+                                                    "wrap": False
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": f"เลขบัญชี: {mask_account(receiver_account) if receiver_account else 'N/A'}",
+                                                    "size": "xs",
+                                                    "color": "#666666"
+                                                }
+                                            ],
+                                            "margin": "md",
+                                            "spacing": "xs"
+                                        }
+                                    ],
+                                    "spacing": "md",
+                                    "margin": "md"
+                                },
+                                # Reference Number
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
                                     "contents": [
                                         {
                                             "type": "text",
-                                            "text": sender_name,
-                                            "size": "sm",
-                                            "weight": "bold"
+                                            "text": "เลขอ้างอิง:",
+                                            "size": "xs",
+                                            "color": "#888888",
+                                            "flex": 0
                                         },
                                         {
                                             "type": "text",
-                                            "text": f"{sender_bank_name} {mask_account(sender_account) if sender_account else ''}",
+                                            "text": trans_ref,
                                             "size": "xs",
-                                            "color": "#666666"
+                                            "align": "end",
+                                            "color": "#333333",
+                                            "weight": "bold",
+                                            "wrap": True
                                         }
                                     ],
-                                    "margin": "md"
+                                    "margin": "lg"
                                 }
                             ],
-                            "spacing": "sm",
-                            "margin": "md"
+                            "paddingAll": "10px",
+                            "spacing": "sm"
                         },
-                        # Receiver Information
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "vertical",
                             "contents": [
                                 {
-                                    "type": "image",
-                                    "url": receiver_logo,
-                                    "size": "40px",
-                                    "flex": 0
+                                    "type": "text",
+                                    "text": "รับทรัพย์ รับโชค เงินทองทวีคูณ! 💰",
+                                    "size": "sm",
+                                    "align": "center",
+                                    "color": "#B7924F"
                                 },
                                 {
                                     "type": "box",
-                                    "layout": "vertical",
+                                    "layout": "horizontal",
                                     "contents": [
                                         {
-                                            "type": "text",
-                                            "text": receiver_name,
-                                            "size": "sm",
-                                            "weight": "bold"
+                                            "type": "image",
+                                            "url": "https://www.hood11.com/uploads/logo.webp",
+                                            "size": "30px",
+                                            "flex": 0
                                         },
                                         {
                                             "type": "text",
-                                            "text": f"{receiver_bank_name} {mask_account(receiver_account) if receiver_account else ''}",
-                                            "size": "xs",
-                                            "color": "#666666"
+                                            "text": "Thunder Solution",
+                                            "size": "xxs",
+                                            "color": "#CCCCCC",
+                                            "align": "end",
+                                            "gravity": "bottom"
                                         }
-                                    ],
-                                    "margin": "md"
+                                    ]
                                 }
                             ],
-                            "spacing": "sm",
-                            "margin": "md"
-                        },
-                        {
-                            "type": "separator",
-                            "margin": "md"
-                        },
-                        # Reference Number
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": "เลขอ้างอิง:",
-                                    "size": "xs",
-                                    "color": "#888888",
-                                    "flex": 0
-                                },
-                                {
-                                    "type": "text",
-                                    "text": trans_ref,
-                                    "size": "xs",
-                                    "align": "end",
-                                    "color": "#333333",
-                                    "weight": "bold"
-                                }
-                            ],
-                            "margin": "md"
+                            "paddingAll": "10px"
                         }
                     ],
-                    "spacing": "sm",
-                    "paddingAll": "10px"
-                },
-                "footer": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {
-                            "type": "text",
-                            "text": f"ตรวจสอบเมื่อ {verification_time}",
-                            "size": "xxs",
-                            "color": "#AAAAAA",
-                            "align": "center"
-                        }
-                    ],
-                    "paddingTop": "10px"
+                    "spacing": "none",
+                    "paddingAll": "0px"
                 }
             }
         }
