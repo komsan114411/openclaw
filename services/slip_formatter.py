@@ -1,4 +1,4 @@
-# services/slip_formatter_beautiful.py
+# services/slip_formatter.py
 import logging
 from typing import Dict, Any
 from datetime import datetime
@@ -6,54 +6,8 @@ import pytz
 
 logger = logging.getLogger("slip_formatter")
 
-# Bank logos mapping
-BANK_LOGOS = {
-    "002": "https://www.hood11.com/uploads/กรุงเทพ.png",  # BBL - Bangkok Bank
-    "004": "https://www.hood11.com/uploads/กสิกร.png",  # KBANK - Kasikorn Bank
-    "006": "https://www.hood11.com/uploads/กรุงไทย.png",  # KTB - Krung Thai Bank
-    "011": "https://www.hood11.com/uploads/ttb.png",  # TMB/TTB
-    "014": "https://www.hood11.com/uploads/ไทยพาณิชย์%20SCB.png",  # SCB
-    "025": "https://www.hood11.com/uploads/กรุงศรี%202.png",  # BAY - Bank of Ayudhya
-    "030": "https://www.hood11.com/uploads/ออมสิน.png",  # GSB
-    "034": "https://www.hood11.com/uploads/ธนาคาร%20ธกส.png",  # BAAC
-    "065": "https://www.hood11.com/uploads/ธนาคาร%20ธนชาติ.png",  # TBANK
-    "066": "https://www.hood11.com/uploads/ธนาคารอิสลาม.png",  # ISBT
-    "067": "https://www.hood11.com/uploads/ทิสโก้.png",  # TISCO
-    "069": "https://www.hood11.com/uploads/เกียรตินาคิน.png",  # KKP
-    "070": "https://www.hood11.com/uploads/ICBC.png",  # ICBC
-    "071": "https://www.hood11.com/uploads/ธอส.png",  # GHB
-    "073": "https://www.hood11.com/uploads/แลนด์แลนด์เฮ้าท์%20.png",  # LHBANK
-    "024": "https://www.hood11.com/uploads/UOB.png",  # UOB
-}
-
-def get_bank_logo(bank_code: str = None, bank_name: str = None) -> str:
-    """Get bank logo URL from bank code or name"""
-    if bank_code and bank_code in BANK_LOGOS:
-        return BANK_LOGOS[bank_code]
-    
-    # Fallback to name matching
-    if bank_name:
-        bank_name_lower = bank_name.lower()
-        if "กสิกร" in bank_name_lower or "kbank" in bank_name_lower:
-            return BANK_LOGOS["004"]
-        elif "กรุงเทพ" in bank_name_lower or "bbl" in bank_name_lower:
-            return BANK_LOGOS["002"]
-        elif "กรุงไทย" in bank_name_lower or "ktb" in bank_name_lower:
-            return BANK_LOGOS["006"]
-        elif "ไทยพาณิชย์" in bank_name_lower or "scb" in bank_name_lower:
-            return BANK_LOGOS["014"]
-        elif "กรุงศรี" in bank_name_lower or "bay" in bank_name_lower:
-            return BANK_LOGOS["025"]
-        elif "ttb" in bank_name_lower or "ทหารไทย" in bank_name_lower:
-            return BANK_LOGOS["011"]
-        elif "ออมสิน" in bank_name_lower or "gsb" in bank_name_lower:
-            return BANK_LOGOS["030"]
-    
-    # Default bank icon
-    return "https://www.hood11.com/uploads/logo.webp"
-
 def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
-    """สร้าง Flex Message แบบสวยงามพร้อมโลโก้ธนาคาร"""
+    """สร้าง Flex Message แบบสวยงามสำหรับแสดงผลสลิป"""
     try:
         status = result.get("status")
         data = result.get("data", {})
@@ -73,11 +27,6 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         date = data.get("date", data.get("trans_date", ""))
         time_str = data.get("time", data.get("trans_time", ""))
         
-        # เวลาไทย
-        thai_tz = pytz.timezone('Asia/Bangkok')
-        current_time = datetime.now(thai_tz)
-        verification_time = current_time.strftime("%d %b %y, %H:%M น.")
-        
         # Reference
         trans_ref = data.get("reference", data.get("transRef", "N/A"))
         
@@ -95,33 +44,21 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         )
         
         # ธนาคาร
-        sender_bank_code = data.get("sender_bank_id", "")
-        sender_bank_name = data.get("sender_bank_short", data.get("sender_bank", ""))
-        receiver_bank_code = data.get("receiver_bank_id", "")
-        receiver_bank_name = data.get("receiver_bank_short", data.get("receiver_bank", ""))
-        
-        # Get bank logos
-        sender_logo = get_bank_logo(sender_bank_code, sender_bank_name)
-        receiver_logo = get_bank_logo(receiver_bank_code, receiver_bank_name)
-        
-        # ปิดบังเลขอ้างอิงบางส่วน
-        if len(trans_ref) > 10:
-            masked_ref = f"xxx-x-x{trans_ref[-4:]}-x"
-        else:
-            masked_ref = trans_ref
+        sender_bank = data.get("sender_bank_short", data.get("sender_bank", ""))
+        receiver_bank = data.get("receiver_bank_short", data.get("receiver_bank", ""))
         
         # กำหนดสีและข้อความตามสถานะ
         if status == "success":
-            header_color = "#FF6B35"
-            status_text = "สลิปถูกต้อง"
+            header_color = "#00B900"
+            status_text = "✅ สลิปถูกต้อง"
             status_icon = "✅"
         elif status == "duplicate":
             header_color = "#FFA500"
-            status_text = "สลิปซ้ำ"
+            status_text = "🔄 สลิปซ้ำ"
             status_icon = "🔄"
         else:
             header_color = "#FF4444"
-            status_text = "ตรวจสอบไม่ผ่าน"
+            status_text = "❌ ตรวจสอบไม่ผ่าน"
             status_icon = "❌"
         
         # Flex Message
@@ -130,66 +67,29 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
             "altText": f"{status_icon} {status_text} {amount_display}",
             "contents": {
                 "type": "bubble",
-                "size": "kilo",
                 "body": {
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        # Header with gradient effect
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "vertical",
                             "contents": [
-                                # Status icon
-                                {
-                                    "type": "box",
-                                    "layout": "vertical",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": status_icon,
-                                            "size": "xxl",
-                                            "align": "center"
-                                        }
-                                    ],
-                                    "backgroundColor": "#FFFFFF",
-                                    "cornerRadius": "50px",
-                                    "width": "50px",
-                                    "height": "50px",
-                                    "justifyContent": "center"
-                                },
-                                # Status text
                                 {
                                     "type": "text",
                                     "text": status_text,
                                     "size": "lg",
-                                    "color": "#FFFFFF",
                                     "weight": "bold",
-                                    "margin": "lg",
-                                    "gravity": "center"
-                                },
-                                {
-                                    "type": "spacer"
-                                },
-                                # Logo
-                                {
-                                    "type": "image",
-                                    "url": "https://www.hood11.com/uploads/logo.webp",
-                                    "size": "60px",
-                                    "aspectRatio": "1:1"
+                                    "color": header_color
                                 }
                             ],
-                            "paddingAll": "15px",
-                            "backgroundColor": header_color,
-                            "background": {
-                                "type": "linearGradient",
-                                "angle": "90deg",
-                                "startColor": header_color,
-                                "endColor": "#F7931E"
-                            }
+                            "backgroundColor": "#F0F0F0",
+                            "paddingAll": "md"
                         },
-                        
-                        # Amount section
+                        {
+                            "type": "separator",
+                            "margin": "md"
+                        },
                         {
                             "type": "box",
                             "layout": "vertical",
@@ -197,152 +97,134 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                                 {
                                     "type": "text",
                                     "text": amount_display,
-                                    "size": "3xl",
+                                    "size": "xxl",
                                     "weight": "bold",
-                                    "color": "#333333",
-                                    "align": "center"
+                                    "align": "center",
+                                    "color": "#333333"
                                 },
                                 {
                                     "type": "text",
                                     "text": f"{date} {time_str}",
-                                    "size": "xs",
-                                    "color": "#999999",
+                                    "size": "sm",
                                     "align": "center",
-                                    "margin": "xs"
-                                }
-                            ],
-                            "backgroundColor": "#F8F9FA",
-                            "cornerRadius": "8px",
-                            "paddingAll": "12px",
-                            "margin": "md"
-                        },
-                        
-                        # Separator
-                        {
-                            "type": "separator",
-                            "margin": "md"
-                        },
-                        
-                        # Sender section
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                # Bank logo
-                                {
-                                    "type": "image",
-                                    "url": sender_logo,
-                                    "size": "40px",
-                                    "aspectRatio": "1:1",
-                                    "flex": 0
-                                },
-                                # Sender info
-                                {
-                                    "type": "box",
-                                    "layout": "vertical",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": "ผู้โอน",
-                                            "size": "xxs",
-                                            "color": "#999999"
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": sender_name[:25] + ("..." if len(sender_name) > 25 else ""),
-                                            "size": "sm",
-                                            "weight": "bold",
-                                            "color": "#333333",
-                                            "wrap": False
-                                        }
-                                    ],
-                                    "margin": "md",
-                                    "spacing": "xs"
+                                    "color": "#999999",
+                                    "margin": "sm"
                                 }
                             ],
                             "margin": "lg"
                         },
-                        
-                        # Arrow
                         {
-                            "type": "text",
-                            "text": "⬇",
-                            "align": "center",
-                            "color": "#CCCCCC",
-                            "margin": "sm"
+                            "type": "separator",
+                            "margin": "lg"
                         },
-                        
-                        # Receiver section
                         {
                             "type": "box",
-                            "layout": "horizontal",
+                            "layout": "vertical",
                             "contents": [
-                                # Bank logo
-                                {
-                                    "type": "image",
-                                    "url": receiver_logo,
-                                    "size": "40px",
-                                    "aspectRatio": "1:1",
-                                    "flex": 0
-                                },
-                                # Receiver info
                                 {
                                     "type": "box",
-                                    "layout": "vertical",
+                                    "layout": "horizontal",
                                     "contents": [
                                         {
                                             "type": "text",
-                                            "text": "ผู้รับ",
-                                            "size": "xxs",
-                                            "color": "#999999"
+                                            "text": "ผู้โอน:",
+                                            "flex": 2,
+                                            "color": "#666666"
                                         },
                                         {
                                             "type": "text",
-                                            "text": receiver_name[:25] + ("..." if len(receiver_name) > 25 else ""),
-                                            "size": "sm",
-                                            "weight": "bold",
-                                            "color": "#333333",
-                                            "wrap": False
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": masked_ref,
-                                            "size": "xxs",
-                                            "color": "#999999"
+                                            "text": sender_name[:25],
+                                            "flex": 5,
+                                            "wrap": True
                                         }
-                                    ],
-                                    "margin": "md",
-                                    "spacing": "xs"
-                                }
-                            ],
-                            "margin": "sm"
-                        },
-                        
-                        # Footer
-                        {
-                            "type": "box",
-                            "layout": "horizontal",
-                            "contents": [
-                                {
-                                    "type": "image",
-                                    "url": "https://www.hood11.com/uploads/ttb.png",
-                                    "size": "50px",
-                                    "aspectRatio": "3:1",
-                                    "flex": 0
+                                    ]
                                 },
                                 {
-                                    "type": "text",
-                                    "text": "รับทรัพย์ รับโชค เงินทองมาเต็ม!",
-                                    "size": "xxs",
-                                    "color": "#999999",
-                                    "align": "end",
-                                    "gravity": "center"
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "ธนาคาร:",
+                                            "flex": 2,
+                                            "color": "#666666"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": sender_bank,
+                                            "flex": 5
+                                        }
+                                    ],
+                                    "margin": "sm"
                                 }
                             ],
-                            "margin": "lg",
-                            "paddingTop": "sm",
-                            "borderWidth": "1px",
-                            "borderColor": "#EEEEEE"
+                            "margin": "lg"
+                        },
+                        {
+                            "type": "separator",
+                            "margin": "md"
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "ผู้รับ:",
+                                            "flex": 2,
+                                            "color": "#666666"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": receiver_name[:25],
+                                            "flex": 5,
+                                            "wrap": True
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "ธนาคาร:",
+                                            "flex": 2,
+                                            "color": "#666666"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": receiver_bank,
+                                            "flex": 5
+                                        }
+                                    ],
+                                    "margin": "sm"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "เลขอ้างอิง:",
+                                            "flex": 2,
+                                            "color": "#666666"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": trans_ref,
+                                            "flex": 5,
+                                            "wrap": True
+                                        }
+                                    ],
+                                    "margin": "sm"
+                                }
+                            ],
+                            "margin": "md"
                         }
                     ],
                     "paddingAll": "lg"
@@ -354,7 +236,6 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         
     except Exception as e:
         logger.error(f"❌ Error creating beautiful flex message: {e}")
-        logger.exception(e)
         return create_simple_text_message(result)
 
 def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
@@ -367,7 +248,7 @@ def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
 
 💰 จำนวน: ฿{data.get('amount', 'N/A')}
 📅 วันที่: {data.get('date', 'N/A')} {data.get('time', '')}
-🔢 เลขอ้างอิง: {data.get('reference', 'N/A')}
+🔢 เลขอ้างอิง: {data.get('reference', data.get('transRef', 'N/A'))}
 👤 ผู้โอน: {data.get('sender', 'N/A')}
 🎯 ผู้รับ: {data.get('receiver_name', 'N/A')}
 
@@ -392,53 +273,34 @@ def create_simple_text_message(result: Dict[str, Any]) -> Dict[str, Any]:
     return {"type": "text", "text": message}
 
 def create_error_flex_message(error_message: str) -> Dict[str, Any]:
-    """สร้าง Error Flex Message แบบสวยงาม"""
+    """สร้าง Error Flex Message"""
     return {
         "type": "flex",
         "altText": "❌ ไม่สามารถตรวจสอบสลิปได้",
         "contents": {
             "type": "bubble",
-            "size": "kilo",
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    # Error header
                     {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": "❌",
-                                "size": "xl"
-                            },
-                            {
-                                "type": "text",
-                                "text": "ไม่สามารถตรวจสอบสลิปได้",
-                                "weight": "bold",
-                                "size": "md",
-                                "color": "#CC0000",
-                                "margin": "md",
-                                "gravity": "center"
-                            }
-                        ],
-                        "backgroundColor": "#FFE5E5",
-                        "paddingAll": "md",
-                        "cornerRadius": "8px"
+                        "type": "text",
+                        "text": "❌ ไม่สามารถตรวจสอบสลิปได้",
+                        "weight": "bold",
+                        "size": "lg",
+                        "color": "#FF0000"
                     },
-                    
-                    # Error message
+                    {
+                        "type": "separator",
+                        "margin": "md"
+                    },
                     {
                         "type": "text",
                         "text": error_message,
-                        "size": "sm",
-                        "color": "#666666",
                         "wrap": True,
-                        "margin": "lg"
+                        "margin": "md",
+                        "color": "#666666"
                     },
-                    
-                    # Suggestions
                     {
                         "type": "box",
                         "layout": "vertical",
@@ -446,36 +308,35 @@ def create_error_flex_message(error_message: str) -> Dict[str, Any]:
                             {
                                 "type": "text",
                                 "text": "💡 คำแนะนำ:",
-                                "size": "sm",
                                 "weight": "bold",
-                                "color": "#333333"
+                                "margin": "lg"
                             },
                             {
                                 "type": "text",
                                 "text": "• ตรวจสอบให้แน่ใจว่าสลิปชัดเจน",
-                                "size": "xs",
+                                "size": "sm",
                                 "color": "#666666",
-                                "margin": "xs"
+                                "margin": "sm"
                             },
                             {
                                 "type": "text",
                                 "text": "• ตรวจสอบว่าเป็นสลิปจริง",
-                                "size": "xs",
+                                "size": "sm",
                                 "color": "#666666",
-                                "margin": "xs"
+                                "margin": "sm"
                             },
                             {
                                 "type": "text",
                                 "text": "• ลองถ่ายรูปใหม่หากไม่ชัด",
-                                "size": "xs",
+                                "size": "sm",
                                 "color": "#666666",
-                                "margin": "xs"
+                                "margin": "sm"
                             }
                         ],
-                        "backgroundColor": "#FFF9E6",
+                        "margin": "lg",
+                        "backgroundColor": "#F0F0F0",
                         "paddingAll": "md",
-                        "cornerRadius": "8px",
-                        "margin": "lg"
+                        "cornerRadius": "md"
                     }
                 ]
             }
