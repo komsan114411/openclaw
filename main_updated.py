@@ -720,16 +720,16 @@ async def handle_ai_chat(user_id: str, reply_token: str, user_text: str):
         logger.error(f"❌ AI chat error: {e}")
 
 async def handle_slip_verification(user_id: str, reply_token: str, message_id: str = None, slip_info: dict = None):
-    """จัดการตรวจสอบสลิป - ส่ง Flex Message"""
+    """จัดการตรวจสอบสลิป - ส่ง Flex Message ที่สวยงาม"""
     try:
-        # ตรวจสอบระบบ
+        # ตรวจสอบระบบ (เหมือนเดิม)
         slip_enabled = config_manager.get("slip_enabled", False)
         if not slip_enabled:
             logger.info(f"🚫 Slip system disabled for {user_id[:10]}")
             await send_line_reply(reply_token, "ขออภัย ระบบตรวจสอบสลิปถูกปิดใช้งาน")
             return
         
-        # ตรวจสอบ API
+        # ตรวจสอบ API (เหมือนเดิม)
         thunder_enabled = config_manager.get("thunder_enabled", True)
         thunder_token = config_manager.get("thunder_api_token", "").strip()
         
@@ -748,7 +748,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
         
         logger.info(f"🔍 Starting slip verification for {user_id[:10]}")
 
-        # ตรวจสอบสลิป
+        # ตรวจสอบสลิป (เหมือนเดิม)
         try:
             if slip_info and slip_info.get("bank_code") and slip_info.get("trans_ref"):
                 result = await asyncio.wait_for(
@@ -784,7 +784,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             await send_line_push(user_id, "เกิดข้อผิดพลาดในการตรวจสอบสลิป")
             return
         
-        # แทนที่จะ import แบบเดิม ให้ใช้แบบนี้
+        # Import ฟังก์ชันที่ปรับปรุงแล้ว
         try:
             from services.slip_formatter import (
                 create_beautiful_slip_flex_message,
@@ -792,23 +792,10 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 create_error_flex_message
             )
         except ImportError:
-            # ถ้า import ไม่ได้ ใช้ function สำรอง
-            def create_simple_text_message(result):
-                status = result.get("status")
-                data = result.get("data", {})
-                
-                if status == "success":
-                    return {"type": "text", "text": f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{data.get('amount', 'N/A')}\n📅 วันที่: {data.get('date', 'N/A')}\n🔢 เลขอ้างอิง: {data.get('reference', 'N/A')}"}
-                elif status == "duplicate":
-                    return {"type": "text", "text": f"🔄 สลิปนี้เคยถูกใช้แล้ว\n💰 จำนวน: ฿{data.get('amount', 'N/A')}"}
-                else:
-                    return {"type": "text", "text": "❌ ไม่สามารถตรวจสอบสลิปได้"}
-            
-            def create_beautiful_slip_flex_message(result):
-                return create_simple_text_message(result)
-            
-            def create_error_flex_message(msg):
-                return {"type": "text", "text": f"❌ {msg}"}
+            logger.error("❌ Cannot import slip formatter functions")
+            # ใช้ fallback แบบเดิม
+            await send_line_push(user_id, create_slip_reply_message(result))
+            return
         
         # ประมวลผลผลลัพธ์
         if result and result.get("status") in ["success", "duplicate"]:
@@ -846,7 +833,15 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
         else:
             # ในกรณีเกิดข้อผิดพลาด
             error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
-            await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n{error_msg}")
+            try:
+                error_flex = create_error_flex_message(error_msg)
+                push_success = await send_line_push_with_flex(user_id, [error_flex])
+                
+                if not push_success:
+                    await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n\n{error_msg}")
+            except:
+                await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n{error_msg}")
+            
             logger.warning(f"⚠️ Slip verification failed for {user_id[:10]}: {error_msg}")
         
     except Exception as e:
