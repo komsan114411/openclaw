@@ -12,8 +12,11 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 import os
 from contextlib import asynccontextmanager
-
-
+from services.slip_formatter import (
+    create_beautiful_slip_flex_message,
+    create_simple_text_message,
+    create_error_flex_message
+)
 
 # เพิ่มพาธปัจจุบันเข้าไปใน sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -769,34 +772,26 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
                 logger.info(f"📝 Slip verification by image for {user_id[:10]}")
             else:
                 logger.error(f"❌ No slip data for {user_id[:10]}")
-                # ส่งข้อความแจ้งเตือนผู้ใช้ว่าข้อมูลไม่ครบถ้วน
-                error_msg = "ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน"
-                await send_line_push_with_flex(user_id, [create_error_flex_message(error_msg)])
+                await send_line_push(user_id, "ไม่สามารถตรวจสอบสลิปได้ ข้อมูลไม่ครบถ้วน")
                 return
                 
         except asyncio.TimeoutError:
             logger.error(f"⏱️ Slip verification timeout for {user_id[:10]}")
-            error_msg = "การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่"
-            await send_line_push_with_flex(user_id, [create_error_flex_message(error_msg)])
+            await send_line_push(user_id, "การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่")
             return
         except Exception as e:
             logger.error(f"❌ Slip verification error for {user_id[:10]}: {e}")
-            error_msg = "เกิดข้อผิดพลาดในการตรวจสอบสลิป"
-            await send_line_push_with_flex(user_id, [create_error_flex_message(error_msg)])
+            await send_line_push(user_id, f"เกิดข้อผิดพลาดในการตรวจสอบสลิป")
             return
         
-        # import ฟังก์ชันที่ปรับปรุงใหม่
-        from services.slip_formatter_beautiful import (
-            create_beautiful_slip_flex_message,
-            create_simple_text_message,
-            create_error_flex_message
-        )
-        
-        # ประมวลผลผลลัพธ์และส่งเป็น Flex Message
+        # ประมวลผลผลลัพธ์และส่งเป็น Text Message ก่อน (เพื่อความปลอดภัย)
         if result and result.get("status") in ["success", "duplicate"]:
+            # Import slip formatter
+            from services.slip_formatter import create_slip_flex_message, create_simple_text_message
+            
+            # ลองส่ง Flex Message ก่อน
             try:
-                # ลองส่ง Flex Message ที่สวยงาม
-                flex_message = create_beautiful_slip_flex_message(result)
+                flex_message = create_slip_flex_message(result)
                 push_success = await send_line_push_with_flex(user_id, [flex_message])
                 
                 if not push_success:
@@ -826,16 +821,14 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             else:
                 logger.error(f"❌ Failed to send slip result to {user_id[:10]}")
         else:
-            # ในกรณีเกิดข้อผิดพลาด
             error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
-            await send_line_push_with_flex(user_id, [create_error_flex_message(error_msg)])
+            await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n\n{error_msg}")
             logger.warning(f"⚠️ Slip verification failed for {user_id[:10]}: {error_msg}")
         
     except Exception as e:
         logger.error(f"❌ Critical slip verification error for {user_id[:10]}: {e}")
         logger.exception(e)
-        error_msg = "เกิดข้อผิดพลาดในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล"
-        await send_line_push_with_flex(user_id, [create_error_flex_message(error_msg)])
+        await send_line_push(user_id, "เกิดข้อผิดพลาดในระบบตรวจสอบสลิป กรุณาติดต่อผู้ดูแล")
 
 async def dispatch_event_async(event: Dict[str, Any]) -> None:
     """Process LINE event - บันทึกข้อมูลแบบเงียบ"""
