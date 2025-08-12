@@ -743,7 +743,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             await send_line_reply(reply_token, "ระบบยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแล")
             return
 
-        # แจ้งผู้ใช้ว่ากำลังตรวจสอบ (ใช้ text message ธรรมดา)
+        # แจ้งผู้ใช้ว่ากำลังตรวจสอบ
         await send_line_reply(reply_token, "🔍 กำลังตรวจสอบสลิป กรุณารอสักครู่...")
         
         logger.info(f"🔍 Starting slip verification for {user_id[:10]}")
@@ -781,17 +781,40 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             return
         except Exception as e:
             logger.error(f"❌ Slip verification error for {user_id[:10]}: {e}")
-            await send_line_push(user_id, f"เกิดข้อผิดพลาดในการตรวจสอบสลิป")
+            await send_line_push(user_id, "เกิดข้อผิดพลาดในการตรวจสอบสลิป")
             return
         
-        # ประมวลผลผลลัพธ์และส่งเป็น Text Message ก่อน (เพื่อความปลอดภัย)
-        if result and result.get("status") in ["success", "duplicate"]:
-            # Import slip formatter
-            from services.slip_formatter import create_slip_flex_message, create_simple_text_message
+        # แทนที่จะ import แบบเดิม ให้ใช้แบบนี้
+        try:
+            from services.slip_formatter import (
+                create_beautiful_slip_flex_message,
+                create_simple_text_message,
+                create_error_flex_message
+            )
+        except ImportError:
+            # ถ้า import ไม่ได้ ใช้ function สำรอง
+            def create_simple_text_message(result):
+                status = result.get("status")
+                data = result.get("data", {})
+                
+                if status == "success":
+                    return {"type": "text", "text": f"✅ สลิปถูกต้อง\n💰 จำนวน: ฿{data.get('amount', 'N/A')}\n📅 วันที่: {data.get('date', 'N/A')}\n🔢 เลขอ้างอิง: {data.get('reference', 'N/A')}"}
+                elif status == "duplicate":
+                    return {"type": "text", "text": f"🔄 สลิปนี้เคยถูกใช้แล้ว\n💰 จำนวน: ฿{data.get('amount', 'N/A')}"}
+                else:
+                    return {"type": "text", "text": "❌ ไม่สามารถตรวจสอบสลิปได้"}
             
-            # ลองส่ง Flex Message ก่อน
+            def create_beautiful_slip_flex_message(result):
+                return create_simple_text_message(result)
+            
+            def create_error_flex_message(msg):
+                return {"type": "text", "text": f"❌ {msg}"}
+        
+        # ประมวลผลผลลัพธ์
+        if result and result.get("status") in ["success", "duplicate"]:
             try:
-                flex_message = create_slip_flex_message(result)
+                # ลองส่ง Flex Message
+                flex_message = create_beautiful_slip_flex_message(result)
                 push_success = await send_line_push_with_flex(user_id, [flex_message])
                 
                 if not push_success:
@@ -821,8 +844,9 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             else:
                 logger.error(f"❌ Failed to send slip result to {user_id[:10]}")
         else:
+            # ในกรณีเกิดข้อผิดพลาด
             error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
-            await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n\n{error_msg}")
+            await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n{error_msg}")
             logger.warning(f"⚠️ Slip verification failed for {user_id[:10]}: {error_msg}")
         
     except Exception as e:
