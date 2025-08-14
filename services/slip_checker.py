@@ -344,9 +344,9 @@ def verify_slip_with_thunder(
                         "original_message": error_msg
                     }
             elif error_msg == "invalid_payload":
-                return {"status": "error", "message": "📷 ไม่สามารถอ่านข้อมูลจากสลิปได้ กรุณาถ่ายรูปสลิปให้ชัดเจนขึ้น"}
+                return {"status": "error", "message": "📷 ไม่สามารถอ่านข้อมูลจากสลิปได้ กรุณาถ่ายรูปสลิปให้ชัดเจนแล้วลองใหม่"}
             elif error_msg == "invalid_image":
-                return {"status": "error", "message": "🖼️ รูปภาพไม่ถูกต้อง กรุณาส่งรูปสลิปธนาคารที่ชัดเจน"}
+                return {"status": "error", "message": "🖼️ รูปภาพไม่ถูกต้อง กรุณาส่งรูปสลิปที่ชัดเจนและเป็นไฟล์ภาพที่รองรับ"}
             elif error_msg == "image_size_too_large":
                 return {"status": "error", "message": "📏 ขนาดรูปภาพใหญ่เกินไป กรุณาลดขนาดรูปแล้วลองใหม่"}
             elif error_msg == "invalid_check_duplicate":
@@ -368,11 +368,11 @@ def verify_slip_with_thunder(
             elif error_msg == "account_not_verified":
                 return {"status": "error", "message": "⚠️ บัญชียังไม่ได้รับการยืนยัน KYC กรุณาติดต่อทีมสนับสนุน"}
             elif error_msg == "application_expired":
-                return {"status": "error", "message": "⏰ แอปพลิเคชันหมดอายุ กรุณาต่ออายุแพ็กเกจหรือติดต่อทีมสนับสนุน"}
+                return {"status": "error", "message": "⏰ แอปพลิเคชันหมดอายุ กรุณาติดต่อทีมสนับสนุนหรืออัปเกรดแพ็กเกจ"}
             elif error_msg == "application_deactivated":
-                return {"status": "error", "message": "🔒 แอปพลิเคชันถูกปิดใช้งาน กรุณาติดต่อทีมสนับสนุน Thunder Solution"}
+                return {"status": "error", "message": "🔒 แอปพลิเคชันถูกปิดใช้งาน กรุณาติดต่อทีมสนับสนุน Thunder"}
             elif error_msg == "quota_exceeded":
-                return {"status": "error", "message": "📊 ใช้งาน API เกินโควต้าที่กำหนด กรุณาอัปเกรดแพ็กเกจหรือรอโควต้ารีเซ็ต"}
+                return {"status": "error", "message": "📊 ใช้งาน API เกินโควต้าที่กำหนด กรุณาอัปเกรดแพ็กเกจหรือรอ"}
             else:
                 return {"status": "error", "message": f"🚫 Thunder API Forbidden: {error_msg}"}
         elif resp.status_code == 404:
@@ -381,12 +381,12 @@ def verify_slip_with_thunder(
             if error_msg == "slip_not_found":
                 return {
                     "status": "not_found",
-                    "message": "🔍 ไม่พบข้อมูลสลิปในระบบธนาคาร\n\n💡 สาเหตุที่เป็นไปได้:\n• สลิปอาจเป็นสลิปปลอม\n• ข้อมูลในสลิปไม่ครบถ้วน\n• สลิปยังไม่อัปเดตในระบบธนาคาร"
+                    "message": "🔍 ไม่พบข้อมูลสลิปในระบบธนาคาร\n\n💡 สาเหตุที่เป็นไปได้:\n• สลิปไม่มีข้อมูลที่จำเป็นหรือรูปไม่ชัด\n• สลิปจากธนาคารที่ระบบยังไม่รองรับ\n\nโปรดถ่ายรูปใหม่หรือกรอกข้อมูลเพิ่มเติม"
                 }
             elif error_msg == "qrcode_not_found":
                 return {
                     "status": "qr_not_found",
-                    "message": "📱 ไม่พบ QR Code ในรูปภาพ\n\n💡 คำแนะนำ:\n• ถ่ายรูปสลิปให้เห็น QR Code ชัดเจน\n• ตรวจสอบว่า QR Code ไม่ถูกบดบัง\n• ลองถ่ายรูปใหม่ในที่ที่มีแสงเพียงพอ"
+                    "message": "📱 ไม่พบ QR Code ในรูปภาพ\n\n💡 คำแนะนำ:\n• ถ่ายรูปสลิปให้เห็น QR Code ชัดเจน\n• หลีกเลี่ยงเงาสะท้อนหรือการเบลอของภาพ"
                 }
             else:
                 return {"status": "error", "message": f"🔍 Thunder API Not Found: {error_msg}"}
@@ -410,7 +410,7 @@ def verify_slip_with_thunder(
         return {"status": "error", "message": "🔄 การตอบกลับจาก Thunder API ไม่สมบูรณ์ กรุณาลองใหม่"}
     except requests.exceptions.ConnectionError as e:
         logger.error("❌ Thunder API connection error: %s", e)
-        return {"status": "error", "message": "🌐 ไม่สามารถเชื่อมต่อกับ Thunder API ได้ กรุณาตรวจสอบอินเทอร์เน็ต"}
+        return {"status": "error", "message": "🌐 ไม่สามารถเชื่อมต่อกับ Thunder API ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือการตั้งค่าเครือข่าย"}
     except requests.exceptions.Timeout as e:
         logger.error("❌ Thunder API timeout: %s", e)
         return {"status": "error", "message": "⏰ Thunder API ตอบสนองช้าเกินไป กรุณาลองใหม่อีกครั้ง"}
@@ -432,8 +432,9 @@ def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
     if not api_token:
         return {"status": "error", "message": "API Token is required"}
     logger.info("🧪 Testing Thunder API connection...")
-    # สร้าง test image data (1x1 pixel JPEG)
-    test_image = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\\'\",#\\x1c\\x1c(7),01444\\x1f\'9=82<.342\\xff\xc0\\x00\\x11\\x08\\x00\\x01\\x00\\x01\\x01\\x01\\x11\\x00\\x02\\x11\\x01\\x03\\x11\\x01\\xff\xc4\\x00\x14\\x00\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\xff\xc4\\x00\x14\\x10\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\xff\xda\\x00\x0c\\x03\\x01\\x00\\x02\x11\\x03\x11\\x00\x3f\\x00\xaa\\xff\xd9'
+    # สร้าง test image data (minimal JPEG markers)
+    # Keep this a valid bytes literal to avoid syntax/escape issues.
+    test_image = b'\xff\xd8\xff\xd9'
     endpoint = "https://api.thunder.in.th/v1/verify"
     headers = {
         "Authorization": f"Bearer {api_token}",
