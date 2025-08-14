@@ -2,6 +2,43 @@
 
 {% block title %}Edit Account - {{ account.display_name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .webhook-display {
+        background-color: #f8f9fa;
+        border: 2px dashed #007bff;
+        border-radius: 8px;
+        padding: 15px;
+        position: relative;
+    }
+    
+    .webhook-url-text {
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        color: #495057;
+        word-break: break-all;
+        padding-right: 100px;
+    }
+    
+    .copy-webhook-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+    }
+    
+    .field-group {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .toggle-password {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 fw-bold text-dark">
@@ -13,156 +50,273 @@
     </a>
 </div>
 
+<!-- Webhook URL Display -->
+<div class="alert alert-info webhook-display mb-4">
+    <h6 class="alert-heading">
+        <i class="fas fa-link me-2"></i>Webhook URL for this Account
+    </h6>
+    <div class="webhook-url-text" id="webhook-url">
+        {{ request.url.scheme }}://{{ request.url.netloc }}/line/account/{{ account.id }}/webhook
+    </div>
+    <button class="btn btn-primary copy-webhook-btn" onclick="copyWebhookUrl()">
+        <i class="fas fa-copy me-1"></i>Copy URL
+    </button>
+    <hr>
+    <p class="mb-0 small">
+        <i class="fas fa-info-circle me-1"></i>
+        Set this URL in your LINE Developers Console under Webhook settings.
+    </p>
+</div>
+
 <form id="edit-account-form">
+    <!-- Basic Information -->
     <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Account Information</h5>
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-info-circle me-2"></i>Basic Information
+            </h5>
         </div>
         <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">Account ID</label>
-                <input type="text" class="form-control" value="{{ account.id }}" readonly>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Display Name</label>
-                <input type="text" class="form-control" name="display_name" 
-                       value="{{ account.display_name }}" required>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Webhook URL</label>
-                <div class="input-group">
-                    <input type="text" class="form-control" 
-                           value="{{ request.url.scheme }}://{{ request.url.netloc }}/line/{{ account.id }}/webhook" 
-                           readonly>
-                    <button class="btn btn-outline-secondary" type="button" 
-                            onclick="copyToClipboard(this.previousElementSibling)">
-                        <i class="fas fa-copy"></i>
-                    </button>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Account ID</label>
+                        <input type="text" class="form-control" value="{{ account.id }}" readonly>
+                        <div class="form-text">Unique identifier for this account</div>
+                    </div>
                 </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Display Name</label>
+                        <input type="text" class="form-control" name="display_name" 
+                               value="{{ account.display_name }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="2">{{ account.description or '' }}</textarea>
             </div>
         </div>
     </div>
     
+    <!-- LINE Configuration -->
     <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">LINE Configuration</h5>
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fab fa-line me-2"></i>LINE Configuration
+            </h5>
         </div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label class="form-label">Channel Secret</label>
-                        <input type="password" class="form-control" name="channel_secret" 
-                               value="{{ account.channel_secret }}">
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="channel_secret" 
+                                   id="channel_secret" value="{{ account.channel_secret }}">
+                            <button class="btn btn-outline-secondary toggle-password" type="button" 
+                                    onclick="togglePassword('channel_secret')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label class="form-label">Channel Access Token</label>
-                        <input type="password" class="form-control" name="channel_access_token" 
-                               value="{{ account.channel_access_token }}">
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="channel_access_token" 
+                                   id="channel_access_token" value="{{ account.channel_access_token }}">
+                            <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    onclick="togglePassword('channel_access_token')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-success" onclick="testLineConnection()">
+                    <i class="fas fa-plug me-1"></i>Test Connection
+                </button>
+                <button type="button" class="btn btn-outline-info" onclick="getLineProfile()">
+                    <i class="fas fa-user me-1"></i>Get Bot Profile
+                </button>
             </div>
         </div>
     </div>
     
+    <!-- API Keys -->
     <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">API Keys</h5>
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-key me-2"></i>API Keys
+            </h5>
         </div>
         <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">Thunder API Token</label>
-                <input type="password" class="form-control" name="thunder_api_token" 
-                       value="{{ account.thunder_api_token }}">
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">KBank Consumer ID</label>
-                        <input type="text" class="form-control" name="kbank_consumer_id" 
-                               value="{{ account.kbank_consumer_id }}">
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">KBank Consumer Secret</label>
-                        <input type="password" class="form-control" name="kbank_consumer_secret" 
-                               value="{{ account.kbank_consumer_secret }}">
+            <div class="field-group">
+                <h6>Thunder API</h6>
+                <div class="mb-3">
+                    <label class="form-label">API Token</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="thunder_api_token" 
+                               id="thunder_api_token" value="{{ account.thunder_api_token }}">
+                        <button class="btn btn-outline-secondary toggle-password" type="button"
+                                onclick="togglePassword('thunder_api_token')">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">OpenAI API Key</label>
-                <input type="password" class="form-control" name="openai_api_key" 
-                       value="{{ account.openai_api_key }}">
+            <div class="field-group">
+                <h6>KBank API</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Consumer ID</label>
+                            <input type="text" class="form-control" name="kbank_consumer_id" 
+                                   value="{{ account.kbank_consumer_id }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Consumer Secret</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="kbank_consumer_secret" 
+                                       id="kbank_consumer_secret" value="{{ account.kbank_consumer_secret }}">
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                        onclick="togglePassword('kbank_consumer_secret')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="field-group">
+                <h6>OpenAI API</h6>
+                <div class="mb-3">
+                    <label class="form-label">API Key</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="openai_api_key" 
+                               id="openai_api_key" value="{{ account.openai_api_key }}">
+                        <button class="btn btn-outline-secondary toggle-password" type="button"
+                                onclick="togglePassword('openai_api_key')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
+    <!-- Features -->
     <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Features</h5>
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-toggle-on me-2"></i>Features
+            </h5>
         </div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-3">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="ai_enabled" 
+                        <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled"
                                {% if account.ai_enabled %}checked{% endif %}>
-                        <label class="form-check-label">AI Chat</label>
+                        <label class="form-check-label" for="ai_enabled">
+                            <i class="fas fa-robot me-1"></i>AI Chat
+                        </label>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="slip_enabled" 
+                        <input class="form-check-input" type="checkbox" name="slip_enabled" id="slip_enabled"
                                {% if account.slip_enabled %}checked{% endif %}>
-                        <label class="form-check-label">Slip Verification</label>
+                        <label class="form-check-label" for="slip_enabled">
+                            <i class="fas fa-receipt me-1"></i>Slip Verification
+                        </label>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="thunder_enabled" 
+                        <input class="form-check-input" type="checkbox" name="thunder_enabled" id="thunder_enabled"
                                {% if account.thunder_enabled %}checked{% endif %}>
-                        <label class="form-check-label">Thunder API</label>
+                        <label class="form-check-label" for="thunder_enabled">
+                            <i class="fas fa-bolt me-1"></i>Thunder API
+                        </label>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="kbank_enabled" 
+                        <input class="form-check-input" type="checkbox" name="kbank_enabled" id="kbank_enabled"
                                {% if account.kbank_enabled %}checked{% endif %}>
-                        <label class="form-check-label">KBank API</label>
+                        <label class="form-check-label" for="kbank_enabled">
+                            <i class="fas fa-university me-1"></i>KBank API
+                        </label>
                     </div>
                 </div>
             </div>
             
-            <div class="mt-3">
-                <label class="form-label">AI Prompt</label>
-                <textarea class="form-control" name="ai_prompt" rows="3">{{ account.ai_prompt }}</textarea>
+            <div class="mt-4">
+                <label class="form-label">AI System Prompt</label>
+                <textarea class="form-control" name="ai_prompt" rows="4">{{ account.ai_prompt }}</textarea>
+                <div class="form-text">Customize the AI assistant's behavior and responses</div>
             </div>
         </div>
     </div>
     
+    <!-- Action Buttons -->
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-1"></i> Save Changes
         </button>
-        <button type="button" class="btn btn-danger" onclick="deleteAccount()">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='/admin/accounts'">
+            <i class="fas fa-times me-1"></i> Cancel
+        </button>
+        <button type="button" class="btn btn-danger ms-auto" onclick="deleteAccount()">
             <i class="fas fa-trash me-1"></i> Delete Account
         </button>
     </div>
 </form>
 
 <script>
-function copyToClipboard(input) {
-    input.select();
-    document.execCommand('copy');
-    showNotification('Copied to clipboard!', 'success');
+function copyWebhookUrl() {
+    const webhookText = document.getElementById('webhook-url').textContent.trim();
+    navigator.clipboard.writeText(webhookText).then(() => {
+        showNotification('Webhook URL copied to clipboard!', 'success');
+        
+        // Change button temporarily
+        const btn = document.querySelector('.copy-webhook-btn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
+        }, 2000);
+    });
+}
+
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    const button = field.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        field.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
 }
 
 document.getElementById('edit-account-form').addEventListener('submit', async (e) => {
@@ -171,6 +325,7 @@ document.getElementById('edit-account-form').addEventListener('submit', async (e
     const formData = new FormData(e.target);
     const data = {};
     
+    // Convert form data properly
     for (let [key, value] of formData.entries()) {
         if (e.target.elements[key].type === 'checkbox') {
             data[key] = e.target.elements[key].checked;
@@ -189,12 +344,13 @@ document.getElementById('edit-account-form').addEventListener('submit', async (e
         const result = await response.json();
         
         if (result.status === 'success') {
-            showNotification('Account updated successfully', 'success');
+            showNotification('Account updated successfully!', 'success');
+            setTimeout(() => window.location.href = '/admin/accounts', 1500);
         } else {
-            showNotification('Failed to update account', 'error');
+            showNotification('Failed to update account: ' + (result.message || 'Unknown error'), 'error');
         }
     } catch (error) {
-        showNotification('Error updating account', 'error');
+        showNotification('Error updating account: ' + error.message, 'error');
     }
 });
 
@@ -211,12 +367,26 @@ async function deleteAccount() {
         const result = await response.json();
         
         if (result.status === 'success') {
-            showNotification('Account deleted', 'success');
+            showNotification('Account deleted successfully', 'success');
             setTimeout(() => window.location.href = '/admin/accounts', 1000);
+        } else {
+            showNotification('Failed to delete account', 'error');
         }
     } catch (error) {
         showNotification('Error deleting account', 'error');
     }
+}
+
+async function testLineConnection() {
+    // Implementation for testing LINE connection
+    showNotification('Testing LINE connection...', 'info');
+    // Add actual test implementation here
+}
+
+async function getLineProfile() {
+    // Implementation for getting LINE bot profile
+    showNotification('Getting bot profile...', 'info');
+    // Add actual implementation here
 }
 </script>
 {% endblock %}
