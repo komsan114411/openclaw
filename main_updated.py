@@ -954,7 +954,44 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
             )
 			
 
-
+async def check_slip_text(text: str, account_config: Dict) -> Dict:
+    """Extract slip info from text"""
+    import re
+    
+    trans_ref_patterns = [
+        r'ref[\s:]*([0-9A-Za-z]{10,})',
+        r'([0-9A-Za-z]{12,})'
+    ]
+    
+    bank_patterns = [
+        r'bank[\s:]*([0-9]{3})',
+        r'([0-9]{3})[\s]*ธนาคาร'
+    ]
+    
+    trans_ref = None
+    bank_code = None
+    
+    text_lower = text.lower()
+    
+    for pattern in trans_ref_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            trans_ref = match.group(1)
+            break
+    
+    for pattern in bank_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            bank_code = match.group(1)
+            break
+    
+    if not bank_code and trans_ref:
+        bank_code = "004"  # Default KBank
+    
+    return {
+        "bank_code": bank_code,
+        "trans_ref": trans_ref
+    }
 
 async def save_chat_with_account(user_id: str, direction: str, message: Dict, sender: str, account_id: str):
     """บันทึก chat history พร้อม account_id"""
