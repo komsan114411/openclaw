@@ -1094,6 +1094,30 @@ async def handle_slip_with_account_config(
         logger.error(f"❌ Slip verification error for account {account_id}: {e}")
 
 
+async def verify_slip_with_account_config(
+    account_config: Dict[str, Any],
+    message_id: str,
+    slip_info: Dict[str, Any] = None,
+) -> Dict[str, Any]:
+    """
+    ตรวจสอบสลิปโดยใช้ token ของบัญชีที่ระบุใน account_config
+    """
+    try:
+        thunder_token = account_config.get("thunder_api_token")
+        line_token = account_config.get("line_channel_access_token")
+        from services.slip_checker import verify_slip_with_thunder
+        # เรียกผ่าน thread เพื่อไม่บล็อก event loop
+        return await asyncio.to_thread(
+            verify_slip_with_thunder,
+            message_id,
+            None,     # test_image_data (ไม่ใช้)
+            None,     # check_duplicate (ค่า default)
+            line_token=line_token,
+            api_token=thunder_token,
+        )
+    except Exception as e:
+        logger.error(f"❌ Error verifying slip: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 
@@ -1124,38 +1148,39 @@ async def send_line_push_with_account(user_id: str, text: str, account_config: D
 
 
 		
+from services.chat_bot import get_chat_response_async
+
 async def handle_ai_chat_with_account(
-    user_id: str, 
-    reply_token: str, 
-    user_text: str, 
+    user_id: str,
+    reply_token: str,
+    user_text: str,
     account_config: Dict[str, Any],
-    account_id: str
+    account_id: str,
 ):
     """จัดการ AI Chat ด้วย config ของ account"""
     try:
         openai_key = account_config.get("openai_api_key", "")
         ai_prompt = account_config.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตร")
-        
-        if not openai_key:
-            response = "ขออภัย ยังไม่ได้ตั้งค่า AI สำหรับบัญชีนี้"
-        else:
-            # เรียกใช้ AI ด้วย API key ของ account นี้
-            response = await get_ai_response_with_key(
-                user_text, user_id, openai_key, ai_prompt, account_id
-            )
-        
+        ai_enabled = account_config.get("ai_enabled", False)
+
+        # เรียก AI ด้วย key และ prompt ของ account นี้
+        response = await get_chat_response_async(
+            user_text,
+            user_id,
+            ai_enabled_override=ai_enabled,
+            api_key_override=openai_key,
+            ai_prompt_override=ai_prompt,
+        )
+
         # ส่งตอบกลับด้วย access token ของ account นี้
         await send_line_reply_with_account(reply_token, response, account_config)
-        
+
         # บันทึกข้อความขาออก
         await save_chat_with_account(
             user_id, "out", {"type": "text", "text": response}, "ai_bot", account_id
         )
-        
     except Exception as e:
         logger.error(f"❌ AI chat error for account {account_id}: {e}")
-		
-
 
 
 async def send_line_reply_with_account(reply_token: str, text: str, account_config: Dict[str, Any]):
