@@ -1124,9 +1124,16 @@ async def verify_slip_with_account_config(
 async def send_line_push_with_account(user_id: str, text: str, account_config: Dict[str, Any]):
     """ส่ง push message ด้วย access token ของ account"""
     try:
-        access_token = account_config.get("line_channel_access_token")
+        # ตรวจสอบทั้ง 2 key ที่เป็นไปได้
+        access_token = account_config.get("channel_access_token") or account_config.get("line_channel_access_token")
+        
         if not access_token:
-            return False
+            logger.error("❌ No access token for this account")
+            # พยายาม fallback ไปใช้ default token
+            from utils.config_manager import config_manager
+            access_token = config_manager.get("line_channel_access_token")
+            if not access_token:
+                return False
             
         url = "https://api.line.me/v2/bot/message/push"
         headers = {
@@ -1145,7 +1152,6 @@ async def send_line_push_with_account(user_id: str, text: str, account_config: D
     except Exception as e:
         logger.error(f"❌ Push error: {e}")
         return False
-
 
 		
 from services.chat_bot import get_chat_response_async
@@ -1186,10 +1192,16 @@ async def handle_ai_chat_with_account(
 async def send_line_reply_with_account(reply_token: str, text: str, account_config: Dict[str, Any]):
     """ส่ง reply ด้วย access token ของ account"""
     try:
-        access_token = account_config.get("line_channel_access_token")
+        # ตรวจสอบทั้ง 2 key ที่เป็นไปได้
+        access_token = account_config.get("channel_access_token") or account_config.get("line_channel_access_token")
+        
         if not access_token:
             logger.error("❌ No access token for this account")
-            return False
+            # พยายาม fallback ไปใช้ default token
+            from utils.config_manager import config_manager
+            access_token = config_manager.get("line_channel_access_token")
+            if not access_token:
+                return False
             
         url = "https://api.line.me/v2/bot/message/reply"
         headers = {
@@ -1210,14 +1222,13 @@ async def send_line_reply_with_account(reply_token: str, text: str, account_conf
         return False
 		
 		
-		
 async def load_account_config(account_id: str) -> Dict[str, Any]:
     """โหลด config เฉพาะของแต่ละ account"""
     try:
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return {}
             
         account_manager = LineAccountManager(db_manager.db)
