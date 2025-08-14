@@ -3019,13 +3019,13 @@ async def line_webhook_multi_account(
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return JSONResponse(content={"status": "error", "message": "Database not ready"}, status_code=503)
             
         account_manager = LineAccountManager(db_manager.db)
         account = await account_manager.get_account(account_id)
         
-        if not account:
+        if account is None:
             return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
         
         # ตั้งค่า config สำหรับ account นี้
@@ -3071,7 +3071,7 @@ async def accounts_management_page(request: Request):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return templates.TemplateResponse("error.html", {
                 "request": request,
                 "message": "Database not initialized"
@@ -3098,7 +3098,7 @@ async def create_line_account(request: Request):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return JSONResponse({"status": "error", "message": "Database not initialized"})
             
         data = await request.json()
@@ -3129,7 +3129,7 @@ async def edit_account_page(account_id: str, request: Request):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return templates.TemplateResponse("error.html", {
                 "request": request,
                 "message": "Database not initialized"
@@ -3138,7 +3138,7 @@ async def edit_account_page(account_id: str, request: Request):
         account_manager = LineAccountManager(db_manager.db)
         account = await account_manager.get_account(account_id)
         
-        if not account:
+        if account is None:
             return templates.TemplateResponse("error.html", {
                 "request": request,
                 "message": "Account not found"
@@ -3162,7 +3162,7 @@ async def update_line_account(account_id: str, request: Request):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return JSONResponse({"status": "error", "message": "Database not initialized"})
             
         data = await request.json()
@@ -3189,7 +3189,7 @@ async def delete_line_account(account_id: str):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if not db_manager.db:
+        if db_manager.db is None:
             return JSONResponse({"status": "error", "message": "Database not initialized"})
             
         account_manager = LineAccountManager(db_manager.db)
