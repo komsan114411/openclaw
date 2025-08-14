@@ -2,6 +2,83 @@
 
 {% block title %}Manage LINE Accounts{% endblock %}
 
+{% block extra_css %}
+<style>
+    .webhook-url-container {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 10px;
+        position: relative;
+    }
+    
+    .webhook-url {
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        color: #495057;
+        word-break: break-all;
+        padding-right: 40px;
+    }
+    
+    .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    
+    .account-card {
+        transition: all 0.3s ease;
+        border: 1px solid #e3e6ea;
+    }
+    
+    .account-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+    }
+    
+    .feature-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin: 0 2px;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .status-active {
+        background-color: #28a745;
+        animation: pulse 2s infinite;
+    }
+    
+    .status-inactive {
+        background-color: #dc3545;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+    
+    .webhook-copied {
+        animation: flash 0.5s;
+    }
+    
+    @keyframes flash {
+        0%, 100% { background-color: #f8f9fa; }
+        50% { background-color: #d4edda; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 fw-bold text-dark">
@@ -9,231 +86,334 @@
         LINE Accounts Management
     </h1>
     <button class="btn btn-success" onclick="showAddAccountModal()">
-        <i class="fas fa-plus me-1"></i> Add Account
+        <i class="fas fa-plus-circle me-1"></i> Add New Account
     </button>
 </div>
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
-                <h4 class="text-primary">{{ accounts|length if accounts else 0 }}</h4>
-                <p class="text-muted mb-0">Total Accounts</p>
+                <h3 class="text-primary mb-2">{{ accounts|length if accounts else 0 }}</h3>
+                <p class="text-muted mb-0 small">Total Accounts</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
-                <h4 class="text-success" id="active-accounts">0</h4>
-                <p class="text-muted mb-0">Active Accounts</p>
+                <h3 class="text-success mb-2" id="active-accounts">0</h3>
+                <p class="text-muted mb-0 small">Active Accounts</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
-                <h4 class="text-info" id="ai-enabled">0</h4>
-                <p class="text-muted mb-0">AI Enabled</p>
+                <h3 class="text-info mb-2" id="ai-enabled">0</h3>
+                <p class="text-muted mb-0 small">AI Enabled</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-center">
+        <div class="card text-center border-0 shadow-sm">
             <div class="card-body">
-                <h4 class="text-warning" id="slip-enabled">0</h4>
-                <p class="text-muted mb-0">Slip Enabled</p>
+                <h3 class="text-warning mb-2" id="slip-enabled">0</h3>
+                <p class="text-muted mb-0 small">Slip Enabled</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Accounts Table -->
-<div class="card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Name</th>
-                        <th>Webhook URL</th>
-                        <th>Features</th>
-                        <th>Created</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if accounts %}
-                        {% for acc in accounts %}
-                        <tr>
-                            <td>
-                                <strong>{{ acc.display_name or 'Unnamed Account' }}</strong>
-                                <br><small class="text-muted">ID: {{ acc.id[:8] if acc.id else 'N/A' }}...</small>
-                            </td>
-                            <td>
-                                <code>/line/{{ acc.id }}/webhook</code>
-                                <button class="btn btn-sm btn-outline-secondary ms-2" 
-                                        onclick="copyWebhook('{{ acc.id }}')">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </td>
-                            <td>
-                                {% if acc.ai_enabled %}
-                                    <span class="badge bg-info">AI</span>
-                                {% endif %}
-                                {% if acc.slip_enabled %}
-                                    <span class="badge bg-warning">Slip</span>
-                                {% endif %}
-                                {% if not acc.ai_enabled and not acc.slip_enabled %}
-                                    <span class="badge bg-secondary">Inactive</span>
-                                {% endif %}
-                            </td>
-                            <td>
+<!-- Accounts Grid -->
+<div class="row">
+    {% if accounts %}
+        {% for acc in accounts %}
+        <div class="col-md-6 mb-4">
+            <div class="card account-card">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <span class="status-indicator {% if acc.ai_enabled or acc.slip_enabled %}status-active{% else %}status-inactive{% endif %}"></span>
+                                {{ acc.display_name or 'Unnamed Account' }}
+                            </h5>
+                            <small class="text-muted">ID: {{ acc.id[:8] if acc.id else 'N/A' }}...</small>
+                        </div>
+                        <div>
+                            {% if acc.ai_enabled %}
+                                <span class="badge bg-info feature-badge">AI</span>
+                            {% endif %}
+                            {% if acc.slip_enabled %}
+                                <span class="badge bg-warning feature-badge">Slip</span>
+                            {% endif %}
+                            {% if acc.thunder_enabled %}
+                                <span class="badge bg-primary feature-badge">Thunder</span>
+                            {% endif %}
+                            {% if acc.kbank_enabled %}
+                                <span class="badge bg-success feature-badge">KBank</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Webhook URL Section -->
+                    <div class="webhook-url-container" id="webhook-container-{{ acc.id }}">
+                        <label class="form-label small text-muted mb-1">
+                            <i class="fas fa-link me-1"></i>Webhook URL
+                        </label>
+                        <div class="webhook-url" id="webhook-{{ acc.id }}">{{ request.url.scheme }}://{{ request.url.netloc }}/line/account/{{ acc.id }}/webhook</div>
+                        <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                                onclick="copyWebhook('{{ acc.id }}')" 
+                                title="Copy to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Account Info -->
+                    <div class="mt-3">
+                        <div class="row small text-muted">
+                            <div class="col-6">
+                                <i class="fas fa-calendar me-1"></i>
+                                Created: 
                                 {% if acc.created_at %}
-                                    <small>{{ acc.created_at.strftime('%Y-%m-%d') if hasattr(acc.created_at, 'strftime') else acc.created_at[:10] }}</small>
+                                    {% if acc.created_at.strftime is defined %}
+                                        {{ acc.created_at.strftime('%Y-%m-%d') }}
+                                    {% else %}
+                                        {{ acc.created_at[:10] if acc.created_at else 'N/A' }}
+                                    {% endif %}
                                 {% else %}
-                                    <small>N/A</small>
+                                    N/A
                                 {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="/admin/accounts/{{ acc.id }}" class="btn btn-primary" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="/admin/chat-history-by-account?account_id={{ acc.id }}" class="btn btn-info" title="Chat History">
-                                        <i class="fas fa-comments"></i>
-                                    </a>
-                                    <button class="btn btn-danger" onclick="deleteAccount('{{ acc.id }}')" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">
-                                <i class="fab fa-line fa-3x mb-3"></i>
-                                <p>No LINE accounts configured yet</p>
-                                <button class="btn btn-success" onclick="showAddAccountModal()">
-                                    <i class="fas fa-plus me-1"></i> Add First Account
-                                </button>
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                            </div>
+                            <div class="col-6">
+                                <i class="fas fa-clock me-1"></i>
+                                Updated: 
+                                {% if acc.updated_at %}
+                                    {% if acc.updated_at.strftime is defined %}
+                                        {{ acc.updated_at.strftime('%Y-%m-%d') }}
+                                    {% else %}
+                                        {{ acc.updated_at[:10] if acc.updated_at else 'N/A' }}
+                                    {% endif %}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 mt-3">
+                        <a href="/admin/accounts/{{ acc.id }}" class="btn btn-sm btn-primary flex-fill">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        <button class="btn btn-sm btn-info flex-fill" 
+                                onclick="viewChatHistory('{{ acc.id }}')">
+                            <i class="fas fa-comments me-1"></i>Chats
+                        </button>
+                        <button class="btn btn-sm btn-warning flex-fill" 
+                                onclick="testWebhook('{{ acc.id }}')">
+                            <i class="fas fa-vial me-1"></i>Test
+                        </button>
+                        <button class="btn btn-sm btn-danger" 
+                                onclick="deleteAccount('{{ acc.id }}')" 
+                                title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fab fa-line fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No LINE Accounts Configured</h4>
+                    <p class="text-muted mb-4">Start by adding your first LINE account to manage messages and features.</p>
+                    <button class="btn btn-success btn-lg" onclick="showAddAccountModal()">
+                        <i class="fas fa-plus-circle me-2"></i>Add Your First Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 </div>
 
 <!-- Add Account Modal -->
 <div class="modal fade" id="addAccountModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add LINE Account</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fab fa-line me-2"></i>Add New LINE Account
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="add-account-form">
-                    <div class="mb-3">
-                        <label class="form-label">Display Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="display_name" required 
-                               placeholder="e.g., Main Store Bot">
-                    </div>
-                    
-                    <hr>
-                    <h6>LINE Credentials</h6>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Channel Secret <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="channel_secret" required
-                                       placeholder="From LINE Developers Console">
-                            </div>
+                    <!-- Basic Information -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-info-circle me-1"></i>Basic Information
+                        </h6>
+                        <div class="mb-3">
+                            <label class="form-label">Display Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="display_name" required 
+                                   placeholder="e.g., Main Store Bot">
+                            <div class="form-text">A friendly name to identify this account</div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Channel Access Token <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="channel_access_token" required
-                                       placeholder="From LINE Developers Console">
-                            </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="description" rows="2"
+                                      placeholder="e.g., Customer service bot for main store"></textarea>
                         </div>
                     </div>
                     
-                    <hr>
-                    <h6>Optional API Keys</h6>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Thunder API Token</label>
-                        <input type="text" class="form-control" name="thunder_api_token"
-                               placeholder="For slip verification">
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">KBank Consumer ID</label>
-                                <input type="text" class="form-control" name="kbank_consumer_id">
+                    <!-- LINE Credentials -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fab fa-line me-1"></i>LINE Credentials
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Channel Secret <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="channel_secret" required
+                                           placeholder="From LINE Developers Console">
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">KBank Consumer Secret</label>
-                                <input type="text" class="form-control" name="kbank_consumer_secret">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Channel Access Token <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="channel_access_token" required
+                                           placeholder="Long-lived token">
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">OpenAI API Key</label>
-                        <input type="text" class="form-control" name="openai_api_key"
-                               placeholder="For AI chat feature">
+                    <!-- API Keys -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-key me-1"></i>API Keys (Optional)
+                        </h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Thunder API Token</label>
+                            <input type="text" class="form-control" name="thunder_api_token"
+                                   placeholder="For slip verification">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">KBank Consumer ID</label>
+                                    <input type="text" class="form-control" name="kbank_consumer_id"
+                                           placeholder="Optional">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">KBank Consumer Secret</label>
+                                    <input type="text" class="form-control" name="kbank_consumer_secret"
+                                           placeholder="Optional">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">OpenAI API Key</label>
+                            <input type="text" class="form-control" name="openai_api_key"
+                                   placeholder="For AI chat feature">
+                        </div>
                     </div>
                     
+                    <!-- Features -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-toggle-on me-1"></i>Enable Features
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled_new">
+                                    <label class="form-check-label" for="ai_enabled_new">
+                                        <i class="fas fa-robot me-1"></i>AI Chat
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="slip_enabled" id="slip_enabled_new">
+                                    <label class="form-check-label" for="slip_enabled_new">
+                                        <i class="fas fa-receipt me-1"></i>Slip Verify
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="thunder_enabled" id="thunder_enabled_new" checked>
+                                    <label class="form-check-label" for="thunder_enabled_new">
+                                        <i class="fas fa-bolt me-1"></i>Thunder
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="kbank_enabled" id="kbank_enabled_new">
+                                    <label class="form-check-label" for="kbank_enabled_new">
+                                        <i class="fas fa-university me-1"></i>KBank
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Prompt -->
                     <div class="mb-3">
-                        <label class="form-label">AI Prompt</label>
+                        <label class="form-label">AI System Prompt</label>
                         <textarea class="form-control" name="ai_prompt" rows="3"
                                   placeholder="คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ">คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ</textarea>
-                    </div>
-                    
-                    <hr>
-                    <h6>Enable Features</h6>
-                    
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled_new">
-                                <label class="form-check-label" for="ai_enabled_new">AI Chat</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="slip_enabled" id="slip_enabled_new">
-                                <label class="form-check-label" for="slip_enabled_new">Slip Verification</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="thunder_enabled" id="thunder_enabled_new" checked>
-                                <label class="form-check-label" for="thunder_enabled_new">Thunder API</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="kbank_enabled" id="kbank_enabled_new">
-                                <label class="form-check-label" for="kbank_enabled_new">KBank API</label>
-                            </div>
-                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="createAccount()">Create Account</button>
+                <button type="button" class="btn btn-success" onclick="createAccount()">
+                    <i class="fas fa-plus-circle me-1"></i>Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Webhook Test Modal -->
+<div class="modal fade" id="webhookTestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test Webhook</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Send a test message to this webhook to verify it's working correctly.</p>
+                <div class="mb-3">
+                    <label class="form-label">Test Message</label>
+                    <input type="text" class="form-control" id="test-message" 
+                           value="Hello, this is a test message!" />
+                </div>
+                <div id="test-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="sendTestMessage()">
+                    <i class="fas fa-paper-plane me-1"></i>Send Test
+                </button>
             </div>
         </div>
     </div>
@@ -288,6 +468,12 @@ async function createAccount() {
         }
     }
     
+    // Show loading
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Creating...';
+    btn.disabled = true;
+    
     try {
         const response = await fetch('/admin/accounts', {
             method: 'POST',
@@ -298,25 +484,74 @@ async function createAccount() {
         const result = await response.json();
         
         if (result.status === 'success') {
+            // Show success with webhook URL
             showNotification('Account created successfully!', 'success');
             
-            // Show webhook URL
-            alert(`Account created!\n\nWebhook URL:\n${result.webhook_url}\n\nPlease set this URL in LINE Developers Console.`);
+            // Show webhook URL in a nice alert
+            const webhookAlert = `
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-check-circle me-2"></i>Account Created Successfully!</h5>
+                    <hr>
+                    <p><strong>Webhook URL:</strong></p>
+                    <div class="bg-light p-2 rounded">
+                        <code>${result.webhook_url}</code>
+                    </div>
+                    <hr>
+                    <p class="mb-0"><small>Please set this URL in your LINE Developers Console.</small></p>
+                </div>
+            `;
             
-            setTimeout(() => window.location.reload(), 1000);
+            // Create temporary div to show the alert
+            const alertDiv = document.createElement('div');
+            alertDiv.innerHTML = webhookAlert;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '20%';
+            alertDiv.style.left = '50%';
+            alertDiv.style.transform = 'translateX(-50%)';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.minWidth = '400px';
+            document.body.appendChild(alertDiv);
+            
+            // Copy webhook URL to clipboard
+            navigator.clipboard.writeText(result.webhook_url).then(() => {
+                showNotification('Webhook URL copied to clipboard!', 'info');
+            });
+            
+            // Remove alert and reload after 5 seconds
+            setTimeout(() => {
+                document.body.removeChild(alertDiv);
+                window.location.reload();
+            }, 5000);
+            
         } else {
             showNotification(result.message || 'Failed to create account', 'error');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     } catch (error) {
         console.error('Error:', error);
         showNotification('Error creating account', 'error');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
 function copyWebhook(accountId) {
-    const webhookUrl = `${window.location.origin}/line/${accountId}/webhook`;
-    navigator.clipboard.writeText(webhookUrl).then(() => {
-        showNotification('Webhook URL copied!', 'success');
+    const webhookText = document.getElementById(`webhook-${accountId}`).textContent;
+    navigator.clipboard.writeText(webhookText).then(() => {
+        // Add animation effect
+        const container = document.getElementById(`webhook-container-${accountId}`);
+        container.classList.add('webhook-copied');
+        
+        showNotification('Webhook URL copied to clipboard!', 'success');
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+            container.classList.remove('webhook-copied');
+        }, 500);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showNotification('Failed to copy webhook URL', 'error');
     });
 }
 
@@ -333,13 +568,86 @@ async function deleteAccount(accountId) {
         const result = await response.json();
         
         if (result.status === 'success') {
-            showNotification('Account deleted', 'success');
+            showNotification('Account deleted successfully', 'success');
             setTimeout(() => window.location.reload(), 1000);
         } else {
             showNotification('Failed to delete account', 'error');
         }
     } catch (error) {
         showNotification('Error deleting account', 'error');
+    }
+}
+
+function viewChatHistory(accountId) {
+    window.location.href = `/admin/chat-history?account_id=${accountId}`;
+}
+
+let currentTestAccountId = null;
+
+function testWebhook(accountId) {
+    currentTestAccountId = accountId;
+    document.getElementById('test-result').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('webhookTestModal')).show();
+}
+
+async function sendTestMessage() {
+    if (!currentTestAccountId) return;
+    
+    const message = document.getElementById('test-message').value;
+    const resultDiv = document.getElementById('test-result');
+    
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Sending test message...';
+    
+    try {
+        // Simulate webhook test
+        const webhookUrl = `${window.location.origin}/line/account/${currentTestAccountId}/webhook`;
+        
+        const testPayload = {
+            events: [{
+                type: "message",
+                message: {
+                    type: "text",
+                    text: message
+                },
+                source: {
+                    userId: "TEST_USER_" + Date.now()
+                },
+                timestamp: Date.now(),
+                replyToken: "TEST_REPLY_TOKEN_" + Date.now()
+            }]
+        };
+        
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Line-Signature': 'test-signature'
+            },
+            body: JSON.stringify(testPayload)
+        });
+        
+        if (response.ok) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Test message sent successfully! Check the chat history to verify.
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-times-circle me-2"></i>
+                    Failed to send test message. Status: ${response.status}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error: ${error.message}
+            </div>
+        `;
     }
 }
 </script>
