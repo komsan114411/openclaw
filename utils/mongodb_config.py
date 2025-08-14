@@ -62,7 +62,7 @@ class MongoDBConfigManager:
     
     async def _load_all_configs(self):
         """Load all configs from MongoDB to cache"""
-        if not self.db:
+        if self.db is None:
             return
             
         try:
@@ -101,7 +101,7 @@ class MongoDBConfigManager:
         try:
             self.config_cache[key] = value
             
-            if self.db:
+            if self.db is not None:
                 await self.db.config_store.update_one(
                     {"config_key": key},
                     {"$set": {
@@ -125,7 +125,7 @@ class MongoDBConfigManager:
         try:
             self.config_cache[key] = value
             
-            if self.db:
+            if self.db is not None:
                 # Schedule async update
                 asyncio.create_task(self.set_async(key, value))
             
@@ -139,7 +139,7 @@ class MongoDBConfigManager:
         try:
             self.config_cache.update(updates)
             
-            if self.db:
+            if self.db is not None:
                 for key, value in updates.items():
                     asyncio.create_task(self.set_async(key, value))
             
