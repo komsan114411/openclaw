@@ -1129,7 +1129,43 @@ async def handle_slip_with_account_config(
         
     except Exception as e:
         logger.error(f"❌ Slip verification error for account {account_id}: {e}")
-
+async def send_line_push_flex_with_account(user_id: str, messages: list, account_config: Dict):
+    """Send flex message with account token"""
+    try:
+        access_token = account_config.get("channel_access_token") or account_config.get("line_channel_access_token")
+        if not access_token:
+            logger.error("❌ No access token for this account")
+            return False
+            
+        url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Ensure messages is a list
+        if not isinstance(messages, list):
+            messages = [messages]
+            
+        payload = {
+            "to": user_id,
+            "messages": messages[:5]  # LINE allows max 5 messages
+        }
+        
+        timeout = httpx.Timeout(15.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                logger.info("✅ Push flex message sent successfully")
+                return True
+            else:
+                logger.error(f"❌ Push flex failed: {response.status_code} - {response.text}")
+                return False
+                
+    except Exception as e:
+        logger.error(f"❌ Push flex error: {e}")
+        return False
 
 async def verify_slip_with_account_config(
     account_config: Dict[str, Any],
