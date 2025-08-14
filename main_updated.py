@@ -891,283 +891,333 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 # แทนที่ฟังก์ชัน handle_message_event ทั้งหมดด้วยโค้ดนี้
 
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - บันทึกและประมวลผล พร้อมรองรับ multi-account"""
+    """Handle message event - รองรับ multi-account แบบสมบูรณ์"""
     message = event.get("message", {})
     user_id = event.get("source", {}).get("userId")
     reply_token = event.get("replyToken")
     message_type = message.get("type")
     
-    # ดึง account_id ถ้ามี (สำหรับ multi-account)
+    # ดึง account_id จาก event
     account_id = event.get("_account_id")
     
     if not user_id:
         logger.error("❌ Missing user ID in message event")
         return
     
-    logger.info(f"📨 Received {message_type} message from {user_id[:10]}...")
-    if account_id:
-        logger.info(f"   Account ID: {account_id[:8]}...")
+    logger.info(f"📨 Processing {message_type} from {user_id[:10]}... (Account: {account_id or 'default'})")
     
-    # สร้างข้อมูลข้อความสำหรับบันทึก
+    # โหลด config สำหรับ account นี้โดยเฉพาะ
+    account_config = await load_account_config(account_id) if account_id else None
+    
+    # บันทึกข้อความขาเข้า
     save_message = {
         "type": message_type,
-        "text": "",
+        "text": message.get("text", "") if message_type == "text" else f"[{message_type}]",
         "id": message.get("id"),
         "timestamp": event.get("timestamp")
     }
     
-    # จัดการตามประเภทข้อความ
-    if message_type == "text":
-        save_message["text"] = message.get("text", "")
-    elif message_type == "image":
-        save_message["text"] = "[รูปภาพ]"
-        save_message["contentProvider"] = message.get("contentProvider", {})
-    elif message_type == "video":
-        save_message["text"] = "[วิดีโอ]"
-        save_message["duration"] = message.get("duration")
-    elif message_type == "audio":
-        save_message["text"] = "[ไฟล์เสียง]"
-        save_message["duration"] = message.get("duration")
-    elif message_type == "file":
-        save_message["text"] = f"[ไฟล์: {message.get('fileName', 'unknown')}]"
-        save_message["fileName"] = message.get("fileName")
-        save_message["fileSize"] = message.get("fileSize")
-    elif message_type == "location":
-        save_message["text"] = f"[ตำแหน่ง: {message.get('title', 'Unknown')}]"
-        save_message["title"] = message.get("title")
-        save_message["address"] = message.get("address")
-        save_message["latitude"] = message.get("latitude")
-        save_message["longitude"] = message.get("longitude")
-    elif message_type == "sticker":
-        save_message["text"] = "[สติกเกอร์]"
-        save_message["packageId"] = message.get("packageId")
-        save_message["stickerId"] = message.get("stickerId")
-    else:
-        save_message["text"] = f"[{message_type}]"
+    # บันทึกพร้อม account_id
+    await save_chat_with_account(user_id, "in", save_message, "user", account_id)
     
-    # บันทึกข้อความขาเข้า - รองรับทั้งแบบมี account_id และไม่มี
-    save_success = False
-    try:
-        if account_id:
-            # ถ้ามี account_id ให้ใช้ฟังก์ชันที่รองรับ multi-account
-            try:
-                from models.database import save_chat_history_with_account
-                result = await save_chat_history_with_account(
-                    user_id, 
-                    "in", 
-                    save_message, 
-                    "user",
-                    account_id
-                )
-                
-                if result is True:
-                    logger.info(f"✅ Successfully saved incoming message for account {account_id[:8]}")
-                    save_success = True
-                else:
-                    logger.error(f"❌ Failed to save message for account - result: {result}")
-                    
-            except ImportError:
-                # ถ้าไม่มีฟังก์ชัน multi-account ให้ใช้แบบเดิม
-                if 'save_chat_history' in database_functions:
-                    result = await database_functions['save_chat_history'](
-                        user_id, 
-                        "in", 
-                        save_message, 
-                        "user"
-                    )
-                    if result is True:
-                        logger.info(f"✅ Successfully saved incoming message (fallback)")
-                        save_success = True
-                        
-        else:
-            # ถ้าไม่มี account_id ใช้ฟังก์ชันเดิม
-            if 'save_chat_history' in database_functions:
-                result = await database_functions['save_chat_history'](
-                    user_id, 
-                    "in", 
-                    save_message, 
-                    "user"
-                )
-                
-                if result is True:
-                    logger.info(f"✅ Successfully saved incoming message from {user_id[:10]}")
-                    save_success = True
-                else:
-                    logger.error(f"❌ Failed to save message - result: {result}")
-                    save_success = False
-            else:
-                logger.error("❌ save_chat_history function not available in database_functions")
-            
-    except Exception as e:
-        logger.error(f"❌ Error saving incoming message: {e}")
-        logger.exception(e)
-        save_success = False
-    
-    # แสดงสถานะการบันทึก
-    if not save_success:
-        logger.warning(f"⚠️ Message from {user_id[:10]} was NOT saved to database")
-    
-    # ประมวลผลข้อความ (AI, slip verification ฯลฯ)
+    # ประมวลผลตาม message type
     if message_type == "text":
         user_text = message.get("text", "")
-        logger.info(f"📝 Text message: {user_text[:50]}...")
         
-        # ตรวจสอบสลิป
-        slip_info = {"bank_code": None, "trans_ref": None}
-        if slip_functions and 'extract_slip_info_from_text' in slip_functions:
-            try:
-                slip_info = slip_functions['extract_slip_info_from_text'](user_text)
-            except Exception as e:
-                logger.error(f"❌ Error extracting slip info: {e}")
+        # ตรวจสอบสลิปด้วย config ของ account นี้
+        if account_config and account_config.get("slip_enabled"):
+            slip_info = await check_slip_text(user_text, account_config)
+            if slip_info.get("bank_code") and slip_info.get("trans_ref"):
+                await handle_slip_with_account_config(
+                    user_id, reply_token, account_config, account_id, slip_info=slip_info
+                )
+                return
         
-        if slip_info.get("bank_code") and slip_info.get("trans_ref"):
-            # ตรวจสอบสลิป
-            await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
-            
-            # บันทึกผลลัพธ์สลิป
-            if account_id and save_success:
-                try:
-                    from models.database import save_chat_history_with_account
-                    await save_chat_history_with_account(
-                        user_id, 
-                        "out", 
-                        {"type": "text", "text": "[ตรวจสอบสลิป]"}, 
-                        "slip_bot",
-                        account_id
-                    )
-                except Exception as e:
-                    logger.error(f"❌ Failed to save slip result: {e}")
+        # AI Chat ด้วย config ของ account นี้
+        if account_config and account_config.get("ai_enabled"):
+            await handle_ai_chat_with_account(
+                user_id, reply_token, user_text, account_config, account_id
+            )
         else:
-            # AI Chat
-            await handle_ai_chat(user_id, reply_token, user_text)
-            
-            # บันทึกการตอบกลับ AI
-            if account_id and save_success:
-                try:
-                    from models.database import save_chat_history_with_account
-                    await save_chat_history_with_account(
-                        user_id, 
-                        "out", 
-                        {"type": "text", "text": "[AI Response]"}, 
-                        "ai_bot",
-                        account_id
-                    )
-                except Exception as e:
-                    logger.error(f"❌ Failed to save AI response: {e}")
+            # ไม่มี config หรือปิด AI
+            await send_line_reply_with_account(
+                reply_token, 
+                "ขออภัย ระบบยังไม่พร้อมให้บริการ", 
+                account_config
+            )
             
     elif message_type == "image":
-        logger.info(f"🖼️ Image message from {user_id[:10]}...")
         message_id = message.get("id")
-        
-        if message_id:
-            # ตรวจสอบสลิป
-            await handle_slip_verification(user_id, reply_token, message_id=message_id)
-            
-            # บันทึกผลลัพธ์
-            if account_id and save_success:
-                try:
-                    from models.database import save_chat_history_with_account
-                    await save_chat_history_with_account(
-                        user_id, 
-                        "out", 
-                        {"type": "text", "text": "[ตรวจสอบสลิปจากรูป]"}, 
-                        "slip_bot",
-                        account_id
-                    )
-                except Exception as e:
-                    logger.error(f"❌ Failed to save slip image result: {e}")
-        else:
-            # ตอบกลับทั่วไป
-            reply_message = {
-                "type": "text",
-                "text": "ได้รับรูปภาพแล้ว ขอบคุณครับ"
-            }
-            await send_line_reply(reply_token, reply_message["text"])
-            
-            # บันทึกข้อความตอบกลับ
-            if save_success:
-                try:
-                    if account_id:
-                        from models.database import save_chat_history_with_account
-                        await save_chat_history_with_account(
-                            user_id, "out", reply_message, "system", account_id
-                        )
-                    else:
-                        if 'save_chat_history' in database_functions:
-                            await database_functions['save_chat_history'](
-                                user_id, "out", reply_message, "system"
-                            )
-                except Exception as e:
-                    logger.error(f"❌ Failed to save reply: {e}")
-                    
-    elif message_type == "video":
-        logger.info(f"🎥 Video message from {user_id[:10]}...")
-        
-        # ตอบกลับ
-        reply_text = "ได้รับวิดีโอแล้ว ขอบคุณครับ"
-        await send_line_reply(reply_token, reply_text)
-        
-        # บันทึกการตอบกลับ
-        if save_success:
-            await save_reply_message(user_id, reply_text, "system", account_id)
-            
-    elif message_type == "audio":
-        logger.info(f"🎵 Audio message from {user_id[:10]}...")
-        
-        # ตอบกลับ
-        reply_text = "ได้รับไฟล์เสียงแล้ว ขอบคุณครับ"
-        await send_line_reply(reply_token, reply_text)
-        
-        # บันทึกการตอบกลับ
-        if save_success:
-            await save_reply_message(user_id, reply_text, "system", account_id)
-            
-    elif message_type == "file":
-        logger.info(f"📎 File message from {user_id[:10]}...")
-        file_name = message.get("fileName", "unknown")
-        
-        # ตอบกลับ
-        reply_text = f"ได้รับไฟล์ {file_name} แล้ว ขอบคุณครับ"
-        await send_line_reply(reply_token, reply_text)
-        
-        # บันทึกการตอบกลับ
-        if save_success:
-            await save_reply_message(user_id, reply_text, "system", account_id)
-            
-    elif message_type == "location":
-        logger.info(f"📍 Location message from {user_id[:10]}...")
-        title = message.get("title", "Unknown")
-        
-        # ตอบกลับ
-        reply_text = f"ได้รับตำแหน่ง {title} แล้ว ขอบคุณครับ"
-        await send_line_reply(reply_token, reply_text)
-        
-        # บันทึกการตอบกลับ
-        if save_success:
-            await save_reply_message(user_id, reply_text, "system", account_id)
-            
-    elif message_type == "sticker":
-        logger.info(f"😊 Sticker message from {user_id[:10]}...")
-        
-        # ตอบกลับ
-        reply_text = "ได้รับสติกเกอร์แล้ว น่ารักมากครับ 😊"
-        await send_line_reply(reply_token, reply_text)
-        
-        # บันทึกการตอบกลับ
-        if save_success:
-            await save_reply_message(user_id, reply_text, "system", account_id)
-            
-    else:
-        logger.info(f"📄 {message_type} message from {user_id[:10]}...")
-        
-        # ตอบกลับทั่วไป
-        reply_text = f"ได้รับ{save_message['text']}แล้ว ขอบคุณครับ"
-        await send_line_reply(reply_token, reply_text)
-        
-        # บันทึกการตอบกลับ
-        if save_success:
-            await save_reply_message(user_id, reply_text, "system", account_id)
+        if message_id and account_config and account_config.get("slip_enabled"):
+            await handle_slip_with_account_config(
+                user_id, reply_token, account_config, account_id, message_id=message_id
+            )
+			
 
+
+
+async def save_chat_with_account(user_id: str, direction: str, message: Dict, sender: str, account_id: str):
+    """บันทึก chat history พร้อม account_id"""
+    try:
+        from models.database import save_chat_history_with_account
+        await save_chat_history_with_account(user_id, direction, message, sender, account_id)
+    except Exception as e:
+        logger.error(f"❌ Save chat error: {e}")
+		
+		
+		
+# เพิ่มใน main_updated.py หลังบรรทัด 1500
+
+@app.post("/line/account/{account_id}/webhook")
+async def line_webhook_multi_account(
+    account_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    x_line_signature: str = Header(None)
+):
+    """Webhook endpoint สำหรับ multi-account ที่แก้ไขแล้ว"""
+    if not IS_READY:
+        return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
+    
+    try:
+        # ตรวจสอบ signature ด้วย channel secret ของ account นี้
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse(content={"status": "error", "message": "Database not ready"}, status_code=503)
+        
+        account_manager = LineAccountManager(db_manager.db)
+        account = await account_manager.get_account(account_id)
+        
+        if account is None:
+            return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
+        
+        # ตรวจสอบ signature
+        body = await request.body()
+        channel_secret = account.get("channel_secret")
+        
+        if x_line_signature and channel_secret:
+            hash = hmac.new(
+                channel_secret.encode('utf-8'),
+                body,
+                hashlib.sha256
+            ).digest()
+            signature = base64.b64encode(hash).decode('utf-8')
+            
+            if signature != x_line_signature:
+                logger.warning(f"⚠️ Invalid signature for account {account_id}")
+                return JSONResponse(content={"status": "error", "message": "Invalid signature"}, status_code=403)
+        
+        # Parse events
+        payload = json.loads(body.decode("utf-8"))
+        events = payload.get("events", [])
+        
+        logger.info(f"🔔 Account '{account.get('display_name')}' received {len(events)} events")
+        
+        # เพิ่ม account_id และ account config ใน event
+        for event in events:
+            event['_account_id'] = account_id
+            event['_account_config'] = {
+                "channel_secret": account.get("channel_secret"),
+                "channel_access_token": account.get("channel_access_token"),
+                "thunder_api_token": account.get("thunder_api_token"),
+                "openai_api_key": account.get("openai_api_key"),
+                "kbank_consumer_id": account.get("kbank_consumer_id"),
+                "kbank_consumer_secret": account.get("kbank_consumer_secret"),
+                "ai_prompt": account.get("ai_prompt"),
+                "ai_enabled": account.get("ai_enabled", False),
+                "slip_enabled": account.get("slip_enabled", False),
+                "thunder_enabled": account.get("thunder_enabled", True),
+                "kbank_enabled": account.get("kbank_enabled", False)
+            }
+            background_tasks.add_task(dispatch_event_async, event)
+        
+        return JSONResponse(content={"status": "ok", "events": len(events)})
+        
+    except Exception as e:
+        logger.error(f"❌ Multi-account webhook error for {account_id}: {e}")
+        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
+		
+
+async def handle_slip_with_account_config(
+    user_id: str,
+    reply_token: str,
+    account_config: Dict[str, Any],
+    account_id: str,
+    message_id: str = None,
+    slip_info: dict = None
+):
+    """ตรวจสอบสลิปด้วย config ของ account"""
+    try:
+        thunder_token = account_config.get("thunder_api_token", "")
+        kbank_id = account_config.get("kbank_consumer_id", "")
+        kbank_secret = account_config.get("kbank_consumer_secret", "")
+        
+        if not thunder_token and not (kbank_id and kbank_secret):
+            await send_line_reply_with_account(
+                reply_token,
+                "ขออภัย ยังไม่ได้ตั้งค่าระบบตรวจสอบสลิปสำหรับบัญชีนี้",
+                account_config
+            )
+            return
+        
+        # แจ้งกำลังตรวจสอบ
+        await send_line_reply_with_account(
+            reply_token,
+            "🔍 กำลังตรวจสอบสลิป กรุณารอสักครู่...",
+            account_config
+        )
+        
+        # ตรวจสอบสลิปด้วย API ของ account นี้
+        result = await verify_slip_with_account_config(
+            account_config, message_id, slip_info
+        )
+        
+        # ส่งผลลัพธ์
+        if result.get("status") in ["success", "duplicate"]:
+            from services.slip_formatter import create_beautiful_slip_flex_message
+            flex_message = create_beautiful_slip_flex_message(result)
+            await send_line_push_flex_with_account(user_id, [flex_message], account_config)
+        else:
+            error_msg = result.get("message", "ไม่สามารถตรวจสอบสลิปได้")
+            await send_line_push_with_account(user_id, f"❌ {error_msg}", account_config)
+        
+        # บันทึกผลลัพธ์
+        await save_chat_with_account(
+            user_id, "out", 
+            {"type": "text", "text": f"[ตรวจสอบสลิป: {result.get('status')}]"}, 
+            "slip_bot", account_id
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Slip verification error for account {account_id}: {e}")
+
+
+
+
+
+async def send_line_push_with_account(user_id: str, text: str, account_config: Dict[str, Any]):
+    """ส่ง push message ด้วย access token ของ account"""
+    try:
+        access_token = account_config.get("line_channel_access_token")
+        if not access_token:
+            return False
+            
+        url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "to": user_id,
+            "messages": [{"type": "text", "text": text}]
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            return response.status_code == 200
+            
+    except Exception as e:
+        logger.error(f"❌ Push error: {e}")
+        return False
+
+
+		
+async def handle_ai_chat_with_account(
+    user_id: str, 
+    reply_token: str, 
+    user_text: str, 
+    account_config: Dict[str, Any],
+    account_id: str
+):
+    """จัดการ AI Chat ด้วย config ของ account"""
+    try:
+        openai_key = account_config.get("openai_api_key", "")
+        ai_prompt = account_config.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตร")
+        
+        if not openai_key:
+            response = "ขออภัย ยังไม่ได้ตั้งค่า AI สำหรับบัญชีนี้"
+        else:
+            # เรียกใช้ AI ด้วย API key ของ account นี้
+            response = await get_ai_response_with_key(
+                user_text, user_id, openai_key, ai_prompt, account_id
+            )
+        
+        # ส่งตอบกลับด้วย access token ของ account นี้
+        await send_line_reply_with_account(reply_token, response, account_config)
+        
+        # บันทึกข้อความขาออก
+        await save_chat_with_account(
+            user_id, "out", {"type": "text", "text": response}, "ai_bot", account_id
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ AI chat error for account {account_id}: {e}")
+		
+
+
+
+async def send_line_reply_with_account(reply_token: str, text: str, account_config: Dict[str, Any]):
+    """ส่ง reply ด้วย access token ของ account"""
+    try:
+        access_token = account_config.get("line_channel_access_token")
+        if not access_token:
+            logger.error("❌ No access token for this account")
+            return False
+            
+        url = "https://api.line.me/v2/bot/message/reply"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "replyToken": reply_token,
+            "messages": [{"type": "text", "text": text}]
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            return response.status_code == 200
+            
+    except Exception as e:
+        logger.error(f"❌ Reply error: {e}")
+        return False
+		
+		
+		
+async def load_account_config(account_id: str) -> Dict[str, Any]:
+    """โหลด config เฉพาะของแต่ละ account"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return {}
+            
+        account_manager = LineAccountManager(db_manager.db)
+        account = await account_manager.get_account(account_id)
+        
+        if account:
+            return {
+                "line_channel_secret": account.get("channel_secret"),
+                "line_channel_access_token": account.get("channel_access_token"),
+                "thunder_api_token": account.get("thunder_api_token"),
+                "openai_api_key": account.get("openai_api_key"),
+                "kbank_consumer_id": account.get("kbank_consumer_id"),
+                "kbank_consumer_secret": account.get("kbank_consumer_secret"),
+                "ai_prompt": account.get("ai_prompt"),
+                "ai_enabled": account.get("ai_enabled", False),
+                "slip_enabled": account.get("slip_enabled", False),
+                "thunder_enabled": account.get("thunder_enabled", True),
+                "kbank_enabled": account.get("kbank_enabled", False)
+            }
+        return {}
+    except Exception as e:
+        logger.error(f"❌ Error loading account config: {e}")
+        return {}
+		
+		
 # Helper function สำหรับบันทึกข้อความตอบกลับ
 async def save_reply_message(user_id: str, text: str, sender: str, account_id: Optional[str] = None):
     """Helper function สำหรับบันทึกข้อความตอบกลับ"""
@@ -3000,6 +3050,80 @@ async def send_line_push_with_flex(user_id: str, messages: list, max_retries: in
         logger.error(f"❌ send_line_push_with_flex error: {e}")
         return False
 		
+
+
+# เพิ่มใน main_updated.py หลังบรรทัด 1500
+
+@app.post("/line/account/{account_id}/webhook")
+async def line_webhook_multi_account(
+    account_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    x_line_signature: str = Header(None)
+):
+    """Webhook endpoint สำหรับ multi-account ที่แก้ไขแล้ว"""
+    if not IS_READY:
+        return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
+    
+    try:
+        # ตรวจสอบ signature ด้วย channel secret ของ account นี้
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse(content={"status": "error", "message": "Database not ready"}, status_code=503)
+        
+        account_manager = LineAccountManager(db_manager.db)
+        account = await account_manager.get_account(account_id)
+        
+        if account is None:
+            return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
+        
+        # ตรวจสอบ signature
+        body = await request.body()
+        channel_secret = account.get("channel_secret")
+        
+        if x_line_signature and channel_secret:
+            hash = hmac.new(
+                channel_secret.encode('utf-8'),
+                body,
+                hashlib.sha256
+            ).digest()
+            signature = base64.b64encode(hash).decode('utf-8')
+            
+            if signature != x_line_signature:
+                logger.warning(f"⚠️ Invalid signature for account {account_id}")
+                return JSONResponse(content={"status": "error", "message": "Invalid signature"}, status_code=403)
+        
+        # Parse events
+        payload = json.loads(body.decode("utf-8"))
+        events = payload.get("events", [])
+        
+        logger.info(f"🔔 Account '{account.get('display_name')}' received {len(events)} events")
+        
+        # เพิ่ม account_id และ account config ใน event
+        for event in events:
+            event['_account_id'] = account_id
+            event['_account_config'] = {
+                "channel_secret": account.get("channel_secret"),
+                "channel_access_token": account.get("channel_access_token"),
+                "thunder_api_token": account.get("thunder_api_token"),
+                "openai_api_key": account.get("openai_api_key"),
+                "kbank_consumer_id": account.get("kbank_consumer_id"),
+                "kbank_consumer_secret": account.get("kbank_consumer_secret"),
+                "ai_prompt": account.get("ai_prompt"),
+                "ai_enabled": account.get("ai_enabled", False),
+                "slip_enabled": account.get("slip_enabled", False),
+                "thunder_enabled": account.get("thunder_enabled", True),
+                "kbank_enabled": account.get("kbank_enabled", False)
+            }
+            background_tasks.add_task(dispatch_event_async, event)
+        
+        return JSONResponse(content={"status": "ok", "events": len(events)})
+        
+    except Exception as e:
+        logger.error(f"❌ Multi-account webhook error for {account_id}: {e}")
+        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
 		
 # ====================== Multi-Account Support Routes ======================
 # เพิ่มใน main_updated.py หลังบรรทัด 1500
