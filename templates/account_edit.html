@@ -50,7 +50,6 @@
     </a>
 </div>
 
-<!-- Webhook URL Display -->
 <div class="alert alert-info webhook-display mb-4">
     <h6 class="alert-heading">
         <i class="fas fa-link me-2"></i>Webhook URL for this Account
@@ -69,7 +68,6 @@
 </div>
 
 <form id="edit-account-form">
-    <!-- Basic Information -->
     <div class="card mb-4">
         <div class="card-header bg-white">
             <h5 class="mb-0">
@@ -101,7 +99,6 @@
         </div>
     </div>
     
-    <!-- LINE Configuration -->
     <div class="card mb-4">
         <div class="card-header bg-white">
             <h5 class="mb-0">
@@ -149,128 +146,94 @@
         </div>
     </div>
     
-    <!-- API Keys -->
     <div class="card mb-4">
         <div class="card-header bg-white">
             <h5 class="mb-0">
-                <i class="fas fa-key me-2"></i>API Keys
+                <i class="fas fa-key me-2"></i>API Keys & Features
             </h5>
         </div>
         <div class="card-body">
             <div class="field-group">
-                <h6>Thunder API</h6>
-                <div class="mb-3">
-                    <label class="form-label">API Token</label>
-                    <div class="input-group">
-                        <input type="password" class="form-control" name="thunder_api_token" 
-                               id="thunder_api_token" value="{{ account.thunder_api_token }}">
-                        <button class="btn btn-outline-secondary toggle-password" type="button"
-                                onclick="togglePassword('thunder_api_token')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
+                <h6><i class="fas fa-robot me-1"></i> AI Chat</h6>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" name="ai_enabled" 
+                           id="ai_enabled" {% if account.ai_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="ai_enabled">
+                        เปิดใช้งาน AI Chat
+                    </label>
                 </div>
-            </div>
-            
-            <div class="field-group">
-                <h6>KBank API</h6>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Consumer ID</label>
-                            <input type="text" class="form-control" name="kbank_consumer_id" 
-                                   value="{{ account.kbank_consumer_id }}">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Consumer Secret</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" name="kbank_consumer_secret" 
-                                       id="kbank_consumer_secret" value="{{ account.kbank_consumer_secret }}">
-                                <button class="btn btn-outline-secondary toggle-password" type="button"
-                                        onclick="togglePassword('kbank_consumer_secret')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="field-group">
-                <h6>OpenAI API</h6>
                 <div class="mb-3">
-                    <label class="form-label">API Key</label>
+                    <label class="form-label">OpenAI API Key</label>
                     <div class="input-group">
                         <input type="password" class="form-control" name="openai_api_key" 
-                               id="openai_api_key" value="{{ account.openai_api_key }}">
+                               id="openai_api_key" value="{{ account.openai_api_key }}"
+                               placeholder="sk-...">
                         <button class="btn btn-outline-secondary toggle-password" type="button"
                                 onclick="togglePassword('openai_api_key')">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
+                    <div class="form-text">ใส่ OpenAI API Key เฉพาะของ account นี้</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">AI System Prompt</label>
+                    <textarea class="form-control" name="ai_prompt" rows="4"
+                              placeholder="คุณเป็นผู้ช่วยที่เป็นมิตร...">{{ account.ai_prompt or 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ' }}</textarea>
+                    <div class="form-text">กำหนด prompt เฉพาะสำหรับ AI ของ account นี้</div>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <h6><i class="fas fa-receipt me-1"></i> ระบบตรวจสอบสลิป</h6>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" name="slip_enabled" 
+                           id="slip_enabled" {% if account.slip_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="slip_enabled">
+                        เปิดใช้งานระบบตรวจสอบสลิป
+                    </label>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Thunder API Token</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" name="thunder_api_token" 
+                                       id="thunder_api_token" value="{{ account.thunder_api_token }}"
+                                       placeholder="Thunder API Token สำหรับ account นี้">
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                        onclick="togglePassword('thunder_api_token')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">ใส่ Thunder API Token เฉพาะของ account นี้</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">KBank Consumer ID</label>
+                            <input type="text" class="form-control" name="kbank_consumer_id" 
+                                   value="{{ account.kbank_consumer_id }}"
+                                   placeholder="KBank Consumer ID">
+                            <div class="form-text">สำหรับใช้กับ KBank API</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">KBank Consumer Secret</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="kbank_consumer_secret" 
+                               id="kbank_consumer_secret" value="{{ account.kbank_consumer_secret }}">
+                        <button class="btn btn-outline-secondary toggle-password" type="button"
+                                onclick="togglePassword('kbank_consumer_secret')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="form-text">สำหรับใช้กับ KBank API</div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Features -->
-    <div class="card mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-toggle-on me-2"></i>Features
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled"
-                               {% if account.ai_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="ai_enabled">
-                            <i class="fas fa-robot me-1"></i>AI Chat
-                        </label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="slip_enabled" id="slip_enabled"
-                               {% if account.slip_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="slip_enabled">
-                            <i class="fas fa-receipt me-1"></i>Slip Verification
-                        </label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="thunder_enabled" id="thunder_enabled"
-                               {% if account.thunder_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="thunder_enabled">
-                            <i class="fas fa-bolt me-1"></i>Thunder API
-                        </label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="kbank_enabled" id="kbank_enabled"
-                               {% if account.kbank_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="kbank_enabled">
-                            <i class="fas fa-university me-1"></i>KBank API
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mt-4">
-                <label class="form-label">AI System Prompt</label>
-                <textarea class="form-control" name="ai_prompt" rows="4">{{ account.ai_prompt }}</textarea>
-                <div class="form-text">Customize the AI assistant's behavior and responses</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Action Buttons -->
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-1"></i> Save Changes
@@ -334,6 +297,14 @@ document.getElementById('edit-account-form').addEventListener('submit', async (e
         }
     }
     
+    // Explicitly add unchecked checkboxes to the data object
+    const checkboxes = e.target.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (!data.hasOwnProperty(checkbox.name)) {
+            data[checkbox.name] = false;
+        }
+    });
+
     try {
         const response = await fetch(`/admin/accounts/{{ account.id }}/update`, {
             method: 'POST',
