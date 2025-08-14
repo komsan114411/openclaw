@@ -891,17 +891,22 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 # แทนที่ฟังก์ชัน handle_message_event ทั้งหมดด้วยโค้ดนี้
 
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - บันทึกและประมวลผล"""
+    """Handle message event - บันทึกและประมวลผล พร้อมรองรับ multi-account"""
     message = event.get("message", {})
     user_id = event.get("source", {}).get("userId")
     reply_token = event.get("replyToken")
     message_type = message.get("type")
+    
+    # ดึง account_id ถ้ามี (สำหรับ multi-account)
+    account_id = event.get("_account_id")
     
     if not user_id:
         logger.error("❌ Missing user ID in message event")
         return
     
     logger.info(f"📨 Received {message_type} message from {user_id[:10]}...")
+    if account_id:
+        logger.info(f"   Account ID: {account_id[:8]}...")
     
     # สร้างข้อมูลข้อความสำหรับบันทึก
     save_message = {
@@ -940,27 +945,58 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     else:
         save_message["text"] = f"[{message_type}]"
     
-    # บันทึกข้อความขาเข้า
+    # บันทึกข้อความขาเข้า - รองรับทั้งแบบมี account_id และไม่มี
     save_success = False
     try:
-        if 'save_chat_history' in database_functions:
-            # เรียกใช้และรอผลลัพธ์
-            result = await database_functions['save_chat_history'](
-                user_id, 
-                "in", 
-                save_message, 
-                "user"
-            )
-            
-            # ตรวจสอบผลลัพธ์แบบชัดเจน
-            if result is True:
-                logger.info(f"✅ Successfully saved incoming message from {user_id[:10]}")
-                save_success = True
-            else:
-                logger.error(f"❌ Failed to save message - result: {result}")
-                save_success = False
+        if account_id:
+            # ถ้ามี account_id ให้ใช้ฟังก์ชันที่รองรับ multi-account
+            try:
+                from models.database import save_chat_history_with_account
+                result = await save_chat_history_with_account(
+                    user_id, 
+                    "in", 
+                    save_message, 
+                    "user",
+                    account_id
+                )
+                
+                if result is True:
+                    logger.info(f"✅ Successfully saved incoming message for account {account_id[:8]}")
+                    save_success = True
+                else:
+                    logger.error(f"❌ Failed to save message for account - result: {result}")
+                    
+            except ImportError:
+                # ถ้าไม่มีฟังก์ชัน multi-account ให้ใช้แบบเดิม
+                if 'save_chat_history' in database_functions:
+                    result = await database_functions['save_chat_history'](
+                        user_id, 
+                        "in", 
+                        save_message, 
+                        "user"
+                    )
+                    if result is True:
+                        logger.info(f"✅ Successfully saved incoming message (fallback)")
+                        save_success = True
+                        
         else:
-            logger.error("❌ save_chat_history function not available in database_functions")
+            # ถ้าไม่มี account_id ใช้ฟังก์ชันเดิม
+            if 'save_chat_history' in database_functions:
+                result = await database_functions['save_chat_history'](
+                    user_id, 
+                    "in", 
+                    save_message, 
+                    "user"
+                )
+                
+                if result is True:
+                    logger.info(f"✅ Successfully saved incoming message from {user_id[:10]}")
+                    save_success = True
+                else:
+                    logger.error(f"❌ Failed to save message - result: {result}")
+                    save_success = False
+            else:
+                logger.error("❌ save_chat_history function not available in database_functions")
             
     except Exception as e:
         logger.error(f"❌ Error saving incoming message: {e}")
@@ -987,16 +1023,59 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         if slip_info.get("bank_code") and slip_info.get("trans_ref"):
             # ตรวจสอบสลิป
             await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
+            
+            # บันทึกผลลัพธ์สลิป
+            if account_id and save_success:
+                try:
+                    from models.database import save_chat_history_with_account
+                    await save_chat_history_with_account(
+                        user_id, 
+                        "out", 
+                        {"type": "text", "text": "[ตรวจสอบสลิป]"}, 
+                        "slip_bot",
+                        account_id
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to save slip result: {e}")
         else:
             # AI Chat
             await handle_ai_chat(user_id, reply_token, user_text)
             
+            # บันทึกการตอบกลับ AI
+            if account_id and save_success:
+                try:
+                    from models.database import save_chat_history_with_account
+                    await save_chat_history_with_account(
+                        user_id, 
+                        "out", 
+                        {"type": "text", "text": "[AI Response]"}, 
+                        "ai_bot",
+                        account_id
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to save AI response: {e}")
+            
     elif message_type == "image":
         logger.info(f"🖼️ Image message from {user_id[:10]}...")
         message_id = message.get("id")
+        
         if message_id:
             # ตรวจสอบสลิป
             await handle_slip_verification(user_id, reply_token, message_id=message_id)
+            
+            # บันทึกผลลัพธ์
+            if account_id and save_success:
+                try:
+                    from models.database import save_chat_history_with_account
+                    await save_chat_history_with_account(
+                        user_id, 
+                        "out", 
+                        {"type": "text", "text": "[ตรวจสอบสลิปจากรูป]"}, 
+                        "slip_bot",
+                        account_id
+                    )
+                except Exception as e:
+                    logger.error(f"❌ Failed to save slip image result: {e}")
         else:
             # ตอบกลับทั่วไป
             reply_message = {
@@ -1006,13 +1085,78 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
             await send_line_reply(reply_token, reply_message["text"])
             
             # บันทึกข้อความตอบกลับ
-            if save_success and 'save_chat_history' in database_functions:
+            if save_success:
                 try:
-                    await database_functions['save_chat_history'](
-                        user_id, "out", reply_message, "system"
-                    )
+                    if account_id:
+                        from models.database import save_chat_history_with_account
+                        await save_chat_history_with_account(
+                            user_id, "out", reply_message, "system", account_id
+                        )
+                    else:
+                        if 'save_chat_history' in database_functions:
+                            await database_functions['save_chat_history'](
+                                user_id, "out", reply_message, "system"
+                            )
                 except Exception as e:
                     logger.error(f"❌ Failed to save reply: {e}")
+                    
+    elif message_type == "video":
+        logger.info(f"🎥 Video message from {user_id[:10]}...")
+        
+        # ตอบกลับ
+        reply_text = "ได้รับวิดีโอแล้ว ขอบคุณครับ"
+        await send_line_reply(reply_token, reply_text)
+        
+        # บันทึกการตอบกลับ
+        if save_success:
+            await save_reply_message(user_id, reply_text, "system", account_id)
+            
+    elif message_type == "audio":
+        logger.info(f"🎵 Audio message from {user_id[:10]}...")
+        
+        # ตอบกลับ
+        reply_text = "ได้รับไฟล์เสียงแล้ว ขอบคุณครับ"
+        await send_line_reply(reply_token, reply_text)
+        
+        # บันทึกการตอบกลับ
+        if save_success:
+            await save_reply_message(user_id, reply_text, "system", account_id)
+            
+    elif message_type == "file":
+        logger.info(f"📎 File message from {user_id[:10]}...")
+        file_name = message.get("fileName", "unknown")
+        
+        # ตอบกลับ
+        reply_text = f"ได้รับไฟล์ {file_name} แล้ว ขอบคุณครับ"
+        await send_line_reply(reply_token, reply_text)
+        
+        # บันทึกการตอบกลับ
+        if save_success:
+            await save_reply_message(user_id, reply_text, "system", account_id)
+            
+    elif message_type == "location":
+        logger.info(f"📍 Location message from {user_id[:10]}...")
+        title = message.get("title", "Unknown")
+        
+        # ตอบกลับ
+        reply_text = f"ได้รับตำแหน่ง {title} แล้ว ขอบคุณครับ"
+        await send_line_reply(reply_token, reply_text)
+        
+        # บันทึกการตอบกลับ
+        if save_success:
+            await save_reply_message(user_id, reply_text, "system", account_id)
+            
+    elif message_type == "sticker":
+        logger.info(f"😊 Sticker message from {user_id[:10]}...")
+        
+        # ตอบกลับ
+        reply_text = "ได้รับสติกเกอร์แล้ว น่ารักมากครับ 😊"
+        await send_line_reply(reply_token, reply_text)
+        
+        # บันทึกการตอบกลับ
+        if save_success:
+            await save_reply_message(user_id, reply_text, "system", account_id)
+            
     else:
         logger.info(f"📄 {message_type} message from {user_id[:10]}...")
         
@@ -1020,14 +1164,39 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         reply_text = f"ได้รับ{save_message['text']}แล้ว ขอบคุณครับ"
         await send_line_reply(reply_token, reply_text)
         
-        # บันทึกข้อความตอบกลับ
-        if save_success and 'save_chat_history' in database_functions:
+        # บันทึกการตอบกลับ
+        if save_success:
+            await save_reply_message(user_id, reply_text, "system", account_id)
+
+# Helper function สำหรับบันทึกข้อความตอบกลับ
+async def save_reply_message(user_id: str, text: str, sender: str, account_id: Optional[str] = None):
+    """Helper function สำหรับบันทึกข้อความตอบกลับ"""
+    try:
+        reply_message = {"type": "text", "text": text}
+        
+        if account_id:
             try:
-                await database_functions['save_chat_history'](
-                    user_id, "out", {"type": "text", "text": reply_text}, "system"
+                from models.database import save_chat_history_with_account
+                await save_chat_history_with_account(
+                    user_id, "out", reply_message, sender, account_id
                 )
-            except Exception as e:
-                logger.error(f"❌ Failed to save reply: {e}")
+                logger.debug(f"✅ Saved reply for account {account_id[:8]}")
+            except ImportError:
+                # Fallback to regular save
+                if 'save_chat_history' in database_functions:
+                    await database_functions['save_chat_history'](
+                        user_id, "out", reply_message, sender
+                    )
+                    logger.debug(f"✅ Saved reply (fallback)")
+        else:
+            if 'save_chat_history' in database_functions:
+                await database_functions['save_chat_history'](
+                    user_id, "out", reply_message, sender
+                )
+                logger.debug(f"✅ Saved reply")
+                
+    except Exception as e:
+        logger.error(f"❌ Failed to save reply message: {e}")
 
 async def enhance_message_data(event: Dict[str, Any], message: Dict[str, Any]) -> Dict[str, Any]:
     """เพิ่มข้อมูลเสริมในข้อความ"""
@@ -2830,6 +2999,229 @@ async def send_line_push_with_flex(user_id: str, messages: list, max_retries: in
     except Exception as e:
         logger.error(f"❌ send_line_push_with_flex error: {e}")
         return False
+		
+		
+# ====================== Multi-Account Support Routes ======================
+# เพิ่มใน main_updated.py หลังบรรทัด 1500
+
+@app.post("/line/account/{account_id}/webhook")
+async def line_webhook_multi_account(
+    account_id: str, 
+    request: Request, 
+    background_tasks: BackgroundTasks
+):
+    """Webhook endpoint สำหรับ multi-account"""
+    if not IS_READY:
+        return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
+    
+    try:
+        # ดึงข้อมูล account
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return JSONResponse(content={"status": "error", "message": "Database not ready"}, status_code=503)
+            
+        account_manager = LineAccountManager(db_manager.db)
+        account = await account_manager.get_account(account_id)
+        
+        if not account:
+            return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
+        
+        # ตั้งค่า config สำหรับ account นี้
+        if config_manager:
+            config_manager.config_cache.update({
+                "line_channel_secret": account.get("channel_secret"),
+                "line_channel_access_token": account.get("channel_access_token"),
+                "thunder_api_token": account.get("thunder_api_token"),
+                "openai_api_key": account.get("openai_api_key"),
+                "ai_enabled": account.get("ai_enabled", False),
+                "slip_enabled": account.get("slip_enabled", False),
+                "thunder_enabled": account.get("thunder_enabled", True),
+                "kbank_enabled": account.get("kbank_enabled", False)
+            })
+        
+        # Parse webhook payload
+        body = await request.body()
+        payload = json.loads(body.decode("utf-8"))
+        events = payload.get("events", [])
+        
+        logger.info(f"🔔 Account {account.get('display_name')} received {len(events)} events")
+        
+        # เพิ่ม account_id ใน event
+        for event in events:
+            event['_account_id'] = account_id
+            background_tasks.add_task(dispatch_event_with_account, event, account_id)
+        
+        return JSONResponse(content={"status": "ok"})
+        
+    except Exception as e:
+        logger.error(f"❌ Multi-account webhook error: {e}")
+        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
+
+async def dispatch_event_with_account(event: Dict[str, Any], account_id: str):
+    """Process event with account context"""
+    # เรียกใช้ dispatch_event_async ปกติ
+    await dispatch_event_async(event)
+
+@app.get("/admin/accounts")
+async def accounts_management_page(request: Request):
+    """หน้าจัดการ LINE Accounts"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "message": "Database not initialized"
+            })
+            
+        account_manager = LineAccountManager(db_manager.db)
+        accounts = await account_manager.list_accounts()
+        
+        return templates.TemplateResponse("accounts_list.html", {
+            "request": request,
+            "accounts": accounts
+        })
+    except Exception as e:
+        logger.error(f"❌ Error loading accounts page: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "message": str(e)
+        })
+
+@app.post("/admin/accounts")
+async def create_line_account(request: Request):
+    """สร้าง LINE Account ใหม่"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+            
+        data = await request.json()
+        account_manager = LineAccountManager(db_manager.db)
+        account_id = await account_manager.create_account(data)
+        
+        webhook_url = f"{request.base_url}line/account/{account_id}/webhook"
+        
+        await notification_manager.send_notification(
+            f"✅ Created new LINE account: {data.get('display_name')}", 
+            "success"
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "Account created successfully",
+            "account_id": account_id,
+            "webhook_url": webhook_url
+        })
+    except Exception as e:
+        logger.error(f"❌ Error creating account: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/accounts/{account_id}")
+async def edit_account_page(account_id: str, request: Request):
+    """หน้าแก้ไข LINE Account"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "message": "Database not initialized"
+            })
+            
+        account_manager = LineAccountManager(db_manager.db)
+        account = await account_manager.get_account(account_id)
+        
+        if not account:
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "message": "Account not found"
+            })
+        
+        return templates.TemplateResponse("account_edit.html", {
+            "request": request,
+            "account": account
+        })
+    except Exception as e:
+        logger.error(f"❌ Error loading account edit: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "message": str(e)
+        })
+
+@app.post("/admin/accounts/{account_id}/update")
+async def update_line_account(account_id: str, request: Request):
+    """อัปเดต LINE Account"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+            
+        data = await request.json()
+        account_manager = LineAccountManager(db_manager.db)
+        success = await account_manager.update_account(account_id, data)
+        
+        if success:
+            await notification_manager.send_notification(
+                f"✅ Updated account configuration", 
+                "success"
+            )
+            return JSONResponse({"status": "success", "message": "Account updated"})
+        else:
+            return JSONResponse({"status": "error", "message": "Update failed"})
+            
+    except Exception as e:
+        logger.error(f"❌ Error updating account: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.delete("/admin/accounts/{account_id}")
+async def delete_line_account(account_id: str):
+    """ลบ LINE Account"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if not db_manager.db:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+            
+        account_manager = LineAccountManager(db_manager.db)
+        success = await account_manager.delete_account(account_id)
+        
+        if success:
+            await notification_manager.send_notification(
+                f"✅ Account deleted", 
+                "warning"
+            )
+            return JSONResponse({"status": "success", "message": "Account deleted"})
+        else:
+            return JSONResponse({"status": "error", "message": "Delete failed"})
+            
+    except Exception as e:
+        logger.error(f"❌ Error deleting account: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/accounts/{account_id}/stats")
+async def get_account_statistics(account_id: str):
+    """ดึงสถิติของ Account"""
+    try:
+        from models.database import get_account_statistics
+        stats = await get_account_statistics(account_id)
+        
+        return JSONResponse({
+            "status": "success",
+            "stats": stats
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting account stats: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
 
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
