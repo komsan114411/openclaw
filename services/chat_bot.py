@@ -76,7 +76,7 @@ async def get_chat_response_async(
     else:
         logger.error(f"❌ OpenAI API Error: {status_code} - {result.get('text')}")
         return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
-		
+
 def get_chat_response(text: str, user_id: str, *, ai_enabled_override=None,
                       api_key_override=None, ai_prompt_override=None) -> str:
     """เรียกฟังก์ชัน get_chat_response_async แบบ synchronous"""
