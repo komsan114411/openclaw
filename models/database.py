@@ -17,7 +17,6 @@ from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, Opera
 import asyncio
 import threading
 import urllib.parse
-from bson import ObjectId
 
 # Configure logging
 logging.basicConfig(
@@ -324,102 +323,6 @@ class MongoDBManager:
         except Exception as e:
             logger.error(f"❌ Error counting messages: {e}")
             return 0
-			
-  async def get_system_messages(self, account_id: Optional[str] = None) -> Dict[str, str]:
-        """Get system disabled messages for an account"""
-        from bson import ObjectId
-        default_messages = {
-            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
-        }
-        
-        if not self.connected or self.db is None:
-            return default_messages
-            
-        try:
-            # ถ้ามี account_id ให้ดึงข้อความของ account นั้น
-            if account_id:
-                account = await self.db.line_accounts.find_one({"_id": ObjectId(account_id)})
-                if account:
-                    messages = {
-                        "ai_disabled": account.get("ai_disabled_message", default_messages["ai_disabled"]),
-                        "slip_disabled": account.get("slip_disabled_message", default_messages["slip_disabled"]),
-                        "system_disabled": account.get("system_disabled_message", default_messages["system_disabled"])
-                    }
-                    return messages
-            
-            # ถ้าไม่มี account_id ใช้ค่า default จาก config
-            messages = {}
-            for key in default_messages:
-                config_key = f"{key}_message"
-                doc = await self.db.config_store.find_one({"config_key": config_key})
-                if doc:
-                    messages[key] = doc.get("config_value", default_messages[key])
-                else:
-                    messages[key] = default_messages[key]
-            
-            return messages
-            
-        except Exception as e:
-            logger.error(f"❌ Error getting system messages: {e}")
-            return default_messages
-			
-			
-# Export functions for system messages
-async def get_system_messages(account_id: Optional[str] = None):
-    """Get system disabled messages"""
-    if not db_manager.connected:
-        await init_database()
-    return await db_manager.get_system_messages(account_id)
-
-async def set_system_messages(messages: Dict[str, str], account_id: Optional[str] = None):
-    """Set system disabled messages"""
-    if not db_manager.connected:
-        await init_database()
-    return await db_manager.set_system_messages(messages, account_id)
-		
- async def set_system_messages(self, messages: Dict[str, str], account_id: Optional[str] = None) -> bool:
-        """Set system disabled messages"""
-        from bson import ObjectId
-        if not self.connected or self.db is None:
-            return False
-            
-        try:
-            if account_id:
-                # Update account-specific messages
-                update_data = {
-                    "ai_disabled_message": messages.get("ai_disabled", ""),
-                    "slip_disabled_message": messages.get("slip_disabled", ""),
-                    "system_disabled_message": messages.get("system_disabled", ""),
-                    "updated_at": datetime.utcnow()
-                }
-                
-                result = await self.db.line_accounts.update_one(
-                    {"_id": ObjectId(account_id)},
-                    {"$set": update_data}
-                )
-                return result.modified_count > 0
-            else:
-                # Update default messages in config
-                for key, value in messages.items():
-                    config_key = f"{key}_message"
-                    await self.db.config_store.update_one(
-                        {"config_key": config_key},
-                        {
-                            "$set": {
-                                "config_key": config_key,
-                                "config_value": value,
-                                "updated_at": datetime.utcnow()
-                            }
-                        },
-                        upsert=True
-                    )
-                return True
-                
-        except Exception as e:
-            logger.error(f"❌ Error setting system messages: {e}")
-            return False
     
     async def get_recent_chat_history(self, limit: int = 50) -> List[ChatHistory]:
         """Get recent chat history"""
@@ -822,20 +725,6 @@ def get_connection_info():
     """Get detailed connection information"""
     return CONNECTION_STATUS
 
-
-# Export functions for system messages
-async def get_system_messages(account_id: Optional[str] = None):
-    """Get system disabled messages"""
-    if not db_manager.connected:
-        await init_database()
-    return await db_manager.get_system_messages(account_id)
-
-async def set_system_messages(messages: Dict[str, str], account_id: Optional[str] = None):
-    """Set system disabled messages"""
-    if not db_manager.connected:
-        await init_database()
-    return await db_manager.set_system_messages(messages, account_id)
-	
 async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
     """Save chat history - Legacy version (backward compatibility)"""
     if not db_manager.connected:
