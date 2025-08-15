@@ -459,7 +459,65 @@
         document.execCommand('copy');
         showNotification('คัดลอกแล้ว!', 'success', 2000);
     }
-    
+
+
+
+    async function loadSystemMessages() {
+    try {
+        const result = await apiCall('/admin/system-messages');
+        
+        if (result.status === 'success') {
+            const messages = result.messages;
+            document.getElementById('ai_disabled_message').value = messages.ai_disabled || '';
+            document.getElementById('slip_disabled_message').value = messages.slip_disabled || '';
+            document.getElementById('system_disabled_message').value = messages.system_disabled || '';
+            showNotification('โหลดข้อความเรียบร้อย', 'success');
+        }
+    } catch (error) {
+        showNotification('เกิดข้อผิดพลาดในการโหลดข้อความ', 'error');
+    }
+}
+
+// Save system messages
+async function saveSystemMessages() {
+    try {
+        const messages = {
+            ai_disabled_message: document.getElementById('ai_disabled_message').value,
+            slip_disabled_message: document.getElementById('slip_disabled_message').value,
+            system_disabled_message: document.getElementById('system_disabled_message').value
+        };
+        
+        showNotification('กำลังบันทึกข้อความ...', 'info');
+        
+        const result = await apiCall('/admin/system-messages', {
+            method: 'POST',
+            body: JSON.stringify(messages)
+        });
+        
+        if (result.status === 'success') {
+            showNotification('บันทึกข้อความเรียบร้อย', 'success');
+        } else {
+            showNotification('ไม่สามารถบันทึกข้อความได้', 'error');
+        }
+    } catch (error) {
+        showNotification('เกิดข้อผิดพลาดในการบันทึก', 'error');
+    }
+}
+
+// Reset system messages to defaults
+function resetSystemMessages() {
+    if (confirm('ต้องการรีเซ็ตข้อความเป็นค่าเริ่มต้นหรือไม่?')) {
+        document.getElementById('ai_disabled_message').value = 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว';
+        document.getElementById('slip_disabled_message').value = 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว';
+        document.getElementById('system_disabled_message').value = 'ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง';
+        showNotification('รีเซ็ตข้อความเป็นค่าเริ่มต้นแล้ว', 'warning');
+    }
+}
+
+// Load messages on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemMessages();
+});
     // Export configuration
     async function exportConfig() {
         try {
