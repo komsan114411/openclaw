@@ -327,9 +327,10 @@ class MongoDBManager:
 			
     async def get_system_messages(self, account_id: Optional[str] = None) -> Dict[str, str]:
         """Get system disabled messages for an account"""
+        from bson import ObjectId
         default_messages = {
             "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว", 
+            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
             "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
         }
         
@@ -366,6 +367,7 @@ class MongoDBManager:
 
     async def set_system_messages(self, messages: Dict[str, str], account_id: Optional[str] = None) -> bool:
         """Set system disabled messages"""
+        from bson import ObjectId
         if not self.connected or self.db is None:
             return False
             
