@@ -897,8 +897,9 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     reply_token = event.get("replyToken")
     message_type = message.get("type")
     
-    # ดึง account_id จาก event
+    # ดึง account_id และ account_config จาก event
     account_id = event.get("_account_id")
+    account_config = event.get("_account_config", {})
     
     if not user_id:
         logger.error("❌ Missing user ID in message event")
@@ -906,19 +907,39 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     
     logger.info(f"📨 Processing {message_type} from {user_id[:10]}... (Account: {account_id or 'default'})")
     
-    # โหลด config สำหรับ account นี้โดยเฉพาะ
-    account_config = await load_account_config(account_id) if account_id else None
+    # ถ้าไม่มี account_config ให้โหลดใหม่
+    if not account_config and account_id:
+        account_config = await load_account_config(account_id)
+    
+    # ดึงค่า enabled flags
+    ai_enabled = False
+    slip_enabled = False
+    
+    if account_config:
+        ai_enabled = account_config.get("ai_enabled", False)
+        slip_enabled = account_config.get("slip_enabled", False)
+        logger.info(f"🔧 Account config - AI: {ai_enabled}, Slip: {slip_enabled}")
+    else:
+        # ใช้ config default
+        ai_enabled = config_manager.get("ai_enabled", False)
+        slip_enabled = config_manager.get("slip_enabled", False)
+        logger.info(f"🔧 Default config - AI: {ai_enabled}, Slip: {slip_enabled}")
     
     # ดึงข้อความแจ้งเตือนสำหรับ account นี้
-    system_messages = {}
+    system_messages = {
+        "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+        "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+        "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+    }
+    
+    # ดึงข้อความแจ้งเตือนที่กำหนดเอง
     if database_functions and 'get_system_messages' in database_functions:
-        system_messages = await database_functions['get_system_messages'](account_id)
-    else:
-        system_messages = {
-            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
-        }
+        try:
+            custom_messages = await database_functions['get_system_messages'](account_id)
+            if custom_messages:
+                system_messages.update(custom_messages)
+        except Exception as e:
+            logger.error(f"❌ Error getting system messages: {e}")
     
     # บันทึกข้อความขาเข้า
     save_message = {
@@ -929,33 +950,35 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     }
     
     # บันทึกพร้อม account_id
-    await save_chat_with_account(user_id, "in", save_message, "user", account_id)
-    
-    # ตรวจสอบว่าระบบทั้งหมดถูกปิดหรือไม่
-    ai_enabled = False
-    slip_enabled = False
-    
-    if account_config:
-        ai_enabled = account_config.get("ai_enabled", False)
-        slip_enabled = account_config.get("slip_enabled", False)
-    else:
-        ai_enabled = config_manager.get("ai_enabled", False)
-        slip_enabled = config_manager.get("slip_enabled", False)
+    try:
+        await save_chat_with_account(user_id, "in", save_message, "user", account_id)
+    except Exception as e:
+        logger.error(f"❌ Error saving incoming message: {e}")
     
     # ถ้าทั้ง AI และ Slip ถูกปิด
     if not ai_enabled and not slip_enabled:
+        logger.info(f"⛔ Both AI and Slip disabled for account {account_id}")
         # ส่งข้อความแจ้งเตือนว่าระบบปิด
-        await send_line_reply(
-            reply_token, 
-            system_messages.get("system_disabled", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง")
-        )
+        reply_msg = system_messages.get("system_disabled", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง")
         
-        # บันทึกข้อความตอบกลับ
-        await save_chat_with_account(
-            user_id, "out", 
-            {"type": "text", "text": system_messages.get("system_disabled")}, 
-            "system", account_id
-        )
+        # ส่งข้อความตอบกลับ
+        success = False
+        if account_config:
+            success = await send_line_reply_with_account(reply_token, reply_msg, account_config)
+        else:
+            success = await send_line_reply(reply_token, reply_msg)
+        
+        if success:
+            # บันทึกข้อความตอบกลับ
+            try:
+                await save_chat_with_account(
+                    user_id, "out", 
+                    {"type": "text", "text": reply_msg}, 
+                    "system", account_id
+                )
+            except Exception as e:
+                logger.error(f"❌ Error saving system message: {e}")
+        
         return
     
     # ประมวลผลตาม message type
@@ -976,70 +999,105 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         # ถ้าเป็นข้อความเกี่ยวกับสลิป
         if is_slip_message:
             if slip_enabled:
+                logger.info(f"💳 Processing slip text for {user_id[:10]}")
                 # ดึงข้อมูลสลิปจากข้อความ
                 if 'extract_slip_info_from_text' in slip_functions:
                     slip_info = slip_functions['extract_slip_info_from_text'](user_text)
                 
                 if slip_info and slip_info.get("bank_code") and slip_info.get("trans_ref"):
-                    await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
+                    # มีข้อมูลสลิปครบ
+                    if account_config:
+                        await handle_slip_with_account_config(
+                            user_id, reply_token, account_config, account_id, slip_info=slip_info
+                        )
+                    else:
+                        await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
                 else:
                     # ไม่สามารถดึงข้อมูลสลิปได้
-                    await send_line_reply(
-                        reply_token,
-                        "❌ ไม่สามารถดึงข้อมูลสลิปจากข้อความได้\n\nกรุณาส่งในรูปแบบ:\nBank: 004\nRef: XXXXXXXXXXXX\n\nหรือส่งรูปสลิปมาโดยตรง"
-                    )
+                    error_msg = "❌ ไม่สามารถดึงข้อมูลสลิปจากข้อความได้\n\nกรุณาส่งในรูปแบบ:\nBank: 004\nRef: XXXXXXXXXXXX\n\nหรือส่งรูปสลิปมาโดยตรง"
+                    
+                    if account_config:
+                        await send_line_reply_with_account(reply_token, error_msg, account_config)
+                    else:
+                        await send_line_reply(reply_token, error_msg)
+                    
                     await save_chat_with_account(
                         user_id, "out",
-                        {"type": "text", "text": "ไม่สามารถดึงข้อมูลสลิปจากข้อความได้"},
+                        {"type": "text", "text": error_msg},
                         "system", account_id
                     )
             else:
                 # ระบบสลิปถูกปิด
-                await send_line_reply(
-                    reply_token,
-                    system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
-                )
+                logger.info(f"🚫 Slip system disabled for {user_id[:10]}")
+                disabled_msg = system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
+                
+                if account_config:
+                    await send_line_reply_with_account(reply_token, disabled_msg, account_config)
+                else:
+                    await send_line_reply(reply_token, disabled_msg)
+                
                 await save_chat_with_account(
                     user_id, "out",
-                    {"type": "text", "text": system_messages.get("slip_disabled")},
+                    {"type": "text", "text": disabled_msg},
                     "system", account_id
                 )
         else:
             # ไม่ใช่ข้อความเกี่ยวกับสลิป - ใช้ AI Chat
             if ai_enabled:
-                await handle_ai_chat(user_id, reply_token, user_text)
+                logger.info(f"🤖 Processing AI chat for {user_id[:10]}")
+                if account_config:
+                    await handle_ai_chat_with_account(
+                        user_id, reply_token, user_text, account_config, account_id
+                    )
+                else:
+                    await handle_ai_chat(user_id, reply_token, user_text)
             else:
                 # AI ถูกปิด
-                await send_line_reply(
-                    reply_token, 
-                    system_messages.get("ai_disabled", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว")
-                )
+                logger.info(f"🚫 AI system disabled for {user_id[:10]}")
+                disabled_msg = system_messages.get("ai_disabled", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว")
+                
+                if account_config:
+                    await send_line_reply_with_account(reply_token, disabled_msg, account_config)
+                else:
+                    await send_line_reply(reply_token, disabled_msg)
+                
                 await save_chat_with_account(
                     user_id, "out",
-                    {"type": "text", "text": system_messages.get("ai_disabled")},
+                    {"type": "text", "text": disabled_msg},
                     "system", account_id
                 )
                 
     elif message_type == "image":
         # รูปภาพ - น่าจะเป็นสลิป
         if slip_enabled:
+            logger.info(f"📷 Processing slip image for {user_id[:10]}")
             message_id = message.get("id")
             if message_id:
-                await handle_slip_verification(user_id, reply_token, message_id=message_id)
+                if account_config:
+                    await handle_slip_with_account_config(
+                        user_id, reply_token, account_config, account_id, message_id=message_id
+                    )
+                else:
+                    await handle_slip_verification(user_id, reply_token, message_id=message_id)
             else:
-                await send_line_reply(
-                    reply_token,
-                    "❌ ไม่สามารถดึงข้อมูลรูปภาพได้"
-                )
+                error_msg = "❌ ไม่สามารถดึงข้อมูลรูปภาพได้"
+                if account_config:
+                    await send_line_reply_with_account(reply_token, error_msg, account_config)
+                else:
+                    await send_line_reply(reply_token, error_msg)
         else:
             # ระบบสลิปถูกปิด
-            await send_line_reply(
-                reply_token,
-                system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
-            )
+            logger.info(f"🚫 Slip system disabled for image from {user_id[:10]}")
+            disabled_msg = system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
+            
+            if account_config:
+                await send_line_reply_with_account(reply_token, disabled_msg, account_config)
+            else:
+                await send_line_reply(reply_token, disabled_msg)
+            
             await save_chat_with_account(
                 user_id, "out",
-                {"type": "text", "text": system_messages.get("slip_disabled")},
+                {"type": "text", "text": disabled_msg},
                 "system", account_id
             )
     else:
@@ -1047,14 +1105,21 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         logger.info(f"📄 Received {message_type} message from {user_id[:10]}...")
         
         # ตอบกลับข้อความทั่วไป
-        default_response = "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น"
-        await send_line_reply(reply_token, default_response)
+        if ai_enabled or slip_enabled:
+            default_response = "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น"
+        else:
+            default_response = system_messages.get("system_disabled", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง")
+        
+        if account_config:
+            await send_line_reply_with_account(reply_token, default_response, account_config)
+        else:
+            await send_line_reply(reply_token, default_response)
+        
         await save_chat_with_account(
             user_id, "out",
             {"type": "text", "text": default_response},
             "system", account_id
         )
-			
 
 async def check_slip_text(text: str, account_config: Dict) -> Dict:
     """Extract slip info from text"""
@@ -1132,6 +1197,9 @@ async def line_webhook_multi_account(
         if account is None:
             return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
         
+        # Log account configuration
+        logger.info(f"📋 Account Config - AI: {account.get('ai_enabled')}, Slip: {account.get('slip_enabled')}")
+        
         # ตรวจสอบ signature
         body = await request.body()
         channel_secret = account.get("channel_secret")
@@ -1160,16 +1228,21 @@ async def line_webhook_multi_account(
             event['_account_config'] = {
                 "channel_secret": account.get("channel_secret"),
                 "channel_access_token": account.get("channel_access_token"),
+                "line_channel_access_token": account.get("channel_access_token"),  # เพิ่ม alias
                 "thunder_api_token": account.get("thunder_api_token"),
                 "openai_api_key": account.get("openai_api_key"),
                 "kbank_consumer_id": account.get("kbank_consumer_id"),
                 "kbank_consumer_secret": account.get("kbank_consumer_secret"),
                 "ai_prompt": account.get("ai_prompt"),
-                "ai_enabled": account.get("ai_enabled", False),
-                "slip_enabled": account.get("slip_enabled", False),
+                "ai_enabled": bool(account.get("ai_enabled", False)),  # ทำให้แน่ใจว่าเป็น boolean
+                "slip_enabled": bool(account.get("slip_enabled", False)),  # ทำให้แน่ใจว่าเป็น boolean
                 "thunder_enabled": account.get("thunder_enabled", True),
                 "kbank_enabled": account.get("kbank_enabled", False)
             }
+            
+            # Log the configuration being passed
+            logger.info(f"🔧 Event config - AI: {event['_account_config']['ai_enabled']}, Slip: {event['_account_config']['slip_enabled']}")
+            
             background_tasks.add_task(dispatch_event_async, event)
         
         return JSONResponse(content={"status": "ok", "events": len(events)})
