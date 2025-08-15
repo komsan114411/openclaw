@@ -890,6 +890,8 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 
 # แทนที่ฟังก์ชัน handle_message_event ทั้งหมดด้วยโค้ดนี้
 
+# แทนที่ฟังก์ชัน handle_message_event ทั้งหมดในไฟล์ main_updated.py (บรรทัดประมาณ 755-990)
+
 async def handle_message_event(event: Dict[str, Any]) -> None:
     """Handle message event - รองรับ multi-account พร้อมข้อความแจ้งเตือนที่กำหนดเอง"""
     message = event.get("message", {})
