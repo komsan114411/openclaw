@@ -6,293 +6,64 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 fw-bold text-dark">
         <i class="fas fa-cogs me-2 text-primary"></i>
-        Settings
+        Global Settings
     </h1>
-    <div class="d-flex gap-2">
-        <button class="btn btn-success" onclick="saveAllSettings()">
-            <i class="fas fa-save me-1"></i> Save All Settings
-        </button>
-        <button class="btn btn-outline-secondary" onclick="resetToDefaults()">
-            <i class="fas fa-undo me-1"></i> Reset to Defaults
-        </button>
-    </div>
+    <button class="btn btn-success" onclick="saveSettings()">
+        <i class="fas fa-save me-1"></i> Save Settings
+    </button>
 </div>
 
 <form id="settings-form">
-    <!-- LINE Bot Configuration -->
+    <!-- System Messages -->
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">
-                <i class="fab fa-line me-2 text-success"></i>
-                LINE Bot Configuration
+                <i class="fas fa-comment-alt me-2"></i>
+                System Messages
             </h5>
         </div>
         <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="line_channel_secret" class="form-label fw-medium">
-                            Channel Secret
-                            <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="line_channel_secret" 
-                                   name="line_channel_secret" value="{{ config.line_channel_secret }}"
-                                   placeholder="Enter LINE Channel Secret">
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('line_channel_secret')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="form-text">รหัสลับของ LINE Channel จาก LINE Developers Console</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="line_channel_access_token" class="form-label fw-medium">
-                            Channel Access Token
-                            <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="line_channel_access_token" 
-                                   name="line_channel_access_token" value="{{ config.line_channel_access_token }}"
-                                   placeholder="Enter LINE Access Token">
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('line_channel_access_token')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="form-text">Access Token สำหรับการส่งข้อความ</div>
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-success" onclick="testLineConnection()">
-                    <i class="fas fa-link me-1"></i> Test Connection
-                </button>
-                <button type="button" class="btn btn-outline-info" onclick="showWebhookURL()">
-                    <i class="fas fa-link me-1"></i> Show Webhook URL
-                </button>
-            </div>
-        </div>
-    </div>
-    <div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">
-            <i class="fas fa-comment-alt me-2 text-warning"></i>
-            ข้อความแจ้งเมื่อระบบปิด
-        </h5>
-    </div>
-    <div class="card-body">
-        <div class="alert alert-info mb-3">
-            <i class="fas fa-info-circle me-2"></i>
-            กำหนดข้อความที่จะแสดงเมื่อระบบต่างๆ ถูกปิดการใช้งาน
-        </div>
-        
-        <div class="mb-3">
-            <label for="ai_disabled_message" class="form-label fw-medium">
-                <i class="fas fa-robot me-1 text-info"></i>
-                ข้อความเมื่อ AI ถูกปิด
-            </label>
-            <textarea class="form-control" id="ai_disabled_message" name="ai_disabled_message" rows="2" 
-                      placeholder="ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"></textarea>
-            <div class="form-text">ข้อความที่จะแสดงเมื่อผู้ใช้พยายามใช้งาน AI แต่ระบบถูกปิด</div>
-        </div>
-        
-        <div class="mb-3">
-            <label for="slip_disabled_message" class="form-label fw-medium">
-                <i class="fas fa-receipt me-1 text-warning"></i>
-                ข้อความเมื่อระบบสลิปถูกปิด
-            </label>
-            <textarea class="form-control" id="slip_disabled_message" name="slip_disabled_message" rows="2"
-                      placeholder="ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"></textarea>
-            <div class="form-text">ข้อความที่จะแสดงเมื่อผู้ใช้พยายามตรวจสอบสลิปแต่ระบบถูกปิด</div>
-        </div>
-        
-        <div class="mb-3">
-            <label for="system_disabled_message" class="form-label fw-medium">
-                <i class="fas fa-power-off me-1 text-danger"></i>
-                ข้อความเมื่อระบบทั้งหมดถูกปิด
-            </label>
-            <textarea class="form-control" id="system_disabled_message" name="system_disabled_message" rows="2"
-                      placeholder="ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"></textarea>
-            <div class="form-text">ข้อความที่จะแสดงเมื่อระบบทั้งหมดถูกปิด</div>
-        </div>
-        
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary" onclick="saveSystemMessages()">
-                <i class="fas fa-save me-1"></i> บันทึกข้อความ
-            </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="loadSystemMessages()">
-                <i class="fas fa-sync me-1"></i> โหลดข้อความปัจจุบัน
-            </button>
-            <button type="button" class="btn btn-outline-warning" onclick="resetSystemMessages()">
-                <i class="fas fa-undo me-1"></i> รีเซ็ตเป็นค่าเริ่มต้น
-            </button>
-        </div>
-    </div>
-</div>
-
-    <!-- Thunder API Configuration -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-bolt me-2 text-warning"></i>
-                Thunder API Configuration
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="mb-3">
-                        <label for="thunder_api_token" class="form-label fw-medium">
-                            Thunder API Token
-                            <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="thunder_api_token" 
-                                   name="thunder_api_token" value="{{ config.thunder_api_token }}"
-                                   placeholder="Enter Thunder API Token">
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('thunder_api_token')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="form-text">Token สำหรับการตรวจสอบสลิปผ่าน Thunder API</div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-medium">Thunder API Status</label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="thunder_enabled" 
-                                   name="thunder_enabled" {% if config.thunder_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="thunder_enabled">
-                                Enable Thunder API
-                            </label>
-                        </div>
-                        <div class="form-text">เปิด/ปิดการใช้งาน Thunder API</div>
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-warning" onclick="testThunderAPI()">
-                    <i class="fas fa-bolt me-1"></i> Test Thunder API
-                </button>
-                <button type="button" class="btn btn-outline-info" onclick="showThunderAPIInfo()">
-                    <i class="fas fa-info-circle me-1"></i> API Information
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- OpenAI Configuration -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-robot me-2 text-info"></i>
-                OpenAI Configuration
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="openai_api_key" class="form-label fw-medium">
-                            OpenAI API Key
-                        </label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="openai_api_key" 
-                                   name="openai_api_key" value="{{ config.openai_api_key }}"
-                                   placeholder="Enter OpenAI API Key">
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('openai_api_key')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        <div class="form-text">API Key สำหรับการใช้งาน OpenAI GPT</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label fw-medium">AI Chat Status</label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="ai_enabled" 
-                                   name="ai_enabled" {% if config.ai_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="ai_enabled">
-                                Enable AI Chat
-                            </label>
-                        </div>
-                        <div class="form-text">เปิด/ปิดระบบแชท AI</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label fw-medium">Slip System Status</label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="slip_enabled" 
-                                   name="slip_enabled" {% if config.slip_enabled %}checked{% endif %}>
-                            <label class="form-check-label" for="slip_enabled">
-                                Enable Slip Verification
-                            </label>
-                        </div>
-                        <div class="form-text">เปิด/ปิดระบบตรวจสอบสลิป</div>
-                    </div>
-                </div>
-            </div>
             <div class="mb-3">
-                <label for="ai_prompt" class="form-label fw-medium">AI System Prompt</label>
-                <textarea class="form-control" id="ai_prompt" name="ai_prompt" rows="4" 
-                          placeholder="Enter custom AI prompt...">{{ config.ai_prompt }}</textarea>
-                <div class="form-text">กำหนดพฤติกรรมของ AI Assistant (เว้นว่างไว้เพื่อใช้ default)</div>
+                <label class="form-label">AI Disabled Message</label>
+                <textarea class="form-control" id="ai_disabled_message" rows="2">{{ config.ai_disabled_message or 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว' }}</textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Slip System Disabled Message</label>
+                <textarea class="form-control" id="slip_disabled_message" rows="2">{{ config.slip_disabled_message or 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว' }}</textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">System Disabled Message</label>
+                <textarea class="form-control" id="system_disabled_message" rows="2">{{ config.system_disabled_message or 'ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง' }}</textarea>
             </div>
         </div>
     </div>
-
-    <!-- System Settings -->
-    <div class="card mb-4">
+    
+    <!-- Global Features -->
+    <div class="card">
         <div class="card-header">
             <h5 class="mb-0">
-                <i class="fas fa-server me-2 text-secondary"></i>
-                System Settings
+                <i class="fas fa-toggle-on me-2"></i>
+                Global Features
             </h5>
         </div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
-                    <h6 class="fw-bold mb-3">Feature Toggles</h6>
-                    <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
-                        <div>
-                            <strong>Slip Verification System</strong>
-                            <div class="text-muted small">ระบบตรวจสอบสลิปโอนเงิน</div>
-                        </div>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="slip_system_toggle" 
-                                   {% if config.slip_enabled %}checked{% endif %}>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
-                        <div>
-                            <strong>AI Chat System</strong>
-                            <div class="text-muted small">ระบบตอบกลับอัตโนมัติด้วย AI</div>
-                        </div>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="ai_system_toggle" 
-                                   {% if config.ai_enabled %}checked{% endif %}>
-                        </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="global_ai_enabled" {% if config.global_ai_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="global_ai_enabled">
+                            Enable AI for all accounts
+                        </label>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <h6 class="fw-bold mb-3">System Actions</h6>
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-outline-primary" onclick="exportConfig()">
-                            <i class="fas fa-download me-1"></i> Export Configuration
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="importConfig()">
-                            <i class="fas fa-upload me-1"></i> Import Configuration
-                        </button>
-                        <button type="button" class="btn btn-outline-warning" onclick="resetAPIFailures()">
-                            <i class="fas fa-redo me-1"></i> Reset API Failures
-                        </button>
-                        <button type="button" class="btn btn-outline-info" onclick="viewSystemInfo()">
-                            <i class="fas fa-info-circle me-1"></i> View System Info
-                        </button>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="global_slip_enabled" {% if config.global_slip_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="global_slip_enabled">
+                            Enable Slip Verification for all accounts
+                        </label>
                     </div>
                 </div>
             </div>
@@ -300,349 +71,32 @@
     </div>
 </form>
 
-<!-- Modals -->
-<!-- Webhook URL Modal -->
-<div class="modal fade" id="webhookModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">LINE Webhook URL</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>ใช้ URL นี้ใน LINE Developers Console:</p>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="webhook-url" readonly>
-                    <button class="btn btn-outline-secondary" onclick="copyToClipboard('webhook-url')">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Import Config Modal -->
-<div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Import Configuration</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="config-file" class="form-label">Select Configuration File</label>
-                    <input type="file" class="form-control" id="config-file" accept=".json">
-                </div>
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    การ import จะเขียนทับการตั้งค่าปัจจุบัน
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="processImport()">Import</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
 <script>
-    // Toggle password visibility
-    function togglePassword(fieldId) {
-        const field = document.getElementById(fieldId);
-        const button = field.nextElementSibling;
-        const icon = button.querySelector('i');
-        
-        if (field.type === 'password') {
-            field.type = 'text';
-            icon.className = 'fas fa-eye-slash';
-        } else {
-            field.type = 'password';
-            icon.className = 'fas fa-eye';
-        }
-    }
+async function saveSettings() {
+    const data = {
+        ai_disabled_message: document.getElementById('ai_disabled_message').value,
+        slip_disabled_message: document.getElementById('slip_disabled_message').value,
+        system_disabled_message: document.getElementById('system_disabled_message').value,
+        global_ai_enabled: document.getElementById('global_ai_enabled').checked,
+        global_slip_enabled: document.getElementById('global_slip_enabled').checked
+    };
     
-    // Save all settings
-    async function saveAllSettings() {
-        try {
-            const formData = new FormData(document.getElementById('settings-form'));
-            const settings = {};
-            
-            // Convert FormData to object
-            for (let [key, value] of formData.entries()) {
-                if (document.getElementById(key).type === 'checkbox') {
-                    settings[key] = document.getElementById(key).checked;
-                } else {
-                    settings[key] = value;
-                }
-            }
-            
-            showNotification('กำลังบันทึกการตั้งค่า...', 'info');
-            
-            const result = await apiCall('/admin/settings/update', {
-                method: 'POST',
-                body: JSON.stringify(settings)
-            });
-            
-            if (result.status === 'success') {
-                showNotification(result.message, 'success');
-            } else {
-                showNotification(result.message, 'error');
-            }
-            
-        } catch (error) {
-            showNotification('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า', 'error');
-        }
-    }
-    
-    // Test LINE connection
-    async function testLineConnection() {
-        try {
-            showNotification('กำลังทดสอบการเชื่อมต่อ LINE API...', 'info');
-            
-            const result = await apiCall('/admin/test-line-connection', {
-                method: 'POST'
-            });
-            
-            if (result.status === 'success') {
-                showNotification(`LINE API: ${result.message}`, 'success');
-                if (result.data) {
-                    showNotification(`Bot: ${result.data.bot_name}`, 'info');
-                }
-            } else {
-                showNotification(`LINE API Error: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            showNotification('เกิดข้อผิดพลาดในการทดสอบ LINE API', 'error');
-        }
-    }
-    
-    // Test Thunder API
-    async function testThunderAPI() {
-        try {
-            showNotification('กำลังทดสอบ Thunder API...', 'info');
-            
-            const result = await apiCall('/admin/test-thunder-connection', {
-                method: 'POST'
-            });
-            
-            if (result.status === 'success') {
-                showNotification('Thunder API: ทดสอบสำเร็จ', 'success');
-            } else {
-                showNotification(`Thunder API Error: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            showNotification('เกิดข้อผิดพลาดในการทดสอบ Thunder API', 'error');
-        }
-    }
-    
-    // Show webhook URL
-    function showWebhookURL() {
-        const webhookURL = `${window.location.origin}/line/webhook`;
-        document.getElementById('webhook-url').value = webhookURL;
-        new bootstrap.Modal(document.getElementById('webhookModal')).show();
-    }
-    
-    // Show Thunder API info
-    function showThunderAPIInfo() {
-        showNotification('Thunder API ใช้สำหรับตรวจสอบสลิปโอนเงิน รองรับธนาคารหลักในประเทศไทย', 'info', 8000);
-    }
-    
-    // Copy to clipboard
-    function copyToClipboard(elementId) {
-        const element = document.getElementById(elementId);
-        element.select();
-        document.execCommand('copy');
-        showNotification('คัดลอกแล้ว!', 'success', 2000);
-    }
-
-
-
-    async function loadSystemMessages() {
     try {
-        const result = await apiCall('/admin/system-messages');
-        
-        if (result.status === 'success') {
-            const messages = result.messages;
-            document.getElementById('ai_disabled_message').value = messages.ai_disabled || '';
-            document.getElementById('slip_disabled_message').value = messages.slip_disabled || '';
-            document.getElementById('system_disabled_message').value = messages.system_disabled || '';
-            showNotification('โหลดข้อความเรียบร้อย', 'success');
-        }
-    } catch (error) {
-        showNotification('เกิดข้อผิดพลาดในการโหลดข้อความ', 'error');
-    }
-}
-
-// Save system messages
-async function saveSystemMessages() {
-    try {
-        const messages = {
-            ai_disabled_message: document.getElementById('ai_disabled_message').value,
-            slip_disabled_message: document.getElementById('slip_disabled_message').value,
-            system_disabled_message: document.getElementById('system_disabled_message').value
-        };
-        
-        showNotification('กำลังบันทึกข้อความ...', 'info');
-        
-        const result = await apiCall('/admin/system-messages', {
+        const response = await fetch('/admin/settings/update', {
             method: 'POST',
-            body: JSON.stringify(messages)
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
         });
         
+        const result = await response.json();
         if (result.status === 'success') {
-            showNotification('บันทึกข้อความเรียบร้อย', 'success');
+            showNotification('Settings saved successfully', 'success');
         } else {
-            showNotification('ไม่สามารถบันทึกข้อความได้', 'error');
+            showNotification('Failed to save settings', 'error');
         }
     } catch (error) {
-        showNotification('เกิดข้อผิดพลาดในการบันทึก', 'error');
+        showNotification('Error saving settings', 'error');
     }
 }
-
-// Reset system messages to defaults
-function resetSystemMessages() {
-    if (confirm('ต้องการรีเซ็ตข้อความเป็นค่าเริ่มต้นหรือไม่?')) {
-        document.getElementById('ai_disabled_message').value = 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว';
-        document.getElementById('slip_disabled_message').value = 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว';
-        document.getElementById('system_disabled_message').value = 'ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง';
-        showNotification('รีเซ็ตข้อความเป็นค่าเริ่มต้นแล้ว', 'warning');
-    }
-}
-
-// Load messages on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadSystemMessages();
-});
-    // Export configuration
-    async function exportConfig() {
-        try {
-            const result = await apiCall('/admin/export-data');
-            
-            if (result.status === 'success') {
-                const dataStr = JSON.stringify(result.data, null, 2);
-                const dataBlob = new Blob([dataStr], {type: 'application/json'});
-                
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(dataBlob);
-                link.download = `line-oa-config-${new Date().toISOString().split('T')[0]}.json`;
-                link.click();
-                
-                showNotification('Export สำเร็จ', 'success');
-            } else {
-                showNotification('Export ล้มเหลว', 'error');
-            }
-        } catch (error) {
-            showNotification('เกิดข้อผิดพลาดในการ Export', 'error');
-        }
-    }
-    
-    // Import configuration
-    function importConfig() {
-        new bootstrap.Modal(document.getElementById('importModal')).show();
-    }
-    
-    function processImport() {
-        const fileInput = document.getElementById('config-file');
-        const file = fileInput.files[0];
-        
-        if (!file) {
-            showNotification('กรุณาเลือกไฟล์', 'warning');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const config = JSON.parse(e.target.result);
-                
-                // Apply configuration to form
-                if (config.system_config) {
-                    Object.keys(config.system_config).forEach(key => {
-                        const element = document.getElementById(key);
-                        if (element) {
-                            if (element.type === 'checkbox') {
-                                element.checked = config.system_config[key];
-                            } else {
-                                element.value = config.system_config[key];
-                            }
-                        }
-                    });
-                }
-                
-                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
-                showNotification('Import สำเร็จ กรุณาบันทึกการตั้งค่า', 'success');
-                
-            } catch (error) {
-                showNotification('ไฟล์ configuration ไม่ถูกต้อง', 'error');
-            }
-        };
-        reader.readAsText(file);
-    }
-    
-    // Reset API failures
-    async function resetAPIFailures() {
-        try {
-            const result = await apiCall('/admin/reset-failures', {
-                method: 'POST'
-            });
-            
-            if (result.status === 'success') {
-                showNotification(result.message, 'success');
-            } else {
-                showNotification(result.message, 'error');
-            }
-        } catch (error) {
-            showNotification('เกิดข้อผิดพลาดในการรีเซ็ต API failures', 'error');
-        }
-    }
-    
-    // View system info
-    async function viewSystemInfo() {
-        try {
-            const result = await apiCall('/admin/system-info');
-            
-            if (result.status === 'success') {
-                const info = result.system_info;
-                let message = `Database: ${info.database_type}\n`;
-                message += `Config: ${info.config_type}\n`;
-                message += `Status: ${info.ready ? 'Ready' : 'Not Ready'}\n`;
-                message += `Thunder API: ${info.features.thunder_api ? 'Available' : 'Unavailable'}`;
-                
-                alert(message);
-            }
-        } catch (error) {
-            showNotification('เกิดข้อผิดพลาดในการดึงข้อมูลระบบ', 'error');
-        }
-    }
-    
-    // Reset to defaults
-    function resetToDefaults() {
-        if (confirm('คุณต้องการรีเซ็ตการตั้งค่าทั้งหมดหรือไม่?')) {
-            document.getElementById('settings-form').reset();
-            showNotification('รีเซ็ตการตั้งค่าแล้ว กรุณาบันทึกการตั้งค่า', 'warning');
-        }
-    }
-    
-    // Sync toggles with main switches
-    document.getElementById('slip_enabled').addEventListener('change', function() {
-        document.getElementById('slip_system_toggle').checked = this.checked;
-    });
-    
-    document.getElementById('ai_enabled').addEventListener('change', function() {
-        document.getElementById('ai_system_toggle').checked = this.checked;
-    });
-    
-    document.getElementById('slip_system_toggle').addEventListener('change', function() {
-        document.getElementById('slip_enabled').checked = this.checked;
-    });
-    
-    document.getElementById('ai_system_toggle').addEventListener('change', function() {
-        document.getElementById('ai_enabled').checked = this.checked;
-    });
 </script>
 {% endblock %}
