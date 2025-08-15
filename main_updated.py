@@ -891,7 +891,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 # แทนที่ฟังก์ชัน handle_message_event ทั้งหมดด้วยโค้ดนี้
 
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - รองรับ multi-account แบบสมบูรณ์"""
+    """Handle message event - รองรับ multi-account แบบสมบูรณ์ พร้อมข้อความที่กำหนดเอง"""
     message = event.get("message", {})
     user_id = event.get("source", {}).get("userId")
     reply_token = event.get("replyToken")
@@ -909,6 +909,17 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     # โหลด config สำหรับ account นี้โดยเฉพาะ
     account_config = await load_account_config(account_id) if account_id else None
     
+    # ดึงข้อความแจ้งเตือนสำหรับ account นี้
+    system_messages = {}
+    if database_functions and 'get_system_messages' in database_functions:
+        system_messages = await database_functions['get_system_messages'](account_id)
+    else:
+        system_messages = {
+            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+        }
+    
     # บันทึกข้อความขาเข้า
     save_message = {
         "type": message_type,
@@ -919,6 +930,22 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     
     # บันทึกพร้อม account_id
     await save_chat_with_account(user_id, "in", save_message, "user", account_id)
+    
+    # ตรวจสอบว่าระบบทั้งหมดถูกปิดหรือไม่
+    system_enabled = False
+    if account_config:
+        system_enabled = account_config.get("ai_enabled", False) or account_config.get("slip_enabled", False)
+    else:
+        system_enabled = config_manager.get("ai_enabled", False) or config_manager.get("slip_enabled", False)
+    
+    if not system_enabled:
+        # ระบบทั้งหมดถูกปิด
+        await send_line_reply_with_account(
+            reply_token, 
+            system_messages.get("system_disabled", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
+            account_config or {}
+        )
+        return
     
     # ประมวลผลตาม message type
     if message_type == "text":
@@ -932,6 +959,15 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                     user_id, reply_token, account_config, account_id, slip_info=slip_info
                 )
                 return
+        elif account_config and not account_config.get("slip_enabled"):
+            # ถ้าระบบสลิปถูกปิดแต่ user พยายามส่งข้อมูลสลิป
+            if any(keyword in user_text.lower() for keyword in ['ref', 'สลิป', 'โอน', 'bank']):
+                await send_line_reply_with_account(
+                    reply_token,
+                    system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
+                    account_config or {}
+                )
+                return
         
         # AI Chat ด้วย config ของ account นี้
         if account_config and account_config.get("ai_enabled"):
@@ -939,11 +975,11 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                 user_id, reply_token, user_text, account_config, account_id
             )
         else:
-            # ไม่มี config หรือปิด AI
+            # AI ถูกปิด
             await send_line_reply_with_account(
                 reply_token, 
-                "ขออภัย ระบบยังไม่พร้อมให้บริการ", 
-                account_config
+                system_messages.get("ai_disabled", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"),
+                account_config or {}
             )
             
     elif message_type == "image":
@@ -951,6 +987,13 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         if message_id and account_config and account_config.get("slip_enabled"):
             await handle_slip_with_account_config(
                 user_id, reply_token, account_config, account_id, message_id=message_id
+            )
+        else:
+            # ระบบสลิปถูกปิด
+            await send_line_reply_with_account(
+                reply_token,
+                system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
+                account_config or {}
             )
 			
 
@@ -1699,6 +1742,70 @@ async def setup_kbank_instant():
 async def root():
     """Root redirect"""
     return RedirectResponse(url="/admin")
+	
+	
+@app.get("/admin/system-messages")
+async def get_system_messages_api(account_id: Optional[str] = None):
+    """Get system disabled messages"""
+    try:
+        messages = {}
+        if database_functions and 'get_system_messages' in database_functions:
+            messages = await database_functions['get_system_messages'](account_id)
+        else:
+            messages = {
+                "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+                "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+                "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+            }
+        
+        return JSONResponse({
+            "status": "success",
+            "messages": messages
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting system messages: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.post("/admin/system-messages")
+async def update_system_messages_api(request: Request):
+    """Update system disabled messages"""
+    try:
+        data = await request.json()
+        account_id = data.get("account_id")
+        messages = {
+            "ai_disabled": data.get("ai_disabled_message", ""),
+            "slip_disabled": data.get("slip_disabled_message", ""),
+            "system_disabled": data.get("system_disabled_message", "")
+        }
+        
+        success = False
+        if database_functions and 'set_system_messages' in database_functions:
+            success = await database_functions['set_system_messages'](messages, account_id)
+        
+        if success:
+            await notification_manager.send_notification(
+                "✅ อัปเดตข้อความแจ้งเตือนเรียบร้อย",
+                "success"
+            )
+            return JSONResponse({
+                "status": "success",
+                "message": "อัปเดตข้อความเรียบร้อย"
+            })
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "ไม่สามารถอัปเดตข้อความได้"
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Error updating system messages: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
 
 # เพิ่มใน main_updated.py หลัง line 755
 
