@@ -74,6 +74,62 @@
             </div>
         </div>
     </div>
+    <div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-comment-alt me-2 text-warning"></i>
+            ข้อความแจ้งเมื่อระบบปิด
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle me-2"></i>
+            กำหนดข้อความที่จะแสดงเมื่อระบบต่างๆ ถูกปิดการใช้งาน
+        </div>
+        
+        <div class="mb-3">
+            <label for="ai_disabled_message" class="form-label fw-medium">
+                <i class="fas fa-robot me-1 text-info"></i>
+                ข้อความเมื่อ AI ถูกปิด
+            </label>
+            <textarea class="form-control" id="ai_disabled_message" name="ai_disabled_message" rows="2" 
+                      placeholder="ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"></textarea>
+            <div class="form-text">ข้อความที่จะแสดงเมื่อผู้ใช้พยายามใช้งาน AI แต่ระบบถูกปิด</div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="slip_disabled_message" class="form-label fw-medium">
+                <i class="fas fa-receipt me-1 text-warning"></i>
+                ข้อความเมื่อระบบสลิปถูกปิด
+            </label>
+            <textarea class="form-control" id="slip_disabled_message" name="slip_disabled_message" rows="2"
+                      placeholder="ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"></textarea>
+            <div class="form-text">ข้อความที่จะแสดงเมื่อผู้ใช้พยายามตรวจสอบสลิปแต่ระบบถูกปิด</div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="system_disabled_message" class="form-label fw-medium">
+                <i class="fas fa-power-off me-1 text-danger"></i>
+                ข้อความเมื่อระบบทั้งหมดถูกปิด
+            </label>
+            <textarea class="form-control" id="system_disabled_message" name="system_disabled_message" rows="2"
+                      placeholder="ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"></textarea>
+            <div class="form-text">ข้อความที่จะแสดงเมื่อระบบทั้งหมดถูกปิด</div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" onclick="saveSystemMessages()">
+                <i class="fas fa-save me-1"></i> บันทึกข้อความ
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="loadSystemMessages()">
+                <i class="fas fa-sync me-1"></i> โหลดข้อความปัจจุบัน
+            </button>
+            <button type="button" class="btn btn-outline-warning" onclick="resetSystemMessages()">
+                <i class="fas fa-undo me-1"></i> รีเซ็ตเป็นค่าเริ่มต้น
+            </button>
+        </div>
+    </div>
+</div>
 
     <!-- Thunder API Configuration -->
     <div class="card mb-4">
