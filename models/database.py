@@ -805,6 +805,20 @@ def get_connection_info():
     """Get detailed connection information"""
     return CONNECTION_STATUS
 
+
+# Export functions for system messages
+async def get_system_messages(account_id: Optional[str] = None):
+    """Get system disabled messages"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.get_system_messages(account_id)
+
+async def set_system_messages(messages: Dict[str, str], account_id: Optional[str] = None):
+    """Set system disabled messages"""
+    if not db_manager.connected:
+        await init_database()
+    return await db_manager.set_system_messages(messages, account_id)
+	
 async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
     """Save chat history - Legacy version (backward compatibility)"""
     if not db_manager.connected:
