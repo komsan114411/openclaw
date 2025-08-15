@@ -166,7 +166,8 @@ async def safe_import_modules():
                 init_database, save_chat_history, get_chat_history_count, 
                 get_recent_chat_history, get_user_chat_history, test_connection,
                 get_connection_info, get_database_status, get_config, set_config,
-                get_user_chat_history_sync
+                get_user_chat_history_sync, save_chat_history_with_account,
+                get_system_messages, set_system_messages  # เพิ่มบรรทัดนี้
             )
             
             # Initialize database
@@ -179,6 +180,7 @@ async def safe_import_modules():
                 database_functions = {
                     'init_database': init_database,
                     'save_chat_history': save_chat_history,
+                    'save_chat_history_with_account': save_chat_history_with_account,
                     'get_chat_history_count': get_chat_history_count,
                     'get_recent_chat_history': get_recent_chat_history,
                     'get_user_chat_history': get_user_chat_history,
@@ -187,7 +189,9 @@ async def safe_import_modules():
                     'get_connection_info': get_connection_info,
                     'get_database_status': get_database_status,
                     'get_config': get_config,
-                    'set_config': set_config
+                    'set_config': set_config,
+                    'get_system_messages': get_system_messages,  # เพิ่มบรรทัดนี้
+                    'set_system_messages': set_system_messages   # เพิ่มบรรทัดนี้
                 }
                 database_import_success = True
                 logger.info("✅ Database functions imported successfully")
@@ -206,6 +210,10 @@ async def safe_import_modules():
             
             async def dummy_save(u, d, m, s):
                 logger.debug(f"Dummy save: {u[:10] if u else 'unknown'}")
+                return False
+            
+            async def dummy_save_with_account(u, d, m, s, a):
+                logger.debug(f"Dummy save with account: {u[:10] if u else 'unknown'}")
                 return False
             
             async def dummy_count():
@@ -234,10 +242,23 @@ async def safe_import_modules():
             
             async def dummy_set_config(key, value, is_sensitive=False):
                 return False
+            
+            async def dummy_get_system_messages(account_id=None):
+                """Dummy function for system messages"""
+                return {
+                    "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+                    "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+                    "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+                }
+            
+            async def dummy_set_system_messages(messages, account_id=None):
+                """Dummy function for setting system messages"""
+                return False
                 
             database_functions = {
                 'init_database': lambda: False,
                 'save_chat_history': dummy_save,
+                'save_chat_history_with_account': dummy_save_with_account,
                 'get_chat_history_count': dummy_count,
                 'get_recent_chat_history': dummy_recent,
                 'get_user_chat_history': dummy_user_history,
@@ -246,7 +267,9 @@ async def safe_import_modules():
                 'get_connection_info': dummy_info,
                 'get_database_status': dummy_get_status,
                 'get_config': dummy_get_config,
-                'set_config': dummy_set_config
+                'set_config': dummy_set_config,
+                'get_system_messages': dummy_get_system_messages,  # เพิ่มบรรทัดนี้
+                'set_system_messages': dummy_set_system_messages   # เพิ่มบรรทัดนี้
             }
         
         # Import AI modules
@@ -1162,14 +1185,19 @@ async def check_slip_text(text: str, account_config: Dict) -> Dict:
         "trans_ref": trans_ref
     }
 
+# เพิ่มในไฟล์ main_updated.py หลังฟังก์ชัน save_chat_with_account (บรรทัดประมาณ 1000)
+
 async def save_chat_with_account(user_id: str, direction: str, message: Dict, sender: str, account_id: str):
     """บันทึก chat history พร้อม account_id"""
     try:
-        from models.database import save_chat_history_with_account
-        await save_chat_history_with_account(user_id, direction, message, sender, account_id)
+        if database_functions and 'save_chat_history_with_account' in database_functions:
+            await database_functions['save_chat_history_with_account'](user_id, direction, message, sender, account_id)
+        else:
+            # Fallback to regular save
+            if database_functions and 'save_chat_history' in database_functions:
+                await database_functions['save_chat_history'](user_id, direction, message, sender)
     except Exception as e:
         logger.error(f"❌ Save chat error: {e}")
-		
 		
 		
 # เพิ่มใน main_updated.py หลังบรรทัด 1500
