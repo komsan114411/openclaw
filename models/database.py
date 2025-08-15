@@ -836,73 +836,154 @@ async def save_slip_data(user_id: str, slip_result: Dict, account_id: Optional[s
     return await db_manager.save_slip_data(user_id, slip_result, account_id)
     
     
-async def get_system_messages(self, account_id: Optional[str] = None) -> Dict[str, str]:
-    """ดึงข้อความแจ้งเตือนระบบสำหรับ account"""
-    try:
-        default_messages = {
-            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว", 
-            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
-        }
-        
-        if not self.connected or not self.db:
+ async def get_system_messages(self, account_id: Optional[str] = None) -> Dict[str, str]:
+        """ดึงข้อความแจ้งเตือนระบบสำหรับ account"""
+        try:
+            from bson import ObjectId
+            
+            default_messages = {
+                "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+                "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว", 
+                "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+            }
+            
+            if not self.connected or not self.db:
+                return default_messages
+            
+            if account_id:
+                try:
+                    # ดึงข้อความเฉพาะของ account
+                    account = await self.db.line_accounts.find_one({"_id": ObjectId(account_id)})
+                    if account:
+                        messages = {
+                            "ai_disabled": account.get("ai_disabled_message") or default_messages["ai_disabled"],
+                            "slip_disabled": account.get("slip_disabled_message") or default_messages["slip_disabled"],
+                            "system_disabled": account.get("system_disabled_message") or default_messages["system_disabled"]
+                        }
+                        logger.info(f"✅ Got custom messages for account {account_id[:8]}")
+                        return messages
+                except Exception as e:
+                    logger.error(f"❌ Error getting account messages: {e}")
+            
+            # ถ้าไม่มี account_id หรือหาไม่เจอ ให้ดึง default จาก config_store
+            try:
+                default_configs = {}
+                cursor = self.db.config_store.find({
+                    "config_key": {"$in": ["default_ai_disabled_message", "default_slip_disabled_message", "default_system_disabled_message"]}
+                })
+                async for doc in cursor:
+                    key = doc.get("config_key", "").replace("default_", "").replace("_message", "")
+                    if key:
+                        default_configs[key] = doc.get("config_value", "")
+                
+                if default_configs:
+                    for key in default_messages:
+                        if key in default_configs and default_configs[key]:
+                            default_messages[key] = default_configs[key]
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get default messages from config: {e}")
+            
             return default_messages
-        
-        if account_id:
-            # ดึงข้อความเฉพาะของ account
-            account = await self.db.line_accounts.find_one({"_id": ObjectId(account_id)})
-            if account:
-                messages = {
-                    "ai_disabled": account.get("ai_disabled_message") or default_messages["ai_disabled"],
-                    "slip_disabled": account.get("slip_disabled_message") or default_messages["slip_disabled"],
-                    "system_disabled": account.get("system_disabled_message") or default_messages["system_disabled"]
-                }
-                return messages
-        
-        return default_messages
-        
-    except Exception as e:
-        logger.error(f"❌ Error getting system messages: {e}")
-        return {
-            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
-        }
-async def set_system_messages(self, messages: Dict[str, str], account_id: Optional[str] = None) -> bool:
-    """บันทึกข้อความแจ้งเตือนระบบสำหรับ account"""
-    try:
-        if not self.connected or not self.db:
+            
+        except Exception as e:
+            logger.error(f"❌ Error in get_system_messages: {e}")
+            return {
+                "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+                "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+                "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+            }
+            
+async def get_system_messages(account_id: Optional[str] = None) -> Dict[str, str]:
+    """Get system messages for account"""
+    if not db_manager.connected:
+        init_result = await init_database()
+        if not init_result:
+            logger.error("❌ Cannot get system messages - database not connected")
+            return {
+                "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+                "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+                "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+            }
+    return await db_manager.get_system_messages(account_id)
+
+async def set_system_messages(messages: Dict[str, str], account_id: Optional[str] = None) -> bool:
+    """Set system messages for account"""
+    if not db_manager.connected:
+        init_result = await init_database()
+        if not init_result:
+            logger.error("❌ Cannot set system messages - database not connected")
             return False
+    return await db_manager.set_system_messages(messages, account_id)
+    
+async def set_system_messages(self, messages: Dict[str, str], account_id: Optional[str] = None) -> bool:
+        """บันทึกข้อความแจ้งเตือนระบบสำหรับ account"""
+        try:
+            from bson import ObjectId
             
-        if account_id:
-            # อัปเดตข้อความสำหรับ account เฉพาะ
-            result = await self.db.line_accounts.update_one(
-                {"_id": ObjectId(account_id)},
-                {"$set": {
-                    "ai_disabled_message": messages.get("ai_disabled", ""),
-                    "slip_disabled_message": messages.get("slip_disabled", ""),
-                    "system_disabled_message": messages.get("system_disabled", ""),
-                    "updated_at": datetime.utcnow()
-                }}
-            )
-            return result.modified_count > 0
-        else:
-            # บันทึกเป็น default messages
-            for key, value in messages.items():
-                await self.db.config_store.update_one(
-                    {"config_key": f"default_{key}_message"},
-                    {"$set": {
-                        "config_key": f"default_{key}_message",
-                        "config_value": value,
+            if not self.connected or not self.db:
+                logger.error("❌ Database not connected")
+                return False
+                
+            if account_id:
+                try:
+                    # อัปเดตข้อความสำหรับ account เฉพาะ
+                    update_data = {
                         "updated_at": datetime.utcnow()
-                    }},
-                    upsert=True
-                )
-            return True
-            
-    except Exception as e:
-        logger.error(f"❌ Error setting system messages: {e}")
-        return False
+                    }
+                    
+                    # เพิ่มเฉพาะข้อความที่มีค่า
+                    if messages.get("ai_disabled"):
+                        update_data["ai_disabled_message"] = messages["ai_disabled"]
+                    if messages.get("slip_disabled"):
+                        update_data["slip_disabled_message"] = messages["slip_disabled"]
+                    if messages.get("system_disabled"):
+                        update_data["system_disabled_message"] = messages["system_disabled"]
+                    
+                    result = await self.db.line_accounts.update_one(
+                        {"_id": ObjectId(account_id)},
+                        {"$set": update_data}
+                    )
+                    
+                    if result.modified_count > 0:
+                        logger.info(f"✅ Updated system messages for account {account_id[:8]}")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ No changes made for account {account_id[:8]}")
+                        return False
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error updating account messages: {e}")
+                    return False
+            else:
+                # บันทึกเป็น default messages ใน config_store
+                try:
+                    success = True
+                    for key, value in messages.items():
+                        if value:  # บันทึกเฉพาะที่มีค่า
+                            config_key = f"default_{key}_message"
+                            result = await self.db.config_store.update_one(
+                                {"config_key": config_key},
+                                {"$set": {
+                                    "config_key": config_key,
+                                    "config_value": value,
+                                    "updated_at": datetime.utcnow()
+                                }},
+                                upsert=True
+                            )
+                            if result.modified_count == 0 and result.upserted_id is None:
+                                success = False
+                    
+                    if success:
+                        logger.info("✅ Updated default system messages")
+                    return success
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error updating default messages: {e}")
+                    return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error in set_system_messages: {e}")
+            return False
         
 # เพิ่มในไฟล์ models/database.py ท้ายไฟล์ หลัง export functions อื่นๆ (ประมาณบรรทัด 1300)
 
