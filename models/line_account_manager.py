@@ -15,51 +15,203 @@ class LineAccountManager:
         self.accounts_collection: AsyncIOMotorCollection = db.line_accounts
         
     async def create_account(self, data: Dict) -> str:
-        """สร้างบัญชี LINE OA ใหม่"""
-        try:
-            # เพิ่มข้อมูลพื้นฐาน
-            account_data = {
-                "display_name": data.get("display_name", ""),
-                "description": data.get("description", ""),
-                "channel_secret": data.get("channel_secret", ""),
-                "channel_access_token": data.get("channel_access_token", ""),
-                
-                # API Keys
-                "thunder_api_token": data.get("thunder_api_token", ""),
-                "openai_api_key": data.get("openai_api_key", ""),
-                "kbank_consumer_id": data.get("kbank_consumer_id", ""),
-                "kbank_consumer_secret": data.get("kbank_consumer_secret", ""),
-                
-                # AI Settings
-                "ai_prompt": data.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
-                
-                # Feature Toggles
-                "ai_enabled": data.get("ai_enabled", False),
-                "slip_enabled": data.get("slip_enabled", False),
-                "thunder_enabled": data.get("thunder_enabled", True),
-                "kbank_enabled": data.get("kbank_enabled", False),
-                
-                # Webhook Path (unique for each account)
-                "webhook_path": self._generate_webhook_path(),
-                
-                # Status
-                "status": "active",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
-            }
+    """สร้างบัญชี LINE OA ใหม่พร้อมการตั้งค่าข้อความปิดระบบ"""
+    try:
+        # เพิ่มข้อมูลพื้นฐานและข้อความปิดระบบ
+        account_data = {
+            # ข้อมูลพื้นฐาน
+            "display_name": data.get("display_name", ""),
+            "description": data.get("description", ""),
             
-            result = await self.accounts_collection.insert_one(account_data)
-            account_id = str(result.inserted_id)
+            # LINE Credentials
+            "channel_secret": data.get("channel_secret", ""),
+            "channel_access_token": data.get("channel_access_token", ""),
             
-            # สร้าง indexes
-            await self._ensure_indexes()
+            # API Keys
+            "thunder_api_token": data.get("thunder_api_token", ""),
+            "openai_api_key": data.get("openai_api_key", ""),
+            "kbank_consumer_id": data.get("kbank_consumer_id", ""),
+            "kbank_consumer_secret": data.get("kbank_consumer_secret", ""),
             
-            logger.info(f"✅ Created LINE account: {account_id}")
-            return account_id
+            # AI Settings
+            "ai_prompt": data.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
             
-        except Exception as e:
-            logger.error(f"❌ Error creating account: {e}")
-            raise
+            # Feature Toggles
+            "ai_enabled": data.get("ai_enabled", False),
+            "slip_enabled": data.get("slip_enabled", False),
+            "thunder_enabled": data.get("thunder_enabled", True),
+            "kbank_enabled": data.get("kbank_enabled", False),
+            "system_enabled": data.get("system_enabled", True),  # สถานะระบบโดยรวม
+            
+            # ข้อความเมื่อระบบถูกปิด (ใหม่)
+            "ai_disabled_message": data.get("ai_disabled_message", 
+                "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว กรุณาติดต่อเจ้าหน้าที่"),
+            
+            "slip_disabled_message": data.get("slip_disabled_message", 
+                "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว กรุณาติดต่อเจ้าหน้าที่"),
+            
+            "system_disabled_message": data.get("system_disabled_message", 
+                "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
+            
+            # ข้อความเมื่อไม่เข้าใจคำถาม (ใหม่)
+            "unknown_message": data.get("unknown_message",
+                "ขออภัย ไม่เข้าใจคำถามของคุณ กรุณาลองใหม่อีกครั้ง"),
+            
+            # ข้อความต้อนรับ (ใหม่)
+            "welcome_message": data.get("welcome_message",
+                "สวัสดีครับ ยินดีต้อนรับ มีอะไรให้ช่วยไหมครับ"),
+            
+            # ข้อความเมื่อ user follow (ใหม่)
+            "follow_message": data.get("follow_message",
+                "ขอบคุณที่เพิ่มเราเป็นเพื่อน! มีอะไรให้ช่วยเหลือติดต่อได้เลยครับ"),
+            
+            # การตั้งค่าการแจ้งเตือน (ใหม่)
+            "notify_on_new_message": data.get("notify_on_new_message", True),
+            "notify_on_error": data.get("notify_on_error", True),
+            "admin_line_user_id": data.get("admin_line_user_id", ""),  # LINE User ID ของ admin
+            
+            # Webhook Path (unique for each account)
+            "webhook_path": self._generate_webhook_path(),
+            
+            # การตั้งค่าขั้นสูง (ใหม่)
+            "max_ai_tokens": data.get("max_ai_tokens", 150),
+            "ai_temperature": data.get("ai_temperature", 0.7),
+            "ai_model": data.get("ai_model", "gpt-3.5-turbo"),
+            
+            # Rate limiting (ใหม่)
+            "rate_limit_enabled": data.get("rate_limit_enabled", False),
+            "rate_limit_messages": data.get("rate_limit_messages", 100),  # ข้อความต่อชั่วโมง
+            "rate_limit_message": data.get("rate_limit_message",
+                "ขออภัย คุณส่งข้อความเร็วเกินไป กรุณารอสักครู่"),
+            
+            # Business hours (ใหม่)
+            "business_hours_enabled": data.get("business_hours_enabled", False),
+            "business_hours_start": data.get("business_hours_start", "09:00"),
+            "business_hours_end": data.get("business_hours_end", "18:00"),
+            "business_hours_days": data.get("business_hours_days", [1, 2, 3, 4, 5]),  # จันทร์-ศุกร์
+            "outside_hours_message": data.get("outside_hours_message",
+                "ขออภัย ขณะนี้อยู่นอกเวลาทำการ (จันทร์-ศุกร์ 9:00-18:00) "
+                "กรุณาติดต่อใหม่ในเวลาทำการ"),
+            
+            # Auto reply settings (ใหม่)
+            "auto_reply_enabled": data.get("auto_reply_enabled", False),
+            "auto_reply_keywords": data.get("auto_reply_keywords", {}),  # {"keyword": "reply"}
+            
+            # Logging preferences (ใหม่)
+            "log_all_messages": data.get("log_all_messages", True),
+            "log_errors_only": data.get("log_errors_only", False),
+            
+            # Privacy settings (ใหม่)
+            "mask_sensitive_data": data.get("mask_sensitive_data", True),
+            "delete_messages_after_days": data.get("delete_messages_after_days", 0),  # 0 = ไม่ลบ
+            
+            # Status and metadata
+            "status": "active",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "created_by": data.get("created_by", "system"),
+            "last_activity": None,
+            "total_messages": 0,
+            "total_users": 0,
+            
+            # Tags for organization (ใหม่)
+            "tags": data.get("tags", []),
+            
+            # Custom fields (ใหม่) - สำหรับข้อมูลเพิ่มเติมที่กำหนดเอง
+            "custom_fields": data.get("custom_fields", {})
+        }
+        
+        # Validate required fields
+        if not account_data["display_name"]:
+            raise ValueError("Display name is required")
+        
+        if not account_data["channel_secret"] or not account_data["channel_access_token"]:
+            raise ValueError("LINE credentials are required")
+        
+        # ตรวจสอบว่า webhook_path ไม่ซ้ำ
+        existing = await self.accounts_collection.find_one({
+            "webhook_path": account_data["webhook_path"]
+        })
+        
+        if existing:
+            # ถ้าซ้ำให้สร้างใหม่
+            account_data["webhook_path"] = self._generate_webhook_path()
+        
+        # บันทึกลง MongoDB
+        result = await self.accounts_collection.insert_one(account_data)
+        account_id = str(result.inserted_id)
+        
+        # สร้าง indexes สำหรับ performance
+        await self._ensure_indexes()
+        
+        # สร้าง collections แยกสำหรับ account นี้ (optional)
+        await self._create_account_collections(account_id)
+        
+        # ส่ง notification ถ้าตั้งค่าไว้
+        if account_data.get("notify_on_new_message") and account_data.get("admin_line_user_id"):
+            await self._notify_admin(
+                account_data["admin_line_user_id"],
+                f"✅ สร้างบัญชี {account_data['display_name']} เรียบร้อยแล้ว\n"
+                f"Account ID: {account_id}"
+            )
+        
+        logger.info(f"✅ Created LINE account: {account_id} - {account_data['display_name']}")
+        
+        # Return account_id
+        return account_id
+        
+    except ValueError as ve:
+        logger.error(f"❌ Validation error creating account: {ve}")
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error creating account: {e}")
+        raise
+		
+	async def _create_account_collections(self, account_id: str):
+    """สร้าง collections แยกสำหรับแต่ละ account (optional)"""
+    try:
+        # สร้าง collection สำหรับเก็บ chat history ของ account นี้โดยเฉพาะ
+        collection_name = f"chat_history_{account_id}"
+        
+        # สร้าง indexes
+        await self.db[collection_name].create_index([("user_id", 1)])
+        await self.db[collection_name].create_index([("created_at", -1)])
+        await self.db[collection_name].create_index([("message_type", 1)])
+        
+        logger.info(f"✅ Created collections for account {account_id}")
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Could not create account collections: {e}")
+
+async def _notify_admin(self, admin_user_id: str, message: str):
+    """ส่งการแจ้งเตือนไปยัง admin ผ่าน LINE"""
+    try:
+        # ใช้ default LINE credentials สำหรับส่งการแจ้งเตือน
+        from utils.config_manager import config_manager
+        import httpx
+        
+        access_token = config_manager.get("line_channel_access_token")
+        if not access_token or not admin_user_id:
+            return
+        
+        url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "to": admin_user_id,
+            "messages": [{
+                "type": "text",
+                "text": message
+            }]
+        }
+        
+        async with httpx.AsyncClient() as client:
+            await client.post(url, headers=headers, json=payload)
+            
+    except Exception as e:
+        logger.warning(f"⚠️ Could not send admin notification: {e}")
 
     async def list_accounts(self) -> List[Dict]:
         """แสดงรายการบัญชีทั้งหมด"""
