@@ -1218,17 +1218,25 @@ async def send_line_push_flex_with_account(user_id: str, messages: list, account
         logger.error(f"❌ Push flex error: {e}")
         return False
 
+# ใน main_updated.py
 async def verify_slip_with_account_config(
     account_config: Dict[str, Any],
     message_id: str,
     slip_info: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
-    """
-    ตรวจสอบสลิปโดยใช้ token ของบัญชีที่ระบุใน account_config
-    """
+    """ตรวจสอบสลิปโดยใช้ token ของบัญชีที่ระบุใน account_config"""
     try:
         thunder_token = account_config.get("thunder_api_token")
-        line_token = account_config.get("line_channel_access_token")
+        # ตรวจสอบทั้ง line_channel_access_token และ channel_access_token
+        line_token = (
+            account_config.get("line_channel_access_token")
+            or account_config.get("channel_access_token")
+        )
+        # หากยังไม่มี ให้ fallback ไปใช้ global config
+        if not line_token:
+            from utils.config_manager import config_manager
+            line_token = config_manager.get("line_channel_access_token")
+
         from services.slip_checker import verify_slip_with_thunder
         # เรียกผ่าน thread เพื่อไม่บล็อก event loop
         return await asyncio.to_thread(
