@@ -31,6 +31,11 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+        
         .sidebar {
             min-height: calc(100vh - 56px);
             background: white;
@@ -66,6 +71,11 @@
             transition: all 0.3s ease;
         }
         
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
         .notification {
             position: fixed;
             top: 20px;
@@ -73,6 +83,16 @@
             z-index: 1050;
             min-width: 300px;
             max-width: 400px;
+        }
+        
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
         }
     </style>
     
@@ -106,7 +126,7 @@
             <div class="col-md-3 col-lg-2 sidebar">
                 <div class="p-3">
                     <nav class="nav flex-column">
-                        <a class="nav-link {% if request.path == '/admin' %}active{% endif %}" href="/admin">
+                        <a class="nav-link {% if request.path == '/admin' or request.path == '/admin/' %}active{% endif %}" href="/admin">
                             <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                         </a>
                         <a class="nav-link {% if 'accounts' in request.path %}active{% endif %}" href="/admin/accounts">
@@ -148,8 +168,14 @@
     <script>
         // WebSocket connection
         let websocket = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
         
         function connectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                return;
+            }
+            
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
             
@@ -157,7 +183,9 @@
                 websocket = new WebSocket(wsUrl);
                 
                 websocket.onopen = function() {
+                    console.log('WebSocket connected');
                     updateNavbarStatus(true);
+                    reconnectAttempts = 0;
                 };
                 
                 websocket.onmessage = function(event) {
@@ -170,32 +198,60 @@
                 };
                 
                 websocket.onclose = function() {
+                    console.log('WebSocket disconnected');
                     updateNavbarStatus(false);
-                    setTimeout(connectWebSocket, 5000);
+                    
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        const delay = Math.pow(2, reconnectAttempts) * 1000;
+                        setTimeout(() => {
+                            reconnectAttempts++;
+                            connectWebSocket();
+                        }, delay);
+                    }
                 };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateNavbarStatus(false);
+                };
+                
             } catch (error) {
                 console.error('WebSocket connection failed:', error);
+                updateNavbarStatus(false);
             }
         }
         
         function updateNavbarStatus(connected) {
             const statusElement = document.getElementById('navbar-connection-status');
             if (statusElement) {
-                statusElement.className = connected ? 'badge bg-success me-3' : 'badge bg-warning me-3';
-                statusElement.innerHTML = connected ? 
-                    '<i class="fas fa-circle me-1"></i>Connected' : 
-                    '<i class="fas fa-circle me-1"></i>Reconnecting...';
+                if (connected) {
+                    statusElement.className = 'badge bg-success me-3';
+                    statusElement.innerHTML = '<i class="fas fa-circle me-1"></i>Connected';
+                } else {
+                    statusElement.className = 'badge bg-warning me-3';
+                    statusElement.innerHTML = '<i class="fas fa-circle me-1"></i>Reconnecting...';
+                }
             }
         }
         
         function showNotification(message, type = 'info', duration = 5000) {
             const container = document.getElementById('notification-container');
+            
+            const alertClass = type === 'error' ? 'danger' : type;
+            const icon = {
+                'success': 'fa-check-circle',
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            }[type] || 'fa-info-circle';
+            
             const notification = document.createElement('div');
-            notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show notification`;
+            notification.className = `alert alert-${alertClass} alert-dismissible fade show notification`;
             notification.innerHTML = `
-                ${message}
+                <i class="fas ${icon} me-2"></i>${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
+            
             container.appendChild(notification);
             
             setTimeout(() => {
@@ -229,13 +285,13 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 return await response.json();
             } catch (error) {
                 console.error('API call failed:', error);
-                showNotification('API Error: ' + error.message, 'error');
+                showNotification(`API Error: ${error.message}`, 'error');
                 throw error;
             }
         }
