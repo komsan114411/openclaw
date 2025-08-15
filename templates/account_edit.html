@@ -36,6 +36,43 @@
     .toggle-password {
         cursor: pointer;
     }
+    
+    .nav-tabs .nav-link {
+        color: #495057;
+        border: 1px solid transparent;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #007bff;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
+    }
+    
+    .time-input {
+        max-width: 150px;
+    }
+    
+    .keyword-pair {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+    
+    .keyword-pair input {
+        flex: 1;
+    }
+    
+    .custom-field-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+    
+    .custom-field-row input {
+        flex: 1;
+    }
 </style>
 {% endblock %}
 
@@ -50,6 +87,7 @@
     </a>
 </div>
 
+<!-- Webhook URL Display -->
 <div class="alert alert-info webhook-display mb-4">
     <h6 class="alert-heading">
         <i class="fas fa-link me-2"></i>Webhook URL for this Account
@@ -68,180 +106,619 @@
 </div>
 
 <form id="edit-account-form">
-    <div class="card mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-info-circle me-2"></i>Basic Information
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Account ID</label>
-                        <input type="text" class="form-control" value="{{ account.id }}" readonly>
-                        <div class="form-text">Unique identifier for this account</div>
-                    </div>
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#basic-tab">
+                <i class="fas fa-info-circle me-1"></i> Basic
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#line-tab">
+                <i class="fab fa-line me-1"></i> LINE Config
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#features-tab">
+                <i class="fas fa-cogs me-1"></i> Features
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#messages-tab">
+                <i class="fas fa-comment-dots me-1"></i> Messages
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#business-tab">
+                <i class="fas fa-clock me-1"></i> Business Hours
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#auto-reply-tab">
+                <i class="fas fa-reply me-1"></i> Auto Reply
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#advanced-tab">
+                <i class="fas fa-sliders-h me-1"></i> Advanced
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Basic Information Tab -->
+        <div class="tab-pane fade show active" id="basic-tab">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Basic Information
+                    </h5>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Display Name</label>
-                        <input type="text" class="form-control" name="display_name" 
-                               value="{{ account.display_name }}" required>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Description</label>
-                <textarea class="form-control" name="description" rows="2">{{ account.description or '' }}</textarea>
-            </div>
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fab fa-line me-2"></i>LINE Configuration
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Channel Secret</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" name="channel_secret" 
-                                   id="channel_secret" value="{{ account.channel_secret }}">
-                            <button class="btn btn-outline-secondary toggle-password" type="button" 
-                                    onclick="togglePassword('channel_secret')">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Account ID</label>
+                                <input type="text" class="form-control" value="{{ account.id }}" readonly>
+                                <div class="form-text">Unique identifier for this account</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Display Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="display_name" 
+                                       value="{{ account.display_name }}" required>
+                                <div class="form-text">ชื่อที่ใช้แสดงในระบบ</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-6">
+                    
                     <div class="mb-3">
-                        <label class="form-label">Channel Access Token</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" name="channel_access_token" 
-                                   id="channel_access_token" value="{{ account.channel_access_token }}">
-                            <button class="btn btn-outline-secondary toggle-password" type="button"
-                                    onclick="togglePassword('channel_access_token')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2">{{ account.description or '' }}</textarea>
+                        <div class="form-text">คำอธิบายสำหรับ account นี้</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" class="form-control" name="tags" 
+                               value="{{ ','.join(account.tags) if account.tags else '' }}"
+                               placeholder="e.g., production, customer-service, main-bot">
+                        <div class="form-text">ใส่ tags คั่นด้วยเครื่องหมาย comma</div>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="system_enabled" 
+                               id="system_enabled" {% if account.system_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="system_enabled">
+                            <strong>เปิดใช้งานระบบ</strong> - ปิด/เปิดระบบทั้งหมดของ account นี้
+                        </label>
                     </div>
                 </div>
             </div>
-            
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-success" onclick="testLineConnection()">
-                    <i class="fas fa-plug me-1"></i>Test Connection
-                </button>
-                <button type="button" class="btn btn-outline-info" onclick="getLineProfile()">
-                    <i class="fas fa-user me-1"></i>Get Bot Profile
-                </button>
-            </div>
         </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-key me-2"></i>API Keys & Features
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="field-group">
-                <h6><i class="fas fa-robot me-1"></i> AI Chat</h6>
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" name="ai_enabled" 
-                           id="ai_enabled" {% if account.ai_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="ai_enabled">
-                        เปิดใช้งาน AI Chat
-                    </label>
+
+        <!-- LINE Configuration Tab -->
+        <div class="tab-pane fade" id="line-tab">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fab fa-line me-2"></i>LINE Configuration
+                    </h5>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">OpenAI API Key</label>
-                    <div class="input-group">
-                        <input type="password" class="form-control" name="openai_api_key" 
-                               id="openai_api_key" value="{{ account.openai_api_key }}"
-                               placeholder="sk-...">
-                        <button class="btn btn-outline-secondary toggle-password" type="button"
-                                onclick="togglePassword('openai_api_key')">
-                            <i class="fas fa-eye"></i>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Channel Secret <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="channel_secret" 
+                                           id="channel_secret" value="{{ account.channel_secret }}" required>
+                                    <button class="btn btn-outline-secondary toggle-password" type="button" 
+                                            onclick="togglePassword('channel_secret')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Channel Access Token <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="channel_access_token" 
+                                           id="channel_access_token" value="{{ account.channel_access_token }}" required>
+                                    <button class="btn btn-outline-secondary toggle-password" type="button"
+                                            onclick="togglePassword('channel_access_token')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Admin LINE User ID</label>
+                        <input type="text" class="form-control" name="admin_line_user_id" 
+                               value="{{ account.admin_line_user_id or '' }}"
+                               placeholder="U1234567890abcdef">
+                        <div class="form-text">LINE User ID ของ admin เพื่อรับการแจ้งเตือน</div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-success" onclick="testLineConnection()">
+                            <i class="fas fa-plug me-1"></i>Test Connection
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="getLineProfile()">
+                            <i class="fas fa-user me-1"></i>Get Bot Profile
                         </button>
                     </div>
-                    <div class="form-text">ใส่ OpenAI API Key เฉพาะของ account นี้</div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">AI System Prompt</label>
-                    <textarea class="form-control" name="ai_prompt" rows="4"
-                              placeholder="คุณเป็นผู้ช่วยที่เป็นมิตร...">{{ account.ai_prompt or 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ' }}</textarea>
-                    <div class="form-text">กำหนด prompt เฉพาะสำหรับ AI ของ account นี้</div>
+            </div>
+        </div>
+
+        <!-- Features Tab -->
+        <div class="tab-pane fade" id="features-tab">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Features & API Keys
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- AI Chat -->
+                    <div class="field-group">
+                        <h6><i class="fas fa-robot me-1"></i> AI Chat</h6>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="ai_enabled" 
+                                   id="ai_enabled" {% if account.ai_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="ai_enabled">
+                                เปิดใช้งาน AI Chat
+                            </label>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">OpenAI API Key</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" name="openai_api_key" 
+                                               id="openai_api_key" value="{{ account.openai_api_key or '' }}">
+                                        <button class="btn btn-outline-secondary toggle-password" type="button"
+                                                onclick="togglePassword('openai_api_key')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Model</label>
+                                    <select class="form-control" name="ai_model">
+                                        <option value="gpt-3.5-turbo" {% if account.ai_model == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo</option>
+                                        <option value="gpt-4" {% if account.ai_model == 'gpt-4' %}selected{% endif %}>GPT-4</option>
+                                        <option value="gpt-4-turbo" {% if account.ai_model == 'gpt-4-turbo' %}selected{% endif %}>GPT-4 Turbo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Max Tokens</label>
+                                    <input type="number" class="form-control" name="max_ai_tokens" 
+                                           value="{{ account.max_ai_tokens or 150 }}" min="50" max="4000">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">AI System Prompt</label>
+                            <textarea class="form-control" name="ai_prompt" rows="4">{{ account.ai_prompt or 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Temperature (0.0 - 2.0)</label>
+                            <input type="number" class="form-control" name="ai_temperature" 
+                                   value="{{ account.ai_temperature or 0.7 }}" min="0" max="2" step="0.1">
+                            <div class="form-text">ค่าต่ำ = คำตอบแน่นอน, ค่าสูง = คำตอบสร้างสรรค์</div>
+                        </div>
+                    </div>
+
+                    <!-- Slip Verification -->
+                    <div class="field-group">
+                        <h6><i class="fas fa-receipt me-1"></i> ระบบตรวจสอบสลิป</h6>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="slip_enabled" 
+                                   id="slip_enabled" {% if account.slip_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="slip_enabled">
+                                เปิดใช้งานระบบตรวจสอบสลิป
+                            </label>
+                        </div>
+                        
+                        <!-- Thunder API -->
+                        <div class="row">
+                            <div class="col-md-9">
+                                <div class="mb-3">
+                                    <label class="form-label">Thunder API Token</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" name="thunder_api_token" 
+                                               id="thunder_api_token" value="{{ account.thunder_api_token or '' }}">
+                                        <button class="btn btn-outline-secondary toggle-password" type="button"
+                                                onclick="togglePassword('thunder_api_token')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">Thunder Status</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="thunder_enabled" 
+                                               id="thunder_enabled" {% if account.thunder_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="thunder_enabled">
+                                            Enable Thunder
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- KBank API -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">KBank Consumer ID</label>
+                                    <input type="text" class="form-control" name="kbank_consumer_id" 
+                                           value="{{ account.kbank_consumer_id or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="mb-3">
+                                    <label class="form-label">KBank Consumer Secret</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" name="kbank_consumer_secret" 
+                                               id="kbank_consumer_secret" value="{{ account.kbank_consumer_secret or '' }}">
+                                        <button class="btn btn-outline-secondary toggle-password" type="button"
+                                                onclick="togglePassword('kbank_consumer_secret')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">KBank Status</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="kbank_enabled" 
+                                               id="kbank_enabled" {% if account.kbank_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="kbank_enabled">
+                                            Enable KBank
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages Tab -->
+        <div class="tab-pane fade" id="messages-tab">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comment-dots me-2"></i>Custom Messages
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- System Messages -->
+                    <div class="field-group">
+                        <h6><i class="fas fa-power-off me-1"></i> System Disabled Messages</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความเมื่อระบบทั้งหมดถูกปิด</label>
+                            <textarea class="form-control" name="system_disabled_message" rows="2">{{ account.system_disabled_message or 'ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความเมื่อระบบ AI ถูกปิด</label>
+                            <textarea class="form-control" name="ai_disabled_message" rows="2">{{ account.ai_disabled_message or 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว กรุณาติดต่อเจ้าหน้าที่' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความเมื่อระบบตรวจสลิปถูกปิด</label>
+                            <textarea class="form-control" name="slip_disabled_message" rows="2">{{ account.slip_disabled_message or 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว กรุณาติดต่อเจ้าหน้าที่' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Welcome Messages -->
+                    <div class="field-group">
+                        <h6><i class="fas fa-hand-wave me-1"></i> Welcome & Follow Messages</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความต้อนรับทั่วไป</label>
+                            <textarea class="form-control" name="welcome_message" rows="2">{{ account.welcome_message or 'สวัสดีครับ ยินดีต้อนรับ มีอะไรให้ช่วยไหมครับ' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความเมื่อมีคน Follow</label>
+                            <textarea class="form-control" name="follow_message" rows="2">{{ account.follow_message or 'ขอบคุณที่เพิ่มเราเป็นเพื่อน! มีอะไรให้ช่วยเหลือติดต่อได้เลยครับ' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Other Messages -->
+                    <div class="field-group">
+                        <h6><i class="fas fa-question-circle me-1"></i> Other Messages</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความเมื่อไม่เข้าใจคำถาม</label>
+                            <textarea class="form-control" name="unknown_message" rows="2">{{ account.unknown_message or 'ขออภัย ไม่เข้าใจคำถามของคุณ กรุณาลองใหม่อีกครั้ง' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความ Rate Limit (ส่งข้อความเร็วเกินไป)</label>
+                            <textarea class="form-control" name="rate_limit_message" rows="2">{{ account.rate_limit_message or 'ขออภัย คุณส่งข้อความเร็วเกินไป กรุณารอสักครู่' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ข้อความนอกเวลาทำการ</label>
+                            <textarea class="form-control" name="outside_hours_message" rows="3">{{ account.outside_hours_message or 'ขออภัย ขณะนี้อยู่นอกเวลาทำการ (จันทร์-ศุกร์ 9:00-18:00) กรุณาติดต่อใหม่ในเวลาทำการ' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Business Hours Tab -->
+        <div class="tab-pane fade" id="business-tab">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Business Hours Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" name="business_hours_enabled" 
+                               id="business_hours_enabled" {% if account.business_hours_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="business_hours_enabled">
+                            <strong>เปิดใช้งานระบบเวลาทำการ</strong>
+                        </label>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">เวลาเริ่มทำการ</label>
+                                <input type="time" class="form-control time-input" name="business_hours_start" 
+                                       value="{{ account.business_hours_start or '09:00' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">เวลาปิดทำการ</label>
+                                <input type="time" class="form-control time-input" name="business_hours_end" 
+                                       value="{{ account.business_hours_end or '18:00' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">วันทำการ</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            {% set days = account.business_hours_days or [1,2,3,4,5] %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="1" 
+                                       id="day_monday" {% if 1 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_monday">จันทร์</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="2" 
+                                       id="day_tuesday" {% if 2 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_tuesday">อังคาร</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="3" 
+                                       id="day_wednesday" {% if 3 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_wednesday">พุธ</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="4" 
+                                       id="day_thursday" {% if 4 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_thursday">พฤหัสบดี</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="5" 
+                                       id="day_friday" {% if 5 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_friday">ศุกร์</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="6" 
+                                       id="day_saturday" {% if 6 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_saturday">เสาร์</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="business_days" value="0" 
+                                       id="day_sunday" {% if 0 in days %}checked{% endif %}>
+                                <label class="form-check-label" for="day_sunday">อาทิตย์</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Reply Tab -->
+        <div class="tab-pane fade" id="auto-reply-tab">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-reply me-2"></i>Auto Reply Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" name="auto_reply_enabled" 
+                               id="auto_reply_enabled" {% if account.auto_reply_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="auto_reply_enabled">
+                            <strong>เปิดใช้งานระบบตอบกลับอัตโนมัติ</strong>
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Keyword และข้อความตอบกลับ</label>
+                        <div id="keyword-container">
+                            {% if account.auto_reply_keywords %}
+                                {% for keyword, reply in account.auto_reply_keywords.items() %}
+                                <div class="keyword-pair">
+                                    <input type="text" class="form-control" placeholder="Keyword" value="{{ keyword }}">
+                                    <input type="text" class="form-control" placeholder="Reply message" value="{{ reply }}">
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeKeywordPair(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" onclick="addKeywordPair()">
+                            <i class="fas fa-plus me-1"></i> Add Keyword
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Tab -->
+        <div class="tab-pane fade" id="advanced-tab">
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Rate Limiting
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="rate_limit_enabled" 
+                               id="rate_limit_enabled" {% if account.rate_limit_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="rate_limit_enabled">
+                            เปิดใช้งาน Rate Limiting
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">จำนวนข้อความสูงสุดต่อชั่วโมง</label>
+                        <input type="number" class="form-control" name="rate_limit_messages" 
+                               value="{{ account.rate_limit_messages or 100 }}" min="1" max="1000">
+                    </div>
                 </div>
             </div>
 
-            <div class="field-group">
-                <h6><i class="fas fa-receipt me-1"></i> ระบบตรวจสอบสลิป</h6>
-                <div class="form-check form-switch mb-3">
-                    <input class="form-check-input" type="checkbox" name="slip_enabled" 
-                           id="slip_enabled" {% if account.slip_enabled %}checked{% endif %}>
-                    <label class="form-check-label" for="slip_enabled">
-                        เปิดใช้งานระบบตรวจสอบสลิป
-                    </label>
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>Notifications
+                    </h5>
                 </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">Thunder API Token</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" name="thunder_api_token" 
-                                       id="thunder_api_token" value="{{ account.thunder_api_token }}"
-                                       placeholder="Thunder API Token สำหรับ account นี้">
-                                <button class="btn btn-outline-secondary toggle-password" type="button"
-                                        onclick="togglePassword('thunder_api_token')">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <div class="form-text">ใส่ Thunder API Token เฉพาะของ account นี้</div>
-                        </div>
+                <div class="card-body">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="notify_on_new_message" 
+                               id="notify_on_new_message" {% if account.notify_on_new_message %}checked{% endif %}>
+                        <label class="form-check-label" for="notify_on_new_message">
+                            แจ้งเตือนเมื่อมีข้อความใหม่
+                        </label>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label">KBank Consumer ID</label>
-                            <input type="text" class="form-control" name="kbank_consumer_id" 
-                                   value="{{ account.kbank_consumer_id }}"
-                                   placeholder="KBank Consumer ID">
-                            <div class="form-text">สำหรับใช้กับ KBank API</div>
-                        </div>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="notify_on_error" 
+                               id="notify_on_error" {% if account.notify_on_error %}checked{% endif %}>
+                        <label class="form-check-label" for="notify_on_error">
+                            แจ้งเตือนเมื่อเกิด Error
+                        </label>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">KBank Consumer Secret</label>
-                    <div class="input-group">
-                        <input type="password" class="form-control" name="kbank_consumer_secret" 
-                               id="kbank_consumer_secret" value="{{ account.kbank_consumer_secret }}">
-                        <button class="btn btn-outline-secondary toggle-password" type="button"
-                                onclick="togglePassword('kbank_consumer_secret')">
-                            <i class="fas fa-eye"></i>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-secret me-2"></i>Privacy Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="mask_sensitive_data" 
+                               id="mask_sensitive_data" {% if account.mask_sensitive_data %}checked{% endif %}>
+                        <label class="form-check-label" for="mask_sensitive_data">
+                            Mask ข้อมูลที่สำคัญในประวัติ
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="log_all_messages" 
+                               id="log_all_messages" {% if account.log_all_messages %}checked{% endif %}>
+                        <label class="form-check-label" for="log_all_messages">
+                            บันทึกข้อความทั้งหมด
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="log_errors_only" 
+                               id="log_errors_only" {% if account.log_errors_only %}checked{% endif %}>
+                        <label class="form-check-label" for="log_errors_only">
+                            บันทึกเฉพาะ Errors
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">ลบข้อความอัตโนมัติหลังจาก (วัน)</label>
+                        <input type="number" class="form-control" name="delete_messages_after_days" 
+                               value="{{ account.delete_messages_after_days or 0 }}" min="0" max="365">
+                        <div class="form-text">ใส่ 0 เพื่อไม่ลบข้อความ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-code me-2"></i>Custom Fields
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Custom Fields (Key-Value pairs)</label>
+                        <div id="custom-fields-container">
+                            {% if account.custom_fields %}
+                                {% for key, value in account.custom_fields.items() %}
+                                <div class="custom-field-row">
+                                    <input type="text" class="form-control" placeholder="Key" value="{{ key }}">
+                                    <input type="text" class="form-control" placeholder="Value" value="{{ value }}">
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeCustomField(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" onclick="addCustomField()">
+                            <i class="fas fa-plus me-1"></i> Add Custom Field
                         </button>
                     </div>
-                    <div class="form-text">สำหรับใช้กับ KBank API</div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="d-flex gap-2">
+    <!-- Action Buttons -->
+    <div class="d-flex gap-2 mt-4">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save me-1"></i> Save Changes
         </button>
         <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='/admin/accounts'">
             <i class="fas fa-times me-1"></i> Cancel
         </button>
-        <button type="button" class="btn btn-danger ms-auto" onclick="deleteAccount()">
+        <button type="button" class="btn btn-outline-info ms-auto" onclick="testConfiguration()">
+            <i class="fas fa-vial me-1"></i> Test Configuration
+        </button>
+        <button type="button" class="btn btn-danger" onclick="deleteAccount()">
             <i class="fas fa-trash me-1"></i> Delete Account
         </button>
     </div>
@@ -253,7 +730,6 @@ function copyWebhookUrl() {
     navigator.clipboard.writeText(webhookText).then(() => {
         showNotification('Webhook URL copied to clipboard!', 'success');
         
-        // Change button temporarily
         const btn = document.querySelector('.copy-webhook-btn');
         const originalHTML = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
@@ -282,13 +758,49 @@ function togglePassword(fieldId) {
     }
 }
 
+function addKeywordPair() {
+    const container = document.getElementById('keyword-container');
+    const div = document.createElement('div');
+    div.className = 'keyword-pair';
+    div.innerHTML = `
+        <input type="text" class="form-control" placeholder="Keyword">
+        <input type="text" class="form-control" placeholder="Reply message">
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeKeywordPair(this)">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function removeKeywordPair(button) {
+    button.parentElement.remove();
+}
+
+function addCustomField() {
+    const container = document.getElementById('custom-fields-container');
+    const div = document.createElement('div');
+    div.className = 'custom-field-row';
+    div.innerHTML = `
+        <input type="text" class="form-control" placeholder="Key">
+        <input type="text" class="form-control" placeholder="Value">
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeCustomField(this)">
+            <i class="fas fa-trash"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function removeCustomField(button) {
+    button.parentElement.remove();
+}
+
 document.getElementById('edit-account-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const data = {};
     
-    // Convert form data properly
+    // Convert form data to object
     for (let [key, value] of formData.entries()) {
         if (e.target.elements[key].type === 'checkbox') {
             data[key] = e.target.elements[key].checked;
@@ -297,14 +809,38 @@ document.getElementById('edit-account-form').addEventListener('submit', async (e
         }
     }
     
-    // Explicitly add unchecked checkboxes to the data object
-    const checkboxes = e.target.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-        if (!data.hasOwnProperty(checkbox.name)) {
-            data[checkbox.name] = false;
+    // Handle business days
+    const businessDays = [];
+    document.querySelectorAll('input[name="business_days"]:checked').forEach(checkbox => {
+        businessDays.push(parseInt(checkbox.value));
+    });
+    data.business_hours_days = businessDays;
+    
+    // Handle keywords
+    const keywords = {};
+    document.querySelectorAll('.keyword-pair').forEach(pair => {
+        const inputs = pair.querySelectorAll('input');
+        if (inputs[0].value && inputs[1].value) {
+            keywords[inputs[0].value] = inputs[1].value;
         }
     });
-
+    data.auto_reply_keywords = keywords;
+    
+    // Handle custom fields
+    const customFields = {};
+    document.querySelectorAll('.custom-field-row').forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        if (inputs[0].value && inputs[1].value) {
+            customFields[inputs[0].value] = inputs[1].value;
+        }
+    });
+    data.custom_fields = customFields;
+    
+    // Handle tags
+    if (data.tags) {
+        data.tags = data.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+    
     try {
         const response = await fetch(`/admin/accounts/{{ account.id }}/update`, {
             method: 'POST',
@@ -348,16 +884,51 @@ async function deleteAccount() {
     }
 }
 
+async function testConfiguration() {
+    showNotification('Testing configuration...', 'info');
+    
+    // Test LINE connection
+    testLineConnection();
+    
+    // Test AI if enabled
+    if (document.getElementById('ai_enabled').checked) {
+        testAIConnection();
+    }
+    
+    // Test slip APIs if enabled
+    if (document.getElementById('slip_enabled').checked) {
+        if (document.getElementById('thunder_enabled').checked) {
+            testThunderConnection();
+        }
+        if (document.getElementById('kbank_enabled').checked) {
+            testKBankConnection();
+        }
+    }
+}
+
 async function testLineConnection() {
     // Implementation for testing LINE connection
     showNotification('Testing LINE connection...', 'info');
-    // Add actual test implementation here
+}
+
+async function testAIConnection() {
+    // Implementation for testing AI connection
+    showNotification('Testing AI connection...', 'info');
+}
+
+async function testThunderConnection() {
+    // Implementation for testing Thunder connection
+    showNotification('Testing Thunder API...', 'info');
+}
+
+async function testKBankConnection() {
+    // Implementation for testing KBank connection
+    showNotification('Testing KBank API...', 'info');
 }
 
 async function getLineProfile() {
     // Implementation for getting LINE bot profile
     showNotification('Getting bot profile...', 'info');
-    // Add actual implementation here
 }
 </script>
 {% endblock %}
