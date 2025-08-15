@@ -1202,6 +1202,8 @@ async def save_chat_with_account(user_id: str, direction: str, message: Dict, se
 		
 # เพิ่มใน main_updated.py หลังบรรทัด 1500
 
+# แทนที่ฟังก์ชัน line_webhook_multi_account ทั้งหมดในไฟล์ main_updated.py
+
 @app.post("/line/account/{account_id}/webhook")
 async def line_webhook_multi_account(
     account_id: str,
@@ -1209,7 +1211,7 @@ async def line_webhook_multi_account(
     background_tasks: BackgroundTasks,
     x_line_signature: str = Header(None)
 ):
-    """Webhook endpoint สำหรับ multi-account ที่แก้ไขแล้ว"""
+    """Webhook endpoint สำหรับ multi-account"""
     if not IS_READY:
         return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
     
@@ -1225,9 +1227,11 @@ async def line_webhook_multi_account(
         account = await account_manager.get_account(account_id)
         
         if account is None:
+            logger.error(f"❌ Account not found: {account_id}")
             return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
         
         # Log account configuration
+        logger.info(f"📋 Processing webhook for account: {account.get('display_name', 'Unknown')}")
         logger.info(f"📋 Account Config - AI: {account.get('ai_enabled')}, Slip: {account.get('slip_enabled')}")
         
         # ตรวจสอบ signature
@@ -1258,14 +1262,14 @@ async def line_webhook_multi_account(
             event['_account_config'] = {
                 "channel_secret": account.get("channel_secret"),
                 "channel_access_token": account.get("channel_access_token"),
-                "line_channel_access_token": account.get("channel_access_token"),  # เพิ่ม alias
+                "line_channel_access_token": account.get("channel_access_token"),  # alias สำหรับ backward compatibility
                 "thunder_api_token": account.get("thunder_api_token"),
                 "openai_api_key": account.get("openai_api_key"),
                 "kbank_consumer_id": account.get("kbank_consumer_id"),
                 "kbank_consumer_secret": account.get("kbank_consumer_secret"),
-                "ai_prompt": account.get("ai_prompt"),
-                "ai_enabled": bool(account.get("ai_enabled", False)),  # ทำให้แน่ใจว่าเป็น boolean
-                "slip_enabled": bool(account.get("slip_enabled", False)),  # ทำให้แน่ใจว่าเป็น boolean
+                "ai_prompt": account.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
+                "ai_enabled": bool(account.get("ai_enabled", False)),
+                "slip_enabled": bool(account.get("slip_enabled", False)),
                 "thunder_enabled": account.get("thunder_enabled", True),
                 "kbank_enabled": account.get("kbank_enabled", False)
             }
@@ -1273,12 +1277,17 @@ async def line_webhook_multi_account(
             # Log the configuration being passed
             logger.info(f"🔧 Event config - AI: {event['_account_config']['ai_enabled']}, Slip: {event['_account_config']['slip_enabled']}")
             
+            # Process event in background
             background_tasks.add_task(dispatch_event_async, event)
         
         return JSONResponse(content={"status": "ok", "events": len(events)})
         
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Invalid JSON for account {account_id}: {e}")
+        return JSONResponse(content={"status": "error", "message": "Invalid JSON"}, status_code=400)
     except Exception as e:
         logger.error(f"❌ Multi-account webhook error for {account_id}: {e}")
+        logger.exception(e)
         return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
 		
 
@@ -3432,76 +3441,7 @@ async def send_line_push_with_flex(user_id: str, messages: list, max_retries: in
 
 # เพิ่มใน main_updated.py หลังบรรทัด 1500
 
-@app.post("/line/account/{account_id}/webhook")
-async def line_webhook_multi_account(
-    account_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    x_line_signature: str = Header(None)
-):
-    """Webhook endpoint สำหรับ multi-account ที่แก้ไขแล้ว"""
-    if not IS_READY:
-        return JSONResponse(content={"status": "error", "message": "System not ready"}, status_code=503)
-    
-    try:
-        # ตรวจสอบ signature ด้วย channel secret ของ account นี้
-        from models.line_account_manager import LineAccountManager
-        from models.database import db_manager
-        
-        if db_manager.db is None:
-            return JSONResponse(content={"status": "error", "message": "Database not ready"}, status_code=503)
-        
-        account_manager = LineAccountManager(db_manager.db)
-        account = await account_manager.get_account(account_id)
-        
-        if account is None:
-            return JSONResponse(content={"status": "error", "message": "Account not found"}, status_code=404)
-        
-        # ตรวจสอบ signature
-        body = await request.body()
-        channel_secret = account.get("channel_secret")
-        
-        if x_line_signature and channel_secret:
-            hash = hmac.new(
-                channel_secret.encode('utf-8'),
-                body,
-                hashlib.sha256
-            ).digest()
-            signature = base64.b64encode(hash).decode('utf-8')
-            
-            if signature != x_line_signature:
-                logger.warning(f"⚠️ Invalid signature for account {account_id}")
-                return JSONResponse(content={"status": "error", "message": "Invalid signature"}, status_code=403)
-        
-        # Parse events
-        payload = json.loads(body.decode("utf-8"))
-        events = payload.get("events", [])
-        
-        logger.info(f"🔔 Account '{account.get('display_name')}' received {len(events)} events")
-        
-        # เพิ่ม account_id และ account config ใน event
-        for event in events:
-            event['_account_id'] = account_id
-            event['_account_config'] = {
-                "channel_secret": account.get("channel_secret"),
-                "channel_access_token": account.get("channel_access_token"),
-                "thunder_api_token": account.get("thunder_api_token"),
-                "openai_api_key": account.get("openai_api_key"),
-                "kbank_consumer_id": account.get("kbank_consumer_id"),
-                "kbank_consumer_secret": account.get("kbank_consumer_secret"),
-                "ai_prompt": account.get("ai_prompt"),
-                "ai_enabled": account.get("ai_enabled", False),
-                "slip_enabled": account.get("slip_enabled", False),
-                "thunder_enabled": account.get("thunder_enabled", True),
-                "kbank_enabled": account.get("kbank_enabled", False)
-            }
-            background_tasks.add_task(dispatch_event_async, event)
-        
-        return JSONResponse(content={"status": "ok", "events": len(events)})
-        
-    except Exception as e:
-        logger.error(f"❌ Multi-account webhook error for {account_id}: {e}")
-        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
+
 		
 # ====================== Multi-Account Support Routes ======================
 # เพิ่มใน main_updated.py หลังบรรทัด 1500
