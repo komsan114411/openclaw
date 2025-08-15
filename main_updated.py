@@ -891,7 +891,7 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 # แทนที่ฟังก์ชัน handle_message_event ทั้งหมดด้วยโค้ดนี้
 
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - รองรับ multi-account และข้อความปิดระบบ"""
+    """Handle message event - รองรับ multi-account แบบสมบูรณ์"""
     message = event.get("message", {})
     user_id = event.get("source", {}).get("userId")
     reply_token = event.get("replyToken")
@@ -899,7 +899,6 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     
     # ดึง account_id จาก event
     account_id = event.get("_account_id")
-    account_config = event.get("_account_config", {})
     
     if not user_id:
         logger.error("❌ Missing user ID in message event")
@@ -907,83 +906,51 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     
     logger.info(f"📨 Processing {message_type} from {user_id[:10]}... (Account: {account_id or 'default'})")
     
-    # ตรวจสอบว่าระบบถูกปิดหรือไม่
-    system_enabled = account_config.get("system_enabled", True)
-    if not system_enabled:
-        # ส่งข้อความที่กำหนดเองเมื่อระบบถูกปิด
-        disabled_message = account_config.get("system_disabled_message", 
-                                             "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง")
-        await send_line_reply_with_account(reply_token, disabled_message, account_config)
-        
-        # บันทึกแชทแยกตาม account_id
-        await save_chat_with_account(
-            user_id, "in", message, "user", account_id
-        )
-        await save_chat_with_account(
-            user_id, "out", {"type": "text", "text": disabled_message}, "system", account_id
-        )
-        return
+    # โหลด config สำหรับ account นี้โดยเฉพาะ
+    account_config = await load_account_config(account_id) if account_id else None
     
-    # บันทึกข้อความขาเข้าแยกตาม account
+    # บันทึกข้อความขาเข้า
     save_message = {
         "type": message_type,
         "text": message.get("text", "") if message_type == "text" else f"[{message_type}]",
         "id": message.get("id"),
-        "timestamp": event.get("timestamp"),
-        "account_id": account_id  # เพิ่ม account_id ในข้อความ
+        "timestamp": event.get("timestamp")
     }
     
+    # บันทึกพร้อม account_id
     await save_chat_with_account(user_id, "in", save_message, "user", account_id)
     
     # ประมวลผลตาม message type
     if message_type == "text":
         user_text = message.get("text", "")
         
-        # ตรวจสอบสลิป
-        if account_config.get("slip_enabled"):
+        # ตรวจสอบสลิปด้วย config ของ account นี้
+        if account_config and account_config.get("slip_enabled"):
             slip_info = await check_slip_text(user_text, account_config)
             if slip_info.get("bank_code") and slip_info.get("trans_ref"):
                 await handle_slip_with_account_config(
                     user_id, reply_token, account_config, account_id, slip_info=slip_info
                 )
                 return
-        elif "สลิป" in user_text.lower() or "slip" in user_text.lower():
-            # ถ้าระบบสลิปถูกปิดแต่ user พยายามส่งสลิป
-            disabled_msg = account_config.get("slip_disabled_message", 
-                                             "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
-            await send_line_reply_with_account(reply_token, disabled_msg, account_config)
-            await save_chat_with_account(
-                user_id, "out", {"type": "text", "text": disabled_msg}, "system", account_id
-            )
-            return
         
-        # AI Chat
-        if account_config.get("ai_enabled"):
+        # AI Chat ด้วย config ของ account นี้
+        if account_config and account_config.get("ai_enabled"):
             await handle_ai_chat_with_account(
                 user_id, reply_token, user_text, account_config, account_id
             )
         else:
-            # ถ้า AI ถูกปิด
-            disabled_msg = account_config.get("ai_disabled_message", 
-                                             "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว")
-            await send_line_reply_with_account(reply_token, disabled_msg, account_config)
-            await save_chat_with_account(
-                user_id, "out", {"type": "text", "text": disabled_msg}, "system", account_id
+            # ไม่มี config หรือปิด AI
+            await send_line_reply_with_account(
+                reply_token, 
+                "ขออภัย ระบบยังไม่พร้อมให้บริการ", 
+                account_config
             )
             
     elif message_type == "image":
         message_id = message.get("id")
-        if message_id and account_config.get("slip_enabled"):
+        if message_id and account_config and account_config.get("slip_enabled"):
             await handle_slip_with_account_config(
                 user_id, reply_token, account_config, account_id, message_id=message_id
-            )
-        else:
-            # ถ้าระบบสลิปถูกปิด
-            disabled_msg = account_config.get("slip_disabled_message", 
-                                             "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
-            await send_line_reply_with_account(reply_token, disabled_msg, account_config)
-            await save_chat_with_account(
-                user_id, "out", {"type": "text", "text": disabled_msg}, "system", account_id
             )
 			
 
@@ -1027,30 +994,12 @@ async def check_slip_text(text: str, account_config: Dict) -> Dict:
     }
 
 async def save_chat_with_account(user_id: str, direction: str, message: Dict, sender: str, account_id: str):
-    """บันทึก chat history แยกตาม account_id"""
+    """บันทึก chat history พร้อม account_id"""
     try:
-        if not account_id:
-            logger.warning("⚠️ No account_id provided, skipping save")
-            return False
-            
         from models.database import save_chat_history_with_account
-        
-        # เพิ่ม account_id ในข้อมูลที่บันทึก
-        message_with_account = message.copy()
-        message_with_account['account_id'] = account_id
-        
-        result = await save_chat_history_with_account(
-            user_id, direction, message_with_account, sender, account_id
-        )
-        
-        if result:
-            logger.info(f"✅ Chat saved for account {account_id[:8]}...")
-        
-        return result
-        
+        await save_chat_history_with_account(user_id, direction, message, sender, account_id)
     except Exception as e:
-        logger.error(f"❌ Save chat error for account {account_id}: {e}")
-        return False
+        logger.error(f"❌ Save chat error: {e}")
 		
 		
 		
@@ -1218,25 +1167,17 @@ async def send_line_push_flex_with_account(user_id: str, messages: list, account
         logger.error(f"❌ Push flex error: {e}")
         return False
 
-# ใน main_updated.py
 async def verify_slip_with_account_config(
     account_config: Dict[str, Any],
     message_id: str,
     slip_info: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
-    """ตรวจสอบสลิปโดยใช้ token ของบัญชีที่ระบุใน account_config"""
+    """
+    ตรวจสอบสลิปโดยใช้ token ของบัญชีที่ระบุใน account_config
+    """
     try:
         thunder_token = account_config.get("thunder_api_token")
-        # ตรวจสอบทั้ง line_channel_access_token และ channel_access_token
-        line_token = (
-            account_config.get("line_channel_access_token")
-            or account_config.get("channel_access_token")
-        )
-        # หากยังไม่มี ให้ fallback ไปใช้ global config
-        if not line_token:
-            from utils.config_manager import config_manager
-            line_token = config_manager.get("line_channel_access_token")
-
+        line_token = account_config.get("line_channel_access_token")
         from services.slip_checker import verify_slip_with_thunder
         # เรียกผ่าน thread เพื่อไม่บล็อก event loop
         return await asyncio.to_thread(
@@ -2015,68 +1956,6 @@ async def test_kbank_slip_demo():
         return JSONResponse({
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
-        })
-		
-		
-		
-@app.get("/admin/api/chat-history/{account_id}")
-async def get_account_chat_history(account_id: str, limit: int = 100):
-    """ดึงประวัติแชทเฉพาะของ account"""
-    try:
-        from models.database import get_chat_history_by_account
-        
-        history = await get_chat_history_by_account(account_id, limit)
-        
-        # แปลงเป็น JSON serializable
-        chat_data = []
-        for chat in history:
-            chat_data.append({
-                "user_id": chat.user_id,
-                "direction": chat.direction,
-                "message_type": chat.message_type,
-                "message_text": chat.message_text,
-                "sender": chat.sender,
-                "created_at": chat.created_at.isoformat() if chat.created_at else None,
-                "account_id": chat.account_id
-            })
-        
-        return JSONResponse({
-            "status": "success",
-            "account_id": account_id,
-            "chat_history": chat_data,
-            "total": len(chat_data)
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Error getting account chat history: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        })
-
-@app.get("/admin/api/accounts")
-async def get_all_accounts():
-    """ดึงรายการ accounts ทั้งหมด"""
-    try:
-        from models.line_account_manager import LineAccountManager
-        from models.database import db_manager
-        
-        if db_manager.db is None:
-            return JSONResponse({"status": "error", "message": "Database not ready"})
-            
-        account_manager = LineAccountManager(db_manager.db)
-        accounts = await account_manager.list_accounts()
-        
-        return JSONResponse({
-            "status": "success",
-            "accounts": accounts
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Error getting accounts: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
         })
 
 @app.get("/admin/export-data")
