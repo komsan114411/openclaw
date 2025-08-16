@@ -36,6 +36,21 @@
     .toggle-password {
         cursor: pointer;
     }
+    
+    .message-preview {
+        background-color: #e7f3ff;
+        border-left: 4px solid #007bff;
+        padding: 10px 15px;
+        margin-top: 10px;
+        border-radius: 4px;
+        display: none;
+    }
+    
+    .template-buttons {
+        display: flex;
+        gap: 5px;
+        margin-top: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -201,30 +216,101 @@
         </div>
     </div>
 
-    <!-- System Messages -->
+    <!-- System Messages - ส่วนที่เพิ่มใหม่ -->
     <div class="card mb-4">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="fas fa-comment-alt me-2"></i>System Messages
             </h5>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-info" onclick="previewAllMessages()">
+                    <i class="fas fa-eye me-1"></i>Preview All
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning" onclick="showTemplates()">
+                    <i class="fas fa-magic me-1"></i>Use Template
+                </button>
+            </div>
         </div>
         <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">AI Disabled Message</label>
-                <textarea class="form-control" name="ai_disabled_message" rows="2"
-                          placeholder="ขออภัย ระบบ AI ของบัญชีนี้ถูกปิดการใช้งานชั่วคราว">{{ account.ai_disabled_message or '' }}</textarea>
+            <!-- AI Disabled Message -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-robot text-info me-1"></i>
+                    AI Disabled Message
+                    <small class="text-muted">(แสดงเมื่อ AI ถูกปิด)</small>
+                </label>
+                <textarea class="form-control" name="ai_disabled_message" id="ai_disabled_message" rows="3"
+                          placeholder="ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว">{{ account.ai_disabled_message or 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว' }}</textarea>
+                <div class="message-preview" id="ai_disabled_preview"></div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewMessage('ai_disabled')">
+                        <i class="fas fa-eye me-1"></i>Preview
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetToDefault('ai_disabled')">
+                        <i class="fas fa-undo me-1"></i>Reset Default
+                    </button>
+                </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">Slip Disabled Message</label>
-                <textarea class="form-control" name="slip_disabled_message" rows="2"
-                          placeholder="ขออภัย ระบบตรวจสอบสลิปของบัญชีนี้ถูกปิดการใช้งานชั่วคราว">{{ account.slip_disabled_message or '' }}</textarea>
+            <!-- Slip Disabled Message -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-receipt text-warning me-1"></i>
+                    Slip Disabled Message
+                    <small class="text-muted">(แสดงเมื่อระบบตรวจสอบสลิปถูกปิด)</small>
+                </label>
+                <textarea class="form-control" name="slip_disabled_message" id="slip_disabled_message" rows="3"
+                          placeholder="ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว">{{ account.slip_disabled_message or 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว' }}</textarea>
+                <div class="message-preview" id="slip_disabled_preview"></div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewMessage('slip_disabled')">
+                        <i class="fas fa-eye me-1"></i>Preview
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetToDefault('slip_disabled')">
+                        <i class="fas fa-undo me-1"></i>Reset Default
+                    </button>
+                </div>
             </div>
             
-            <div class="mb-3">
-                <label class="form-label">System Disabled Message</label>
-                <textarea class="form-control" name="system_disabled_message" rows="2"
-                          placeholder="ขออภัย ระบบของบัญชีนี้กำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง">{{ account.system_disabled_message or '' }}</textarea>
+            <!-- System Disabled Message -->
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-power-off text-danger me-1"></i>
+                    System Disabled Message
+                    <small class="text-muted">(แสดงเมื่อทั้ง AI และสลิปถูกปิด)</small>
+                </label>
+                <textarea class="form-control" name="system_disabled_message" id="system_disabled_message" rows="3"
+                          placeholder="ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง">{{ account.system_disabled_message or 'ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง' }}</textarea>
+                <div class="message-preview" id="system_disabled_preview"></div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewMessage('system_disabled')">
+                        <i class="fas fa-eye me-1"></i>Preview
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetToDefault('system_disabled')">
+                        <i class="fas fa-undo me-1"></i>Reset Default
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Quick Templates -->
+            <div class="alert alert-light">
+                <h6 class="alert-heading mb-3">
+                    <i class="fas fa-lightbulb me-1"></i>Quick Templates
+                </h6>
+                <div class="template-buttons">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyTemplate('friendly')">
+                        😊 Friendly
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-info" onclick="applyTemplate('formal')">
+                        👔 Formal
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="applyTemplate('maintenance')">
+                        🔧 Maintenance
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="applyTemplate('apologetic')">
+                        🙏 Apologetic
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -243,7 +329,122 @@
     </div>
 </form>
 
+<!-- Template Modal -->
+<div class="modal fade" id="templateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-magic me-2"></i>Choose Message Template
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-success text-white">
+                                😊 Friendly Template
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted">เป็นมิตร ใช้อีโมจิ</small>
+                                <hr>
+                                <p><strong>AI:</strong> สวัสดีค่ะ 😊 ตอนนี้ระบบ AI กำลังพักผ่อนอยู่นะคะ</p>
+                                <p><strong>Slip:</strong> ขอโทษค่ะ 🙏 ระบบตรวจสอบสลิปกำลังอัปเดตอยู่</p>
+                                <button class="btn btn-sm btn-success w-100" onclick="applyTemplate('friendly'); bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();">
+                                    Apply This Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white">
+                                👔 Formal Template
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted">ทางการ สุภาพ</small>
+                                <hr>
+                                <p><strong>AI:</strong> เรียนท่านลูกค้า ขณะนี้ระบบ AI ไม่สามารถให้บริการได้ชั่วคราว</p>
+                                <p><strong>Slip:</strong> เรียนท่านลูกค้า ระบบตรวจสอบสลิปไม่สามารถให้บริการได้</p>
+                                <button class="btn btn-sm btn-info w-100" onclick="applyTemplate('formal'); bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();">
+                                    Apply This Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-white">
+                                🔧 Maintenance Template
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted">แจ้งซ่อมบำรุง</small>
+                                <hr>
+                                <p><strong>AI:</strong> 🔧 ระบบ AI อยู่ระหว่างการบำรุงรักษา</p>
+                                <p><strong>Slip:</strong> 🔧 ระบบตรวจสอบสลิปอยู่ระหว่างการอัปเกรด</p>
+                                <button class="btn btn-sm btn-warning w-100" onclick="applyTemplate('maintenance'); bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();">
+                                    Apply This Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                🙏 Apologetic Template
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted">ขอโทษอย่างจริงใจ</small>
+                                <hr>
+                                <p><strong>AI:</strong> ขออภัยเป็นอย่างยิ่งค่ะ 🙇‍♀️ ระบบ AI ไม่สามารถตอบกลับได้</p>
+                                <p><strong>Slip:</strong> ต้องขออภัยด้วยค่ะ 🙇‍♀️ ไม่สามารถตรวจสอบสลิปได้</p>
+                                <button class="btn btn-sm btn-danger w-100" onclick="applyTemplate('apologetic'); bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();">
+                                    Apply This Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Message templates
+const templates = {
+    friendly: {
+        ai_disabled: "สวัสดีค่ะ 😊 ตอนนี้ระบบ AI กำลังพักผ่อนอยู่นะคะ กรุณารอสักครู่แล้วลองใหม่อีกครั้งค่ะ",
+        slip_disabled: "ขอโทษค่ะ 🙏 ระบบตรวจสอบสลิปกำลังอัปเดตอยู่ จะกลับมาให้บริการเร็วๆ นี้ค่ะ",
+        system_disabled: "ขออภัยในความไม่สะดวกค่ะ 🛠️ ระบบกำลังปรับปรุงเพื่อการบริการที่ดีขึ้น"
+    },
+    formal: {
+        ai_disabled: "เรียนท่านลูกค้า ขณะนี้ระบบ AI ไม่สามารถให้บริการได้ชั่วคราว กรุณาติดต่อใหม่ภายหลัง",
+        slip_disabled: "เรียนท่านลูกค้า ระบบตรวจสอบสลิปไม่สามารถให้บริการได้ในขณะนี้ ขออภัยในความไม่สะดวก",
+        system_disabled: "เรียนท่านลูกค้า ระบบอยู่ระหว่างการบำรุงรักษา จะกลับมาให้บริการโดยเร็วที่สุด"
+    },
+    maintenance: {
+        ai_disabled: "🔧 ระบบ AI อยู่ระหว่างการบำรุงรักษา Expected downtime: 30 นาที",
+        slip_disabled: "🔧 ระบบตรวจสอบสลิปอยู่ระหว่างการอัปเกรด จะกลับมาให้บริการเร็วๆ นี้",
+        system_disabled: "🔧 กำลังดำเนินการบำรุงรักษาระบบตามกำหนดการ ขออภัยในความไม่สะดวก"
+    },
+    apologetic: {
+        ai_disabled: "ขออภัยเป็นอย่างยิ่งค่ะ 🙇‍♀️ ระบบ AI ของเราไม่สามารถตอบกลับได้ในขณะนี้ กรุณาลองใหม่ในภายหลังนะคะ",
+        slip_disabled: "ต้องขออภัยด้วยค่ะ 🙇‍♀️ ไม่สามารถตรวจสอบสลิปได้ในขณะนี้ ทีมงานกำลังแก้ไขอย่างเร่งด่วนค่ะ",
+        system_disabled: "ขออภัยในความไม่สะดวกเป็นอย่างสูงค่ะ 🙇‍♀️ ระบบของเราไม่สามารถให้บริการได้ชั่วคราว"
+    }
+};
+
+const defaultMessages = {
+    ai_disabled: "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+    slip_disabled: "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+    system_disabled: "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+};
+
 function copyWebhookUrl() {
     const webhookText = document.getElementById('webhook-url').textContent.trim();
     navigator.clipboard.writeText(webhookText).then(() => {
@@ -275,6 +476,49 @@ function togglePassword(fieldId) {
         field.type = 'password';
         icon.className = 'fas fa-eye';
     }
+}
+
+// Preview message
+function previewMessage(type) {
+    const textarea = document.getElementById(`${type}_message`);
+    const preview = document.getElementById(`${type}_preview`);
+    
+    if (preview.style.display === 'none' || preview.style.display === '') {
+        preview.style.display = 'block';
+        preview.innerHTML = `<strong>Preview:</strong><br>${textarea.value.replace(/\n/g, '<br>')}`;
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+// Preview all messages
+function previewAllMessages() {
+    ['ai_disabled', 'slip_disabled', 'system_disabled'].forEach(type => {
+        const preview = document.getElementById(`${type}_preview`);
+        const textarea = document.getElementById(`${type}_message`);
+        preview.style.display = 'block';
+        preview.innerHTML = `<strong>Preview:</strong><br>${textarea.value.replace(/\n/g, '<br>')}`;
+    });
+}
+
+// Reset to default
+function resetToDefault(type) {
+    document.getElementById(`${type}_message`).value = defaultMessages[type];
+    showNotification('Reset to default message', 'info');
+}
+
+// Apply template
+function applyTemplate(templateName) {
+    const template = templates[templateName];
+    document.getElementById('ai_disabled_message').value = template.ai_disabled;
+    document.getElementById('slip_disabled_message').value = template.slip_disabled;
+    document.getElementById('system_disabled_message').value = template.system_disabled;
+    showNotification(`Applied "${templateName}" template`, 'success');
+}
+
+// Show templates modal
+function showTemplates() {
+    new bootstrap.Modal(document.getElementById('templateModal')).show();
 }
 
 document.getElementById('edit-account-form').addEventListener('submit', async (e) => {
