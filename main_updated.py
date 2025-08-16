@@ -3372,21 +3372,39 @@ async def accounts_management_page(request: Request):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        if db_manager.db is None:
-            return templates.TemplateResponse("error.html", {
-                "request": request,
-                "message": "Database not initialized"
-            })
-            
+        # ตรวจสอบ database connection
+        if not db_manager.db:
+            logger.warning("⚠️ Database not initialized, trying to init...")
+            init_result = await db_manager.init()
+            if not init_result:
+                return templates.TemplateResponse("error.html", {
+                    "request": request,
+                    "message": "Database connection failed. Please check MongoDB URI."
+                })
+        
+        # สร้าง account manager
         account_manager = LineAccountManager(db_manager.db)
-        accounts = await account_manager.list_accounts()
+        
+        # ดึงรายการ accounts
+        try:
+            accounts = await account_manager.list_accounts()
+        except Exception as e:
+            logger.error(f"❌ Error fetching accounts: {e}")
+            accounts = []
         
         return templates.TemplateResponse("accounts_list.html", {
             "request": request,
             "accounts": accounts
         })
+    except ImportError as e:
+        logger.error(f"❌ Import error: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "message": "Required modules not found. Please check installation."
+        })
     except Exception as e:
         logger.error(f"❌ Error loading accounts page: {e}")
+        logger.exception(e)
         return templates.TemplateResponse("error.html", {
             "request": request,
             "message": str(e)
