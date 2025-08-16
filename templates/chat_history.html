@@ -1,74 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Chat History - LINE OA Middleware{% endblock %}
+{% block title %}Chat History - LINE OA Manager{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 fw-bold text-dark">
-        <i class="fas fa-comments me-2 text-primary"></i>
-        Chat History
-    </h1>
-    <div class="d-flex gap-2">
-        <select class="form-select" id="filter-account" onchange="filterByAccount()" style="width: 200px;">
-            <option value="">All Accounts</option>
-            {% for acc in accounts %}
-            <option value="{{ acc.id }}" {% if selected_account == acc.id %}selected{% endif %}>
-                {{ acc.display_name }}
-            </option>
+    <h2>💬 ประวัติแชท</h2>
+    <div>
+        <select class="form-select d-inline-block w-auto me-2" id="filterUser" onchange="filterChats()">
+            <option value="">ทุกผู้ใช้</option>
+            {% for user in users %}
+            <option value="{{ user }}">{{ user[:10] }}...</option>
             {% endfor %}
         </select>
-        <button class="btn btn-outline-primary" onclick="refreshHistory()">
-            <i class="fas fa-sync-alt me-1"></i> Refresh
+        <button class="btn btn-primary" onclick="refreshChats()">
+            <i class="fas fa-sync-alt me-2"></i>รีเฟรช
         </button>
     </div>
 </div>
 
-<!-- Chat Messages -->
 <div class="card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Account</th>
-                        <th>User</th>
-                        <th>Message</th>
-                        <th>Direction</th>
-                    </tr>
-                </thead>
-                <tbody id="chat-tbody">
-                    {% for chat in chats %}
-                    <tr>
-                        <td>{{ chat.created_at.strftime('%m/%d %H:%M') if chat.created_at else 'N/A' }}</td>
-                        <td><span class="badge bg-secondary">{{ chat.account_name or 'Unknown' }}</span></td>
-                        <td>{{ chat.user_id[:10] if chat.user_id else 'Unknown' }}...</td>
-                        <td>{{ chat.message_text[:100] if chat.message_text else '[No text]' }}</td>
-                        <td>
-                            <span class="badge bg-{{ 'info' if chat.direction == 'in' else 'success' }}">
-                                {{ chat.direction.upper() }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="card-body">
+        <div id="chatContainer" style="max-height: 600px; overflow-y: auto;">
+            <!-- Chat messages will be loaded here -->
         </div>
     </div>
 </div>
 
 <script>
-function filterByAccount() {
-    const accountId = document.getElementById('filter-account').value;
-    if (accountId) {
-        window.location.href = `/admin/chat-history?account_id=${accountId}`;
-    } else {
-        window.location.href = '/admin/chat-history';
+let allChats = [];
+
+async function loadChats() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/api/chat-messages?limit=100');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            allChats = data.messages;
+            displayChats(allChats);
+        }
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาดในการโหลดแชท', 'error');
+    } finally {
+        hideLoading();
     }
 }
 
-function refreshHistory() {
-    window.location.reload();
+function displayChats(chats) {
+    const container = document.getElementById('chatContainer');
+    
+    if (!chats || chats.length === 0) {
+        container.innerHTML = '<div class="text-center py-5 text-muted">ไม่มีประวัติแชท</div>';
+        return;
+    }
+    
+    let html = '<div class="chat-messages">';
+    
+    chats.forEach(chat => {
+        const isIncoming = chat.direction === 'in';
+        const time = chat.created_at ? new Date(chat.created_at).toLocaleString('th-TH') : '';
+        
+        html += `
+            <div class="d-flex ${isIncoming ? 'justify-content-start' : 'justify-content-end'} mb-3">
+                <div class="chat-bubble ${isIncoming ? 'bg-light' : 'bg-primary text-white'}" 
+                     style="max-width: 70%; padding: 10px 15px; border-radius: 15px;">
+                    <div class="small ${isIncoming ? 'text-muted' : 'text-white-50'} mb-1">
+                        ${isIncoming ? 'ผู้ใช้' : 'ระบบ'} • ${time}
+                    </div>
+                    <div>${chat.message_text || '[ไม่มีข้อความ]'}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    container.scrollTop = container.scrollHeight;
 }
+
+function filterChats() {
+    const userId = document.getElementById('filterUser').value;
+    
+    if (userId) {
+        const filtered = allChats.filter(chat => chat.user_id === userId);
+        displayChats(filtered);
+    } else {
+        displayChats(allChats);
+    }
+}
+
+function refreshChats() {
+    loadChats();
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', function() {
+    loadChats();
+});
+
+// Auto refresh every 10 seconds
+setInterval(() => {
+    loadChats();
+}, 10000);
 </script>
 {% endblock %}
