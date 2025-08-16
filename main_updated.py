@@ -3372,14 +3372,21 @@ async def accounts_management_page(request: Request):
         from models.line_account_manager import LineAccountManager
         from models.database import db_manager
         
-        # ตรวจสอบ database connection
-        if not db_manager.db:
+        # ตรวจสอบ database connection อย่างถูกต้อง
+        if db_manager.db is None:  # ใช้ is None แทน not
             logger.warning("⚠️ Database not initialized, trying to init...")
-            init_result = await db_manager.init()
-            if not init_result:
+            try:
+                init_result = await db_manager.init()
+                if not init_result:
+                    return templates.TemplateResponse("error.html", {
+                        "request": request,
+                        "message": "Database connection failed. Please check MongoDB URI."
+                    })
+            except Exception as e:
+                logger.error(f"❌ Database init error: {e}")
                 return templates.TemplateResponse("error.html", {
                     "request": request,
-                    "message": "Database connection failed. Please check MongoDB URI."
+                    "message": f"Database initialization failed: {str(e)}"
                 })
         
         # สร้าง account manager
@@ -3388,6 +3395,7 @@ async def accounts_management_page(request: Request):
         # ดึงรายการ accounts
         try:
             accounts = await account_manager.list_accounts()
+            logger.info(f"✅ Loaded {len(accounts)} accounts")
         except Exception as e:
             logger.error(f"❌ Error fetching accounts: {e}")
             accounts = []
@@ -3396,11 +3404,12 @@ async def accounts_management_page(request: Request):
             "request": request,
             "accounts": accounts
         })
+        
     except ImportError as e:
         logger.error(f"❌ Import error: {e}")
         return templates.TemplateResponse("error.html", {
             "request": request,
-            "message": "Required modules not found. Please check installation."
+            "message": f"Required modules not found: {str(e)}"
         })
     except Exception as e:
         logger.error(f"❌ Error loading accounts page: {e}")
