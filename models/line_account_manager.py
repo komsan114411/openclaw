@@ -1,4 +1,4 @@
-# models/line_account_manager.py
+# models/line_account_manager.py - ใช้ไฟล์นี้แทนไฟล์เดิมทั้งหมด
 import logging
 from typing import Dict, List, Optional
 from bson import ObjectId
@@ -15,78 +15,56 @@ class LineAccountManager:
         self.accounts_collection: AsyncIOMotorCollection = db.line_accounts
         
     async def create_account(self, data: Dict) -> str:
-    """สร้างบัญชี LINE OA ใหม่"""
-    try:
-        # เพิ่มข้อมูลพื้นฐาน
-        account_data = {
-            "display_name": data.get("display_name", ""),
-            "description": data.get("description", ""),
-            "channel_secret": data.get("channel_secret", ""),
-            "channel_access_token": data.get("channel_access_token", ""),
-            
-            # API Keys
-            "thunder_api_token": data.get("thunder_api_token", ""),
-            "openai_api_key": data.get("openai_api_key", ""),
-            "kbank_consumer_id": data.get("kbank_consumer_id", ""),
-            "kbank_consumer_secret": data.get("kbank_consumer_secret", ""),
-            
-            # AI Settings
-            "ai_prompt": data.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
-            
-            # Feature Toggles
-            "ai_enabled": data.get("ai_enabled", False),
-            "slip_enabled": data.get("slip_enabled", False),
-            "thunder_enabled": data.get("thunder_enabled", True),
-            "kbank_enabled": data.get("kbank_enabled", False),
-            
-            # System Messages - เพิ่มส่วนนี้
-            "ai_disabled_message": data.get("ai_disabled_message", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"),
-            "slip_disabled_message": data.get("slip_disabled_message", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
-            "system_disabled_message": data.get("system_disabled_message", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
-            
-            # Webhook Path (unique for each account)
-            "webhook_path": self._generate_webhook_path(),
-            
-            # Status
-            "status": "active",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
-        }
-        
-        result = await self.accounts_collection.insert_one(account_data)
-        account_id = str(result.inserted_id)
-        
-        # สร้าง indexes
-        await self._ensure_indexes()
-        
-        logger.info(f"✅ Created LINE account: {account_id}")
-        return account_id
-        
-    except Exception as e:
-        logger.error(f"❌ Error creating account: {e}")
-        raise
-        
-    async def get_system_messages(self, account_id: str) -> Dict[str, str]:
-    """ดึงข้อความแจ้งเตือนของบัญชี พร้อม fallback"""
-    try:
-        account = await self.get_account(account_id)
-        if account:
-            return {
-                "ai_disabled": account.get("ai_disabled_message") or "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-                "slip_disabled": account.get("slip_disabled_message") or "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-                "system_disabled": account.get("system_disabled_message") or "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+        """สร้างบัญชี LINE OA ใหม่"""
+        try:
+            # เพิ่มข้อมูลพื้นฐาน
+            account_data = {
+                "display_name": data.get("display_name", ""),
+                "description": data.get("description", ""),
+                "channel_secret": data.get("channel_secret", ""),
+                "channel_access_token": data.get("channel_access_token", ""),
+                
+                # API Keys
+                "thunder_api_token": data.get("thunder_api_token", ""),
+                "openai_api_key": data.get("openai_api_key", ""),
+                "kbank_consumer_id": data.get("kbank_consumer_id", ""),
+                "kbank_consumer_secret": data.get("kbank_consumer_secret", ""),
+                
+                # AI Settings
+                "ai_prompt": data.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
+                
+                # Feature Toggles
+                "ai_enabled": data.get("ai_enabled", False),
+                "slip_enabled": data.get("slip_enabled", False),
+                "thunder_enabled": data.get("thunder_enabled", True),
+                "kbank_enabled": data.get("kbank_enabled", False),
+                
+                # System Messages
+                "ai_disabled_message": data.get("ai_disabled_message", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"),
+                "slip_disabled_message": data.get("slip_disabled_message", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
+                "system_disabled_message": data.get("system_disabled_message", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
+                
+                # Webhook Path (unique for each account)
+                "webhook_path": self._generate_webhook_path(),
+                
+                # Status
+                "status": "active",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
             }
-    except Exception as e:
-        logger.error(f"Error getting system messages: {e}")
-    
-    # Return default messages
-    return {
-        "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-        "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-        "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
-    }
-    
-    
+            
+            result = await self.accounts_collection.insert_one(account_data)
+            account_id = str(result.inserted_id)
+            
+            # สร้าง indexes
+            await self._ensure_indexes()
+            
+            logger.info(f"✅ Created LINE account: {account_id}")
+            return account_id
+            
+        except Exception as e:
+            logger.error(f"❌ Error creating account: {e}")
+            raise
 
     async def list_accounts(self) -> List[Dict]:
         """แสดงรายการบัญชีทั้งหมด"""
@@ -117,20 +95,6 @@ class LineAccountManager:
             return None
         except Exception as e:
             logger.error(f"❌ Error getting account {account_id}: {e}")
-            return None
-
-    async def get_account_by_webhook_path(self, webhook_path: str) -> Optional[Dict]:
-        """ดึงข้อมูลบัญชีจาก webhook path"""
-        try:
-            doc = await self.accounts_collection.find_one({"webhook_path": webhook_path})
-            if doc:
-                account = dict(doc)
-                account["id"] = str(doc["_id"])
-                account.pop("_id", None)
-                return account
-            return None
-        except Exception as e:
-            logger.error(f"❌ Error getting account by webhook path: {e}")
             return None
 
     async def update_account(self, account_id: str, updates: Dict) -> bool:
