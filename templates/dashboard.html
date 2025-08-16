@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LINE OA Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📊 Dashboard</h2>
+    <button class="btn btn-primary" onclick="refreshDashboard()">
+        <i class="fas fa-sync-alt me-2"></i>รีเฟรช
+    </button>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-comments"></i>
+            </div>
+            <div class="stat-value" id="totalMessages">{{ total_messages or 0 }}</div>
+            <div class="stat-label">ข้อความทั้งหมด</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-value" id="totalUsers">{{ total_users or 0 }}</div>
+            <div class="stat-label">ผู้ใช้งาน</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="stat-value">
+                {% if ai_enabled %}
+                    <span class="text-success">ON</span>
+                {% else %}
+                    <span class="text-danger">OFF</span>
+                {% endif %}
+            </div>
+            <div class="stat-label">AI Chat Bot</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <div class="stat-value">
+                {% if slip_enabled %}
+                    <span class="text-success">ON</span>
+                {% else %}
+                    <span class="text-danger">OFF</span>
+                {% endif %}
+            </div>
+            <div class="stat-label">ตรวจสลิป</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">⚡ การทำงานด่วน</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" onclick="toggleAI()">
+                        <i class="fas fa-robot me-2"></i>
+                        เปิด/ปิด AI Chat Bot
+                    </button>
+                    <button class="btn btn-info" onclick="toggleSlip()">
+                        <i class="fas fa-receipt me-2"></i>
+                        เปิด/ปิด ระบบตรวจสลิป
+                    </button>
+                    <button class="btn btn-warning" onclick="testConnection()">
+                        <i class="fas fa-plug me-2"></i>
+                        ทดสอบการเชื่อมต่อ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">📈 สถานะระบบ</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🟢 MongoDB</span>
+                        <span class="badge bg-success" id="mongoStatus">Connected</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🟢 LINE API</span>
+                        <span class="badge bg-success" id="lineStatus">Ready</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🟡 Thunder API</span>
+                        <span class="badge bg-warning" id="thunderStatus">
+                            {% if thunder_configured %}Ready{% else %}Not Configured{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>🟡 OpenAI</span>
+                        <span class="badge bg-warning" id="openaiStatus">
+                            {% if openai_configured %}Ready{% else %}Not Configured{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">📝 กิจกรรมล่าสุด</h5>
+        <a href="/admin/chat-history" class="btn btn-sm btn-outline-primary">ดูทั้งหมด</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>เวลา</th>
+                        <th>ผู้ใช้</th>
+                        <th>ประเภท</th>
+                        <th>ข้อความ</th>
+                    </tr>
+                </thead>
+                <tbody id="recentActivity">
+                    <tr>
+                        <td colspan="4" class="text-center py-3 text-muted">
+                            กำลังโหลด...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+async function refreshDashboard() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/api/dashboard-stats');
+        const data = await response.json();
+        
+        document.getElementById('totalMessages').textContent = data.total_messages || 0;
+        document.getElementById('totalUsers').textContent = data.total_users || 0;
+        
+        // Load recent activity
+        loadRecentActivity();
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function loadRecentActivity() {
+    try {
+        const response = await fetch('/admin/api/recent-activity?limit=10');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('recentActivity');
+        if (data.activities && data.activities.length > 0) {
+            tbody.innerHTML = data.activities.map(activity => `
+                <tr>
+                    <td>${formatTime(activity.created_at)}</td>
+                    <td>${activity.user_id ? activity.user_id.substring(0, 8) + '...' : 'Unknown'}</td>
+                    <td>
+                        <span class="badge bg-${activity.direction === 'in' ? 'info' : 'success'}">
+                            ${activity.direction === 'in' ? 'รับ' : 'ส่ง'}
+                        </span>
+                    </td>
+                    <td>${activity.message_text ? activity.message_text.substring(0, 50) + '...' : '[No text]'}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">ไม่มีกิจกรรม</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading activity:', error);
+    }
+}
+
+async function toggleAI() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/api/toggle-ai', { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showToast('เปลี่ยนสถานะ AI สำเร็จ', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('เกิดข้อผิดพลาด', 'error');
+        }
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function toggleSlip() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/api/toggle-slip', { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showToast('เปลี่ยนสถานะระบบตรวจสลิปสำเร็จ', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('เกิดข้อผิดพลาด', 'error');
+        }
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function testConnection() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/api/test-connections', { method: 'POST' });
+        const result = await response.json();
+        
+        let message = 'ผลการทดสอบ:\n';
+        message += `MongoDB: ${result.mongodb ? '✅' : '❌'}\n`;
+        message += `LINE API: ${result.line ? '✅' : '❌'}\n`;
+        message += `Thunder API: ${result.thunder ? '✅' : '❌'}`;
+        
+        showToast(message, result.all_connected ? 'success' : 'warning');
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+function formatTime(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+    });
+}
+
+// Auto refresh every 30 seconds
+setInterval(() => {
+    loadRecentActivity();
+}, 30000);
+
+// Initial load
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentActivity();
+});
+</script>
+{% endblock %}
