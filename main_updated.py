@@ -920,7 +920,8 @@ def normalize_system_messages(messages: Dict[str, Any]) -> Dict[str, str]:
     defaults = {
         "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
         "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว", 
-        "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+        "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง",
+        "unsupported_message": "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น"
     }
     
     if not messages:
@@ -931,7 +932,8 @@ def normalize_system_messages(messages: Dict[str, Any]) -> Dict[str, str]:
     key_mappings = {
         "ai_disabled": ["ai_disabled", "ai_disabled_message"],
         "slip_disabled": ["slip_disabled", "slip_disabled_message"],
-        "system_disabled": ["system_disabled", "system_disabled_message"]
+        "system_disabled": ["system_disabled", "system_disabled_message"],
+        "unsupported_message": ["unsupported_message", "unsupported_message_text"]
     }
     
     for key, possible_keys in key_mappings.items():
@@ -1037,9 +1039,9 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                             slip_info = None
                     # ไป flow ตรวจสลิป
                     if account_config:
-                        await handle_slip_with_account_config(user_id, reply_token, account_config, account_id, slip_info=slip_info)
+                        await handle_slip_with_account_config(user_id, reply_token, account_config, account_id, message_id=message.get("id"), slip_info=slip_info)
                     else:
-                        await handle_slip_verification(user_id, reply_token, slip_info=slip_info)
+                        await handle_slip_verification(user_id, reply_token, message_id=message.get("id"), slip_info=slip_info)
                 else:
                     # ปิด Slip → ตอบตามที่ตั้งไว้ แล้วจบ
                     msg = system_messages["slip_disabled"]
@@ -1079,10 +1081,11 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
             return
 
         # ชนิดอื่น ๆ
-        default_msg = "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น"
-        await (send_line_reply_with_account(reply_token, default_msg, account_config)
-               if account_config else send_line_reply(reply_token, default_msg))
-        await save_chat_with_account(user_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
+        default_msg = system_messages.get("unsupported_message", "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น")
+        if default_msg:
+            await (send_line_reply_with_account(reply_token, default_msg, account_config)
+                   if account_config else send_line_reply(reply_token, default_msg))
+            await save_chat_with_account(user_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
         
     except Exception as e:
         logger.error(f"❌ Error in handle_message_event: {e}")
