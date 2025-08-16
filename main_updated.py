@@ -3664,6 +3664,62 @@ async def get_account_statistics(account_id: str):
     except Exception as e:
         logger.error(f"❌ Error getting account stats: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
+        
+        
+@app.post("/admin/accounts/{account_id}/system-messages")
+async def update_account_system_messages(account_id: str, request: Request):
+    """อัปเดตข้อความแจ้งเตือนของบัญชี"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse({"status": "error", "message": "Database not ready"})
+            
+        data = await request.json()
+        account_manager = LineAccountManager(db_manager.db)
+        
+        # Update only system message fields
+        updates = {}
+        for key in ["ai_disabled_message", "slip_disabled_message", "system_disabled_message"]:
+            if key in data:
+                updates[key] = data[key]
+        
+        if updates:
+            updates["updated_at"] = datetime.utcnow()
+            success = await account_manager.update_account(account_id, updates)
+            
+            if success:
+                await notification_manager.send_notification(
+                    f"✅ Updated system messages for account", 
+                    "success"
+                )
+                return JSONResponse({"status": "success", "message": "System messages updated"})
+        
+        return JSONResponse({"status": "error", "message": "No updates provided"})
+        
+    except Exception as e:
+        logger.error(f"❌ Error updating system messages: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/accounts/{account_id}/system-messages")
+async def get_account_system_messages(account_id: str):
+    """ดึงข้อความแจ้งเตือนของบัญชี"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse({"status": "error", "message": "Database not ready"})
+            
+        account_manager = LineAccountManager(db_manager.db)
+        messages = await account_manager.get_system_messages(account_id)
+        
+        return JSONResponse({"status": "success", "messages": messages})
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting system messages: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
 
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
