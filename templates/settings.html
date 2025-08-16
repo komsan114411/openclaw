@@ -1,101 +1,177 @@
 {% extends "base.html" %}
 
-{% block title %}Settings - LINE OA Middleware{% endblock %}
+{% block title %}Settings - LINE OA Manager{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 fw-bold text-dark">
-        <i class="fas fa-cogs me-2 text-primary"></i>
-        Global Settings
-    </h1>
+    <h2>⚙️ ตั้งค่าระบบ</h2>
     <button class="btn btn-success" onclick="saveSettings()">
-        <i class="fas fa-save me-1"></i> Save Settings
+        <i class="fas fa-save me-2"></i>บันทึกการตั้งค่า
     </button>
 </div>
 
-<form id="settings-form">
-    <!-- System Messages -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-comment-alt me-2"></i>
-                System Messages
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label">AI Disabled Message</label>
-                <textarea class="form-control" id="ai_disabled_message" rows="2">{{ config.ai_disabled_message or 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว' }}</textarea>
+<div class="row">
+    <!-- LINE Configuration -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">🟢 LINE Configuration</h5>
             </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Slip System Disabled Message</label>
-                <textarea class="form-control" id="slip_disabled_message" rows="2">{{ config.slip_disabled_message or 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว' }}</textarea>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">System Disabled Message</label>
-                <textarea class="form-control" id="system_disabled_message" rows="2">{{ config.system_disabled_message or 'ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง' }}</textarea>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Channel Secret</label>
+                    <input type="password" class="form-control" id="lineSecret" 
+                           value="{{ config.line_channel_secret or '' }}"
+                           placeholder="Enter LINE Channel Secret">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Channel Access Token</label>
+                    <input type="password" class="form-control" id="lineToken" 
+                           value="{{ config.line_channel_access_token or '' }}"
+                           placeholder="Enter LINE Channel Access Token">
+                </div>
+                <button class="btn btn-sm btn-outline-success" onclick="testLine()">
+                    ทดสอบการเชื่อมต่อ
+                </button>
             </div>
         </div>
     </div>
     
-    <!-- Global Features -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-toggle-on me-2"></i>
-                Global Features
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="global_ai_enabled" {% if config.global_ai_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="global_ai_enabled">
-                            Enable AI for all accounts
-                        </label>
-                    </div>
+    <!-- AI Configuration -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">🤖 AI Chat Bot</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="aiEnabled" 
+                           {% if config.ai_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="aiEnabled">
+                        เปิดใช้งาน AI Chat Bot
+                    </label>
                 </div>
-                <div class="col-md-6">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="global_slip_enabled" {% if config.global_slip_enabled %}checked{% endif %}>
-                        <label class="form-check-label" for="global_slip_enabled">
-                            Enable Slip Verification for all accounts
-                        </label>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">OpenAI API Key</label>
+                    <input type="password" class="form-control" id="openaiKey" 
+                           value="{{ config.openai_api_key or '' }}"
+                           placeholder="sk-...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">AI Prompt</label>
+                    <textarea class="form-control" id="aiPrompt" rows="3">{{ config.ai_prompt or 'คุณเป็นผู้ช่วยที่เป็นมิตร' }}</textarea>
                 </div>
             </div>
         </div>
     </div>
-</form>
+    
+    <!-- Slip Verification -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">📄 ระบบตรวจสลิป</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="slipEnabled" 
+                           {% if config.slip_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="slipEnabled">
+                        เปิดใช้งานระบบตรวจสลิป
+                    </label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Thunder API Token</label>
+                    <input type="password" class="form-control" id="thunderToken" 
+                           value="{{ config.thunder_api_token or '' }}"
+                           placeholder="Enter Thunder API Token">
+                </div>
+                <button class="btn btn-sm btn-outline-info" onclick="testThunder()">
+                    ทดสอบการเชื่อมต่อ
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Messages -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">💬 ข้อความระบบ</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">ข้อความเมื่อ AI ปิด</label>
+                    <textarea class="form-control" id="aiDisabledMsg" rows="2">{{ config.ai_disabled_message or 'ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">ข้อความเมื่อระบบตรวจสลิปปิด</label>
+                    <textarea class="form-control" id="slipDisabledMsg" rows="2">{{ config.slip_disabled_message or 'ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 async function saveSettings() {
-    const data = {
-        ai_disabled_message: document.getElementById('ai_disabled_message').value,
-        slip_disabled_message: document.getElementById('slip_disabled_message').value,
-        system_disabled_message: document.getElementById('system_disabled_message').value,
-        global_ai_enabled: document.getElementById('global_ai_enabled').checked,
-        global_slip_enabled: document.getElementById('global_slip_enabled').checked
+    showLoading();
+    
+    const settings = {
+        line_channel_secret: document.getElementById('lineSecret').value,
+        line_channel_access_token: document.getElementById('lineToken').value,
+        ai_enabled: document.getElementById('aiEnabled').checked,
+        openai_api_key: document.getElementById('openaiKey').value,
+        ai_prompt: document.getElementById('aiPrompt').value,
+        slip_enabled: document.getElementById('slipEnabled').checked,
+        thunder_api_token: document.getElementById('thunderToken').value,
+        ai_disabled_message: document.getElementById('aiDisabledMsg').value,
+        slip_disabled_message: document.getElementById('slipDisabledMsg').value
     };
     
     try {
         const response = await fetch('/admin/settings/update', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
+            body: JSON.stringify(settings)
         });
         
         const result = await response.json();
+        
         if (result.status === 'success') {
-            showNotification('Settings saved successfully', 'success');
+            showToast('บันทึกการตั้งค่าสำเร็จ', 'success');
         } else {
-            showNotification('Failed to save settings', 'error');
+            showToast('เกิดข้อผิดพลาดในการบันทึก', 'error');
         }
     } catch (error) {
-        showNotification('Error saving settings', 'error');
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function testLine() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/test-line-connection', { method: 'POST' });
+        const result = await response.json();
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function testThunder() {
+    showLoading();
+    try {
+        const response = await fetch('/admin/test-thunder-connection', { method: 'POST' });
+        const result = await response.json();
+        showToast(result.message, result.status === 'success' ? 'success' : 'error');
+    } catch (error) {
+        showToast('เกิดข้อผิดพลาด', 'error');
+    } finally {
+        hideLoading();
     }
 }
 </script>
