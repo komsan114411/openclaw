@@ -65,6 +65,28 @@ class LineAccountManager:
     except Exception as e:
         logger.error(f"❌ Error creating account: {e}")
         raise
+        
+    async def get_system_messages(self, account_id: str) -> Dict[str, str]:
+    """ดึงข้อความแจ้งเตือนของบัญชี พร้อม fallback"""
+    try:
+        account = await self.get_account(account_id)
+        if account:
+            return {
+                "ai_disabled": account.get("ai_disabled_message") or "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+                "slip_disabled": account.get("slip_disabled_message") or "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+                "system_disabled": account.get("system_disabled_message") or "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+            }
+    except Exception as e:
+        logger.error(f"Error getting system messages: {e}")
+    
+    # Return default messages
+    return {
+        "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
+        "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
+        "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
+    }
+    
+    
 
     async def list_accounts(self) -> List[Dict]:
         """แสดงรายการบัญชีทั้งหมด"""
