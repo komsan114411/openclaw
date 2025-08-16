@@ -15,53 +15,53 @@ class LineAccountManager:
         self.accounts_collection: AsyncIOMotorCollection = db.line_accounts
 
     async def create_account(self, data: Dict) -> str:
-        """สร้างบัญชี LINE OA ใหม่"""
-        try:
-            account_data = {
-                "display_name": data.get("display_name", ""),
-                "description": data.get("description", ""),
-                "channel_secret": data.get("channel_secret", ""),
-                "channel_access_token": data.get("channel_access_token", ""),
+    """สร้างบัญชี LINE OA ใหม่"""
+    try:
+        account_data = {
+            "display_name": data.get("display_name", ""),
+            "description": data.get("description", ""),
+            "channel_secret": data.get("channel_secret", ""),
+            "channel_access_token": data.get("channel_access_token", ""),
 
-                # API Keys
-                "thunder_api_token": data.get("thunder_api_token", ""),
-                "openai_api_key": data.get("openai_api_key", ""),
-                "kbank_consumer_id": data.get("kbank_consumer_id", ""),
-                "kbank_consumer_secret": data.get("kbank_consumer_secret", ""),
+            # API Keys
+            "thunder_api_token": data.get("thunder_api_token", ""),
+            "openai_api_key": data.get("openai_api_key", ""),
+            "kbank_consumer_id": data.get("kbank_consumer_id", ""),
+            "kbank_consumer_secret": data.get("kbank_consumer_secret", ""),
 
-                # AI Settings
-                "ai_prompt": data.get("ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
+            # Feature Toggles (แปลงเป็น bool ให้ชัดเจน)
+            "thunder_enabled": bool(data.get("thunder_enabled", True)),
+            "ai_enabled": bool(data.get("ai_enabled", False)),
+            "slip_enabled": bool(data.get("slip_enabled", False)),
+            "kbank_enabled": bool(data.get("kbank_enabled", False)),
 
-                # Feature Toggles
-                "ai_enabled": data.get("ai_enabled", False),
-                "slip_enabled": data.get("slip_enabled", False),
-                "thunder_enabled": data.get("thunder_enabled", True),
-                "kbank_enabled": data.get("kbank_enabled", False),
+            # AI settings
+            "ai_prompt": (data.get("ai_prompt") or "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
 
-                # System Messages (fallback)
-                "ai_disabled_message": data.get("ai_disabled_message", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"),
-                "slip_disabled_message": data.get("slip_disabled_message", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
-                "system_disabled_message": data.get("system_disabled_message", "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
+            # System Messages (fallback) — บันทึกลง DB เสมอ
+            "ai_disabled_message": (data.get("ai_disabled_message") or "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"),
+            "slip_disabled_message": (data.get("slip_disabled_message") or "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
+            "system_disabled_message": (data.get("system_disabled_message") or "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
 
-                # Webhook Path
-                "webhook_path": self._generate_webhook_path(),
+            # Webhook
+            "webhook_path": (data.get("webhook_path") or self._generate_webhook_path()),
 
-                # Status
-                "status": "active",
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
-            }
+            # Meta
+            "status": "active",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
 
-            result = await self.accounts_collection.insert_one(account_data)
-            account_id = str(result.inserted_id)
+        result = await self.accounts_collection.insert_one(account_data)
+        await self._ensure_indexes()
+        account_id = str(result.inserted_id)
+        logger.info(f"✅ Created LINE account: {account_id}")
+        return account_id
 
-            await self._ensure_indexes()
-            logger.info(f"✅ Created LINE account: {account_id}")
-            return account_id
+    except Exception as e:
+        logger.error(f"❌ Error creating account: {e}")
+        raise
 
-        except Exception as e:
-            logger.error(f"❌ Error creating account: {e}")
-            raise
 
     async def get_system_messages(self, account_id: str) -> Dict[str, str]:
         """ดึงข้อความแจ้งเตือนของบัญชี พร้อม fallback เสมอ"""
