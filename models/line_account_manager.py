@@ -1,229 +1,265 @@
 # models/line_account_manager.py
 from __future__ import annotations
 
-import secrets
-import string
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from bson import ObjectId
-from pymongo.errors import DuplicateKeyError
+try:
+    # ถ้าใช้ PyMongo
+    from pymongo.collection import Collection
+    from pymongo.database import Database
+    from pymongo.errors import DuplicateKeyError
+except Exception:  # pragma: no cover
+    Collection = Any  # type: ignore
+    Database = Any  # type: ignore
+    class DuplicateKeyError(Exception):  # fallback
+        pass
+
+try:
+    # สำหรับ ObjectId (ถ้าใช้ MongoDB)
+    from bson import ObjectId
+except Exception:  # pragma: no cover
+    ObjectId = str  # fallback เพื่อให้โค้ด import ได้ แม้ไม่ได้ใช้ Mongo
+
+
+def _to_object_id(value: Any) -> ObjectId:
+    """
+    แปลงค่าเป็น ObjectId ถ้าเป็นสตริงที่ถูกต้อง
+    """
+    if isinstance(value, ObjectId):
+        return value
+    if isinstance(value, str):
+        try:
+            return ObjectId(value)
+        except Exception as e:  # แปลงไม่ได้
+            raise ValueError(f"ไม่สามารถแปลง '{value}' เป็น ObjectId ได้: {e}")
+    raise ValueError(f"รองรับเฉพาะ str หรือ ObjectId เท่านั้น (ได้ {type(value)})")
+
+
+def _clean_id(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    แปลง _id จาก ObjectId เป็น str เพื่อส่งต่อไปยังเลเยอร์อื่นๆ ได้สะดวก
+    """
+    if not doc:
+        return doc
+    d = dict(doc)
+    if d.get("_id") is not None:
+        try:
+            d["_id"] = str(d["_id"])
+        except Exception:
+            pass
+    return d
 
 
 class LineAccountManager:
     """
-    จัดการข้อมูล LINE OA แบบหลายบัญชี
-    - รองรับข้อความ fallback (ai/slip/system) ที่ป้องกันค่า "undefined"/None
-    - มี webhook_path แบบสุ่ม (unique) สำหรับ route เฉพาะบัญชี
-    - ทุกเมธอดเป็น async เพื่อใช้กับ Motor/MongoDB แบบ non-blocking
+    ตัวจัดการข้อมูลบัญชี LINE OA ใน MongoDB
+
+    โครงสร้างข้อมูลแต่ละเอกสาร (แนะนำ):
+    - name: ชื่อบัญชี/โปรเจกต์ (str, required)
+    - basic_id: ไอดีที่ขึ้นต้นด้วย @ (str, optional)
+    - channel_id: LINE Channel ID (str, required)
+    - channel_secret: LINE Channel Secret (str, required)
+    - channel_access_token: Access Token (str, required)
+    - webhook_endpoint: URL webhook (str, optional)
+    - status: สถานะ "active" | "inactive" (str, default="active")
+    - created_at / updated_at: เวลา (datetime)
     """
 
-    def __init__(self, db):
-        self.db = db
-        self.accounts_collection = db.get_collection("line_accounts")
-        self._indexes_ensured = False
-
-    # ----------------------------- Utilities -----------------------------
-
-    def _rand_slug(self, n: int = 18) -> str:
-        alphabet = string.ascii_lowercase + string.digits
-        return "".join(secrets.choice(alphabet) for _ in range(n))
-
-    def _generate_webhook_path(self) -> str:
-        return f"acc_{self._rand_slug(16)}"
-
-    async def _ensure_indexes(self):
-        if self._indexes_ensured:
-            return
-        await self.accounts_collection.create_index("webhook_path", unique=True, background=True)
-        await self.accounts_collection.create_index("display_name", background=True)
-        await self.accounts_collection.create_index("updated_at", background=True)
-        self._indexes_ensured = True
-
-    @staticmethod
-    def _clean_str(v: Any, default: str = "") -> str:
-        if v is None:
-            return default
-        s = str(v).strip()
-        if s.lower() in {"undefined", "null", "none"}:
-            return default
-        return s
-
-    # ----------------------------- CRUD -----------------------------
-
-    async def list_accounts(self) -> List[Dict[str, Any]]:
-        await self._ensure_indexes()
-        cur = self.accounts_collection.find({}).sort("updated_at", -1)
-        return [self._serialize(doc) async for doc in cur]
-
-    async def get_account(self, account_id: str) -> Optional[Dict[str, Any]]:
-        if not account_id:
-            return None
-        await self._ensure_indexes()
-        doc = await self.accounts_collection.find_one({"_id": ObjectId(account_id)})
-        return self._serialize(doc) if doc else None
-
-    async def get_account_by_webhook_path(self, webhook_path: str) -> Optional[Dict[str, Any]]:
-        if not webhook_path:
-            return None
-        await self._ensure_indexes()
-        doc = await self.accounts_collection.find_one({"webhook_path": webhook_path})
-        return self._serialize(doc) if doc else None
-
-    async def create_account(self, data: Dict[str, Any]) -> str:
-        """สร้างบัญชีใหม่ พร้อมค่าเริ่มต้น/กันค่า 'undefined'"""
-        await self._ensure_indexes()
-
-        account_data = {
-            # Display / meta
-            "display_name": self._clean_str(data.get("display_name"), ""),
-            "description": self._clean_str(data.get("description"), ""),
-            "status": "active",
-
-            # LINE credentials
-            "channel_secret": self._clean_str(data.get("channel_secret"), ""),
-            "channel_access_token": self._clean_str(data.get("channel_access_token"), ""),
-
-            # External APIs
-            "thunder_api_token": self._clean_str(data.get("thunder_api_token"), ""),
-            "openai_api_key": self._clean_str(data.get("openai_api_key"), ""),
-            "kbank_consumer_id": self._clean_str(data.get("kbank_consumer_id"), ""),
-            "kbank_consumer_secret": self._clean_str(data.get("kbank_consumer_secret"), ""),
-
-            # Feature toggles
-            "thunder_enabled": bool(data.get("thunder_enabled", True)),
-            "ai_enabled": bool(data.get("ai_enabled", False)),
-            "slip_enabled": bool(data.get("slip_enabled", False)),
-            "kbank_enabled": bool(data.get("kbank_enabled", False)),
-
-            # AI prompt
-            "ai_prompt": self._clean_str(
-                data.get("ai_prompt"),
-                "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ",
-            ),
-
-            # System messages (fallbacks)
-            "ai_disabled_message": self._clean_str(
-                data.get("ai_disabled_message"),
-                "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            ),
-            "slip_disabled_message": self._clean_str(
-                data.get("slip_disabled_message"),
-                "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-            ),
-            "system_disabled_message": self._clean_str(
-                data.get("system_disabled_message"),
-                "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง",
-            ),
-
-            # Webhook
-            "webhook_path": self._clean_str(data.get("webhook_path")) or self._generate_webhook_path(),
-
-            # Timestamps
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-        }
-
-        try:
-            res = await self.accounts_collection.insert_one(account_data)
-            await self._ensure_indexes()
-            return str(res.inserted_id)
-        except DuplicateKeyError:
-            # webhook_path ชนกัน → สุ่มใหม่แล้วลองอีกครั้ง
-            account_data["webhook_path"] = self._generate_webhook_path()
-            res = await self.accounts_collection.insert_one(account_data)
-            return str(res.inserted_id)
-
-    async def update_account(self, account_id: str, updates: Dict[str, Any]) -> bool:
-        """อัปเดตข้อมูลบัญชี (sanitize 'undefined'/None)"""
-        if not account_id:
-            return False
-
-        def c(v: Any, default: str = "") -> str:
-            return self._clean_str(v, default)
-
-        cleaned = {
-            "display_name": c(updates.get("display_name")),
-            "description": c(updates.get("description")),
-            "channel_secret": c(updates.get("channel_secret")),
-            "channel_access_token": c(updates.get("channel_access_token")),
-            "thunder_api_token": c(updates.get("thunder_api_token")),
-            "openai_api_key": c(updates.get("openai_api_key")),
-            "kbank_consumer_id": c(updates.get("kbank_consumer_id")),
-            "kbank_consumer_secret": c(updates.get("kbank_consumer_secret")),
-            "ai_prompt": c(updates.get("ai_prompt"), "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"),
-            "ai_disabled_message": c(updates.get("ai_disabled_message"), "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว"),
-            "slip_disabled_message": c(updates.get("slip_disabled_message"), "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว"),
-            "system_disabled_message": c(updates.get("system_disabled_message"), "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"),
-        }
-
-        # toggles
-        for key in ("thunder_enabled", "ai_enabled", "slip_enabled", "kbank_enabled"):
-            if key in updates:
-                cleaned[key] = bool(updates.get(key))
-
-        # webhook_path (optional; ต้องไม่ชน)
-        if "webhook_path" in updates:
-            cleaned["webhook_path"] = c(updates.get("webhook_path")) or self._generate_webhook_path()
-
-        cleaned["updated_at"] = datetime.utcnow()
-        cleaned.pop("_id", None)
-        cleaned.pop("id", None)
-
-        await self._ensure_indexes()
-        res = await self.accounts_collection.update_one(
-            {"_id": ObjectId(account_id)},
-            {"$set": cleaned},
-        )
-        return res.modified_count > 0
-
-    async def delete_account(self, account_id: str) -> bool:
-        if not account_id:
-            return False
-        await self._ensure_indexes()
-        res = await self.accounts_collection.delete_one({"_id": ObjectId(account_id)})
-        return res.deleted_count > 0
-
-    # ------------------------- System messages -------------------------
-
-    async def get_system_messages(self, account_id: str) -> Dict[str, str]:
+    def __init__(self, db: Database, collection_name: str = "line_accounts") -> None:
         """
-        คืนข้อความระบบแบบมี default เสมอ และรองรับ key ทั้งแบบ *_message และคีย์สั้น
+        สร้างอินสแตนซ์ตัวจัดการ
+
+        :param db: อ็อบเจกต์ Database ของ PyMongo (เช่น client['mydb'])
+        :param collection_name: ชื่อคอลเลกชันที่จะเก็บข้อมูล OA
         """
-        defaults = {
-            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง",
-        }
+        self.db: Database = db
+        self.collection: Collection = db[collection_name]
+        self._ensure_indexes()
+
+    # ------------------------------------------------------------------ #
+    # สร้าง index เพื่อกันข้อมูลซ้ำและให้ค้นหาเร็วขึ้น
+    # ------------------------------------------------------------------ #
+    def _ensure_indexes(self) -> None:
+        """
+        สร้างดัชนีที่จำเป็น:
+        - unique: channel_id (ปกติ 1 OA ต่อ 1 channel_id)
+        - unique: basic_id (ถ้ามี)
+        """
         try:
-            doc = await self.accounts_collection.find_one({"_id": ObjectId(account_id)})
-            if not doc:
-                return defaults
-
-            def pick(*keys) -> Optional[str]:
-                for k in keys:
-                    if k in doc and isinstance(doc[k], str):
-                        s = doc[k].strip()
-                        if s and s.lower() not in {"undefined", "null", "none"}:
-                            return s
-                return None
-
-            return {
-                "ai_disabled": pick("ai_disabled", "ai_disabled_message") or defaults["ai_disabled"],
-                "slip_disabled": pick("slip_disabled", "slip_disabled_message") or defaults["slip_disabled"],
-                "system_disabled": pick("system_disabled", "system_disabled_message") or defaults["system_disabled"],
-            }
+            self.collection.create_index("channel_id", unique=True, name="uniq_channel_id")
         except Exception:
-            return defaults
+            # บางสภาพแวดล้อมอาจไม่มีสิทธิ์สร้าง index ตอนบูทแรก
+            pass
+        try:
+            self.collection.create_index(
+                [("basic_id", 1)],
+                name="uniq_basic_id",
+                unique=True,
+                partialFilterExpression={"basic_id": {"$exists": True, "$type": "string"}}
+            )
+        except Exception:
+            pass
+        try:
+            self.collection.create_index([("created_at", -1)], name="idx_created_at")
+        except Exception:
+            pass
 
-    # ----------------------------- Helpers -----------------------------
+    # ------------------------------------------------------------------ #
+    # CRUD หลัก
+    # ------------------------------------------------------------------ #
+    def create_account(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        สร้างบัญชี LINE OA ใหม่
 
-    @staticmethod
-    def _serialize(doc: Dict[str, Any]) -> Dict[str, Any]:
-        if not doc:
-            return {}
-        d = dict(doc)
-        if "_id" in d:
-            d["id"] = str(d["_id"])
-            del d["_id"]
-        return d
+        :param payload: ข้อมูลบัญชี OA (ดูโครงสร้างใน class docstring)
+        :return: เอกสารที่ถูกสร้าง (มี _id เป็น str)
+        """
+        required = ["name", "channel_id", "channel_secret", "channel_access_token"]
+        missing = [k for k in required if not payload.get(k)]
+        if missing:
+            raise ValueError(f"ขาดฟิลด์ที่จำเป็น: {', '.join(missing)}")
+
+        now = datetime.utcnow()
+        doc: Dict[str, Any] = {
+            "name": payload["name"].strip(),
+            "basic_id": payload.get("basic_id"),
+            "channel_id": str(payload["channel_id"]).strip(),
+            "channel_secret": str(payload["channel_secret"]).strip(),
+            "channel_access_token": str(payload["channel_access_token"]).strip(),
+            "webhook_endpoint": payload.get("webhook_endpoint"),
+            "status": (payload.get("status") or "active").strip(),
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        try:
+            result = self.collection.insert_one(doc)
+            created = self.collection.find_one({"_id": result.inserted_id})
+            return _clean_id(created or doc)
+        except DuplicateKeyError as e:
+            # ชี้เป้า field ที่ชน
+            msg = "ข้อมูลซ้ำ (duplicate): "
+            if "channel_id" in str(e):
+                msg += "channel_id ถูกใช้แล้ว"
+            elif "basic_id" in str(e):
+                msg += "basic_id ถูกใช้แล้ว"
+            else:
+                msg += str(e)
+            raise ValueError(msg)
+
+    def get_account(self, account_id: str) -> Optional[Dict[str, Any]]:
+        """
+        ดึงข้อมูลบัญชีจาก _id
+
+        :param account_id: _id ของเอกสาร (string)
+        :return: เอกสารบัญชีหรือ None
+        """
+        oid = _to_object_id(account_id)
+        doc = self.collection.find_one({"_id": oid})
+        return _clean_id(doc) if doc else None
+
+    def get_by_channel_id(self, channel_id: str) -> Optional[Dict[str, Any]]:
+        """
+        ดึงข้อมูลบัญชีจาก channel_id
+        """
+        doc = self.collection.find_one({"channel_id": str(channel_id).strip()})
+        return _clean_id(doc) if doc else None
+
+    def list_accounts(
+        self,
+        filters: Optional[Dict[str, Any]] = None,
+        *,
+        limit: int = 50,
+        skip: int = 0,
+        sort: Optional[List[Tuple[str, int]]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        คืนรายการบัญชีตามเงื่อนไข
+
+        :param filters: เงื่อนไขค้นหา (เช่น {"status": "active"})
+        :param limit: จำนวนสูงสุดที่ดึง (ดีฟอลต์ 50)
+        :param skip: ข้ามเอกสารจำนวน n
+        :param sort: รายการ sort เช่น [("created_at", -1)]
+        """
+        q = dict(filters or {})
+        cursor = self.collection.find(q)
+        if sort:
+            cursor = cursor.sort(sort)
+        else:
+            cursor = cursor.sort([("created_at", -1)])
+        if skip:
+            cursor = cursor.skip(int(skip))
+        if limit:
+            cursor = cursor.limit(int(limit))
+
+        return [_clean_id(d) for d in cursor]
+
+    def update_account(self, account_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        อัปเดตข้อมูลบัญชีตาม _id
+
+        :param account_id: _id (string)
+        :param updates: ฟิลด์ที่ต้องการแก้ไข
+        :return: เอกสารถูกอัปเดตหรือ None ถ้าไม่พบ
+        """
+        if not updates:
+            return self.get_account(account_id)
+
+        # กันการแก้ _id โดยตรง
+        updates.pop("_id", None)
+
+        # ทำความสะอาดค่าที่เป็นสตริง
+        for k in ("name", "basic_id", "channel_id", "channel_secret", "channel_access_token", "webhook_endpoint", "status"):
+            if k in updates and isinstance(updates[k], str):
+                updates[k] = updates[k].strip()
+
+        updates["updated_at"] = datetime.utcnow()
+        oid = _to_object_id(account_id)
+
+        try:
+            res = self.collection.find_one_and_update(
+                {"_id": oid},
+                {"$set": updates},
+                return_document=True  # type: ignore[arg-type]
+            )
+            return _clean_id(res) if res else None
+        except DuplicateKeyError as e:
+            msg = "ข้อมูลซ้ำ (duplicate): "
+            if "channel_id" in str(e):
+                msg += "channel_id ถูกใช้แล้ว"
+            elif "basic_id" in str(e):
+                msg += "basic_id ถูกใช้แล้ว"
+            else:
+                msg += str(e)
+            raise ValueError(msg)
+
+    def delete_account(self, account_id: str) -> bool:
+        """
+        ลบบัญชีตาม _id
+
+        :return: True ถ้าลบสำเร็จ / False ถ้าไม่พบ
+        """
+        oid = _to_object_id(account_id)
+        result = self.collection.delete_one({"_id": oid})
+        return result.deleted_count > 0
+
+    # ------------------------------------------------------------------ #
+    # ยูทิลิตี้เพิ่มเติมที่มักต้องใช้
+    # ------------------------------------------------------------------ #
+    def rotate_access_token(self, account_id: str, new_token: str) -> Optional[Dict[str, Any]]:
+        """
+        เปลี่ยน channel_access_token ให้ OA ที่ระบุ
+        """
+        if not new_token or not isinstance(new_token, str):
+            raise ValueError("ต้องระบุ new_token เป็นสตริงที่ไม่ว่าง")
+        return self.update_account(account_id, {"channel_access_token": new_token})
+
+    def set_status(self, account_id: str, status: str) -> Optional[Dict[str, Any]]:
+        """
+        เปลี่ยนสถานะ OA เป็น active/inactive
+        """
+        status = (status or "").strip().lower()
+        if status not in {"active", "inactive"}:
+            raise ValueError("status ต้องเป็น 'active' หรือ 'inactive'")
+        return self.update_account(account_id, {"status": status})
