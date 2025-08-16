@@ -914,23 +914,20 @@ async def dispatch_event_async(event: Dict[str, Any]) -> None:
 
 def normalize_system_messages(messages: Dict[str, Any]) -> Dict[str, str]:
     """
-    Normalize system messages to ensure consistent keys and non-None values
-    รับทั้ง key แบบสั้น (ai_disabled) และแบบยาว (ai_disabled_message)
+    Normalize system messages to ensure consistent keys and non-None values.
+    Returns an empty string if the provided value is explicitly empty.
     """
-    # ค่า default
     defaults = {
         "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
         "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว", 
         "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง"
     }
     
-    # ถ้าไม่มี messages ให้ใช้ defaults
     if not messages:
         return defaults
         
     normalized = {}
     
-    # Map ทั้ง key แบบสั้นและแบบยาว
     key_mappings = {
         "ai_disabled": ["ai_disabled", "ai_disabled_message"],
         "slip_disabled": ["slip_disabled", "slip_disabled_message"],
@@ -939,17 +936,21 @@ def normalize_system_messages(messages: Dict[str, Any]) -> Dict[str, str]:
     
     for key, possible_keys in key_mappings.items():
         value = None
-        # ลองหา value จาก key ที่เป็นไปได้ทั้งหมด
         for pk in possible_keys:
-            if pk in messages and messages[pk]:
-                value = str(messages[pk]).strip()
-                # ตรวจสอบว่าไม่ใช่ค่าที่ไม่ต้องการ
-                if value.lower() not in ["undefined", "null", "none", ""]:
+            if pk in messages:
+                raw_value = messages[pk]
+                # If value is an empty string, respect that
+                if isinstance(raw_value, str) and not raw_value.strip():
+                    value = ""
                     break
-                value = None
-        
-        # ใช้ value ที่หาได้ หรือ default
-        normalized[key] = value or defaults[key]
+                # Otherwise, clean and check if it's a valid string
+                cleaned_value = str(raw_value).strip()
+                if cleaned_value.lower() not in {"undefined", "null", "none"}:
+                    value = cleaned_value
+                    break
+                
+        # If no valid value found, use the default
+        normalized[key] = value if value is not None else defaults[key]
     
     return normalized
 
@@ -980,11 +981,7 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         slip_enabled = bool(account_config.get("slip_enabled", config_manager.get("slip_enabled", False)))
 
         # ดึงข้อความระบบและ normalize ให้เป็นมาตรฐาน
-        system_messages = {
-            "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
-            "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
-            "system_disabled": "ขออภัย ระบบกำลังปิดปรับปรุง กรุณาติดต่อใหม่ภายหลัง",
-        }
+        system_messages = {}
         
         # ลองดึงข้อความที่กำหนดเอง
         if database_functions and 'get_system_messages' in database_functions:
@@ -994,6 +991,10 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                     system_messages = normalize_system_messages(custom)
             except Exception as e:
                 logger.error(f"❌ Error getting system messages: {e}")
+                system_messages = normalize_system_messages(None) # Pass None to get defaults
+        else:
+            system_messages = normalize_system_messages(None) # Pass None to get defaults
+
 
         # บันทึกข้อความขาเข้า
         try:
@@ -1010,10 +1011,11 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         # ✅ ปิดทั้งระบบ → ตอบ system_disabled และหยุด
         if not thunder_enabled and not ai_enabled and not slip_enabled:
             reply_msg = system_messages["system_disabled"]
-            sent = await (send_line_reply_with_account(reply_token, reply_msg, account_config)
-                          if account_config else send_line_reply(reply_token, reply_msg))
-            if sent:
-                await save_chat_with_account(user_id, "out", {"type": "text", "text": reply_msg}, "system", account_id)
+            if reply_msg:
+                sent = await (send_line_reply_with_account(reply_token, reply_msg, account_config)
+                              if account_config else send_line_reply(reply_token, reply_msg))
+                if sent:
+                    await save_chat_with_account(user_id, "out", {"type": "text", "text": reply_msg}, "system", account_id)
             return
 
         # ---------- ประมวลผลตามชนิดข้อความ ----------
@@ -1041,9 +1043,10 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                 else:
                     # ปิด Slip → ตอบตามที่ตั้งไว้ แล้วจบ
                     msg = system_messages["slip_disabled"]
-                    await (send_line_reply_with_account(reply_token, msg, account_config)
-                           if account_config else send_line_reply(reply_token, msg))
-                    await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                    if msg:
+                        await (send_line_reply_with_account(reply_token, msg, account_config)
+                               if account_config else send_line_reply(reply_token, msg))
+                        await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
                 return
 
             # ข้อความทั่วไป → AI หรือ fallback
@@ -1054,9 +1057,10 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                     await handle_ai_chat(user_id, reply_token, text)
             else:
                 msg = system_messages["ai_disabled"]
-                await (send_line_reply_with_account(reply_token, msg, account_config)
-                       if account_config else send_line_reply(reply_token, msg))
-                await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                if msg:
+                    await (send_line_reply_with_account(reply_token, msg, account_config)
+                           if account_config else send_line_reply(reply_token, msg))
+                    await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
             return
 
         elif message_type == "image":
@@ -1068,9 +1072,10 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                     await handle_slip_verification(user_id, reply_token, message_id=msg_id)
             else:
                 msg = system_messages["slip_disabled"]
-                await (send_line_reply_with_account(reply_token, msg, account_config)
-                       if account_config else send_line_reply(reply_token, msg))
-                await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                if msg:
+                    await (send_line_reply_with_account(reply_token, msg, account_config)
+                           if account_config else send_line_reply(reply_token, msg))
+                    await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
             return
 
         # ชนิดอื่น ๆ
