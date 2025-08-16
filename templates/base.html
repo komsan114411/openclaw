@@ -10,89 +10,51 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Custom CSS -->
     <style>
-        :root {
-            --primary-color: #2563eb;
-            --success-color: #059669;
-            --warning-color: #d97706;
-            --danger-color: #dc2626;
-            --info-color: #0891b2;
-            --dark-color: #1f2937;
-        }
-        
         body {
-            background-color: #f8fafc;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
         }
         
         .navbar {
-            background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .navbar-brand {
-            font-weight: 600;
-            font-size: 1.25rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
         }
         
         .sidebar {
             min-height: calc(100vh - 56px);
             background: white;
-            border-right: 1px solid #e2e8f0;
+            border-right: 1px solid #dee2e6;
         }
         
         .sidebar .nav-link {
-            color: #64748b;
-            border-radius: 8px;
+            color: #6c757d;
+            padding: 10px 15px;
+            border-radius: 5px;
             margin: 2px 0;
-            transition: all 0.2s ease;
         }
         
         .sidebar .nav-link:hover {
-            background-color: #f1f5f9;
-            color: var(--primary-color);
+            background-color: #f8f9fa;
+            color: #667eea;
         }
         
         .sidebar .nav-link.active {
-            background-color: #dbeafe;
-            color: var(--primary-color);
-            font-weight: 500;
-        }
-        
-        .main-content {
-            padding: 24px;
+            background-color: #e7f0ff;
+            color: #667eea;
+            font-weight: 600;
         }
         
         .card {
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
         }
         
         .notification {
             position: fixed;
-            top: 20px;
+            top: 70px;
             right: 20px;
             z-index: 1050;
-            min-width: 300px;
-            max-width: 400px;
-        }
-        
-        .btn {
-            border-radius: 8px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-        
-        .btn:hover {
-            transform: translateY(-1px);
+            min-width: 250px;
         }
     </style>
     
@@ -100,59 +62,41 @@
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
+    <nav class="navbar navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="/admin">
-                <i class="fas fa-robot me-2"></i>
+                <i class="fab fa-line me-2"></i>
                 LINE OA Middleware
             </a>
-            
-            <div class="navbar-nav ms-auto">
-                <span class="badge me-3" id="navbar-connection-status">
-                    <i class="fas fa-circle me-1"></i>Connecting...
-                </span>
-                <span class="badge bg-info">
-                    <i class="fas fa-clock me-1"></i>
-                    <span id="current-time"></span>
-                </span>
-            </div>
+            <span class="text-white">
+                <i class="fas fa-clock me-1"></i>
+                <span id="current-time"></span>
+            </span>
         </div>
     </nav>
 
-    <!-- Main Layout -->
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar">
-                <div class="p-3">
-                    <nav class="nav flex-column">
-                        <a class="nav-link {% if request.path == '/admin' or request.path == '/admin/' %}active{% endif %}" href="/admin">
-                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                        </a>
-                        <a class="nav-link {% if 'accounts' in request.path %}active{% endif %}" href="/admin/accounts">
-                            <i class="fab fa-line me-2"></i>LINE Accounts
-                        </a>
-                        <a class="nav-link {% if 'users' in request.path %}active{% endif %}" href="/admin/users">
-                            <i class="fas fa-users me-2"></i>Users
-                        </a>
-                        <a class="nav-link {% if 'chat-history' in request.path %}active{% endif %}" href="/admin/chat-history">
-                            <i class="fas fa-comments me-2"></i>Chat History
-                        </a>
-                        <a class="nav-link {% if 'settings' in request.path %}active{% endif %}" href="/admin/settings">
-                            <i class="fas fa-cogs me-2"></i>Settings
-                        </a>
-                        <a class="nav-link {% if 'config-management' in request.path %}active{% endif %}" href="/admin/config-management">
-                            <i class="fas fa-database me-2"></i>Config
-                        </a>
-                        <a class="nav-link {% if 'debug' in request.path %}active{% endif %}" href="/admin/debug">
-                            <i class="fas fa-bug me-2"></i>Debug
-                        </a>
-                    </nav>
-                </div>
+            <div class="col-md-2 sidebar pt-3">
+                <nav class="nav flex-column">
+                    <a class="nav-link {% if request.path == '/admin' %}active{% endif %}" href="/admin">
+                        <i class="fas fa-home me-2"></i>หน้าหลัก
+                    </a>
+                    <a class="nav-link {% if 'accounts' in request.path %}active{% endif %}" href="/admin/accounts">
+                        <i class="fab fa-line me-2"></i>บัญชี LINE
+                    </a>
+                    <a class="nav-link {% if 'chat-history' in request.path %}active{% endif %}" href="/admin/chat-history">
+                        <i class="fas fa-comments me-2"></i>ประวัติแชท
+                    </a>
+                    <a class="nav-link {% if 'settings' in request.path %}active{% endif %}" href="/admin/settings">
+                        <i class="fas fa-cog me-2"></i>ตั้งค่า
+                    </a>
+                </nav>
             </div>
 
             <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 main-content">
+            <div class="col-md-10 p-4">
                 {% block content %}{% endblock %}
             </div>
         </div>
@@ -161,146 +105,38 @@
     <!-- Notification Container -->
     <div id="notification-container"></div>
 
-    <!-- Bootstrap 5 JS -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Base JavaScript -->
     <script>
-        // WebSocket connection
-        let websocket = null;
-        let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
-        
-        function connectWebSocket() {
-            if (websocket && websocket.readyState === WebSocket.OPEN) {
-                return;
-            }
-            
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
-            
-            try {
-                websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = function() {
-                    console.log('WebSocket connected');
-                    updateNavbarStatus(true);
-                    reconnectAttempts = 0;
-                };
-                
-                websocket.onmessage = function(event) {
-                    try {
-                        const notification = JSON.parse(event.data);
-                        showNotification(notification.message, notification.type);
-                    } catch (e) {
-                        console.error('Error parsing notification:', e);
-                    }
-                };
-                
-                websocket.onclose = function() {
-                    console.log('WebSocket disconnected');
-                    updateNavbarStatus(false);
-                    
-                    if (reconnectAttempts < maxReconnectAttempts) {
-                        const delay = Math.pow(2, reconnectAttempts) * 1000;
-                        setTimeout(() => {
-                            reconnectAttempts++;
-                            connectWebSocket();
-                        }, delay);
-                    }
-                };
-                
-                websocket.onerror = function(error) {
-                    console.error('WebSocket error:', error);
-                    updateNavbarStatus(false);
-                };
-                
-            } catch (error) {
-                console.error('WebSocket connection failed:', error);
-                updateNavbarStatus(false);
-            }
+        // แสดงเวลาปัจจุบัน
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         }
         
-        function updateNavbarStatus(connected) {
-            const statusElement = document.getElementById('navbar-connection-status');
-            if (statusElement) {
-                if (connected) {
-                    statusElement.className = 'badge bg-success me-3';
-                    statusElement.innerHTML = '<i class="fas fa-circle me-1"></i>Connected';
-                } else {
-                    statusElement.className = 'badge bg-warning me-3';
-                    statusElement.innerHTML = '<i class="fas fa-circle me-1"></i>Reconnecting...';
-                }
-            }
-        }
-        
-        function showNotification(message, type = 'info', duration = 5000) {
-            const container = document.getElementById('notification-container');
-            
+        // แสดงการแจ้งเตือน
+        function showNotification(message, type = 'info') {
             const alertClass = type === 'error' ? 'danger' : type;
-            const icon = {
-                'success': 'fa-check-circle',
-                'error': 'fa-exclamation-circle',
-                'warning': 'fa-exclamation-triangle',
-                'info': 'fa-info-circle'
-            }[type] || 'fa-info-circle';
-            
             const notification = document.createElement('div');
             notification.className = `alert alert-${alertClass} alert-dismissible fade show notification`;
             notification.innerHTML = `
-                <i class="fas ${icon} me-2"></i>${message}
+                ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
             
-            container.appendChild(notification);
+            document.getElementById('notification-container').appendChild(notification);
             
             setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, duration);
+                notification.remove();
+            }, 5000);
         }
         
-        function updateCurrentTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('th-TH', {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            const timeElement = document.getElementById('current-time');
-            if (timeElement) {
-                timeElement.textContent = timeString;
-            }
-        }
-        
-        async function apiCall(url, options = {}) {
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...options.headers
-                    },
-                    ...options
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error('API call failed:', error);
-                showNotification(`API Error: ${error.message}`, 'error');
-                throw error;
-            }
-        }
-        
-        // Initialize
+        // เริ่มต้นเมื่อโหลดหน้า
         document.addEventListener('DOMContentLoaded', function() {
-            connectWebSocket();
-            updateCurrentTime();
-            setInterval(updateCurrentTime, 60000);
+            updateTime();
+            setInterval(updateTime, 60000);
         });
     </script>
     
