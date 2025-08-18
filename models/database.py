@@ -325,10 +325,33 @@ async def get_recent_chat_history(limit: int = 50) -> List[ChatRecord]:
         cursor = db_manager.db.chat_history.find({}).sort("created_at", -1).limit(int(limit))
         docs = []
         async for doc in cursor:
-            docs.append(doc)
+            # แก้ไข: เพิ่มการแปลงข้อมูลให้ครบถ้วน
+            # ดึง message_text จากหลายที่ที่เป็นไปได้
+            message_text = ""
+            if doc.get("message_text"):
+                message_text = doc.get("message_text")
+            elif doc.get("message") and isinstance(doc.get("message"), dict):
+                message_text = doc.get("message").get("text", "")
+            elif doc.get("raw_message") and isinstance(doc.get("raw_message"), dict):
+                message_text = doc.get("raw_message").get("text", "")
+            
+            # สร้าง ChatRecord ที่สมบูรณ์
+            doc_fixed = {
+                "_id": doc.get("_id"),
+                "user_id": doc.get("user_id"),
+                "direction": doc.get("direction", "in"),
+                "message_type": doc.get("message_type", "text"),
+                "message_text": message_text,
+                "sender": doc.get("sender", "user"),
+                "created_at": doc.get("created_at"),
+                "account_id": doc.get("account_id")
+            }
+            docs.append(doc_fixed)
+            
         return _wrap_docs(docs)
     except Exception as e:
         logger.error(f"❌ Error getting recent chat: {e}")
+        logger.exception(e)  # เพิ่ม exception detail
         return []
 
 async def get_user_chat_history(user_id: str, limit: int = 100) -> List[ChatRecord]:
@@ -853,21 +876,24 @@ async def get_all_chats_summary() -> List[Dict[str, Any]]:
             logger.error("Database not initialized")
             return []
             
-        # Query แชททั้งหมดจาก collection chat_history
+        # แก้ไข: ใช้ aggregation pipeline ที่ง่ายกว่า
         pipeline = [
             {
+                "$sort": {"created_at": -1}  # เรียงตามเวลาล่าสุดก่อน
+            },
+            {
                 "$group": {
-                    "_id": "$chat_id",
+                    "_id": "$user_id",  # จัดกลุ่มตาม user_id
                     "message_count": {"$sum": 1},
-                    "last_message": {"$max": "$created_at"},
-                    "first_message": {"$min": "$created_at"},
-                    "last_text": {"$last": "$message"},
-                    "last_sender": {"$last": "$sender"},
-                    "direction": {"$last": "$direction"}
+                    "last_message": {"$first": "$created_at"},
+                    "last_text": {"$first": "$message_text"},
+                    "last_sender": {"$first": "$sender"},
+                    "last_direction": {"$first": "$direction"}
                 }
             },
-            {"$sort": {"last_message": -1}},
-            {"$limit": 100}  # จำกัดไม่เกิน 100 แชท
+            {
+                "$limit": 100  # จำกัดไม่เกิน 100 แชท
+            }
         ]
         
         chats = []
@@ -879,26 +905,16 @@ async def get_all_chats_summary() -> List[Dict[str, Any]]:
                 if not chat_id:
                     continue
                     
-                # ค้นหาข้อมูลผู้ใช้
-                user_info = await db_manager.db.users.find_one({"user_id": chat_id})
-                
                 # ตรวจสอบว่าเป็น group หรือไม่
-                is_group = chat_id.startswith("C") or chat_id.startswith("R")
+                is_group = False
+                if chat_id and isinstance(chat_id, str):
+                    is_group = chat_id.startswith("C") or chat_id.startswith("R")
                 
                 # กำหนดชื่อแสดง
-                if user_info and user_info.get("display_name"):
-                    display_name = user_info.get("display_name")
-                elif is_group:
+                if is_group:
                     display_name = f"Group {chat_id[:8]}..."
                 else:
-                    display_name = f"User {chat_id[:8]}..."
-                
-                # ดึงข้อความล่าสุด
-                last_text = ""
-                if isinstance(doc.get("last_text"), dict):
-                    last_text = doc.get("last_text", {}).get("text", "")
-                elif isinstance(doc.get("last_text"), str):
-                    last_text = doc.get("last_text", "")
+                    display_name = f"User {chat_id[:8]}..." if chat_id else "Unknown"
                 
                 chats.append({
                     "chat_id": chat_id,
@@ -906,8 +922,7 @@ async def get_all_chats_summary() -> List[Dict[str, Any]]:
                     "chat_type": "group" if is_group else "user",
                     "message_count": doc.get("message_count", 0),
                     "last_message": doc.get("last_message"),
-                    "first_message": doc.get("first_message"),
-                    "last_text": last_text[:50] if last_text else "",  # จำกัดความยาว
+                    "last_text": doc.get("last_text", "")[:50] if doc.get("last_text") else "",
                     "last_sender": doc.get("last_sender", "Unknown")
                 })
                 
