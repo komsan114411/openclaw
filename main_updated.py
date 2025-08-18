@@ -957,22 +957,79 @@ def normalize_system_messages(messages: Dict[str, Any]) -> Dict[str, str]:
     return normalized
 
 async def handle_message_event(event: Dict[str, Any]) -> None:
-    """Handle message event - รองรับ multi-account, เคารพสถานะปิดระบบ/ฟีเจอร์ และบันทึกทุกคำตอบ"""
+    """Handle message event - รองรับ multi-account และบันทึกทุกข้อความ"""
     try:
         message = event.get("message", {}) or {}
         user_id = event.get("source", {}).get("userId")
+        group_id = event.get("source", {}).get("groupId")  # เพิ่มการจัดการกลุ่ม
         reply_token = event.get("replyToken")
         message_type = message.get("type")
+        message_id = message.get("id")  # สำคัญสำหรับการดาวน์โหลดรูป
 
         account_id = event.get("_account_id")
         account_config = event.get("_account_config", {}) or {}
 
-        if not user_id:
-            logger.error("❌ Missing user ID in message event")
+        # ใช้ group_id ถ้าเป็นข้อความจากกลุ่ม
+        chat_id = group_id or user_id
+        if not chat_id:
+            logger.error("❌ Missing chat ID in message event")
             return
 
-        logger.info(f"📨 Processing {message_type} from {user_id[:10]}... (Account: {account_id or 'default'})")
+        logger.info(f"📨 Processing {message_type} from {chat_id[:10]}... (Account: {account_id or 'default'})")
 
+        # บันทึกข้อความขาเข้าทันที พร้อมข้อมูลเพิ่มเติม
+        try:
+            incoming = {
+                "type": message_type,
+                "id": message_id,  # เก็บ message_id สำหรับดาวน์โหลดภายหลัง
+                "text": message.get("text", "") if message_type == "text" else None,
+                "timestamp": event.get("timestamp"),
+                "source_type": "group" if group_id else "user",
+                "group_id": group_id,
+                "user_id": user_id
+            }
+            
+            # สำหรับรูปภาพ/วิดีโอ/ไฟล์ - ดาวน์โหลดและเก็บทันที
+            if message_type in ["image", "video", "audio", "file"]:
+                media_content = await download_line_content(message_id, account_config)
+                if media_content:
+                    # บันทึกไฟล์ลง GridFS หรือ storage
+                    media_id = await save_media_to_storage(
+                        message_id, 
+                        media_content, 
+                        message_type,
+                        chat_id
+                    )
+                    incoming["media_id"] = media_id
+                    incoming["media_size"] = len(media_content)
+                    incoming["content_provider"] = message.get("contentProvider", {})
+                    
+                    # สำหรับไฟล์ เก็บชื่อไฟล์ด้วย
+                    if message_type == "file":
+                        incoming["file_name"] = message.get("fileName")
+                        incoming["file_size"] = message.get("fileSize")
+            
+            # สำหรับ sticker
+            elif message_type == "sticker":
+                incoming["sticker_id"] = message.get("stickerId")
+                incoming["package_id"] = message.get("packageId")
+                incoming["sticker_resource_type"] = message.get("stickerResourceType")
+            
+            # สำหรับ location
+            elif message_type == "location":
+                incoming["location"] = {
+                    "title": message.get("title"),
+                    "address": message.get("address"),
+                    "latitude": message.get("latitude"),
+                    "longitude": message.get("longitude")
+                }
+            
+            await save_chat_with_account(chat_id, "in", incoming, "user", account_id)
+            logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}...")
+        except Exception as e:
+            logger.error(f"❌ Error saving incoming message: {e}")
+
+        # ส่วนประมวลผลตามเดิม (AI, Slip verification)
         # โหลด config เพิ่มเติมถ้า event ไม่มี
         if not account_config and account_id:
             account_config = await load_account_config(account_id)
@@ -997,18 +1054,6 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         else:
             system_messages = normalize_system_messages(None) # Pass None to get defaults
 
-
-        # บันทึกข้อความขาเข้า
-        try:
-            incoming = {
-                "type": message_type,
-                "text": message.get("text", "") if message_type == "text" else f"[{message_type}]",
-                "id": message.get("id"),
-                "timestamp": event.get("timestamp")
-            }
-            await save_chat_with_account(user_id, "in", incoming, "user", account_id)
-        except Exception as e:
-            logger.error(f"❌ Error saving incoming message: {e}")
 
         # ✅ ปิดทั้งระบบ → ตอบ system_disabled และหยุด
         if not thunder_enabled and not ai_enabled and not slip_enabled:
@@ -1077,7 +1122,7 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                 if msg:
                     await (send_line_reply_with_account(reply_token, msg, account_config)
                            if account_config else send_line_reply(reply_token, msg))
-                    await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
             return
 
         # ชนิดอื่น ๆ
@@ -2129,6 +2174,183 @@ async def get_account_chat_history(account_id: str, limit: int = 100):
         logger.error(f"❌ Error getting account chat history: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
 		
+		
+async def download_line_content(message_id: str, account_config: Dict = None) -> bytes:
+    """ดาวน์โหลด content จาก LINE (รูป/วิดีโอ/ไฟล์)"""
+    try:
+        # ใช้ token จาก account_config หรือ default
+        access_token = None
+        if account_config:
+            access_token = account_config.get("channel_access_token") or account_config.get("line_channel_access_token")
+        
+        if not access_token:
+            access_token = config_manager.get("line_channel_access_token")
+            
+        if not access_token:
+            logger.error("❌ No LINE access token for downloading content")
+            return None
+        
+        url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        timeout = httpx.Timeout(60.0, connect=10.0)  # เพิ่ม timeout สำหรับไฟล์ใหญ่
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Downloaded content: {len(response.content)} bytes")
+                return response.content
+            else:
+                logger.error(f"❌ Failed to download content: HTTP {response.status_code}")
+                return None
+                
+    except Exception as e:
+        logger.error(f"❌ Error downloading LINE content: {e}")
+        return None
+
+async def save_media_to_storage(message_id: str, content: bytes, media_type: str, chat_id: str) -> str:
+    """บันทึกไฟล์มีเดียลง MongoDB GridFS หรือ storage"""
+    try:
+        from models.database import db_manager
+        import gridfs
+        from bson import ObjectId
+        
+        if db_manager.db is None:
+            logger.error("❌ Database not initialized for media storage")
+            return None
+            
+        # ใช้ GridFS สำหรับไฟล์ขนาดใหญ่
+        fs = gridfs.GridFS(db_manager.db, collection="media_files")
+        
+        # กำหนดชื่อไฟล์
+        file_extension = {
+            "image": "jpg",
+            "video": "mp4", 
+            "audio": "m4a",
+            "file": "bin"
+        }.get(media_type, "bin")
+        
+        filename = f"{message_id}.{file_extension}"
+        
+        # บันทึกไฟล์
+        file_id = fs.put(
+            content,
+            filename=filename,
+            content_type=f"{media_type}/{file_extension}",
+            message_id=message_id,
+            chat_id=chat_id,
+            media_type=media_type,
+            uploaded_at=datetime.utcnow()
+        )
+        
+        logger.info(f"✅ Saved media file: {filename} (GridFS ID: {file_id})")
+        return str(file_id)
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving media to storage: {e}")
+        return None
+
+async def get_media_from_storage(media_id: str) -> bytes:
+    """ดึงไฟล์มีเดียจาก storage"""
+    try:
+        from models.database import db_manager
+        import gridfs
+        from bson import ObjectId
+        
+        if db_manager.db is None:
+            return None
+            
+        fs = gridfs.GridFS(db_manager.db, collection="media_files")
+        
+        # ดึงไฟล์จาก GridFS
+        file_data = fs.get(ObjectId(media_id))
+        content = file_data.read()
+        
+        logger.info(f"✅ Retrieved media file: {media_id}")
+        return content
+        
+    except Exception as e:
+        logger.error(f"❌ Error retrieving media: {e}")
+        return None
+		
+
+
+@app.get("/admin/api/chat/{chat_id}/full-history")
+async def get_full_chat_history(chat_id: str, include_media: bool = True):
+    """API สำหรับดึงประวัติแชทแบบเต็มพร้อมมีเดีย"""
+    try:
+        from models.database import get_chat_history_with_media
+        
+        messages = await get_chat_history_with_media(
+            chat_id, 
+            limit=500,  # ดึงมากขึ้น
+            include_media=include_media
+        )
+        
+        return JSONResponse({
+            "status": "success",
+            "chat_id": chat_id,
+            "total_messages": len(messages),
+            "messages": messages
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting full chat history: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
+@app.get("/admin/api/media/{media_id}")
+async def get_media_file(media_id: str):
+    """API สำหรับดึงไฟล์มีเดีย"""
+    try:
+        content = await get_media_from_storage(media_id)
+        
+        if content:
+            # ส่งไฟล์กลับ
+            from fastapi.responses import Response
+            return Response(
+                content=content,
+                media_type="application/octet-stream",
+                headers={
+                    "Content-Disposition": f"attachment; filename={media_id}"
+                }
+            )
+        else:
+            return JSONResponse({
+                "status": "error",
+                "message": "Media not found"
+            }, status_code=404)
+            
+    except Exception as e:
+        logger.error(f"❌ Error getting media: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.get("/admin/api/all-chats")
+async def get_all_chats():
+    """API สำหรับดูแชททั้งหมด (users + groups)"""
+    try:
+        from models.database import get_all_chats_summary
+        
+        chats = await get_all_chats_summary()
+        
+        return JSONResponse({
+            "status": "success",
+            "total_chats": len(chats),
+            "chats": chats
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting all chats: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        })
+
 		
 @app.post("/admin/kbank/test-slip-demo")
 async def test_kbank_slip_demo():
