@@ -7,6 +7,8 @@ import asyncio
 import time
 import signal
 import sys
+from models.database import get_all_chats_summary, get_chat_history_with_media
+
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union
 import logging
@@ -2284,15 +2286,56 @@ async def get_media_from_storage(media_id: str) -> bytes:
 
 @app.get("/admin/api/chat/{chat_id}/full-history")
 async def get_full_chat_history(chat_id: str, include_media: bool = True):
-    """API สำหรับดึงประวัติแชทแบบเต็มพร้อมมีเดีย"""
+    """API สำหรับดึงประวัติแชท"""
     try:
-        from models.database import get_chat_history_with_media
+        # ถ้ายังไม่มีฟังก์ชันนี้ ให้ใช้วิธีดึงตรงจาก database
+        from models.database import db_manager
+        await db_manager.ensure_connected()
         
-        messages = await get_chat_history_with_media(
-            chat_id, 
-            limit=500,  # ดึงมากขึ้น
-            include_media=include_media
-        )
+        if db_manager.db is None:
+            return JSONResponse({
+                "status": "error",
+                "message": "Database not connected"
+            }, status_code=500)
+        
+        # Query ข้อความจาก database
+        cursor = db_manager.db.chat_history.find(
+            {"chat_id": chat_id}
+        ).sort("created_at", 1).limit(500)
+        
+        messages = []
+        async for doc in cursor:
+            try:
+                # แปลงข้อมูลให้อยู่ในรูปแบบที่ frontend ต้องการ
+                message_data = {
+                    "id": str(doc.get("_id")),
+                    "chat_id": doc.get("chat_id"),
+                    "direction": doc.get("direction", "in"),
+                    "message_type": "text",
+                    "message_text": "",
+                    "sender": doc.get("sender", "unknown"),
+                    "created_at": doc.get("created_at"),
+                    "has_media": False
+                }
+                
+                # ดึงข้อความจาก field message
+                msg = doc.get("message", {})
+                if isinstance(msg, dict):
+                    message_data["message_text"] = msg.get("text", "") or msg.get("message", "")
+                    message_data["message_type"] = msg.get("type", "text")
+                    
+                    # ตรวจสอบ media
+                    if msg.get("media_id"):
+                        message_data["has_media"] = True
+                        message_data["media_id"] = msg.get("media_id")
+                elif isinstance(msg, str):
+                    message_data["message_text"] = msg
+                
+                messages.append(message_data)
+                
+            except Exception as e:
+                logger.error(f"Error processing message: {e}")
+                continue
         
         return JSONResponse({
             "status": "success",
@@ -2302,11 +2345,13 @@ async def get_full_chat_history(chat_id: str, include_media: bool = True):
         })
         
     except Exception as e:
-        logger.error(f"❌ Error getting full chat history: {e}")
+        logger.error(f"❌ Error getting chat history: {e}")
+        logger.exception(e)
         return JSONResponse({
             "status": "error",
-            "message": str(e)
-        })
+            "message": str(e),
+            "messages": []
+        }, status_code=500)
 
 @app.get("/admin/api/media/{media_id}")
 async def get_media_file(media_id: str):
@@ -2339,10 +2384,13 @@ async def get_media_file(media_id: str):
 
 @app.get("/admin/api/all-chats")
 async def get_all_chats():
-    """API สำหรับดูแชททั้งหมด (users + groups)"""
+    """API สำหรับดูแชททั้งหมด"""
     try:
-        from models.database import get_all_chats_summary
+        # ตรวจสอบการเชื่อมต่อฐานข้อมูล
+        from models.database import db_manager
+        await db_manager.ensure_connected()
         
+        # ดึงข้อมูลแชททั้งหมด
         chats = await get_all_chats_summary()
         
         return JSONResponse({
@@ -2352,12 +2400,13 @@ async def get_all_chats():
         })
         
     except Exception as e:
-        logger.error(f"❌ Error getting all chats: {e}")
+        logger.error(f"❌ Error in get_all_chats API: {e}")
+        logger.exception(e)
         return JSONResponse({
             "status": "error",
-            "message": str(e)
-        })
-
+            "message": str(e),
+            "chats": []
+        }, status_code=500)
 		
 @app.post("/admin/kbank/test-slip-demo")
 async def test_kbank_slip_demo():
