@@ -954,6 +954,36 @@ async def get_user_info(user_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"❌ Error getting user info: {e}")
         return {}
+		
+# เพิ่มที่ท้ายไฟล์ models/database.py
+
+async def get_user_chat_history_by_account(user_id: str, account_id: str, limit: int = 10) -> List[Dict[str, str]]:
+    """Get user chat history for specific account"""
+    try:
+        await db_manager.ensure_connected()
+        
+        if db_manager.db is None:
+            return []
+            
+        cursor = db_manager.db.chat_history.find({
+            "user_id": user_id,
+            "account_id": account_id,
+            "message_type": "text",
+            "message_text": {"$ne": ""}
+        }).sort("created_at", -1).limit(limit)
+        
+        messages = []
+        async for doc in cursor:
+            role = "user" if doc.get("direction") == "in" else "assistant"
+            content = doc.get("message_text", "")
+            if content:
+                messages.append({"role": role, "content": content})
+        
+        return list(reversed(messages))
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting user chat by account: {e}")
+        return []
 
 async def get_all_configs() -> Dict[str, Any]:
     """Get all configurations"""
