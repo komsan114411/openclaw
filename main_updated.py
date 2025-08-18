@@ -1653,7 +1653,14 @@ async def handle_member_left_event(event: Dict[str, Any]):
             logger.error(f"❌ Error saving member left event: {e}")
 
 # ====================== API Routes ======================
-
+@app.get("/admin/full-chat-history")
+async def full_chat_history_page(request: Request):
+    """หน้าแสดงประวัติแชททั้งหมด"""
+    return templates.TemplateResponse(
+        "full_chat_history.html",
+        {"request": request}
+    )
+	
 @app.websocket("/ws/notifications")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time notifications"""
