@@ -561,52 +561,100 @@ async def set_system_messages(messages: Dict[str, str], account_id: Optional[str
 
 # ----------------------------- Stats / Reports -----------------------------
 
+# เพิ่มใน models/database.py
+
 async def get_account_statistics(account_id: str) -> Dict[str, Any]:
-    """Get account statistics"""
+    """Get comprehensive statistics for an account"""
     try:
         if db_manager.db is None:
             return {
-                "total_messages": 0, 
-                "inbound": 0, 
-                "outbound": 0, 
+                "total_messages": 0,
+                "inbound_messages": 0,
+                "outbound_messages": 0,
+                "unique_users": 0,
                 "last_activity": None
             }
             
+        # นับจำนวนข้อความแยกตาม direction
         pipeline = [
             {"$match": {"account_id": account_id}},
             {
                 "$group": {
                     "_id": "$direction",
                     "count": {"$sum": 1},
-                    "last": {"$max": "$created_at"},
+                    "last": {"$max": "$created_at"}
                 }
-            },
+            }
         ]
         
-        agg = []
+        agg_results = []
         async for doc in db_manager.db.chat_history.aggregate(pipeline):
-            agg.append(doc)
-            
-        inbound = next((d["count"] for d in agg if d["_id"] == "in"), 0)
-        outbound = next((d["count"] for d in agg if d["_id"] == "out"), 0)
-        last = max((d.get("last") for d in agg if d.get("last")), default=None)
-        total = inbound + outbound
+            agg_results.append(doc)
+        
+        inbound = next((d["count"] for d in agg_results if d["_id"] == "in"), 0)
+        outbound = next((d["count"] for d in agg_results if d["_id"] == "out"), 0)
+        last_activity = max((d.get("last") for d in agg_results if d.get("last")), default=None)
+        
+        # นับ unique users
+        unique_users_pipeline = [
+            {"$match": {"account_id": account_id}},
+            {"$group": {"_id": "$user_id"}},
+            {"$count": "total"}
+        ]
+        
+        unique_result = await db_manager.db.chat_history.aggregate(unique_users_pipeline).to_list(1)
+        unique_users_count = unique_result[0]["total"] if unique_result else 0
         
         return {
-            "total_messages": total, 
-            "inbound": inbound, 
-            "outbound": outbound, 
-            "last_activity": last.isoformat() if last else None
+            "total_messages": inbound + outbound,
+            "inbound_messages": inbound,
+            "outbound_messages": outbound,
+            "unique_users": unique_users_count,
+            "last_activity": last_activity.isoformat() if last_activity else None
         }
     except Exception as e:
         logger.error(f"❌ Error getting account statistics: {e}")
         return {
-            "total_messages": 0, 
-            "inbound": 0, 
-            "outbound": 0, 
+            "total_messages": 0,
+            "inbound_messages": 0,
+            "outbound_messages": 0,
+            "unique_users": 0,
             "last_activity": None
         }
 
+async def get_account_users(account_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    """Get list of users for a specific account"""
+    try:
+        if db_manager.db is None:
+            return []
+            
+        pipeline = [
+            {"$match": {"account_id": account_id}},
+            {
+                "$group": {
+                    "_id": "$user_id",
+                    "message_count": {"$sum": 1},
+                    "last_message": {"$max": "$created_at"},
+                    "first_message": {"$min": "$created_at"}
+                }
+            },
+            {"$sort": {"last_message": -1}},
+            {"$limit": limit}
+        ]
+        
+        users = []
+        async for doc in db_manager.db.chat_history.aggregate(pipeline):
+            users.append({
+                "user_id": doc["_id"],
+                "message_count": doc["message_count"],
+                "last_message": doc["last_message"].isoformat() if doc["last_message"] else None,
+                "first_message": doc["first_message"].isoformat() if doc["first_message"] else None
+            })
+        
+        return users
+    except Exception as e:
+        logger.error(f"❌ Error getting account users: {e}")
+        return []
 # ----------------------------- User Management -----------------------------
 
 async def get_user_info(user_id: str) -> Dict[str, Any]:
