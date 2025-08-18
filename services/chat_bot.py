@@ -1,7 +1,9 @@
+# services/chat_bot.py - Fixed version with proper async handling
 import logging
-import requests
+import httpx
 from typing import Dict, Any, List, Optional
 import asyncio
+import os
 
 logger = logging.getLogger("chat_bot_service")
 
@@ -9,7 +11,17 @@ async def _fetch_chat_history(user_id: str, limit: int = 5) -> List[Dict[str, st
     """Helper to asynchronously fetch chat history."""
     try:
         from models.database import get_user_chat_history
-        return await get_user_chat_history(user_id, limit=limit)
+        history = await get_user_chat_history(user_id, limit=limit)
+        
+        # Convert ChatRecord objects to dict format
+        messages = []
+        for record in history:
+            if hasattr(record, 'direction') and hasattr(record, 'message_text'):
+                role = "user" if record.direction == "in" else "assistant"
+                if record.message_text:
+                    messages.append({"role": role, "content": record.message_text})
+        
+        return messages
     except Exception as e:
         logger.warning(f"⚠️ Could not get chat history: {e}")
         return []
@@ -23,69 +35,100 @@ async def get_chat_response_async(
     ai_prompt_override: Optional[str] = None,
 ) -> str:
     """Asynchronously generate an AI chat response using per-account settings."""
-    # Import config manager lazily to avoid circular imports
-    from utils.config_manager import config_manager
+    try:
+        # Import config manager lazily to avoid circular imports
+        from utils.config_manager import config_manager
 
-    ai_enabled = ai_enabled_override if ai_enabled_override is not None else config_manager.get("ai_enabled", False)
-    api_key = (api_key_override or config_manager.get("openai_api_key", "")).strip()
-    ai_prompt = ai_prompt_override or config_manager.get(
-        "ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"
-    )
+        ai_enabled = ai_enabled_override if ai_enabled_override is not None else config_manager.get("ai_enabled", False)
+        api_key = (api_key_override or config_manager.get("openai_api_key", "")).strip()
+        ai_prompt = ai_prompt_override or config_manager.get(
+            "ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"
+        )
 
-    logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
-    if not ai_enabled:
-        return "ระบบ AI ถูกปิดการใช้งานค่ะ"
-    if not api_key or len(api_key) < 10:
-        return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
+        logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
+        
+        if not ai_enabled:
+            return "ระบบ AI ถูกปิดการใช้งานค่ะ"
+        if not api_key or len(api_key) < 10:
+            return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
 
-    # Fetch chat history asynchronously
-    chat_history: List[Dict[str, Any]] = await _fetch_chat_history(user_id, limit=5)
-    messages = [{"role": "system", "content": ai_prompt}]
-    for msg in chat_history:
-        if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
-            messages.append(msg)
-    messages.append({"role": "user", "content": text})
+        # Fetch chat history asynchronously
+        chat_history = await _fetch_chat_history(user_id, limit=5)
+        
+        messages = [{"role": "system", "content": ai_prompt}]
+        messages.extend(chat_history)
+        messages.append({"role": "user", "content": text})
 
-    # Define a synchronous function to call the OpenAI API; this will be run in a thread
-    def _call_openai(api_key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        # Call OpenAI API asynchronously
         url = "https://api.openai.com/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        return {
-            "status_code": response.status_code,
-            "json": response.json() if response.ok else None,
-            "text": response.text,
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
         }
-
-    payload = {"model": "gpt-3.5-turbo", "messages": messages, "max_tokens": 150, "temperature": 0.7}
-    # Execute the API call in a separate thread to avoid blocking the event loop
-    result = await asyncio.to_thread(_call_openai, api_key, payload)
-    status_code = result.get("status_code")
-    data = result.get("json")
-    if status_code == 200 and data:
-        try:
-            ai_response = data["choices"][0]["message"]["content"].strip()
-            return ai_response
-        except Exception:
-            logger.error("❌ Unexpected OpenAI response format")
-            return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
-    elif status_code == 401:
-        return "ขออภัย API Key ไม่ถูกต้อง กรุณาตรวจสอบการตั้งค่า"
-    elif status_code == 429:
-        return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้ กรุณาลองใหม่ในภายหลัง"
-    else:
-        logger.error(f"❌ OpenAI API Error: {status_code} - {result.get('text')}")
-        return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
+        
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "messages": messages,
+            "max_tokens": 150,
+            "temperature": 0.7
+        }
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(url, headers=headers, json=payload, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    ai_response = data["choices"][0]["message"]["content"].strip()
+                    return ai_response
+                elif response.status_code == 401:
+                    return "ขออภัย API Key ไม่ถูกต้อง กรุณาตรวจสอบการตั้งค่า"
+                elif response.status_code == 429:
+                    return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้ กรุณาลองใหม่ในภายหลัง"
+                else:
+                    logger.error(f"❌ OpenAI API Error: {response.status_code} - {response.text}")
+                    return "ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้"
+                    
+            except httpx.TimeoutException:
+                return "ขออภัย ระบบ AI ตอบสนองช้า กรุณาลองใหม่"
+            except Exception as e:
+                logger.error(f"❌ Error calling OpenAI: {e}")
+                return "ขออภัย เกิดข้อผิดพลาดในระบบ AI"
+                
+    except Exception as e:
+        logger.error(f"❌ Error in get_chat_response_async: {e}")
+        return "ขออภัย เกิดข้อผิดพลาดในระบบ"
 
 def get_chat_response(text: str, user_id: str, *, ai_enabled_override=None,
                       api_key_override=None, ai_prompt_override=None) -> str:
     """เรียกฟังก์ชัน get_chat_response_async แบบ synchronous"""
-    return asyncio.run(
-        get_chat_response_async(
-            text,
-            user_id,
-            ai_enabled_override=ai_enabled_override,
-            api_key_override=api_key_override,
-            ai_prompt_override=ai_prompt_override,
-        )
-    )
+    try:
+        # ตรวจสอบว่ามี event loop อยู่แล้วหรือไม่
+        try:
+            loop = asyncio.get_running_loop()
+            # ถ้ามี loop อยู่แล้ว ให้สร้าง task
+            future = asyncio.ensure_future(
+                get_chat_response_async(
+                    text,
+                    user_id,
+                    ai_enabled_override=ai_enabled_override,
+                    api_key_override=api_key_override,
+                    ai_prompt_override=ai_prompt_override,
+                )
+            )
+            # รอให้ task เสร็จ
+            return asyncio.run_coroutine_threadsafe(future, loop).result()
+        except RuntimeError:
+            # ถ้าไม่มี loop ให้สร้างใหม่
+            return asyncio.run(
+                get_chat_response_async(
+                    text,
+                    user_id,
+                    ai_enabled_override=ai_enabled_override,
+                    api_key_override=api_key_override,
+                    ai_prompt_override=ai_prompt_override,
+                )
+            )
+    except Exception as e:
+        logger.error(f"❌ Error in get_chat_response: {e}")
+        return "ขออภัย เกิดข้อผิดพลาดในระบบ"
