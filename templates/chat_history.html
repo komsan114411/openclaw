@@ -54,11 +54,56 @@
     </div>
 </div>
 
+<!-- Account Statistics (แสดงเมื่อเลือก Account) -->
+<div class="card mb-4" id="account-stats" style="display: none;">
+    <div class="card-header bg-info text-white">
+        <h6 class="mb-0">
+            <i class="fas fa-chart-bar me-2"></i>
+            Account Statistics: <span id="selected-account-name">-</span>
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-primary" id="account-total-messages">0</h4>
+                    <small class="text-muted">Total Messages</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-success" id="account-unique-users">0</h4>
+                    <small class="text-muted">Unique Users</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-info" id="account-inbound">0</h4>
+                    <small class="text-muted">Inbound</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-warning" id="account-outbound">0</h4>
+                    <small class="text-muted">Outbound</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <div class="row">
             <div class="col-md-3">
+                <label class="form-label">Account</label>
+                <select class="form-select" id="filter-account" onchange="filterByAccount()">
+                    <option value="">All Accounts</option>
+                    <!-- จะถูก populate ด้วย JavaScript -->
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label">Direction</label>
                 <select class="form-select" id="filter-direction" onchange="applyFilters()">
                     <option value="">All</option>
@@ -66,13 +111,16 @@
                     <option value="out">Outgoing</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Sender</label>
                 <select class="form-select" id="filter-sender" onchange="applyFilters()">
                     <option value="">All</option>
                     <option value="user">User</option>
                     <option value="ai_bot">AI Bot</option>
+                    <option value="slip_bot">Slip Bot</option>
                     <option value="system">System</option>
+                    <option value="admin">Admin</option>
+                    <option value="broadcast">Broadcast</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -80,52 +128,61 @@
                 <input type="text" class="form-control" id="search-text" 
                        placeholder="Search messages..." onkeyup="applyFilters()">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Limit</label>
-                <select class="form-select" id="limit-select" onchange="loadChatHistory()">
+                <select class="form-select" id="limit-select" onchange="reloadWithCurrentFilter()">
                     <option value="50">50 messages</option>
                     <option value="100" selected>100 messages</option>
                     <option value="200">200 messages</option>
                     <option value="500">500 messages</option>
+                    <option value="1000">1000 messages</option>
                 </select>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-1"></i>Clear Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-info" onclick="toggleAccountView()">
+                        <i class="fas fa-chart-bar me-1"></i>Account View
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
-<div class="col-md-3">
-    <label class="form-label">Account</label>
-    <select class="form-select" id="filter-account" onchange="filterByAccount()">
-        <option value="">All Accounts</option>
-        {% for acc in accounts %}
-        <option value="{{ acc.id }}" {% if selected_account == acc.id %}selected{% endif %}>
-            {{ acc.display_name }}
-        </option>
-        {% endfor %}
-    </select>
-</div>
 
 <!-- Chat History Table -->
 <div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">Message History</h5>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            Message History 
+            <span id="filter-info" class="badge bg-secondary ms-2" style="display: none;"></span>
+        </h5>
+        <div>
+            <span class="text-muted me-2">Showing: <strong id="showing-count">0</strong> messages</span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Time</th>
-                        <th>User</th>
-                        <th>Direction</th>
-                        <th>Type</th>
+                        <th width="150">Time</th>
+                        <th width="120">User</th>
+                        <th width="100">Account</th>
+                        <th width="80">Direction</th>
+                        <th width="80">Type</th>
                         <th>Message</th>
-                        <th>Sender</th>
-                        <th>Action</th>
+                        <th width="100">Sender</th>
+                        <th width="80">Action</th>
                     </tr>
                 </thead>
                 <tbody id="chat-tbody">
                     <tr>
-                        <td colspan="7" class="text-center py-4">
+                        <td colspan="8" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
@@ -136,12 +193,125 @@
         </div>
     </div>
 </div>
+
+<!-- Message Detail Modal -->
+<div class="modal fade" id="messageDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Message Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="message-detail-content">
+                <!-- Content will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let allMessages = [];
 let filteredMessages = [];
+let accountsList = [];
+let selectedAccountId = null;
+let accountViewMode = false;
+
+// Load accounts list
+async function loadAccounts() {
+    try {
+        const response = await fetch('/admin/api/accounts');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            accountsList = data.accounts || [];
+            populateAccountFilter();
+        }
+    } catch (error) {
+        console.error('Error loading accounts:', error);
+    }
+}
+
+// Populate account filter dropdown
+function populateAccountFilter() {
+    const select = document.getElementById('filter-account');
+    select.innerHTML = '<option value="">All Accounts</option>';
+    
+    accountsList.forEach(account => {
+        const option = document.createElement('option');
+        option.value = account.id;
+        option.textContent = account.display_name || `Account ${account.id.substring(0, 8)}`;
+        select.appendChild(option);
+    });
+    
+    // Check URL params for account filter
+    const urlParams = new URLSearchParams(window.location.search);
+    const accountIdParam = urlParams.get('account_id');
+    if (accountIdParam) {
+        select.value = accountIdParam;
+        filterByAccount();
+    }
+}
+
+// Filter by account
+async function filterByAccount() {
+    const accountId = document.getElementById('filter-account').value;
+    selectedAccountId = accountId;
+    
+    if (accountId) {
+        // Show account statistics
+        showAccountStats(accountId);
+        
+        // Update filter info
+        const account = accountsList.find(a => a.id === accountId);
+        const filterInfo = document.getElementById('filter-info');
+        filterInfo.textContent = account ? account.display_name : 'Filtered';
+        filterInfo.style.display = 'inline-block';
+        
+        // Load messages for specific account
+        await loadChatHistoryForAccount(accountId);
+    } else {
+        // Hide account statistics
+        document.getElementById('account-stats').style.display = 'none';
+        document.getElementById('filter-info').style.display = 'none';
+        
+        // Load all messages
+        await loadChatHistory();
+    }
+}
+
+// Show account statistics
+async function showAccountStats(accountId) {
+    const account = accountsList.find(a => a.id === accountId);
+    
+    if (account) {
+        document.getElementById('selected-account-name').textContent = 
+            account.display_name || `Account ${accountId.substring(0, 8)}`;
+        document.getElementById('account-stats').style.display = 'block';
+        
+        // Load statistics for this account
+        await loadAccountStatistics(accountId);
+    }
+}
+
+// Load account statistics
+async function loadAccountStatistics(accountId) {
+    try {
+        const response = await fetch(`/admin/api/accounts/${accountId}/statistics`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const stats = data.statistics;
+            document.getElementById('account-total-messages').textContent = stats.total_messages || 0;
+            document.getElementById('account-unique-users').textContent = stats.unique_users || 0;
+            document.getElementById('account-inbound').textContent = stats.inbound_messages || 0;
+            document.getElementById('account-outbound').textContent = stats.outbound_messages || 0;
+        }
+    } catch (error) {
+        console.error('Error loading account statistics:', error);
+    }
+}
 
 // Load chat history
 async function loadChatHistory() {
@@ -161,13 +331,21 @@ async function loadChatHistory() {
     }
 }
 
-
-function filterByAccount() {
-    const accountId = document.getElementById('filter-account').value;
-    if (accountId) {
-        window.location.href = `/admin/chat-history?account_id=${accountId}`;
-    } else {
-        window.location.href = '/admin/chat-history';
+// Load chat history for specific account
+async function loadChatHistoryForAccount(accountId) {
+    try {
+        const limit = document.getElementById('limit-select').value;
+        const response = await fetch(`/admin/api/chat-messages?account_id=${accountId}&limit=${limit}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            allMessages = data.messages || [];
+            updateStatistics();
+            applyFilters();
+        }
+    } catch (error) {
+        console.error('Error loading account chat history:', error);
+        showNotification('Error loading chat history', 'error');
     }
 }
 
@@ -218,10 +396,13 @@ function applyFilters() {
 function displayMessages() {
     const tbody = document.getElementById('chat-tbody');
     
+    // Update showing count
+    document.getElementById('showing-count').textContent = filteredMessages.length;
+    
     if (filteredMessages.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center py-4 text-muted">
+                <td colspan="8" class="text-center py-4 text-muted">
                     <i class="fas fa-comments fa-3x mb-3"></i>
                     <p>No messages found</p>
                 </td>
@@ -231,7 +412,7 @@ function displayMessages() {
     }
     
     tbody.innerHTML = filteredMessages.map(msg => {
-        const time = msg.created_at ? new Date(msg.created_at).toLocaleString('th-TH') : 'N/A';
+        const time = msg.created_at ? formatDateTime(msg.created_at) : 'N/A';
         const userId = msg.user_id ? 
             (msg.user_id.length > 10 ? msg.user_id.substring(0, 10) + '...' : msg.user_id) : 
             'Unknown';
@@ -245,16 +426,23 @@ function displayMessages() {
         const displayText = messageText.length > 100 ? 
             messageText.substring(0, 100) + '...' : messageText;
         
+        // Account Badge
+        const accountBadge = getAccountBadge(msg.account_id);
+        
+        // Type Badge
+        const typeBadge = getTypeBadge(msg.message_type);
+        
         return `
             <tr>
                 <td><small>${time}</small></td>
                 <td><small class="badge bg-secondary">${userId}</small></td>
+                <td>${accountBadge}</td>
                 <td>${directionBadge}</td>
-                <td><span class="badge bg-light text-dark">${msg.message_type || 'text'}</span></td>
-                <td>${displayText}</td>
+                <td>${typeBadge}</td>
+                <td class="text-truncate" style="max-width: 300px;" title="${escapeHtml(messageText)}">${escapeHtml(displayText)}</td>
                 <td>${senderBadge}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewMessage('${msg.id}')">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewMessage('${msg.id}', ${escapeHtml(JSON.stringify(msg))})">
                         <i class="fas fa-eye"></i>
                     </button>
                 </td>
@@ -263,32 +451,237 @@ function displayMessages() {
     }).join('');
 }
 
+// Format date time
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    
+    // ถ้าเป็นวันนี้ แสดงเวลา
+    if (date.toDateString() === now.toDateString()) {
+        return `Today ${date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // ถ้าเป็นเมื่อวาน
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+        return `Yesterday ${date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // อื่นๆ แสดงวันที่และเวลา
+    return date.toLocaleString('th-TH', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Get account badge
+function getAccountBadge(accountId) {
+    if (!accountId) return '<span class="badge bg-light text-dark">Default</span>';
+    
+    const account = accountsList.find(a => a.id === accountId);
+    const name = account ? account.display_name : accountId.substring(0, 8);
+    return `<span class="badge bg-secondary" title="${accountId}">${name}</span>`;
+}
+
+// Get type badge
+function getTypeBadge(type) {
+    const badges = {
+        'text': '<span class="badge bg-primary">Text</span>',
+        'image': '<span class="badge bg-success">Image</span>',
+        'sticker': '<span class="badge bg-warning">Sticker</span>',
+        'file': '<span class="badge bg-info">File</span>',
+        'audio': '<span class="badge bg-danger">Audio</span>',
+        'video': '<span class="badge bg-dark">Video</span>',
+        'location': '<span class="badge bg-secondary">Location</span>'
+    };
+    return badges[type] || `<span class="badge bg-light text-dark">${type || 'Unknown'}</span>`;
+}
+
 // Get sender badge
 function getSenderBadge(sender) {
     const badges = {
         'user': '<span class="badge bg-primary">User</span>',
         'ai_bot': '<span class="badge bg-info">AI Bot</span>',
         'slip_bot': '<span class="badge bg-warning">Slip Bot</span>',
-        'system': '<span class="badge bg-secondary">System</span>'
+        'system': '<span class="badge bg-secondary">System</span>',
+        'admin': '<span class="badge bg-danger">Admin</span>',
+        'broadcast': '<span class="badge bg-success">Broadcast</span>'
     };
     return badges[sender] || `<span class="badge bg-light text-dark">${sender || 'Unknown'}</span>`;
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// View message details
+function viewMessage(messageId, messageData) {
+    // Parse message data if it's a string
+    if (typeof messageData === 'string') {
+        try {
+            messageData = JSON.parse(messageData);
+        } catch (e) {
+            console.error('Error parsing message data:', e);
+            return;
+        }
+    }
+    
+    const modal = document.getElementById('messageDetailModal');
+    const content = document.getElementById('message-detail-content');
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Message Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>ID:</strong></td><td>${messageData.id || 'N/A'}</td></tr>
+                    <tr><td><strong>User ID:</strong></td><td>${messageData.user_id || 'N/A'}</td></tr>
+                    <tr><td><strong>Direction:</strong></td><td>${messageData.direction || 'N/A'}</td></tr>
+                    <tr><td><strong>Type:</strong></td><td>${messageData.message_type || 'N/A'}</td></tr>
+                    <tr><td><strong>Sender:</strong></td><td>${messageData.sender || 'N/A'}</td></tr>
+                    <tr><td><strong>Account:</strong></td><td>${getAccountName(messageData.account_id)}</td></tr>
+                    <tr><td><strong>Time:</strong></td><td>${messageData.created_at ? new Date(messageData.created_at).toLocaleString('th-TH') : 'N/A'}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Message Content</h6>
+                <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                    <pre>${escapeHtml(messageData.message_text || '[No content]')}</pre>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    new bootstrap.Modal(modal).show();
+}
+
+// Get account name helper
+function getAccountName(accountId) {
+    if (!accountId) return 'Default';
+    const account = accountsList.find(a => a.id === accountId);
+    return account ? account.display_name : accountId.substring(0, 8);
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById('filter-account').value = '';
+    document.getElementById('filter-direction').value = '';
+    document.getElementById('filter-sender').value = '';
+    document.getElementById('search-text').value = '';
+    document.getElementById('filter-info').style.display = 'none';
+    selectedAccountId = null;
+    document.getElementById('account-stats').style.display = 'none';
+    loadChatHistory();
+}
+
+// Toggle account view
+function toggleAccountView() {
+    accountViewMode = !accountViewMode;
+    if (accountViewMode) {
+        // Show account summary
+        showAccountSummary();
+    } else {
+        // Show normal view
+        applyFilters();
+    }
+}
+
+// Show account summary
+function showAccountSummary() {
+    const tbody = document.getElementById('chat-tbody');
+    
+    // Group messages by account
+    const accountGroups = {};
+    allMessages.forEach(msg => {
+        const accountId = msg.account_id || 'default';
+        if (!accountGroups[accountId]) {
+            accountGroups[accountId] = {
+                messages: 0,
+                users: new Set(),
+                inbound: 0,
+                outbound: 0,
+                lastMessage: null
+            };
+        }
+        accountGroups[accountId].messages++;
+        if (msg.user_id) accountGroups[accountId].users.add(msg.user_id);
+        if (msg.direction === 'in') accountGroups[accountId].inbound++;
+        if (msg.direction === 'out') accountGroups[accountId].outbound++;
+        
+        if (!accountGroups[accountId].lastMessage || 
+            new Date(msg.created_at) > new Date(accountGroups[accountId].lastMessage)) {
+            accountGroups[accountId].lastMessage = msg.created_at;
+        }
+    });
+    
+    // Display account summary
+    const rows = Object.entries(accountGroups).map(([accountId, data]) => {
+        const accountName = getAccountName(accountId === 'default' ? null : accountId);
+        const lastActivity = data.lastMessage ? formatDateTime(data.lastMessage) : 'N/A';
+        
+        return `
+            <tr>
+                <td colspan="2"><strong>${accountName}</strong></td>
+                <td><span class="badge bg-primary">${data.messages} messages</span></td>
+                <td><span class="badge bg-success">${data.users.size} users</span></td>
+                <td><span class="badge bg-info">${data.inbound} in</span></td>
+                <td><span class="badge bg-warning">${data.outbound} out</span></td>
+                <td colspan="2">Last: ${lastActivity}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    tbody.innerHTML = rows || '<tr><td colspan="8" class="text-center">No data</td></tr>';
+}
+
+// Reload with current filter
+function reloadWithCurrentFilter() {
+    if (selectedAccountId) {
+        loadChatHistoryForAccount(selectedAccountId);
+    } else {
+        loadChatHistory();
+    }
 }
 
 // Refresh history
 function refreshHistory() {
     showNotification('Refreshing...', 'info');
-    loadChatHistory();
+    reloadWithCurrentFilter();
 }
 
 // Export history
 function exportHistory() {
     try {
-        const dataStr = JSON.stringify(filteredMessages, null, 2);
+        const exportData = {
+            exported_at: new Date().toISOString(),
+            account: selectedAccountId ? getAccountName(selectedAccountId) : 'All Accounts',
+            total_messages: filteredMessages.length,
+            messages: filteredMessages
+        };
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
         const dataBlob = new Blob([dataStr], {type: 'application/json'});
         
         const link = document.createElement('a');
         link.href = URL.createObjectURL(dataBlob);
-        link.download = `chat-history-${new Date().toISOString().split('T')[0]}.json`;
+        const filename = selectedAccountId ? 
+            `chat-history-${getAccountName(selectedAccountId)}-${new Date().toISOString().split('T')[0]}.json` :
+            `chat-history-all-${new Date().toISOString().split('T')[0]}.json`;
+        link.download = filename;
         link.click();
         
         showNotification('Export successful', 'success');
@@ -297,18 +690,25 @@ function exportHistory() {
     }
 }
 
-// View message details
-function viewMessage(messageId) {
-    // Implementation for viewing message details
-    showNotification('View message: ' + messageId, 'info');
-}
-
 // Initialize on load
 document.addEventListener('DOMContentLoaded', function() {
+    loadAccounts();  // Load accounts first
     loadChatHistory();
     
-    // Auto refresh every 10 seconds
-    setInterval(loadChatHistory, 10000);
+    // Auto refresh every 30 seconds
+    setInterval(() => {
+        if (!document.hidden) {  // Only refresh if page is visible
+            reloadWithCurrentFilter();
+        }
+    }, 30000);
+});
+
+// Handle visibility change
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        // Page became visible, refresh data
+        reloadWithCurrentFilter();
+    }
 });
 </script>
 {% endblock %}
