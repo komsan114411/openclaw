@@ -162,9 +162,15 @@ def _extract_type_and_text(message: Dict[str, Any]) -> tuple[str, str]:
         if mtype == "image":
             mtext = "[Image]"
         elif mtype == "sticker":
-            mtext = "[Sticker]"
+            mtext = f"[Sticker: {message.get('packageId', '')}-{message.get('stickerId', '')}]"
         elif mtype == "file":
             mtext = f"[File: {message.get('fileName', 'Unknown')}]"
+        elif mtype == "video":
+            mtext = "[Video]"
+        elif mtype == "audio":
+            mtext = "[Audio]"
+        elif mtype == "location":
+            mtext = f"[Location: {message.get('title', 'Unknown')}]"
         else:
             mtext = f"[{mtype}]"
     
