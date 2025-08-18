@@ -3680,6 +3680,144 @@ async def get_account_system_messages(account_id: str):
     except Exception as e:
         logger.error(f"❌ Error getting system messages: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
+		
+		
+# เพิ่มใน main_updated.py หลังบรรทัด 2500
+
+@app.get("/admin/api/accounts")
+async def get_accounts_api():
+    """API สำหรับดึงรายการ LINE Accounts"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+            
+        account_manager = LineAccountManager(db_manager.db)
+        accounts = await account_manager.list_accounts()
+        
+        return JSONResponse({
+            "status": "success",
+            "accounts": accounts
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting accounts: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/api/accounts/{account_id}/users")
+async def get_account_users_api(account_id: str):
+    """API สำหรับดึงรายการผู้ใช้ของ Account"""
+    try:
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+        
+        # ดึงผู้ใช้ที่มีการแชทกับ account นี้
+        pipeline = [
+            {"$match": {"account_id": account_id}},
+            {
+                "$group": {
+                    "_id": "$user_id",
+                    "message_count": {"$sum": 1},
+                    "last_message": {"$max": "$created_at"},
+                    "first_message": {"$min": "$created_at"}
+                }
+            },
+            {"$sort": {"last_message": -1}},
+            {"$limit": 100}
+        ]
+        
+        users = []
+        async for doc in db_manager.db.chat_history.aggregate(pipeline):
+            # ดึงข้อมูลผู้ใช้เพิ่มเติม
+            user_info = await db_manager.db.users.find_one({"user_id": doc["_id"]})
+            
+            users.append({
+                "user_id": doc["_id"],
+                "display_name": user_info.get("display_name") if user_info else f"User {doc['_id'][:8]}",
+                "message_count": doc["message_count"],
+                "last_message": doc["last_message"].isoformat() if doc["last_message"] else None,
+                "first_message": doc["first_message"].isoformat() if doc["first_message"] else None
+            })
+        
+        return JSONResponse({
+            "status": "success",
+            "users": users
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting account users: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/api/accounts/{account_id}/users/{user_id}/chat")
+async def get_user_chat_for_account(account_id: str, user_id: str):
+    """API สำหรับดึงประวัติแชทของผู้ใช้ใน Account"""
+    try:
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+        
+        # ดึงประวัติแชท
+        cursor = db_manager.db.chat_history.find({
+            "account_id": account_id,
+            "user_id": user_id
+        }).sort("created_at", 1).limit(200)
+        
+        messages = []
+        async for doc in cursor:
+            messages.append({
+                "id": str(doc.get("_id")),
+                "direction": doc.get("direction"),
+                "message_type": doc.get("message_type"),
+                "message_text": doc.get("message_text"),
+                "sender": doc.get("sender"),
+                "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None
+            })
+        
+        return JSONResponse({
+            "status": "success",
+            "messages": messages
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting user chat: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/api/accounts/{account_id}/statistics")
+async def get_account_statistics_api(account_id: str):
+    """API สำหรับดึงสถิติของ Account"""
+    try:
+        from models.database import get_account_statistics
+        stats = await get_account_statistics(account_id)
+        
+        # เพิ่มสถิติรายวัน
+        from datetime import datetime, timedelta
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        from models.database import db_manager
+        today_count = await db_manager.db.chat_history.count_documents({
+            "account_id": account_id,
+            "created_at": {"$gte": today}
+        })
+        
+        stats["today_messages"] = today_count
+        
+        return JSONResponse({
+            "status": "success",
+            "statistics": stats
+        })
+    except Exception as e:
+        logger.error(f"❌ Error getting account statistics: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+
+@app.get("/admin/chat-multi-account")
+async def chat_multi_account_page(request: Request):
+    """หน้าแชท Multi-Account"""
+    return templates.TemplateResponse(
+        "chat_history_multi_account.html",
+        {"request": request}
+    )
 
 @app.post("/admin/users/broadcast")
 async def admin_broadcast_message(request: Request):
