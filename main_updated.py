@@ -220,9 +220,9 @@ async def safe_import_modules():
                         'test_connection': test_connection,
                         'get_connection_info': get_connection_info,
                         'get_database_status': get_database_status,
-                        'get_config': get_config,
+                        'get_config': get_config, 
                         'set_config': set_config,
-                        'get_system_messages': get_system_messages,
+                        'get_system_messages': get_system_messages, 
                         'set_system_messages': set_system_messages,
                         'get_all_chats_summary': get_all_chats_summary,
                         'get_chat_history_with_media': get_chat_history_with_media,
@@ -949,7 +949,7 @@ async def handle_slip_verification(user_id: str, reply_token: str, message_id: s
             error_msg = result.get('message', 'ไม่ทราบสาเหตุ') if result else 'ไม่มีผลลัพธ์'
             try:
                 error_flex = create_error_flex_message(error_msg)
-                push_success = await send_line_push_with_flex(user_id, [error_flex])
+                push_success = await send_line_push_flex_with_account(user_id, [error_flex])
                 
                 if not push_success:
                     await send_line_push(user_id, f"❌ ไม่สามารถตรวจสอบสลิปได้\n\n{error_msg}")
@@ -1495,7 +1495,7 @@ async def send_line_push_with_account(user_id: str, text: str, account_config: D
         }
         payload = {
             "to": user_id,
-            "messages": [{"type": "text", "text": text}]
+            "messages": [{"type": "text", "text": text}],
         }
         
         async with httpx.AsyncClient() as client:
@@ -3620,7 +3620,7 @@ async def get_kbank_status():
             "data": status
         })
     except Exception as e:
-        logger.error(f"❌ Get KBank status error: {e}")
+        logger.error(f"❌ Get Kbank status error: {e}")
         return JSONResponse({
             "status": "error",
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
