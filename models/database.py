@@ -1,4 +1,4 @@
-# models/database.py
+# models/database.py - Fixed version with proper async initialization
 from __future__ import annotations
 
 import os
@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import asyncio
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -20,24 +21,30 @@ class DBManager:
         self.client: Optional[AsyncIOMotorClient] = None
         self.db = None
         self.db_name = os.getenv("MONGODB_DBNAME", "lineoa")
-        self.is_connected = False  # เพิ่ม flag สำหรับเช็คการเชื่อมต่อ
+        self.is_connected = False
+        self._initialized = False
 
     async def init(self) -> bool:
-        """
-        เชื่อมต่อ MongoDB และเตรียม index ที่จำเป็น
-        """
+        """เชื่อมต่อ MongoDB และเตรียม index ที่จำเป็น"""
+        if self._initialized:
+            return self.is_connected
+            
         try:
             uri = os.getenv("MONGODB_URI")
             if not uri:
                 logger.error("❌ MONGODB_URI not set in environment")
                 return False
                 
-            logger.info(f"🔄 Connecting to MongoDB at {self.db_name}...")
+            logger.info(f"🔄 Connecting to MongoDB...")
             
+            # สร้าง client พร้อม options ที่เหมาะสม
             self.client = AsyncIOMotorClient(
-                uri, 
-                uuidRepresentation="standard", 
-                serverSelectionTimeoutMS=8000
+                uri,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+                socketTimeoutMS=5000,
+                maxPoolSize=50,
+                retryWrites=True
             )
             
             # เลือก database
@@ -48,54 +55,40 @@ class DBManager:
             logger.info(f"✅ Connected to MongoDB database: {self.db_name}")
             
             # สร้างดัชนีพื้นฐาน
-            try:
-                # Chat history indexes
-                await self.db.chat_history.create_index([
-                    ("user_id", pymongo.ASCENDING), 
-                    ("created_at", pymongo.DESCENDING)
-                ])
-                await self.db.chat_history.create_index([
-                    ("account_id", pymongo.ASCENDING), 
-                    ("created_at", pymongo.DESCENDING)
-                ])
-                
-                # Line accounts indexes
-                await self.db.line_accounts.create_index(
-                    "webhook_path", 
-                    unique=True, 
-                    background=True
-                )
-                await self.db.line_accounts.create_index(
-                    "display_name", 
-                    background=True
-                )
-                
-                # Other indexes
-                await self.db.raw_events.create_index([
-                    ("timestamp", pymongo.DESCENDING)
-                ], background=True)
-                await self.db.urls.create_index([
-                    ("user_id", pymongo.ASCENDING), 
-                    ("created_at", pymongo.DESCENDING)
-                ], background=True)
-                await self.db.media.create_index([
-                    ("message_id", pymongo.ASCENDING)
-                ], background=True)
-                await self.db.app_config.create_index([
-                    ("_k", pymongo.ASCENDING)
-                ], unique=True, background=True)
-                
-                logger.info("✅ Database indexes created")
-            except Exception as e:
-                logger.warning(f"⚠️ Index creation warning: {e}")
+            await self._create_indexes()
             
             self.is_connected = True
+            self._initialized = True
             return True
             
         except Exception as e:
             logger.error(f"❌ MongoDB connection failed: {e}")
             self.is_connected = False
+            self._initialized = False
             return False
+
+    async def _create_indexes(self):
+        """สร้าง indexes ที่จำเป็น"""
+        try:
+            # Chat history indexes
+            await self.db.chat_history.create_index([
+                ("user_id", pymongo.ASCENDING), 
+                ("created_at", pymongo.DESCENDING)
+            ])
+            await self.db.chat_history.create_index([
+                ("account_id", pymongo.ASCENDING), 
+                ("created_at", pymongo.DESCENDING)
+            ])
+            
+            # Line accounts indexes - ใช้ webhook_path แทนที่จะซ้ำกับ _id
+            await self.db.line_accounts.create_index(
+                "display_name", 
+                background=True
+            )
+            
+            logger.info("✅ Database indexes created")
+        except Exception as e:
+            logger.warning(f"⚠️ Index creation warning: {e}")
 
     def info(self) -> Dict[str, Any]:
         return {
@@ -117,6 +110,12 @@ class DBManager:
         except Exception:
             self.is_connected = False
             return False
+
+    async def ensure_connected(self):
+        """ตรวจสอบและเชื่อมต่อใหม่ถ้าจำเป็น"""
+        if not self.is_connected:
+            await self.init()
+        return self.is_connected
 
 # Create global instance
 db_manager = DBManager()
@@ -149,7 +148,33 @@ class ChatRecord:
             account_id=doc.get("account_id"),
         )
 
-# ----------------------------- Init / Status -----------------------------
+# ----------------------------- Helper functions -----------------------------
+
+def _extract_type_and_text(message: Dict[str, Any]) -> tuple[str, str]:
+    """ดึงชนิดและข้อความจาก message object"""
+    if not isinstance(message, dict):
+        return "text", str(message)
+    
+    mtype = message.get("type", "text")
+    mtext = message.get("text", "")
+    
+    if not mtext:
+        if mtype == "image":
+            mtext = "[Image]"
+        elif mtype == "sticker":
+            mtext = "[Sticker]"
+        elif mtype == "file":
+            mtext = f"[File: {message.get('fileName', 'Unknown')}]"
+        else:
+            mtext = f"[{mtype}]"
+    
+    return mtype, mtext
+
+def _wrap_docs(docs: List[Dict[str, Any]]) -> List[ChatRecord]:
+    """Convert MongoDB documents to ChatRecord objects"""
+    return [ChatRecord.from_doc(d) for d in docs]
+
+# ----------------------------- Core Functions -----------------------------
 
 async def init_database() -> bool:
     """Initialize database connection"""
@@ -163,6 +188,8 @@ async def init_database() -> bool:
 async def test_connection() -> Dict[str, Any]:
     """Test database connection"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return {
                 "status": "error", 
@@ -191,6 +218,8 @@ def get_connection_info() -> Dict[str, Any]:
 async def get_database_status() -> Dict[str, Any]:
     """Get comprehensive database status"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return {
                 "status": "error", 
@@ -211,38 +240,13 @@ async def get_database_status() -> Dict[str, Any]:
             "message": str(e)
         }
 
-# ----------------------------- Helpers -----------------------------
-
-def _extract_type_and_text(message: Dict[str, Any]) -> tuple[str, str]:
-    """ดึงชนิดและข้อความจาก message object"""
-    if not isinstance(message, dict):
-        return "text", str(message)
-    
-    mtype = message.get("type", "text")
-    mtext = message.get("text", "")
-    
-    if not mtext:
-        # Try to get text from other fields
-        if mtype == "image":
-            mtext = "[Image]"
-        elif mtype == "sticker":
-            mtext = "[Sticker]"
-        elif mtype == "file":
-            mtext = f"[File: {message.get('fileName', 'Unknown')}]"
-        else:
-            mtext = f"[{mtype}]"
-    
-    return mtype, mtext
-
-def _wrap_docs(docs: List[Dict[str, Any]]) -> List[ChatRecord]:
-    """Convert MongoDB documents to ChatRecord objects"""
-    return [ChatRecord.from_doc(d) for d in docs]
-
-# ----------------------------- Chat History -----------------------------
+# ----------------------------- Chat History Functions -----------------------------
 
 async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any], sender: str) -> bool:
     """Save chat history"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             logger.error("❌ Database not initialized")
             return False
@@ -250,7 +254,7 @@ async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any
         mtype, mtext = _extract_type_and_text(message)
         doc = {
             "user_id": user_id,
-            "direction": direction,  # "in" / "out"
+            "direction": direction,
             "message_type": mtype,
             "message_text": mtext,
             "message": message,
@@ -259,7 +263,7 @@ async def save_chat_history(user_id: str, direction: str, message: Dict[str, Any
             "account_id": None,
         }
         await db_manager.db.chat_history.insert_one(doc)
-        logger.debug(f"✅ Saved chat from {user_id[:10]}...")
+        logger.debug(f"✅ Saved chat from {user_id[:10] if user_id else 'unknown'}...")
         return True
     except Exception as e:
         logger.error(f"❌ Error saving chat: {e}")
@@ -274,6 +278,8 @@ async def save_chat_history_with_account(
 ) -> bool:
     """Save chat history with account ID"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             logger.error("❌ Database not initialized")
             return False
@@ -290,7 +296,7 @@ async def save_chat_history_with_account(
             "account_id": account_id,
         }
         await db_manager.db.chat_history.insert_one(doc)
-        logger.debug(f"✅ Saved chat from {user_id[:10]}... (Account: {account_id})")
+        logger.debug(f"✅ Saved chat from {user_id[:10] if user_id else 'unknown'}... (Account: {account_id})")
         return True
     except Exception as e:
         logger.error(f"❌ Error saving chat with account: {e}")
@@ -299,6 +305,8 @@ async def save_chat_history_with_account(
 async def get_chat_history_count() -> int:
     """Get total chat history count"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return 0
         return await db_manager.db.chat_history.estimated_document_count()
@@ -309,6 +317,8 @@ async def get_chat_history_count() -> int:
 async def get_recent_chat_history(limit: int = 50) -> List[ChatRecord]:
     """Get recent chat history"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return []
             
@@ -324,6 +334,8 @@ async def get_recent_chat_history(limit: int = 50) -> List[ChatRecord]:
 async def get_user_chat_history(user_id: str, limit: int = 100) -> List[ChatRecord]:
     """Get user's chat history"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return []
             
@@ -340,18 +352,17 @@ async def get_user_chat_history(user_id: str, limit: int = 100) -> List[ChatReco
         return []
 
 def get_user_chat_history_sync(user_id: str, limit: int = 100) -> List[ChatRecord]:
-    """
-    Sync version of get_user_chat_history (for backward compatibility)
-    """
-    # This won't work properly without an event loop
+    """Sync version of get_user_chat_history"""
     logger.warning("⚠️ Sync version called - returning empty list")
     return []
 
-# ----------------------------- Events / Raw -----------------------------
+# ----------------------------- Event Functions -----------------------------
 
 async def save_raw_event(event: Dict[str, Any]) -> None:
     """Save raw LINE event"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return
         await db_manager.db.raw_events.insert_one({
@@ -364,6 +375,8 @@ async def save_raw_event(event: Dict[str, Any]) -> None:
 async def save_event(owner_id: str, event_type: str, event: Dict[str, Any]) -> None:
     """Save typed event"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return
         await db_manager.db.events.insert_one({
@@ -375,7 +388,7 @@ async def save_event(owner_id: str, event_type: str, event: Dict[str, Any]) -> N
     except Exception as e:
         logger.error(f"❌ Error saving event: {e}")
 
-# ----------------------------- Extra Saves -----------------------------
+# ----------------------------- Media Functions -----------------------------
 
 async def save_media_reference(
     user_id: str, 
@@ -385,6 +398,8 @@ async def save_media_reference(
 ) -> None:
     """Save media reference"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return
         await db_manager.db.media.insert_one({
@@ -400,6 +415,8 @@ async def save_media_reference(
 async def save_media_content(message_id: str, content: bytes, media_type: str) -> None:
     """Save media content"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return
         await db_manager.db.media.update_one(
@@ -417,6 +434,8 @@ async def save_media_content(message_id: str, content: bytes, media_type: str) -
 async def save_location(user_id: str, location_message: Dict[str, Any]) -> None:
     """Save location data"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return
         await db_manager.db.locations.insert_one({
@@ -430,6 +449,8 @@ async def save_location(user_id: str, location_message: Dict[str, Any]) -> None:
 async def save_url(user_id: str, url: str) -> None:
     """Save URL"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return
         await db_manager.db.urls.insert_one({
@@ -440,11 +461,13 @@ async def save_url(user_id: str, url: str) -> None:
     except Exception as e:
         logger.error(f"❌ Error saving URL: {e}")
 
-# ----------------------------- Config Store -----------------------------
+# ----------------------------- Config Functions -----------------------------
 
 async def get_config(key: str, default: Any = None) -> Any:
     """Get configuration value"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return default
         doc = await db_manager.db.app_config.find_one({"_k": key})
@@ -458,6 +481,8 @@ async def get_config(key: str, default: Any = None) -> Any:
 async def set_config(key: str, value: Any, is_sensitive: bool = False) -> bool:
     """Set configuration value"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return False
         res = await db_manager.db.app_config.update_one(
@@ -475,7 +500,7 @@ async def set_config(key: str, value: Any, is_sensitive: bool = False) -> bool:
         logger.error(f"❌ Error setting config {key}: {e}")
         return False
 
-# ----------------------------- System Messages -----------------------------
+# ----------------------------- System Messages Functions -----------------------------
 
 def _clean_msg(v: Any, default: str = "") -> str:
     """Clean message value"""
@@ -493,31 +518,34 @@ async def get_system_messages(account_id: Optional[str] = None) -> Dict[str, str
     }
     
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return defaults
             
         if account_id:
-            # Get from line_accounts collection
-            doc = await db_manager.db.line_accounts.find_one({"_id": ObjectId(account_id)})
-            if not doc:
+            try:
+                doc = await db_manager.db.line_accounts.find_one({"_id": ObjectId(account_id)})
+                if not doc:
+                    return defaults
+
+                def pick(*keys):
+                    for k in keys:
+                        v = doc.get(k)
+                        if isinstance(v, str) and v.strip():
+                            cleaned = v.strip()
+                            if cleaned.lower() not in {"undefined", "null", "none"}:
+                                return cleaned
+                    return None
+
+                return {
+                    "ai_disabled": pick("ai_disabled", "ai_disabled_message") or defaults["ai_disabled"],
+                    "slip_disabled": pick("slip_disabled", "slip_disabled_message") or defaults["slip_disabled"],
+                    "system_disabled": pick("system_disabled", "system_disabled_message") or defaults["system_disabled"],
+                }
+            except Exception:
                 return defaults
-
-            def pick(*keys):
-                for k in keys:
-                    v = doc.get(k)
-                    if isinstance(v, str) and v.strip():
-                        cleaned = v.strip()
-                        if cleaned.lower() not in {"undefined", "null", "none"}:
-                            return cleaned
-                return None
-
-            return {
-                "ai_disabled": pick("ai_disabled", "ai_disabled_message") or defaults["ai_disabled"],
-                "slip_disabled": pick("slip_disabled", "slip_disabled_message") or defaults["slip_disabled"],
-                "system_disabled": pick("system_disabled", "system_disabled_message") or defaults["system_disabled"],
-            }
         else:
-            # Get from global config
             conf = await db_manager.db.app_config.find_one({"_k": "system_messages"}) or {}
             value = conf.get("value", {}) if conf else {}
             return {
@@ -532,6 +560,8 @@ async def get_system_messages(account_id: Optional[str] = None) -> Dict[str, str
 async def set_system_messages(messages: Dict[str, str], account_id: Optional[str] = None) -> bool:
     """Set system messages"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return False
             
@@ -543,11 +573,14 @@ async def set_system_messages(messages: Dict[str, str], account_id: Optional[str
         }
 
         if account_id:
-            res = await db_manager.db.line_accounts.update_one(
-                {"_id": ObjectId(account_id)}, 
-                {"$set": docset}
-            )
-            return res.modified_count > 0
+            try:
+                res = await db_manager.db.line_accounts.update_one(
+                    {"_id": ObjectId(account_id)}, 
+                    {"$set": docset}
+                )
+                return res.modified_count > 0
+            except Exception:
+                return False
         else:
             res = await db_manager.db.app_config.update_one(
                 {"_k": "system_messages"},
@@ -559,13 +592,13 @@ async def set_system_messages(messages: Dict[str, str], account_id: Optional[str
         logger.error(f"❌ Error setting system messages: {e}")
         return False
 
-# ----------------------------- Stats / Reports -----------------------------
-
-# เพิ่มใน models/database.py
+# ----------------------------- Statistics Functions -----------------------------
 
 async def get_account_statistics(account_id: str) -> Dict[str, Any]:
     """Get comprehensive statistics for an account"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return {
                 "total_messages": 0,
@@ -575,7 +608,6 @@ async def get_account_statistics(account_id: str) -> Dict[str, Any]:
                 "last_activity": None
             }
             
-        # นับจำนวนข้อความแยกตาม direction
         pipeline = [
             {"$match": {"account_id": account_id}},
             {
@@ -595,7 +627,6 @@ async def get_account_statistics(account_id: str) -> Dict[str, Any]:
         outbound = next((d["count"] for d in agg_results if d["_id"] == "out"), 0)
         last_activity = max((d.get("last") for d in agg_results if d.get("last")), default=None)
         
-        # นับ unique users
         unique_users_pipeline = [
             {"$match": {"account_id": account_id}},
             {"$group": {"_id": "$user_id"}},
@@ -625,6 +656,8 @@ async def get_account_statistics(account_id: str) -> Dict[str, Any]:
 async def get_account_users(account_id: str, limit: int = 100) -> List[Dict[str, Any]]:
     """Get list of users for a specific account"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return []
             
@@ -655,11 +688,14 @@ async def get_account_users(account_id: str, limit: int = 100) -> List[Dict[str,
     except Exception as e:
         logger.error(f"❌ Error getting account users: {e}")
         return []
-# ----------------------------- User Management -----------------------------
+
+# ----------------------------- User Management Functions -----------------------------
 
 async def get_user_info(user_id: str) -> Dict[str, Any]:
     """Get user information"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return {}
         doc = await db_manager.db.users.find_one({"user_id": user_id})
@@ -674,6 +710,8 @@ async def get_user_info(user_id: str) -> Dict[str, Any]:
 async def get_all_configs() -> Dict[str, Any]:
     """Get all configurations"""
     try:
+        await db_manager.ensure_connected()
+        
         if db_manager.db is None:
             return {}
         configs = {}
