@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Full Chat History{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-list {
+        height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+    
+    .chat-item {
+        cursor: pointer;
+        padding: 15px;
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.3s;
+    }
+    
+    .chat-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .chat-item.active {
+        background: #e7f3ff;
+        border-left: 4px solid #007bff;
+    }
+    
+    .message-area {
+        height: calc(100vh - 250px);
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+    }
+    
+    .message {
+        margin-bottom: 15px;
+        display: flex;
+    }
+    
+    .message.incoming {
+        justify-content: flex-start;
+    }
+    
+    .message.outgoing {
+        justify-content: flex-end;
+    }
+    
+    .message-bubble {
+        max-width: 60%;
+        padding: 10px 15px;
+        border-radius: 18px;
+    }
+    
+    .message.incoming .message-bubble {
+        background: white;
+        border-bottom-left-radius: 4px;
+    }
+    
+    .message.outgoing .message-bubble {
+        background: #007bff;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    
+    .message-media {
+        max-width: 200px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    
+    .message-time {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-top: 5px;
+    }
+    
+    .media-preview {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .media-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 24px;
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Chat List -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">All Chats</h6>
+                    <small class="text-muted" id="total-chats">Loading...</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-list" id="chat-list">
+                        <!-- Chats will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Message Area -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" id="chat-title">Select a chat</h6>
+                            <small class="text-muted" id="chat-info"></small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="refreshMessages()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="exportChat()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="message-area" id="message-area">
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-comments fa-4x mb-3"></i>
+                        <h5>Select a chat to view messages</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Media Modal -->
+<div class="modal fade" id="mediaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Media Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center" id="media-content">
+                <!-- Media will be displayed here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentChatId = null;
+let allChats = [];
+let currentMessages = [];
+
+// Load all chats
+async function loadAllChats() {
+    try {
+        const response = await fetch('/admin/api/all-chats');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            allChats = data.chats;
+            displayChats(allChats);
+            document.getElementById('total-chats').textContent = `${data.total_chats} chats`;
+        }
+    } catch (error) {
+        console.error('Error loading chats:', error);
+    }
+}
+
+// Display chat list
+function displayChats(chats) {
+    const container = document.getElementById('chat-list');
+    
+    container.innerHTML = chats.map(chat => {
+        const icon = chat.chat_type === 'group' ? 'fa-users' : 'fa-user';
+        const lastMessage = chat.last_message ? 
+            new Date(chat.last_message).toLocaleDateString() : 'Never';
+        
+        return `
+            <div class="chat-item" onclick="selectChat('${chat.chat_id}')" 
+                 data-chat-id="${chat.chat_id}">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fw-bold">
+                            <i class="fas ${icon} me-1"></i>
+                            ${chat.display_name}
+                        </div>
+                        <small class="text-muted">${chat.last_text || 'No messages'}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-primary">${chat.message_count}</span>
+                        <div><small class="text-muted">${lastMessage}</small></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Select chat
+async function selectChat(chatId) {
+    currentChatId = chatId;
+    
+    // Update UI
+    document.querySelectorAll('.chat-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`[data-chat-id="${chatId}"]`).classList.add('active');
+    
+    // Find chat info
+    const chat = allChats.find(c => c.chat_id === chatId);
+    document.getElementById('chat-title').textContent = chat.display_name;
+    document.getElementById('chat-info').textContent = 
+        `${chat.chat_type} • ${chat.message_count} messages`;
+    
+    // Load messages
+    await loadMessages(chatId);
+}
+
+// Load messages
+async function loadMessages(chatId) {
+    try {
+        const response = await fetch(`/admin/api/chat/${chatId}/full-history?include_media=true`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            currentMessages = data.messages;
+            displayMessages(data.messages);
+        }
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+// Display messages
+function displayMessages(messages) {
+    const container = document.getElementById('message-area');
+    
+    if (messages.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <h5>No messages</h5>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = messages.map(msg => {
+        const isIncoming = msg.direction === 'in';
+        const time = msg.created_at ? 
+            new Date(msg.created_at).toLocaleString() : '';
+        
+        let content = '';
+        
+        // Text message
+        if (msg.message_text) {
+            content = `<div>${escapeHtml(msg.message_text)}</div>`;
+        }
+        
+        // Media message
+        if (msg.has_media) {
+            if (msg.message_type === 'image') {
+                content = `
+                    <div class="media-preview" onclick="viewMedia('${msg.media_id}', 'image')">
+                        <img src="/admin/api/media/${msg.media_id}" 
+                             class="message-media" alt="Image">
+                        <div class="media-overlay">
+                            <i class="fas fa-search-plus"></i>
+                        </div>
+                    </div>
+                `;
+            } else if (msg.message_type === 'video') {
+                content = `
+                    <div class="media-preview" onclick="viewMedia('${msg.media_id}', 'video')">
+                        <video class="message-media">
+                            <source src="/admin/api/media/${msg.media_id}">
+                        </video>
+                        <div class="media-overlay">
+                            <i class="fas fa-play-circle"></i>
+                        </div>
+                    </div>
+                `;
+            } else if (msg.message_type === 'file') {
+                content = `
+                    <div onclick="downloadMedia('${msg.media_id}', '${msg.file_name}')">
+                        <i class="fas fa-file fa-2x"></i>
+                        <div>${msg.file_name || 'File'}</div>
+                        <small>${formatFileSize(msg.media_size)}</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // Sticker message
+        if (msg.sticker) {
+            content = `
+                <div>
+                    <i class="fas fa-sticky-note fa-2x"></i>
+                    <div>Sticker ID: ${msg.sticker.sticker_id}</div>
+                </div>
+            `;
+        }
+        
+        // Location message
+        if (msg.location) {
+            content = `
+                <div>
+                    <i class="fas fa-map-marker-alt fa-2x"></i>
+                    <div>${msg.location.title || 'Location'}</div>
+                    <small>${msg.location.address || ''}</small>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="message ${isIncoming ? 'incoming' : 'outgoing'}">
+                <div class="message-bubble">
+                    ${content}
+                    <div class="message-time">${time}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+// View media
+function viewMedia(mediaId, type) {
+    const modal = document.getElementById('mediaModal');
+    const content = document.getElementById('media-content');
+    
+    if (type === 'image') {
+        content.innerHTML = `<img src="/admin/api/media/${mediaId}" class="img-fluid">`;
+    } else if (type === 'video') {
+        content.innerHTML = `
+            <video controls class="w-100">
+                <source src="/admin/api/media/${mediaId}">
+            </video>
+        `;
+    }
+    
+    new bootstrap.Modal(modal).show();
+}
+
+// Download media
+function downloadMedia(mediaId, fileName) {
+    const a = document.createElement('a');
+    a.href = `/admin/api/media/${mediaId}`;
+    a.download = fileName || 'download';
+    a.click();
+}
+
+// Refresh messages
+function refreshMessages() {
+    if (currentChatId) {
+        loadMessages(currentChatId);
+        showNotification('Messages refreshed', 'success');
+    }
+}
+
+// Export chat
+function exportChat() {
+    if (!currentChatId || !currentMessages.length) {
+        showNotification('No chat selected', 'warning');
+        return;
+    }
+    
+    const chat = allChats.find(c => c.chat_id === currentChatId);
+    const exportData = {
+        chat_id: currentChatId,
+        chat_name: chat.display_name,
+        chat_type: chat.chat_type,
+        exported_at: new Date().toISOString(),
+        total_messages: currentMessages.length,
+        messages: currentMessages
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], 
+                          {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-${currentChatId}-${Date.now()}.json`;
+    a.click();
+    
+    showNotification('Chat exported successfully', 'success');
+}
+
+// Utilities
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatFileSize(bytes) {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', loadAllChats);
+
+// Auto refresh every 30 seconds
+setInterval(() => {
+    if (currentChatId) {
+        loadMessages(currentChatId);
+    }
+}, 30000);
+</script>
+{% endblock %}
