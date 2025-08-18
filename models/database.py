@@ -689,6 +689,217 @@ async def get_account_users(account_id: str, limit: int = 100) -> List[Dict[str,
         logger.error(f"❌ Error getting account users: {e}")
         return []
 
+
+
+async def save_chat_history_complete(
+    chat_id: str,
+    direction: str, 
+    message: Dict[str, Any],
+    sender: str,
+    account_id: Optional[str] = None,
+    is_group: bool = False
+) -> bool:
+    """บันทึก chat history แบบครบถ้วน รองรับทั้ง user และ group"""
+    try:
+        await db_manager.ensure_connected()
+        
+        if db_manager.db is None:
+            logger.error("❌ Database not initialized")
+            return False
+            
+        # เตรียมข้อมูลที่จะบันทึก
+        doc = {
+            "chat_id": chat_id,  # อาจเป็น user_id หรือ group_id
+            "user_id": message.get("user_id") if not is_group else None,
+            "group_id": message.get("group_id") if is_group else None,
+            "direction": direction,
+            "message_id": message.get("id"),
+            "message_type": message.get("type", "text"),
+            "message_text": message.get("text"),
+            "message": message,  # เก็บข้อมูลดิบทั้งหมด
+            "sender": sender,
+            "account_id": account_id,
+            "is_group": is_group,
+            "created_at": datetime.utcnow(),
+            
+            # ข้อมูลมีเดีย (ถ้ามี)
+            "media_id": message.get("media_id"),
+            "media_size": message.get("media_size"),
+            "file_name": message.get("file_name"),
+            
+            # ข้อมูล sticker (ถ้ามี)
+            "sticker_id": message.get("sticker_id"),
+            "package_id": message.get("package_id"),
+            
+            # ข้อมูล location (ถ้ามี)
+            "location": message.get("location"),
+        }
+        
+        # บันทึกลง collection
+        await db_manager.db.chat_history.insert_one(doc)
+        
+        # อัปเดตข้อมูลผู้ใช้/กลุ่ม
+        if is_group:
+            await db_manager.db.groups.update_one(
+                {"group_id": chat_id},
+                {
+                    "$set": {
+                        "last_activity": datetime.utcnow(),
+                        "account_id": account_id
+                    },
+                    "$inc": {"message_count": 1},
+                    "$setOnInsert": {
+                        "created_at": datetime.utcnow(),
+                        "group_id": chat_id
+                    }
+                },
+                upsert=True
+            )
+        else:
+            await db_manager.db.users.update_one(
+                {"user_id": chat_id},
+                {
+                    "$set": {
+                        "last_seen": datetime.utcnow(),
+                        "last_account_id": account_id
+                    },
+                    "$inc": {"message_count": 1},
+                    "$addToSet": {"account_ids": account_id} if account_id else {},
+                    "$setOnInsert": {
+                        "first_seen": datetime.utcnow(),
+                        "user_id": chat_id
+                    }
+                },
+                upsert=True
+            )
+        
+        logger.debug(f"✅ Saved complete chat from {chat_id[:10] if chat_id else 'unknown'}...")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving complete chat: {e}")
+        return False
+
+async def get_chat_history_with_media(
+    chat_id: str,
+    limit: int = 100,
+    include_media: bool = True
+) -> List[Dict[str, Any]]:
+    """ดึงประวัติแชทพร้อมข้อมูลมีเดีย"""
+    try:
+        await db_manager.ensure_connected()
+        
+        if db_manager.db is None:
+            return []
+            
+        # Query ข้อความ
+        cursor = db_manager.db.chat_history.find(
+            {"$or": [
+                {"chat_id": chat_id},
+                {"user_id": chat_id},
+                {"group_id": chat_id}
+            ]}
+        ).sort("created_at", -1).limit(int(limit))
+        
+        messages = []
+        async for doc in cursor:
+            msg = {
+                "id": str(doc.get("_id")),
+                "chat_id": doc.get("chat_id"),
+                "user_id": doc.get("user_id"),
+                "group_id": doc.get("group_id"),
+                "direction": doc.get("direction"),
+                "message_type": doc.get("message_type"),
+                "message_text": doc.get("message_text"),
+                "sender": doc.get("sender"),
+                "created_at": doc.get("created_at"),
+                "is_group": doc.get("is_group", False),
+            }
+            
+            # เพิ่มข้อมูลมีเดีย
+            if include_media and doc.get("media_id"):
+                msg["media_id"] = doc.get("media_id")
+                msg["media_size"] = doc.get("media_size")
+                msg["file_name"] = doc.get("file_name")
+                msg["has_media"] = True
+                
+            # เพิ่มข้อมูล sticker
+            if doc.get("sticker_id"):
+                msg["sticker"] = {
+                    "sticker_id": doc.get("sticker_id"),
+                    "package_id": doc.get("package_id")
+                }
+                
+            # เพิ่มข้อมูล location
+            if doc.get("location"):
+                msg["location"] = doc.get("location")
+                
+            messages.append(msg)
+        
+        # เรียงลำดับตามเวลา (เก่าสุดก่อน)
+        messages.reverse()
+        return messages
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting chat history with media: {e}")
+        return []
+
+async def get_all_chats_summary() -> List[Dict[str, Any]]:
+    """ดึงสรุปแชททั้งหมด (ทั้ง users และ groups)"""
+    try:
+        await db_manager.ensure_connected()
+        
+        if db_manager.db is None:
+            return []
+            
+        # Aggregate เพื่อดึงสรุป
+        pipeline = [
+            {
+                "$group": {
+                    "_id": "$chat_id",
+                    "message_count": {"$sum": 1},
+                    "last_message": {"$max": "$created_at"},
+                    "first_message": {"$min": "$created_at"},
+                    "is_group": {"$first": "$is_group"},
+                    "last_text": {"$last": "$message_text"},
+                    "last_sender": {"$last": "$sender"}
+                }
+            },
+            {"$sort": {"last_message": -1}}
+        ]
+        
+        chats = []
+        async for doc in db_manager.db.chat_history.aggregate(pipeline):
+            chat_id = doc["_id"]
+            is_group = doc.get("is_group", False)
+            
+            # ดึงข้อมูลเพิ่มเติม
+            if is_group:
+                group_info = await db_manager.db.groups.find_one({"group_id": chat_id})
+                display_name = group_info.get("group_name") if group_info else f"Group {chat_id[:8]}"
+                chat_type = "group"
+            else:
+                user_info = await db_manager.db.users.find_one({"user_id": chat_id})
+                display_name = user_info.get("display_name") if user_info else f"User {chat_id[:8]}"
+                chat_type = "user"
+            
+            chats.append({
+                "chat_id": chat_id,
+                "display_name": display_name,
+                "chat_type": chat_type,
+                "message_count": doc["message_count"],
+                "last_message": doc["last_message"],
+                "first_message": doc["first_message"],
+                "last_text": doc.get("last_text"),
+                "last_sender": doc.get("last_sender")
+            })
+        
+        return chats
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting chats summary: {e}")
+        return []
+		
 # ----------------------------- User Management Functions -----------------------------
 
 async def get_user_info(user_id: str) -> Dict[str, Any]:
