@@ -164,39 +164,84 @@ async def safe_import_modules():
         # Database functions - Initialize async
         database_import_success = False
         try:
+            # Import all database functions
             from models.database import (
-                init_database, save_chat_history, get_chat_history_count, 
-                get_recent_chat_history, get_user_chat_history, test_connection,
-                get_connection_info, get_database_status, get_config, set_config,
-                get_user_chat_history_sync, save_chat_history_with_account,
-                get_system_messages, set_system_messages  # เพิ่มบรรทัดนี้
+                init_database, 
+                save_chat_history, 
+                save_chat_history_with_account,
+                save_chat_history_complete,
+                get_chat_history_count, 
+                get_recent_chat_history, 
+                get_user_chat_history,
+                get_user_chat_history_sync,
+                test_connection,
+                get_connection_info, 
+                get_database_status, 
+                get_config, 
+                set_config,
+                get_system_messages, 
+                set_system_messages,
+                get_all_chats_summary,
+                get_chat_history_with_media,
+                get_account_statistics,
+                get_account_users,
+                get_user_info,
+                save_raw_event,
+                save_event,
+                save_media_reference,
+                save_media_content,
+                save_location,
+                save_url,
+                get_all_configs
             )
             
-            # Initialize database
+            # Initialize database - MUST AWAIT!
+            logger.info("📊 Initializing MongoDB...")
             init_result = await init_database()
             
             # Check initialization result properly
-            if init_result is True:  # Use explicit comparison
+            if init_result is True:
                 logger.info("✅ Database initialized successfully")
                 
-                database_functions = {
-                    'init_database': init_database,
-                    'save_chat_history': save_chat_history,
-                    'save_chat_history_with_account': save_chat_history_with_account,
-                    'get_chat_history_count': get_chat_history_count,
-                    'get_recent_chat_history': get_recent_chat_history,
-                    'get_user_chat_history': get_user_chat_history,
-                    'get_user_chat_history_sync': get_user_chat_history_sync,
-                    'test_connection': test_connection,
-                    'get_connection_info': get_connection_info,
-                    'get_database_status': get_database_status,
-                    'get_config': get_config,
-                    'set_config': set_config,
-                    'get_system_messages': get_system_messages,  # เพิ่มบรรทัดนี้
-                    'set_system_messages': set_system_messages   # เพิ่มบรรทัดนี้
-                }
-                database_import_success = True
-                logger.info("✅ Database functions imported successfully")
+                # Test connection
+                test_result = await test_connection()
+                logger.info(f"🧪 Database test: {test_result}")
+                
+                if test_result.get('status') == 'connected':
+                    database_functions = {
+                        'init_database': init_database,
+                        'save_chat_history': save_chat_history,
+                        'save_chat_history_with_account': save_chat_history_with_account,
+                        'save_chat_history_complete': save_chat_history_complete,
+                        'get_chat_history_count': get_chat_history_count,
+                        'get_recent_chat_history': get_recent_chat_history,
+                        'get_user_chat_history': get_user_chat_history,
+                        'get_user_chat_history_sync': get_user_chat_history_sync,
+                        'test_connection': test_connection,
+                        'get_connection_info': get_connection_info,
+                        'get_database_status': get_database_status,
+                        'get_config': get_config,
+                        'set_config': set_config,
+                        'get_system_messages': get_system_messages,
+                        'set_system_messages': set_system_messages,
+                        'get_all_chats_summary': get_all_chats_summary,
+                        'get_chat_history_with_media': get_chat_history_with_media,
+                        'get_account_statistics': get_account_statistics,
+                        'get_account_users': get_account_users,
+                        'get_user_info': get_user_info,
+                        'save_raw_event': save_raw_event,
+                        'save_event': save_event,
+                        'save_media_reference': save_media_reference,
+                        'save_media_content': save_media_content,
+                        'save_location': save_location,
+                        'save_url': save_url,
+                        'get_all_configs': get_all_configs
+                    }
+                    database_import_success = True
+                    logger.info("✅ Database functions imported successfully")
+                else:
+                    logger.error(f"❌ Database test failed: {test_result}")
+                    database_import_success = False
             else:
                 logger.error("❌ Database initialization returned False")
                 database_import_success = False
@@ -216,6 +261,10 @@ async def safe_import_modules():
             
             async def dummy_save_with_account(u, d, m, s, a):
                 logger.debug(f"Dummy save with account: {u[:10] if u else 'unknown'}")
+                return False
+            
+            async def dummy_save_complete(chat_id, direction, message, sender, account_id=None, is_group=False):
+                logger.debug(f"Dummy save complete: {chat_id[:10] if chat_id else 'unknown'}")
                 return False
             
             async def dummy_count():
@@ -246,7 +295,6 @@ async def safe_import_modules():
                 return False
             
             async def dummy_get_system_messages(account_id=None):
-                """Dummy function for system messages"""
                 return {
                     "ai_disabled": "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว",
                     "slip_disabled": "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว",
@@ -254,13 +302,34 @@ async def safe_import_modules():
                 }
             
             async def dummy_set_system_messages(messages, account_id=None):
-                """Dummy function for setting system messages"""
                 return False
+            
+            async def dummy_get_all_chats():
+                return []
+            
+            async def dummy_get_chat_with_media(chat_id, limit=100, include_media=True):
+                return []
+            
+            async def dummy_get_account_stats(account_id):
+                return {"total_messages": 0, "unique_users": 0}
+            
+            async def dummy_get_account_users(account_id, limit=100):
+                return []
+            
+            async def dummy_get_user_info(user_id):
+                return {}
+            
+            async def dummy_save_event(event):
+                return False
+            
+            async def dummy_get_all_configs():
+                return {}
                 
             database_functions = {
                 'init_database': lambda: False,
                 'save_chat_history': dummy_save,
                 'save_chat_history_with_account': dummy_save_with_account,
+                'save_chat_history_complete': dummy_save_complete,
                 'get_chat_history_count': dummy_count,
                 'get_recent_chat_history': dummy_recent,
                 'get_user_chat_history': dummy_user_history,
@@ -270,20 +339,36 @@ async def safe_import_modules():
                 'get_database_status': dummy_get_status,
                 'get_config': dummy_get_config,
                 'set_config': dummy_set_config,
-                'get_system_messages': dummy_get_system_messages,  # เพิ่มบรรทัดนี้
-                'set_system_messages': dummy_set_system_messages   # เพิ่มบรรทัดนี้
+                'get_system_messages': dummy_get_system_messages,
+                'set_system_messages': dummy_set_system_messages,
+                'get_all_chats_summary': dummy_get_all_chats,
+                'get_chat_history_with_media': dummy_get_chat_with_media,
+                'get_account_statistics': dummy_get_account_stats,
+                'get_account_users': dummy_get_account_users,
+                'get_user_info': dummy_get_user_info,
+                'save_raw_event': dummy_save_event,
+                'save_event': lambda o, t, e: dummy_save_event(e),
+                'save_media_reference': lambda u, m, t, d: dummy_save_event(d),
+                'save_media_content': lambda m, c, t: dummy_save_event({}),
+                'save_location': lambda u, l: dummy_save_event(l),
+                'save_url': lambda u, url: dummy_save_event({"url": url}),
+                'get_all_configs': dummy_get_all_configs
             }
         
         # Import AI modules
         try:
-            from services.chat_bot import get_chat_response
+            from services.chat_bot import get_chat_response, get_chat_response_async
             ai_functions['get_chat_response'] = get_chat_response
+            ai_functions['get_chat_response_async'] = get_chat_response_async
             logger.info("✅ AI modules imported")
         except Exception as e:
             logger.warning(f"⚠️ AI module import failed: {e}")
             def dummy_chat_response(text, user_id):
                 return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
+            async def dummy_chat_response_async(text, user_id, **kwargs):
+                return "ขออภัย ระบบ AI ไม่พร้อมใช้งานในขณะนี้"
             ai_functions['get_chat_response'] = dummy_chat_response
+            ai_functions['get_chat_response_async'] = dummy_chat_response_async
 
         # Import Slip verification modules
         try:
@@ -349,6 +434,9 @@ async def safe_import_modules():
         )
         
         return False
+		
+		
+		
 # Lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -964,15 +1052,19 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         message = event.get("message", {}) or {}
         user_id = event.get("source", {}).get("userId")
         group_id = event.get("source", {}).get("groupId")
+        room_id = event.get("source", {}).get("roomId")
         reply_token = event.get("replyToken")
         message_type = message.get("type")
         message_id = message.get("id")
+        timestamp = event.get("timestamp")
 
         account_id = event.get("_account_id")
         account_config = event.get("_account_config", {}) or {}
 
-        # ใช้ group_id ถ้าเป็นข้อความจากกลุ่ม
-        chat_id = group_id or user_id
+        # กำหนด chat_id และประเภทแชท
+        chat_id = group_id or room_id or user_id
+        is_group = bool(group_id or room_id)
+        
         if not chat_id:
             logger.error("❌ Missing chat ID in message event")
             return
@@ -981,31 +1073,30 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
 
         # บันทึกข้อความขาเข้าทันที พร้อมข้อมูลเพิ่มเติม
         try:
-            # ตรวจสอบ database functions
-            if not database_functions:
-                logger.error("❌ Database functions not loaded")
-                # พยายาม import ใหม่
-                from models.database import save_chat_history, save_chat_history_with_account
-                if account_id:
-                    await save_chat_history_with_account(
-                        chat_id, "in", message, "user", account_id
-                    )
-                else:
-                    await save_chat_history(chat_id, "in", message, "user")
-            else:
-                # สร้างข้อมูลที่จะบันทึก
-                incoming = {
-                    "type": message_type,
-                    "id": message_id,
-                    "text": message.get("text", "") if message_type == "text" else None,
-                    "timestamp": event.get("timestamp"),
-                    "source_type": "group" if group_id else "user",
-                    "group_id": group_id,
-                    "user_id": user_id
-                }
+            # เตรียมข้อมูลที่จะบันทึก
+            incoming_message = {
+                "type": message_type,
+                "id": message_id,
+                "text": message.get("text", "") if message_type == "text" else None,
+                "timestamp": timestamp,
+                "source_type": "group" if is_group else "user",
+                "user_id": user_id,
+                "group_id": group_id,
+                "room_id": room_id
+            }
+            
+            # สำหรับรูปภาพ/วิดีโอ/ไฟล์ - เก็บข้อมูลเพิ่มเติม
+            if message_type in ["image", "video", "audio", "file"]:
+                incoming_message["content_provider"] = message.get("contentProvider", {})
+                incoming_message["duration"] = message.get("duration")
                 
-                # สำหรับรูปภาพ/วิดีโอ/ไฟล์ - ดาวน์โหลดและเก็บทันที
-                if message_type in ["image", "video", "audio", "file"]:
+                # สำหรับไฟล์ เก็บชื่อและขนาด
+                if message_type == "file":
+                    incoming_message["file_name"] = message.get("fileName")
+                    incoming_message["file_size"] = message.get("fileSize")
+                    
+                # พยายามดาวน์โหลดและเก็บมีเดีย (ถ้าต้องการ)
+                if config_manager and config_manager.get("auto_download_media", False):
                     try:
                         media_content = await download_line_content(message_id, account_config)
                         if media_content:
@@ -1016,57 +1107,62 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                                 message_type,
                                 chat_id
                             )
-                            incoming["media_id"] = media_id
-                            incoming["media_size"] = len(media_content)
-                            incoming["content_provider"] = message.get("contentProvider", {})
-                            
-                            # สำหรับไฟล์ เก็บชื่อไฟล์ด้วย
-                            if message_type == "file":
-                                incoming["file_name"] = message.get("fileName")
-                                incoming["file_size"] = message.get("fileSize")
+                            incoming_message["media_id"] = media_id
+                            incoming_message["media_size"] = len(media_content)
                     except Exception as e:
                         logger.warning(f"⚠️ Could not download media: {e}")
-                
-                # สำหรับ sticker
-                elif message_type == "sticker":
-                    incoming["sticker_id"] = message.get("stickerId")
-                    incoming["package_id"] = message.get("packageId")
-                    incoming["sticker_resource_type"] = message.get("stickerResourceType")
-                
-                # สำหรับ location
-                elif message_type == "location":
-                    incoming["location"] = {
-                        "title": message.get("title"),
-                        "address": message.get("address"),
-                        "latitude": message.get("latitude"),
-                        "longitude": message.get("longitude")
-                    }
-                
-                # บันทึกลงฐานข้อมูล
-                if 'save_chat_history_with_account' in database_functions and account_id:
-                    result = await database_functions['save_chat_history_with_account'](
-                        chat_id, "in", incoming, "user", account_id
+            
+            # สำหรับ sticker
+            elif message_type == "sticker":
+                incoming_message["sticker_id"] = message.get("stickerId")
+                incoming_message["package_id"] = message.get("packageId")
+                incoming_message["sticker_resource_type"] = message.get("stickerResourceType")
+                incoming_message["keywords"] = message.get("keywords", [])
+            
+            # สำหรับ location
+            elif message_type == "location":
+                incoming_message["location"] = {
+                    "title": message.get("title"),
+                    "address": message.get("address"),
+                    "latitude": message.get("latitude"),
+                    "longitude": message.get("longitude")
+                }
+            
+            # บันทึกลงฐานข้อมูล
+            save_success = False
+            if database_functions:
+                # ลองใช้ฟังก์ชันที่เหมาะสมที่สุดก่อน
+                if 'save_chat_history_complete' in database_functions:
+                    save_success = await database_functions['save_chat_history_complete'](
+                        chat_id=chat_id,
+                        direction="in",
+                        message=incoming_message,
+                        sender="user",
+                        account_id=account_id,
+                        is_group=is_group
                     )
-                    if result:
-                        logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}... with account")
-                    else:
-                        logger.error(f"❌ Failed to save message with account")
+                elif 'save_chat_history_with_account' in database_functions and account_id:
+                    save_success = await database_functions['save_chat_history_with_account'](
+                        chat_id, "in", incoming_message, "user", account_id
+                    )
                 elif 'save_chat_history' in database_functions:
-                    result = await database_functions['save_chat_history'](
-                        chat_id, "in", incoming, "user"
+                    save_success = await database_functions['save_chat_history'](
+                        chat_id, "in", incoming_message, "user"
                     )
-                    if result:
-                        logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}...")
-                    else:
-                        logger.error(f"❌ Failed to save message")
                 else:
                     logger.error("❌ No save function available in database_functions")
-                    
+                
+                if save_success:
+                    logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}...")
+                else:
+                    logger.error(f"❌ Failed to save message from {chat_id[:10]}...")
+            else:
+                logger.error("❌ Database functions not loaded")
+                
         except Exception as e:
             logger.error(f"❌ Error saving incoming message: {e}")
             logger.exception(e)
 
-        # ส่วนประมวลผลตามเดิม (AI, Slip verification)
         # โหลด config เพิ่มเติมถ้า event ไม่มี
         if not account_config and account_id:
             account_config = await load_account_config(account_id)
@@ -1076,10 +1172,8 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         ai_enabled = bool(account_config.get("ai_enabled", config_manager.get("ai_enabled", False)))
         slip_enabled = bool(account_config.get("slip_enabled", config_manager.get("slip_enabled", False)))
 
-        # ดึงข้อความระบบและ normalize ให้เป็นมาตรฐาน
+        # ดึงข้อความระบบและ normalize
         system_messages = {}
-        
-        # ลองดึงข้อความที่กำหนดเอง
         if database_functions and 'get_system_messages' in database_functions:
             try:
                 custom = await database_functions['get_system_messages'](account_id)
@@ -1091,7 +1185,7 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         else:
             system_messages = normalize_system_messages(None)
 
-        # ✅ ปิดทั้งระบบ → ตอบ system_disabled และหยุด
+        # ปิดทั้งระบบ → ตอบ system_disabled และหยุด
         if not thunder_enabled and not ai_enabled and not slip_enabled:
             reply_msg = system_messages.get("system_disabled", "ขออภัย ระบบกำลังปิดปรับปรุง")
             if reply_msg:
@@ -1130,7 +1224,7 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                             message_id=message.get("id"), slip_info=slip_info
                         )
                 else:
-                    # ปิด Slip → ตอบตามที่ตั้งไว้ แล้วจบ
+                    # ปิด Slip → ตอบตามที่ตั้งไว้
                     msg = system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
                     if msg:
                         await (send_line_reply_with_account(reply_token, msg, account_config)
@@ -1170,25 +1264,36 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
             return
 
         elif message_type == "sticker":
-            # บันทึก sticker แล้วตอบกลับด้วย sticker หรือข้อความ
+            # บันทึก sticker แล้วตอบกลับด้วยข้อความ
             sticker_msg = "ขอบคุณสำหรับสติกเกอร์ครับ 😊"
-            await send_line_reply(reply_token, sticker_msg)
-            await save_chat_with_account(chat_id, "out", {"type": "text", "text": sticker_msg}, "system", account_id)
+            sent = await send_line_reply(reply_token, sticker_msg)
+            if sent:
+                await save_chat_with_account(chat_id, "out", {"type": "text", "text": sticker_msg}, "system", account_id)
             return
 
         elif message_type == "location":
             # บันทึก location แล้วตอบกลับ
             location_msg = "ขอบคุณสำหรับตำแหน่งที่ตั้งครับ 📍"
-            await send_line_reply(reply_token, location_msg)
-            await save_chat_with_account(chat_id, "out", {"type": "text", "text": location_msg}, "system", account_id)
+            sent = await send_line_reply(reply_token, location_msg)
+            if sent:
+                await save_chat_with_account(chat_id, "out", {"type": "text", "text": location_msg}, "system", account_id)
+            return
+
+        elif message_type in ["video", "audio", "file"]:
+            # บันทึกไฟล์แล้วตอบกลับ
+            file_msg = f"ได้รับ{message_type}แล้วครับ 📎"
+            sent = await send_line_reply(reply_token, file_msg)
+            if sent:
+                await save_chat_with_account(chat_id, "out", {"type": "text", "text": file_msg}, "system", account_id)
             return
 
         # ชนิดอื่น ๆ
         default_msg = system_messages.get("unsupported_message", "ขออภัย ระบบรองรับเฉพาะข้อความและรูปภาพเท่านั้น")
         if default_msg:
-            await (send_line_reply_with_account(reply_token, default_msg, account_config)
+            sent = await (send_line_reply_with_account(reply_token, default_msg, account_config)
                    if account_config else send_line_reply(reply_token, default_msg))
-            await save_chat_with_account(chat_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
+            if sent:
+                await save_chat_with_account(chat_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
     
     except Exception as e:
         logger.error(f"❌ Error in handle_message_event: {e}")
