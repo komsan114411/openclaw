@@ -3595,6 +3595,72 @@ async def update_account_system_messages(account_id: str, request: Request):
     except Exception as e:
         logger.error(f"❌ Error updating system messages: {e}")
         return JSONResponse({"status": "error", "message": str(e)})
+		
+		
+# เพิ่มใน main_updated.py
+
+@app.get("/admin/accounts/{account_id}/dashboard")
+async def account_dashboard(account_id: str, request: Request):
+    """Account Dashboard page"""
+    try:
+        from models.line_account_manager import LineAccountManager
+        from models.database import db_manager, get_account_statistics, get_account_users
+        
+        if db_manager.db is None:
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "message": "Database not initialized"
+            })
+            
+        account_manager = LineAccountManager(db_manager.db)
+        account = await account_manager.get_account(account_id)
+        
+        if account is None:
+            return templates.TemplateResponse("error.html", {
+                "request": request,
+                "message": "Account not found"
+            })
+        
+        # Get statistics
+        stats = await get_account_statistics(account_id)
+        
+        # Get recent users
+        recent_users = await get_account_users(account_id, limit=10)
+        
+        # Get activity data for chart (last 7 days)
+        from datetime import datetime, timedelta
+        chart_labels = []
+        chart_data = []
+        
+        for i in range(6, -1, -1):
+            date = datetime.now() - timedelta(days=i)
+            chart_labels.append(date.strftime("%m/%d"))
+            
+            # Count messages for this day
+            start = datetime(date.year, date.month, date.day)
+            end = start + timedelta(days=1)
+            
+            count = await db_manager.db.chat_history.count_documents({
+                "account_id": account_id,
+                "created_at": {"$gte": start, "$lt": end}
+            })
+            chart_data.append(count)
+        
+        return templates.TemplateResponse("account_dashboard.html", {
+            "request": request,
+            "account": account,
+            "stats": stats,
+            "recent_users": recent_users,
+            "chart_labels": chart_labels,
+            "chart_data": chart_data
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error loading account dashboard: {e}")
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "message": str(e)
+        })
 
 @app.get("/admin/accounts/{account_id}/system-messages")
 async def get_account_system_messages(account_id: str):
