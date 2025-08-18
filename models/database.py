@@ -850,9 +850,10 @@ async def get_all_chats_summary() -> List[Dict[str, Any]]:
         await db_manager.ensure_connected()
         
         if db_manager.db is None:
+            logger.error("Database not initialized")
             return []
             
-        # Aggregate เพื่อดึงสรุป
+        # Query แชททั้งหมดจาก collection chat_history
         pipeline = [
             {
                 "$group": {
@@ -860,46 +861,67 @@ async def get_all_chats_summary() -> List[Dict[str, Any]]:
                     "message_count": {"$sum": 1},
                     "last_message": {"$max": "$created_at"},
                     "first_message": {"$min": "$created_at"},
-                    "is_group": {"$first": "$is_group"},
-                    "last_text": {"$last": "$message_text"},
-                    "last_sender": {"$last": "$sender"}
+                    "last_text": {"$last": "$message"},
+                    "last_sender": {"$last": "$sender"},
+                    "direction": {"$last": "$direction"}
                 }
             },
-            {"$sort": {"last_message": -1}}
+            {"$sort": {"last_message": -1}},
+            {"$limit": 100}  # จำกัดไม่เกิน 100 แชท
         ]
         
         chats = []
-        async for doc in db_manager.db.chat_history.aggregate(pipeline):
-            chat_id = doc["_id"]
-            is_group = doc.get("is_group", False)
-            
-            # ดึงข้อมูลเพิ่มเติม
-            if is_group:
-                group_info = await db_manager.db.groups.find_one({"group_id": chat_id})
-                display_name = group_info.get("group_name") if group_info else f"Group {chat_id[:8]}"
-                chat_type = "group"
-            else:
-                user_info = await db_manager.db.users.find_one({"user_id": chat_id})
-                display_name = user_info.get("display_name") if user_info else f"User {chat_id[:8]}"
-                chat_type = "user"
-            
-            chats.append({
-                "chat_id": chat_id,
-                "display_name": display_name,
-                "chat_type": chat_type,
-                "message_count": doc["message_count"],
-                "last_message": doc["last_message"],
-                "first_message": doc["first_message"],
-                "last_text": doc.get("last_text"),
-                "last_sender": doc.get("last_sender")
-            })
+        cursor = db_manager.db.chat_history.aggregate(pipeline)
         
+        async for doc in cursor:
+            try:
+                chat_id = doc.get("_id")
+                if not chat_id:
+                    continue
+                    
+                # ค้นหาข้อมูลผู้ใช้
+                user_info = await db_manager.db.users.find_one({"user_id": chat_id})
+                
+                # ตรวจสอบว่าเป็น group หรือไม่
+                is_group = chat_id.startswith("C") or chat_id.startswith("R")
+                
+                # กำหนดชื่อแสดง
+                if user_info and user_info.get("display_name"):
+                    display_name = user_info.get("display_name")
+                elif is_group:
+                    display_name = f"Group {chat_id[:8]}..."
+                else:
+                    display_name = f"User {chat_id[:8]}..."
+                
+                # ดึงข้อความล่าสุด
+                last_text = ""
+                if isinstance(doc.get("last_text"), dict):
+                    last_text = doc.get("last_text", {}).get("text", "")
+                elif isinstance(doc.get("last_text"), str):
+                    last_text = doc.get("last_text", "")
+                
+                chats.append({
+                    "chat_id": chat_id,
+                    "display_name": display_name,
+                    "chat_type": "group" if is_group else "user",
+                    "message_count": doc.get("message_count", 0),
+                    "last_message": doc.get("last_message"),
+                    "first_message": doc.get("first_message"),
+                    "last_text": last_text[:50] if last_text else "",  # จำกัดความยาว
+                    "last_sender": doc.get("last_sender", "Unknown")
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing chat {doc.get('_id')}: {e}")
+                continue
+        
+        logger.info(f"Found {len(chats)} chats")
         return chats
         
     except Exception as e:
         logger.error(f"❌ Error getting chats summary: {e}")
+        logger.exception(e)
         return []
-		
 # ----------------------------- User Management Functions -----------------------------
 
 async def get_user_info(user_id: str) -> Dict[str, Any]:
