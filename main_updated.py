@@ -1086,7 +1086,7 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
             await (send_line_reply_with_account(reply_token, default_msg, account_config)
                    if account_config else send_line_reply(reply_token, default_msg))
             await save_chat_with_account(user_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
-        
+    
     except Exception as e:
         logger.error(f"❌ Error in handle_message_event: {e}")
         logger.exception(e)
@@ -2066,6 +2066,70 @@ async def force_kbank_sandbox():
             "message": f"เกิดข้อผิดพลาด: {str(e)}"
         })
 
+
+
+@app.get("/admin/api/accounts/{account_id}/chat-history")
+async def get_account_chat_history(account_id: str, limit: int = 100):
+    """ดึงประวัติแชททั้งหมดของ account"""
+    try:
+        from models.database import db_manager
+        
+        if db_manager.db is None:
+            return JSONResponse({"status": "error", "message": "Database not initialized"})
+        
+        # ดึงประวัติแชทของ account นี้
+        cursor = db_manager.db.chat_history.find({
+            "account_id": account_id
+        }).sort("created_at", -1).limit(limit)
+        
+        messages = []
+        async for doc in cursor:
+            messages.append({
+                "id": str(doc.get("_id")),
+                "user_id": doc.get("user_id"),
+                "direction": doc.get("direction"),
+                "message_type": doc.get("message_type"),
+                "message_text": doc.get("message_text"),
+                "sender": doc.get("sender"),
+                "created_at": doc.get("created_at").isoformat() if doc.get("created_at") else None,
+                "account_id": doc.get("account_id")
+            })
+        
+        # จัดกลุ่มตาม user_id
+        users_dict = {}
+        for msg in messages:
+            uid = msg.get("user_id")
+            if uid:
+                if uid not in users_dict:
+                    users_dict[uid] = {
+                        "user_id": uid,
+                        "messages": [],
+                        "message_count": 0,
+                        "last_message": None
+                    }
+                users_dict[uid]["messages"].append(msg)
+                users_dict[uid]["message_count"] += 1
+                
+                # Update last message time
+                msg_time = msg.get("created_at")
+                if msg_time:
+                    if not users_dict[uid]["last_message"] or msg_time > users_dict[uid]["last_message"]:
+                        users_dict[uid]["last_message"] = msg_time
+        
+        return JSONResponse({
+            "status": "success",
+            "account_id": account_id,
+            "total_messages": len(messages),
+            "unique_users": len(users_dict),
+            "users": list(users_dict.values()),
+            "messages": messages
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting account chat history: {e}")
+        return JSONResponse({"status": "error", "message": str(e)})
+		
+		
 @app.post("/admin/kbank/test-slip-demo")
 async def test_kbank_slip_demo():
     """ทดสอบ KBank Slip Verification ด้วยข้อมูลตัวอย่าง"""
