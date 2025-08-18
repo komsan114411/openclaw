@@ -963,10 +963,10 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
     try:
         message = event.get("message", {}) or {}
         user_id = event.get("source", {}).get("userId")
-        group_id = event.get("source", {}).get("groupId")  # เพิ่มการจัดการกลุ่ม
+        group_id = event.get("source", {}).get("groupId")
         reply_token = event.get("replyToken")
         message_type = message.get("type")
-        message_id = message.get("id")  # สำคัญสำหรับการดาวน์โหลดรูป
+        message_id = message.get("id")
 
         account_id = event.get("_account_id")
         account_config = event.get("_account_config", {}) or {}
@@ -981,55 +981,90 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
 
         # บันทึกข้อความขาเข้าทันที พร้อมข้อมูลเพิ่มเติม
         try:
-            incoming = {
-                "type": message_type,
-                "id": message_id,  # เก็บ message_id สำหรับดาวน์โหลดภายหลัง
-                "text": message.get("text", "") if message_type == "text" else None,
-                "timestamp": event.get("timestamp"),
-                "source_type": "group" if group_id else "user",
-                "group_id": group_id,
-                "user_id": user_id
-            }
-            
-            # สำหรับรูปภาพ/วิดีโอ/ไฟล์ - ดาวน์โหลดและเก็บทันที
-            if message_type in ["image", "video", "audio", "file"]:
-                media_content = await download_line_content(message_id, account_config)
-                if media_content:
-                    # บันทึกไฟล์ลง GridFS หรือ storage
-                    media_id = await save_media_to_storage(
-                        message_id, 
-                        media_content, 
-                        message_type,
-                        chat_id
+            # ตรวจสอบ database functions
+            if not database_functions:
+                logger.error("❌ Database functions not loaded")
+                # พยายาม import ใหม่
+                from models.database import save_chat_history, save_chat_history_with_account
+                if account_id:
+                    await save_chat_history_with_account(
+                        chat_id, "in", message, "user", account_id
                     )
-                    incoming["media_id"] = media_id
-                    incoming["media_size"] = len(media_content)
-                    incoming["content_provider"] = message.get("contentProvider", {})
-                    
-                    # สำหรับไฟล์ เก็บชื่อไฟล์ด้วย
-                    if message_type == "file":
-                        incoming["file_name"] = message.get("fileName")
-                        incoming["file_size"] = message.get("fileSize")
-            
-            # สำหรับ sticker
-            elif message_type == "sticker":
-                incoming["sticker_id"] = message.get("stickerId")
-                incoming["package_id"] = message.get("packageId")
-                incoming["sticker_resource_type"] = message.get("stickerResourceType")
-            
-            # สำหรับ location
-            elif message_type == "location":
-                incoming["location"] = {
-                    "title": message.get("title"),
-                    "address": message.get("address"),
-                    "latitude": message.get("latitude"),
-                    "longitude": message.get("longitude")
+                else:
+                    await save_chat_history(chat_id, "in", message, "user")
+            else:
+                # สร้างข้อมูลที่จะบันทึก
+                incoming = {
+                    "type": message_type,
+                    "id": message_id,
+                    "text": message.get("text", "") if message_type == "text" else None,
+                    "timestamp": event.get("timestamp"),
+                    "source_type": "group" if group_id else "user",
+                    "group_id": group_id,
+                    "user_id": user_id
                 }
-            
-            await save_chat_with_account(chat_id, "in", incoming, "user", account_id)
-            logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}...")
+                
+                # สำหรับรูปภาพ/วิดีโอ/ไฟล์ - ดาวน์โหลดและเก็บทันที
+                if message_type in ["image", "video", "audio", "file"]:
+                    try:
+                        media_content = await download_line_content(message_id, account_config)
+                        if media_content:
+                            # บันทึกไฟล์ลง GridFS หรือ storage
+                            media_id = await save_media_to_storage(
+                                message_id, 
+                                media_content, 
+                                message_type,
+                                chat_id
+                            )
+                            incoming["media_id"] = media_id
+                            incoming["media_size"] = len(media_content)
+                            incoming["content_provider"] = message.get("contentProvider", {})
+                            
+                            # สำหรับไฟล์ เก็บชื่อไฟล์ด้วย
+                            if message_type == "file":
+                                incoming["file_name"] = message.get("fileName")
+                                incoming["file_size"] = message.get("fileSize")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not download media: {e}")
+                
+                # สำหรับ sticker
+                elif message_type == "sticker":
+                    incoming["sticker_id"] = message.get("stickerId")
+                    incoming["package_id"] = message.get("packageId")
+                    incoming["sticker_resource_type"] = message.get("stickerResourceType")
+                
+                # สำหรับ location
+                elif message_type == "location":
+                    incoming["location"] = {
+                        "title": message.get("title"),
+                        "address": message.get("address"),
+                        "latitude": message.get("latitude"),
+                        "longitude": message.get("longitude")
+                    }
+                
+                # บันทึกลงฐานข้อมูล
+                if 'save_chat_history_with_account' in database_functions and account_id:
+                    result = await database_functions['save_chat_history_with_account'](
+                        chat_id, "in", incoming, "user", account_id
+                    )
+                    if result:
+                        logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}... with account")
+                    else:
+                        logger.error(f"❌ Failed to save message with account")
+                elif 'save_chat_history' in database_functions:
+                    result = await database_functions['save_chat_history'](
+                        chat_id, "in", incoming, "user"
+                    )
+                    if result:
+                        logger.info(f"✅ Saved {message_type} message from {chat_id[:10]}...")
+                    else:
+                        logger.error(f"❌ Failed to save message")
+                else:
+                    logger.error("❌ No save function available in database_functions")
+                    
         except Exception as e:
             logger.error(f"❌ Error saving incoming message: {e}")
+            logger.exception(e)
 
         # ส่วนประมวลผลตามเดิม (AI, Slip verification)
         # โหลด config เพิ่มเติมถ้า event ไม่มี
@@ -1052,19 +1087,18 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                     system_messages = normalize_system_messages(custom)
             except Exception as e:
                 logger.error(f"❌ Error getting system messages: {e}")
-                system_messages = normalize_system_messages(None) # Pass None to get defaults
+                system_messages = normalize_system_messages(None)
         else:
-            system_messages = normalize_system_messages(None) # Pass None to get defaults
-
+            system_messages = normalize_system_messages(None)
 
         # ✅ ปิดทั้งระบบ → ตอบ system_disabled และหยุด
         if not thunder_enabled and not ai_enabled and not slip_enabled:
-            reply_msg = system_messages["system_disabled"]
+            reply_msg = system_messages.get("system_disabled", "ขออภัย ระบบกำลังปิดปรับปรุง")
             if reply_msg:
                 sent = await (send_line_reply_with_account(reply_token, reply_msg, account_config)
                               if account_config else send_line_reply(reply_token, reply_msg))
                 if sent:
-                    await save_chat_with_account(user_id, "out", {"type": "text", "text": reply_msg}, "system", account_id)
+                    await save_chat_with_account(chat_id, "out", {"type": "text", "text": reply_msg}, "system", account_id)
             return
 
         # ---------- ประมวลผลตามชนิดข้อความ ----------
@@ -1086,45 +1120,67 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
                             slip_info = None
                     # ไป flow ตรวจสลิป
                     if account_config:
-                        await handle_slip_with_account_config(user_id, reply_token, account_config, account_id, message_id=message.get("id"), slip_info=slip_info)
+                        await handle_slip_with_account_config(
+                            chat_id, reply_token, account_config, account_id, 
+                            message_id=message.get("id"), slip_info=slip_info
+                        )
                     else:
-                        await handle_slip_verification(user_id, reply_token, message_id=message.get("id"), slip_info=slip_info)
+                        await handle_slip_verification(
+                            chat_id, reply_token, 
+                            message_id=message.get("id"), slip_info=slip_info
+                        )
                 else:
                     # ปิด Slip → ตอบตามที่ตั้งไว้ แล้วจบ
-                    msg = system_messages["slip_disabled"]
+                    msg = system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
                     if msg:
                         await (send_line_reply_with_account(reply_token, msg, account_config)
                                if account_config else send_line_reply(reply_token, msg))
-                        await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                        await save_chat_with_account(chat_id, "out", {"type": "text", "text": msg}, "system", account_id)
                 return
 
             # ข้อความทั่วไป → AI หรือ fallback
             if ai_enabled:
                 if account_config:
-                    await handle_ai_chat_with_account(user_id, reply_token, text, account_config, account_id)
+                    await handle_ai_chat_with_account(chat_id, reply_token, text, account_config, account_id)
                 else:
-                    await handle_ai_chat(user_id, reply_token, text)
+                    await handle_ai_chat(chat_id, reply_token, text)
             else:
-                msg = system_messages["ai_disabled"]
+                msg = system_messages.get("ai_disabled", "ขออภัย ระบบ AI ถูกปิดการใช้งานชั่วคราว")
                 if msg:
                     await (send_line_reply_with_account(reply_token, msg, account_config)
                            if account_config else send_line_reply(reply_token, msg))
-                    await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                    await save_chat_with_account(chat_id, "out", {"type": "text", "text": msg}, "system", account_id)
             return
 
         elif message_type == "image":
             if slip_enabled:
                 msg_id = message.get("id")
                 if account_config:
-                    await handle_slip_with_account_config(user_id, reply_token, account_config, account_id, message_id=msg_id)
+                    await handle_slip_with_account_config(
+                        chat_id, reply_token, account_config, account_id, message_id=msg_id
+                    )
                 else:
-                    await handle_slip_verification(user_id, reply_token, message_id=msg_id)
+                    await handle_slip_verification(chat_id, reply_token, message_id=msg_id)
             else:
-                msg = system_messages["slip_disabled"]
+                msg = system_messages.get("slip_disabled", "ขออภัย ระบบตรวจสอบสลิปถูกปิดการใช้งานชั่วคราว")
                 if msg:
                     await (send_line_reply_with_account(reply_token, msg, account_config)
                            if account_config else send_line_reply(reply_token, msg))
-                await save_chat_with_account(user_id, "out", {"type": "text", "text": msg}, "system", account_id)
+                    await save_chat_with_account(chat_id, "out", {"type": "text", "text": msg}, "system", account_id)
+            return
+
+        elif message_type == "sticker":
+            # บันทึก sticker แล้วตอบกลับด้วย sticker หรือข้อความ
+            sticker_msg = "ขอบคุณสำหรับสติกเกอร์ครับ 😊"
+            await send_line_reply(reply_token, sticker_msg)
+            await save_chat_with_account(chat_id, "out", {"type": "text", "text": sticker_msg}, "system", account_id)
+            return
+
+        elif message_type == "location":
+            # บันทึก location แล้วตอบกลับ
+            location_msg = "ขอบคุณสำหรับตำแหน่งที่ตั้งครับ 📍"
+            await send_line_reply(reply_token, location_msg)
+            await save_chat_with_account(chat_id, "out", {"type": "text", "text": location_msg}, "system", account_id)
             return
 
         # ชนิดอื่น ๆ
@@ -1132,7 +1188,7 @@ async def handle_message_event(event: Dict[str, Any]) -> None:
         if default_msg:
             await (send_line_reply_with_account(reply_token, default_msg, account_config)
                    if account_config else send_line_reply(reply_token, default_msg))
-            await save_chat_with_account(user_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
+            await save_chat_with_account(chat_id, "out", {"type": "text", "text": default_msg}, "system", account_id)
     
     except Exception as e:
         logger.error(f"❌ Error in handle_message_event: {e}")
@@ -1733,6 +1789,7 @@ async def get_chat_messages_api(limit: int = 100):
             history = await database_functions['get_recent_chat_history'](limit)
             
             for chat in history:
+                # แก้ไข: ตรวจสอบ attribute อย่างปลอดภัย
                 message_dict = {
                     "id": str(getattr(chat, 'id', '')) if hasattr(chat, 'id') else None,
                     "user_id": getattr(chat, 'user_id', None),
@@ -1746,11 +1803,18 @@ async def get_chat_messages_api(limit: int = 100):
                 # Handle datetime
                 if hasattr(chat, 'created_at') and chat.created_at:
                     try:
-                        message_dict["created_at"] = chat.created_at.isoformat()
+                        if hasattr(chat.created_at, 'isoformat'):
+                            message_dict["created_at"] = chat.created_at.isoformat()
+                        else:
+                            message_dict["created_at"] = str(chat.created_at)
                     except:
-                        message_dict["created_at"] = str(chat.created_at)
+                        pass
                 
-                messages.append(message_dict)
+                # แก้ไข: ตรวจสอบว่ามีข้อมูลจริง
+                if message_dict["user_id"] or message_dict["message_text"]:
+                    messages.append(message_dict)
+        
+        logger.info(f"✅ Retrieved {len(messages)} messages")
         
         return JSONResponse({
             "status": "success",
