@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Debug Console - LINE OA Middleware{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-bug me-2 text-danger"></i>
+        Debug Console
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshDebugData()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+        <button class="btn btn-outline-success" onclick="runSystemCheck()">
+            <i class="fas fa-check-circle me-1"></i> System Check
+        </button>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-server me-2"></i>
+                    System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="system-status-content">
+                    <div class="text-center py-3">
+                        <div class="loading"></div>
+                        <p class="text-muted mt-2">Loading system status...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-database me-2"></i>
+                    Database Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="database-info-content">
+                    <div class="text-center py-3">
+                        <div class="loading"></div>
+                        <p class="text-muted mt-2">Loading database info...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Testing -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-flask me-2"></i>
+                    API Testing
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- LINE API Test -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fab fa-line me-2 text-success"></i>
+                                    LINE API Test
+                                </h6>
+                                <p class="card-text small">Test LINE Bot API connection and get bot information.</p>
+                                <button class="btn btn-success btn-sm" onclick="testLineAPI()">
+                                    <i class="fas fa-play me-1"></i> Test LINE API
+                                </button>
+                                <div id="line-test-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Thunder API Test -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-bolt me-2 text-warning"></i>
+                                    Thunder API Test
+                                </h6>
+                                <p class="card-text small">Test Thunder API connection for slip verification.</p>
+                                <button class="btn btn-warning btn-sm" onclick="testThunderAPI()">
+                                    <i class="fas fa-play me-1"></i> Test Thunder API
+                                </button>
+                                <div id="thunder-test-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Debug -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Configuration Debug
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadConfigDebug()">
+                    <i class="fas fa-sync me-1"></i> Reload
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="config-debug-content">
+                    <div class="text-center py-3">
+                        <div class="loading"></div>
+                        <p class="text-muted mt-2">Loading configuration...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Logs -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>
+                    System Logs
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadSystemLogs()">
+                        <i class="fas fa-sync me-1"></i> Refresh Logs
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="clearLogDisplay()">
+                        <i class="fas fa-trash me-1"></i> Clear Display
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="system-logs" class="code-block" style="max-height: 400px; margin: 0;">
+                    <div class="text-center py-3">
+                        <div class="loading"></div>
+                        <p class="text-muted mt-2">Loading system logs...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tools me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-primary w-100" onclick="toggleSlipSystem()">
+                            <i class="fas fa-toggle-on me-1"></i> Toggle Slip System
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-info w-100" onclick="restartServices()">
+                            <i class="fas fa-redo me-1"></i> Restart Services
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-warning w-100" onclick="resetAPIFailures()">
+                            <i class="fas fa-refresh me-1"></i> Reset API Failures
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-success w-100" onclick="sendTestNotification()">
+                            <i class="fas fa-bell me-1"></i> Test Notification
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load system status
+    async function loadSystemStatus() {
+        try {
+            const result = await apiCall('/admin/system-info');
+            
+            if (result.status === 'success') {
+                const info = result.system_info;
+                
+                let html = `
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">System Ready:</span>
+                        <span class="badge bg-${info.ready ? 'success' : 'danger'}">
+                            ${info.ready ? 'Ready' : 'Not Ready'}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">Database:</span>
+                        <span class="badge bg-${info.database_type === 'PostgreSQL' ? 'success' : 'info'}">
+                            ${info.database_type}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">Config Storage:</span>
+                        <span class="badge bg-${info.config_type === 'PostgreSQL' ? 'success' : 'info'}">
+                            ${info.config_type}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span class="fw-medium">Thunder API:</span>
+                        <span class="badge bg-${info.features.thunder_api ? 'success' : 'danger'}">
+                            ${info.features.thunder_api ? 'Available' : 'Unavailable'}
+                        </span>
+                    </div>
+                `;
+                
+                document.getElementById('system-status-content').innerHTML = html;
+            } else {
+                document.getElementById('system-status-content').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load system status</div>';
+            }
+        } catch (error) {
+            document.getElementById('system-status-content').innerHTML = 
+                '<div class="alert alert-danger">Error loading system status</div>';
+        }
+    }
+    
+    // Load database information
+    async function loadDatabaseInfo() {
+        try {
+            const result = await apiCall('/admin/database-info');
+            
+            if (result.status === 'success') {
+                const db = result.database;
+                
+                let html = `
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">Type:</span>
+                        <span class="badge bg-${db.type === 'PostgreSQL' ? 'success' : 'info'}">${db.type}</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom">
+                        <span class="fw-medium">Connected:</span>
+                        <span class="badge bg-${db.connected ? 'success' : 'danger'}">
+                            ${db.connected ? 'Yes' : 'No'}
+                        </span>
+                    </div>
+                `;
+                
+                if (db.tables) {
+                    html += `
+                        <div class="py-2">
+                            <span class="fw-medium">Tables:</span>
+                            <ul class="list-unstyled mt-2 mb-0">
+                    `;
+                    
+                    Object.entries(db.tables).forEach(([table, count]) => {
+                        html += `<li><small>${table}: ${count} records</small></li>`;
+                    });
+                    
+                    html += '</ul></div>';
+                }
+                
+                document.getElementById('database-info-content').innerHTML = html;
+            } else {
+                document.getElementById('database-info-content').innerHTML = 
+                    '<div class="alert alert-warning">Database info not available</div>';
+            }
+        } catch (error) {
+            document.getElementById('database-info-content').innerHTML = 
+                '<div class="alert alert-danger">Error loading database info</div>';
+        }
+    }
+    
+    // Load configuration debug info
+    async function loadConfigDebug() {
+        try {
+            const result = await apiCall('/admin/debug-config');
+            
+            if (result.status !== 'error') {
+                let html = '<div class="row">';
+                
+                // API Status
+                if (result.api_status) {
+                    html += '<div class="col-md-6"><h6>API Status</h6><pre class="code-block">';
+                    html += JSON.stringify(result.api_status, null, 2);
+                    html += '</pre></div>';
+                }
+                
+                // Config Values (masked)
+                if (result.config_values) {
+                    html += '<div class="col-md-6"><h6>Config Values (Masked)</h6><pre class="code-block">';
+                    html += JSON.stringify(result.config_values, null, 2);
+                    html += '</pre></div>';
+                }
+                
+                html += '</div>';
+                
+                document.getElementById('config-debug-content').innerHTML = html;
+            } else {
+                document.getElementById('config-debug-content').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load configuration debug info</div>';
+            }
+        } catch (error) {
+            document.getElementById('config-debug-content').innerHTML = 
+                '<div class="alert alert-danger">Error loading configuration debug info</div>';
+        }
+    }
+    
+    // Load system logs
+    async function loadSystemLogs() {
+        try {
+            const result = await apiCall('/admin/system-logs');
+            
+            if (result.status === 'success') {
+                const logs = result.logs || [];
+                
+                if (logs.length === 0) {
+                    document.getElementById('system-logs').innerHTML = 
+                        '<div class="text-center py-3 text-muted">No logs available</div>';
+                } else {
+                    // Format logs with syntax highlighting
+                    const formattedLogs = logs.map(log => {
+                        if (log.includes('ERROR') || log.includes('❌')) {
+                            return `<span class="text-danger">${log}</span>`;
+                        } else if (log.includes('WARNING') || log.includes('⚠️')) {
+                            return `<span class="text-warning">${log}</span>`;
+                        } else if (log.includes('INFO') || log.includes('✅')) {
+                            return `<span class="text-info">${log}</span>`;
+                        } else {
+                            return log;
+                        }
+                    }).join('');
+                    
+                    document.getElementById('system-logs').innerHTML = formattedLogs;
+                }
+            } else {
+                document.getElementById('system-logs').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load system logs</div>';
+            }
+        } catch (error) {
+            document.getElementById('system-logs').innerHTML = 
+                '<div class="alert alert-danger">Error loading system logs</div>';
+        }
+    }
+    
+    // Test LINE API
+    async function testLineAPI() {
+        const resultDiv = document.getElementById('line-test-result');
+        resultDiv.innerHTML = '<div class="loading"></div> Testing...';
+        
+        try {
+            const result = await apiCall('/admin/test-line-connection', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>✅ ${result.message}</strong>
+                        ${result.data ? `<br><small>Bot: ${result.data.bot_name}</small>` : ''}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>❌ ${result.message}</strong>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>❌ Error testing LINE API</strong>
+                    <br><small>${error.message}</small>
+                </div>
+            `;
+        }
+    }
+    
+    // Test Thunder API
+    async function testThunderAPI() {
+        const resultDiv = document.getElementById('thunder-test-result');
+        resultDiv.innerHTML = '<div class="loading"></div> Testing...';
+        
+        try {
+            const result = await apiCall('/admin/test-thunder-connection', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>✅ Thunder API connection successful</strong>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>❌ ${result.message}</strong>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>❌ Error testing Thunder API</strong>
+                    <br><small>${error.message}</small>
+                </div>
+            `;
+        }
+    }
+    
+    // Clear log display
+    function clearLogDisplay() {
+        document.getElementById('system-logs').innerHTML = 
+            '<div class="text-center py-3 text-muted">Log display cleared</div>';
+    }
+    
+    // Run system check
+    async function runSystemCheck() {
+        showNotification('Running system check...', 'info');
+        
+        // Test all components
+        await Promise.all([
+            loadSystemStatus(),
+            loadDatabaseInfo(),
+            loadConfigDebug(),
+            testLineAPI(),
+            testThunderAPI()
+        ]);
+        
+        showNotification('System check completed', 'success');
+    }
+    
+    // Refresh all debug data
+    async function refreshDebugData() {
+        showNotification('Refreshing debug data...', 'info');
+        
+        await Promise.all([
+            loadSystemStatus(),
+            loadDatabaseInfo(),
+            loadConfigDebug(),
+            loadSystemLogs()
+        ]);
+        
+        showNotification('Debug data refreshed', 'success');
+    }
+    
+    // Quick action functions
+    async function resetAPIFailures() {
+        try {
+            const result = await apiCall('/admin/reset-failures', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
+            } else {
+                showNotification(result.message, 'error');
+            }
+        } catch (error) {
+            showNotification('Error resetting API failures', 'error');
+        }
+    }
+    
+    async function sendTestNotification() {
+        try {
+            const result = await apiCall('/admin/send-test-notification', {
+                method: 'POST'
+            });
+            
+            if (result.status === 'success') {
+                showNotification('Test notification sent', 'success');
+            }
+        } catch (error) {
+            showNotification('Error sending test notification', 'error');
+        }
+    }
+    
+    // Initialize debug console
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshDebugData();
+        
+        // Auto-refresh logs every 30 seconds
+        setInterval(loadSystemLogs, 30000);
+    });
+</script>
+{% endblock %}

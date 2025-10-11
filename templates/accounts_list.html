@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Manage LINE Accounts{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-card {
+        transition: all 0.3s ease;
+        border: 1px solid #e3e6ea;
+    }
+    
+    .account-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+    }
+    
+    .webhook-url-container {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 10px;
+        position: relative;
+    }
+    
+    .webhook-url {
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        color: #495057;
+        word-break: break-all;
+        padding-right: 40px;
+    }
+    
+    .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    
+    .feature-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin: 0 2px;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .status-active {
+        background-color: #28a745;
+        animation: pulse 2s infinite;
+    }
+    
+    .status-inactive {
+        background-color: #dc3545;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fab fa-line me-2 text-success"></i>
+        LINE Accounts Management
+    </h1>
+    <button class="btn btn-success" onclick="showAddAccountModal()">
+        <i class="fas fa-plus-circle me-1"></i> Add New Account
+    </button>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="text-primary mb-2">{{ accounts|length if accounts else 0 }}</h3>
+                <p class="text-muted mb-0 small">Total Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="text-success mb-2" id="active-accounts">0</h3>
+                <p class="text-muted mb-0 small">Active Accounts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="text-info mb-2" id="ai-enabled">0</h3>
+                <p class="text-muted mb-0 small">AI Enabled</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <h3 class="text-warning mb-2" id="slip-enabled">0</h3>
+                <p class="text-muted mb-0 small">Slip Enabled</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accounts Grid -->
+<div class="row">
+    {% if accounts %}
+        {% for acc in accounts %}
+        <div class="col-md-6 mb-4">
+            <div class="card account-card">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <span class="status-indicator {% if acc.ai_enabled or acc.slip_enabled %}status-active{% else %}status-inactive{% endif %}"></span>
+                                {{ acc.display_name or 'Unnamed Account' }}
+                            </h5>
+                            <small class="text-muted">ID: {{ acc.id[:8] if acc.id else 'N/A' }}...</small>
+                        </div>
+                        <div>
+                            {% if acc.ai_enabled %}
+                                <span class="badge bg-info feature-badge">AI</span>
+                            {% endif %}
+                            {% if acc.slip_enabled %}
+                                <span class="badge bg-warning feature-badge">Slip</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Webhook URL Section -->
+                    <div class="webhook-url-container" id="webhook-container-{{ acc.id }}">
+                        <label class="form-label small text-muted mb-1">
+                            <i class="fas fa-link me-1"></i>Webhook URL
+                        </label>
+                        <div class="webhook-url" id="webhook-{{ acc.id }}">{{ request.url.scheme }}://{{ request.url.netloc }}/line/account/{{ acc.id }}/webhook</div>
+                        <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                                onclick="copyWebhook('{{ acc.id }}')" 
+                                title="Copy to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 mt-3">
+                        <a href="/admin/accounts/{{ acc.id }}" class="btn btn-sm btn-primary flex-fill">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        <button class="btn btn-sm btn-info flex-fill" 
+                                onclick="viewChatHistory('{{ acc.id }}')">
+                            <i class="fas fa-comments me-1"></i>Chats
+                        </button>
+                        <button class="btn btn-sm btn-warning flex-fill" 
+                                onclick="testWebhook('{{ acc.id }}')">
+                            <i class="fas fa-vial me-1"></i>Test
+                        </button>
+                        <button class="btn btn-sm btn-danger" 
+                                onclick="deleteAccount('{{ acc.id }}')" 
+                                title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fab fa-line fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No LINE Accounts Configured</h4>
+                    <p class="text-muted mb-4">Start by adding your first LINE account to manage messages and features.</p>
+                    <button class="btn btn-success btn-lg" onclick="showAddAccountModal()">
+                        <i class="fas fa-plus-circle me-2"></i>Add Your First Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal fade" id="addAccountModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fab fa-line me-2"></i>Add New LINE Account
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-account-form">
+                    <!-- Basic Information -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-info-circle me-1"></i>Basic Information
+                        </h6>
+                        <div class="mb-3">
+                            <label class="form-label">Display Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="display_name" required 
+                                   placeholder="e.g., Main Store Bot">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="description" rows="2"
+                                      placeholder="e.g., Customer service bot for main store"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- LINE Credentials -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fab fa-line me-1"></i>LINE Credentials
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Channel Secret <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="channel_secret" required
+                                           placeholder="From LINE Developers Console">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Channel Access Token <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="channel_access_token" required
+                                           placeholder="Long-lived token">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Features -->
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-toggle-on me-1"></i>Enable Features
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled_new">
+                                    <label class="form-check-label" for="ai_enabled_new">
+                                        <i class="fas fa-robot me-1"></i>AI Chat
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="slip_enabled" id="slip_enabled_new">
+                                    <label class="form-check-label" for="slip_enabled_new">
+                                        <i class="fas fa-receipt me-1"></i>Slip Verify
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createAccount()">
+                    <i class="fas fa-plus-circle me-1"></i>Create Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update statistics
+document.addEventListener('DOMContentLoaded', function() {
+    updateAccountStats();
+});
+
+function updateAccountStats() {
+    let activeCount = 0;
+    let aiCount = 0;
+    let slipCount = 0;
+    
+    {% if accounts %}
+        {% for acc in accounts %}
+            {% if acc.ai_enabled or acc.slip_enabled %}
+                activeCount++;
+            {% endif %}
+            {% if acc.ai_enabled %}
+                aiCount++;
+            {% endif %}
+            {% if acc.slip_enabled %}
+                slipCount++;
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    document.getElementById('active-accounts').textContent = activeCount;
+    document.getElementById('ai-enabled').textContent = aiCount;
+    document.getElementById('slip-enabled').textContent = slipCount;
+}
+
+function showAddAccountModal() {
+    document.getElementById('add-account-form').reset();
+    new bootstrap.Modal(document.getElementById('addAccountModal')).show();
+}
+
+async function createAccount() {
+    const form = document.getElementById('add-account-form');
+    const formData = new FormData(form);
+    const data = {};
+    
+    // Convert form data to object
+    for (let [key, value] of formData.entries()) {
+        if (form.elements[key].type === 'checkbox') {
+            data[key] = form.elements[key].checked;
+        } else {
+            data[key] = value;
+        }
+    }
+    
+    try {
+        showNotification('Creating account...', 'info');
+        
+        const response = await fetch('/admin/accounts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showNotification('Account created successfully!', 'success');
+            
+            if (result.webhook_url) {
+                navigator.clipboard.writeText(result.webhook_url).then(() => {
+                    showNotification('Webhook URL copied to clipboard!', 'info');
+                });
+            }
+            
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            showNotification(result.message || 'Failed to create account', 'error');
+        }
+    } catch (error) {
+        showNotification('Error creating account', 'error');
+    }
+}
+
+function copyWebhook(accountId) {
+    const webhookText = document.getElementById(`webhook-${accountId}`).textContent;
+    navigator.clipboard.writeText(webhookText).then(() => {
+        showNotification('Webhook URL copied to clipboard!', 'success');
+    });
+}
+
+async function deleteAccount(accountId) {
+    if (!confirm('Are you sure you want to delete this account?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/accounts/${accountId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showNotification('Account deleted successfully', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showNotification('Failed to delete account', 'error');
+        }
+    } catch (error) {
+        showNotification('Error deleting account', 'error');
+    }
+}
+
+function viewChatHistory(accountId) {
+    window.location.href = `/admin/chat-history?account_id=${accountId}`;
+}
+
+async function testWebhook(accountId) {
+    showNotification('Testing webhook...', 'info');
+    
+    try {
+        const response = await fetch(`/admin/accounts/${accountId}/test-webhook`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showNotification('Webhook test successful!', 'success');
+        } else {
+            showNotification('Webhook test failed', 'error');
+        }
+    } catch (error) {
+        showNotification('Error testing webhook', 'error');
+    }
+}
+</script>
+{% endblock %}

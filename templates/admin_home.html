@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LINE OA Middleware{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+        Dashboard
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Database Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-database me-2"></i>
+                    MongoDB Database Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="mongodb-status">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Checking MongoDB connection...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0" id="total-messages">{{ total_chat_history }}</h2>
+                        <small>Total Messages</small>
+                    </div>
+                    <i class="fas fa-comments fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0" id="active-connections">0</h2>
+                        <small>Active Connections</small>
+                    </div>
+                    <i class="fas fa-users fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">
+                            {% if system_status.system_enabled %}
+                                <i class="fas fa-check-circle"></i>
+                            {% else %}
+                                <i class="fas fa-times-circle"></i>
+                            {% endif %}
+                        </h2>
+                        <small>Slip System</small>
+                    </div>
+                    <i class="fas fa-receipt fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0" id="ai-status">
+                            <i class="fas fa-robot"></i>
+                        </h2>
+                        <small>AI Chat Bot</small>
+                    </div>
+                    <i class="fas fa-brain fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-server me-2"></i>
+                    System Status
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="system-status">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>LINE API</span>
+                            <span id="line-status" class="badge bg-secondary">Checking...</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Thunder API</span>
+                            <span id="thunder-status" class="badge bg-secondary">Checking...</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>OpenAI API</span>
+                            <span id="openai-status" class="badge bg-secondary">Checking...</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>MongoDB Atlas</span>
+                            <span id="db-status" class="badge bg-secondary">Checking...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-tools me-2"></i>
+                    Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="toggleSlipSystem()">
+                        <i class="fas fa-toggle-on me-2"></i>
+                        Toggle Slip System
+                    </button>
+                    <button class="btn btn-success" onclick="toggleAISystem()">
+                        <i class="fas fa-robot me-2"></i>
+                        Toggle AI Chat
+                    </button>
+                    <button class="btn btn-info" onclick="testAllAPIs()">
+                        <i class="fas fa-network-wired me-2"></i>
+                        Test All APIs
+                    </button>
+                    <button class="btn btn-warning" onclick="clearCache()">
+                        <i class="fas fa-broom me-2"></i>
+                        Clear Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Recent Activity
+                </h6>
+                <a href="/admin/chat-history" class="btn btn-sm btn-outline-primary">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Time</th>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-activity">
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-info-circle me-2 text-primary"></i>
+            <strong class="me-auto">System Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toast-message">
+            <!-- Message will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variables
+let refreshInterval;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    
+    // Auto refresh every 30 seconds
+    refreshInterval = setInterval(loadDashboardData, 30000);
+});
+
+// Load all dashboard data
+async function loadDashboardData() {
+    await Promise.all([
+        loadMongoDBStatus(),
+        loadSystemStatus(),
+        loadRecentActivity(),
+        updateStats()
+    ]);
+}
+
+// Load MongoDB status
+async function loadMongoDBStatus() {
+    try {
+        const response = await fetch('/admin/db-status');
+        const data = await response.json();
+        
+        const statusDiv = document.getElementById('mongodb-status');
+        
+        if (data.connection && data.connection.connected) {
+            statusDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="alert alert-success d-flex align-items-center">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <div>
+                                <strong>MongoDB Connected</strong><br>
+                                <small>Database: ${data.connection.details.database || 'lineoa'}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Ping:</span>
+                                <strong>${data.connection.details.ping_ms || '0'}ms</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Version:</span>
+                                <strong>${data.connection.details.version || 'Unknown'}</strong>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('db-status').className = 'badge bg-success';
+            document.getElementById('db-status').textContent = 'Connected';
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>MongoDB Disconnected</strong><br>
+                    <small>${data.connection?.error || 'Connection failed'}</small>
+                </div>
+            `;
+            
+            document.getElementById('db-status').className = 'badge bg-danger';
+            document.getElementById('db-status').textContent = 'Disconnected';
+        }
+    } catch (error) {
+        console.error('Error loading MongoDB status:', error);
+        document.getElementById('mongodb-status').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Unable to load database status
+            </div>
+        `;
+    }
+}
+
+// Load system status
+async function loadSystemStatus() {
+    try {
+        const response = await fetch('/admin/api-status');
+        const data = await response.json();
+        
+        // Update LINE status
+        if (data.line?.configured) {
+            document.getElementById('line-status').className = 'badge bg-success';
+            document.getElementById('line-status').textContent = 'Ready';
+        } else {
+            document.getElementById('line-status').className = 'badge bg-warning';
+            document.getElementById('line-status').textContent = 'Not Configured';
+        }
+        
+        // Update Thunder status
+        if (data.thunder?.configured && data.thunder?.enabled) {
+            document.getElementById('thunder-status').className = 'badge bg-success';
+            document.getElementById('thunder-status').textContent = 'Active';
+        } else {
+            document.getElementById('thunder-status').className = 'badge bg-secondary';
+            document.getElementById('thunder-status').textContent = 'Inactive';
+        }
+        
+        // Update OpenAI status
+        const openaiConfigured = await checkOpenAIStatus();
+        if (openaiConfigured) {
+            document.getElementById('openai-status').className = 'badge bg-success';
+            document.getElementById('openai-status').textContent = 'Active';
+        } else {
+            document.getElementById('openai-status').className = 'badge bg-secondary';
+            document.getElementById('openai-status').textContent = 'Not Configured';
+        }
+        
+    } catch (error) {
+        console.error('Error loading system status:', error);
+    }
+}
+
+// Check OpenAI status
+async function checkOpenAIStatus() {
+    try {
+        const response = await fetch('/admin/config');
+        const config = await response.json();
+        return config.ai_enabled && config.openai_api_key;
+    } catch {
+        return false;
+    }
+}
+
+// Load recent activity
+async function loadRecentActivity() {
+    try {
+        const response = await fetch('/admin/get-recent-chat-history?limit=5');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('recent-activity');
+        
+        if (data.history && data.history.length > 0) {
+            tbody.innerHTML = data.history.map(chat => `
+                <tr>
+                    <td><small>${formatTime(chat.created_at)}</small></td>
+                    <td><small>${chat.user_id ? chat.user_id.substring(0, 8) + '...' : 'Unknown'}</small></td>
+                    <td>
+                        <span class="badge bg-${chat.direction === 'in' ? 'info' : 'success'}">
+                            ${chat.direction === 'in' ? 'IN' : 'OUT'}
+                        </span>
+                    </td>
+                    <td><small>${truncateText(chat.message_text, 50)}</small></td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center py-3 text-muted">
+                        No recent activity
+                    </td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading recent activity:', error);
+    }
+}
+
+// Update statistics
+async function updateStats() {
+    try {
+        const response = await fetch('/admin/stats');
+        const data = await response.json();
+        
+        if (data.stats) {
+            document.getElementById('total-messages').textContent = data.stats.total_messages || 0;
+            document.getElementById('active-connections').textContent = data.stats.websocket_connections || 0;
+        }
+    } catch (error) {
+        console.error('Error updating stats:', error);
+    }
+}
+
+// Toggle Slip System
+async function toggleSlipSystem() {
+    try {
+        showToast('Toggling slip system...');
+        
+        const response = await fetch('/admin/toggle-slip-system', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast(data.message, 'success');
+            setTimeout(() => loadDashboardData(), 1000);
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (error) {
+        showToast('Error toggling slip system', 'error');
+    }
+}
+
+// Toggle AI System
+async function toggleAISystem() {
+    try {
+        showToast('Toggling AI system...');
+        
+        // Get current status
+        const configResponse = await fetch('/admin/config');
+        const config = await configResponse.json();
+        
+        // Toggle AI enabled
+        const newStatus = !config.ai_enabled;
+        
+        const response = await fetch('/admin/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ai_enabled: newStatus})
+        });
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast(`AI Chat ${newStatus ? 'enabled' : 'disabled'}`, 'success');
+            setTimeout(() => loadDashboardData(), 1000);
+        } else {
+            showToast('Failed to toggle AI system', 'error');
+        }
+    } catch (error) {
+        showToast('Error toggling AI system', 'error');
+    }
+}
+
+// Test all APIs
+async function testAllAPIs() {
+    showToast('Testing all APIs...');
+    
+    try {
+        // Test MongoDB
+        const mongoResponse = await fetch('/admin/test-connection', {method: 'POST'});
+        const mongoData = await mongoResponse.json();
+        
+        // Test LINE API
+        const lineResponse = await fetch('/admin/test-line-connection', {method: 'POST'});
+        const lineData = await lineResponse.json();
+        
+        // Test Thunder API
+        const thunderResponse = await fetch('/admin/test-thunder-connection', {method: 'POST'});
+        const thunderData = await thunderResponse.json();
+        
+        // Show results
+        let results = [];
+        results.push(`MongoDB: ${mongoData.status === 'connected' ? '✅' : '❌'}`);
+        results.push(`LINE: ${lineData.status === 'success' ? '✅' : '❌'}`);
+        results.push(`Thunder: ${thunderData.status === 'success' ? '✅' : '❌'}`);
+        
+        showToast(results.join(' | '), 'info');
+        
+    } catch (error) {
+        showToast('Error testing APIs', 'error');
+    }
+}
+
+// Clear cache
+async function clearCache() {
+    try {
+        showToast('Clearing cache...');
+        
+        const response = await fetch('/admin/reset-failures', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showToast('Cache cleared successfully', 'success');
+            setTimeout(() => loadDashboardData(), 1000);
+        } else {
+            showToast('Failed to clear cache', 'error');
+        }
+    } catch (error) {
+        showToast('Error clearing cache', 'error');
+    }
+}
+
+// Refresh dashboard
+function refreshDashboard() {
+    showToast('Refreshing dashboard...');
+    loadDashboardData();
+}
+
+// Utility functions
+function formatTime(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+    });
+}
+
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+function showToast(message, type = 'info') {
+    const toastEl = document.getElementById('liveToast');
+    const toastBody = document.getElementById('toast-message');
+    
+    // Set message
+    toastBody.innerHTML = `
+        <div class="d-flex align-items-center">
+            ${type === 'success' ? '<i class="fas fa-check-circle text-success me-2"></i>' : ''}
+            ${type === 'error' ? '<i class="fas fa-times-circle text-danger me-2"></i>' : ''}
+            ${type === 'info' ? '<i class="fas fa-info-circle text-info me-2"></i>' : ''}
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Show toast
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+}
+
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %}

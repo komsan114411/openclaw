@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - LINE OA Middleware{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold text-dark">
+        <i class="fas fa-users me-2 text-primary"></i>
+        User Management
+    </h1>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="showBroadcastModal()">
+            <i class="fas fa-bullhorn me-1"></i> Broadcast Message
+        </button>
+        <button class="btn btn-outline-primary" onclick="refreshUsers()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary" id="total-users">{{ stats.total_users }}</h4>
+                <p class="text-muted mb-0">Total Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success" id="active-users">{{ stats.active_24h }}</h4>
+                <p class="text-muted mb-0">Active 24h</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info" id="new-users">{{ stats.new_this_week }}</h4>
+                <p class="text-muted mb-0">New This Week</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning" id="selected-count">0</h4>
+                <p class="text-muted mb-0">Selected</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="search-users" class="form-label">Search Users</label>
+                <input type="text" class="form-control" id="search-users" 
+                       placeholder="Search by name or ID..." onkeyup="searchUsers()">
+            </div>
+            <div class="col-md-2">
+                <label for="filter-status" class="form-label">Status</label>
+                <select class="form-select" id="filter-status" onchange="filterUsers()">
+                    <option value="">All</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="sort-by" class="form-label">Sort By</label>
+                <select class="form-select" id="sort-by" onchange="sortUsers()">
+                    <option value="last_active">Last Active</option>
+                    <option value="created_at">Date Created</option>
+                    <option value="display_name">Name</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Actions</label>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" onclick="sendToSelected()">
+                        <i class="fas fa-envelope me-1"></i> Message Selected
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="clearSelection()">
+                        <i class="fas fa-times me-1"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Users List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Users</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">
+                            <input type="checkbox" id="select-all-users" onchange="toggleSelectAll()">
+                        </th>
+                        <th width="60">Avatar</th>
+                        <th>Name</th>
+                        <th>User ID</th>
+                        <th>Last Active</th>
+                        <th>Messages</th>
+                        <th>Status</th>
+                        <th width="200">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                    {% for user in users %}
+                    <tr data-user-id="{{ user.user_id }}">
+                        <td>
+                            <input type="checkbox" class="user-select" value="{{ user.user_id }}" onchange="updateSelectedCount()">
+                        </td>
+                        <td>
+                            {% if user.profile_picture_url %}
+                                <img src="{{ user.profile_picture_url }}" class="rounded-circle" width="40" height="40">
+                            {% else %}
+                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user text-white"></i>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ user.display_name or 'Unknown User' }}</strong>
+                                {% if user.first_name or user.last_name %}
+                                    <br><small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <small class="font-monospace">{{ user.user_id[:15] }}...</small>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                {% if user.last_active %}
+                                    {{ user.last_active.strftime('%m/%d %H:%M') }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ user.chat_history|length if user.chat_history else 0 }}</span>
+                        </td>
+                        <td>
+                            {% if user.is_blocked %}
+                                <span class="badge bg-danger">Blocked</span>
+                            {% else %}
+                                <span class="badge bg-success">Active</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                          <!-- แก้ไขในส่วน Actions column -->
+<td>
+    <div class="btn-group btn-group-sm">
+        <button class="btn btn-primary" onclick="window.open('/admin/users/{{ user.user_id }}/chat', '_blank')" 
+                title="View Chat">
+            <i class="fas fa-comments"></i>
+        </button>
+        <button class="btn btn-info" onclick="showMessageModal('{{ user.user_id }}', '{{ user.display_name }}')"
+                title="Send Message">
+            <i class="fas fa-envelope"></i>
+        </button>
+        <button class="btn btn-warning" onclick="viewUserDetail('{{ user.user_id }}')"
+                title="View Details">
+            <i class="fas fa-eye"></i>
+        </button>
+    </div>
+</td>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Send Message Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">To:</label>
+                    <div id="message-recipients" class="p-2 bg-light rounded"></div>
+                </div>
+                <div class="mb-3">
+                    <label for="message-text" class="form-label">Message</label>
+                    <textarea class="form-control" id="message-text" rows="4" 
+                              placeholder="Type your message here..."></textarea>
+                    <div class="form-text">Character count: <span id="char-count">0</span>/5000</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane me-1"></i> Send Message
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Broadcast Modal -->
+<div class="modal fade" id="broadcastModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Broadcast Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This will send a message to all active users.
+                </div>
+                <div class="mb-3">
+                    <label for="broadcast-text" class="form-label">Message</label>
+                    <textarea class="form-control" id="broadcast-text" rows="4" 
+                              placeholder="Type your broadcast message here..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="sendBroadcast()">
+                    <i class="fas fa-bullhorn me-1"></i> Send Broadcast
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedUsers = [];
+    let currentUsers = [];
+    
+    // Update character count
+    document.addEventListener('DOMContentLoaded', function() {
+        const messageText = document.getElementById('message-text');
+        const charCount = document.getElementById('char-count');
+        
+        messageText.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+            if (this.value.length > 5000) {
+                charCount.parentElement.classList.add('text-danger');
+            } else {
+                charCount.parentElement.classList.remove('text-danger');
+            }
+        });
+    });
+    
+    // Toggle select all
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('select-all-users');
+        const checkboxes = document.querySelectorAll('.user-select');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        
+        updateSelectedCount();
+    }
+    
+    // Update selected count
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.user-select:checked');
+        selectedUsers = Array.from(selected).map(cb => cb.value);
+        document.getElementById('selected-count').textContent = selectedUsers.length;
+    }
+    
+    // Show message modal for single user
+    function showMessageModal(userId, userName) {
+        selectedUsers = [userId];
+        document.getElementById('message-recipients').innerHTML = `
+            <span class="badge bg-primary me-2">${userName}</span>
+        `;
+        document.getElementById('message-text').value = '';
+        document.getElementById('char-count').textContent = '0';
+        new bootstrap.Modal(document.getElementById('messageModal')).show();
+    }
+    
+    // Send message to selected users
+    function sendToSelected() {
+        const selected = document.querySelectorAll('.user-select:checked');
+        if (selected.length === 0) {
+            showNotification('Please select users first', 'warning');
+            return;
+        }
+        
+        selectedUsers = Array.from(selected).map(cb => cb.value);
+        let recipientNames = Array.from(selected).map(cb => {
+            const row = cb.closest('tr');
+            const name = row.querySelector('strong').textContent;
+            return `<span class="badge bg-primary me-2">${name}</span>`;
+        });
+        
+        document.getElementById('message-recipients').innerHTML = recipientNames.join('');
+        document.getElementById('message-text').value = '';
+        document.getElementById('char-count').textContent = '0';
+        new bootstrap.Modal(document.getElementById('messageModal')).show();
+    }
+    
+    // Send message
+    async function sendMessage() {
+        const message = document.getElementById('message-text').value.trim();
+        
+        if (!message) {
+            showNotification('Please enter a message', 'warning');
+            return;
+        }
+        
+        if (message.length > 5000) {
+            showNotification('Message is too long (max 5000 characters)', 'warning');
+            return;
+        }
+        
+        try {
+            showNotification('Sending message...', 'info');
+            
+            const result = await apiCall('/admin/users/send-message', {
+                method: 'POST',
+                body: JSON.stringify({
+                    user_ids: selectedUsers,
+                    message: message
+                })
+            });
+            
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('messageModal')).hide();
+                clearSelection();
+            } else {
+                showNotification(result.message, 'error');
+            }
+            
+        } catch (error) {
+            showNotification('Error sending message', 'error');
+        }
+    }
+    
+    // Show broadcast modal
+    function showBroadcastModal() {
+        document.getElementById('broadcast-text').value = '';
+        new bootstrap.Modal(document.getElementById('broadcastModal')).show();
+    }
+    
+    // Send broadcast
+    async function sendBroadcast() {
+        const message = document.getElementById('broadcast-text').value.trim();
+        
+        if (!message) {
+            showNotification('Please enter a message', 'warning');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to send this message to all users?')) {
+            return;
+        }
+        
+        try {
+            showNotification('Sending broadcast...', 'info');
+            
+            const result = await apiCall('/admin/users/broadcast', {
+                method: 'POST',
+                body: JSON.stringify({
+                    message: message
+                })
+            });
+            
+            if (result.status === 'success') {
+                showNotification(result.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('broadcastModal')).hide();
+            } else {
+                showNotification(result.message, 'error');
+            }
+            
+        } catch (error) {
+            showNotification('Error sending broadcast', 'error');
+        }
+    }
+    
+    // Clear selection
+    function clearSelection() {
+        document.querySelectorAll('.user-select').forEach(cb => cb.checked = false);
+        document.getElementById('select-all-users').checked = false;
+        selectedUsers = [];
+        updateSelectedCount();
+    }
+    
+    // View user detail
+    function viewUserDetail(userId) {
+        window.open(`/admin/users/${userId}`, '_blank');
+    }
+    
+    // Edit user
+    function editUser(userId) {
+        // Implement edit functionality
+        showNotification('Edit functionality coming soon', 'info');
+    }
+    
+    // Search users
+    function searchUsers() {
+        const searchTerm = document.getElementById('search-users').value.toLowerCase();
+        const rows = document.querySelectorAll('#users-tbody tr');
+        
+        rows.forEach(row => {
+            const name = row.querySelector('strong').textContent.toLowerCase();
+            const userId = row.querySelector('.font-monospace').textContent.toLowerCase();
+            
+            if (name.includes(searchTerm) || userId.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    // Refresh users
+    function refreshUsers() {
+        showNotification('Refreshing users...', 'info');
+        window.location.reload();
+    }
+</script>
+{% endblock %}
