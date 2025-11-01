@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่าบัญชี LINE - LINE OA Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --sidebar-width: 260px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo i {
+            font-size: 32px;
+        }
+
+        .sidebar-logo-text {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: white;
+            padding: 16px 32px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: none;
+            background: #f3f4f6;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-back:hover {
+            background: #e5e7eb;
+        }
+
+        .topbar-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .content-area {
+            padding: 32px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .setting-info p {
+            font-size: 13px;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.3s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--success-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-control, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-control:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .collapse-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapse-content.show {
+            max-height: 1000px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fab fa-line"></i>
+                <span class="sidebar-logo-text">LINE OA Manager</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="topbar">
+            <button class="btn-back" onclick="window.history.back()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="topbar-title">ตั้งค่า: {{ account.account_name }}</h1>
+        </div>
+
+        <div class="content-area">
+            <div id="alert-container"></div>
+            
+            <!-- Advanced Settings Button -->
+            <div class="mb-4">
+                <a href="/advanced-settings/{{ account.channel_id }}" class="btn btn-primary">
+                    <i class="fas fa-cogs"></i> ตั้งค่าขั้นสูง (Error Codes & Response Messages)
+                </a>
+            </div>
+
+            <!-- AI Chatbot Settings -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <div class="section-icon" style="background: #dbeafe; color: #3b82f6;">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <span>AI Chatbot</span>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>เปิดใช้งาน AI Chatbot</h4>
+                        <p>ตอบกลับข้อความอัตโนมัติด้วย AI</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ai_enabled" {% if account.settings.ai_enabled %}checked{% endif %} onchange="toggleAISettings()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="ai-settings" class="collapse-content {% if account.settings.ai_enabled %}show{% endif %}">
+                    <div class="form-group">
+                        <label class="form-label">OpenAI API Key</label>
+                        <input type="password" class="form-control" id="ai_api_key" value="{{ account.settings.ai_api_key or '' }}" placeholder="sk-...">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">โมเดล AI</label>
+                        <select class="form-select" id="ai_model">
+                            <option value="gpt-4.1-mini" {% if account.settings.ai_model == 'gpt-4.1-mini' %}selected{% endif %}>GPT-4.1 Mini</option>
+                            <option value="gpt-4.1-nano" {% if account.settings.ai_model == 'gpt-4.1-nano' %}selected{% endif %}>GPT-4.1 Nano</option>
+                            <option value="gemini-2.5-flash" {% if account.settings.ai_model == 'gemini-2.5-flash' %}selected{% endif %}>Gemini 2.5 Flash</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">บุคลิกภาพ AI</label>
+                        <textarea class="form-textarea" id="ai_personality" placeholder="อธิบายบุคลิกภาพที่ต้องการให้ AI มี">{{ account.settings.ai_personality or 'เป็นผู้ช่วยที่เป็นมิตรและช่วยเหลือดี' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slip Verification Settings -->
+            <div class="settings-section">
+                <div class="section-title">
+                    <div class="section-icon" style="background: #d1fae5; color: #10b981;">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <span>ตรวจสอบสลิปโอนเงิน</span>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>เปิดใช้งานตรวจสอบสลิป</h4>
+                        <p>ตรวจสอบสลิปโอนเงินอัตโนมัติ</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="slip_verification_enabled" {% if account.settings.slip_verification_enabled %}checked{% endif %} onchange="toggleSlipSettings()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="slip-settings" class="collapse-content {% if account.settings.slip_verification_enabled %}show{% endif %}">
+                    <div class="form-group">
+                        <label class="form-label">ผู้ให้บริการ API</label>
+                        <select class="form-select" id="slip_api_provider">
+                            <option value="thunder" {% if account.settings.slip_api_provider == 'thunder' %}selected{% endif %}>Thunder API</option>
+                            <option value="slipok" {% if account.settings.slip_api_provider == 'slipok' %}selected{% endif %}>SlipOK</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-control" id="slip_api_key" value="{{ account.settings.slip_api_key or '' }}" placeholder="กรอก API Key">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <button class="btn-primary w-100" onclick="saveSettings()">
+                <i class="fas fa-save"></i>
+                บันทึกการตั้งค่า
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function toggleAISettings() {
+            const enabled = document.getElementById('ai_enabled').checked;
+            const settings = document.getElementById('ai-settings');
+            if (enabled) {
+                settings.classList.add('show');
+            } else {
+                settings.classList.remove('show');
+            }
+        }
+
+        function toggleSlipSettings() {
+            const enabled = document.getElementById('slip_verification_enabled').checked;
+            const settings = document.getElementById('slip-settings');
+            if (enabled) {
+                settings.classList.add('show');
+            } else {
+                settings.classList.remove('show');
+            }
+        }
+
+        function showAlert(message, type = 'success') {
+            const container = document.getElementById('alert-container');
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+            container.innerHTML = `
+                <div class="alert alert-${type}">
+                    <i class="fas ${icon}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        async function saveSettings() {
+            const accountId = '{{ account._id }}';
+            
+            const data = {
+                ai_enabled: document.getElementById('ai_enabled').checked,
+                ai_api_key: document.getElementById('ai_api_key').value || null,
+                ai_model: document.getElementById('ai_model').value,
+                ai_personality: document.getElementById('ai_personality').value,
+                slip_verification_enabled: document.getElementById('slip_verification_enabled').checked,
+                slip_api_provider: document.getElementById('slip_api_provider').value,
+                slip_api_key: document.getElementById('slip_api_key').value || null
+            };
+
+            try {
+                const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('บันทึกการตั้งค่าสำเร็จ', 'success');
+                } else {
+                    showAlert(result.message, 'danger');
+                }
+            } catch (error) {
+                showAlert('เกิดข้อผิดพลาดในการบันทึก', 'danger');
+            }
+        }
+    </script>
+</body>
+</html>
+

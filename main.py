@@ -1,0 +1,826 @@
+"""
+LINE OA Management System with Role-based Authentication
+Main Application File
+"""
+import json
+import hmac
+import hashlib
+import base64
+import asyncio
+import logging
+import os
+import sys
+from datetime import datetime
+from typing import Dict, Any, Optional, List
+from contextlib import asynccontextmanager
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log', encoding='utf-8')
+    ]
+)
+logger = logging.getLogger("main_app")
+
+import httpx
+from fastapi import FastAPI, Request, HTTPException, status, Form, Cookie, WebSocket, WebSocketDisconnect
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+# Import models
+from models.database import get_database, init_database
+from models.user import User, UserRole
+from models.session import Session
+from models.line_account import LineAccount
+from models.error_codes import ErrorCode, ResponseMessage
+
+# Import middleware
+from middleware.auth import AuthMiddleware, get_current_user_from_request
+
+# Import services
+from services.chat_bot import ChatBot
+from services.slip_checker import SlipChecker
+from services.slip_formatter import create_beautiful_slip_flex_message, create_error_flex_message
+
+# Global variables
+IS_READY = False
+SHUTDOWN_INITIATED = False
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+    
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logger.info(f"📱 WebSocket connected. Total: {len(self.active_connections)}")
+    
+    async def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        logger.info(f"📱 WebSocket disconnected. Total: {len(self.active_connections)}")
+    
+    async def broadcast(self, message: dict):
+        """Broadcast message to all connected clients"""
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.error(f"Error sending to websocket: {e}")
+                disconnected.append(connection)
+        
+        # Remove disconnected clients
+        for conn in disconnected:
+            await self.disconnect(conn)
+
+manager = ConnectionManager()
+
+# Lifespan context manager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    global IS_READY
+    
+    logger.info("🚀 Starting LINE OA Management System...")
+    
+    try:
+        # Initialize database
+        db = init_database()
+        logger.info("✅ Database initialized")
+        
+        # Initialize models
+        app.state.db = db.get_db()
+        app.state.user_model = User(app.state.db)
+        app.state.session_model = Session(app.state.db)
+        app.state.line_account_model = LineAccount(app.state.db)
+        app.state.error_code_model = ErrorCode(app.state.db)
+        app.state.response_message_model = ResponseMessage(app.state.db)
+        
+        # Initialize auth middleware
+        app.state.auth = AuthMiddleware(app.state.session_model)
+        
+        logger.info("✅ Models initialized")
+        
+        IS_READY = True
+        logger.info("✅ System ready!")
+        
+        yield
+        
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {e}")
+        raise
+    finally:
+        global SHUTDOWN_INITIATED
+        SHUTDOWN_INITIATED = True
+        logger.info("🛑 Shutting down...")
+
+# Create FastAPI app
+app = FastAPI(
+    title="LINE OA Management System",
+    description="Multi-account LINE Official Account management with AI chatbot and slip verification",
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Templates
+templates = Jinja2Templates(directory="templates")
+
+# Pydantic models
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    role: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class CreateLineAccountRequest(BaseModel):
+    account_name: str
+    channel_id: str
+    channel_secret: str
+    channel_access_token: str
+    description: Optional[str] = None
+
+class UpdateLineAccountSettingsRequest(BaseModel):
+    ai_enabled: Optional[bool] = None
+    ai_api_key: Optional[str] = None
+    ai_model: Optional[str] = None
+    ai_personality: Optional[str] = None
+    slip_verification_enabled: Optional[bool] = None
+    slip_api_provider: Optional[str] = None
+    slip_api_key: Optional[str] = None
+
+# ==================== Authentication Routes ====================
+
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    """Redirect to login or dashboard"""
+    user = app.state.auth.get_current_user(request)
+    if user:
+        if user["role"] == UserRole.ADMIN:
+            return RedirectResponse(url="/admin/dashboard")
+        else:
+            return RedirectResponse(url="/user/dashboard")
+    return RedirectResponse(url="/login")
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Login page"""
+    user = app.state.auth.get_current_user(request)
+    if user:
+        if user["role"] == UserRole.ADMIN:
+            return RedirectResponse(url="/admin/dashboard")
+        else:
+            return RedirectResponse(url="/user/dashboard")
+    
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/api/login")
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    """Login endpoint"""
+    try:
+        user = app.state.user_model.authenticate(username, password)
+        
+        if not user:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"success": False, "message": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}
+            )
+        
+        session_id = app.state.session_model.create_session(
+            user_id=user["_id"],
+            username=user["username"],
+            role=user["role"]
+        )
+        
+        if not session_id:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"success": False, "message": "ไม่สามารถสร้าง session ได้"}
+            )
+        
+        response_data = {
+            "success": True,
+            "message": "เข้าสู่ระบบสำเร็จ",
+            "user": {
+                "username": user["username"],
+                "role": user["role"],
+                "full_name": user.get("full_name")
+            },
+            "force_password_change": user.get("force_password_change", False)
+        }
+        
+        if user.get("force_password_change"):
+            response_data["redirect"] = "/change-password"
+        elif user["role"] == UserRole.ADMIN:
+            response_data["redirect"] = "/admin/dashboard"
+        else:
+            response_data["redirect"] = "/user/dashboard"
+        
+        response = JSONResponse(content=response_data)
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            max_age=86400,
+            samesite="lax"
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"❌ Login error: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการเข้าสู่ระบบ"}
+        )
+
+@app.get("/logout")
+async def logout(request: Request, session_id: Optional[str] = Cookie(None)):
+    """Logout endpoint"""
+    if session_id:
+        app.state.session_model.delete_session(session_id)
+    
+    response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    response.delete_cookie("session_id")
+    return response
+
+@app.get("/change-password", response_class=HTMLResponse)
+async def change_password_page(request: Request):
+    """Change password page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    user_data = app.state.user_model.get_user_by_id(user["user_id"])
+    return templates.TemplateResponse("change_password.html", {
+        "request": request,
+        "user": user_data
+    })
+
+@app.post("/api/change-password")
+async def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...)
+):
+    """Change password endpoint"""
+    try:
+        user = app.state.auth.get_current_user(request)
+        if not user:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"success": False, "message": "กรุณาเข้าสู่ระบบ"}
+            )
+        
+        if new_password != confirm_password:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "message": "รหัสผ่านใหม่ไม่ตรงกัน"}
+            )
+        
+        if len(new_password) < 6:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"success": False, "message": "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"}
+            )
+        
+        user_data = app.state.user_model.get_user_by_id(user["user_id"])
+        if not user_data:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"success": False, "message": "ไม่พบข้อมูลผู้ใช้"}
+            )
+        
+        from bson import ObjectId
+        user_with_password = app.state.db.users.find_one({"_id": ObjectId(user["user_id"])})
+        if not User.verify_password(current_password, user_with_password["password"]):
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"success": False, "message": "รหัสผ่านปัจจุบันไม่ถูกต้อง"}
+            )
+        
+        success = app.state.user_model.update_password(user["user_id"], new_password)
+        
+        if success:
+            return JSONResponse(content={
+                "success": True,
+                "message": "เปลี่ยนรหัสผ่านสำเร็จ",
+                "redirect": "/admin/dashboard" if user["role"] == UserRole.ADMIN else "/user/dashboard"
+            })
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"success": False, "message": "ไม่สามารถเปลี่ยนรหัสผ่านได้"}
+            )
+        
+    except Exception as e:
+        logger.error(f"❌ Change password error: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน"}
+        )
+
+# ==================== Admin Routes ====================
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """Admin dashboard"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    total_users = len(app.state.user_model.get_all_users())
+    total_line_accounts = len(app.state.line_account_model.get_all_accounts())
+    
+    recent_users = app.state.user_model.get_all_users()[:5]
+    recent_line_accounts = app.state.line_account_model.get_all_accounts()[:5]
+    
+    return templates.TemplateResponse("admin_dashboard.html", {
+        "request": request,
+        "user": user,
+        "total_users": total_users,
+        "total_line_accounts": total_line_accounts,
+        "recent_users": recent_users,
+        "recent_line_accounts": recent_line_accounts
+    })
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(request: Request):
+    """Admin user management page"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    users = app.state.user_model.get_all_users(include_inactive=True)
+    
+    return templates.TemplateResponse("admin_users.html", {
+        "request": request,
+        "user": user,
+        "users": users
+    })
+
+@app.post("/api/admin/users")
+async def create_user_api(request: Request, data: CreateUserRequest):
+    """Create new user (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        user_id = app.state.user_model.create_user(
+            username=data.username,
+            password=data.password,
+            role=data.role,
+            email=data.email,
+            full_name=data.full_name,
+            force_password_change=True
+        )
+        
+        if user_id:
+            await manager.broadcast({
+                "type": "success",
+                "message": f"สร้างผู้ใช้ {data.username} สำเร็จ"
+            })
+            return {"success": True, "message": "สร้างผู้ใช้สำเร็จ", "user_id": user_id}
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ชื่อผู้ใช้นี้มีอยู่แล้ว"}
+            )
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการสร้างผู้ใช้"}
+        )
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user_api(request: Request, user_id: str):
+    """Delete user (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    if user_id == user["user_id"]:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "ไม่สามารถลบบัญชีของตัวเองได้"}
+        )
+    
+    success = app.state.user_model.delete_user(user_id)
+    if success:
+        await manager.broadcast({
+            "type": "info",
+            "message": "ลบผู้ใช้สำเร็จ"
+        })
+        return {"success": True, "message": "ลบผู้ใช้สำเร็จ"}
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "ไม่สามารถลบผู้ใช้ได้"}
+        )
+
+@app.get("/admin/line-accounts", response_class=HTMLResponse)
+async def admin_line_accounts(request: Request):
+    """Admin LINE accounts management page"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    line_accounts = app.state.line_account_model.get_all_accounts(include_inactive=True)
+    
+    return templates.TemplateResponse("admin_line_accounts.html", {
+        "request": request,
+        "user": user,
+        "line_accounts": line_accounts
+    })
+
+# ==================== User Routes ====================
+
+@app.get("/user/dashboard", response_class=HTMLResponse)
+async def user_dashboard(request: Request):
+    """User dashboard"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
+    
+    return templates.TemplateResponse("user_dashboard.html", {
+        "request": request,
+        "user": user,
+        "line_accounts": line_accounts
+    })
+
+@app.get("/user/line-accounts", response_class=HTMLResponse)
+async def user_line_accounts(request: Request):
+    """User LINE accounts page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
+    
+    return templates.TemplateResponse("user_line_accounts.html", {
+        "request": request,
+        "user": user,
+        "line_accounts": line_accounts
+    })
+
+@app.get("/user/line-accounts/add", response_class=HTMLResponse)
+async def add_line_account_page(request: Request):
+    """Add LINE account page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    return templates.TemplateResponse("add_line_account.html", {
+        "request": request,
+        "user": user
+    })
+
+@app.post("/api/user/line-accounts")
+async def create_line_account_api(request: Request, data: CreateLineAccountRequest):
+    """Create new LINE account"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        account_id = app.state.line_account_model.create_account(
+            account_name=data.account_name,
+            channel_id=data.channel_id,
+            channel_secret=data.channel_secret,
+            channel_access_token=data.channel_access_token,
+            owner_id=user["user_id"],
+            description=data.description
+        )
+        
+        if account_id:
+            await manager.broadcast({
+                "type": "success",
+                "message": f"เพิ่มบัญชี LINE {data.account_name} สำเร็จ"
+            })
+            return {"success": True, "message": "เพิ่มบัญชี LINE สำเร็จ", "account_id": account_id}
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "Channel ID นี้มีอยู่แล้ว"}
+            )
+    except Exception as e:
+        logger.error(f"Error creating LINE account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการเพิ่มบัญชี LINE"}
+        )
+
+@app.get("/user/line-accounts/{account_id}/settings", response_class=HTMLResponse)
+async def line_account_settings_page(request: Request, account_id: str):
+    """LINE account settings page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    return templates.TemplateResponse("line_account_settings.html", {
+        "request": request,
+        "user": user,
+        "account": account
+    })
+
+@app.put("/api/user/line-accounts/{account_id}/settings")
+async def update_line_account_settings_api(
+    request: Request,
+    account_id: str,
+    data: UpdateLineAccountSettingsRequest
+):
+    """Update LINE account settings"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        settings = account.get("settings", {})
+        
+        if data.ai_enabled is not None:
+            settings["ai_enabled"] = data.ai_enabled
+        if data.ai_api_key is not None:
+            settings["ai_api_key"] = data.ai_api_key
+        if data.ai_model is not None:
+            settings["ai_model"] = data.ai_model
+        if data.ai_personality is not None:
+            settings["ai_personality"] = data.ai_personality
+        if data.slip_verification_enabled is not None:
+            settings["slip_verification_enabled"] = data.slip_verification_enabled
+        if data.slip_api_provider is not None:
+            settings["slip_api_provider"] = data.slip_api_provider
+        if data.slip_api_key is not None:
+            settings["slip_api_key"] = data.slip_api_key
+        
+        success = app.state.line_account_model.update_settings(account_id, settings)
+        
+        if success:
+            await manager.broadcast({
+                "type": "success",
+                "message": "อัปเดตการตั้งค่าสำเร็จ"
+            })
+            return {"success": True, "message": "อัปเดตการตั้งค่าสำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถอัปเดตการตั้งค่าได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error updating settings: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตการตั้งค่า"}
+        )
+
+# ==================== WebSocket ====================
+
+@app.websocket("/ws/notifications")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time notifications"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+
+# ==================== Health Check ====================
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "ready": IS_READY,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/error-code-guide", response_class=HTMLResponse)
+async def error_code_guide(request: Request):
+    """Error Code Guide page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    return templates.TemplateResponse("error_code_guide.html", {
+        "request": request,
+        "user": user
+    })
+
+@app.get("/advanced-settings/{channel_id}", response_class=HTMLResponse)
+async def advanced_settings(request: Request, channel_id: str):
+    """Advanced settings page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    account = app.state.line_account_model.get_account_by_channel_id(channel_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Get error codes
+    error_codes = app.state.error_code_model.get_all_error_codes()
+    
+    # Get custom error messages
+    custom_error_messages = {}
+    for code_info in error_codes:
+        custom_msg = app.state.error_code_model.get_custom_message(channel_id, code_info["code"])
+        if custom_msg:
+            custom_error_messages[code_info["code"]] = custom_msg
+    
+    # Get response messages
+    response_messages = {}
+    for msg_type in ["system_closed", "welcome", "fallback"]:
+        msg = app.state.response_message_model.get_message(channel_id, msg_type)
+        if msg:
+            response_messages[msg_type] = msg
+    
+    return templates.TemplateResponse("advanced_settings.html", {
+        "request": request,
+        "user": user,
+        "account": account,
+        "error_codes": error_codes,
+        "custom_error_messages": custom_error_messages,
+        "response_messages": response_messages
+    })
+
+@app.post("/api/response-messages")
+async def save_response_messages(request: Request):
+    """Save response messages"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        data = await request.json()
+        account_id = data.get("account_id")
+        
+        # Check permission
+        account = app.state.line_account_model.get_account_by_channel_id(account_id)
+        if not account:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "ไม่พบบัญชี"}
+            )
+        
+        if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+            return JSONResponse(
+                status_code=403,
+                content={"success": False, "message": "ไม่มีสิทธิ์"}
+            )
+        
+        # Save messages
+        for msg_type in ["system_closed", "welcome", "fallback"]:
+            if msg_type in data:
+                message = data[msg_type]
+                enabled = message != "0" and message != ""
+                app.state.response_message_model.set_message(
+                    account_id, msg_type, message, enabled
+                )
+        
+        await manager.broadcast({
+            "type": "success",
+            "message": "บันทึกการตั้งค่าข้อความสำเร็จ"
+        })
+        
+        return {"success": True, "message": "บันทึกสำเร็จ"}
+    except Exception as e:
+        logger.error(f"Error saving response messages: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": str(e)}
+        )
+
+@app.post("/api/error-codes")
+async def save_error_codes(request: Request):
+    """Save error code messages"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        data = await request.json()
+        account_id = data.get("account_id")
+        
+        # Check permission
+        account = app.state.line_account_model.get_account_by_channel_id(account_id)
+        if not account:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "ไม่พบบัญชี"}
+            )
+        
+        if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+            return JSONResponse(
+                status_code=403,
+                content={"success": False, "message": "ไม่มีสิทธิ์"}
+            )
+        
+        # Save error code messages
+        for key, value in data.items():
+            if key.startswith("error_"):
+                error_code = key.replace("error_", "")
+                if value:  # Only save if not empty
+                    app.state.error_code_model.set_custom_message(
+                        account_id, error_code, value
+                    )
+        
+        await manager.broadcast({
+            "type": "success",
+            "message": "บันทึกการตั้งค่า Error Codes สำเร็จ"
+        })
+        
+        return {"success": True, "message": "บันทึกสำเร็จ"}
+    except Exception as e:
+        logger.error(f"Error saving error codes: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": str(e)}
+        )
+
+@app.get("/api/status")
+async def system_status(request: Request):
+    """System status endpoint"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    db_status = get_database().test_connection()
+    
+    return {
+        "system": {
+            "ready": IS_READY,
+            "version": "2.0.0"
+        },
+        "database": db_status,
+        "statistics": {
+            "total_users": len(app.state.user_model.get_all_users()),
+            "total_line_accounts": len(app.state.line_account_model.get_all_accounts()),
+            "active_websockets": len(manager.active_connections)
+        }
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
