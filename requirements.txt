@@ -23,6 +23,5 @@ python-jose[cryptography]==3.3.0
 # Environment management
 python-dotenv==1.0.0
 
-# Additional utilities
-pydantic==2.5.0
-
+# Additional utilities - อัพเกรดเป็นเวอร์ชันที่รองรับ Python 3.13
+pydantic==2.10.5
