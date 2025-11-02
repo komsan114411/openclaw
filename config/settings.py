@@ -2,10 +2,14 @@
 Application Configuration Settings
 """
 import os
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# พยายาม load .env file (สำหรับ local development)
+# แต่ไม่ error ถ้า load ไม่ได้ (สำหรับ production/Railway)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except:
+    pass
 
 class Settings:
     """Application Settings"""
@@ -14,7 +18,7 @@ class Settings:
     MONGODB_URI: str = os.getenv('MONGODB_URI', '')
     MONGODB_DATABASE: str = os.getenv('MONGODB_DATABASE', 'lineoa_system')
     
-    # Server Configuration
+    # Server Configuration  
     HOST: str = os.getenv('HOST', '0.0.0.0')
     PORT: int = int(os.getenv('PORT', 8000))
     DEBUG: bool = os.getenv('DEBUG', 'False').lower() == 'true'
@@ -43,7 +47,20 @@ class Settings:
         if not cls.MONGODB_URI:
             raise ValueError("MONGODB_URI is required")
         return True
+    
+    @classmethod
+    def print_config(cls) -> None:
+        """Print configuration (for debugging)"""
+        print("=" * 50)
+        print("Configuration Status:")
+        print("=" * 50)
+        print(f"MONGODB_URI: {'✅ Set' if cls.MONGODB_URI else '❌ Not set'}")
+        print(f"MONGODB_DATABASE: {cls.MONGODB_DATABASE}")
+        print(f"HOST: {cls.HOST}")
+        print(f"PORT: {cls.PORT}")
+        print(f"DEBUG: {cls.DEBUG}")
+        print(f"LOG_LEVEL: {cls.LOG_LEVEL}")
+        print("=" * 50)
 
 # Create settings instance
 settings = Settings()
-
