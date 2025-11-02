@@ -13,6 +13,7 @@ import sys
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
+from config import settings
 
 # Setup logging
 logging.basicConfig(
@@ -821,5 +822,10 @@ async def system_status(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    logger.info(f"🚀 Starting server on {settings.HOST}:{settings.PORT}")
+    uvicorn.run(
+        app, 
+        host=settings.HOST, 
+        port=settings.PORT,
+        log_level=settings.LOG_LEVEL.lower()
+    )

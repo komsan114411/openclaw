@@ -7,6 +7,7 @@ from typing import Optional
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
+from config import settings
 
 logger = logging.getLogger("database")
 
@@ -23,9 +24,9 @@ class Database:
     def _connect(self):
         """Connect to MongoDB"""
         try:
-            mongodb_uri = os.getenv('MONGODB_URI')
+            mongodb_uri = settings.MONGODB_URI
             if not mongodb_uri:
-                raise ValueError("MONGODB_URI environment variable not set")
+                raise ValueError("MONGODB_URI is not configured. Please set it in environment variables or .env file")
             
             # Synchronous client for blocking operations
             self.client = MongoClient(
@@ -45,7 +46,7 @@ class Database:
             self.client.admin.command('ping')
             
             # Get database
-            db_name = os.getenv('MONGODB_DATABASE', 'lineoa_system')
+            db_name = settings.MONGODB_DATABASE
             self.db = self.client[db_name]
             self.async_db = self.async_client[db_name]
             
