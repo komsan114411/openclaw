@@ -38,16 +38,67 @@
         
         .sidebar {
             width: 300px;
-            background-color: white;
+            background: linear-gradient(180deg, #14AFAF 0%, #0D7377 100%);
             border-right: 1px solid var(--border-color);
             overflow-y: auto;
             padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .sidebar-header h5 {
+            color: white;
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .sidebar-nav {
+            margin-bottom: 20px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .nav-item i {
+            font-size: 18px;
+            width: 24px;
+        }
+
+        .chat-list-header {
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding: 0 5px;
         }
         
         .chat-list {
             list-style: none;
             padding: 0;
             margin: 0;
+            flex: 1;
+            overflow-y: auto;
         }
         
         .chat-item {
@@ -293,6 +344,26 @@
     <div class="container-main">
         <!-- Sidebar: รายชื่อผู้ใช้ -->
         <div class="sidebar">
+            <div class="sidebar-header">
+                <h5><i class="fas fa-comments"></i> ประวัติการแชท</h5>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/user/dashboard" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>หน้าแรก</span>
+                </a>
+                <a href="/user/line-accounts" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>บัญชี LINE</span>
+                </a>
+                <a href="/logout" class="nav-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>ออกจากระบบ</span>
+                </a>
+            </nav>
+
+            <div class="chat-list-header">ตัวกรอง</div>
             <div class="filter-section">
                 <h6>บัญชี LINE</h6>
                 <select class="form-select form-select-sm" id="accountSelect" onchange="changeAccount()">

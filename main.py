@@ -580,6 +580,10 @@ async def user_dashboard(request: Request):
     if not user:
         return RedirectResponse(url="/login")
     
+    # Prevent Admin from accessing User Dashboard
+    if user["role"] == UserRole.ADMIN:
+        return RedirectResponse(url="/admin/dashboard")
+    
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
     return templates.TemplateResponse("user_dashboard.html", {
@@ -594,6 +598,10 @@ async def user_line_accounts(request: Request):
     user = app.state.auth.get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
+    
+    # Prevent Admin from accessing User LINE Accounts
+    if user["role"] == UserRole.ADMIN:
+        return RedirectResponse(url="/admin/line-accounts")
     
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
@@ -1465,4 +1473,31 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อความ"}
+        )
+
+
+@app.post("/api/test-thunder-api")
+async def test_thunder_api_route(request: Request):
+    """API route to test Thunder API connection."""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    try:
+        data = await request.json()
+        api_key = data.get("api_key")
+        if not api_key:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "API Key is required"}
+            )
+
+        result = test_thunder_api_connection(api_key)
+        return JSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"Error in test_thunder_api_route: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "Internal Server Error"}
         )

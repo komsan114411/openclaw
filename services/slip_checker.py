@@ -1,6 +1,7 @@
 # services/slip_checker.py
 import logging
 import requests
+import asyncio
 import hashlib
 import time
 from datetime import datetime
@@ -511,3 +512,30 @@ class SlipChecker:
         if not self.api_token:
             return {"status": "error", "message": "API Token is required"}
         return test_thunder_api_connection(self.api_token)
+
+
+def test_thunder_api_connection(api_key: str) -> Dict[str, Any]:
+    """Test Thunder API connection with a given API key."""
+    if not api_key:
+        return {"success": False, "message": "API Key is empty"}
+
+    endpoint = "https://api.thunder.in.th/v1/me"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "LINE-OA-Middleware/2.0"
+    }
+
+    try:
+        session = create_requests_session()
+        resp = session.get(endpoint, headers=headers, timeout=15)
+        session.close()
+
+        if resp.status_code == 200:
+            return {"success": True, "message": "API Key is valid"}
+        elif resp.status_code == 401:
+            return {"success": False, "message": "Invalid API Key"}
+        else:
+            return {"success": False, "message": f"API Test Failed (HTTP {resp.status_code})"}
+    except Exception as e:
+        logger.error(f"Error testing Thunder API: {e}")
+        return {"success": False, "message": f"API Test Failed: {e}"}

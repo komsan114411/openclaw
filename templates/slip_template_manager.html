@@ -51,6 +51,32 @@
             font-weight: 700;
         }
 
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: white;
+        }
+
+        .nav-item i {
+            font-size: 18px;
+            width: 24px;
+        }
+
         .main-content {
             margin-left: var(--sidebar-width);
             min-height: 100vh;
@@ -369,6 +395,20 @@
                 <span class="sidebar-logo-text">LINE OA Manager</span>
             </div>
         </div>
+        <nav class="sidebar-nav">
+            <a href="/user/line-accounts" class="nav-item">
+                <i class="fas fa-list"></i>
+                <span>บัญชี LINE</span>
+            </a>
+            <a href="/user/chat-history" class="nav-item">
+                <i class="fas fa-comments"></i>
+                <span>ประวัติการแชท</span>
+            </a>
+            <a href="/user/dashboard" class="nav-item">
+                <i class="fas fa-home"></i>
+                <span>หน้าแรก</span>
+            </a>
+        </nav>
     </div>
 
     <!-- Main Content -->
