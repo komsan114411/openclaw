@@ -44,7 +44,7 @@ from models.error_codes import ErrorCode, ResponseMessage
 from middleware.auth import AuthMiddleware, get_current_user_from_request
 
 # Import services
-from services.chat_bot import ChatBot
+from services.chat_bot import get_chat_response, get_chat_response_async
 from services.slip_checker import SlipChecker
 from services.slip_formatter import create_beautiful_slip_flex_message, create_error_flex_message
 
@@ -823,4 +823,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
