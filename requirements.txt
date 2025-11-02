@@ -16,8 +16,9 @@ pymongo[srv]==4.6.0
 certifi==2023.7.22
 dnspython==2.4.2
 
-# Authentication
-passlib[bcrypt]==1.7.4
+# Authentication - อัพเกรดเป็นเวอร์ชันที่รองรับ Python 3.13
+bcrypt==4.1.2
+passlib==1.7.4
 python-jose[cryptography]==3.3.0
 
 # Environment management
