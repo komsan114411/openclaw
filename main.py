@@ -39,6 +39,7 @@ from models.database import get_database, init_database
 from models.user import User, UserRole
 from models.session import Session
 from models.line_account import LineAccount
+from models.slip_template import SlipTemplate
 from models.error_codes import ErrorCode, ResponseMessage
 
 # Import middleware
@@ -102,6 +103,7 @@ async def lifespan(app: FastAPI):
         app.state.user_model = User(app.state.db)
         app.state.session_model = Session(app.state.db)
         app.state.line_account_model = LineAccount(app.state.db)
+        app.state.slip_template_model = SlipTemplate(app.state.db)
         app.state.error_code_model = ErrorCode(app.state.db)
         app.state.response_message_model = ResponseMessage(app.state.db)
         
@@ -470,6 +472,38 @@ async def admin_line_accounts(request: Request):
         "request": request,
         "user": user,
         "line_accounts": line_accounts
+    })
+
+@app.get("/user/chat-history", response_class=HTMLResponse)
+async def user_chat_history(request: Request):
+    """User chat history page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    # Placeholder for chat history data
+    chat_history = [] 
+    
+    return templates.TemplateResponse("chat_history.html", {
+        "request": request,
+        "user": user,
+        "chat_history": chat_history
+    })
+
+@app.get("/admin/chat-history", response_class=HTMLResponse)
+async def admin_chat_history(request: Request):
+    """Admin chat history page"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    # Placeholder for chat history data
+    chat_history = [] 
+    
+    return templates.TemplateResponse("chat_history.html", {
+        "request": request,
+        "user": user,
+        "chat_history": chat_history
     })
 
 @app.post("/api/admin/line-accounts")
@@ -1151,3 +1185,145 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
     except Exception as e:
         logger.error(f"❌ Error sending slip result: {e}")
 
+
+# ==================== Slip Template Routes ====================
+
+@app.get("/user/line-accounts/{account_id}/slip-templates", response_class=HTMLResponse)
+async def slip_template_manager(request: Request, account_id: str):
+    """Slip template manager page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Initialize default templates if not exists
+    app.state.slip_template_model.init_default_templates(account["channel_id"])
+    
+    templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
+    
+    return templates.TemplateResponse("slip_template_manager.html", {
+        "request": request,
+        "user": user,
+        "account": account,
+        "templates": templates_list
+    })
+
+@app.post("/api/user/line-accounts/{account_id}/slip-templates")
+async def create_slip_template(request: Request, account_id: str):
+    """Create new slip template"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        
+        template_id = app.state.slip_template_model.create_template(
+            channel_id=account["channel_id"],
+            template_name=data.get("template_name"),
+            template_text=data.get("template_text"),
+            description=data.get("description", ""),
+            is_default=data.get("is_default", False)
+        )
+        
+        if template_id:
+            await manager.broadcast({
+                "type": "success",
+                "message": "สร้าง Template สำเร็จ"
+            })
+            return {"success": True, "message": "สร้าง Template สำเร็จ", "template_id": template_id}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถสร้าง Template ได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error creating slip template: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการสร้าง Template"}
+        )
+
+@app.delete("/api/user/line-accounts/{account_id}/slip-templates/{template_id}")
+async def delete_slip_template(request: Request, account_id: str, template_id: str):
+    """Delete slip template"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        success = app.state.slip_template_model.delete_template(template_id)
+        
+        if success:
+            await manager.broadcast({
+                "type": "info",
+                "message": "ลบ Template สำเร็จ"
+            })
+            return {"success": True, "message": "ลบ Template สำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถลบ Template ได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error deleting slip template: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการลบ Template"}
+        )
+
+@app.put("/api/user/line-accounts/{account_id}/slip-templates/{template_id}/default")
+async def set_default_slip_template(request: Request, account_id: str, template_id: str):
+    """Set slip template as default"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        success = app.state.slip_template_model.set_default_template(account["channel_id"], template_id)
+        
+        if success:
+            await manager.broadcast({
+                "type": "success",
+                "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"
+            })
+            return {"success": True, "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถตั้งเป็น Template เริ่มต้นได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error setting default slip template: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการตั้งเป็น Template เริ่มต้น"}
+        )
