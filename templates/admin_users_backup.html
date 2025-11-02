@@ -225,22 +225,6 @@
             color: #1e40af;
         }
 
-        .search-box {
-            position: relative;
-        }
-
-        .search-box i {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #9ca3af;
-        }
-
-        .search-box input {
-            padding-left: 40px;
-        }
-
         .btn-action {
             padding: 6px 12px;
             border: none;
@@ -440,32 +424,6 @@
         <div class="content-area">
             <div id="alert-container"></div>
 
-            <!-- Search and Filter -->
-            <div class="card mb-3">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="search-box">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="searchInput" class="form-control" placeholder="ค้นหาชื่อผู้ใช้, อีเมล..." onkeyup="filterUsers()">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <select id="roleFilter" class="form-control" onchange="filterUsers()">
-                            <option value="">ทุกบทบาท</option>
-                            <option value="admin">ผู้ดูแลระบบ</option>
-                            <option value="user">ผู้ใช้</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select id="statusFilter" class="form-control" onchange="filterUsers()">
-                            <option value="">ทุกสถานะ</option>
-                            <option value="active">ใช้งาน</option>
-                            <option value="inactive">ปิดใช้งาน</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
             <div class="card">
                 <div class="table-container">
                     <table>
@@ -609,39 +567,6 @@
                 showAlert('เกิดข้อผิดพลาด', 'danger');
             }
         });
-
-        function filterUsers() {
-            const searchInput = document.getElementById('searchInput').value.toLowerCase();
-            const roleFilter = document.getElementById('roleFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-            const rows = document.querySelectorAll('tbody tr');
-
-            rows.forEach(row => {
-                const username = row.cells[0].textContent.toLowerCase();
-                const fullName = row.cells[1].textContent.toLowerCase();
-                const email = row.cells[2].textContent.toLowerCase();
-                const role = row.cells[3].textContent;
-                const status = row.cells[4].textContent;
-
-                const matchSearch = username.includes(searchInput) || 
-                                  fullName.includes(searchInput) || 
-                                  email.includes(searchInput);
-                
-                const matchRole = !roleFilter || 
-                                (roleFilter === 'admin' && role.includes('ผู้ดูแลระบบ')) ||
-                                (roleFilter === 'user' && role.includes('ผู้ใช้'));
-                
-                const matchStatus = !statusFilter ||
-                                  (statusFilter === 'active' && status.includes('ใช้งาน')) ||
-                                  (statusFilter === 'inactive' && status.includes('ปิดใช้งาน'));
-
-                if (matchSearch && matchRole && matchStatus) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
 
         async function deleteUser(userId, username) {
             if (!confirm(`ต้องการลบผู้ใช้ "${username}" หรือไม่?`)) {
