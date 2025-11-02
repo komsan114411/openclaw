@@ -2,14 +2,33 @@
 Application Configuration Settings
 """
 import os
+from pathlib import Path
 
-# พยายาม load .env file (สำหรับ local development)
-# แต่ไม่ error ถ้า load ไม่ได้ (สำหรับ production/Railway)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except:
-    pass
+# โหลด environment variables จาก .env
+from dotenv import load_dotenv, find_dotenv
+
+# หา .env file อัตโนมัติ
+env_file = find_dotenv()
+if env_file:
+    load_dotenv(env_file, override=True)
+    print(f"✅ Settings: Loaded .env from {env_file}")
+else:
+    # ลองหาเองในหลายๆ ที่
+    possible_paths = [
+        Path.cwd() / '.env',
+        Path(__file__).parent.parent / '.env',
+        Path('/app/.env'),
+        Path('/home/claude/.env'),
+    ]
+    
+    for path in possible_paths:
+        if path.exists():
+            load_dotenv(path, override=True)
+            print(f"✅ Settings: Loaded .env from {path}")
+            break
+    else:
+        print("⚠️ Settings: No .env file found")
+        load_dotenv()  # ลอง load จาก default location
 
 class Settings:
     """Application Settings"""
@@ -44,6 +63,10 @@ class Settings:
     @classmethod
     def validate(cls) -> bool:
         """Validate required settings"""
+        print(f"🔍 Validating settings...")
+        print(f"🔍 MONGODB_URI: {'✅ Set' if cls.MONGODB_URI else '❌ NOT SET'}")
+        print(f"🔍 MONGODB_DATABASE: {cls.MONGODB_DATABASE}")
+        
         if not cls.MONGODB_URI:
             raise ValueError("MONGODB_URI is required")
         return True
@@ -64,3 +87,7 @@ class Settings:
 
 # Create settings instance
 settings = Settings()
+
+# Debug: print config on load
+if os.getenv('DEBUG', '').lower() == 'true':
+    settings.print_config()
