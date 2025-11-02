@@ -7,7 +7,10 @@ from typing import Optional
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
-from config import settings
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger("database")
 
@@ -24,9 +27,22 @@ class Database:
     def _connect(self):
         """Connect to MongoDB"""
         try:
-            mongodb_uri = settings.MONGODB_URI
+            # อ่าน MONGODB_URI โดยตรงจาก environment variables (สำหรับ Railway)
+            mongodb_uri = os.getenv('MONGODB_URI', '').strip()
+            
+            # ถ้ายังไม่มี ลองใช้จาก settings (สำหรับ local)
+            if not mongodb_uri:
+                try:
+                    from config import settings
+                    mongodb_uri = settings.MONGODB_URI
+                except Exception as e:
+                    logger.warning(f"Cannot import settings: {e}")
+            
+            # ตรวจสอบว่ามี URI หรือไม่
             if not mongodb_uri:
                 raise ValueError("MONGODB_URI is not configured. Please set it in environment variables or .env file")
+            
+            logger.info(f"Connecting to MongoDB... (URI length: {len(mongodb_uri)})")
             
             # Synchronous client for blocking operations
             self.client = MongoClient(
@@ -45,8 +61,16 @@ class Database:
             # Test connection
             self.client.admin.command('ping')
             
-            # Get database
-            db_name = settings.MONGODB_DATABASE
+            # Get database name
+            db_name = os.getenv('MONGODB_DATABASE', 'lineoa_system')
+            if not db_name:
+                try:
+                    from config import settings
+                    db_name = settings.MONGODB_DATABASE
+                except:
+                    db_name = 'lineoa_system'
+            
+            # Get database instances
             self.db = self.client[db_name]
             self.async_db = self.async_client[db_name]
             
@@ -104,4 +128,3 @@ def get_database() -> Database:
 def init_database():
     """Initialize database connection"""
     return get_database()
-
