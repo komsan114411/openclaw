@@ -1,16 +1,14 @@
 """
 User Model with Role-based Access Control
+Fixed for Python 3.13 and bcrypt compatibility
 """
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
-from passlib.context import CryptContext
+import bcrypt
 from bson import ObjectId
 
 logger = logging.getLogger("user_model")
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class UserRole:
     """User role constants"""
@@ -40,7 +38,8 @@ class User:
         try:
             admin_exists = self.collection.find_one({"username": "admin"})
             if not admin_exists:
-                self.create_user(
+                # ลองสร้างด้วย create_user method ก่อน
+                result = self.create_user(
                     username="admin",
                     password="admin123",
                     role=UserRole.ADMIN,
@@ -48,19 +47,107 @@ class User:
                     full_name="System Administrator",
                     force_password_change=True
                 )
-                logger.info("✅ Default admin user created (username: admin, password: admin123)")
+                
+                if result:
+                    logger.info("✅ Default admin user created (username: admin, password: admin123)")
+                else:
+                    # ถ้าไม่สำเร็จ ลองสร้างแบบ direct
+                    self._create_admin_direct()
         except Exception as e:
             logger.error(f"❌ Error creating default admin: {e}")
+            # ลองสร้างแบบ direct อีกครั้ง
+            try:
+                self._create_admin_direct()
+            except Exception as e2:
+                logger.error(f"❌ Fallback admin creation also failed: {e2}")
+    
+    def _create_admin_direct(self):
+        """Create admin user directly using bcrypt"""
+        try:
+            # ตรวจสอบอีกครั้งว่ามี admin แล้วหรือยัง
+            admin_exists = self.collection.find_one({"username": "admin"})
+            if admin_exists:
+                logger.info("✅ Admin user already exists")
+                return
+            
+            # Hash password ด้วย bcrypt โดยตรง
+            password = "admin123"
+            password_bytes = password.encode('utf-8')
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(password_bytes, salt)
+            
+            admin_doc = {
+                "username": "admin",
+                "password": hashed.decode('utf-8'),
+                "role": UserRole.ADMIN,
+                "email": "admin@system.local",
+                "full_name": "System Administrator",
+                "force_password_change": True,
+                "is_active": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "last_login": None,
+                "line_accounts": []
+            }
+            
+            self.collection.insert_one(admin_doc)
+            logger.info("✅ Default admin user created via direct method (username: admin, password: admin123)")
+            
+        except Exception as e:
+            logger.error(f"❌ Error in _create_admin_direct: {e}")
     
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash password using bcrypt"""
-        return pwd_context.hash(password)
+        """
+        Hash password using bcrypt
+        
+        Note: bcrypt has a maximum password length of 72 bytes
+        """
+        try:
+            # Encode password to bytes
+            password_bytes = password.encode('utf-8')
+            
+            # bcrypt limit is 72 bytes
+            if len(password_bytes) > 72:
+                logger.warning("Password exceeds 72 bytes, truncating")
+                password_bytes = password_bytes[:72]
+            
+            # Generate salt and hash
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(password_bytes, salt)
+            
+            return hashed.decode('utf-8')
+            
+        except Exception as e:
+            logger.error(f"❌ Error hashing password: {e}")
+            raise
     
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify password against hash"""
-        return pwd_context.verify(plain_password, hashed_password)
+        """
+        Verify password against hash
+        
+        Args:
+            plain_password: Plain text password
+            hashed_password: Hashed password from database
+            
+        Returns:
+            True if password matches, False otherwise
+        """
+        try:
+            password_bytes = plain_password.encode('utf-8')
+            
+            # bcrypt limit is 72 bytes
+            if len(password_bytes) > 72:
+                password_bytes = password_bytes[:72]
+            
+            hashed_bytes = hashed_password.encode('utf-8')
+            
+            return bcrypt.checkpw(password_bytes, hashed_bytes)
+            
+        except Exception as e:
+            logger.error(f"❌ Error verifying password: {e}")
+            return False
     
     def create_user(
         self,
@@ -78,10 +165,13 @@ class User:
                 logger.warning(f"Username '{username}' already exists")
                 return None
             
+            # Hash password
+            hashed_password = self.hash_password(password)
+            
             # Create user document
             user_doc = {
                 "username": username,
-                "password": self.hash_password(password),
+                "password": hashed_password,
                 "role": role,
                 "email": email,
                 "full_name": full_name,
@@ -90,7 +180,7 @@ class User:
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "last_login": None,
-                "line_accounts": []  # Array of LINE account IDs this user can access
+                "line_accounts": []
             }
             
             result = self.collection.insert_one(user_doc)
@@ -162,8 +252,11 @@ class User:
     def update_password(self, user_id: str, new_password: str, clear_force_change: bool = True) -> bool:
         """Update user password"""
         try:
+            # Hash new password
+            hashed_password = self.hash_password(new_password)
+            
             update_data = {
-                "password": self.hash_password(new_password),
+                "password": hashed_password,
                 "updated_at": datetime.utcnow()
             }
             
@@ -175,7 +268,14 @@ class User:
                 {"$set": update_data}
             )
             
-            return result.modified_count > 0
+            success = result.modified_count > 0
+            
+            if success:
+                logger.info(f"✅ Password updated for user: {user_id}")
+            else:
+                logger.warning(f"⚠️ Password not updated (no changes) for user: {user_id}")
+            
+            return success
             
         except Exception as e:
             logger.error(f"❌ Error updating password: {e}")
@@ -194,7 +294,12 @@ class User:
                 {"$set": update_data}
             )
             
-            return result.modified_count > 0
+            success = result.modified_count > 0
+            
+            if success:
+                logger.info(f"✅ User updated: {user_id}")
+            
+            return success
             
         except Exception as e:
             logger.error(f"❌ Error updating user: {e}")
@@ -207,7 +312,14 @@ class User:
                 {"_id": ObjectId(user_id)},
                 {"$set": {"is_active": False, "updated_at": datetime.utcnow()}}
             )
-            return result.modified_count > 0
+            
+            success = result.modified_count > 0
+            
+            if success:
+                logger.info(f"✅ User deleted (soft): {user_id}")
+            
+            return success
+            
         except Exception as e:
             logger.error(f"❌ Error deleting user: {e}")
             return False
@@ -261,4 +373,3 @@ class User:
         except Exception as e:
             logger.error(f"❌ Error getting user LINE accounts: {e}")
             return []
-
