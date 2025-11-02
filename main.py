@@ -40,6 +40,7 @@ from models.user import User, UserRole
 from models.session import Session
 from models.line_account import LineAccount
 from models.slip_template import SlipTemplate
+from models.chat_message import ChatMessage
 from models.error_codes import ErrorCode, ResponseMessage
 
 # Import middleware
@@ -104,6 +105,7 @@ async def lifespan(app: FastAPI):
         app.state.session_model = Session(app.state.db)
         app.state.line_account_model = LineAccount(app.state.db)
         app.state.slip_template_model = SlipTemplate(app.state.db)
+        app.state.chat_message_model = ChatMessage(app.state.db)
         app.state.error_code_model = ErrorCode(app.state.db)
         app.state.response_message_model = ResponseMessage(app.state.db)
         
@@ -703,9 +705,17 @@ async def update_line_account_settings_api(
         if data.slip_api_provider is not None:
             settings["slip_api_provider"] = data.slip_api_provider
         if data.slip_api_key is not None:
+            # Test API Key before saving
+            if data.slip_api_key:
+                from services.slip_checker import test_thunder_api_connection
+                test_result = test_thunder_api_connection(data.slip_api_key)
+                if test_result.get("status") == "error" and test_result.get("response_code") not in [400, 404]:
+                    # Only fail if it's a real connection/auth error, not just a bad test image
+                    return JSONResponse(
+                        status_code=400,
+                        content={"success": False, "message": f"❌ Thunder API Key ไม่ถูกต้อง: {test_result.get('message')}"}
+                    )
             settings["slip_api_key"] = data.slip_api_key
-        
-        success = app.state.line_account_model.update_settings(account_id, settings)
         
         if success:
             await manager.broadcast({
@@ -1017,6 +1027,15 @@ async def handle_message_event(event: Dict[str, Any], account: Dict[str, Any]):
 async def handle_text_message(text: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle text message with AI"""
     try:
+        # Save user message
+        app.state.chat_message_model.save_message(
+            account_id=account["_id"],
+            user_id=user_id,
+            message_type="text",
+            content=text,
+            sender="user"
+        )
+        
         settings = account.get("settings", {})
         
         # Check if AI is enabled
@@ -1041,6 +1060,15 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
             # Default response
             response_text = "ขอบคุณสำหรับข้อความของคุณ"
         
+        # Save bot response
+        app.state.chat_message_model.save_message(
+            account_id=account["_id"],
+            user_id=user_id,
+            message_type="text",
+            content=response_text,
+            sender="bot"
+        )
+        
         # Send reply
         await send_line_reply(reply_token, response_text, account["channel_access_token"])
         
@@ -1050,6 +1078,16 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
 async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle image message (slip verification)"""
     try:
+        # Save image message
+        app.state.chat_message_model.save_message(
+            account_id=account["_id"],
+            user_id=user_id,
+            message_type="image",
+            content="[รูปภาพ]",
+            message_id=message_id,
+            sender="user"
+        )
+        
         settings = account.get("settings", {})
         
         # Check if slip verification is enabled
@@ -1081,17 +1119,30 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         )
         
         # Verify slip
-        slip_checker = SlipChecker()
+        slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
         result = slip_checker.verify_slip(
             message_id=message_id,
-            line_token=account["channel_access_token"],
-            api_token=slip_api_key,
+            # line_token=account["channel_access_token"], # Already passed in SlipChecker init
+            # api_token=slip_api_key, # Already passed in SlipChecker init
             provider=slip_api_provider
         )
         
         # Update statistics
         if result.get("status") == "success":
             app.state.line_account_model.increment_slip_count(account["_id"])
+            result_text = f"✅ สลิปถูกต้อง"
+        else:
+            result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
+        
+        # Save slip verification result
+        app.state.chat_message_model.save_message(
+            account_id=account["_id"],
+            user_id=user_id,
+            message_type="text",
+            content=result_text,
+            sender="bot",
+            metadata={"slip_result": result}
+        )
         
         # Send result
         await send_slip_result(user_id, result, account["channel_access_token"])
@@ -1326,4 +1377,92 @@ async def set_default_slip_template(request: Request, account_id: str, template_
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการตั้งเป็น Template เริ่มต้น"}
+        )
+
+# ==================== Chat Message Routes ====================
+
+@app.get("/user/chat-history/{account_id}", response_class=HTMLResponse)
+async def chat_history_page(request: Request, account_id: str):
+    """Chat history page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
+    
+    return templates.TemplateResponse("chat_history.html", {
+        "request": request,
+        "user": user,
+        "line_accounts": line_accounts,
+        "current_account_id": account_id
+    })
+
+@app.get("/api/chat-messages/{account_id}/users")
+async def get_chat_users(request: Request, account_id: str):
+    """Get list of users who chatted with this account"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        users = app.state.chat_message_model.get_unique_users(account_id)
+        user_list = []
+        
+        for user_id in users:
+            messages = app.state.chat_message_model.get_messages(account_id, user_id, limit=1)
+            if messages:
+                last_msg = messages[0]
+                user_list.append({
+                    "user_id": user_id,
+                    "user_name": user_id,
+                    "last_message_time": last_msg["timestamp"][:10] if "timestamp" in last_msg else "ไม่มีข้อความ"
+                })
+        
+        return {"success": True, "users": user_list}
+    except Exception as e:
+        logger.error(f"Error getting chat users: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายชื่อผู้ใช้"}
+        )
+
+@app.get("/api/chat-messages/{account_id}/{user_id}")
+async def get_chat_messages(request: Request, account_id: str, user_id: str):
+    """Get chat messages for a specific user"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        messages = app.state.chat_message_model.get_conversation(account_id, user_id, limit=100)
+        return {"success": True, "messages": messages}
+    except Exception as e:
+        logger.error(f"Error getting chat messages: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อความ"}
         )

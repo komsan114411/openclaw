@@ -121,13 +121,13 @@ def verify_slip_with_thunder(
     ถ้าไม่ระบุจะ fallback ไปใช้ค่าใน config_manager เหมือนเดิม
     """
     # ตรวจสอบการตั้งค่า Thunder API แยกจากระบบสลิป
-    thunder_enabled = config_manager.get("thunder_enabled", True)
-    if not thunder_enabled:
-        return {"status": "error", "message": "Thunder API ถูกปิดใช้งาน"}
+    # Thunder API ถูกเปิดใช้งานโดย default ใน SlipChecker.verify_slip
+    # if not thunder_enabled:
+        # return {"status": "error", "message": "Thunder API ถูกปิดใช้งาน"}
     # ตรวจสอบว่าระบบสลิปโดยรวมเปิดอยู่หรือไม่
-    slip_enabled = config_manager.get("slip_enabled", False)
-    if not slip_enabled:
-        return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดใช้งาน"}
+    # slip_enabled ถูกตรวจสอบใน main.py แล้ว
+    # if not slip_enabled:
+        # return {"status": "error", "message": "ระบบตรวจสอบสลิปถูกปิดใช้งาน"}
     # โหลดค่า configuration ที่จำเป็น (ใช้ค่าที่ส่งมา override ถ้ามี)
     api_token = (api_token or config_manager.get("thunder_api_token", "")).strip()
     line_token = (line_token or config_manager.get("line_channel_access_token", "")).strip()
