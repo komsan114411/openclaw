@@ -132,3 +132,34 @@ def get_chat_response(text: str, user_id: str, *, ai_enabled_override=None,
     except Exception as e:
         logger.error(f"❌ Error in get_chat_response: {e}")
         return "ขออภัย เกิดข้อผิดพลาดในระบบ"
+
+
+# เพิ่มที่ท้ายไฟล์ services/chat_bot.py
+
+class ChatBot:
+    """Wrapper class for backward compatibility"""
+    
+    def __init__(self, ai_enabled=None, api_key=None, ai_prompt=None):
+        self.ai_enabled = ai_enabled
+        self.api_key = api_key
+        self.ai_prompt = ai_prompt
+    
+    def get_response(self, text: str, user_id: str) -> str:
+        """Get chatbot response"""
+        return get_chat_response(
+            text=text,
+            user_id=user_id,
+            ai_enabled_override=self.ai_enabled,
+            api_key_override=self.api_key,
+            ai_prompt_override=self.ai_prompt
+        )
+    
+    async def get_response_async(self, text: str, user_id: str) -> str:
+        """Get chatbot response asynchronously"""
+        return await get_chat_response_async(
+            text=text,
+            user_id=user_id,
+            ai_enabled_override=self.ai_enabled,
+            api_key_override=self.api_key,
+            ai_prompt_override=self.ai_prompt
+        )
