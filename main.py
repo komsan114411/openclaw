@@ -472,6 +472,69 @@ async def admin_line_accounts(request: Request):
         "line_accounts": line_accounts
     })
 
+@app.post("/api/admin/line-accounts")
+async def create_line_account_by_admin(request: Request, data: CreateLineAccountRequest):
+    """Create new LINE account (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # Admin can create account for any user, default to admin
+        account_id = app.state.line_account_model.create_account(
+            account_name=data.account_name,
+            channel_id=data.channel_id,
+            channel_secret=data.channel_secret,
+            channel_access_token=data.channel_access_token,
+            owner_id=user["user_id"],
+            description=data.description
+        )
+        
+        if account_id:
+            await manager.broadcast({
+                "type": "success",
+                "message": f"เพิ่มบัญชี LINE {data.account_name} สำเร็จ"
+            })
+            return {"success": True, "message": "เพิ่มบัญชี LINE สำเร็จ", "account_id": account_id}
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "Channel ID นี้มีอยู่แล้ว"}
+            )
+    except Exception as e:
+        logger.error(f"Error creating LINE account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการเพิ่มบัญชี LINE"}
+        )
+
+@app.delete("/api/admin/line-accounts/{account_id}")
+async def delete_line_account_by_admin(request: Request, account_id: str):
+    """Delete LINE account (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        success = app.state.line_account_model.delete_account(account_id)
+        if success:
+            await manager.broadcast({
+                "type": "info",
+                "message": "ลบบัญชี LINE สำเร็จ"
+            })
+            return {"success": True, "message": "ลบบัญชี LINE สำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถลบบัญชี LINE ได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error deleting LINE account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการลบบัญชี LINE"}
+        )
+
 # ==================== User Routes ====================
 
 @app.get("/user/dashboard", response_class=HTMLResponse)
@@ -829,3 +892,262 @@ if __name__ == "__main__":
         port=settings.PORT,
         log_level=settings.LOG_LEVEL.lower()
     )
+
+# ==================== LINE Webhook ====================
+
+@app.post("/webhook/{channel_id}")
+async def line_webhook(request: Request, channel_id: str):
+    """LINE Webhook endpoint for receiving messages"""
+    try:
+        # Get LINE account
+        account = app.state.line_account_model.get_account_by_channel_id(channel_id)
+        if not account:
+            logger.error(f"❌ LINE account not found: {channel_id}")
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        # Verify signature
+        signature = request.headers.get("X-Line-Signature")
+        body = await request.body()
+        
+        # Validate signature
+        channel_secret = account["channel_secret"]
+        hash_digest = hmac.new(
+            channel_secret.encode('utf-8'),
+            body,
+            hashlib.sha256
+        ).digest()
+        expected_signature = base64.b64encode(hash_digest).decode('utf-8')
+        
+        if signature != expected_signature:
+            logger.error(f"❌ Invalid signature for channel: {channel_id}")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+        
+        # Parse webhook data
+        webhook_data = json.loads(body.decode('utf-8'))
+        events = webhook_data.get("events", [])
+        
+        # Update webhook timestamp
+        app.state.line_account_model.update_webhook_timestamp(account["_id"])
+        
+        # Process each event
+        for event in events:
+            await process_line_event(event, account)
+        
+        return {"status": "ok"}
+        
+    except Exception as e:
+        logger.error(f"❌ Webhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+async def process_line_event(event: Dict[str, Any], account: Dict[str, Any]):
+    """Process LINE event"""
+    try:
+        event_type = event.get("type")
+        
+        if event_type == "message":
+            await handle_message_event(event, account)
+        elif event_type == "follow":
+            await handle_follow_event(event, account)
+        elif event_type == "unfollow":
+            await handle_unfollow_event(event, account)
+        else:
+            logger.info(f"Unhandled event type: {event_type}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error processing event: {e}")
+
+async def handle_message_event(event: Dict[str, Any], account: Dict[str, Any]):
+    """Handle message event"""
+    try:
+        message = event.get("message", {})
+        message_type = message.get("type")
+        reply_token = event.get("replyToken")
+        user_id = event["source"]["userId"]
+        
+        # Update statistics
+        app.state.line_account_model.increment_message_count(account["_id"])
+        
+        if message_type == "text":
+            # Handle text message
+            text = message.get("text", "")
+            await handle_text_message(text, reply_token, user_id, account)
+            
+        elif message_type == "image":
+            # Handle image message (slip verification)
+            message_id = message.get("id")
+            await handle_image_message(message_id, reply_token, user_id, account)
+            
+    except Exception as e:
+        logger.error(f"❌ Error handling message event: {e}")
+
+async def handle_text_message(text: str, reply_token: str, user_id: str, account: Dict[str, Any]):
+    """Handle text message with AI"""
+    try:
+        settings = account.get("settings", {})
+        
+        # Check if AI is enabled
+        if settings.get("ai_enabled", False):
+            # Get AI response
+            ai_api_key = settings.get("ai_api_key")
+            ai_model = settings.get("ai_model", "gpt-4.1-mini")
+            ai_personality = settings.get("ai_personality", "เป็นผู้ช่วยที่เป็นมิตรและช่วยเหลือดี")
+            
+            if ai_api_key:
+                # Use account-specific AI settings
+                response_text = await get_chat_response_async(
+                    text,
+                    personality=ai_personality,
+                    model=ai_model,
+                    api_key=ai_api_key
+                )
+            else:
+                # Use default AI settings
+                response_text = await get_chat_response_async(text)
+        else:
+            # Default response
+            response_text = "ขอบคุณสำหรับข้อความของคุณ"
+        
+        # Send reply
+        await send_line_reply(reply_token, response_text, account["channel_access_token"])
+        
+    except Exception as e:
+        logger.error(f"❌ Error handling text message: {e}")
+
+async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
+    """Handle image message (slip verification)"""
+    try:
+        settings = account.get("settings", {})
+        
+        # Check if slip verification is enabled
+        if not settings.get("slip_verification_enabled", False):
+            await send_line_reply(
+                reply_token,
+                "ระบบตรวจสอบสลิปยังไม่เปิดใช้งาน",
+                account["channel_access_token"]
+            )
+            return
+        
+        # Get slip API settings
+        slip_api_provider = settings.get("slip_api_provider", "thunder")
+        slip_api_key = settings.get("slip_api_key")
+        
+        if not slip_api_key:
+            await send_line_reply(
+                reply_token,
+                "ยังไม่ได้ตั้งค่า API Key สำหรับตรวจสอบสลิป",
+                account["channel_access_token"]
+            )
+            return
+        
+        # Send processing message
+        await send_line_reply(
+            reply_token,
+            "กำลังตรวจสอบสลิป กรุณารอสักครู่...",
+            account["channel_access_token"]
+        )
+        
+        # Verify slip
+        slip_checker = SlipChecker()
+        result = slip_checker.verify_slip(
+            message_id=message_id,
+            line_token=account["channel_access_token"],
+            api_token=slip_api_key,
+            provider=slip_api_provider
+        )
+        
+        # Update statistics
+        if result.get("status") == "success":
+            app.state.line_account_model.increment_slip_count(account["_id"])
+        
+        # Send result
+        await send_slip_result(user_id, result, account["channel_access_token"])
+        
+    except Exception as e:
+        logger.error(f"❌ Error handling image message: {e}")
+
+async def handle_follow_event(event: Dict[str, Any], account: Dict[str, Any]):
+    """Handle follow event"""
+    try:
+        user_id = event["source"]["userId"]
+        reply_token = event.get("replyToken")
+        
+        # Update statistics
+        app.state.line_account_model.increment_user_count(account["_id"])
+        
+        # Send welcome message
+        welcome_message = "ยินดีต้อนรับ! ขอบคุณที่เพิ่มเราเป็นเพื่อน"
+        await send_line_reply(reply_token, welcome_message, account["channel_access_token"])
+        
+    except Exception as e:
+        logger.error(f"❌ Error handling follow event: {e}")
+
+async def handle_unfollow_event(event: Dict[str, Any], account: Dict[str, Any]):
+    """Handle unfollow event"""
+    try:
+        user_id = event["source"]["userId"]
+        logger.info(f"User {user_id} unfollowed account {account['channel_id']}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error handling unfollow event: {e}")
+
+async def send_line_reply(reply_token: str, text: str, access_token: str):
+    """Send LINE reply message"""
+    try:
+        url = "https://api.line.me/v2/bot/message/reply"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+        data = {
+            "replyToken": reply_token,
+            "messages": [
+                {
+                    "type": "text",
+                    "text": text
+                }
+            ]
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=data)
+            if response.status_code != 200:
+                logger.error(f"❌ LINE API error: {response.text}")
+            else:
+                logger.info("✅ Reply sent successfully")
+                
+    except Exception as e:
+        logger.error(f"❌ Error sending LINE reply: {e}")
+
+async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str):
+    """Send slip verification result"""
+    try:
+        url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+        
+        if result.get("status") == "success":
+            # Create beautiful flex message
+            flex_message = create_beautiful_slip_flex_message(result.get("data", {}))
+            messages = [flex_message]
+        else:
+            # Create error message
+            error_message = create_error_flex_message(result.get("message", "เกิดข้อผิดพลาด"))
+            messages = [error_message]
+        
+        data = {
+            "to": user_id,
+            "messages": messages
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=data)
+            if response.status_code != 200:
+                logger.error(f"❌ LINE API error: {response.text}")
+            else:
+                logger.info("✅ Slip result sent successfully")
+                
+    except Exception as e:
+        logger.error(f"❌ Error sending slip result: {e}")
+

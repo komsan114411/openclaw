@@ -28,8 +28,11 @@ async def _fetch_chat_history(user_id: str, limit: int = 5) -> List[Dict[str, st
 
 async def get_chat_response_async(
     text: str,
-    user_id: str,
+    user_id: str = "default",
     *,
+    personality: Optional[str] = None,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
     ai_enabled_override: Optional[bool] = None,
     api_key_override: Optional[str] = None,
     ai_prompt_override: Optional[str] = None,
@@ -40,16 +43,17 @@ async def get_chat_response_async(
         from utils.config_manager import config_manager
 
         ai_enabled = ai_enabled_override if ai_enabled_override is not None else config_manager.get("ai_enabled", False)
-        api_key = (api_key_override or config_manager.get("openai_api_key", "")).strip()
-        ai_prompt = ai_prompt_override or config_manager.get(
+        final_api_key = (api_key or api_key_override or config_manager.get("openai_api_key", "")).strip()
+        ai_prompt = personality or ai_prompt_override or config_manager.get(
             "ai_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ความช่วยเหลือ"
         )
+        ai_model = model or "gpt-3.5-turbo"
 
-        logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if api_key else 'No'}")
+        logger.info(f"🤖 AI Chat Request - enabled: {ai_enabled}, api_key: {'Yes' if final_api_key else 'No'}")
         
         if not ai_enabled:
             return "ระบบ AI ถูกปิดการใช้งานค่ะ"
-        if not api_key or len(api_key) < 10:
+        if not final_api_key or len(final_api_key) < 10:
             return "ยังไม่ได้ตั้งค่า OpenAI API Key ค่ะ"
 
         # Fetch chat history asynchronously
@@ -62,12 +66,12 @@ async def get_chat_response_async(
         # Call OpenAI API asynchronously
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {final_api_key}",
             "Content-Type": "application/json"
         }
         
         payload = {
-            "model": "gpt-3.5-turbo",
+            "model": ai_model,
             "messages": messages,
             "max_tokens": 150,
             "temperature": 0.7

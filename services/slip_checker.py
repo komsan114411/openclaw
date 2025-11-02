@@ -497,6 +497,15 @@ class SlipChecker:
             api_token=self.api_token
         )
     
+    def verify_slip(self, message_id: str = None, test_image_data: bytes = None, line_token: str = None, api_token: str = None, provider: str = "thunder") -> Dict[str, Any]:
+        """Verify slip with custom tokens"""
+        return verify_slip_with_thunder(
+            message_id=message_id,
+            test_image_data=test_image_data,
+            line_token=line_token or self.line_token,
+            api_token=api_token or self.api_token
+        )
+    
     def test_connection(self) -> Dict[str, Any]:
         """Test Thunder API connection"""
         if not self.api_token:

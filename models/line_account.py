@@ -205,3 +205,14 @@ class LineAccount:
             logger.error(f"❌ Error incrementing statistics: {e}")
             return False
 
+    def increment_message_count(self, account_id: str) -> bool:
+        """Increment total messages count"""
+        return self.increment_statistics(account_id, "total_messages")
+    
+    def increment_user_count(self, account_id: str) -> bool:
+        """Increment total users count"""
+        return self.increment_statistics(account_id, "total_users")
+    
+    def increment_slip_count(self, account_id: str) -> bool:
+        """Increment total slips verified count"""
+        return self.increment_statistics(account_id, "total_slips_verified")
