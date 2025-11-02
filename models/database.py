@@ -7,10 +7,32 @@ from typing import Optional
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
+from pathlib import Path
 
-# Load environment variables
-from dotenv import load_dotenv
-load_dotenv()
+# Load environment variables - ลองหลายที่
+from dotenv import load_dotenv, find_dotenv
+
+# หา .env file อัตโนมัติ
+env_file = find_dotenv()
+if env_file:
+    load_dotenv(env_file)
+    print(f"✅ Loaded .env from: {env_file}")
+else:
+    # ลองหาเองในหลายๆ ที่
+    possible_paths = [
+        Path.cwd() / '.env',
+        Path(__file__).parent.parent / '.env',
+        Path('/app/.env'),
+        Path('/home/claude/.env'),
+    ]
+    
+    for path in possible_paths:
+        if path.exists():
+            load_dotenv(path)
+            print(f"✅ Loaded .env from: {path}")
+            break
+    else:
+        print("⚠️ No .env file found")
 
 logger = logging.getLogger("database")
 
@@ -27,16 +49,21 @@ class Database:
     def _connect(self):
         """Connect to MongoDB"""
         try:
-            # อ่าน MONGODB_URI โดยตรงจาก environment variables (สำหรับ Railway)
+            # อ่าน MONGODB_URI โดยตรงจาก environment variables
             mongodb_uri = os.getenv('MONGODB_URI', '').strip()
+            
+            # Debug: แสดงว่ามี URI หรือไม่
+            print(f"🔍 MongoDB URI check: {'Found' if mongodb_uri else 'NOT FOUND'}")
+            print(f"🔍 URI length: {len(mongodb_uri) if mongodb_uri else 0}")
             
             # ถ้ายังไม่มี ลองใช้จาก settings (สำหรับ local)
             if not mongodb_uri:
                 try:
                     from config import settings
                     mongodb_uri = settings.MONGODB_URI
+                    print(f"🔍 Loaded URI from settings module")
                 except Exception as e:
-                    logger.warning(f"Cannot import settings: {e}")
+                    print(f"⚠️ Cannot import settings: {e}")
             
             # ตรวจสอบว่ามี URI หรือไม่
             if not mongodb_uri:
@@ -75,9 +102,11 @@ class Database:
             self.async_db = self.async_client[db_name]
             
             logger.info(f"✅ MongoDB connected successfully (database: {db_name})")
+            print(f"✅ MongoDB connected successfully (database: {db_name})")
             
         except Exception as e:
             logger.error(f"❌ MongoDB connection failed: {e}")
+            print(f"❌ MongoDB connection failed: {e}")
             raise
     
     def get_db(self):
