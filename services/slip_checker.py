@@ -474,3 +474,31 @@ def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
             return {"status": "error", "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
     except Exception as e:
         return {"status": "error", "message": f"Connection failed: {str(e)}"}
+
+# ==================== SlipChecker Class ====================
+class SlipChecker:
+    """
+    SlipChecker - Wrapper class for slip verification
+    ใช้สำหรับตรวจสอบสลิปโอนเงิน
+    """
+    
+    def __init__(self, api_token: str = None, line_token: str = None):
+        """Initialize SlipChecker"""
+        self.api_token = api_token
+        self.line_token = line_token
+        logger.info("✅ SlipChecker initialized")
+    
+    def verify(self, message_id: str = None, test_image_data: bytes = None) -> Dict[str, Any]:
+        """Verify slip"""
+        return verify_slip_with_thunder(
+            message_id=message_id,
+            test_image_data=test_image_data,
+            line_token=self.line_token,
+            api_token=self.api_token
+        )
+    
+    def test_connection(self) -> Dict[str, Any]:
+        """Test Thunder API connection"""
+        if not self.api_token:
+            return {"status": "error", "message": "API Token is required"}
+        return test_thunder_api_connection(self.api_token)
