@@ -325,7 +325,7 @@
             </div>
             {% endif %}
 
-            <form method="POST" action="/login">
+            <form method="POST" action="/api/login" id="loginForm">
                 <div class="form-group">
                     <label class="form-label">ชื่อผู้ใช้</label>
                     <div class="input-group">
@@ -388,6 +388,47 @@
                 setTimeout(() => alert.remove(), 300);
             });
         }, 5000);
+
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('.btn-login');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังเข้าสู่ระบบ...';
+            
+            try {
+                const formData = new FormData(this);
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success message
+                    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> เข้าสู่ระบบสำเร็จ!';
+                    submitBtn.style.background = '#48BB78';
+                    
+                    // Redirect after short delay
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 500);
+                } else {
+                    // Show error
+                    alert('❌ ' + data.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
     </script>
 </body>
 </html>
