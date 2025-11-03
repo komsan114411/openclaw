@@ -58,6 +58,7 @@ class LineAccount:
                     "slip_verification_enabled": False,
                     "slip_api_provider": None,
                     "slip_api_key": None,
+                    "slip_template_id": None,
                     "auto_reply_enabled": True,
                     "webhook_enabled": True
                 },

@@ -42,6 +42,7 @@ from models.line_account import LineAccount
 from models.slip_template import SlipTemplate
 from models.chat_message import ChatMessage
 from models.error_codes import ErrorCode, ResponseMessage
+from models.bank_account import BankAccount
 
 # Import middleware
 from middleware.auth import AuthMiddleware, get_current_user_from_request
@@ -108,6 +109,7 @@ async def lifespan(app: FastAPI):
         app.state.chat_message_model = ChatMessage(app.state.db)
         app.state.error_code_model = ErrorCode(app.state.db)
         app.state.response_message_model = ResponseMessage(app.state.db)
+        app.state.bank_account_model = BankAccount(app.state.db)
         
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
@@ -188,6 +190,22 @@ class UpdateLineAccountSettingsRequest(BaseModel):
     slip_verification_enabled: Optional[bool] = None
     slip_api_provider: Optional[str] = None
     slip_api_key: Optional[str] = None
+    slip_template_id: Optional[str] = None
+
+class CreateBankAccountRequest(BaseModel):
+    account_name: str
+    bank_name: str
+    account_number: str
+    line_account_id: Optional[str] = None
+    description: Optional[str] = None
+
+class UpdateBankAccountRequest(BaseModel):
+    account_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    line_account_id: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
 
 # ==================== Authentication Routes ====================
 
@@ -1500,4 +1518,270 @@ async def test_thunder_api_route(request: Request):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "Internal Server Error"}
+        )
+
+
+# ==================== Bank Account Routes ====================
+
+@app.get("/admin/bank-accounts", response_class=HTMLResponse)
+async def admin_bank_accounts_page(request: Request):
+    """Admin bank accounts management page"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    bank_accounts = app.state.bank_account_model.get_all_accounts()
+    line_accounts = app.state.line_account_model.get_all_accounts()
+    
+    return templates.TemplateResponse("admin_bank_accounts.html", {
+        "request": request,
+        "user": user,
+        "bank_accounts": bank_accounts,
+        "line_accounts": line_accounts
+    })
+
+@app.post("/api/admin/bank-accounts")
+async def create_bank_account(request: Request):
+    """Create new bank account (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        data = await request.json()
+        
+        account_id = app.state.bank_account_model.create_account(
+            account_name=data.get("account_name"),
+            bank_name=data.get("bank_name"),
+            account_number=data.get("account_number"),
+            owner_id=user["user_id"],
+            line_account_id=data.get("line_account_id"),
+            description=data.get("description")
+        )
+        
+        if account_id:
+            return JSONResponse(content={
+                "success": True,
+                "message": "สร้างบัญชีธนาคารสำเร็จ",
+                "account_id": account_id
+            })
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ไม่สามารถสร้างบัญชีธนาคารได้ อาจมีบัญชีนี้อยู่แล้ว"}
+            )
+    except Exception as e:
+        logger.error(f"Error creating bank account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการสร้างบัญชีธนาคาร"}
+        )
+
+@app.get("/api/admin/bank-accounts")
+async def get_all_bank_accounts(request: Request):
+    """Get all bank accounts (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        bank_accounts = app.state.bank_account_model.get_all_accounts()
+        return JSONResponse(content={
+            "success": True,
+            "bank_accounts": bank_accounts
+        })
+    except Exception as e:
+        logger.error(f"Error getting bank accounts: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อมูลบัญชีธนาคาร"}
+        )
+
+@app.put("/api/admin/bank-accounts/{account_id}")
+async def update_bank_account(request: Request, account_id: str):
+    """Update bank account (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        data = await request.json()
+        
+        update_data = {}
+        if "account_name" in data:
+            update_data["account_name"] = data["account_name"]
+        if "bank_name" in data:
+            update_data["bank_name"] = data["bank_name"]
+        if "account_number" in data:
+            update_data["account_number"] = data["account_number"]
+        if "line_account_id" in data:
+            update_data["line_account_id"] = data["line_account_id"]
+        if "description" in data:
+            update_data["description"] = data["description"]
+        if "is_active" in data:
+            update_data["is_active"] = data["is_active"]
+        
+        success = app.state.bank_account_model.update_account(account_id, update_data)
+        
+        if success:
+            return JSONResponse(content={
+                "success": True,
+                "message": "อัปเดตบัญชีธนาคารสำเร็จ"
+            })
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ไม่สามารถอัปเดตบัญชีธนาคารได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error updating bank account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตบัญชีธนาคาร"}
+        )
+
+@app.delete("/api/admin/bank-accounts/{account_id}")
+async def delete_bank_account(request: Request, account_id: str):
+    """Delete bank account (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        success = app.state.bank_account_model.delete_account(account_id)
+        
+        if success:
+            return JSONResponse(content={
+                "success": True,
+                "message": "ลบบัญชีธนาคารสำเร็จ"
+            })
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ไม่สามารถลบบัญชีธนาคารได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error deleting bank account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการลบบัญชีธนาคาร"}
+        )
+
+@app.get("/api/user/line-accounts/{line_account_id}/bank-accounts")
+async def get_line_account_bank_accounts(request: Request, line_account_id: str):
+    """Get bank accounts linked to a LINE account"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Check permission
+    line_account = app.state.line_account_model.get_account_by_id(line_account_id)
+    if not line_account:
+        raise HTTPException(status_code=404, detail="LINE account not found")
+    
+    if user["role"] != UserRole.ADMIN and line_account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        bank_accounts = app.state.bank_account_model.get_accounts_by_line_account(line_account_id)
+        return JSONResponse(content={
+            "success": True,
+            "bank_accounts": bank_accounts
+        })
+    except Exception as e:
+        logger.error(f"Error getting bank accounts: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อมูลบัญชีธนาคาร"}
+        )
+
+# ==================== Test API Routes ====================
+
+@app.post("/api/user/line-accounts/{account_id}/test-slip-api")
+async def test_slip_api(request: Request, account_id: str):
+    """Test slip verification API"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Check permission
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        api_key = data.get("api_key")
+        api_provider = data.get("api_provider", "thunder")
+        
+        if not api_key:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "กรุณาระบุ API Key"}
+            )
+        
+        # Test API connection
+        if api_provider == "thunder":
+            # Test Thunder API
+            test_url = "https://api.thunderapi.com/v1/status"
+            headers = {"Authorization": f"Bearer {api_key}"}
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(test_url, headers=headers, timeout=10.0)
+                
+                if response.status_code == 200:
+                    return JSONResponse(content={
+                        "success": True,
+                        "message": "เชื่อมต่อ Thunder API สำเร็จ",
+                        "provider": "thunder"
+                    })
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "success": False,
+                            "message": f"ไม่สามารถเชื่อมต่อ Thunder API ได้ (Status: {response.status_code})"
+                        }
+                    )
+        elif api_provider == "slipok":
+            # Test SlipOK API
+            test_url = "https://api.slipok.com/api/line/apikey/check"
+            headers = {"x-authorization": api_key}
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(test_url, headers=headers, timeout=10.0)
+                
+                if response.status_code == 200:
+                    return JSONResponse(content={
+                        "success": True,
+                        "message": "เชื่อมต่อ SlipOK API สำเร็จ",
+                        "provider": "slipok"
+                    })
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "success": False,
+                            "message": f"ไม่สามารถเชื่อมต่อ SlipOK API ได้ (Status: {response.status_code})"
+                        }
+                    )
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ไม่รองรับผู้ให้บริการนี้"}
+            )
+            
+    except httpx.TimeoutException:
+        return JSONResponse(
+            status_code=408,
+            content={"success": False, "message": "การเชื่อมต่อ API หมดเวลา"}
+        )
+    except Exception as e:
+        logger.error(f"Error testing slip API: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
         )
