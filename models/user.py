@@ -324,6 +324,25 @@ class User:
             logger.error(f"❌ Error deleting user: {e}")
             return False
     
+    def restore_user(self, user_id: str) -> bool:
+        """Restore deleted user (set is_active to True)"""
+        try:
+            result = self.collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"is_active": True, "updated_at": datetime.utcnow()}}
+            )
+            
+            success = result.modified_count > 0
+            
+            if success:
+                logger.info(f"✅ User restored: {user_id}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"❌ Error restoring user: {e}")
+            return False
+    
     def get_all_users(self, include_inactive: bool = False) -> list:
         """Get all users"""
         try:

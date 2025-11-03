@@ -479,6 +479,26 @@ async def delete_user_api(request: Request, user_id: str):
             content={"success": False, "message": "ไม่สามารถลบผู้ใช้ได้"}
         )
 
+@app.put("/api/admin/users/{user_id}/restore")
+async def restore_user_api(request: Request, user_id: str):
+    """Restore deleted user (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    success = app.state.user_model.restore_user(user_id)
+    if success:
+        await manager.broadcast({
+            "type": "success",
+            "message": "กู้คืนผู้ใช้สำเร็จ"
+        })
+        return {"success": True, "message": "กู้คืนผู้ใช้สำเร็จ"}
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "ไม่สามารถกู้คืนผู้ใช้ได้"}
+        )
+
 @app.get("/admin/line-accounts", response_class=HTMLResponse)
 async def admin_line_accounts(request: Request):
     """Admin LINE accounts management page"""
@@ -501,13 +521,13 @@ async def user_chat_history(request: Request):
     if not user:
         return RedirectResponse(url="/login")
     
-    # Placeholder for chat history data
-    chat_history = [] 
+    # Load LINE accounts for this user
+    line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
     return templates.TemplateResponse("chat_history.html", {
         "request": request,
         "user": user,
-        "chat_history": chat_history
+        "line_accounts": line_accounts
     })
 
 @app.get("/admin/chat-history", response_class=HTMLResponse)
@@ -731,17 +751,12 @@ async def update_line_account_settings_api(
         if data.slip_api_provider is not None:
             settings["slip_api_provider"] = data.slip_api_provider
         if data.slip_api_key is not None:
-            # Test API Key before saving
-            if data.slip_api_key:
-                from services.slip_checker import test_thunder_api_connection
-                test_result = test_thunder_api_connection(data.slip_api_key)
-                if test_result.get("status") == "error" and test_result.get("response_code") not in [400, 404]:
-                    # Only fail if it's a real connection/auth error, not just a bad test image
-                    return JSONResponse(
-                        status_code=400,
-                        content={"success": False, "message": f"❌ Thunder API Key ไม่ถูกต้อง: {test_result.get('message')}"}
-                    )
             settings["slip_api_key"] = data.slip_api_key
+        if data.slip_template_id is not None:
+            settings["slip_template_id"] = data.slip_template_id
+        
+        # Update settings in database
+        success = app.state.line_account_model.update_settings(account_id, settings)
         
         if success:
             await manager.broadcast({
@@ -1403,6 +1418,37 @@ async def set_default_slip_template(request: Request, account_id: str, template_
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการตั้งเป็น Template เริ่มต้น"}
+        )
+
+@app.get("/api/user/line-accounts/{account_id}/slip-templates-list")
+async def get_slip_templates_list(request: Request, account_id: str):
+    """Get slip templates list for dropdown"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # Initialize default templates if not exists
+        app.state.slip_template_model.init_default_templates(account["channel_id"])
+        
+        templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
+        
+        return {
+            "success": True,
+            "templates": templates_list
+        }
+    except Exception as e:
+        logger.error(f"Error getting slip templates: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายการ Template"}
         )
 
 # ==================== Chat Message Routes ====================

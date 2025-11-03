@@ -398,13 +398,25 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">A                                <div style="display: flex; gap: 10px;">
-                                    <input type="password" class="form-control" id="thunder_api_key" value="{{ account.settings.thunder_api_key or '' }}" placeholder="กรอก Thunder API Key">
-                                    <button class="btn-primary" type="button" onclick="testThunderAPI()" style="white-space: nowrap; padding: 12px 20px; background: #f59e0b; border: none;">
-                                        <i class="fas fa-plug"></i> ทดสอบ
-                                    </button>
-                                </div>
-                                <p id="thunder_api_status" style="font-size: 12px; margin-top: 5px;"></p>              </div>
+                        <label class="form-label">API Key</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="password" class="form-control" id="slip_api_key" value="{{ account.settings.slip_api_key or '' }}" placeholder="กรอก API Key">
+                            <button class="btn-primary" type="button" onclick="testSlipAPI()" style="white-space: nowrap; padding: 12px 20px; background: #f59e0b; border: none;">
+                                <i class="fas fa-plug"></i> ทดสอบ
+                            </button>
+                        </div>
+                        <p id="slip_api_status" style="font-size: 12px; margin-top: 5px;"></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Template ตอบกลับสลิป</label>
+                        <select class="form-select" id="slip_template_id">
+                            <option value="">ไม่ใช้ template</option>
+                        </select>
+                        <p style="font-size: 12px; color: #6b7280; margin-top: 5px;">
+                            <i class="fas fa-info-circle"></i> เลือก template สำหรับตอบกลับเมื่อตรวจสอบสลิปสำเร็จ
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -458,21 +470,34 @@
             showAlert('คัดลอก Webhook URL สำเร็จ', 'success');
         }
 
-         function testThunderAPI() {
-            const apiKey = document.getElementById('thunder_api_key').value;
-            const statusElement = document.getElementById('thunder_api_status');
+        async function testSlipAPI() {
+            const apiKey = document.getElementById('slip_api_key').value;
+            const apiProvider = document.getElementById('slip_api_provider').value;
+            const statusElement = document.getElementById('slip_api_status');
+            
+            if (!apiKey) {
+                statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> กรุณากรอก API Key';
+                statusElement.style.color = '#ef4444';
+                return;
+            }
+            
             statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...';
             statusElement.style.color = '#f59e0b';
 
-            fetch('/api/test-thunder-api', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ api_key: apiKey })
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch('/api/user/line-accounts/{{ account._id }}/test-slip-api', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        api_key: apiKey,
+                        api_provider: apiProvider
+                    })
+                });
+                
+                const data = await response.json();
+                
                 if (data.success) {
                     statusElement.innerHTML = '<i class="fas fa-check-circle"></i> เชื่อมต่อสำเร็จ!';
                     statusElement.style.color = '#10b981';
@@ -480,14 +505,47 @@
                     statusElement.innerHTML = `<i class="fas fa-times-circle"></i> เชื่อมต่อล้มเหลว: ${data.message}`;
                     statusElement.style.color = '#ef4444';
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 statusElement.innerHTML = `<i class="fas fa-times-circle"></i> เกิดข้อผิดพลาด: ${error.message}`;
                 statusElement.style.color = '#ef4444';
-            });
+            }
         }
 
-        function saveSettings() {s() {
+        async function loadSlipTemplates() {
+            const accountId = '{{ account._id }}';
+            const selectElement = document.getElementById('slip_template_id');
+            const currentTemplateId = '{{ account.settings.slip_template_id or "" }}';
+            
+            try {
+                const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates-list`);
+                const data = await response.json();
+                
+                if (data.success && data.templates) {
+                    // Clear existing options except the first one
+                    selectElement.innerHTML = '<option value="">ไม่ใช้ template</option>';
+                    
+                    // Add template options
+                    data.templates.forEach(template => {
+                        const option = document.createElement('option');
+                        option.value = template._id;
+                        option.textContent = template.template_name;
+                        if (template._id === currentTemplateId) {
+                            option.selected = true;
+                        }
+                        selectElement.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading slip templates:', error);
+            }
+        }
+
+        // Load templates on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSlipTemplates();
+        });
+
+        async function saveSettings() {
             const accountId = '{{ account._id }}';
             
             const data = {
@@ -497,7 +555,8 @@
                 ai_personality: document.getElementById('ai_personality').value,
                 slip_verification_enabled: document.getElementById('slip_verification_enabled').checked,
                 slip_api_provider: document.getElementById('slip_api_provider').value,
-                slip_api_key: document.getElementById('slip_api_key').value || null
+                slip_api_key: document.getElementById('slip_api_key').value || null,
+                slip_template_id: document.getElementById('slip_template_id').value || null
             };
 
             try {
