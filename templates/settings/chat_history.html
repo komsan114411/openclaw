@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}ประวัติการแชท - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section-title">เมนูหลัก</div>
+<div class="sidebar-nav-item">
+    <a href="/user/dashboard" class="sidebar-nav-link">
+        <i class="fas fa-home"></i>
+        <span>หน้าแรก</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/user/line-accounts" class="sidebar-nav-link">
+        <i class="fab fa-line"></i>
+        <span>บัญชี LINE</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/user/chat-history" class="sidebar-nav-link active">
+        <i class="fas fa-comments"></i>
+        <span>ประวัติการแชท</span>
+    </a>
+</div>
+
+<div class="nav-section-title">การตั้งค่า</div>
+<div class="sidebar-nav-item">
+    <a href="/change-password" class="sidebar-nav-link">
+        <i class="fas fa-key"></i>
+        <span>เปลี่ยนรหัสผ่าน</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/logout" class="sidebar-nav-link">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>ออกจากระบบ</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block page_title %}ประวัติการแชท{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ดูประวัติการสนทนากับลูกค้า</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: var(--spacing-lg);
+        height: calc(100vh - 250px);
+    }
+
+    .account-selector {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+        overflow-y: auto;
+    }
+
+    .account-selector-title {
+        font-weight: 700;
+        font-size: var(--font-size-lg);
+        margin-bottom: var(--spacing-md);
+        color: var(--black);
+    }
+
+    .account-item {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        margin-bottom: var(--spacing-sm);
+        border: 2px solid transparent;
+    }
+
+    .account-item:hover {
+        background: var(--gray-100);
+    }
+
+    .account-item.active {
+        background: var(--primary-light);
+        border-color: var(--primary-color);
+    }
+
+    .account-name {
+        font-weight: 600;
+        color: var(--black);
+        margin-bottom: 4px;
+    }
+
+    .account-status {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+    }
+
+    .chat-area {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .chat-header {
+        padding: var(--spacing-lg);
+        border-bottom: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+    .chat-header-title {
+        font-weight: 700;
+        font-size: var(--font-size-lg);
+        color: var(--black);
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+        background: #f8f9fa;
+    }
+
+    .message-group {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .message-date {
+        text-align: center;
+        margin: var(--spacing-lg) 0;
+        color: var(--gray-600);
+        font-size: var(--font-size-sm);
+    }
+
+    .message {
+        display: flex;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .message.user {
+        flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .message.bot .message-avatar {
+        background: var(--gray-400);
+    }
+
+    .message-content {
+        max-width: 60%;
+    }
+
+    .message-bubble {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-lg);
+        background: var(--white);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .message.user .message-bubble {
+        background: var(--primary-color);
+        color: var(--white);
+    }
+
+    .message-text {
+        margin-bottom: 4px;
+    }
+
+    .message-time {
+        font-size: var(--font-size-xs);
+        color: var(--gray-600);
+    }
+
+    .message.user .message-time {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--gray-600);
+    }
+
+    .empty-state i {
+        font-size: 64px;
+        margin-bottom: var(--spacing-md);
+        color: var(--gray-400);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- Account Selector -->
+    <div class="account-selector">
+        <div class="account-selector-title">เลือกบัญชี LINE</div>
+        <select class="form-select mb-md" id="accountSelect" onchange="loadChatHistory()">
+            <option value="">เลือกบัญชี LINE</option>
+            {% for account in line_accounts %}
+            <option value="{{ account._id }}">{{ account.name }}</option>
+            {% endfor %}
+        </select>
+        
+        <div id="accountList">
+            {% if line_accounts %}
+                {% for account in line_accounts %}
+                <div class="account-item" onclick="selectAccount('{{ account._id }}', '{{ account.name }}')">
+                    <div class="account-name">{{ account.name }}</div>
+                    <div class="account-status">
+                        {% if account.is_active %}
+                        <i class="fas fa-circle text-success" style="font-size: 8px;"></i> ใช้งาน
+                        {% else %}
+                        <i class="fas fa-circle text-danger" style="font-size: 8px;"></i> ระงับ
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center">ยังไม่มีบัญชี LINE</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area">
+        <div class="chat-header">
+            <div class="chat-header-title" id="chatTitle">เลือกบัญชีเพื่อดูประวัติการแชท</div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <p>เลือกบัญชี LINE เพื่อดูประวัติการสนทนา</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentAccountId = null;
+
+    function selectAccount(accountId, accountName) {
+        currentAccountId = accountId;
+        
+        // Update UI
+        document.querySelectorAll('.account-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        event.currentTarget.classList.add('active');
+        
+        document.getElementById('chatTitle').textContent = accountName;
+        document.getElementById('accountSelect').value = accountId;
+        
+        // Load chat history
+        loadChatHistory();
+    }
+
+    async function loadChatHistory() {
+        const accountId = document.getElementById('accountSelect').value || currentAccountId;
+        
+        if (!accountId) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/user/chat-history/${accountId}`);
+            const data = await response.json();
+
+            if (data.success && data.messages) {
+                displayMessages(data.messages);
+            } else {
+                showEmptyState('ไม่พบประวัติการสนทนา');
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+            showEmptyState('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        }
+    }
+
+    function displayMessages(messages) {
+        const container = document.getElementById('chatMessages');
+        
+        if (messages.length === 0) {
+            showEmptyState('ยังไม่มีประวัติการสนทนา');
+            return;
+        }
+
+        let html = '';
+        let currentDate = null;
+
+        messages.forEach(msg => {
+            const msgDate = new Date(msg.timestamp).toLocaleDateString('th-TH');
+            
+            if (msgDate !== currentDate) {
+                html += `<div class="message-date">${msgDate}</div>`;
+                currentDate = msgDate;
+            }
+
+            const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const messageClass = msg.type === 'user' ? 'user' : 'bot';
+            const avatar = msg.sender_name ? msg.sender_name[0].toUpperCase() : 'U';
+
+            html += `
+                <div class="message ${messageClass}">
+                    <div class="message-avatar">${avatar}</div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            <div class="message-text">${escapeHtml(msg.text)}</div>
+                            <div class="message-time">${time}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function showEmptyState(message) {
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <p>${message}</p>
+            </div>
+        `;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}

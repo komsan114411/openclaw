@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการเทมเพลตสลิป - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section-title">เมนูหลัก</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/dashboard" class="sidebar-nav-link">
+        <i class="fas fa-chart-line"></i>
+        <span>แดชบอร์ด</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/users" class="sidebar-nav-link">
+        <i class="fas fa-users"></i>
+        <span>จัดการผู้ใช้</span>
+    </a>
+</div>
+
+<div class="nav-section-title">การตั้งค่า</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/slip-templates" class="sidebar-nav-link active">
+        <i class="fas fa-file-invoice"></i>
+        <span>เทมเพลตสลิป</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/logout" class="sidebar-nav-link">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>ออกจากระบบ</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block page_title %}จัดการเทมเพลตสลิป{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">สร้างและจัดการเทมเพลตข้อความตอบกลับสลิป</p>
+{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" onclick="showCreateModal()">
+    <i class="fas fa-plus"></i>
+    <span>สร้างเทมเพลตใหม่</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">รายการเทมเพลต</h3>
+        <div class="badge badge-secondary">{{ templates|length if templates else 0 }} เทมเพลต</div>
+    </div>
+    <div class="card-body">
+        {% if templates %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ชื่อเทมเพลต</th>
+                        <th>เนื้อหา</th>
+                        <th>สถานะ</th>
+                        <th>การจัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in templates %}
+                    <tr>
+                        <td>{{ template.name }}</td>
+                        <td>{{ template.content[:50] }}...</td>
+                        <td>
+                            {% if template.is_active %}
+                            <span class="badge badge-success">ใช้งาน</span>
+                            {% else %}
+                            <span class="badge badge-danger">ระงับ</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-ghost" onclick="editTemplate('{{ template._id }}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-ghost text-danger" onclick="deleteTemplate('{{ template._id }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">ยังไม่มีเทมเพลต</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showCreateModal() {
+        alert('ฟังก์ชันสร้างเทมเพลตจะถูกเพิ่มเติมในเร็วๆ นี้');
+    }
+
+    function editTemplate(id) {
+        alert('ฟังก์ชันแก้ไขเทมเพลตจะถูกเพิ่มเติมในเร็วๆ นี้');
+    }
+
+    function deleteTemplate(id) {
+        if (confirm('คุณต้องการลบเทมเพลตนี้ใช่หรือไม่?')) {
+            alert('ฟังก์ชันลบเทมเพลตจะถูกเพิ่มเติมในเร็วๆ นี้');
+        }
+    }
+</script>
+{% endblock %}

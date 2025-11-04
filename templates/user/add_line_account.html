@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}เพิ่มบัญชี LINE OA{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="max-w-lg mx-auto bg-white shadow-lg rounded-xl p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">เพิ่มบัญชี LINE Official Account ใหม่</h1>
+        <p class="text-gray-600 mb-8 text-center">กรุณากรอกข้อมูล Channel Access Token และข้อมูลที่จำเป็นอื่น ๆ เพื่อเชื่อมต่อบัญชี LINE OA ของคุณ</p>
+
+        <form action="#" method="POST" class="space-y-6">
+            
+            <!-- Account Name -->
+            <div>
+                <label for="account_name" class="block text-sm font-medium text-gray-700 mb-1">ชื่อบัญชี (สำหรับอ้างอิง)</label>
+                <input type="text" id="account_name" name="account_name" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
+                       placeholder="เช่น บัญชีหลัก, บัญชีโปรโมชั่น">
+            </div>
+
+            <!-- Channel ID -->
+            <div>
+                <label for="channel_id" class="block text-sm font-medium text-gray-700 mb-1">Channel ID</label>
+                <input type="text" id="channel_id" name="channel_id" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
+                       placeholder="Channel ID จาก LINE Developers">
+            </div>
+
+            <!-- Channel Secret -->
+            <div>
+                <label for="channel_secret" class="block text-sm font-medium text-gray-700 mb-1">Channel Secret</label>
+                <input type="text" id="channel_secret" name="channel_secret" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
+                       placeholder="Channel Secret จาก LINE Developers">
+            </div>
+
+            <!-- Channel Access Token -->
+            <div>
+                <label for="channel_access_token" class="block text-sm font-medium text-gray-700 mb-1">Channel Access Token</label>
+                <input type="text" id="channel_access_token" name="channel_access_token" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
+                       placeholder="Channel Access Token (Long-lived)">
+            </div>
+
+            <!-- Submit Button -->
+            <div class="pt-4">
+                <button type="submit"
+                        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                    บันทึกและเชื่อมต่อ
+                </button>
+            </div>
+            
+            <!-- Help Link -->
+            <div class="text-center">
+                <a href="#" class="text-sm text-indigo-600 hover:text-indigo-500">วิธีการขอ Channel Access Token?</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

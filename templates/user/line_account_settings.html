@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}ตั้งค่าบัญชี LINE OA{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">ตั้งค่าบัญชี LINE OA</h1>
+
+    <div class="row">
+        <!-- Sidebar/Navigation for Settings -->
+        <div class="col-md-3">
+            <div class="list-group">
+                <a href="#general" class="list-group-item list-group-item-action active">ตั้งค่าทั่วไป</a>
+                <a href="#webhook" class="list-group-item list-group-item-action">Webhook & API</a>
+                <a href="#auto-reply" class="list-group-item list-group-item-action">ข้อความตอบกลับอัตโนมัติ</a>
+                <a href="#billing" class="list-group-item list-group-item-action">การเรียกเก็บเงิน</a>
+            </div>
+        </div>
+
+        <!-- Settings Content Area -->
+        <div class="col-md-9">
+            <div data-bs-spy="scroll" data-bs-target="#settings-nav" data-bs-smooth-scroll="true" class="scrollspy-example" tabindex="0">
+                
+                <!-- General Settings Section -->
+                <section id="general" class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">ตั้งค่าทั่วไป</h5>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="mb-3">
+                                <label for="accountName" class="form-label">ชื่อบัญชี LINE OA</label>
+                                <input type="text" class="form-control" id="accountName" value="บัญชีทดสอบ LINE OA" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="channelId" class="form-label">Channel ID</label>
+                                <input type="text" class="form-control" id="channelId" value="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" disabled>
+                                <div class="form-text">ไม่สามารถแก้ไขได้</div>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="statusToggle" checked>
+                                <label class="form-check-label" for="statusToggle">สถานะ: เปิดใช้งาน</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">บันทึกการตั้งค่าทั่วไป</button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Webhook & API Section -->
+                <section id="webhook" class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Webhook & API</h5>
+                    </div>
+                    <div class="card-body">
+                        <form>
+                            <div class="mb-3">
+                                <label for="webhookUrl" class="form-label">Webhook URL</label>
+                                <input type="url" class="form-control" id="webhookUrl" value="https://yourdomain.com/webhook/lineoa">
+                                <div class="form-text">URL ที่ LINE จะส่งข้อความเข้ามา</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="channelSecret" class="form-label">Channel Secret</label>
+                                <input type="text" class="form-control" id="channelSecret" value="********************************" disabled>
+                                <button type="button" class="btn btn-sm btn-outline-secondary mt-2">แสดง/คัดลอก</button>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="webhookToggle">
+                                <label class="form-check-label" for="webhookToggle">เปิดใช้งาน Webhook</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">บันทึกการตั้งค่า Webhook</button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Auto-Reply Message Section -->
+                <section id="auto-reply" class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">ข้อความตอบกลับอัตโนมัติ</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info" role="alert">
+                            หากเปิดใช้งาน Webhook ระบบจะจัดการการตอบกลับทั้งหมดเอง
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="autoReplyToggle" checked>
+                            <label class="form-check-label" for="autoReplyToggle">เปิดใช้งานข้อความตอบกลับอัตโนมัติ (เมื่อ Webhook ปิดอยู่)</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="welcomeMessage" class="form-label">ข้อความต้อนรับเพื่อนใหม่</label>
+                            <textarea class="form-control" id="welcomeMessage" rows="3">สวัสดีครับ! ยินดีต้อนรับสู่บัญชี LINE OA ของเรา</textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary">บันทึกข้อความตอบกลับ</button>
+                    </div>
+                </section>
+
+                <!-- Billing Section -->
+                <section id="billing" class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">การเรียกเก็บเงิน</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>แพ็กเกจปัจจุบัน:</strong> Standard</p>
+                        <p><strong>ข้อความที่ใช้ไปเดือนนี้:</strong> 1,500/10,000 ข้อความ</p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar" role="progressbar" style="width: 15%;" aria-valuenow="15" aria-valuemin="0" aria-valuemax="100">15%</div>
+                        </div>
+                        <a href="#" class="btn btn-outline-success">อัปเกรดแพ็กเกจ</a>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Simple script for smooth scrolling and active link highlighting (requires Bootstrap JS)
+    document.addEventListener('DOMContentLoaded', function() {
+        const scrollSpy = new bootstrap.ScrollSpy(document.body, {
+            target: '#settings-nav'
+        });
+
+        const navLinks = document.querySelectorAll('.list-group-item-action');
+        const sections = document.querySelectorAll('section[id]');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100; // Adjust offset
+                if (pageYOffset >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

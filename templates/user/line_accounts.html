@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}บัญชี LINE OA ของฉัน{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <header class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">บัญชี LINE OA</h1>
+        <a href="{{ url_for('user.add_line_account') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out">
+            + เพิ่มบัญชีใหม่
+        </a>
+    </header>
+
+    {% if line_accounts %}
+    <div class="space-y-4">
+        {% for account in line_accounts %}
+        <div class="bg-white shadow-lg rounded-xl p-6 flex items-center justify-between border border-gray-200 hover:border-green-400 transition duration-300 ease-in-out">
+            <div class="flex items-center space-x-4">
+                <img src="{{ account.profile_image_url }}" alt="Profile Image" class="w-16 h-16 rounded-full object-cover border-2 border-gray-100">
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900">{{ account.display_name }}</h2>
+                    <p class="text-sm text-gray-500">ID: {{ account.line_id }}</p>
+                    <p class="text-sm text-gray-600 mt-1">สถานะ: 
+                        {% if account.is_active %}
+                            <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">ใช้งานอยู่</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800">ไม่ใช้งาน</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex space-x-3">
+                <a href="{{ url_for('user.view_line_account', account_id=account.id) }}" class="text-blue-600 hover:text-blue-800 font-medium transition duration-150">
+                    ดูรายละเอียด
+                </a>
+                <a href="{{ url_for('user.edit_line_account', account_id=account.id) }}" class="text-yellow-600 hover:text-yellow-800 font-medium transition duration-150">
+                    แก้ไข
+                </a>
+                <button onclick="confirmDelete({{ account.id }})" class="text-red-600 hover:text-red-800 font-medium transition duration-150">
+                    ลบ
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">ยังไม่มีบัญชี LINE OA</h3>
+        <p class="mt-1 text-sm text-gray-500">
+            เริ่มต้นด้วยการเพิ่มบัญชี LINE OA ใหม่ของคุณ
+        </p>
+        <div class="mt-6">
+            <a href="{{ url_for('user.add_line_account') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                + เพิ่มบัญชีใหม่
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function confirmDelete(accountId) {
+        if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบบัญชี LINE OA นี้?")) {
+            // ในการใช้งานจริง จะต้องมีการส่งคำขอไปยังเซิร์ฟเวอร์เพื่อลบข้อมูล
+            console.log("Deleting account with ID:", accountId);
+            // ตัวอย่าง: window.location.href = "{{ url_for('user.delete_line_account', account_id=0) }}".replace('0', accountId);
+        }
+    }
+</script>
+{% endblock %}

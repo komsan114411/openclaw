@@ -394,7 +394,7 @@ async def admin_dashboard(request: Request):
     recent_users = app.state.user_model.get_all_users()[:5]
     recent_line_accounts = app.state.line_account_model.get_all_accounts()[:5]
     
-    return templates.TemplateResponse("admin_dashboard.html", {
+    return templates.TemplateResponse("admin/dashboard.html", {
         "request": request,
         "user": user,
         "total_users": total_users,
@@ -412,7 +412,7 @@ async def admin_users(request: Request):
     
     users = app.state.user_model.get_all_users(include_inactive=True)
     
-    return templates.TemplateResponse("admin_users.html", {
+    return templates.TemplateResponse("admin/users.html", {
         "request": request,
         "user": user,
         "users": users
@@ -508,7 +508,7 @@ async def admin_line_accounts(request: Request):
     
     line_accounts = app.state.line_account_model.get_all_accounts(include_inactive=True)
     
-    return templates.TemplateResponse("admin_line_accounts.html", {
+    return templates.TemplateResponse("admin/line_accounts.html", {
         "request": request,
         "user": user,
         "line_accounts": line_accounts
@@ -524,7 +524,7 @@ async def user_chat_history(request: Request):
     # Load LINE accounts for this user
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
-    return templates.TemplateResponse("chat_history.html", {
+    return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
         "user": user,
         "line_accounts": line_accounts
@@ -540,7 +540,7 @@ async def admin_chat_history(request: Request):
     # Placeholder for chat history data
     chat_history = [] 
     
-    return templates.TemplateResponse("chat_history.html", {
+    return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
         "user": user,
         "chat_history": chat_history
@@ -624,7 +624,7 @@ async def user_dashboard(request: Request):
     
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
-    return templates.TemplateResponse("user_dashboard.html", {
+    return templates.TemplateResponse("user/dashboard.html", {
         "request": request,
         "user": user,
         "line_accounts": line_accounts
@@ -643,7 +643,7 @@ async def user_line_accounts(request: Request):
     
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
-    return templates.TemplateResponse("user_line_accounts.html", {
+    return templates.TemplateResponse("user/line_accounts.html", {
         "request": request,
         "user": user,
         "line_accounts": line_accounts
@@ -656,7 +656,7 @@ async def add_line_account_page(request: Request):
     if not user:
         return RedirectResponse(url="/login")
     
-    return templates.TemplateResponse("add_line_account.html", {
+    return templates.TemplateResponse("user/add_line_account.html", {
         "request": request,
         "user": user
     })
@@ -711,7 +711,7 @@ async def line_account_settings_page(request: Request, account_id: str):
     if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
-    return templates.TemplateResponse("line_account_settings.html", {
+    return templates.TemplateResponse("user/line_account_settings.html", {
         "request": request,
         "user": user,
         "account": account
@@ -843,7 +843,7 @@ async def advanced_settings(request: Request, channel_id: str):
         if msg:
             response_messages[msg_type] = msg
     
-    return templates.TemplateResponse("advanced_settings.html", {
+    return templates.TemplateResponse("settings/advanced_settings.html", {
         "request": request,
         "user": user,
         "account": account,
@@ -1300,7 +1300,7 @@ async def slip_template_manager(request: Request, account_id: str):
     
     templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
     
-    return templates.TemplateResponse("slip_template_manager.html", {
+    return templates.TemplateResponse("settings/slip_template_manager.html", {
         "request": request,
         "user": user,
         "account": account,
@@ -1470,7 +1470,7 @@ async def chat_history_page(request: Request, account_id: str):
     
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
-    return templates.TemplateResponse("chat_history.html", {
+    return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
         "user": user,
         "line_accounts": line_accounts,
@@ -1579,7 +1579,7 @@ async def admin_bank_accounts_page(request: Request):
     bank_accounts = app.state.bank_account_model.get_all_accounts()
     line_accounts = app.state.line_account_model.get_all_accounts()
     
-    return templates.TemplateResponse("admin_bank_accounts.html", {
+    return templates.TemplateResponse("admin/bank_accounts.html", {
         "request": request,
         "user": user,
         "bank_accounts": bank_accounts,
