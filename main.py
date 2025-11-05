@@ -642,11 +642,11 @@ async def user_line_accounts(request: Request):
     if not user:
         return RedirectResponse(url="/login")
     
-    # Prevent Admin from accessing User LINE Accounts
+    # Get accounts based on role
     if user["role"] == UserRole.ADMIN:
-        return RedirectResponse(url="/admin/line-accounts")
-    
-    line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
+        line_accounts = app.state.line_account_model.get_all_accounts(include_inactive=True)
+    else:
+        line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
     return templates.TemplateResponse("user/line_accounts.html", {
         "request": request,
@@ -655,6 +655,7 @@ async def user_line_accounts(request: Request):
     })
 
 @app.get("/user/line-accounts/add", response_class=HTMLResponse)
+@app.get("/user/add-line-account", response_class=HTMLResponse)
 async def add_line_account_page(request: Request):
     """Add LINE account page"""
     user = app.state.auth.get_current_user(request)
@@ -839,12 +840,31 @@ async def error_code_guide(request: Request):
     })
 
 @app.get("/advanced-settings/{channel_id}", response_class=HTMLResponse)
-async def advanced_settings(request: Request, channel_id: str):
+@app.get("/admin/advanced-settings", response_class=HTMLResponse)
+async def advanced_settings(request: Request, channel_id: str = None):
     """Advanced settings page"""
     user = app.state.auth.get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
     
+    # If admin route without channel_id, show system-wide settings
+    if channel_id is None:
+        if user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Get all error codes
+        error_codes = app.state.error_code_model.get_all_error_codes()
+        
+        return templates.TemplateResponse("settings/advanced_settings.html", {
+            "request": request,
+            "user": user,
+            "account": None,
+            "error_codes": error_codes,
+            "custom_error_messages": {},
+            "response_messages": {}
+        })
+    
+    # Get specific account settings
     account = app.state.line_account_model.get_account_by_channel_id(channel_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -1308,12 +1328,28 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
 # ==================== Slip Template Routes ====================
 
 @app.get("/user/line-accounts/{account_id}/slip-templates", response_class=HTMLResponse)
-async def slip_template_manager(request: Request, account_id: str):
+@app.get("/admin/slip-templates", response_class=HTMLResponse)
+async def slip_template_manager(request: Request, account_id: str = None):
     """Slip template manager page"""
     user = app.state.auth.get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
     
+    # If admin route, get all templates
+    if account_id is None:
+        if user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Get all templates from all accounts
+        all_templates = []
+        return templates.TemplateResponse("settings/slip_template_manager.html", {
+            "request": request,
+            "user": user,
+            "account": None,
+            "templates": all_templates
+        })
+    
+    # Get specific account templates
     account = app.state.line_account_model.get_account_by_id(account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
