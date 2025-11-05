@@ -284,7 +284,7 @@
             <div class="form-group">
                 <label class="form-label">Webhook URL สำหรับบัญชีนี้</label>
                 <div class="webhook-url-box">
-                    <span id="webhookUrl">{{ request.base_url }}webhook/line/{{ account.id }}</span>
+                    <span id="webhookUrl">{{ request.base_url }}webhook/line/{{ account._id }}</span>
                     <button class="btn btn-sm btn-ghost copy-btn" onclick="copyWebhookUrl()">
                         <i class="fas fa-copy"></i>
                     </button>
