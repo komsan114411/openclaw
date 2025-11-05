@@ -443,10 +443,18 @@
 
             if (result.success) {
                 resultDiv.className = 'api-test-result success';
-                resultDiv.innerHTML = `
+                let html = `
                     <strong><i class="fas fa-check-circle"></i> ทดสอบสำเร็จ!</strong><br>
                     ${result.message || 'API ทำงานได้ปกติ'}
                 `;
+                // แสดงยอดเหลือและวันหมดอายุถ้ามี
+                if (result.balance !== undefined) {
+                    html += `<br><strong>ยอดคงเหลือ:</strong> ${result.balance.toLocaleString()} ครั้ง`;
+                }
+                if (result.expires_at) {
+                    html += `<br><strong>หมดอายุ:</strong> ${result.expires_at}`;
+                }
+                resultDiv.innerHTML = html;
             } else {
                 resultDiv.className = 'api-test-result error';
                 resultDiv.innerHTML = `

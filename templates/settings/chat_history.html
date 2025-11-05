@@ -390,7 +390,7 @@
         }
 
         container.innerHTML = filteredMessages.map(msg => {
-            const typeBadge = getTypeBadge(msg.type);
+            const typeBadge = getTypeBadge(msg.message_type || msg.type);
             const mediaHtml = getMediaHtml(msg);
 
             return `
@@ -402,7 +402,7 @@
                         </span>
                         <span class="message-time">${formatTime(msg.timestamp)}</span>
                     </div>
-                    <div class="message-content">${msg.text || '<em>ไม่มีข้อความ</em>'}</div>
+                    <div class="message-content">${msg.content || msg.text || '<em>ไม่มีข้อความ</em>'}</div>
                     ${mediaHtml}
                 </div>
             `;
@@ -424,13 +424,14 @@
     function getMediaHtml(msg) {
         if (!msg.media_url) return '';
 
-        if (msg.type === 'image') {
+        const msgType = msg.message_type || msg.type;
+        if (msgType === 'image') {
             return `
                 <div class="message-media">
                     <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')">
                 </div>
             `;
-        } else if (msg.type === 'video') {
+        } else if (msgType === 'video') {
             return `
                 <div class="message-media">
                     <video controls>

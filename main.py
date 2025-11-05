@@ -1925,10 +1925,31 @@ async def test_slip_api(request: Request, account_id: str):
                     response = await client.get(test_url, headers=headers, timeout=10.0)
                     
                     if response.status_code == 200:
+                        data = response.json()
+                        # ดึงข้อมูลยอดเหลือและวันหมดอายุ
+                        balance = data.get("balance", 0)
+                        expires_at = data.get("expiresAt", "")
+                        
+                        # แปลงวันหมดอายุเป็นรูปแบบไทย
+                        expires_display = "ไม่ระบุ"
+                        if expires_at:
+                            try:
+                                import pytz
+                                from datetime import datetime
+                                dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                                thai_tz = pytz.timezone('Asia/Bangkok')
+                                thai_dt = dt.astimezone(thai_tz)
+                                expires_display = thai_dt.strftime("%d/%m/%Y %H:%M")
+                            except Exception as e:
+                                logger.warning(f"Error parsing expiry date: {e}")
+                                expires_display = expires_at
+                        
                         return JSONResponse(content={
                             "success": True,
                             "message": "เชื่อมต่อ Thunder API สำเร็จ",
-                            "provider": "thunder"
+                            "provider": "thunder",
+                            "balance": balance,
+                            "expires_at": expires_display
                         })
                     elif response.status_code == 401:
                         return JSONResponse(
