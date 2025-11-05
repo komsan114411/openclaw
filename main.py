@@ -1422,9 +1422,9 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             "Authorization": f"Bearer {access_token}"
         }
         
-        if result.get("status") == "success":
-            # Create beautiful flex message
-            flex_message = create_beautiful_slip_flex_message(result.get("data", {}))
+        if result.get("status") in ["success", "duplicate"]:
+            # Create beautiful flex message for both success and duplicate
+            flex_message = create_beautiful_slip_flex_message(result)
             messages = [flex_message]
         else:
             # Create error message

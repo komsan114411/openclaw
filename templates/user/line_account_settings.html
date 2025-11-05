@@ -161,7 +161,7 @@
                 <label class="form-label">เปิดใช้งานตรวจสอบสลิป</label>
                 <div class="flex items-center gap-md">
                     <label class="switch">
-                        <input type="checkbox" id="slipEnabled" {% if account.slip_verification_enabled %}checked{% endif %}>
+                        <input type="checkbox" id="slipEnabled" {% if account.settings and account.settings.slip_verification_enabled %}checked{% endif %}>
                         <span class="slider"></span>
                     </label>
                     <span>เปิดใช้งานการตรวจสอบสลิปอัตโนมัติ</span>
@@ -171,17 +171,17 @@
             <div class="form-group">
                 <label class="form-label">API สำหรับตรวจสอบสลิป</label>
                 <select class="form-control" id="slipApiProvider">
-                    <option value="thunder" {% if account.slip_api_provider == 'thunder' %}selected{% endif %}>Thunder API</option>
-                    <option value="slipok" {% if account.slip_api_provider == 'slipok' %}selected{% endif %}>SlipOK API</option>
+                    <option value="thunder" {% if account.settings and account.settings.slip_api_provider == 'thunder' %}selected{% endif %}>Thunder API</option>
+                    <option value="slipok" {% if account.settings and account.settings.slip_api_provider == 'slipok' %}selected{% endif %}>SlipOK API</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label class="form-label required">API Key</label>
                 <input type="password" class="form-control" id="slipApiKey" 
-                       value="{% if account.slip_api_key %}********************************{% endif %}" 
-                       data-has-key="{{ 'true' if account.slip_api_key else 'false' }}"
-                       data-real-key="{{ account.slip_api_key or '' }}"
+                       value="{% if account.settings and account.settings.slip_api_key %}********************************{% endif %}" 
+                       data-has-key="{{ 'true' if (account.settings and account.settings.slip_api_key) else 'false' }}"
+                       data-real-key="{{ (account.settings.slip_api_key if account.settings else '') or '' }}"
                        placeholder="กรอก API Key สำหรับตรวจสอบสลิป">
                 <small class="text-muted">
                     Thunder API: <a href="https://thunder.in.th" target="_blank">https://thunder.in.th</a><br>

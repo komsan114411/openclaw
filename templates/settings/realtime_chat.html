@@ -687,10 +687,11 @@
             return;
         }
 
-        // Reverse to show oldest first
-        messages.reverse();
+        // Messages are already sorted by timestamp DESC from API
+        // So we need to reverse to show oldest first (top) and newest last (bottom)
+        const sortedMessages = append ? messages.reverse() : messages.reverse();
 
-        const messagesHtml = messages.map(msg => {
+        const messagesHtml = sortedMessages.map(msg => {
             const senderClass = msg.sender === 'user' ? 'user' : 'bot';
             const initial = msg.sender === 'user' ? 'U' : 'B';
             const content = msg.content || msg.text || '';
@@ -763,12 +764,17 @@
         
         if (append) {
             // Prepend older messages
+            const oldScrollHeight = chatMessages.scrollHeight;
             chatMessages.innerHTML = messagesHtml + chatMessages.innerHTML;
+            // Maintain scroll position
+            chatMessages.scrollTop = chatMessages.scrollHeight - oldScrollHeight;
         } else {
             // Replace all messages
             chatMessages.innerHTML = messagesHtml;
-            // Scroll to bottom for initial load
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            // Always scroll to bottom to show newest messages
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
         }
     }
 
