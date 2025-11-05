@@ -560,23 +560,7 @@ async def user_chat_history(request: Request):
     else:
         line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
-    return templates.TemplateResponse("settings/chat_history.html", {
-        "request": request,
-        "user": user,
-        "line_accounts": line_accounts
-    })
-
-@app.get("/admin/chat-history", response_class=HTMLResponse)
-async def admin_chat_history(request: Request):
-    """Admin chat history page"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        return RedirectResponse(url="/login")
-    
-    # Get all LINE accounts for admin
-    line_accounts = app.state.line_account_model.get_all_accounts()
-    
-    return templates.TemplateResponse("settings/chat_history.html", {
+    return templates.TemplateResponse("settings/realtime_chat.html", {
         "request": request,
         "user": user,
         "line_accounts": line_accounts
@@ -1676,13 +1660,22 @@ async def get_chat_users(request: Request, account_id: str):
         user_list = []
         
         for user_id in users:
-            messages = app.state.chat_message_model.get_messages(account_id, user_id, limit=1)
+            messages = app.state.chat_message_model.get_conversation(account_id, user_id, limit=1)
             if messages:
                 last_msg = messages[0]
+                # Get user profile from LINE
+                user_name = user_id
+                try:
+                    profile = app.state.line_bot_api.get_profile(user_id)
+                    user_name = profile.display_name
+                except:
+                    pass
+                
                 user_list.append({
                     "user_id": user_id,
-                    "user_name": user_id,
-                    "last_message_time": last_msg["timestamp"][:10] if "timestamp" in last_msg else "ไม่มีข้อความ"
+                    "user_name": user_name,
+                    "last_message": last_msg.get("text", "[ไม่มีข้อความ]"),
+                    "last_message_time": last_msg.get("timestamp", "")
                 })
         
         return {"success": True, "users": user_list}
@@ -1717,6 +1710,45 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str):
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อความ"}
         )
+
+@app.get("/api/line-image/{account_id}/{message_id}")
+async def get_line_image(request: Request, account_id: str, message_id: str):
+    """Proxy endpoint to get LINE image with authentication"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # Get image from LINE API
+        image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        headers = {
+            "Authorization": f"Bearer {account['channel_access_token']}"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(image_url, headers=headers)
+            
+            if response.status_code == 200:
+                from fastapi.responses import Response
+                return Response(
+                    content=response.content,
+                    media_type=response.headers.get("content-type", "image/jpeg")
+                )
+            else:
+                raise HTTPException(status_code=response.status_code, detail="Failed to get image from LINE")
+                
+    except Exception as e:
+        logger.error(f"Error getting LINE image: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 
 
 @app.post("/api/test-thunder-api")

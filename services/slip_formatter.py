@@ -166,7 +166,12 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         if not data:
             return create_error_flex_message(result.get("message", "ไม่สามารถดึงข้อมูลสลิปได้"))
 
-        amount = data.get("amount", "0")
+        # ดึงจำนวนเงินจาก Thunder API
+        amount_obj = data.get("amount", {})
+        if isinstance(amount_obj, dict):
+            amount = amount_obj.get("amount", 0)
+        else:
+            amount = amount_obj
         amount_display = format_currency(amount)
 
         date_th = format_thai_datetime(
@@ -179,18 +184,39 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
 
         ref_no = data.get("transRef") or data.get("reference") or "-"
 
-        s_name = data.get("sender_name_th") or data.get("sender_name_en") or data.get("sender") or "ไม่ระบุชื่อ"
-        r_name = data.get("receiver_name_th") or data.get("receiver_name_en") or data.get("receiver_name") or data.get("receiver") or "ไม่ระบุชื่อ"
-
-        s_acc = data.get("sender_account_number", "") or data.get("sender_account", "")
-        r_acc = data.get("receiver_account_number", "") or data.get("receiver_account", "")
+        # ดึงข้อมูลผู้โอนจาก Thunder API response structure
+        sender = data.get("sender", {})
+        receiver = data.get("receiver", {})
+        
+        # ชื่อผู้โอน
+        sender_account = sender.get("account", {})
+        sender_name = sender_account.get("name", {})
+        s_name = sender_name.get("th", "") or sender_name.get("en", "") or "ไม่ระบุชื่อ"
+        
+        # ชื่อผู้รับ
+        receiver_account = receiver.get("account", {})
+        receiver_name = receiver_account.get("name", {})
+        r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or "ไม่ระบุชื่อ"
+        
+        # เลขบัญชีผู้โอน
+        sender_bank_info = sender_account.get("bank", {})
+        s_acc = sender_bank_info.get("account", "")
         s_acc_mask = mask_account_formatted(s_acc)
+        
+        # เลขบัญชีผู้รับ
+        receiver_bank_info = receiver_account.get("bank", {})
+        r_acc = receiver_bank_info.get("account", "")
         r_acc_mask = mask_account_formatted(r_acc)
-
-        s_code = data.get("sender_bank_id", "")
-        s_bank = data.get("sender_bank_short", data.get("sender_bank", "")) or ""
-        r_code = data.get("receiver_bank_id", "")
-        r_bank = data.get("receiver_bank_short", data.get("receiver_bank", "")) or ""
+        
+        # ธนาคารผู้โอน
+        sender_bank = sender.get("bank", {})
+        s_code = sender_bank.get("id", "")
+        s_bank = sender_bank.get("short", "") or sender_bank.get("name", "")
+        
+        # ธนาคารผู้รับ
+        receiver_bank = receiver.get("bank", {})
+        r_code = receiver_bank.get("id", "")
+        r_bank = receiver_bank.get("short", "") or receiver_bank.get("name", "")
 
         s_logo = get_bank_logo(s_code, s_bank)
         r_logo = get_bank_logo(r_code, r_bank)
