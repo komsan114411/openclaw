@@ -526,14 +526,18 @@ async def admin_line_accounts(request: Request):
     })
 
 @app.get("/user/chat-history", response_class=HTMLResponse)
+@app.get("/settings/chat-history", response_class=HTMLResponse)
 async def user_chat_history(request: Request):
     """User chat history page"""
     user = app.state.auth.get_current_user(request)
     if not user:
         return RedirectResponse(url="/login")
     
-    # Load LINE accounts for this user
-    line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
+    # Load LINE accounts for this user or all accounts for admin
+    if user["role"] == UserRole.ADMIN:
+        line_accounts = app.state.line_account_model.get_all_accounts()
+    else:
+        line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
     return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
@@ -548,13 +552,13 @@ async def admin_chat_history(request: Request):
     if not user or user["role"] != UserRole.ADMIN:
         return RedirectResponse(url="/login")
     
-    # Placeholder for chat history data
-    chat_history = [] 
+    # Get all LINE accounts for admin
+    line_accounts = app.state.line_account_model.get_all_accounts()
     
     return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
         "user": user,
-        "chat_history": chat_history
+        "line_accounts": line_accounts
     })
 
 @app.post("/api/admin/line-accounts")
@@ -1035,14 +1039,14 @@ if __name__ == "__main__":
 
 # ==================== LINE Webhook ====================
 
-@app.post("/webhook/{channel_id}")
-async def line_webhook(request: Request, channel_id: str):
+@app.post("/webhook/line/{account_id}")
+async def line_webhook(request: Request, account_id: str):
     """LINE Webhook endpoint for receiving messages"""
     try:
-        # Get LINE account
-        account = app.state.line_account_model.get_account_by_channel_id(channel_id)
+        # Get LINE account by ID
+        account = app.state.line_account_model.get_account_by_id(account_id)
         if not account:
-            logger.error(f"❌ LINE account not found: {channel_id}")
+            logger.error(f"❌ LINE account not found: {account_id}")
             raise HTTPException(status_code=404, detail="Account not found")
         
         # Verify signature
@@ -1843,48 +1847,82 @@ async def test_slip_api(request: Request, account_id: str):
         # Test API connection
         if api_provider == "thunder":
             # Test Thunder API
-            test_url = "https://api.thunderapi.com/v1/status"
+            test_url = "https://api.thunder.in.th/v1/me"
             headers = {"Authorization": f"Bearer {api_key}"}
             
-            async with httpx.AsyncClient() as client:
-                response = await client.get(test_url, headers=headers, timeout=10.0)
-                
-                if response.status_code == 200:
-                    return JSONResponse(content={
-                        "success": True,
-                        "message": "เชื่อมต่อ Thunder API สำเร็จ",
-                        "provider": "thunder"
-                    })
-                else:
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "success": False,
-                            "message": f"ไม่สามารถเชื่อมต่อ Thunder API ได้ (Status: {response.status_code})"
-                        }
-                    )
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(test_url, headers=headers, timeout=10.0)
+                    
+                    if response.status_code == 200:
+                        return JSONResponse(content={
+                            "success": True,
+                            "message": "เชื่อมต่อ Thunder API สำเร็จ",
+                            "provider": "thunder"
+                        })
+                    elif response.status_code == 401:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "success": False,
+                                "message": "API Key ไม่ถูกต้อง กรุณาตรวจสอบ API Key อีกครั้ง"
+                            }
+                        )
+                    else:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "success": False,
+                                "message": f"ไม่สามารถเชื่อมต่อ Thunder API ได้ (Status: {response.status_code})"
+                            }
+                        )
+            except httpx.ConnectError:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "message": "ไม่สามารถเชื่อมต่อ Thunder API ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต"
+                    }
+                )
         elif api_provider == "slipok":
             # Test SlipOK API
             test_url = "https://api.slipok.com/api/line/apikey/check"
             headers = {"x-authorization": api_key}
             
-            async with httpx.AsyncClient() as client:
-                response = await client.get(test_url, headers=headers, timeout=10.0)
-                
-                if response.status_code == 200:
-                    return JSONResponse(content={
-                        "success": True,
-                        "message": "เชื่อมต่อ SlipOK API สำเร็จ",
-                        "provider": "slipok"
-                    })
-                else:
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "success": False,
-                            "message": f"ไม่สามารถเชื่อมต่อ SlipOK API ได้ (Status: {response.status_code})"
-                        }
-                    )
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(test_url, headers=headers, timeout=10.0)
+                    
+                    if response.status_code == 200:
+                        return JSONResponse(content={
+                            "success": True,
+                            "message": "เชื่อมต่อ SlipOK API สำเร็จ",
+                            "provider": "slipok"
+                        })
+                    elif response.status_code == 401:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "success": False,
+                                "message": "API Key ไม่ถูกต้อง กรุณาตรวจสอบ API Key อีกครั้ง"
+                            }
+                        )
+                    else:
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "success": False,
+                                "message": f"ไม่สามารถเชื่อมต่อ SlipOK API ได้ (Status: {response.status_code})"
+                            }
+                        )
+            except httpx.ConnectError:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "message": "ไม่สามารถเชื่อมต่อ SlipOK API ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต"
+                    }
+                )
         else:
             return JSONResponse(
                 status_code=400,

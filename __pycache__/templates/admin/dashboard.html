@@ -3,59 +3,7 @@
 {% block title %}Admin Dashboard - LINE OA Management{% endblock %}
 
 {% block sidebar_nav %}
-<div class="nav-section-title">เมนูหลัก</div>
-<div class="sidebar-nav-item">
-    <a href="/admin/dashboard" class="sidebar-nav-link active">
-        <i class="fas fa-chart-line"></i>
-        <span>แดชบอร์ด</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/admin/users" class="sidebar-nav-link">
-        <i class="fas fa-users"></i>
-        <span>จัดการผู้ใช้</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/admin/line-accounts" class="sidebar-nav-link">
-        <i class="fab fa-line"></i>
-        <span>บัญชี LINE OA</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/admin/bank-accounts" class="sidebar-nav-link">
-        <i class="fas fa-university"></i>
-        <span>บัญชีธนาคาร</span>
-    </a>
-</div>
-
-<div class="nav-section-title">การตั้งค่า</div>
-<div class="sidebar-nav-item">
-    <a href="/admin/slip-templates" class="sidebar-nav-link">
-        <i class="fas fa-file-invoice"></i>
-        <span>เทมเพลตสลิป</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/admin/advanced-settings" class="sidebar-nav-link">
-        <i class="fas fa-cog"></i>
-        <span>ตั้งค่าขั้นสูง</span>
-    </a>
-</div>
-
-<div class="nav-section-title">อื่นๆ</div>
-<div class="sidebar-nav-item">
-    <a href="/change-password" class="sidebar-nav-link">
-        <i class="fas fa-key"></i>
-        <span>เปลี่ยนรหัสผ่าน</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/logout" class="sidebar-nav-link">
-        <i class="fas fa-sign-out-alt"></i>
-        <span>ออกจากระบบ</span>
-    </a>
-</div>
+{% include 'includes/admin_menu.html' %}
 {% endblock %}
 
 {% block page_title %}แดชบอร์ด{% endblock %}

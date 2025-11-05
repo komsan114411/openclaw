@@ -1,0 +1,40 @@
+<!-- Standard Menu for Admin Pages -->
+<div class="nav-section-title">เมนูหลัก</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/dashboard" class="sidebar-nav-link {% if request.path == '/admin/dashboard' %}active{% endif %}">
+        <i class="fas fa-chart-line"></i>
+        <span>แดชบอร์ด</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/users" class="sidebar-nav-link {% if '/admin/users' in request.path %}active{% endif %}">
+        <i class="fas fa-users"></i>
+        <span>จัดการผู้ใช้</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/line-accounts" class="sidebar-nav-link {% if '/admin/line-accounts' in request.path %}active{% endif %}">
+        <i class="fab fa-line"></i>
+        <span>บัญชี LINE OA</span>
+    </a>
+</div>
+
+<div class="nav-section-title">การตั้งค่า</div>
+<div class="sidebar-nav-item">
+    <a href="/settings/chat-history" class="sidebar-nav-link {% if '/chat-history' in request.path %}active{% endif %}">
+        <i class="fas fa-comments"></i>
+        <span>ประวัติการแชท</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/change-password" class="sidebar-nav-link {% if request.path == '/change-password' %}active{% endif %}">
+        <i class="fas fa-key"></i>
+        <span>เปลี่ยนรหัสผ่าน</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/logout" class="sidebar-nav-link">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>ออกจากระบบ</span>
+    </a>
+</div>
