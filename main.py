@@ -1233,18 +1233,31 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
 async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle image message (slip verification)"""
     try:
-        # Get image URL from LINE
-        image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        # Download image from LINE and store in database
+        image_data = None
+        try:
+            image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+            headers = {"Authorization": f"Bearer {account['channel_access_token']}"}
+            response = requests.get(image_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            image_data = response.content
+            logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes")
+        except Exception as e:
+            logger.error(f"❌ Error downloading image from LINE: {e}")
         
-        # Save image message with media_url
+        # Save image message with image data stored in database
+        import base64
+        image_base64 = base64.b64encode(image_data).decode('utf-8') if image_data else None
+        
         app.state.chat_message_model.save_message(
             account_id=account["_id"],
             user_id=user_id,
             message_type="image",
             content="[รูปภาพ]",
             message_id=message_id,
-            media_url=image_url,
-            sender="user"
+            media_url=image_url,  # Keep URL for reference
+            sender="user",
+            metadata={"image_data": image_base64}  # Store base64 encoded image
         )
         
         settings = account.get("settings", {})
@@ -1278,13 +1291,21 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         )
         
         # Verify slip
+        logger.info(f"🔍 Starting slip verification for message_id: {message_id}")
+        logger.info(f"🔑 API Key (first 10 chars): {slip_api_key[:10]}...")
+        logger.info(f"🔑 LINE Token (first 10 chars): {account['channel_access_token'][:10]}...")
+        
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
+        
+        # Pass image_data if we have it (avoid re-downloading from LINE)
         result = slip_checker.verify_slip(
             message_id=message_id,
-            # line_token=account["channel_access_token"], # Already passed in SlipChecker init
-            # api_token=slip_api_key, # Already passed in SlipChecker init
+            test_image_data=image_data,  # Pass downloaded image data
             provider=slip_api_provider
         )
+        
+        logger.info(f"📊 Slip verification result: {result.get('status')}")
+        logger.info(f"📄 Result message: {result.get('message', 'No message')}")
         
         # ตรวจสอบและบันทึกสลิปซ้ำ
         if result.get("status") in ["success", "duplicate"]:
@@ -1321,6 +1342,7 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
                 result_text = f"🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
         else:
             result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
+            logger.error(f"❌ Slip verification failed: {result}")
         
         # Save slip verification result
         app.state.chat_message_model.save_message(
@@ -1695,8 +1717,8 @@ async def get_chat_users(request: Request, account_id: str):
         )
 
 @app.get("/api/chat-messages/{account_id}/{user_id}")
-async def get_chat_messages(request: Request, account_id: str, user_id: str):
-    """Get chat messages for a specific user"""
+async def get_chat_messages(request: Request, account_id: str, user_id: str, limit: int = 50, skip: int = 0):
+    """Get chat messages for a specific user with pagination"""
     user = app.state.auth.get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -1710,7 +1732,13 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
-        messages = app.state.chat_message_model.get_conversation(account_id, user_id, limit=100)
+        # Get messages with pagination
+        messages = app.state.chat_message_model.get_messages(
+            account_id=account_id,
+            user_id=user_id,
+            limit=limit,
+            skip=skip
+        )
         return {"success": True, "messages": messages}
     except Exception as e:
         logger.error(f"Error getting chat messages: {e}")
@@ -1721,7 +1749,7 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str):
 
 @app.get("/api/line-image/{account_id}/{message_id}")
 async def get_line_image(request: Request, account_id: str, message_id: str):
-    """Proxy endpoint to get LINE image with authentication"""
+    """Proxy endpoint to get LINE image from database"""
     user = app.state.auth.get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -1735,7 +1763,24 @@ async def get_line_image(request: Request, account_id: str, message_id: str):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
-        # Get image from LINE API
+        # First, try to get image from database
+        from bson import ObjectId
+        message = app.state.chat_message_model.collection.find_one({
+            "message_id": message_id,
+            "account_id": account_id
+        })
+        
+        if message and message.get("metadata", {}).get("image_data"):
+            # Decode base64 image from database
+            import base64
+            image_data = base64.b64decode(message["metadata"]["image_data"])
+            from fastapi.responses import Response
+            return Response(
+                content=image_data,
+                media_type="image/jpeg"
+            )
+        
+        # Fallback: Get image from LINE API if not in database
         image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
         headers = {
             "Authorization": f"Bearer {account['channel_access_token']}"
@@ -1745,6 +1790,15 @@ async def get_line_image(request: Request, account_id: str, message_id: str):
             response = await client.get(image_url, headers=headers)
             
             if response.status_code == 200:
+                # Store image in database for future use
+                import base64
+                image_base64 = base64.b64encode(response.content).decode('utf-8')
+                if message:
+                    app.state.chat_message_model.collection.update_one(
+                        {"_id": message["_id"]},
+                        {"$set": {"metadata.image_data": image_base64}}
+                    )
+                
                 from fastapi.responses import Response
                 return Response(
                     content=response.content,

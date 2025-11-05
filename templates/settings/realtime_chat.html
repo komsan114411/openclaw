@@ -519,6 +519,10 @@
     let currentUserId = null;
     let allUsers = [];
     let ws = null;
+    let messageOffset = 0;
+    let messageLimit = 50;
+    let isLoadingMessages = false;
+    let hasMoreMessages = true;
 
     // Get account ID from URL or selection
     const urlParams = new URLSearchParams(window.location.search);
@@ -633,24 +637,47 @@
     }
 
     // Load messages for selected user
-    async function loadMessages(userId) {
+    async function loadMessages(userId, append = false) {
+        if (isLoadingMessages) return;
+        
         try {
-            const response = await fetch(`/api/chat-messages/${currentAccountId}/${userId}`);
+            isLoadingMessages = true;
+            const offset = append ? messageOffset : 0;
+            const response = await fetch(`/api/chat-messages/${currentAccountId}/${userId}?limit=${messageLimit}&skip=${offset}`);
             const data = await response.json();
 
             if (data.success) {
-                renderMessages(data.messages);
+                if (append) {
+                    // Append older messages
+                    const chatMessages = document.getElementById('chatMessages');
+                    const scrollHeight = chatMessages.scrollHeight;
+                    
+                    renderMessages(data.messages, true);
+                    
+                    // Maintain scroll position
+                    chatMessages.scrollTop = chatMessages.scrollHeight - scrollHeight;
+                    
+                    messageOffset += data.messages.length;
+                    hasMoreMessages = data.messages.length === messageLimit;
+                } else {
+                    // Initial load or refresh
+                    messageOffset = data.messages.length;
+                    hasMoreMessages = data.messages.length === messageLimit;
+                    renderMessages(data.messages, false);
+                }
             }
         } catch (error) {
             console.error('Error loading messages:', error);
+        } finally {
+            isLoadingMessages = false;
         }
     }
 
     // Render messages
-    function renderMessages(messages) {
+    function renderMessages(messages, append = false) {
         const chatMessages = document.getElementById('chatMessages');
         
-        if (messages.length === 0) {
+        if (messages.length === 0 && !append) {
             chatMessages.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-comments"></i>
@@ -663,19 +690,62 @@
         // Reverse to show oldest first
         messages.reverse();
 
-        chatMessages.innerHTML = messages.map(msg => {
+        const messagesHtml = messages.map(msg => {
             const senderClass = msg.sender === 'user' ? 'user' : 'bot';
             const initial = msg.sender === 'user' ? 'U' : 'B';
             const content = msg.content || msg.text || '';
             const time = formatTime(msg.timestamp);
 
-            let mediaHtml = '';
-            if (msg.media_url && msg.message_type === 'image') {
-                mediaHtml = `
+            let contentHtml = '';
+            
+            // Handle different message types
+            if (msg.message_type === 'image') {
+                // Use proxy endpoint to get image from database
+                const imageUrl = `/api/line-image/${currentAccountId}/${msg.message_id}`;
+                contentHtml = `
                     <div class="message-image">
-                        <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')">
+                        <img src="${imageUrl}" alt="Image" onclick="window.open('${imageUrl}', '_blank')" 
+                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'200\' height=\'200\'/%3E%3Ctext fill=\'%23999\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\'%3EImage%3C/text%3E%3C/svg%3E';">
                     </div>
                 `;
+                // Add text content if exists
+                if (content && content !== '[รูปภาพ]') {
+                    contentHtml += `<p class="message-text">${content}</p>`;
+                }
+            } else if (msg.message_type === 'video') {
+                contentHtml = `
+                    <div class="message-video">
+                        <i class="fas fa-video"></i>
+                        <p>วิดีโอ</p>
+                    </div>
+                `;
+                if (content && content !== '[วิดีโอ]') {
+                    contentHtml += `<p class="message-text">${content}</p>`;
+                }
+            } else if (msg.message_type === 'sticker') {
+                contentHtml = `
+                    <div class="message-sticker">
+                        <i class="fas fa-smile"></i>
+                        <p>สติกเกอร์</p>
+                    </div>
+                `;
+            } else if (msg.message_type === 'audio') {
+                contentHtml = `
+                    <div class="message-audio">
+                        <i class="fas fa-microphone"></i>
+                        <p>ข้อความเสียง</p>
+                    </div>
+                `;
+            } else if (msg.message_type === 'file') {
+                contentHtml = `
+                    <div class="message-file">
+                        <i class="fas fa-file"></i>
+                        <p>ไฟล์</p>
+                    </div>
+                `;
+            } else {
+                // Text message
+                contentHtml = `<p class="message-text">${content}</p>`;
             }
 
             return `
@@ -683,17 +753,23 @@
                     <div class="message-avatar">${initial}</div>
                     <div class="message-content">
                         <div class="message-bubble">
-                            <p class="message-text">${content}</p>
-                            ${mediaHtml}
+                            ${contentHtml}
                         </div>
                         <div class="message-time">${time}</div>
                     </div>
                 </div>
             `;
         }).join('');
-
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        if (append) {
+            // Prepend older messages
+            chatMessages.innerHTML = messagesHtml + chatMessages.innerHTML;
+        } else {
+            // Replace all messages
+            chatMessages.innerHTML = messagesHtml;
+            // Scroll to bottom for initial load
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
     }
 
     // Send message
@@ -769,11 +845,49 @@
         }
     });
 
+    // Search users
+    document.getElementById('searchUsers').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const userItems = document.querySelectorAll('.user-item');
+        
+        userItems.forEach(item => {
+            const userName = item.querySelector('.user-name')?.textContent.toLowerCase() || '';
+            const lastMessage = item.querySelector('.user-last-message')?.textContent.toLowerCase() || '';
+            
+            if (userName.includes(searchTerm) || lastMessage.includes(searchTerm)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+
     // Account selector change event
     document.getElementById('accountSelector').addEventListener('change', function() {
         const newAccountId = this.value;
         if (newAccountId) {
+            // Save to localStorage
+            localStorage.setItem('selectedAccountId', newAccountId);
             window.location.href = `/settings/chat-history?account_id=${newAccountId}`;
+        }
+    });
+
+    // Load saved account from localStorage if no account_id in URL
+    if (!currentAccountId) {
+        const savedAccountId = localStorage.getItem('selectedAccountId');
+        if (savedAccountId) {
+            window.location.href = `/settings/chat-history?account_id=${savedAccountId}`;
+        }
+    } else {
+        // Save current account to localStorage
+        localStorage.setItem('selectedAccountId', currentAccountId);
+    }
+
+    // Add scroll event listener for infinite scroll
+    document.getElementById('chatMessages').addEventListener('scroll', function(e) {
+        // Load more messages when scrolled to top
+        if (e.target.scrollTop === 0 && hasMoreMessages && currentUserId) {
+            loadMessages(currentUserId, true);
         }
     });
 
