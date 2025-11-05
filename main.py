@@ -183,10 +183,13 @@ class CreateLineAccountRequest(BaseModel):
     description: Optional[str] = None
 
 class UpdateLineAccountSettingsRequest(BaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
     ai_enabled: Optional[bool] = None
     ai_api_key: Optional[str] = None
     ai_model: Optional[str] = None
-    ai_personality: Optional[str] = None
+    ai_system_prompt: Optional[str] = None
+    ai_temperature: Optional[float] = None
     slip_verification_enabled: Optional[bool] = None
     slip_api_provider: Optional[str] = None
     slip_api_key: Optional[str] = None
@@ -569,7 +572,9 @@ async def create_line_account_by_admin(request: Request, data: CreateLineAccount
                 "type": "success",
                 "message": f"เพิ่มบัญชี LINE {data.account_name} สำเร็จ"
             })
-            return {"success": True, "message": "เพิ่มบัญชี LINE สำเร็จ", "account_id": account_id}
+            # Generate webhook URL
+            webhook_url = f"{request.base_url}webhook/line/{account_id}"
+            return {"success": True, "message": "เพิ่มบัญชี LINE สำเร็จ", "account_id": account_id, "webhook_url": webhook_url}
         else:
             return JSONResponse(
                 status_code=400,
@@ -683,7 +688,9 @@ async def create_line_account_api(request: Request, data: CreateLineAccountReque
                 "type": "success",
                 "message": f"เพิ่มบัญชี LINE {data.account_name} สำเร็จ"
             })
-            return {"success": True, "message": "เพิ่มบัญชี LINE สำเร็จ", "account_id": account_id}
+            # Generate webhook URL
+            webhook_url = f"{request.base_url}webhook/line/{account_id}"
+            return {"success": True, "message": "เพิ่มบัญชี LINE สำเร็จ", "account_id": account_id, "webhook_url": webhook_url}
         else:
             return JSONResponse(
                 status_code=400,
@@ -736,16 +743,28 @@ async def update_line_account_settings_api(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
+        update_data = {}
         settings = account.get("settings", {})
         
+        # Update account fields
+        if data.name is not None:
+            update_data["account_name"] = data.name
+        if data.is_active is not None:
+            update_data["is_active"] = data.is_active
+        
+        # Update AI settings
         if data.ai_enabled is not None:
             settings["ai_enabled"] = data.ai_enabled
         if data.ai_api_key is not None:
             settings["ai_api_key"] = data.ai_api_key
         if data.ai_model is not None:
             settings["ai_model"] = data.ai_model
-        if data.ai_personality is not None:
-            settings["ai_personality"] = data.ai_personality
+        if data.ai_system_prompt is not None:
+            settings["ai_system_prompt"] = data.ai_system_prompt
+        if data.ai_temperature is not None:
+            settings["ai_temperature"] = data.ai_temperature
+        
+        # Update slip verification settings
         if data.slip_verification_enabled is not None:
             settings["slip_verification_enabled"] = data.slip_verification_enabled
         if data.slip_api_provider is not None:
@@ -755,8 +774,16 @@ async def update_line_account_settings_api(
         if data.slip_template_id is not None:
             settings["slip_template_id"] = data.slip_template_id
         
-        # Update settings in database
-        success = app.state.line_account_model.update_settings(account_id, settings)
+        update_data["settings"] = settings
+        update_data["updated_at"] = datetime.utcnow()
+        
+        # Update account in database
+        from bson import ObjectId
+        result = app.state.line_account_model.collection.update_one(
+            {"_id": ObjectId(account_id)},
+            {"$set": update_data}
+        )
+        success = result.modified_count > 0 or result.matched_count > 0
         
         if success:
             await manager.broadcast({

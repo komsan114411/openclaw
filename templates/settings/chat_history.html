@@ -41,216 +41,273 @@
 {% block page_title %}ประวัติการแชท{% endblock %}
 
 {% block page_subtitle %}
-<p class="page-subtitle">ดูประวัติการสนทนากับลูกค้า</p>
+<p class="page-subtitle">ดูประวัติการสนทนากับลูกค้าทั้งหมด</p>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    .chat-container {
-        display: grid;
-        grid-template-columns: 300px 1fr;
-        gap: var(--spacing-lg);
-        height: calc(100vh - 250px);
-    }
-
-    .account-selector {
+    .chat-filters {
         background: var(--white);
-        border-radius: var(--radius-lg);
         padding: var(--spacing-lg);
-        box-shadow: var(--shadow-md);
-        overflow-y: auto;
-    }
-
-    .account-selector-title {
-        font-weight: 700;
-        font-size: var(--font-size-lg);
-        margin-bottom: var(--spacing-md);
-        color: var(--black);
-    }
-
-    .account-item {
-        padding: var(--spacing-md);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all var(--transition-base);
-        margin-bottom: var(--spacing-sm);
-        border: 2px solid transparent;
-    }
-
-    .account-item:hover {
-        background: var(--gray-100);
-    }
-
-    .account-item.active {
-        background: var(--primary-light);
-        border-color: var(--primary-color);
-    }
-
-    .account-name {
-        font-weight: 600;
-        color: var(--black);
-        margin-bottom: 4px;
-    }
-
-    .account-status {
-        font-size: var(--font-size-sm);
-        color: var(--gray-600);
-    }
-
-    .chat-area {
-        background: var(--white);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-md);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
-
-    .chat-header {
-        padding: var(--spacing-lg);
-        border-bottom: 1px solid var(--gray-200);
-        background: var(--gray-50);
-    }
-
-    .chat-header-title {
-        font-weight: 700;
-        font-size: var(--font-size-lg);
-        color: var(--black);
-    }
-
-    .chat-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: var(--spacing-lg);
-        background: #f8f9fa;
-    }
-
-    .message-group {
         margin-bottom: var(--spacing-lg);
     }
 
-    .message-date {
-        text-align: center;
-        margin: var(--spacing-lg) 0;
-        color: var(--gray-600);
-        font-size: var(--font-size-sm);
+    .filter-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: var(--spacing-md);
+        align-items: end;
     }
 
-    .message {
+    .filter-tags {
         display: flex;
         gap: var(--spacing-sm);
-        margin-bottom: var(--spacing-md);
+        flex-wrap: wrap;
+        margin-top: var(--spacing-md);
     }
 
-    .message.user {
-        flex-direction: row-reverse;
-    }
-
-    .message-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        color: var(--white);
+    .filter-tag {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-sm);
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        flex-shrink: 0;
+        gap: var(--spacing-xs);
     }
 
-    .message.bot .message-avatar {
-        background: var(--gray-400);
+    .filter-tag button {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        cursor: pointer;
+        padding: 0;
+        margin-left: var(--spacing-xs);
     }
 
-    .message-content {
-        max-width: 60%;
-    }
-
-    .message-bubble {
-        padding: var(--spacing-md);
-        border-radius: var(--radius-lg);
+    .chat-container {
         background: var(--white);
-        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
     }
 
-    .message.user .message-bubble {
-        background: var(--primary-color);
-        color: var(--white);
+    .chat-messages {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
     }
 
-    .message-text {
-        margin-bottom: 4px;
+    .message-item {
+        margin-bottom: var(--spacing-lg);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        background: var(--gray-50);
+        transition: all var(--transition-base);
+    }
+
+    .message-item:hover {
+        background: var(--gray-100);
+        transform: translateX(4px);
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .message-user {
+        font-weight: 600;
+        color: var(--black);
     }
 
     .message-time {
-        font-size: var(--font-size-xs);
-        color: var(--gray-600);
+        font-size: var(--font-size-sm);
+        color: var(--gray-500);
     }
 
-    .message.user .message-time {
-        color: rgba(255, 255, 255, 0.8);
+    .message-content {
+        color: var(--gray-700);
+        line-height: 1.6;
+    }
+
+    .message-media {
+        margin-top: var(--spacing-md);
+        display: flex;
+        gap: var(--spacing-sm);
+        flex-wrap: wrap;
+    }
+
+    .message-media img {
+        max-width: 200px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: transform var(--transition-base);
+    }
+
+    .message-media img:hover {
+        transform: scale(1.05);
+    }
+
+    .message-media video {
+        max-width: 300px;
+        border-radius: var(--radius-md);
+    }
+
+    .message-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        margin-left: var(--spacing-sm);
+    }
+
+    .badge-text {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    .badge-image {
+        background: var(--info-light);
+        color: var(--info-color);
+    }
+
+    .badge-video {
+        background: var(--success-light);
+        color: var(--success-color);
+    }
+
+    .badge-sticker {
+        background: var(--warning-light);
+        color: var(--warning-color);
     }
 
     .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: var(--gray-600);
+        text-align: center;
+        padding: var(--spacing-3xl);
+        color: var(--gray-500);
     }
 
     .empty-state i {
         font-size: 64px;
-        margin-bottom: var(--spacing-md);
-        color: var(--gray-400);
+        margin-bottom: var(--spacing-lg);
+        opacity: 0.3;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .stat-card {
+        background: var(--white);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: var(--font-size-2xl);
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .stat-label {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+        margin-top: var(--spacing-xs);
+    }
+
+    @media (max-width: 768px) {
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="chat-container">
-    <!-- Account Selector -->
-    <div class="account-selector">
-        <div class="account-selector-title">เลือกบัญชี LINE</div>
-        <select class="form-select mb-md" id="accountSelect" onchange="loadChatHistory()">
-            <option value="">เลือกบัญชี LINE</option>
-            {% for account in line_accounts %}
-            <option value="{{ account._id }}">{{ account.name }}</option>
-            {% endfor %}
-        </select>
-        
-        <div id="accountList">
-            {% if line_accounts %}
+<!-- Statistics -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-value" id="totalMessages">0</div>
+        <div class="stat-label">ข้อความทั้งหมด</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="totalImages">0</div>
+        <div class="stat-label">รูปภาพ</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="totalVideos">0</div>
+        <div class="stat-label">วิดีโอ</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="totalUsers">0</div>
+        <div class="stat-label">ผู้ใช้</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="chat-filters">
+    <div class="filter-row">
+        <div class="form-group mb-0">
+            <label class="form-label">เลือกบัญชี LINE</label>
+            <select class="form-control" id="accountSelect">
+                <option value="">-- เลือกบัญชี --</option>
                 {% for account in line_accounts %}
-                <div class="account-item" onclick="selectAccount('{{ account._id }}', '{{ account.name }}')">
-                    <div class="account-name">{{ account.name }}</div>
-                    <div class="account-status">
-                        {% if account.is_active %}
-                        <i class="fas fa-circle text-success" style="font-size: 8px;"></i> ใช้งาน
-                        {% else %}
-                        <i class="fas fa-circle text-danger" style="font-size: 8px;"></i> ระงับ
-                        {% endif %}
-                    </div>
-                </div>
+                <option value="{{ account.id }}">{{ account.name }}</option>
                 {% endfor %}
-            {% else %}
-                <p class="text-muted text-center">ยังไม่มีบัญชี LINE</p>
-            {% endif %}
+            </select>
+        </div>
+
+        <div class="form-group mb-0">
+            <label class="form-label">ประเภทข้อความ</label>
+            <select class="form-control" id="messageTypeFilter">
+                <option value="">ทั้งหมด</option>
+                <option value="text">ข้อความ</option>
+                <option value="image">รูปภาพ</option>
+                <option value="video">วิดีโอ</option>
+                <option value="sticker">สติกเกอร์</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-0">
+            <label class="form-label">ค้นหา</label>
+            <input type="text" class="form-control" id="searchInput" placeholder="ค้นหาข้อความ...">
+        </div>
+
+        <div class="form-group mb-0">
+            <label class="form-label">&nbsp;</label>
+            <button class="btn btn-secondary w-full" onclick="clearFilters()">
+                <i class="fas fa-times"></i>
+                <span>ล้าง</span>
+            </button>
         </div>
     </div>
 
-    <!-- Chat Area -->
-    <div class="chat-area">
-        <div class="chat-header">
-            <div class="chat-header-title" id="chatTitle">เลือกบัญชีเพื่อดูประวัติการแชท</div>
-        </div>
-        <div class="chat-messages" id="chatMessages">
-            <div class="empty-state">
-                <i class="fas fa-comments"></i>
-                <p>เลือกบัญชี LINE เพื่อดูประวัติการสนทนา</p>
-            </div>
+    <!-- Active Filters -->
+    <div class="filter-tags" id="activeTags"></div>
+</div>
+
+<!-- Chat Messages -->
+<div class="chat-container">
+    <div class="chat-messages" id="chatMessages">
+        <div class="empty-state">
+            <i class="fas fa-comments"></i>
+            <p>กรุณาเลือกบัญชี LINE เพื่อดูประวัติการแชท</p>
         </div>
     </div>
 </div>
@@ -258,104 +315,258 @@
 
 {% block extra_js %}
 <script>
-    let currentAccountId = null;
+    let allMessages = [];
+    let filteredMessages = [];
+    let currentFilters = {
+        account: '',
+        type: '',
+        search: ''
+    };
 
-    function selectAccount(accountId, accountName) {
-        currentAccountId = accountId;
-        
-        // Update UI
-        document.querySelectorAll('.account-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        event.currentTarget.classList.add('active');
-        
-        document.getElementById('chatTitle').textContent = accountName;
-        document.getElementById('accountSelect').value = accountId;
-        
-        // Load chat history
-        loadChatHistory();
-    }
-
-    async function loadChatHistory() {
-        const accountId = document.getElementById('accountSelect').value || currentAccountId;
-        
-        if (!accountId) {
-            return;
+    // Event listeners
+    document.getElementById('accountSelect').addEventListener('change', function() {
+        currentFilters.account = this.value;
+        if (this.value) {
+            loadMessages(this.value);
+        } else {
+            showEmptyState();
         }
+        updateFilterTags();
+    });
 
+    document.getElementById('messageTypeFilter').addEventListener('change', function() {
+        currentFilters.type = this.value;
+        applyFilters();
+        updateFilterTags();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function() {
+        currentFilters.search = this.value;
+        applyFilters();
+        updateFilterTags();
+    });
+
+    // Load messages
+    async function loadMessages(accountId) {
         try {
             const response = await fetch(`/api/user/chat-history/${accountId}`);
             const data = await response.json();
 
-            if (data.success && data.messages) {
-                displayMessages(data.messages);
+            if (data.success) {
+                allMessages = data.messages || [];
+                applyFilters();
+                updateStats();
             } else {
-                showEmptyState('ไม่พบประวัติการสนทนา');
+                showError('ไม่สามารถโหลดข้อความได้');
             }
         } catch (error) {
-            console.error('Error loading chat history:', error);
-            showEmptyState('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+            console.error('Error loading messages:', error);
+            showError('เกิดข้อผิดพลาดในการโหลดข้อความ');
         }
     }
 
-    function displayMessages(messages) {
+    // Apply filters
+    function applyFilters() {
+        filteredMessages = allMessages.filter(msg => {
+            // Filter by type
+            if (currentFilters.type && msg.type !== currentFilters.type) {
+                return false;
+            }
+
+            // Filter by search
+            if (currentFilters.search) {
+                const searchLower = currentFilters.search.toLowerCase();
+                const textMatch = msg.text && msg.text.toLowerCase().includes(searchLower);
+                const userMatch = msg.user_name && msg.user_name.toLowerCase().includes(searchLower);
+                if (!textMatch && !userMatch) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        displayMessages();
+        updateStats();
+    }
+
+    // Display messages
+    function displayMessages() {
         const container = document.getElementById('chatMessages');
-        
-        if (messages.length === 0) {
-            showEmptyState('ยังไม่มีประวัติการสนทนา');
+
+        if (filteredMessages.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <p>ไม่พบข้อความที่ตรงกับเงื่อนไขการค้นหา</p>
+                </div>
+            `;
             return;
         }
 
-        let html = '';
-        let currentDate = null;
+        container.innerHTML = filteredMessages.map(msg => {
+            const typeBadge = getTypeBadge(msg.type);
+            const mediaHtml = getMediaHtml(msg);
 
-        messages.forEach(msg => {
-            const msgDate = new Date(msg.timestamp).toLocaleDateString('th-TH');
-            
-            if (msgDate !== currentDate) {
-                html += `<div class="message-date">${msgDate}</div>`;
-                currentDate = msgDate;
-            }
-
-            const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            const messageClass = msg.type === 'user' ? 'user' : 'bot';
-            const avatar = msg.sender_name ? msg.sender_name[0].toUpperCase() : 'U';
-
-            html += `
-                <div class="message ${messageClass}">
-                    <div class="message-avatar">${avatar}</div>
-                    <div class="message-content">
-                        <div class="message-bubble">
-                            <div class="message-text">${escapeHtml(msg.text)}</div>
-                            <div class="message-time">${time}</div>
-                        </div>
+            return `
+                <div class="message-item">
+                    <div class="message-header">
+                        <span class="message-user">
+                            ${msg.user_name || 'Unknown'}
+                            ${typeBadge}
+                        </span>
+                        <span class="message-time">${formatTime(msg.timestamp)}</span>
                     </div>
+                    <div class="message-content">${msg.text || '<em>ไม่มีข้อความ</em>'}</div>
+                    ${mediaHtml}
                 </div>
             `;
-        });
-
-        container.innerHTML = html;
-        container.scrollTop = container.scrollHeight;
+        }).join('');
     }
 
-    function showEmptyState(message) {
-        const container = document.getElementById('chatMessages');
-        container.innerHTML = `
+    // Get type badge
+    function getTypeBadge(type) {
+        const badges = {
+            'text': '<span class="message-type-badge badge-text">ข้อความ</span>',
+            'image': '<span class="message-type-badge badge-image">รูปภาพ</span>',
+            'video': '<span class="message-type-badge badge-video">วิดีโอ</span>',
+            'sticker': '<span class="message-type-badge badge-sticker">สติกเกอร์</span>'
+        };
+        return badges[type] || '';
+    }
+
+    // Get media HTML
+    function getMediaHtml(msg) {
+        if (!msg.media_url) return '';
+
+        if (msg.type === 'image') {
+            return `
+                <div class="message-media">
+                    <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')">
+                </div>
+            `;
+        } else if (msg.type === 'video') {
+            return `
+                <div class="message-media">
+                    <video controls>
+                        <source src="${msg.media_url}" type="video/mp4">
+                    </video>
+                </div>
+            `;
+        }
+
+        return '';
+    }
+
+    // Format time
+    function formatTime(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // Update stats
+    function updateStats() {
+        const stats = {
+            total: filteredMessages.length,
+            images: filteredMessages.filter(m => m.type === 'image').length,
+            videos: filteredMessages.filter(m => m.type === 'video').length,
+            users: new Set(filteredMessages.map(m => m.user_id)).size
+        };
+
+        document.getElementById('totalMessages').textContent = stats.total;
+        document.getElementById('totalImages').textContent = stats.images;
+        document.getElementById('totalVideos').textContent = stats.videos;
+        document.getElementById('totalUsers').textContent = stats.users;
+    }
+
+    // Update filter tags
+    function updateFilterTags() {
+        const container = document.getElementById('activeTags');
+        const tags = [];
+
+        if (currentFilters.type) {
+            const typeLabels = {
+                'text': 'ข้อความ',
+                'image': 'รูปภาพ',
+                'video': 'วิดีโอ',
+                'sticker': 'สติกเกอร์'
+            };
+            tags.push(`
+                <div class="filter-tag">
+                    ประเภท: ${typeLabels[currentFilters.type]}
+                    <button onclick="removeFilter('type')">×</button>
+                </div>
+            `);
+        }
+
+        if (currentFilters.search) {
+            tags.push(`
+                <div class="filter-tag">
+                    ค้นหา: "${currentFilters.search}"
+                    <button onclick="removeFilter('search')">×</button>
+                </div>
+            `);
+        }
+
+        container.innerHTML = tags.join('');
+        container.style.display = tags.length > 0 ? 'flex' : 'none';
+    }
+
+    // Remove filter
+    function removeFilter(filterType) {
+        if (filterType === 'type') {
+            currentFilters.type = '';
+            document.getElementById('messageTypeFilter').value = '';
+        } else if (filterType === 'search') {
+            currentFilters.search = '';
+            document.getElementById('searchInput').value = '';
+        }
+        applyFilters();
+        updateFilterTags();
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        currentFilters = {
+            account: currentFilters.account, // Keep account selection
+            type: '',
+            search: ''
+        };
+        document.getElementById('messageTypeFilter').value = '';
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+        updateFilterTags();
+    }
+
+    // Show empty state
+    function showEmptyState() {
+        document.getElementById('chatMessages').innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-comments"></i>
+                <p>กรุณาเลือกบัญชี LINE เพื่อดูประวัติการแชท</p>
+            </div>
+        `;
+        updateStats();
+    }
+
+    // Show error
+    function showError(message) {
+        document.getElementById('chatMessages').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle" style="color: var(--error-color);"></i>
                 <p>${message}</p>
             </div>
         `;
     }
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    // Initialize
+    updateStats();
 </script>
 {% endblock %}
