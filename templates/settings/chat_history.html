@@ -317,8 +317,25 @@
     // Load messages
     async function loadMessages(accountId) {
         try {
-            const response = await fetch(`/api/user/chat-history/${accountId}`);
-            const data = await response.json();
+            const response = await fetch(`/api/chat-messages/${accountId}/users`);
+            const usersData = await response.json();
+            
+            if (!usersData.success) {
+                showError('ไม่สามารถโหลดข้อมูลได้');
+                return;
+            }
+            
+            // Load all messages from all users
+            const allUserMessages = [];
+            for (const user of usersData.users) {
+                const msgResponse = await fetch(`/api/chat-messages/${accountId}/${user.user_id}`);
+                const msgData = await msgResponse.json();
+                if (msgData.success) {
+                    allUserMessages.push(...msgData.messages);
+                }
+            }
+            
+            const data = { success: true, messages: allUserMessages };
 
             if (data.success) {
                 allMessages = data.messages || [];
