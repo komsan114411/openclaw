@@ -396,12 +396,19 @@
 
     // Save slip settings
     async function saveSlipSettings() {
+        const apiKeyInput = document.getElementById('slipApiKey');
+        const apiKeyValue = apiKeyInput.value;
+        
         const data = {
             slip_verification_enabled: document.getElementById('slipEnabled').checked,
             slip_api_provider: document.getElementById('slipApiProvider').value,
-            slip_api_key: document.getElementById('slipApiKey').value,
             slip_template_id: document.getElementById('slipTemplateId').value
         };
+        
+        // ส่ง API Key เฉพาะเมื่อไม่ใช่ placeholder (มีการเปลี่ยนจริง)
+        if (apiKeyValue && !apiKeyValue.startsWith('*')) {
+            data.slip_api_key = apiKeyValue;
+        }
 
         try {
             const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {

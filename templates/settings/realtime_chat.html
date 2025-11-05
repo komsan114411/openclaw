@@ -1,0 +1,757 @@
+{% extends "base.html" %}
+
+{% block title %}แชทสด - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include 'includes/standard_menu.html' %}
+{% endblock %}
+
+{% block page_title %}แชทสด{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ดูและตอบกลับข้อความแบบ Real-time</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-layout {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 0;
+        height: calc(100vh - 200px);
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+
+    /* ========== Left Sidebar (User List) ========== */
+    .users-sidebar {
+        border-right: 1px solid var(--gray-200);
+        display: flex;
+        flex-direction: column;
+        background: var(--gray-50);
+    }
+
+    .users-header {
+        padding: var(--spacing-lg);
+        border-bottom: 1px solid var(--gray-200);
+        background: var(--white);
+    }
+
+    .users-header h3 {
+        margin: 0 0 var(--spacing-md) 0;
+        font-size: var(--font-size-lg);
+        color: var(--black);
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 40px;
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-400);
+    }
+
+    .users-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-sm);
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        margin-bottom: var(--spacing-xs);
+        background: var(--white);
+        border: 1px solid transparent;
+    }
+
+    .user-item:hover {
+        background: var(--primary-light);
+        border-color: var(--primary-color);
+    }
+
+    .user-item.active {
+        background: var(--primary-color);
+        color: var(--white);
+        border-color: var(--primary-color);
+    }
+
+    .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-weight: 600;
+        font-size: var(--font-size-lg);
+        flex-shrink: 0;
+    }
+
+    .user-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-name {
+        font-weight: 600;
+        font-size: var(--font-size-base);
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-last-message {
+        font-size: var(--font-size-sm);
+        color: var(--gray-500);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-item.active .user-last-message {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .user-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+    }
+
+    .user-time {
+        font-size: var(--font-size-xs);
+        color: var(--gray-400);
+    }
+
+    .user-item.active .user-time {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .unread-badge {
+        background: var(--error-color);
+        color: var(--white);
+        border-radius: var(--radius-full);
+        padding: 2px 8px;
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        min-width: 20px;
+        text-align: center;
+    }
+
+    /* ========== Right Panel (Chat Area) ========== */
+    .chat-panel {
+        display: flex;
+        flex-direction: column;
+        background: var(--white);
+    }
+
+    .chat-header {
+        padding: var(--spacing-lg);
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--white);
+    }
+
+    .chat-header-info {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-md);
+    }
+
+    .chat-header-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-weight: 600;
+    }
+
+    .chat-header-details h3 {
+        margin: 0;
+        font-size: var(--font-size-lg);
+        color: var(--black);
+    }
+
+    .chat-header-details p {
+        margin: 0;
+        font-size: var(--font-size-sm);
+        color: var(--gray-500);
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+        background: #f7f8fa;
+    }
+
+    .message-group {
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .message-date-divider {
+        text-align: center;
+        margin: var(--spacing-lg) 0;
+    }
+
+    .message-date-divider span {
+        background: var(--gray-200);
+        color: var(--gray-600);
+        padding: 4px 12px;
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+    }
+
+    .message {
+        display: flex;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+        max-width: 70%;
+    }
+
+    .message.user {
+        margin-left: 0;
+        margin-right: auto;
+    }
+
+    .message.bot {
+        margin-left: auto;
+        margin-right: 0;
+        flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--gray-300);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .message.user .message-avatar {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    }
+
+    .message.bot .message-avatar {
+        background: var(--success-color);
+    }
+
+    .message-content {
+        flex: 1;
+    }
+
+    .message-bubble {
+        background: var(--white);
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: var(--radius-md);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        word-wrap: break-word;
+    }
+
+    .message.bot .message-bubble {
+        background: var(--primary-color);
+        color: var(--white);
+    }
+
+    .message-text {
+        font-size: var(--font-size-base);
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .message-image {
+        max-width: 300px;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        cursor: pointer;
+        margin-top: var(--spacing-xs);
+    }
+
+    .message-image img {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    .message-time {
+        font-size: var(--font-size-xs);
+        color: var(--gray-400);
+        margin-top: 4px;
+    }
+
+    .message.bot .message-time {
+        text-align: right;
+    }
+
+    .chat-input-area {
+        padding: var(--spacing-lg);
+        border-top: 1px solid var(--gray-200);
+        background: var(--white);
+    }
+
+    .chat-input-container {
+        display: flex;
+        gap: var(--spacing-md);
+        align-items: flex-end;
+    }
+
+    .chat-input {
+        flex: 1;
+        min-height: 44px;
+        max-height: 120px;
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-base);
+        resize: none;
+        font-family: inherit;
+    }
+
+    .chat-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .send-button {
+        background: var(--primary-color);
+        color: var(--white);
+        border: none;
+        padding: var(--spacing-sm) var(--spacing-lg);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+    }
+
+    .send-button:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .send-button:disabled {
+        background: var(--gray-300);
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--gray-400);
+    }
+
+    .empty-state i {
+        font-size: 64px;
+        margin-bottom: var(--spacing-md);
+    }
+
+    .empty-state p {
+        font-size: var(--font-size-lg);
+        margin: 0;
+    }
+
+    /* Scrollbar styling */
+    .users-list::-webkit-scrollbar,
+    .chat-messages::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .users-list::-webkit-scrollbar-track,
+    .chat-messages::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .users-list::-webkit-scrollbar-thumb,
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: var(--gray-300);
+        border-radius: 3px;
+    }
+
+    .users-list::-webkit-scrollbar-thumb:hover,
+    .chat-messages::-webkit-scrollbar-thumb:hover {
+        background: var(--gray-400);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .chat-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .users-sidebar {
+            display: none;
+        }
+
+        .users-sidebar.mobile-show {
+            display: flex;
+        }
+
+        .message {
+            max-width: 85%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+    <!-- Left Sidebar: User List -->
+    <div class="users-sidebar">
+        <div class="users-header">
+            <h3>ทั้งหมด</h3>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchUsers" placeholder="ค้นหา...">
+            </div>
+        </div>
+        <div class="users-list" id="usersList">
+            <!-- Users will be loaded here -->
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <p>กำลังโหลด...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Chat Area -->
+    <div class="chat-panel">
+        <div class="chat-header" id="chatHeader" style="display: none;">
+            <div class="chat-header-info">
+                <div class="chat-header-avatar" id="chatHeaderAvatar">U</div>
+                <div class="chat-header-details">
+                    <h3 id="chatHeaderName">ผู้ใช้</h3>
+                    <p id="chatHeaderStatus">ออนไลน์</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <p>เลือกผู้ใช้เพื่อเริ่มแชท</p>
+            </div>
+        </div>
+
+        <div class="chat-input-area" id="chatInputArea" style="display: none;">
+            <div class="chat-input-container">
+                <textarea class="chat-input" id="messageInput" placeholder="พิมพ์ข้อความ..." rows="1"></textarea>
+                <button class="send-button" id="sendButton" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>ส่ง</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentAccountId = null;
+    let currentUserId = null;
+    let allUsers = [];
+    let ws = null;
+
+    // Get account ID from URL or selection
+    const urlParams = new URLSearchParams(window.location.search);
+    currentAccountId = urlParams.get('account_id');
+
+    // Initialize WebSocket for real-time updates
+    function initWebSocket() {
+        ws = new WebSocket(`ws://${window.location.host}/ws/notifications`);
+        
+        ws.onopen = () => {
+            console.log('✅ WebSocket connected');
+        };
+        
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'new_message') {
+                handleNewMessage(data);
+            }
+        };
+        
+        ws.onerror = (error) => {
+            console.error('❌ WebSocket error:', error);
+        };
+        
+        ws.onclose = () => {
+            console.log('🔌 WebSocket disconnected, reconnecting...');
+            setTimeout(initWebSocket, 3000);
+        };
+    }
+
+    // Load users list
+    async function loadUsers() {
+        if (!currentAccountId) {
+            document.getElementById('usersList').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>กรุณาเลือกบัญชี LINE</p>
+                </div>
+            `;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chat-messages/${currentAccountId}/users`);
+            const data = await response.json();
+
+            if (data.success && data.users.length > 0) {
+                allUsers = data.users;
+                renderUsers(allUsers);
+            } else {
+                document.getElementById('usersList').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>ยังไม่มีผู้ใช้</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+            document.getElementById('usersList').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>เกิดข้อผิดพลาด</p>
+                </div>
+            `;
+        }
+    }
+
+    // Render users list
+    function renderUsers(users) {
+        const usersList = document.getElementById('usersList');
+        usersList.innerHTML = users.map(user => {
+            const initial = (user.user_name || 'U')[0].toUpperCase();
+            const lastMessage = user.last_message || 'ไม่มีข้อความ';
+            const time = formatTime(user.last_message_time);
+            
+            return `
+                <div class="user-item" onclick="selectUser('${user.user_id}', '${user.user_name || 'ผู้ใช้'}')">
+                    <div class="user-avatar">${initial}</div>
+                    <div class="user-info">
+                        <div class="user-name">${user.user_name || 'Unknown'}</div>
+                        <div class="user-last-message">${lastMessage}</div>
+                    </div>
+                    <div class="user-meta">
+                        <div class="user-time">${time}</div>
+                        ${user.unread_count > 0 ? `<div class="unread-badge">${user.unread_count}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Select user and load chat
+    async function selectUser(userId, userName) {
+        currentUserId = userId;
+
+        // Update active state
+        document.querySelectorAll('.user-item').forEach(item => item.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        // Show chat header and input
+        document.getElementById('chatHeader').style.display = 'flex';
+        document.getElementById('chatInputArea').style.display = 'block';
+
+        // Update header
+        const initial = (userName || 'U')[0].toUpperCase();
+        document.getElementById('chatHeaderAvatar').textContent = initial;
+        document.getElementById('chatHeaderName').textContent = userName || 'ผู้ใช้';
+
+        // Load messages
+        await loadMessages(userId);
+    }
+
+    // Load messages for selected user
+    async function loadMessages(userId) {
+        try {
+            const response = await fetch(`/api/chat-messages/${currentAccountId}/${userId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                renderMessages(data.messages);
+            }
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
+    // Render messages
+    function renderMessages(messages) {
+        const chatMessages = document.getElementById('chatMessages');
+        
+        if (messages.length === 0) {
+            chatMessages.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-comments"></i>
+                    <p>ยังไม่มีข้อความ</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Reverse to show oldest first
+        messages.reverse();
+
+        chatMessages.innerHTML = messages.map(msg => {
+            const senderClass = msg.sender === 'user' ? 'user' : 'bot';
+            const initial = msg.sender === 'user' ? 'U' : 'B';
+            const content = msg.content || msg.text || '';
+            const time = formatTime(msg.timestamp);
+
+            let mediaHtml = '';
+            if (msg.media_url && msg.message_type === 'image') {
+                mediaHtml = `
+                    <div class="message-image">
+                        <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')">
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="message ${senderClass}">
+                    <div class="message-avatar">${initial}</div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            <p class="message-text">${content}</p>
+                            ${mediaHtml}
+                        </div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Send message
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+
+        if (!message || !currentUserId) return;
+
+        try {
+            const response = await fetch(`/api/line/push-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    account_id: currentAccountId,
+                    user_id: currentUserId,
+                    message: message
+                })
+            });
+
+            if (response.ok) {
+                input.value = '';
+                // Reload messages
+                await loadMessages(currentUserId);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('ไม่สามารถส่งข้อความได้');
+        }
+    }
+
+    // Handle new message from WebSocket
+    function handleNewMessage(data) {
+        if (data.user_id === currentUserId) {
+            loadMessages(currentUserId);
+        }
+        loadUsers(); // Refresh user list
+    }
+
+    // Format time
+    function formatTime(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+
+        if (diff < 60000) return 'เมื่อสักครู่';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)} นาที`;
+        if (diff < 86400000) return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+    }
+
+    // Search users
+    document.getElementById('searchUsers').addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        const filtered = allUsers.filter(user => 
+            (user.user_name || '').toLowerCase().includes(query)
+        );
+        renderUsers(filtered);
+    });
+
+    // Auto-resize textarea
+    document.getElementById('messageInput').addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // Send on Enter (Shift+Enter for new line)
+    document.getElementById('messageInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Initialize
+    if (currentAccountId) {
+        loadUsers();
+        initWebSocket();
+        // Auto-refresh every 10 seconds
+        setInterval(loadUsers, 10000);
+    }
+</script>
+{% endblock %}

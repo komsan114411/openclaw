@@ -527,6 +527,25 @@ async def admin_line_accounts(request: Request):
         "line_accounts": line_accounts
     })
 
+@app.get("/settings/realtime-chat", response_class=HTMLResponse)
+async def realtime_chat_page(request: Request):
+    """Real-time chat page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    # Load LINE accounts for this user or all accounts for admin
+    if user["role"] == UserRole.ADMIN:
+        line_accounts = app.state.line_account_model.get_all_accounts()
+    else:
+        line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
+    
+    return templates.TemplateResponse("settings/realtime_chat.html", {
+        "request": request,
+        "user": user,
+        "line_accounts": line_accounts
+    })
+
 @app.get("/user/chat-history", response_class=HTMLResponse)
 @app.get("/settings/chat-history", response_class=HTMLResponse)
 async def user_chat_history(request: Request):
@@ -771,6 +790,17 @@ async def line_account_settings_page(request: Request, account_id: str):
     # Check permission
     if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # แสดง API Key เป็น placeholder เพื่อความปลอดภัย
+    if account.get("settings", {}).get("slip_api_key"):
+        account["slip_api_key"] = "*" * 32  # แสดงเป็น placeholder
+    else:
+        account["slip_api_key"] = ""
+    
+    if account.get("settings", {}).get("ai_api_key"):
+        account["ai_api_key"] = "*" * 32  # แสดงเป็น placeholder
+    else:
+        account["ai_api_key"] = ""
     
     return templates.TemplateResponse("user/line_account_settings.html", {
         "request": request,
@@ -1219,13 +1249,17 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
 async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle image message (slip verification)"""
     try:
-        # Save image message
+        # Get image URL from LINE
+        image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        
+        # Save image message with media_url
         app.state.chat_message_model.save_message(
             account_id=account["_id"],
             user_id=user_id,
             message_type="image",
             content="[รูปภาพ]",
             message_id=message_id,
+            media_url=image_url,
             sender="user"
         )
         
