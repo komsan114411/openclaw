@@ -97,11 +97,12 @@ async def lifespan(app: FastAPI):
     
     try:
         # Initialize database
-        db = init_database()
+        database = init_database()
         logger.info("✅ Database initialized")
         
         # Initialize models
-        app.state.db = db.get_db()
+        app.state.database = database
+        app.state.db = database.get_db()
         app.state.user_model = User(app.state.db)
         app.state.session_model = Session(app.state.db)
         app.state.line_account_model = LineAccount(app.state.db)
@@ -469,13 +470,20 @@ async def delete_user_api(request: Request, user_id: str):
             content={"success": False, "message": "ไม่สามารถลบบัญชีของตัวเองได้"}
         )
     
+    # ลบบัญชี LINE ของผู้ใช้ก่อน
+    line_accounts = app.state.line_account_model.get_accounts_by_owner(user_id)
+    for account in line_accounts:
+        app.state.line_account_model.delete_account(account["_id"])
+        logger.info(f"Deleted LINE account {account['account_name']} for user {user_id}")
+    
+    # ลบผู้ใช้
     success = app.state.user_model.delete_user(user_id)
     if success:
         await manager.broadcast({
             "type": "info",
-            "message": "ลบผู้ใช้สำเร็จ"
+            "message": f"ลบผู้ใช้และบัญชี LINE {len(line_accounts)} บัญชีสำเร็จ"
         })
-        return {"success": True, "message": "ลบผู้ใช้สำเร็จ"}
+        return {"success": True, "message": f"ลบผู้ใช้และบัญชี LINE {len(line_accounts)} บัญชีสำเร็จ"}
     else:
         return JSONResponse(
             status_code=500,
