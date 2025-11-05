@@ -3,45 +3,7 @@
 {% block title %}เพิ่มบัญชี LINE OA - LINE OA Management{% endblock %}
 
 {% block sidebar_nav %}
-<div class="nav-section-title">เมนูหลัก</div>
-<div class="sidebar-nav-item">
-    <a href="/user/dashboard" class="sidebar-nav-link">
-        <i class="fas fa-home"></i>
-        <span>หน้าแรก</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/user/line-accounts" class="sidebar-nav-link">
-        <i class="fab fa-line"></i>
-        <span>บัญชี LINE</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/user/add-line-account" class="sidebar-nav-link active">
-        <i class="fas fa-plus-circle"></i>
-        <span>เพิ่มบัญชี LINE</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/user/chat-history" class="sidebar-nav-link">
-        <i class="fas fa-comments"></i>
-        <span>ประวัติการแชท</span>
-    </a>
-</div>
-
-<div class="nav-section-title">การตั้งค่า</div>
-<div class="sidebar-nav-item">
-    <a href="/change-password" class="sidebar-nav-link">
-        <i class="fas fa-key"></i>
-        <span>เปลี่ยนรหัสผ่าน</span>
-    </a>
-</div>
-<div class="sidebar-nav-item">
-    <a href="/logout" class="sidebar-nav-link">
-        <i class="fas fa-sign-out-alt"></i>
-        <span>ออกจากระบบ</span>
-    </a>
-</div>
+{% include 'includes/standard_menu.html' %}
 {% endblock %}
 
 {% block page_title %}เพิ่มบัญชี LINE Official Account{% endblock %}
@@ -124,7 +86,7 @@
 
                     <div class="form-group">
                         <label class="form-label required">ชื่อบัญชี</label>
-                        <input type="text" class="form-control" id="accountName" name="name" required
+                        <input type="text" class="form-control" id="accountName" name="account_name" required
                                placeholder="เช่น บัญชีหลัก, บัญชีโปรโมชั่น">
                         <small class="text-muted">ชื่อสำหรับอ้างอิงภายในระบบ</small>
                     </div>
@@ -204,7 +166,7 @@
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>กำลังบันทึก...</span>';
 
         const formData = {
-            name: document.getElementById('accountName').value,
+            account_name: document.getElementById('accountName').value,
             channel_id: document.getElementById('channelId').value,
             channel_secret: document.getElementById('channelSecret').value,
             channel_access_token: document.getElementById('channelAccessToken').value

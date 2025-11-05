@@ -97,17 +97,84 @@
 
 {% block extra_js %}
 <script>
+    const accountId = '{{ account._id if account else "" }}';
+
     function showCreateModal() {
-        alert('ฟังก์ชันสร้างเทมเพลตจะถูกเพิ่มเติมในเร็วๆ นี้');
+        const templateName = prompt('กรุณาใส่ชื่อเทมเพลต:');
+        if (!templateName) return;
+
+        const templateText = prompt('กรุณาใส่เนื้อหาข้อความ:\n\nตัวแปรที่ใช้ได้:\n{amount} = ยอดเงิน\n{sender} = ผู้โอน\n{receiver} = ผู้รับ\n{date} = วันที่\n{time} = เวลา\n{ref} = เลขอ้างอิง');
+        if (!templateText) return;
+
+        const description = prompt('คำอธิบาย (ถ้ามี):') || '';
+
+        createTemplate(templateName, templateText, description);
+    }
+
+    async function createTemplate(name, text, description) {
+        if (!accountId) {
+            alert('ไม่พบบัญชี LINE');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    template_name: name,
+                    template_text: text,
+                    description: description,
+                    is_default: false
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('สร้างเทมเพลตสำเร็จ!');
+                location.reload();
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+        }
     }
 
     function editTemplate(id) {
-        alert('ฟังก์ชันแก้ไขเทมเพลตจะถูกเพิ่มเติมในเร็วๆ นี้');
+        alert('ฟังก์ชันแก้ไขจะเพิ่มในเวอร์ชั่นถัดไป');
     }
 
-    function deleteTemplate(id) {
-        if (confirm('คุณต้องการลบเทมเพลตนี้ใช่หรือไม่?')) {
-            alert('ฟังก์ชันลบเทมเพลตจะถูกเพิ่มเติมในเร็วๆ นี้');
+    async function deleteTemplate(id) {
+        if (!confirm('คุณต้องการลบเทมเพลตนี้ใช่หรือไม่?')) {
+            return;
+        }
+
+        if (!accountId) {
+            alert('ไม่พบบัญชี LINE');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates/${id}`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('ลบเทมเพลตสำเร็จ!');
+                location.reload();
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
         }
     }
 </script>
