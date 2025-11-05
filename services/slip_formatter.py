@@ -184,39 +184,33 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
 
         ref_no = data.get("transRef") or data.get("reference") or "-"
 
-        # ดึงข้อมูลผู้โอนจาก Thunder API response structure
+        # ดึงข้อมูลผู้โอนและผู้รับจาก Thunder API response
         sender = data.get("sender", {})
         receiver = data.get("receiver", {})
         
         # ชื่อผู้โอน
-        sender_account = sender.get("account", {})
-        sender_name = sender_account.get("name", {})
+        sender_name = sender.get("account", {}).get("name", {})
         s_name = sender_name.get("th", "") or sender_name.get("en", "") or "ไม่ระบุชื่อ"
         
         # ชื่อผู้รับ
-        receiver_account = receiver.get("account", {})
-        receiver_name = receiver_account.get("name", {})
+        receiver_name = receiver.get("account", {}).get("name", {})
         r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or "ไม่ระบุชื่อ"
         
         # เลขบัญชีผู้โอน
-        sender_bank_info = sender_account.get("bank", {})
-        s_acc = sender_bank_info.get("account", "")
-        s_acc_mask = mask_account_formatted(s_acc)
+        s_acc = sender.get("account", {}).get("bank", {}).get("account", "")
+        s_acc_mask = mask_account_formatted(s_acc) if s_acc else ""
         
         # เลขบัญชีผู้รับ
-        receiver_bank_info = receiver_account.get("bank", {})
-        r_acc = receiver_bank_info.get("account", "")
-        r_acc_mask = mask_account_formatted(r_acc)
+        r_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
+        r_acc_mask = mask_account_formatted(r_acc) if r_acc else ""
         
         # ธนาคารผู้โอน
-        sender_bank = sender.get("bank", {})
-        s_code = sender_bank.get("id", "")
-        s_bank = sender_bank.get("short", "") or sender_bank.get("name", "")
+        s_code = sender.get("bank", {}).get("id", "")
+        s_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "")
         
         # ธนาคารผู้รับ
-        receiver_bank = receiver.get("bank", {})
-        r_code = receiver_bank.get("id", "")
-        r_bank = receiver_bank.get("short", "") or receiver_bank.get("name", "")
+        r_code = receiver.get("bank", {}).get("id", "")
+        r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
 
         s_logo = get_bank_logo(s_code, s_bank)
         r_logo = get_bank_logo(r_code, r_bank)

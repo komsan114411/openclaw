@@ -179,7 +179,9 @@
             <div class="form-group">
                 <label class="form-label required">API Key</label>
                 <input type="password" class="form-control" id="slipApiKey" 
-                       value="{{ account.slip_api_key or '' }}" 
+                       value="{% if account.slip_api_key %}********************************{% endif %}" 
+                       data-has-key="{{ 'true' if account.slip_api_key else 'false' }}"
+                       data-real-key="{{ account.slip_api_key or '' }}"
                        placeholder="กรอก API Key สำหรับตรวจสอบสลิป">
                 <small class="text-muted">
                     Thunder API: <a href="https://thunder.in.th" target="_blank">https://thunder.in.th</a><br>
@@ -419,6 +421,12 @@
 
             const result = await response.json();
             if (result.success) {
+                // อัพเดท data attribute ถ้ามีการบันทึก API Key ใหม่
+                if (apiKeyValue && !apiKeyValue.startsWith('*')) {
+                    apiKeyInput.dataset.realKey = apiKeyValue;
+                    apiKeyInput.dataset.hasKey = 'true';
+                    apiKeyInput.value = '********************************';
+                }
                 alert('บันทึกการตั้งค่าสำเร็จ');
             } else {
                 alert('เกิดข้อผิดพลาด: ' + result.message);
@@ -432,6 +440,22 @@
     // Test slip API
     async function testSlipAPI() {
         const resultDiv = document.getElementById('slipTestResult');
+        const apiKeyInput = document.getElementById('slipApiKey');
+        
+        // ดึง API Key จริงจาก data attribute หรือ input value
+        let apiKey = apiKeyInput.value;
+        if (apiKey.startsWith('*')) {
+            // ถ้าเป็น placeholder ให้ใช้ค่าจริง
+            apiKey = apiKeyInput.dataset.realKey;
+        }
+        
+        if (!apiKey) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'api-test-result error';
+            resultDiv.innerHTML = '<strong><i class="fas fa-times-circle"></i> ข้อผิดพลาด</strong><br>API Key ไม่ถูกต้อง กรุณาบันทึกครั้ง';
+            return;
+        }
+        
         resultDiv.style.display = 'block';
         resultDiv.className = 'api-test-result';
         resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...';
@@ -442,7 +466,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     api_provider: document.getElementById('slipApiProvider').value,
-                    api_key: document.getElementById('slipApiKey').value
+                    api_key: apiKey
                 })
             });
 

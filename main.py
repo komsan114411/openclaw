@@ -1665,16 +1665,24 @@ async def get_chat_users(request: Request, account_id: str):
                 last_msg = messages[0]
                 # Get user profile from LINE
                 user_name = user_id
+                picture_url = None
                 try:
-                    profile = app.state.line_bot_api.get_profile(user_id)
-                    user_name = profile.display_name
-                except:
-                    pass
+                    # ใช้ LINE Bot API ดึงโปรไฟล์ผู้ใช้
+                    import requests
+                    headers = {"Authorization": f"Bearer {account.get('channel_access_token')}"}
+                    response = requests.get(f"https://api.line.me/v2/bot/profile/{user_id}", headers=headers)
+                    if response.status_code == 200:
+                        profile = response.json()
+                        user_name = profile.get("displayName", user_id)
+                        picture_url = profile.get("pictureUrl")
+                except Exception as e:
+                    logger.error(f"Error getting LINE profile: {e}")
                 
                 user_list.append({
                     "user_id": user_id,
                     "user_name": user_name,
-                    "last_message": last_msg.get("text", "[ไม่มีข้อความ]"),
+                    "picture_url": picture_url,
+                    "last_message": last_msg.get("text", last_msg.get("message_type", "[ไม่มีข้อความ]")),
                     "last_message_time": last_msg.get("timestamp", "")
                 })
         
