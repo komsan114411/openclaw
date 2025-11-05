@@ -236,7 +236,7 @@
             <select class="form-control" id="accountSelect">
                 <option value="">-- เลือกบัญชี --</option>
                 {% for account in line_accounts %}
-                <option value="{{ account.id }}">{{ account.name }}</option>
+                <option value="{{ account._id }}">{{ account.account_name }}</option>
                 {% endfor %}
             </select>
         </div>

@@ -1039,14 +1039,14 @@ if __name__ == "__main__":
 
 # ==================== LINE Webhook ====================
 
-@app.post("/webhook/{channel_id}")
-async def line_webhook(request: Request, channel_id: str):
+@app.post("/webhook/line/{account_id}")
+async def line_webhook(request: Request, account_id: str):
     """LINE Webhook endpoint for receiving messages"""
     try:
-        # Get LINE account
-        account = app.state.line_account_model.get_account_by_channel_id(channel_id)
+        # Get LINE account by ID
+        account = app.state.line_account_model.get_account_by_id(account_id)
         if not account:
-            logger.error(f"❌ LINE account not found: {channel_id}")
+            logger.error(f"❌ LINE account not found: {account_id}")
             raise HTTPException(status_code=404, detail="Account not found")
         
         # Verify signature
@@ -1847,7 +1847,7 @@ async def test_slip_api(request: Request, account_id: str):
         # Test API connection
         if api_provider == "thunder":
             # Test Thunder API
-            test_url = "https://api.thunderapi.com/v1/status"
+            test_url = "https://api.thunder.in.th/v1/me"
             headers = {"Authorization": f"Bearer {api_key}"}
             
             try:
