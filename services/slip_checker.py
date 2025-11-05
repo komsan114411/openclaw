@@ -528,14 +528,44 @@ def test_thunder_api_connection(api_key: str) -> Dict[str, Any]:
     try:
         session = create_requests_session()
         resp = session.get(endpoint, headers=headers, timeout=15)
-        session.close()
-
+        
         if resp.status_code == 200:
-            return {"success": True, "message": "API Key is valid"}
+            data = resp.json()
+            # ดึงข้อมูลยอดเหลือและวันหมดอายุ
+            balance = data.get("balance", 0)
+            expires_at = data.get("expiresAt", "")
+            
+            # แปลงวันหมดอายุเป็นรูปแบบไทย
+            expires_display = "ไม่ระบุ"
+            if expires_at:
+                try:
+                    import pytz
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                    thai_tz = pytz.timezone('Asia/Bangkok')
+                    thai_dt = dt.astimezone(thai_tz)
+                    expires_display = thai_dt.strftime("%d/%m/%Y %H:%M")
+                except Exception as e:
+                    logger.warning(f"Error parsing expiry date: {e}")
+                    expires_display = expires_at
+            
+            session.close()
+            return {
+                "success": True, 
+                "message": "API Key is valid",
+                "balance": balance,
+                "expires_at": expires_display
+            }
         elif resp.status_code == 401:
+            session.close()
             return {"success": False, "message": "Invalid API Key"}
         else:
+            session.close()
             return {"success": False, "message": f"API Test Failed (HTTP {resp.status_code})"}
     except Exception as e:
         logger.error(f"Error testing Thunder API: {e}")
+        try:
+            session.close()
+        except:
+            pass
         return {"success": False, "message": f"API Test Failed: {e}"}

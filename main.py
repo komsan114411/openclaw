@@ -43,6 +43,7 @@ from models.slip_template import SlipTemplate
 from models.chat_message import ChatMessage
 from models.error_codes import ErrorCode, ResponseMessage
 from models.bank_account import BankAccount
+from models.slip_history import SlipHistory
 
 # Import middleware
 from middleware.auth import AuthMiddleware, get_current_user_from_request
@@ -111,6 +112,7 @@ async def lifespan(app: FastAPI):
         app.state.error_code_model = ErrorCode(app.state.db)
         app.state.response_message_model = ResponseMessage(app.state.db)
         app.state.bank_account_model = BankAccount(app.state.db)
+        app.state.slip_history_model = SlipHistory(app.state.db)
         
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
@@ -641,10 +643,49 @@ async def user_dashboard(request: Request):
     
     line_accounts = app.state.line_account_model.get_accounts_by_owner(user["user_id"])
     
+    # คำนวณสถิติสำหรับ dashboard
+    total_line_accounts = len(line_accounts)
+    total_users = 0
+    messages_today = 0
+    slips_verified = 0
+    
+    import pytz
+    from datetime import datetime, timedelta
+    bangkok_tz = pytz.timezone('Asia/Bangkok')
+    today_start = datetime.now(bangkok_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    for account in line_accounts:
+        account_id = str(account["_id"])
+        # นับจำนวนผู้ใช้
+        total_users += len(app.state.chat_message_model.get_unique_users(account_id))
+        # นับข้อความวันนี้
+        messages = app.state.chat_message_model.get_messages(account_id, limit=1000)
+        for msg in messages:
+            try:
+                msg_time = datetime.fromisoformat(msg["timestamp"])
+                if msg_time.tzinfo is None:
+                    msg_time = bangkok_tz.localize(msg_time)
+                if msg_time >= today_start:
+                    messages_today += 1
+            except:
+                pass
+        # นับสลิปที่ตรวจสอบ
+        slips_verified += account.get("slip_count", 0)
+    
+    # นับบัญชีธนาคาร
+    bank_accounts_count = app.state.bank_account_model.collection.count_documents({
+        "owner_id": user["user_id"]
+    })
+    
     return templates.TemplateResponse("user/dashboard.html", {
         "request": request,
         "user": user,
-        "line_accounts": line_accounts
+        "line_accounts": line_accounts,
+        "total_line_accounts": total_line_accounts,
+        "total_users": total_users,
+        "messages_today": messages_today,
+        "slips_verified": slips_verified,
+        "bank_accounts_count": bank_accounts_count
     })
 
 @app.get("/user/line-accounts", response_class=HTMLResponse)
@@ -1227,10 +1268,39 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             provider=slip_api_provider
         )
         
+        # ตรวจสอบและบันทึกสลิปซ้ำ
+        if result.get("status") in ["success", "duplicate"]:
+            trans_ref = result.get("data", {}).get("transRef", "")
+            amount = result.get("data", {}).get("amount", 0)
+            
+            # นับจำนวนครั้งที่สลิปนี้ถูกตรวจสอบ (ก่อนบันทึกครั้งใหม่)
+            duplicate_count = app.state.slip_history_model.get_duplicate_count(trans_ref, account["_id"])
+            
+            # บันทึกประวัติการตรวจสอบสลิป
+            app.state.slip_history_model.record_slip(
+                account_id=account["_id"],
+                user_id=user_id,
+                trans_ref=trans_ref,
+                amount=float(amount) if amount else 0,
+                status=result.get("status"),
+                metadata={"message_id": message_id}
+            )
+            
+            # เพิ่มข้อมูลจำนวนครั้งที่ซ้ำใน result
+            if duplicate_count > 0:
+                result["duplicate_count"] = duplicate_count
+                result["message"] = f"🔄 สลิปซ้ำ +{duplicate_count}"
+        
         # Update statistics
         if result.get("status") == "success":
             app.state.line_account_model.increment_slip_count(account["_id"])
             result_text = f"✅ สลิปถูกต้อง"
+        elif result.get("status") == "duplicate":
+            dup_count = result.get("duplicate_count", 0)
+            if dup_count > 0:
+                result_text = f"🔄 สลิปซ้ำ +{dup_count}"
+            else:
+                result_text = f"🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
         else:
             result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
         
