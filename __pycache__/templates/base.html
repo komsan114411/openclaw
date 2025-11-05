@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LINE OA Management{% endblock %}</title>
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Modern Theme CSS -->
+    <link href="/static/css/modern-theme.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    {% block extra_css %}{% endblock %}
+    
+    <style>
+        /* Base Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--white);
+            box-shadow: var(--shadow-md);
+            overflow-y: auto;
+            z-index: 999;
+            transition: transform var(--transition-base);
+        }
+        
+        .sidebar-header {
+            padding: var(--spacing-xl);
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .sidebar-logo i {
+            font-size: 32px;
+        }
+        
+        .sidebar-user {
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+        }
+        
+        .sidebar-user-name {
+            font-weight: 600;
+            color: var(--black);
+            margin-bottom: 4px;
+        }
+        
+        .sidebar-user-role {
+            font-size: var(--font-size-sm);
+            color: var(--gray-600);
+        }
+        
+        .sidebar-nav {
+            padding: var(--spacing-lg);
+        }
+        
+        .nav-section-title {
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: var(--font-size-xs);
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            letter-spacing: 0.5px;
+            margin-top: var(--spacing-md);
+        }
+        
+        .nav-section-title:first-child {
+            margin-top: 0;
+        }
+        
+        .sidebar-nav-item {
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .sidebar-nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: 12px 16px;
+            color: var(--gray-700);
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            transition: all var(--transition-base);
+            text-decoration: none;
+        }
+        
+        .sidebar-nav-link:hover {
+            background: var(--gray-100);
+            color: var(--primary-color);
+        }
+        
+        .sidebar-nav-link.active {
+            background: var(--primary-light);
+            color: var(--primary-color);
+        }
+        
+        .sidebar-nav-link i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: var(--spacing-2xl);
+            background: var(--gray-50);
+            min-height: 100vh;
+        }
+        
+        /* Page Header */
+        .page-header {
+            margin-bottom: var(--spacing-2xl);
+        }
+        
+        .page-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .page-title {
+            font-size: var(--font-size-3xl);
+            font-weight: 700;
+            color: var(--black);
+            margin: 0;
+        }
+        
+        .page-subtitle {
+            font-size: var(--font-size-base);
+            color: var(--gray-600);
+        }
+        
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--primary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 50%;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            z-index: 1000;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .mobile-menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                padding: var(--spacing-lg);
+            }
+            
+            .page-title {
+                font-size: var(--font-size-2xl);
+            }
+            
+            .page-title-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="sidebar-logo">
+                    <i class="fab fa-line"></i>
+                    <span>LINE OA</span>
+                </a>
+                
+                {% if user %}
+                <div class="sidebar-user">
+                    <div class="sidebar-user-name">{{ user.full_name or user.username }}</div>
+                    <div class="sidebar-user-role">
+                        {% if user.role == 'admin' %}
+                        <i class="fas fa-crown"></i> ผู้ดูแลระบบ
+                        {% else %}
+                        <i class="fas fa-user"></i> ผู้ใช้งาน
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <nav class="sidebar-nav">
+                {% block sidebar_nav %}
+                <!-- Navigation items will be defined in child templates -->
+                {% endblock %}
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block page_header %}
+            <div class="page-header">
+                <div class="page-title-row">
+                    <div>
+                        <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                        {% block page_subtitle %}{% endblock %}
+                    </div>
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </div>
+            {% endblock %}
+            
+            {% block content %}
+            <!-- Main content goes here -->
+            {% endblock %}
+        </main>
+    </div>
+    
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- Scripts -->
+    <script>
+        // Mobile menu toggle
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('show');
+                const icon = mobileMenuToggle.querySelector('i');
+                if (sidebar.classList.contains('show')) {
+                    icon.className = 'fas fa-times';
+                } else {
+                    icon.className = 'fas fa-bars';
+                }
+            });
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 1024) {
+                    if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                        sidebar.classList.remove('show');
+                        mobileMenuToggle.querySelector('i').className = 'fas fa-bars';
+                    }
+                }
+            });
+        }
+        
+        // Set active nav link
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

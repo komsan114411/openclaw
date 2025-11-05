@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block title %}ตั้งค่าบัญชี LINE OA - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include 'includes/standard_menu.html' %}
+{% endblock %}
+
+{% block page_title %}ตั้งค่าบัญชี LINE OA{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการการตั้งค่าและฟีเจอร์ของบัญชี LINE OA</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-tabs {
+        display: flex;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-xl);
+        border-bottom: 2px solid var(--gray-200);
+        overflow-x: auto;
+    }
+
+    .settings-tab {
+        padding: var(--spacing-md) var(--spacing-lg);
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: var(--gray-600);
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+    }
+
+    .settings-tab:hover {
+        color: var(--primary-color);
+        background: var(--gray-50);
+    }
+
+    .settings-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+    }
+
+    .settings-section {
+        display: none;
+    }
+
+    .settings-section.active {
+        display: block;
+    }
+
+    .webhook-url-box {
+        background: var(--gray-50);
+        border: 1px dashed var(--gray-300);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        font-family: 'Courier New', monospace;
+        font-size: var(--font-size-sm);
+        word-break: break-all;
+        position: relative;
+    }
+
+    .copy-btn {
+        position: absolute;
+        top: var(--spacing-sm);
+        right: var(--spacing-sm);
+    }
+
+    .api-test-result {
+        margin-top: var(--spacing-md);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        display: none;
+    }
+
+    .api-test-result.success {
+        background: var(--success-light);
+        border: 1px solid var(--success-color);
+        color: var(--success-color);
+    }
+
+    .api-test-result.error {
+        background: var(--error-light);
+        border: 1px solid var(--error-color);
+        color: var(--error-color);
+    }
+
+    .template-selector {
+        max-width: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<input type="hidden" id="accountId" value="{{ account.id }}">
+
+<!-- Settings Tabs -->
+<div class="settings-tabs">
+    <button class="settings-tab active" data-tab="general">
+        <i class="fas fa-cog"></i> ตั้งค่าทั่วไป
+    </button>
+    <button class="settings-tab" data-tab="slip">
+        <i class="fas fa-receipt"></i> ตรวจสอบสลิป
+    </button>
+    <button class="settings-tab" data-tab="chatbot">
+        <i class="fas fa-robot"></i> บอทตอบแชท (AI)
+    </button>
+    <button class="settings-tab" data-tab="webhook">
+        <i class="fas fa-link"></i> Webhook
+    </button>
+</div>
+
+<!-- General Settings -->
+<div class="settings-section active" id="section-general">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">ข้อมูลบัญชี LINE OA</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">ชื่อบัญชี</label>
+                <input type="text" class="form-control" id="accountName" value="{{ account.name }}">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Channel ID</label>
+                <input type="text" class="form-control" value="{{ account.channel_id }}" disabled>
+                <small class="text-muted">ไม่สามารถแก้ไขได้</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">สถานะ</label>
+                <div class="flex items-center gap-md">
+                    <label class="switch">
+                        <input type="checkbox" id="accountStatus" {% if account.is_active %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <span id="statusLabel">{% if account.is_active %}เปิดใช้งาน{% else %}ปิดใช้งาน{% endif %}</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveGeneralSettings()">
+                <i class="fas fa-save"></i>
+                <span>บันทึกการตั้งค่า</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Slip Verification Settings -->
+<div class="settings-section" id="section-slip">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">การตรวจสอบสลิปโอนเงิน</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">เปิดใช้งานตรวจสอบสลิป</label>
+                <div class="flex items-center gap-md">
+                    <label class="switch">
+                        <input type="checkbox" id="slipEnabled" {% if account.slip_verification_enabled %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <span>เปิดใช้งานการตรวจสอบสลิปอัตโนมัติ</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">API สำหรับตรวจสอบสลิป</label>
+                <select class="form-control" id="slipApiProvider">
+                    <option value="thunder" {% if account.slip_api_provider == 'thunder' %}selected{% endif %}>Thunder API</option>
+                    <option value="slipok" {% if account.slip_api_provider == 'slipok' %}selected{% endif %}>SlipOK API</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">API Key</label>
+                <input type="password" class="form-control" id="slipApiKey" 
+                       value="{{ account.slip_api_key or '' }}" 
+                       placeholder="กรอก API Key สำหรับตรวจสอบสลิป">
+                <small class="text-muted">
+                    Thunder API: <a href="https://thunder.in.th" target="_blank">https://thunder.in.th</a><br>
+                    SlipOK API: <a href="https://slipok.com" target="_blank">https://slipok.com</a>
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">เทมเพลตข้อความตอบกลับ</label>
+                <select class="form-control template-selector" id="slipTemplateId">
+                    <option value="">-- เลือกเทมเพลต --</option>
+                </select>
+                <small class="text-muted">เทมเพลตที่จะใช้ตอบกลับเมื่อตรวจสอบสลิปสำเร็จ</small>
+            </div>
+
+            <div class="flex gap-md">
+                <button class="btn btn-secondary" onclick="testSlipAPI()">
+                    <i class="fas fa-vial"></i>
+                    <span>ทดสอบ API</span>
+                </button>
+                <button class="btn btn-primary" onclick="saveSlipSettings()">
+                    <i class="fas fa-save"></i>
+                    <span>บันทึกการตั้งค่า</span>
+                </button>
+            </div>
+
+            <div class="api-test-result" id="slipTestResult"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Chatbot (AI) Settings -->
+<div class="settings-section" id="section-chatbot">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">บอทตอบแชทอัตโนมัติ (AI)</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">เปิดใช้งาน AI Chatbot</label>
+                <div class="flex items-center gap-md">
+                    <label class="switch">
+                        <input type="checkbox" id="aiEnabled" {% if account.ai_enabled %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <span>เปิดใช้งานบอทตอบแชทอัตโนมัติด้วย AI</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">AI Model</label>
+                <select class="form-control" id="aiModel">
+                    <option value="gpt-3.5-turbo" {% if account.ai_model == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo (เร็ว, ประหยัด)</option>
+                    <option value="gpt-4" {% if account.ai_model == 'gpt-4' %}selected{% endif %}>GPT-4 (ฉลาด, แม่นยำ)</option>
+                    <option value="gpt-4-turbo" {% if account.ai_model == 'gpt-4-turbo' %}selected{% endif %}>GPT-4 Turbo (สมดุล)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">OpenAI API Key</label>
+                <input type="password" class="form-control" id="aiApiKey" 
+                       value="{{ account.ai_api_key or '' }}" 
+                       placeholder="sk-...">
+                <small class="text-muted">
+                    หา API Key ได้ที่ <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a>
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">System Prompt (คำสั่งให้ AI)</label>
+                <textarea class="form-control" id="aiSystemPrompt" rows="5" 
+                          placeholder="คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์...">{{ account.ai_system_prompt or 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์' }}</textarea>
+                <small class="text-muted">กำหนดบุคลิกและพฤติกรรมของ AI</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Temperature (ความสร้างสรรค์)</label>
+                <input type="range" class="form-control" id="aiTemperature" min="0" max="2" step="0.1" 
+                       value="{{ account.ai_temperature or 0.7 }}">
+                <div class="flex justify-between text-sm text-muted">
+                    <span>แม่นยำ (0)</span>
+                    <span id="tempValue">{{ account.ai_temperature or 0.7 }}</span>
+                    <span>สร้างสรรค์ (2)</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveChatbotSettings()">
+                <i class="fas fa-save"></i>
+                <span>บันทึกการตั้งค่า</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Webhook Settings -->
+<div class="settings-section" id="section-webhook">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Webhook URL</h3>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">Webhook URL สำหรับบัญชีนี้</label>
+                <div class="webhook-url-box">
+                    <span id="webhookUrl">{{ request.base_url }}webhook/line/{{ account.id }}</span>
+                    <button class="btn btn-sm btn-ghost copy-btn" onclick="copyWebhookUrl()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-muted">คัดลอก URL นี้ไปตั้งค่าใน LINE Developers Console</small>
+            </div>
+
+            <div class="alert alert-info">
+                <strong><i class="fas fa-info-circle"></i> วิธีการตั้งค่า Webhook</strong><br>
+                1. เข้าไปที่ <a href="https://developers.line.biz/console/" target="_blank">LINE Developers Console</a><br>
+                2. เลือก Channel ของคุณ<br>
+                3. ไปที่แท็บ "Messaging API"<br>
+                4. ในส่วน "Webhook settings" ให้คลิก "Edit"<br>
+                5. วาง Webhook URL ด้านบนและคลิก "Update"<br>
+                6. เปิดใช้งาน "Use webhook"
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Channel Secret</label>
+                <div class="flex gap-md">
+                    <input type="password" class="form-control" id="channelSecret" value="{{ account.channel_secret }}" disabled>
+                    <button class="btn btn-ghost" onclick="toggleSecret()">
+                        <i class="fas fa-eye" id="secretIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Channel Access Token</label>
+                <div class="flex gap-md">
+                    <textarea class="form-control" id="channelAccessToken" rows="3" disabled>{{ account.channel_access_token }}</textarea>
+                    <button class="btn btn-ghost" onclick="copyToken()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const accountId = document.getElementById('accountId').value;
+
+    // Tab switching
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Remove active class from all tabs and sections
+            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+
+            // Add active class to clicked tab and corresponding section
+            this.classList.add('active');
+            document.getElementById('section-' + this.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Load slip templates
+    async function loadSlipTemplates() {
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates-list`);
+            const data = await response.json();
+
+            const select = document.getElementById('slipTemplateId');
+            select.innerHTML = '<option value="">-- เลือกเทมเพลต --</option>';
+
+            if (data.success && data.templates) {
+                data.templates.forEach(template => {
+                    const option = document.createElement('option');
+                    option.value = template.id;
+                    option.textContent = template.name;
+                    if (template.id === '{{ account.slip_template_id }}') {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading templates:', error);
+        }
+    }
+
+    // Save general settings
+    async function saveGeneralSettings() {
+        const data = {
+            name: document.getElementById('accountName').value,
+            is_active: document.getElementById('accountStatus').checked
+        };
+
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('บันทึกการตั้งค่าสำเร็จ');
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึก');
+        }
+    }
+
+    // Save slip settings
+    async function saveSlipSettings() {
+        const data = {
+            slip_verification_enabled: document.getElementById('slipEnabled').checked,
+            slip_api_provider: document.getElementById('slipApiProvider').value,
+            slip_api_key: document.getElementById('slipApiKey').value,
+            slip_template_id: document.getElementById('slipTemplateId').value
+        };
+
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('บันทึกการตั้งค่าสำเร็จ');
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึก');
+        }
+    }
+
+    // Test slip API
+    async function testSlipAPI() {
+        const resultDiv = document.getElementById('slipTestResult');
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'api-test-result';
+        resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...';
+
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/test-slip-api`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    api_provider: document.getElementById('slipApiProvider').value,
+                    api_key: document.getElementById('slipApiKey').value
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                resultDiv.className = 'api-test-result success';
+                resultDiv.innerHTML = `
+                    <strong><i class="fas fa-check-circle"></i> ทดสอบสำเร็จ!</strong><br>
+                    ${result.message || 'API ทำงานได้ปกติ'}
+                `;
+            } else {
+                resultDiv.className = 'api-test-result error';
+                resultDiv.innerHTML = `
+                    <strong><i class="fas fa-times-circle"></i> ทดสอบล้มเหลว</strong><br>
+                    ${result.message || 'ไม่สามารถเชื่อมต่อกับ API ได้'}
+                `;
+            }
+        } catch (error) {
+            resultDiv.className = 'api-test-result error';
+            resultDiv.innerHTML = `
+                <strong><i class="fas fa-times-circle"></i> เกิดข้อผิดพลาด</strong><br>
+                ${error.message}
+            `;
+        }
+    }
+
+    // Save chatbot settings
+    async function saveChatbotSettings() {
+        const data = {
+            ai_enabled: document.getElementById('aiEnabled').checked,
+            ai_model: document.getElementById('aiModel').value,
+            ai_api_key: document.getElementById('aiApiKey').value,
+            ai_system_prompt: document.getElementById('aiSystemPrompt').value,
+            ai_temperature: parseFloat(document.getElementById('aiTemperature').value)
+        };
+
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('บันทึกการตั้งค่าสำเร็จ');
+            } else {
+                alert('เกิดข้อผิดพลาด: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึก');
+        }
+    }
+
+    // Copy webhook URL
+    function copyWebhookUrl() {
+        const url = document.getElementById('webhookUrl').textContent;
+        navigator.clipboard.writeText(url).then(() => {
+            alert('คัดลอก Webhook URL แล้ว');
+        });
+    }
+
+    // Toggle secret visibility
+    function toggleSecret() {
+        const input = document.getElementById('channelSecret');
+        const icon = document.getElementById('secretIcon');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    }
+
+    // Copy token
+    function copyToken() {
+        const token = document.getElementById('channelAccessToken').value;
+        navigator.clipboard.writeText(token).then(() => {
+            alert('คัดลอก Access Token แล้ว');
+        });
+    }
+
+    // Update temperature display
+    document.getElementById('aiTemperature').addEventListener('input', function() {
+        document.getElementById('tempValue').textContent = this.value;
+    });
+
+    // Update status label
+    document.getElementById('accountStatus').addEventListener('change', function() {
+        document.getElementById('statusLabel').textContent = this.checked ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+    });
+
+    // Load templates on page load
+    loadSlipTemplates();
+</script>
+{% endblock %}

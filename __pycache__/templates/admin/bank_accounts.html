@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}บัญชีธนาคาร - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section-title">เมนูหลัก</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/dashboard" class="sidebar-nav-link">
+        <i class="fas fa-chart-line"></i>
+        <span>แดชบอร์ด</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/users" class="sidebar-nav-link">
+        <i class="fas fa-users"></i>
+        <span>จัดการผู้ใช้</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/line-accounts" class="sidebar-nav-link">
+        <i class="fab fa-line"></i>
+        <span>บัญชี LINE OA</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/bank-accounts" class="sidebar-nav-link active">
+        <i class="fas fa-university"></i>
+        <span>บัญชีธนาคาร</span>
+    </a>
+</div>
+
+<div class="nav-section-title">การตั้งค่า</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/slip-templates" class="sidebar-nav-link">
+        <i class="fas fa-file-invoice"></i>
+        <span>เทมเพลตสลิป</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/logout" class="sidebar-nav-link">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>ออกจากระบบ</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block page_title %}บัญชีธนาคาร{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการบัญชีธนาคารสำหรับตรวจสอบสลิป</p>
+{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" onclick="showAddModal()">
+    <i class="fas fa-plus"></i>
+    <span>เพิ่มบัญชีธนาคาร</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">รายการบัญชีธนาคาร</h3>
+        <div class="badge badge-secondary">{{ bank_accounts|length if bank_accounts else 0 }} บัญชี</div>
+    </div>
+    <div class="card-body">
+        {% if bank_accounts %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ธนาคาร</th>
+                        <th>เลขบัญชี</th>
+                        <th>ชื่อบัญชี</th>
+                        <th>เจ้าของ</th>
+                        <th>สถานะ</th>
+                        <th>การจัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in bank_accounts %}
+                    <tr>
+                        <td>{{ account.bank_name }}</td>
+                        <td><code>{{ account.account_number }}</code></td>
+                        <td>{{ account.account_name }}</td>
+                        <td>{{ account.owner_username }}</td>
+                        <td>
+                            {% if account.is_active %}
+                            <span class="badge badge-success">ใช้งาน</span>
+                            {% else %}
+                            <span class="badge badge-danger">ระงับ</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-ghost" onclick="editAccount('{{ account._id }}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-ghost text-danger" onclick="deleteAccount('{{ account._id }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">ยังไม่มีบัญชีธนาคารในระบบ</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showAddModal() {
+        alert('ฟังก์ชันเพิ่มบัญชีธนาคารจะถูกเพิ่มเติมในเร็วๆ นี้');
+    }
+
+    function editAccount(id) {
+        alert('ฟังก์ชันแก้ไขบัญชีจะถูกเพิ่มเติมในเร็วๆ นี้');
+    }
+
+    function deleteAccount(id) {
+        if (confirm('คุณต้องการลบบัญชีนี้ใช่หรือไม่?')) {
+            alert('ฟังก์ชันลบบัญชีจะถูกเพิ่มเติมในเร็วๆ นี้');
+        }
+    }
+</script>
+{% endblock %}
