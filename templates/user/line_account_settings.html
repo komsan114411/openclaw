@@ -545,13 +545,9 @@
 
             const result = await response.json();
             if (result.success) {
-                // Update placeholder if new API Key was saved
-                if (apiKeyValue && !apiKeyValue.startsWith('*')) {
-                    apiKeyInput.dataset.realKey = apiKeyValue;
-                    apiKeyInput.dataset.hasKey = 'true';
-                    apiKeyInput.value = '********************************';
-                }
                 alert('บันทึกการตั้งค่าสำเร็จ');
+                // Reload page to show updated settings
+                window.location.reload();
             } else {
                 alert('เกิดข้อผิดพลาด: ' + result.message);
             }

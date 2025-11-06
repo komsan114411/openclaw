@@ -44,6 +44,7 @@ from models.chat_message import ChatMessage
 from models.error_codes import ErrorCode, ResponseMessage
 from models.bank_account import BankAccount
 from models.slip_history import SlipHistory
+from models.bank import BankModel
 
 # Import middleware
 from middleware.auth import AuthMiddleware, get_current_user_from_request
@@ -113,6 +114,7 @@ async def lifespan(app: FastAPI):
         app.state.response_message_model = ResponseMessage(app.state.db)
         app.state.bank_account_model = BankAccount(app.state.db)
         app.state.slip_history_model = SlipHistory(app.state.db)
+        app.state.bank_model = BankModel(app.state.db)
         
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
@@ -567,9 +569,8 @@ async def get_banks_api(request: Request):
     if not user or user["role"] != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
-    from models.bank import Bank
-    banks = Bank.objects().order_by('name')
-    return [bank.to_dict() for bank in banks]
+    banks = app.state.bank_model.get_all_banks()
+    return [app.state.bank_model.to_dict(bank) for bank in banks]
 
 @app.put("/admin/api/banks/{bank_id}")
 async def update_bank_api(request: Request, bank_id: str):
@@ -578,41 +579,113 @@ async def update_bank_api(request: Request, bank_id: str):
     if not user or user["role"] != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
-    from models.bank import Bank
-    from datetime import datetime
-    
     try:
-        bank = Bank.objects(id=bank_id).first()
+        bank = app.state.bank_model.get_bank_by_id(bank_id)
         if not bank:
             raise HTTPException(status_code=404, detail="Bank not found")
         
         data = await request.json()
         
-        # Update fields
+        # Prepare update data
+        update_data = {}
         if 'name' in data:
-            bank.name = data['name']
+            update_data['name'] = data['name']
+        if 'abbreviation' in data:
+            update_data['abbreviation'] = data['abbreviation']
         if 'is_active' in data:
-            bank.is_active = data['is_active']
+            update_data['is_active'] = data['is_active']
         if 'logo_base64' in data:
-            bank.logo_base64 = data['logo_base64']
+            update_data['logo_base64'] = data['logo_base64']
         
-        bank.updated_at = datetime.utcnow()
-        bank.save()
+        # Update bank
+        success = app.state.bank_model.update_bank(bank_id, update_data)
         
-        return {"success": True, "message": "อัปเดตธนาคารสำเร็จ"}
+        if success:
+            return {"success": True, "message": "อัปเดตธนาคารสำเร็จ"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update bank")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/api/banks/init-thunder-banks")
+async def init_thunder_banks(request: Request):
+    """Initialize banks from Thunder API bank codes (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Bank data from Thunder API
+    BANKS = [
+        {"code": "002", "abbr": "BBL", "name": "ธนาคารกรุงเทพ"},
+        {"code": "004", "abbr": "KBANK", "name": "ธนาคารกสิกรไทย"},
+        {"code": "006", "abbr": "KTB", "name": "ธนาคารกรุงไทย"},
+        {"code": "011", "abbr": "TTB", "name": "ธนาคารทหารไทยธนชาต"},
+        {"code": "014", "abbr": "SCB", "name": "ธนาคารไทยพาณิชย์"},
+        {"code": "022", "abbr": "CIMBT", "name": "ธนาคารซีไอเอ็มบีไทย"},
+        {"code": "024", "abbr": "UOBT", "name": "ธนาคารยูโอบี"},
+        {"code": "025", "abbr": "BAY", "name": "ธนาคารกรุงศรีอยุธยา"},
+        {"code": "030", "abbr": "GSB", "name": "ธนาคารออมสิน"},
+        {"code": "033", "abbr": "GHB", "name": "ธนาคารอาคารสงเคราะห์"},
+        {"code": "034", "abbr": "BAAC", "name": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร"},
+        {"code": "035", "abbr": "EXIM", "name": "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย"},
+        {"code": "067", "abbr": "TISCO", "name": "ธนาคารทิสโก้"},
+        {"code": "069", "abbr": "KKP", "name": "ธนาคารเกียรตินาคินภัทร"},
+        {"code": "070", "abbr": "ICBCT", "name": "ธนาคารไอซีบีซี (ไทย)"},
+        {"code": "071", "abbr": "TCD", "name": "ธนาคารไทยเครดิตเพื่อรายย่อย"},
+        {"code": "073", "abbr": "LHFG", "name": "ธนาคารแลนด์ แอนด์ เฮ้าส์"},
+        {"code": "098", "abbr": "SME", "name": "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย"},
+    ]
+    
+    try:
+        added_count = 0
+        updated_count = 0
+        
+        for bank_data in BANKS:
+            code = bank_data["code"]
+            abbr = bank_data["abbr"]
+            name = bank_data["name"]
+            
+            # Check if bank already exists
+            existing_bank = app.state.bank_model.get_bank_by_code(code)
+            
+            if existing_bank:
+                # Update existing bank (keep logo if exists)
+                update_data = {
+                    "name": name,
+                    "abbreviation": abbr,
+                    "is_active": True
+                }
+                app.state.bank_model.update_bank(str(existing_bank["_id"]), update_data)
+                updated_count += 1
+            else:
+                # Insert new bank
+                app.state.bank_model.create_bank(
+                    code=code,
+                    name=name,
+                    abbreviation=abbr,
+                    logo_base64=None,
+                    is_active=True
+                )
+                added_count += 1
+        
+        return {
+            "success": True,
+            "message": f"เพิ่มข้อมูลธนาคารสำเร็จ",
+            "added": added_count,
+            "updated": updated_count,
+            "total": added_count + updated_count
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/bank-logo/{bank_code}")
 async def get_bank_logo(bank_code: str):
     """Get bank logo by code"""
-    from models.bank import Bank
-    
-    bank = Bank.objects(code=bank_code).first()
-    if not bank or not bank.logo_base64:
+    bank = app.state.bank_model.get_bank_by_code(bank_code)
+    if not bank or not bank.get("logo_base64"):
         raise HTTPException(status_code=404, detail="Bank logo not found")
     
-    return {"logo_base64": bank.logo_base64}
+    return {"logo_base64": bank["logo_base64"]}
 
 @app.get("/settings/realtime-chat", response_class=HTMLResponse)
 async def realtime_chat_page(request: Request):
