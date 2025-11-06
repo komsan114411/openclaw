@@ -272,63 +272,66 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
-                            {"type": "text", "text": amount_display, "size": "3xl", "weight": "bold", "color": "#212529"},
-                            {"type": "text", "text": date_th, "size": "sm", "color": "#6C757D", "margin": "xs"}
+                            {"type": "text", "text": amount_display, "size": "4xl", "weight": "bold", "color": "#1E3A8A"},
+                            {"type": "text", "text": date_th, "size": "sm", "color": "#6C757D", "margin": "sm"}
                         ],
-                        "margin": "md",
+                        "margin": "lg",
+                        "spacing": "sm",
+                        "paddingAll": "md"
+                    },
+                    {"type": "separator", "margin": "xl", "color": "#E9ECEF"},
+
+                    {"type": "text", "text": "ผู้โอน", "size": "xs", "color": "#6C757D", "margin": "xl", "weight": "bold"},
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "image", "url": s_logo, "size": "56px", "aspectRatio": "1:1", "flex": 0},
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {"type": "text", "text": s_name[:40], "size": "md", "weight": "bold", "wrap": True, "color": "#1F2937"},
+                                    {"type": "text", "text": f"{s_bank}  {s_acc_mask}", "size": "sm", "color": "#6B7280", "wrap": True, "margin": "xs"}
+                                ],
+                                "margin": "md", "spacing": "xs", "justifyContent": "center"
+                            }
+                        ],
+                        "margin": "sm",
+                        "spacing": "md"
+                    },
+
+                    {"type": "text", "text": "⬇", "align": "center", "color": "#D1D5DB", "margin": "lg", "size": "lg"},
+
+                    {"type": "text", "text": "ผู้รับ", "size": "xs", "color": "#6C757D", "weight": "bold", "margin": "md"},
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "image", "url": r_logo, "size": "56px", "aspectRatio": "1:1", "flex": 0},
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {"type": "text", "text": r_name[:40], "size": "md", "weight": "bold", "wrap": True, "color": "#1F2937"},
+                                    {"type": "text", "text": f"{r_bank}  {r_acc_mask}", "size": "sm", "color": "#6B7280", "wrap": True, "margin": "xs"}
+                                ],
+                                "margin": "md", "spacing": "xs", "justifyContent": "center"
+                            }
+                        ],
+                        "margin": "sm",
+                        "spacing": "md"
+                    },
+
+                    {"type": "separator", "margin": "xl", "color": "#E5E7EB"},
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {"type": "text", "text": "เลขอ้างอิง", "size": "xs", "color": "#9CA3AF", "margin": "md"},
+                            {"type": "text", "text": ref_no, "size": "sm", "wrap": True, "color": "#374151", "margin": "xs"}
+                        ],
                         "spacing": "xs"
-                    },
-                    {"type": "separator", "margin": "xl", "color": "#E9ECEF"},
-
-                    {"type": "text", "text": "ผู้โอน", "size": "sm", "color": "#6C757D", "margin": "lg", "weight": "bold"},
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "image", "url": s_logo, "size": "48px", "aspectRatio": "1:1", "flex": 0},
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [
-                                    {"type": "text", "text": s_name[:40], "size": "md", "weight": "bold", "wrap": True, "color": "#343A40"},
-                                    {"type": "text", "text": f"{s_bank}  {s_acc_mask}", "size": "sm", "color": "#6C757D", "wrap": True}
-                                ],
-                                "margin": "md", "spacing": "xs", "justifyContent": "center"
-                            }
-                        ],
-                        "margin": "md"
-                    },
-
-                    {"type": "text", "text": "⬇", "align": "center", "color": "#CED4DA", "margin": "md", "size": "md"},
-
-                    {"type": "text", "text": "ผู้รับ", "size": "sm", "color": "#6C757D", "weight": "bold"},
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "image", "url": r_logo, "size": "48px", "aspectRatio": "1:1", "flex": 0},
-                            {
-                                "type": "box",
-                                "layout": "vertical",
-                                "contents": [
-                                    {"type": "text", "text": r_name[:40], "size": "md", "weight": "bold", "wrap": True, "color": "#343A40"},
-                                    {"type": "text", "text": f"{r_bank}  {r_acc_mask}", "size": "sm", "color": "#6C757D", "wrap": True}
-                                ],
-                                "margin": "md", "spacing": "xs", "justifyContent": "center"
-                            }
-                        ],
-                        "margin": "md"
-                    },
-
-                    {"type": "separator", "margin": "xl", "color": "#E9ECEF"},
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {"type": "text", "text": "เลขอ้างอิง", "size": "sm", "color": "#6C757D", "flex": 3},
-                            {"type": "text", "text": ref_no, "size": "sm", "flex": 7, "wrap": True, "color": "#343A40"}
-                        ],
-                        "margin": "md"
                     }
                 ]
             },
@@ -337,15 +340,35 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                 "layout": "vertical",
                 "contents": [
                     {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "text", "text": "🔍", "size": "xs", "flex": 0},
+                            {
+                                "type": "text",
+                                "text": f"สลิปจริงตรวจสอบโดย ธันเดอร์ โมบายแอพ",
+                                "size": "xxs",
+                                "color": "#3B82F6",
+                                "margin": "xs",
+                                "weight": "bold",
+                                "flex": 1
+                            }
+                        ],
+                        "spacing": "xs",
+                        "justifyContent": "center"
+                    },
+                    {
                         "type": "text",
-                        "text": f"ตรวจสอบเมื่อ {verified_th}",
+                        "text": f"สุโทษบริการเช็คสลิปยืนยัน 1",
                         "size": "xxs",
-                        "color": "#6C757D",
-                        "align": "center"
+                        "color": "#9CA3AF",
+                        "align": "center",
+                        "margin": "xs"
                     }
                 ],
-                "backgroundColor": "#F8F9FA",
-                "paddingAll": "12px"
+                "backgroundColor": "#F9FAFB",
+                "paddingAll": "16px",
+                "spacing": "xs"
             }
         }
 
