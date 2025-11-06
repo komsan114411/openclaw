@@ -32,6 +32,27 @@ DEFAULT_LOGO = "https://www.hood11.com/uploads/logo.webp"
 # HELPERS : รูปแบบตัวเลข/บัญชี/สกุลเงิน
 # -----------------------------
 def get_bank_logo(bank_code: str = None, bank_name: str = None) -> str:
+    """
+    ดึง logo ธนาคารจาก database ก่อน ถ้าไม่มีค่อยใช้ hardcoded
+    """
+    try:
+        from models.bank import Bank
+        
+        # ลองหาจาก code ก่อน
+        if bank_code:
+            bank = Bank.objects(code=bank_code, is_active=True).first()
+            if bank and bank.logo_base64:
+                return bank.logo_base64
+        
+        # ถ้าไม่มี code ลองหาจากชื่อ
+        if bank_name:
+            bank = Bank.objects(name__icontains=bank_name, is_active=True).first()
+            if bank and bank.logo_base64:
+                return bank.logo_base64
+    except Exception as e:
+        logger.warning(f"Cannot load bank logo from database: {e}")
+    
+    # Fallback to hardcoded logos
     if bank_code and bank_code in BANK_LOGOS:
         return BANK_LOGOS[bank_code]
     if bank_name:
@@ -298,7 +319,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "type": "box",
                         "layout": "horizontal",
                         "contents": [
-                            {"type": "image", "url": s_logo, "size": "56px", "aspectRatio": "1:1", "flex": 0},
+                            {"type": "image", "url": s_logo, "size": "48px", "aspectRatio": "1:1", "flex": 0},
                             {
                                 "type": "box",
                                 "layout": "vertical",
@@ -318,7 +339,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "type": "box",
                         "layout": "horizontal",
                         "contents": [
-                            {"type": "image", "url": r_logo, "size": "56px", "aspectRatio": "1:1", "flex": 0},
+                            {"type": "image", "url": r_logo, "size": "48px", "aspectRatio": "1:1", "flex": 0},
                             {
                                 "type": "box",
                                 "layout": "vertical",
@@ -342,7 +363,29 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                             {"type": "text", "text": ref_no, "size": "sm", "wrap": True, "color": "#374151", "margin": "xs"}
                         ],
                         "spacing": "xs"
-                    }
+                    },
+
+                    # ค่าธรรมเนียม (ถ้ามี)
+                    *([{
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {"type": "text", "text": "ค่าธรรมเนียม", "size": "xs", "color": "#9CA3AF", "margin": "md"},
+                            {"type": "text", "text": format_currency(data.get("fee", 0)), "size": "sm", "wrap": True, "color": "#374151", "margin": "xs"}
+                        ],
+                        "spacing": "xs"
+                    }] if data.get("fee") else []),
+
+                    # บันทึก/ข้อความ (ถ้ามี)
+                    *([{
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {"type": "text", "text": "บันทึก", "size": "xs", "color": "#9CA3AF", "margin": "md"},
+                            {"type": "text", "text": data.get("note", data.get("memo", ""))[:100], "size": "sm", "wrap": True, "color": "#374151", "margin": "xs"}
+                        ],
+                        "spacing": "xs"
+                    }] if data.get("note") or data.get("memo") else [])
                 ],
                 "backgroundColor": "#F5F5F0",
                 "paddingAll": "20px"

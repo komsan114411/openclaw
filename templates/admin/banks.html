@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการธนาคาร - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-2 sidebar">
+            {% include 'includes/admin_menu.html' %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10 main-content">
+            <div class="content-header">
+                <h2><i class="fas fa-university"></i> จัดการธนาคาร</h2>
+                <p class="text-muted">จัดการข้อมูลธนาคารและอัปโหลดรูป logo สำหรับแสดงใน Flex Message</p>
+            </div>
+
+            <!-- Success/Error Messages -->
+            <div id="message-container"></div>
+
+            <!-- Banks Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">รายการธนาคารทั้งหมด</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="banksTable">
+                            <thead>
+                                <tr>
+                                    <th>Logo</th>
+                                    <th>รหัส</th>
+                                    <th>ชื่อธนาคาร</th>
+                                    <th>สถานะ</th>
+                                    <th>การจัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="banksTableBody">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Bank Modal -->
+<div class="modal fade" id="editBankModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">แก้ไขธนาคาร</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBankForm">
+                    <input type="hidden" id="editBankId">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">รหัสธนาคาร</label>
+                        <input type="text" class="form-control" id="editBankCode" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อธนาคาร</label>
+                        <input type="text" class="form-control" id="editBankName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Logo ปัจจุบัน</label>
+                        <div id="currentLogo" class="mb-2">
+                            <img id="currentLogoImg" src="" alt="Current Logo" style="max-width: 100px; max-height: 100px; display: none;">
+                            <p id="noLogoText" class="text-muted">ยังไม่มี logo</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">อัปโหลด Logo ใหม่</label>
+                        <input type="file" class="form-control" id="editBankLogo" accept="image/*">
+                        <small class="text-muted">รองรับ: JPG, PNG, GIF (แนะนำขนาด 100x100px)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editBankActive">
+                            <label class="form-check-label" for="editBankActive">เปิดใช้งาน</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="saveBankChanges()">บันทึก</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bank-logo {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    padding: 5px;
+}
+
+.no-logo {
+    width: 50px;
+    height: 50px;
+    background: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.badge-active {
+    background-color: #28a745;
+}
+
+.badge-inactive {
+    background-color: #6c757d;
+}
+</style>
+
+<script>
+let banks = [];
+
+// Load banks on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadBanks();
+});
+
+async function loadBanks() {
+    try {
+        const response = await fetch('/admin/api/banks');
+        if (!response.ok) throw new Error('Failed to load banks');
+        
+        banks = await response.json();
+        renderBanksTable();
+    } catch (error) {
+        console.error('Error loading banks:', error);
+        showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'danger');
+    }
+}
+
+function renderBanksTable() {
+    const tbody = document.getElementById('banksTableBody');
+    tbody.innerHTML = '';
+    
+    banks.forEach(bank => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                ${bank.logo_base64 
+                    ? `<img src="data:image/png;base64,${bank.logo_base64}" class="bank-logo" alt="${bank.name}">`
+                    : '<div class="no-logo">ไม่มี</div>'}
+            </td>
+            <td><code>${bank.code}</code></td>
+            <td>${bank.name}</td>
+            <td>
+                <span class="badge ${bank.is_active ? 'badge-active' : 'badge-inactive'}">
+                    ${bank.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="editBank('${bank.id}')">
+                    <i class="fas fa-edit"></i> แก้ไข
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function editBank(bankId) {
+    const bank = banks.find(b => b.id === bankId);
+    if (!bank) return;
+    
+    document.getElementById('editBankId').value = bank.id;
+    document.getElementById('editBankCode').value = bank.code;
+    document.getElementById('editBankName').value = bank.name;
+    document.getElementById('editBankActive').checked = bank.is_active;
+    
+    // Show current logo
+    if (bank.logo_base64) {
+        document.getElementById('currentLogoImg').src = `data:image/png;base64,${bank.logo_base64}`;
+        document.getElementById('currentLogoImg').style.display = 'block';
+        document.getElementById('noLogoText').style.display = 'none';
+    } else {
+        document.getElementById('currentLogoImg').style.display = 'none';
+        document.getElementById('noLogoText').style.display = 'block';
+    }
+    
+    // Clear file input
+    document.getElementById('editBankLogo').value = '';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editBankModal'));
+    modal.show();
+}
+
+async function saveBankChanges() {
+    const bankId = document.getElementById('editBankId').value;
+    const name = document.getElementById('editBankName').value;
+    const isActive = document.getElementById('editBankActive').checked;
+    const logoFile = document.getElementById('editBankLogo').files[0];
+    
+    try {
+        // Prepare data
+        const data = {
+            name: name,
+            is_active: isActive
+        };
+        
+        // Convert logo to base64 if provided
+        if (logoFile) {
+            const base64 = await fileToBase64(logoFile);
+            data.logo_base64 = base64.split(',')[1]; // Remove data:image/...;base64, prefix
+        }
+        
+        // Send update request
+        const response = await fetch(`/admin/api/banks/${bankId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) throw new Error('Failed to update bank');
+        
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('editBankModal')).hide();
+        
+        // Reload banks
+        await loadBanks();
+        
+        showMessage('บันทึกข้อมูลเรียบร้อย', 'success');
+    } catch (error) {
+        console.error('Error saving bank:', error);
+        showMessage('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'danger');
+    }
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function showMessage(message, type) {
+    const container = document.getElementById('message-container');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    container.appendChild(alert);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+        alert.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

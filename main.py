@@ -527,6 +527,72 @@ async def admin_line_accounts(request: Request):
         "line_accounts": line_accounts
     })
 
+@app.get("/admin/banks", response_class=HTMLResponse)
+async def admin_banks(request: Request):
+    """Admin banks management page"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    return templates.TemplateResponse("admin/banks.html", {
+        "request": request,
+        "user": user
+    })
+
+@app.get("/admin/api/banks")
+async def get_banks_api(request: Request):
+    """Get all banks (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    from models.bank import Bank
+    banks = Bank.objects().order_by('name')
+    return [bank.to_dict() for bank in banks]
+
+@app.put("/admin/api/banks/{bank_id}")
+async def update_bank_api(request: Request, bank_id: str):
+    """Update bank (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    from models.bank import Bank
+    from datetime import datetime
+    
+    try:
+        bank = Bank.objects(id=bank_id).first()
+        if not bank:
+            raise HTTPException(status_code=404, detail="Bank not found")
+        
+        data = await request.json()
+        
+        # Update fields
+        if 'name' in data:
+            bank.name = data['name']
+        if 'is_active' in data:
+            bank.is_active = data['is_active']
+        if 'logo_base64' in data:
+            bank.logo_base64 = data['logo_base64']
+        
+        bank.updated_at = datetime.utcnow()
+        bank.save()
+        
+        return {"success": True, "message": "อัปเดตธนาคารสำเร็จ"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bank-logo/{bank_code}")
+async def get_bank_logo(bank_code: str):
+    """Get bank logo by code"""
+    from models.bank import Bank
+    
+    bank = Bank.objects(code=bank_code).first()
+    if not bank or not bank.logo_base64:
+        raise HTTPException(status_code=404, detail="Bank logo not found")
+    
+    return {"logo_base64": bank.logo_base64}
+
 @app.get("/settings/realtime-chat", response_class=HTMLResponse)
 async def realtime_chat_page(request: Request):
     """Real-time chat page"""
@@ -1198,15 +1264,17 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
             # Get AI response
             ai_api_key = settings.get("ai_api_key")
             ai_model = settings.get("ai_model", "gpt-4.1-mini")
-            ai_personality = settings.get("ai_personality", "เป็นผู้ช่วยที่เป็นมิตรและช่วยเหลือดี")
+            ai_system_prompt = settings.get("ai_system_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์")
+            ai_temperature = settings.get("ai_temperature", 0.7)
             
             if ai_api_key:
                 # Use account-specific AI settings
                 response_text = await get_chat_response_async(
                     text,
-                    personality=ai_personality,
+                    personality=ai_system_prompt,
                     model=ai_model,
-                    api_key=ai_api_key
+                    api_key=ai_api_key,
+                    temperature=ai_temperature
                 )
             else:
                 # Use default AI settings

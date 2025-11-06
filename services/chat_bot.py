@@ -33,6 +33,7 @@ async def get_chat_response_async(
     personality: Optional[str] = None,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
+    temperature: Optional[float] = None,
     ai_enabled_override: Optional[bool] = None,
     api_key_override: Optional[str] = None,
     ai_prompt_override: Optional[str] = None,
@@ -74,7 +75,7 @@ async def get_chat_response_async(
             "model": ai_model,
             "messages": messages,
             "max_tokens": 150,
-            "temperature": 0.7
+            "temperature": temperature if temperature is not None else 0.7
         }
         
         async with httpx.AsyncClient() as client:
