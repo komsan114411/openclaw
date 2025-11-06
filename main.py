@@ -1737,6 +1737,11 @@ async def get_slip_templates_list(request: Request, account_id: str):
         
         templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
         
+        # Convert ObjectId to string
+        for template in templates_list:
+            if "_id" in template:
+                template["_id"] = str(template["_id"])
+        
         return {
             "success": True,
             "templates": templates_list

@@ -243,7 +243,9 @@
             <div class="form-group">
                 <label class="form-label required">OpenAI API Key</label>
                 <input type="password" class="form-control" id="aiApiKey" 
-                       value="{{ account.ai_api_key or '' }}" 
+                       value="{% if account.ai_api_key %}********************************{% endif %}" 
+                       data-has-key="{{ 'true' if account.ai_api_key else 'false' }}"
+                       data-real-key="{{ account.ai_api_key or '' }}"
                        placeholder="sk-...">
                 <small class="text-muted">
                     หา API Key ได้ที่ <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a>
@@ -518,14 +520,21 @@
 
     // Save chatbot settings
     async function saveChatbotSettings() {
+        const apiKeyInput = document.getElementById('aiApiKey');
+        const apiKeyValue = apiKeyInput.value;
+        
         const data = {
             ai_enabled: document.getElementById('aiEnabled').checked,
             ai_model: document.getElementById('aiModel').value,
-            ai_api_key: document.getElementById('aiApiKey').value,
             ai_system_prompt: document.getElementById('aiSystemPrompt').value,
             ai_temperature: parseFloat(document.getElementById('aiTemperature').value),
             ai_fallback_message: document.getElementById('aiFallbackMessage').value
         };
+        
+        // Send API Key only if not placeholder
+        if (apiKeyValue && !apiKeyValue.startsWith('*')) {
+            data.ai_api_key = apiKeyValue;
+        }
 
         try {
             const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
@@ -536,6 +545,12 @@
 
             const result = await response.json();
             if (result.success) {
+                // Update placeholder if new API Key was saved
+                if (apiKeyValue && !apiKeyValue.startsWith('*')) {
+                    apiKeyInput.dataset.realKey = apiKeyValue;
+                    apiKeyInput.dataset.hasKey = 'true';
+                    apiKeyInput.value = '********************************';
+                }
                 alert('บันทึกการตั้งค่าสำเร็จ');
             } else {
                 alert('เกิดข้อผิดพลาด: ' + result.message);

@@ -1,49 +1,42 @@
-{% extends "admin_base.html" %}
+{% extends "base.html" %}
 
 {% block title %}จัดการธนาคาร - Admin{% endblock %}
 
+{% block sidebar_nav %}
+{% include 'includes/admin_menu.html' %}
+{% endblock %}
+
+{% block page_title %}จัดการธนาคาร{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการข้อมูลธนาคารและอัปโหลดรูป logo สำหรับแสดงใน Flex Message</p>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-2 sidebar">
-            {% include 'includes/admin_menu.html' %}
-        </div>
+<!-- Success/Error Messages -->
+<div id="message-container"></div>
 
-        <!-- Main Content -->
-        <div class="col-md-10 main-content">
-            <div class="content-header">
-                <h2><i class="fas fa-university"></i> จัดการธนาคาร</h2>
-                <p class="text-muted">จัดการข้อมูลธนาคารและอัปโหลดรูป logo สำหรับแสดงใน Flex Message</p>
-            </div>
-
-            <!-- Success/Error Messages -->
-            <div id="message-container"></div>
-
-            <!-- Banks Table -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">รายการธนาคารทั้งหมด</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="banksTable">
-                            <thead>
-                                <tr>
-                                    <th>Logo</th>
-                                    <th>รหัส</th>
-                                    <th>ชื่อธนาคาร</th>
-                                    <th>สถานะ</th>
-                                    <th>การจัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody id="banksTableBody">
-                                <!-- Will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+<!-- Banks Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">รายการธนาคารทั้งหมด</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="banksTable">
+                <thead>
+                    <tr>
+                        <th>Logo</th>
+                        <th>รหัส</th>
+                        <th>ชื่อธนาคาร</th>
+                        <th>สถานะ</th>
+                        <th>การจัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="banksTableBody">
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -73,7 +66,7 @@
                     <div class="mb-3">
                         <label class="form-label">Logo ปัจจุบัน</label>
                         <div id="currentLogo" class="mb-2">
-                            <img id="currentLogoImg" src="" alt="Current Logo" style="max-width: 100px; max-height: 100px; display: none;">
+                            <img id="currentLogoImg" src="" alt="Current Logo" style="max-width: 70px; max-height: 70px; display: none;">
                             <p id="noLogoText" class="text-muted">ยังไม่มี logo</p>
                         </div>
                     </div>
@@ -102,20 +95,20 @@
 
 <style>
 .bank-logo {
-    width: 50px;
-    height: 50px;
+    width: 35px;
+    height: 35px;
     object-fit: contain;
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid #dee2e6;
-    padding: 5px;
+    padding: 3px;
 }
 
 .no-logo {
-    width: 50px;
-    height: 50px;
+    width: 35px;
+    height: 35px;
     background: #f8f9fa;
     border: 1px dashed #dee2e6;
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;

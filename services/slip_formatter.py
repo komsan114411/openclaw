@@ -31,32 +31,39 @@ DEFAULT_LOGO = "https://www.hood11.com/uploads/logo.webp"
 # -----------------------------
 # HELPERS : รูปแบบตัวเลข/บัญชี/สกุลเงิน
 # -----------------------------
-def get_bank_logo(bank_code: str = None, bank_name: str = None) -> str:
+def get_bank_logo(bank_code: str = None, bank_name: str = None, db=None) -> str:
     """
     ดึง logo ธนาคารจาก database ก่อน ถ้าไม่มีค่อยใช้ hardcoded
     """
     try:
-        from models.bank import Bank
+        # ใช้ PyMongo แทน MongoEngine
+        if db is None:
+            from pymongo import MongoClient
+            import os
+            client = MongoClient(os.getenv("MONGODB_URI"))
+            db = client.get_database()
+        
+        banks_collection = db.banks
         
         # ลองหาจาก code ก่อน
         if bank_code:
-            bank = Bank.objects(code=bank_code, is_active=True).first()
-            if bank and bank.logo_base64:
+            bank = banks_collection.find_one({"code": bank_code, "is_active": True})
+            if bank and bank.get("logo_base64"):
                 # ถ้ามี base64 ให้ return เป็น data URI
-                if bank.logo_base64.startswith('data:'):
-                    return bank.logo_base64
+                if bank["logo_base64"].startswith('data:'):
+                    return bank["logo_base64"]
                 else:
-                    return f"data:image/png;base64,{bank.logo_base64}"
+                    return f"data:image/png;base64,{bank['logo_base64']}"
         
         # ถ้าไม่มี code ลองหาจากชื่อ
         if bank_name:
-            bank = Bank.objects(name__icontains=bank_name, is_active=True).first()
-            if bank and bank.logo_base64:
+            bank = banks_collection.find_one({"name": {"$regex": bank_name, "$options": "i"}, "is_active": True})
+            if bank and bank.get("logo_base64"):
                 # ถ้ามี base64 ให้ return เป็น data URI
-                if bank.logo_base64.startswith('data:'):
-                    return bank.logo_base64
+                if bank["logo_base64"].startswith('data:'):
+                    return bank["logo_base64"]
                 else:
-                    return f"data:image/png;base64,{bank.logo_base64}"
+                    return f"data:image/png;base64,{bank['logo_base64']}"
     except Exception as e:
         logger.warning(f"Cannot load bank logo from database: {e}")
     
@@ -241,8 +248,8 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         r_code = receiver.get("bank", {}).get("id", "")
         r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
 
-        s_logo = get_bank_logo(s_code, s_bank)
-        r_logo = get_bank_logo(r_code, r_bank)
+        s_logo = get_bank_logo(s_code, s_bank, db=None)
+        r_logo = get_bank_logo(r_code, r_bank, db=None)
 
         if status == "success":
             badge_text = "สลิปถูกต้อง"
