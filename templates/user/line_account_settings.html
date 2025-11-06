@@ -91,6 +91,54 @@
     .template-selector {
         max-width: 400px;
     }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .settings-tabs {
+            gap: 0;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .settings-tab {
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: var(--font-size-sm);
+        }
+        
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .btn {
+            width: 100%;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .webhook-url-box {
+            font-size: 12px;
+            padding: var(--spacing-sm);
+        }
+        
+        .copy-btn {
+            position: static;
+            margin-top: var(--spacing-sm);
+            width: 100%;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .settings-tab {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: 12px;
+        }
+        
+        .form-label {
+            font-size: var(--font-size-sm);
+        }
+        
+        .form-control, .form-select {
+            font-size: var(--font-size-sm);
+        }
+    }
 </style>
 {% endblock %}
 

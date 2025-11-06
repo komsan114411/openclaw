@@ -67,17 +67,28 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">Logo ปัจจุบัน</label>
-                        <div id="currentLogo" class="mb-2">
-                            <img id="currentLogoImg" src="" alt="Current Logo" style="max-width: 70px; max-height: 70px; display: none;">
-                            <p id="noLogoText" class="text-muted">ยังไม่มี logo</p>
+                        <label class="form-label">Logo ธนาคาร</label>
+                        <div class="logo-preview-container" id="logoPreviewContainer">
+                            <div class="logo-preview" id="logoPreview">
+                                <img id="currentLogoImg" src="" alt="Logo" style="display: none;">
+                                <div id="noLogoPlaceholder" class="no-logo-placeholder">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                    <p class="text-muted mt-2">ยังไม่มี logo</p>
+                                </div>
+                            </div>
+                            <div class="logo-actions mt-3">
+                                <label for="editBankLogo" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-upload"></i> เลือกรูป
+                                </label>
+                                <button type="button" class="btn btn-danger btn-sm" id="removeLogo" style="display: none;" onclick="removeLogo()">
+                                    <i class="fas fa-trash"></i> ลบรูป
+                                </button>
+                                <input type="file" class="d-none" id="editBankLogo" accept="image/*" onchange="previewLogo(event)">
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> รองรับ: JPG, PNG, GIF | แนะนำขนาด 200x200px
+                            </small>
                         </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">อัปโหลด Logo ใหม่</label>
-                        <input type="file" class="form-control" id="editBankLogo" accept="image/*">
-                        <small class="text-muted">รองรับ: JPG, PNG, GIF (แนะนำขนาด 100x100px)</small>
                     </div>
                     
                     <div class="mb-3">
@@ -125,6 +136,108 @@
 
 .badge-inactive {
     background-color: #6c757d;
+}
+
+.logo-preview-container {
+    border: 2px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 20px;
+    background: #f8f9fa;
+    text-align: center;
+}
+
+.logo-preview {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.logo-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.no-logo-placeholder {
+    text-align: center;
+}
+
+.logo-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .card-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch !important;
+    }
+    
+    .card-header button {
+        width: 100%;
+    }
+    
+    .table-responsive {
+        font-size: 14px;
+    }
+    
+    .bank-logo, .no-logo {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .btn-sm {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    
+    .modal-dialog {
+        margin: 10px;
+    }
+    
+    .logo-preview {
+        width: 120px;
+        height: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    .table thead th {
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+    
+    .table tbody td {
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+    
+    .logo-preview {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .logo-actions {
+        flex-direction: column;
+    }
 }
 </style>
 
@@ -188,13 +301,19 @@ function editBank(bankId) {
     document.getElementById('editBankActive').checked = bank.is_active;
     
     // Show current logo
+    const logoImg = document.getElementById('currentLogoImg');
+    const noLogoPlaceholder = document.getElementById('noLogoPlaceholder');
+    const removeBtn = document.getElementById('removeLogo');
+    
     if (bank.logo_base64) {
-        document.getElementById('currentLogoImg').src = `data:image/png;base64,${bank.logo_base64}`;
-        document.getElementById('currentLogoImg').style.display = 'block';
-        document.getElementById('noLogoText').style.display = 'none';
+        logoImg.src = `data:image/png;base64,${bank.logo_base64}`;
+        logoImg.style.display = 'block';
+        noLogoPlaceholder.style.display = 'none';
+        removeBtn.style.display = 'inline-block';
     } else {
-        document.getElementById('currentLogoImg').style.display = 'none';
-        document.getElementById('noLogoText').style.display = 'block';
+        logoImg.style.display = 'none';
+        noLogoPlaceholder.style.display = 'block';
+        removeBtn.style.display = 'none';
     }
     
     // Clear file input
@@ -210,6 +329,12 @@ async function saveBankChanges() {
     const name = document.getElementById('editBankName').value;
     const isActive = document.getElementById('editBankActive').checked;
     const logoFile = document.getElementById('editBankLogo').files[0];
+    
+    // Show loading
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
+    saveBtn.disabled = true;
     
     try {
         // Prepare data
@@ -241,10 +366,15 @@ async function saveBankChanges() {
         // Reload banks
         await loadBanks();
         
-        showMessage('บันทึกข้อมูลเรียบร้อย', 'success');
+        // Show success toast
+        showToast('✅ บันทึกสำเร็จ!', 'ข้อมูลธนาคารถูกบันทึกเรียบร้อยแล้ว', 'success');
     } catch (error) {
         console.error('Error saving bank:', error);
-        showMessage('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'danger');
+        showToast('❌ เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง', 'danger');
+    } finally {
+        // Restore button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
     }
 }
 
@@ -301,6 +431,90 @@ function showMessage(message, type) {
     setTimeout(() => {
         alert.remove();
     }, 5000);
+}
+
+function showToast(title, message, type) {
+    // Create toast container if not exists
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : 'bg-info';
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <strong>${title}</strong><br>
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Show toast
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    // Remove after hidden
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+function previewLogo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showToast('❌ ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'danger');
+        event.target.value = '';
+        return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('❌ ไฟล์ใหญ่เกินไป', 'ขนาดไฟล์ต้องไม่เกิน 2MB', 'danger');
+        event.target.value = '';
+        return;
+    }
+    
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const logoImg = document.getElementById('currentLogoImg');
+        const noLogoPlaceholder = document.getElementById('noLogoPlaceholder');
+        const removeBtn = document.getElementById('removeLogo');
+        
+        logoImg.src = e.target.result;
+        logoImg.style.display = 'block';
+        noLogoPlaceholder.style.display = 'none';
+        removeBtn.style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeLogo() {
+    const logoImg = document.getElementById('currentLogoImg');
+    const noLogoPlaceholder = document.getElementById('noLogoPlaceholder');
+    const removeBtn = document.getElementById('removeLogo');
+    const fileInput = document.getElementById('editBankLogo');
+    
+    logoImg.src = '';
+    logoImg.style.display = 'none';
+    noLogoPlaceholder.style.display = 'block';
+    removeBtn.style.display = 'none';
+    fileInput.value = '';
 }
 </script>
 {% endblock %}

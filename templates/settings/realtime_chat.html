@@ -378,18 +378,38 @@
     }
 
     .message-image {
-        max-width: 300px;
+        max-width: 250px;
         width: auto;
         border-radius: var(--radius-md);
         overflow: hidden;
         cursor: pointer;
         margin-top: var(--spacing-xs);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    
+    .message-image:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
     .message-image img {
         width: 100%;
         height: auto;
         display: block;
+        max-height: 400px;
+        object-fit: contain;
+    }
+    
+    /* Responsive: มือถือ */
+    @media (max-width: 768px) {
+        .message-image {
+            max-width: 200px;
+        }
+        
+        .message-image img {
+            max-height: 300px;
+        }
     }
 
     .message-time {
@@ -506,6 +526,7 @@
     @media (max-width: 768px) {
         .chat-layout {
             grid-template-columns: 1fr;
+            height: calc(100vh - 150px);
         }
 
         .users-sidebar {
@@ -518,6 +539,33 @@
 
         .message {
             max-width: 85%;
+        }
+        
+        .chat-header-info h3 {
+            font-size: var(--font-size-md);
+        }
+        
+        .chat-input-box {
+            padding: var(--spacing-sm);
+        }
+        
+        .chat-input-box textarea {
+            font-size: var(--font-size-sm);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .chat-layout {
+            height: calc(100vh - 120px);
+        }
+        
+        .message-text {
+            font-size: var(--font-size-sm);
+        }
+        
+        .chat-header-actions button {
+            padding: 6px 10px;
+            font-size: var(--font-size-xs);
         }
     }
 </style>

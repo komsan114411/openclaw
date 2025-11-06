@@ -199,16 +199,27 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
     try:
         status = (result or {}).get("status")
         data = (result or {}).get("data", {}) or {}
+        
+        logger.info(f"🔍 Creating Flex Message - Status: {status}")
+        logger.info(f"🔍 Data keys: {list(data.keys()) if data else 'No data'}")
+        
         if not data:
+            logger.warning("⚠️ No data in result, returning error flex message")
             return create_error_flex_message(result.get("message", "ไม่สามารถดึงข้อมูลสลิปได้"))
 
         # ดึงจำนวนเงินจาก Thunder API
-        amount_obj = data.get("amount", {})
-        if isinstance(amount_obj, dict):
-            amount = amount_obj.get("amount", 0)
-        else:
-            amount = amount_obj
-        amount_display = format_currency(amount)
+        try:
+            amount_obj = data.get("amount", {})
+            if isinstance(amount_obj, dict):
+                amount = amount_obj.get("amount", 0)
+            else:
+                amount = amount_obj
+            amount_display = format_currency(amount)
+            logger.info(f"💰 Amount: {amount} -> {amount_display}")
+        except Exception as e:
+            logger.error(f"❌ Error parsing amount: {e}")
+            amount = 0
+            amount_display = "0.00 บาท"
 
         date_th = format_thai_datetime(
             data.get("date", data.get("trans_date", "")) or "",
@@ -248,8 +259,19 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         r_code = receiver.get("bank", {}).get("id", "")
         r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
 
-        s_logo = get_bank_logo(s_code, s_bank, db=None)
-        r_logo = get_bank_logo(r_code, r_bank, db=None)
+        try:
+            s_logo = get_bank_logo(s_code, s_bank, db=None)
+            logger.info(f"🏦 Sender bank logo: {s_code} -> {s_logo[:50] if s_logo else 'None'}...")
+        except Exception as e:
+            logger.error(f"❌ Error getting sender bank logo: {e}")
+            s_logo = DEFAULT_LOGO
+        
+        try:
+            r_logo = get_bank_logo(r_code, r_bank, db=None)
+            logger.info(f"🏦 Receiver bank logo: {r_code} -> {r_logo[:50] if r_logo else 'None'}...")
+        except Exception as e:
+            logger.error(f"❌ Error getting receiver bank logo: {e}")
+            r_logo = DEFAULT_LOGO
 
         if status == "success":
             badge_text = "สลิปถูกต้อง"
@@ -467,6 +489,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         # No need to add duplicate warning in flex message
         # It will be sent as a separate text message
         
+        logger.info(f"✅ Flex Message created successfully for status: {status}")
         return {"type": "flex", "altText": f"{badge_text} {amount_display}", "contents": bubble}
 
     except Exception as e:

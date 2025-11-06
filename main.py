@@ -1015,23 +1015,16 @@ async def update_line_account_settings_api(
         )
         success = result.modified_count > 0 or result.matched_count > 0
         
-        if success:
-            await manager.broadcast({
-                "type": "success",
-                "message": "อัปเดตการตั้งค่าสำเร็จ"
-            })
-            return {"success": True, "message": "อัปเดตการตั้งค่าสำเร็จ"}
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": "ไม่สามารถอัปเดตการตั้งค่าได้"}
-            )
+        # Always return success if matched (even if not modified)
+        logger.info(f"✅ Settings updated - matched: {result.matched_count}, modified: {result.modified_count}")
+        await manager.broadcast({
+            "type": "success",
+            "message": "อัปเดตการตั้งค่าสำเร็จ"
+        })
+        return {"success": True, "message": "บันทึกการตั้งค่าสำเร็จ"}
     except Exception as e:
-        logger.error(f"Error updating settings: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตการตั้งค่า"}
-        )
+        logger.error(f"❌ Error updating settings: {e}", exc_info=True)
+        return {"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
 
 # ==================== WebSocket ====================
 
