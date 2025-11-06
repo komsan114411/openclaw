@@ -42,13 +42,21 @@ def get_bank_logo(bank_code: str = None, bank_name: str = None) -> str:
         if bank_code:
             bank = Bank.objects(code=bank_code, is_active=True).first()
             if bank and bank.logo_base64:
-                return bank.logo_base64
+                # ถ้ามี base64 ให้ return เป็น data URI
+                if bank.logo_base64.startswith('data:'):
+                    return bank.logo_base64
+                else:
+                    return f"data:image/png;base64,{bank.logo_base64}"
         
         # ถ้าไม่มี code ลองหาจากชื่อ
         if bank_name:
             bank = Bank.objects(name__icontains=bank_name, is_active=True).first()
             if bank and bank.logo_base64:
-                return bank.logo_base64
+                # ถ้ามี base64 ให้ return เป็น data URI
+                if bank.logo_base64.startswith('data:'):
+                    return bank.logo_base64
+                else:
+                    return f"data:image/png;base64,{bank.logo_base64}"
     except Exception as e:
         logger.warning(f"Cannot load bank logo from database: {e}")
     
@@ -303,6 +311,28 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
+                    # แถบเตือนสลิปซ้ำ (ถ้าเป็น duplicate)
+                    *([{
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "text", "text": "⚠️", "size": "lg", "flex": 0},
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {"type": "text", "text": "สลิปซ้ำ", "size": "md", "weight": "bold", "color": "#DC2626"},
+                                    {"type": "text", "text": f"สลิปนี้เคยถูกใช้แล้ว +{result.get('duplicate_count', 1)}", "size": "xs", "color": "#DC2626", "wrap": True}
+                                ],
+                                "margin": "md"
+                            }
+                        ],
+                        "backgroundColor": "#FEE2E2",
+                        "cornerRadius": "8px",
+                        "paddingAll": "12px",
+                        "spacing": "md"
+                    }] if status == "duplicate" else []),
+                    
                     {
                         "type": "box",
                         "layout": "vertical",
@@ -310,7 +340,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                             {"type": "text", "text": amount_display, "size": "5xl", "weight": "bold", "color": "#1E3A8A"},
                             {"type": "text", "text": date_th, "size": "sm", "color": "#9CA3AF", "margin": "sm"}
                         ],
-                        "margin": "lg",
+                        "margin": "lg" if status != "duplicate" else "md",
                         "spacing": "sm"
                     },
 

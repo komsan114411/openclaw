@@ -193,6 +193,7 @@ class UpdateLineAccountSettingsRequest(BaseModel):
     ai_model: Optional[str] = None
     ai_system_prompt: Optional[str] = None
     ai_temperature: Optional[float] = None
+    ai_fallback_message: Optional[str] = None
     slip_verification_enabled: Optional[bool] = None
     slip_api_provider: Optional[str] = None
     slip_api_key: Optional[str] = None
@@ -397,6 +398,24 @@ async def admin_dashboard(request: Request):
     total_users = len(app.state.user_model.get_all_users())
     total_line_accounts = len(app.state.line_account_model.get_all_accounts())
     
+    # นับจำนวนข้อความวันนี้
+    from datetime import datetime, timedelta
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    total_messages_today = 0
+    try:
+        from models.message import Message
+        total_messages_today = Message.objects(timestamp__gte=today).count()
+    except:
+        pass
+    
+    # นับจำนวนสลิปที่ตรวจสอบ
+    total_slips_verified = 0
+    try:
+        from models.slip_history import SlipHistory
+        total_slips_verified = SlipHistory.objects().count()
+    except:
+        pass
+    
     recent_users = app.state.user_model.get_all_users()[:5]
     recent_line_accounts = app.state.line_account_model.get_all_accounts()[:5]
     
@@ -405,6 +424,8 @@ async def admin_dashboard(request: Request):
         "user": user,
         "total_users": total_users,
         "total_line_accounts": total_line_accounts,
+        "total_messages_today": total_messages_today,
+        "total_slips_verified": total_slips_verified,
         "recent_users": recent_users,
         "recent_line_accounts": recent_line_accounts
     })
@@ -897,6 +918,8 @@ async def update_line_account_settings_api(
             settings["ai_system_prompt"] = data.ai_system_prompt
         if data.ai_temperature is not None:
             settings["ai_temperature"] = data.ai_temperature
+        if data.ai_fallback_message is not None:
+            settings["ai_fallback_message"] = data.ai_fallback_message
         
         # Update slip verification settings
         if data.slip_verification_enabled is not None:
@@ -1266,34 +1289,51 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
             ai_model = settings.get("ai_model", "gpt-4.1-mini")
             ai_system_prompt = settings.get("ai_system_prompt", "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์")
             ai_temperature = settings.get("ai_temperature", 0.7)
+            ai_fallback_message = settings.get("ai_fallback_message", "ขอบคุณสำหรับข้อความของคุณ")
             
-            if ai_api_key:
-                # Use account-specific AI settings
-                response_text = await get_chat_response_async(
-                    text,
-                    personality=ai_system_prompt,
-                    model=ai_model,
-                    api_key=ai_api_key,
-                    temperature=ai_temperature
-                )
-            else:
-                # Use default AI settings
-                response_text = await get_chat_response_async(text)
+            response_text = None
+            try:
+                if ai_api_key:
+                    # Use account-specific AI settings
+                    response_text = await get_chat_response_async(
+                        text,
+                        personality=ai_system_prompt,
+                        model=ai_model,
+                        api_key=ai_api_key,
+                        temperature=ai_temperature
+                    )
+                else:
+                    # Use default AI settings
+                    response_text = await get_chat_response_async(text)
+            except Exception as ai_error:
+                logger.warning(f"⚠️ AI response failed: {ai_error}")
+                # ใช้ fallback message
+                if ai_fallback_message and ai_fallback_message != "0":
+                    response_text = ai_fallback_message
+                else:
+                    response_text = None  # ไม่ตอบกลับ
         else:
-            # Default response
-            response_text = "ขอบคุณสำหรับข้อความของคุณ"
+            # AI ปิด - ใช้ fallback message
+            ai_fallback_message = settings.get("ai_fallback_message", "ขอบคุณสำหรับข้อความของคุณ")
+            if ai_fallback_message and ai_fallback_message != "0":
+                response_text = ai_fallback_message
+            else:
+                response_text = None  # ไม่ตอบกลับ
         
-        # Save bot response
-        app.state.chat_message_model.save_message(
-            account_id=account["_id"],
-            user_id=user_id,
-            message_type="text",
-            content=response_text,
-            sender="bot"
-        )
-        
-        # Send reply
-        await send_line_reply(reply_token, response_text, account["channel_access_token"])
+        # Save and send bot response only if response_text is not None
+        if response_text:
+            app.state.chat_message_model.save_message(
+                account_id=account["_id"],
+                user_id=user_id,
+                message_type="text",
+                content=response_text,
+                sender="bot"
+            )
+            
+            # Send reply
+            await send_line_reply(reply_token, response_text, account["channel_access_token"])
+        else:
+            logger.info("🔕 AI fallback set to 0 - no response sent")
         
     except Exception as e:
         logger.error(f"❌ Error handling text message: {e}")
@@ -1491,21 +1531,9 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         }
         
         if result.get("status") == "duplicate":
-            # For duplicate slip: send warning text + flex message
-            amount = result.get("amount", 0)
-            amount_display = f"฿{amount:,.2f}"
-            
-            warning_text = f"⚠️ สลิปนี้เคยถูกใช้แล้ว\n💰 ยอดเงิน: {amount_display}"
-            
-            # Create flex message as "success" (green header)
-            result_copy = result.copy()
-            result_copy["status"] = "success"
-            flex_message = create_beautiful_slip_flex_message(result_copy)
-            
-            messages = [
-                {"type": "text", "text": warning_text},
-                flex_message
-            ]
+            # For duplicate slip: send flex message with duplicate warning inside
+            flex_message = create_beautiful_slip_flex_message(result)
+            messages = [flex_message]
         elif result.get("status") == "success":
             # Create beautiful flex message for success
             flex_message = create_beautiful_slip_flex_message(result)
