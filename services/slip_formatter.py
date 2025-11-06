@@ -217,18 +217,18 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
 
         if status == "success":
             badge_text = "สลิปถูกต้อง"
-            badge_color = "#28A745"
-            header_bg = "#E6F5E9"
+            badge_color = "#FFFFFF"
+            header_bg = "#22C55E"
             icon = "✅"
         elif status == "duplicate":
-            badge_text = "สลิปซ้ำ"
-            badge_color = "#FFC107"
-            header_bg = "#FFF8E1"
-            icon = "⚠️"
+            badge_text = "สลิปถูกต้อง"
+            badge_color = "#FFFFFF"
+            header_bg = "#22C55E"
+            icon = "✅"
         else:
             badge_text = "ตรวจสอบไม่ผ่าน"
-            badge_color = "#DC3545"
-            header_bg = "#F8D7DA"
+            badge_color = "#FFFFFF"
+            header_bg = "#EF4444"
             icon = "❌"
 
         bubble = {
@@ -236,33 +236,47 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
             "size": "mega",
             "header": {
                 "type": "box",
-                "layout": "vertical",
+                "layout": "horizontal",
                 "contents": [
                     {
                         "type": "box",
-                        "layout": "baseline",
+                        "layout": "vertical",
                         "contents": [
-                            {"type": "text", "text": icon, "size": "xl", "flex": 0},
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {"type": "text", "text": icon, "size": "xl", "align": "center", "color": "#22C55E" if status != "error" else "#EF4444"}
+                                ],
+                                "width": "48px",
+                                "height": "48px",
+                                "backgroundColor": "#FFFFFF",
+                                "cornerRadius": "24px",
+                                "justifyContent": "center",
+                                "alignItems": "center"
+                            }
+                        ],
+                        "flex": 0
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
                             {
                                 "type": "text",
                                 "text": badge_text,
-                                "size": "xl",
+                                "size": "xxl",
                                 "weight": "bold",
-                                "color": badge_color,
-                                "margin": "sm"
-                            },
+                                "color": "#FFFFFF"
+                            }
                         ],
-                    },
-                    {
-                        "type": "text",
-                        "text": "ตรวจสอบโดย Thunder",
-                        "size": "xxs",
-                        "color": "#6C757D",
-                        "margin": "xs"
+                        "margin": "md",
+                        "justifyContent": "center"
                     }
                 ],
                 "backgroundColor": header_bg,
-                "paddingAll": "20px"
+                "paddingAll": "20px",
+                "spacing": "md"
             },
             "body": {
                 "type": "box",
@@ -272,14 +286,12 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "type": "box",
                         "layout": "vertical",
                         "contents": [
-                            {"type": "text", "text": amount_display, "size": "4xl", "weight": "bold", "color": "#1E3A8A"},
-                            {"type": "text", "text": date_th, "size": "sm", "color": "#6C757D", "margin": "sm"}
+                            {"type": "text", "text": amount_display, "size": "5xl", "weight": "bold", "color": "#1E3A8A"},
+                            {"type": "text", "text": date_th, "size": "sm", "color": "#9CA3AF", "margin": "sm"}
                         ],
                         "margin": "lg",
-                        "spacing": "sm",
-                        "paddingAll": "md"
+                        "spacing": "sm"
                     },
-                    {"type": "separator", "margin": "xl", "color": "#E9ECEF"},
 
                     {"type": "text", "text": "ผู้โอน", "size": "xs", "color": "#6C757D", "margin": "xl", "weight": "bold"},
                     {
@@ -301,9 +313,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "spacing": "md"
                     },
 
-                    {"type": "text", "text": "⬇", "align": "center", "color": "#D1D5DB", "margin": "lg", "size": "lg"},
-
-                    {"type": "text", "text": "ผู้รับ", "size": "xs", "color": "#6C757D", "weight": "bold", "margin": "md"},
+                    {"type": "text", "text": "ผู้รับ", "size": "xs", "color": "#9CA3AF", "weight": "bold", "margin": "xl"},
                     {
                         "type": "box",
                         "layout": "horizontal",
@@ -323,7 +333,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         "spacing": "md"
                     },
 
-                    {"type": "separator", "margin": "xl", "color": "#E5E7EB"},
+
                     {
                         "type": "box",
                         "layout": "vertical",
@@ -333,7 +343,9 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                         ],
                         "spacing": "xs"
                     }
-                ]
+                ],
+                "backgroundColor": "#F5F5F0",
+                "paddingAll": "20px"
             },
             "footer": {
                 "type": "box",
@@ -359,7 +371,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
                     },
                     {
                         "type": "text",
-                        "text": f"สุโทษบริการเช็คสลิปยืนยัน 1",
+                        "text": "ผู้ให้บริการเช็คสลิปอันดับ 1",
                         "size": "xxs",
                         "color": "#9CA3AF",
                         "align": "center",
@@ -373,15 +385,28 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         }
 
         if status == "duplicate":
-            bubble["body"]["contents"].append({
+            bubble["body"]["contents"].insert(0, {
                 "type": "box",
-                "layout": "vertical",
-                "contents": [{"type": "text", "text": "สลิปนี้เคยถูกใช้แล้ว", "size": "sm", "weight": "bold", "align": "center", "color": "#E65100"}],
-                "backgroundColor": "#FFFDE7",
-                "cornerRadius": "12px",
+                "layout": "horizontal",
+                "contents": [
+                    {"type": "text", "text": "⚠️", "size": "md", "flex": 0, "margin": "none"},
+                    {
+                        "type": "text",
+                        "text": "สลิปใช้งานซ้ำ",
+                        "size": "sm",
+                        "weight": "bold",
+                        "color": "#D97706",
+                        "margin": "sm",
+                        "flex": 1
+                    }
+                ],
+                "backgroundColor": "#FEF3C7",
+                "cornerRadius": "8px",
                 "paddingAll": "12px",
-                "margin": "lg"
+                "margin": "none",
+                "spacing": "sm"
             })
+            bubble["body"]["contents"][1]["margin"] = "md"  # Adjust margin of amount section
 
         return {"type": "flex", "altText": f"{badge_text} {amount_display}", "contents": bubble}
 
