@@ -384,30 +384,9 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
             }
         }
 
-        if status == "duplicate":
-            bubble["body"]["contents"].insert(0, {
-                "type": "box",
-                "layout": "horizontal",
-                "contents": [
-                    {"type": "text", "text": "⚠️", "size": "md", "flex": 0, "margin": "none"},
-                    {
-                        "type": "text",
-                        "text": "สลิปใช้งานซ้ำ",
-                        "size": "sm",
-                        "weight": "bold",
-                        "color": "#D97706",
-                        "margin": "sm",
-                        "flex": 1
-                    }
-                ],
-                "backgroundColor": "#FEF3C7",
-                "cornerRadius": "8px",
-                "paddingAll": "12px",
-                "margin": "none",
-                "spacing": "sm"
-            })
-            bubble["body"]["contents"][1]["margin"] = "md"  # Adjust margin of amount section
-
+        # No need to add duplicate warning in flex message
+        # It will be sent as a separate text message
+        
         return {"type": "flex", "altText": f"{badge_text} {amount_display}", "contents": bubble}
 
     except Exception as e:

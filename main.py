@@ -1422,8 +1422,24 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             "Authorization": f"Bearer {access_token}"
         }
         
-        if result.get("status") in ["success", "duplicate"]:
-            # Create beautiful flex message for both success and duplicate
+        if result.get("status") == "duplicate":
+            # For duplicate slip: send warning text + flex message
+            amount = result.get("amount", 0)
+            amount_display = f"฿{amount:,.2f}"
+            
+            warning_text = f"⚠️ สลิปนี้เคยถูกใช้แล้ว\n💰 ยอดเงิน: {amount_display}"
+            
+            # Create flex message as "success" (green header)
+            result_copy = result.copy()
+            result_copy["status"] = "success"
+            flex_message = create_beautiful_slip_flex_message(result_copy)
+            
+            messages = [
+                {"type": "text", "text": warning_text},
+                flex_message
+            ]
+        elif result.get("status") == "success":
+            # Create beautiful flex message for success
             flex_message = create_beautiful_slip_flex_message(result)
             messages = [flex_message]
         else:

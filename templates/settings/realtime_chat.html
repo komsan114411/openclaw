@@ -223,6 +223,50 @@
         color: var(--gray-500);
     }
 
+    .chat-header-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    #searchInChat {
+        padding: 8px 12px;
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        width: 200px;
+        transition: all 0.3s ease;
+    }
+
+    #searchInChat:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .filter-btn {
+        background: var(--white);
+        border: 1px solid var(--gray-300);
+        border-radius: var(--radius-md);
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: var(--gray-600);
+        font-size: var(--font-size-base);
+    }
+
+    .filter-btn:hover {
+        background: var(--gray-100);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .filter-btn.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: var(--white);
+    }
+
     .chat-messages {
         flex: 1;
         overflow-y: auto;
@@ -329,10 +373,13 @@
         font-size: var(--font-size-base);
         line-height: 1.5;
         margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
     }
 
     .message-image {
-        max-width: 300px;
+        max-width: 100%;
+        width: auto;
         border-radius: var(--radius-md);
         overflow: hidden;
         cursor: pointer;
@@ -512,6 +559,24 @@
                     <h3 id="chatHeaderName">ผู้ใช้</h3>
                     <p id="chatHeaderStatus">ออนไลน์</p>
                 </div>
+            </div>
+            <div class="chat-header-actions">
+                <input type="text" id="searchInChat" placeholder="🔍 ค้นหาในแชท..." style="display: none;">
+                <button class="filter-btn" id="searchBtn" title="ค้นหา">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="filter-btn" data-filter="all" title="ทั้งหมด">
+                    <i class="fas fa-list"></i>
+                </button>
+                <button class="filter-btn" data-filter="text" title="ข้อความ">
+                    <i class="fas fa-comment"></i>
+                </button>
+                <button class="filter-btn" data-filter="image" title="รูปภาพ">
+                    <i class="fas fa-image"></i>
+                </button>
+                <button class="filter-btn" data-filter="video" title="วิดีโอ">
+                    <i class="fas fa-video"></i>
+                </button>
             </div>
         </div>
 
@@ -918,6 +983,73 @@
             loadMessages(currentUserId, true);
         }
     });
+
+    // Search in chat toggle
+    document.getElementById('searchBtn').addEventListener('click', function() {
+        const searchInput = document.getElementById('searchInChat');
+        if (searchInput.style.display === 'none') {
+            searchInput.style.display = 'block';
+            searchInput.focus();
+        } else {
+            searchInput.style.display = 'none';
+            searchInput.value = '';
+            filterMessages('all', '');
+        }
+    });
+
+    // Search in chat
+    document.getElementById('searchInChat').addEventListener('input', function(e) {
+        const query = e.target.value;
+        const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+        filterMessages(activeFilter, query);
+    });
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all filter buttons
+            document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            const filter = this.dataset.filter;
+            const query = document.getElementById('searchInChat').value;
+            filterMessages(filter, query);
+        });
+    });
+
+    // Set default active filter
+    document.querySelector('.filter-btn[data-filter="all"]')?.classList.add('active');
+
+    // Filter messages function
+    function filterMessages(type, searchQuery = '') {
+        const messages = document.querySelectorAll('.message');
+        
+        messages.forEach(msg => {
+            let show = true;
+            
+            // Filter by type
+            if (type !== 'all') {
+                const hasText = msg.querySelector('.message-text');
+                const hasImage = msg.querySelector('.message-image');
+                const hasVideo = msg.querySelector('video');
+                
+                if (type === 'text' && !hasText) show = false;
+                if (type === 'image' && !hasImage) show = false;
+                if (type === 'video' && !hasVideo) show = false;
+            }
+            
+            // Filter by search query
+            if (searchQuery && show) {
+                const text = msg.textContent.toLowerCase();
+                if (!text.includes(searchQuery.toLowerCase())) {
+                    show = false;
+                }
+            }
+            
+            msg.style.display = show ? 'flex' : 'none';
+        });
+    }
 
     // Initialize
     if (currentAccountId) {
