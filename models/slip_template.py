@@ -150,13 +150,24 @@ class SlipTemplate:
             if existing:
                 return True
             
+            # Load Flex templates from JSON file
+            import json
+            import os
+            flex_templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "flex_templates.json")
+            flex_templates = {}
+            try:
+                with open(flex_templates_path, 'r', encoding='utf-8') as f:
+                    flex_templates = json.load(f)
+            except Exception as e:
+                print(f"Warning: Could not load flex templates: {e}")
+            
             # Template 1: Success with details (Flex Message)
             template1 = {
                 "channel_id": channel_id,
                 "template_id": f"template_success_{int(datetime.utcnow().timestamp() * 1000)}",
                 "template_name": "สลิปสำเร็จ - แสดงรายละเอียด (Flex)",
                 "template_text": "",
-                "template_flex": None,  # จะใช้ Flex Message แบบ dynamic
+                "template_flex": flex_templates.get("slip_success_detailed"),
                 "template_type": "flex",
                 "preview_image": "/static/images/templates/template_example_1.png",
                 "description": "Template สำหรับแสดงรายละเอียดสลิปที่ตรวจสอบสำเร็จแบบ Flex Message",

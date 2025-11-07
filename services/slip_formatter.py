@@ -235,29 +235,49 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]
         sender = data.get("sender", {})
         receiver = data.get("receiver", {})
         
-        # ชื่อผู้โอน
-        sender_name = sender.get("account", {}).get("name", {})
-        s_name = sender_name.get("th", "") or sender_name.get("en", "") or "ไม่ระบุชื่อ"
+        # ตรวจสอบว่า sender/receiver เป็น string หรือ dict
+        # Thunder API บางครั้งส่งมาเป็น string แทน dict
+        if isinstance(sender, str):
+            s_name = sender
+            s_acc_mask = ""
+            s_bank = data.get("sender_bank", "")
+            s_code = ""
+        else:
+            # ชื่อผู้โอน
+            sender_name = sender.get("account", {}).get("name", {})
+            s_name = sender_name.get("th", "") or sender_name.get("en", "") or "ไม่ระบุชื่อ"
+            # เลขบัญชีผู้โอน
+            s_acc = sender.get("account", {}).get("bank", {}).get("account", "")
+            s_acc_mask = mask_account_formatted(s_acc) if s_acc else ""
+            # ธนาคารผู้โอน
+            s_code = sender.get("bank", {}).get("id", "")
+            s_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "")
         
-        # ชื่อผู้รับ
-        receiver_name = receiver.get("account", {}).get("name", {})
-        r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or "ไม่ระบุชื่อ"
+        if isinstance(receiver, str):
+            r_name = receiver
+            r_acc_mask = ""
+            r_bank = data.get("receiver_bank", "")
+            r_code = ""
+        else:
+            # ชื่อผู้รับ
+            receiver_name = receiver.get("account", {}).get("name", {})
+            r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or "ไม่ระบุชื่อ"
+            # เลขบัญชีผู้รับ
+            r_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
+            r_acc_mask = mask_account_formatted(r_acc) if r_acc else ""
+            # ธนาคารผู้รับ
+            r_code = receiver.get("bank", {}).get("id", "")
+            r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
         
-        # เลขบัญชีผู้โอน
-        s_acc = sender.get("account", {}).get("bank", {}).get("account", "")
-        s_acc_mask = mask_account_formatted(s_acc) if s_acc else ""
-        
-        # เลขบัญชีผู้รับ
-        r_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
-        r_acc_mask = mask_account_formatted(r_acc) if r_acc else ""
-        
-        # ธนาคารผู้โอน
-        s_code = sender.get("bank", {}).get("id", "")
-        s_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "")
-        
-        # ธนาคารผู้รับ
-        r_code = receiver.get("bank", {}).get("id", "")
-        r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
+        # Fallback ถ้าไม่มีข้อมูล ให้ใช้จาก data ตรงๆ
+        if not s_name or s_name == "ไม่ระบุชื่อ":
+            s_name = data.get("sender_name", data.get("sender_name_th", "ไม่ระบุชื่อ"))
+        if not r_name or r_name == "ไม่ระบุชื่อ":
+            r_name = data.get("receiver_name", data.get("receiver_name_th", "ไม่ระบุชื่อ"))
+        if not s_bank:
+            s_bank = data.get("sender_bank_name", data.get("sender_bank_short", ""))
+        if not r_bank:
+            r_bank = data.get("receiver_bank_name", data.get("receiver_bank_short", ""))
 
         try:
             s_logo = get_bank_logo(s_code, s_bank, db=None)
