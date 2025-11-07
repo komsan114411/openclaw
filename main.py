@@ -1540,7 +1540,7 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         )
         
         # Send result
-        await send_slip_result(user_id, result, account["channel_access_token"])
+        await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"))
         
     except Exception as e:
         logger.error(f"❌ Error handling image message: {e}")
@@ -1598,8 +1598,64 @@ async def send_line_reply(reply_token: str, text: str, access_token: str):
     except Exception as e:
         logger.error(f"❌ Error sending LINE reply: {e}")
 
-async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str):
-    """Send slip verification result"""
+def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
+    """Render slip template with result data"""
+    try:
+        data = result.get("data", {}) or {}
+        
+        # Extract amount
+        amount_obj = data.get("amount", {})
+        if isinstance(amount_obj, dict):
+            amount = amount_obj.get("amount", 0)
+        else:
+            amount = amount_obj
+        
+        # Extract sender info
+        sender = data.get("sender", {})
+        sender_name = sender.get("account", {}).get("name", {})
+        s_name = sender_name.get("th", "") or sender_name.get("en", "") or "ไม่ระบุชื่อ"
+        s_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "") or "-"
+        s_acc = sender.get("account", {}).get("bank", {}).get("account", "")
+        
+        # Extract receiver info
+        receiver = data.get("receiver", {})
+        receiver_name = receiver.get("account", {}).get("name", {})
+        r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or "ไม่ระบุชื่อ"
+        r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "") or "-"
+        r_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
+        
+        # Extract date/time
+        date_str = data.get("date", data.get("trans_date", "")) or "-"
+        time_str = data.get("time", data.get("trans_time", "")) or "-"
+        ref_no = data.get("transRef") or data.get("reference") or "-"
+        
+        # Create template data
+        template_data = {
+            "amount": f"{amount:,.2f}",
+            "sender": s_name,
+            "sender_bank": s_bank,
+            "sender_account": s_acc,
+            "receiver": r_name,
+            "receiver_bank": r_bank,
+            "receiver_account": r_acc,
+            "date": date_str,
+            "time": time_str,
+            "ref": ref_no,
+            "verified_time": datetime.now().strftime("%d/%m/%Y %H:%M")
+        }
+        
+        # Render template
+        rendered = template_text
+        for key, value in template_data.items():
+            rendered = rendered.replace(f"{{{key}}}", str(value))
+        
+        return rendered
+    except Exception as e:
+        logger.error(f"❌ Error rendering template: {e}")
+        return template_text
+
+async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None):
+    """Send slip verification result using template"""
     try:
         url = "https://api.line.me/v2/bot/message/push"
         headers = {
@@ -1607,14 +1663,47 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             "Authorization": f"Bearer {access_token}"
         }
         
-        if result.get("status") == "duplicate":
-            # For duplicate slip: send flex message with duplicate warning inside
-            flex_message = create_beautiful_slip_flex_message(result)
-            messages = [flex_message]
-        elif result.get("status") == "success":
-            # Create beautiful flex message for success
-            flex_message = create_beautiful_slip_flex_message(result)
-            messages = [flex_message]
+        messages = []
+        
+        # Get default template for this channel
+        template = None
+        if channel_id:
+            try:
+                template = app.state.slip_template_model.get_default_template(channel_id)
+                logger.info(f"📋 Using template: {template.get('template_name') if template else 'None'}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get template: {e}")
+        
+        if result.get("status") in ["success", "duplicate"]:
+            # Use template if available
+            if template:
+                template_type = template.get("template_type", "flex")
+                
+                if template_type == "text":
+                    # Use text template
+                    template_text = template.get("template_text", "")
+                    rendered_text = render_slip_template(template_text, result)
+                    messages = [{"type": "text", "text": rendered_text}]
+                    
+                    # Add duplicate warning if needed
+                    if result.get("status") == "duplicate":
+                        warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว"
+                        messages.insert(0, {"type": "text", "text": warning_text})
+                else:
+                    # Use flex message (default)
+                    flex_message = create_beautiful_slip_flex_message(result)
+                    messages = [flex_message]
+            else:
+                # Fallback to default flex message
+                flex_message = create_beautiful_slip_flex_message(result)
+                messages = [flex_message]
+                
+            # Increment template usage count
+            if template:
+                try:
+                    app.state.slip_template_model.increment_usage_count(str(template["_id"]))
+                except:
+                    pass
         else:
             # Create error message
             error_message = create_error_flex_message(result.get("message", "เกิดข้อผิดพลาด"))
@@ -1674,10 +1763,11 @@ async def slip_template_manager(request: Request, account_id: str = None):
     
     templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
     
-    return templates.TemplateResponse("settings/slip_template_manager.html", {
+    return templates.TemplateResponse("settings/slip_template_selector.html", {
         "request": request,
         "user": user,
         "account": account,
+        "account_id": account_id,
         "templates": templates_list
     })
 

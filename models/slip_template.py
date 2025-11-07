@@ -21,8 +21,9 @@ class SlipTemplate:
         except:
             pass
     
-    def create_template(self, channel_id: str, template_name: str, template_text: str, 
-                       description: str = "", is_default: bool = False) -> Optional[str]:
+    def create_template(self, channel_id: str, template_name: str, template_text: str = "", 
+                       template_flex: dict = None, template_type: str = "text",
+                       preview_image: str = "", description: str = "", is_default: bool = False) -> Optional[str]:
         """Create a new slip response template"""
         try:
             template_data = {
@@ -30,6 +31,9 @@ class SlipTemplate:
                 "template_id": f"template_{int(datetime.utcnow().timestamp() * 1000)}",
                 "template_name": template_name,
                 "template_text": template_text,
+                "template_flex": template_flex,
+                "template_type": template_type,
+                "preview_image": preview_image,
                 "description": description,
                 "is_default": is_default,
                 "created_at": datetime.utcnow(),
@@ -65,8 +69,9 @@ class SlipTemplate:
             return None
     
     def update_template(self, template_id: str, template_name: str = None, 
-                       template_text: str = None, description: str = None,
-                       is_default: bool = None) -> bool:
+                       template_text: str = None, template_flex: dict = None,
+                       template_type: str = None, preview_image: str = None,
+                       description: str = None, is_default: bool = None) -> bool:
         """Update template"""
         try:
             update_data = {"updated_at": datetime.utcnow()}
@@ -75,6 +80,12 @@ class SlipTemplate:
                 update_data["template_name"] = template_name
             if template_text is not None:
                 update_data["template_text"] = template_text
+            if template_flex is not None:
+                update_data["template_flex"] = template_flex
+            if template_type is not None:
+                update_data["template_type"] = template_type
+            if preview_image is not None:
+                update_data["preview_image"] = preview_image
             if description is not None:
                 update_data["description"] = description
             if is_default is not None:
@@ -139,26 +150,32 @@ class SlipTemplate:
             if existing:
                 return True
             
-            # Template 1: Success with details
+            # Template 1: Success with details (Flex Message)
             template1 = {
                 "channel_id": channel_id,
                 "template_id": f"template_success_{int(datetime.utcnow().timestamp() * 1000)}",
-                "template_name": "สลิปสำเร็จ - แสดงรายละเอียด",
-                "template_text": "✅ สลิปตรวจสอบสำเร็จ\n\n💰 จำนวนเงิน: {amount} บาท\n👤 ผู้โอน: {sender}\n🏦 ธนาคารผู้โอน: {sender_bank}\n👥 ผู้รับ: {receiver}\n🏦 ธนาคารผู้รับ: {receiver_bank}\n📅 วันที่: {date}\n⏰ เวลา: {time}\n📝 อ้างอิง: {ref}\n\nขอบคุณที่ใช้บริการของเรา!",
-                "description": "Template สำหรับแสดงรายละเอียดสลิปที่ตรวจสอบสำเร็จ",
+                "template_name": "สลิปสำเร็จ - แสดงรายละเอียด (Flex)",
+                "template_text": "",
+                "template_flex": None,  # จะใช้ Flex Message แบบ dynamic
+                "template_type": "flex",
+                "preview_image": "/static/images/templates/template_example_1.png",
+                "description": "Template สำหรับแสดงรายละเอียดสลิปที่ตรวจสอบสำเร็จแบบ Flex Message",
                 "is_default": True,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "usage_count": 0
             }
             
-            # Template 2: Simple confirmation
+            # Template 2: Simple confirmation (Text)
             template2 = {
                 "channel_id": channel_id,
                 "template_id": f"template_simple_{int(datetime.utcnow().timestamp() * 1000)}",
-                "template_name": "สลิปสำเร็จ - ยืนยันอย่างง่าย",
-                "template_text": "✅ ตรวจสอบสลิปสำเร็จ\n\n💰 จำนวนเงิน: {amount} บาท\n📅 วันที่: {date}\n\nขอบคุณ!",
-                "description": "Template แบบง่าย สำหรับยืนยันการรับเงิน",
+                "template_name": "สลิปสำเร็จ - ยืนยันอย่างง่าย (Text)",
+                "template_text": "✅ ตรวจสอบสลิปสำเร็จ\n\n💰 จำนวนเงิน: {amount} บาท\n👤 ผู้โอน: {sender}\n📅 วันที่: {date}\n⏰ เวลา: {time}\n\nขอบคุณที่ใช้บริการ!",
+                "template_flex": None,
+                "template_type": "text",
+                "preview_image": "/static/images/templates/template_example_2.png",
+                "description": "Template แบบข้อความธรรมดา สำหรับยืนยันการรับเงิน",
                 "is_default": False,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
