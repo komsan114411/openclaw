@@ -189,14 +189,32 @@ def format_thai_datetime(date_str: str = "", time_str: str = "") -> str:
 # -----------------------------
 # FLEX (Improved)
 # -----------------------------
-def create_beautiful_slip_flex_message(result: Dict[str, Any]) -> Dict[str, Any]:
+def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str = None, db = None) -> Dict[str, Any]:
     """
     สร้าง Flex Message ที่ดูทันสมัยและสวยงามยิ่งขึ้น
     - ใช้สีและ gradient ที่น่าสนใจ
     - จัดวาง layout ให้ดูมีมิติ
     - เน้นตัวเลขและข้อมูลสำคัญให้เด่นชัด
+    - รองรับ custom template จาก database
     """
     try:
+        # ถ้ามี template_id และ db ให้ดึง custom template
+        if template_id and db:
+            try:
+                from bson import ObjectId
+                template = db.slip_templates.find_one({"_id": ObjectId(template_id)})
+                if template and template.get("template_flex"):
+                    logger.info(f"🎯 Using custom template: {template.get('template_name')}")
+                    # Import render function
+                    import sys
+                    import os
+                    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+                    from main import render_flex_template
+                    return render_flex_template(template["template_flex"], result)
+            except Exception as e:
+                logger.warning(f"⚠️ Could not use custom template: {e}")
+        
+        # ใช้ default template
         status = (result or {}).get("status")
         data = (result or {}).get("data", {}) or {}
         

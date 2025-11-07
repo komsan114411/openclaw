@@ -1539,8 +1539,9 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             metadata={"slip_result": result}
         )
         
-        # Send result
-        await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"))
+        # Send result with template
+        slip_template_id = settings.get("slip_template_id")
+        await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
         
     except Exception as e:
         logger.error(f"❌ Error handling image message: {e}")
@@ -1605,7 +1606,13 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         import copy
         from services.slip_formatter import get_bank_logo, mask_account_formatted
         
-        data = result.get("data", {}) or {}
+        # Extract data from result (handle both formats)
+        if isinstance(result, dict) and "data" in result:
+            data = result["data"] or {}
+            status = result.get("status", "success")
+        else:
+            data = result if isinstance(result, dict) else {}
+            status = "success"
         
         # Extract amount
         amount_obj = data.get("amount", {})
@@ -1694,7 +1701,11 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
 def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
     """Render slip template with result data"""
     try:
-        data = result.get("data", {}) or {}
+        # Extract data from result (handle both formats)
+        if isinstance(result, dict) and "data" in result:
+            data = result["data"] or {}
+        else:
+            data = result if isinstance(result, dict) else {}
         
         # Extract amount
         amount_obj = data.get("amount", {})
@@ -1747,7 +1758,7 @@ def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
         logger.error(f"❌ Error rendering template: {e}")
         return template_text
 
-async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None):
+async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
     """Send slip verification result using template"""
     try:
         url = "https://api.line.me/v2/bot/message/push"
@@ -1758,14 +1769,23 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         
         messages = []
         
-        # Get default template for this channel
+        # Get template (prefer selected template over default)
         template = None
-        if channel_id:
+        if slip_template_id:
+            try:
+                from bson import ObjectId
+                template = app.state.slip_template_model.get_template_by_id(slip_template_id)
+                logger.info(f"🎯 Using selected template: {template.get('template_name') if template else 'None'}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get selected template: {e}")
+        
+        # Fallback to default template
+        if not template and channel_id:
             try:
                 template = app.state.slip_template_model.get_default_template(channel_id)
-                logger.info(f"📋 Using template: {template.get('template_name') if template else 'None'}")
+                logger.info(f"📋 Using default template: {template.get('template_name') if template else 'None'}")
             except Exception as e:
-                logger.warning(f"⚠️ Could not get template: {e}")
+                logger.warning(f"⚠️ Could not get default template: {e}")
         
         if result.get("status") in ["success", "duplicate"]:
             # Use template if available
@@ -1790,12 +1810,12 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
                         flex_message = render_flex_template(template_flex, result)
                         messages = [{"type": "flex", "altText": "ตรวจสอบสลิป", "contents": flex_message}]
                     else:
-                        # Fallback to default flex message
-                        flex_message = create_beautiful_slip_flex_message(result)
+                        # Fallback to default flex message with template_id
+                        flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
                         messages = [flex_message]
             else:
-                # Fallback to default flex message
-                flex_message = create_beautiful_slip_flex_message(result)
+                # Fallback to default flex message with template_id
+                flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
                 messages = [flex_message]
                 
             # Increment template usage count
@@ -2018,6 +2038,95 @@ async def get_slip_templates_list(request: Request, account_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายการ Template"}
+        )
+
+@app.get("/api/user/line-accounts/{account_id}/slip-templates/{template_id}/preview")
+async def preview_slip_template(request: Request, account_id: str, template_id: str):
+    """ดูตัวอย่าง Flex Message ของ template"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # ดึง template
+        template = app.state.slip_template_model.get_template_by_id(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        # สร้างข้อมูลตัวอย่าง
+        sample_result = {
+            "status": "success",
+            "data": {
+                "amount": {"amount": 369.00},
+                "sender": {
+                    "account": {
+                        "name": {"th": "นาย วินฉลิม แก้นนี"},
+                        "bank": {"account": "xxx-x-x-6021x"}
+                    },
+                    "bank": {"short": "กรุงเทพ", "id": "002"}
+                },
+                "receiver": {
+                    "account": {
+                        "name": {"th": "บจก. ทินเดอร์ โซลูชั่น"},
+                        "bank": {"account": "xxx-x-x-8041x"}
+                    },
+                    "bank": {"short": "กสิกรไทย", "id": "004"}
+                },
+                "date": "22 ต.ค. 2566",
+                "time": "10:30",
+                "transRef": "53070260912"
+            }
+        }
+        
+        # Render template
+        if template.get("template_type") == "text":
+            # Text template
+            rendered_text = render_slip_template(template.get("template_text", ""), sample_result)
+            return {
+                "success": True,
+                "type": "text",
+                "content": rendered_text
+            }
+        else:
+            # Flex template
+            template_flex = template.get("template_flex")
+            if template_flex:
+                rendered_flex = render_flex_template(template_flex, sample_result)
+                return {
+                    "success": True,
+                    "type": "flex",
+                    "content": {
+                        "type": "flex",
+                        "altText": "ตรวจสอบสลิป",
+                        "contents": rendered_flex
+                    }
+                }
+            else:
+                # ใช้ default flex message
+                from services.slip_formatter import create_beautiful_slip_flex_message
+                flex_message = create_beautiful_slip_flex_message(sample_result)
+                return {
+                    "success": True,
+                    "type": "flex",
+                    "content": flex_message
+                }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error previewing template: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
         )
 
 # ==================== Chat Message Routes ====================
