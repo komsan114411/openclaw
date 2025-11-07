@@ -1,0 +1,259 @@
+{
+  "type": "bubble",
+  "size": "mega",
+  "header": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+              {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                  {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                      {
+                        "type": "icon",
+                        "url": "https://cdn-icons-png.flaticon.com/512/5610/5610944.png",
+                        "size": "xl"
+                      }
+                    ],
+                    "backgroundColor": "#ffffff",
+                    "cornerRadius": "50%",
+                    "width": "48px",
+                    "height": "48px",
+                    "justifyContent": "center",
+                    "alignItems": "center"
+                  },
+                  {
+                    "type": "text",
+                    "text": "สลิปถูกต้อง",
+                    "size": "xl",
+                    "weight": "bold",
+                    "color": "#ffffff",
+                    "margin": "md",
+                    "flex": 0
+                  }
+                ],
+                "alignItems": "center"
+              }
+            ],
+            "flex": 1
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+              {
+                "type": "image",
+                "url": "https://example.com/thunder-logo-white.png",
+                "size": "xs",
+                "aspectMode": "fit"
+              },
+              {
+                "type": "image",
+                "url": "https://example.com/document-icon.png",
+                "size": "xxs",
+                "aspectMode": "fit",
+                "margin": "xs"
+              }
+            ],
+            "flex": 0,
+            "width": "80px",
+            "alignItems": "flex-end"
+          }
+        ]
+      }
+    ],
+    "backgroundColor": "#10b981",
+    "paddingAll": "20px"
+  },
+  "body": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "text",
+        "text": "{{amount}}",
+        "size": "4xl",
+        "weight": "bold",
+        "color": "#1e40af"
+      },
+      {
+        "type": "text",
+        "text": "{{datetime}}",
+        "size": "sm",
+        "color": "#6b7280",
+        "margin": "md"
+      },
+      {
+        "type": "separator",
+        "margin": "xl",
+        "color": "#e5e7eb"
+      },
+      {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+              {
+                "type": "icon",
+                "url": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+                "size": "xl"
+              }
+            ],
+            "backgroundColor": "#1e40af",
+            "cornerRadius": "50%",
+            "width": "60px",
+            "height": "60px",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "flex": 0
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+              {
+                "type": "text",
+                "text": "ผู้โอน",
+                "size": "sm",
+                "color": "#6b7280"
+              },
+              {
+                "type": "text",
+                "text": "{{sender_name}}",
+                "size": "md",
+                "weight": "bold",
+                "color": "#1f2937",
+                "wrap": true
+              },
+              {
+                "type": "text",
+                "text": "{{sender_account}}",
+                "size": "sm",
+                "color": "#6b7280"
+              }
+            ],
+            "margin": "md",
+            "flex": 1
+          }
+        ],
+        "margin": "xl",
+        "alignItems": "center"
+      },
+      {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+              {
+                "type": "icon",
+                "url": "https://cdn-icons-png.flaticon.com/512/3135/3135789.png",
+                "size": "xl"
+              }
+            ],
+            "backgroundColor": "#ec4899",
+            "cornerRadius": "50%",
+            "width": "60px",
+            "height": "60px",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "flex": 0
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+              {
+                "type": "text",
+                "text": "ผู้รับ",
+                "size": "sm",
+                "color": "#6b7280"
+              },
+              {
+                "type": "text",
+                "text": "{{receiver_name}}",
+                "size": "md",
+                "weight": "bold",
+                "color": "#1f2937",
+                "wrap": true
+              },
+              {
+                "type": "text",
+                "text": "{{receiver_account}}",
+                "size": "sm",
+                "color": "#6b7280"
+              }
+            ],
+            "margin": "md",
+            "flex": 1
+          }
+        ],
+        "margin": "lg",
+        "alignItems": "center"
+      }
+    ],
+    "backgroundColor": "#f3f4f6",
+    "paddingAll": "24px"
+  },
+  "footer": {
+    "type": "box",
+    "layout": "horizontal",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "image",
+            "url": "https://example.com/thunder-logo-small.png",
+            "size": "xs",
+            "aspectMode": "fit"
+          }
+        ],
+        "width": "40px",
+        "flex": 0
+      },
+      {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "text",
+            "text": "สลิปจริงตรวจสอบโดย รับเตอร์ โซลูชั่น",
+            "size": "sm",
+            "weight": "bold",
+            "color": "#1f2937",
+            "wrap": true
+          },
+          {
+            "type": "text",
+            "text": "ผู้ให้บริการเช็กสลิปอันดับ 1",
+            "size": "xs",
+            "color": "#6b7280"
+          }
+        ],
+        "margin": "md",
+        "flex": 1
+      }
+    ],
+    "backgroundColor": "#ffffff",
+    "paddingAll": "16px"
+  }
+}

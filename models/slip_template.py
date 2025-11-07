@@ -153,6 +153,17 @@ class SlipTemplate:
             # Load Flex templates from JSON file
             import json
             import os
+            
+            # Load beautiful slip template
+            beautiful_template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "beautiful_slip_template.json")
+            beautiful_template = None
+            try:
+                with open(beautiful_template_path, 'r', encoding='utf-8') as f:
+                    beautiful_template = json.load(f)
+            except Exception as e:
+                print(f"Warning: Could not load beautiful template: {e}")
+            
+            # Load other flex templates
             flex_templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "flex_templates.json")
             flex_templates = {}
             try:
@@ -167,7 +178,7 @@ class SlipTemplate:
                 "template_id": f"template_success_{int(datetime.utcnow().timestamp() * 1000)}",
                 "template_name": "สลิปสำเร็จ - แสดงรายละเอียด (Flex)",
                 "template_text": "",
-                "template_flex": flex_templates.get("slip_success_detailed"),
+                "template_flex": beautiful_template if beautiful_template else flex_templates.get("slip_success_detailed"),
                 "template_type": "flex",
                 "preview_image": "/static/images/templates/template_example_1.png",
                 "description": "Template สำหรับแสดงรายละเอียดสลิปที่ตรวจสอบสำเร็จแบบ Flex Message",

@@ -11,9 +11,6 @@
     <!-- Modern Theme CSS -->
     <link href="/static/css/modern-theme.css" rel="stylesheet">
     
-    <!-- Dark Theme CSS -->
-    <link href="/static/css/dark-theme.css" rel="stylesheet">
-    
     <!-- Custom CSS -->
     {% block extra_css %}{% endblock %}
     

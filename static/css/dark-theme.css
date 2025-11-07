@@ -1,0 +1,549 @@
+/* ===================================
+   DARK THEME CSS
+   ================================= */
+
+/* Dark Theme Variables */
+:root {
+    /* Background Colors */
+    --dark-bg-primary: #1a1a1a;
+    --dark-bg-secondary: #252525;
+    --dark-bg-tertiary: #2d2d2d;
+    
+    /* Text Colors */
+    --dark-text-primary: #ffffff;
+    --dark-text-secondary: #9ca3af;
+    --dark-text-tertiary: #6b7280;
+    
+    /* Border Colors */
+    --dark-border: #374151;
+    --dark-border-hover: #4b5563;
+    
+    /* Accent Colors */
+    --accent-blue: #3b82f6;
+    --accent-green: #10b981;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+    --accent-pink: #ec4899;
+    
+    /* Sidebar */
+    --sidebar-bg: #1a1a1a;
+    --sidebar-text: #9ca3af;
+    --sidebar-active-bg: #16a34a;
+    --sidebar-active-text: #ffffff;
+    --sidebar-hover-bg: #2d2d2d;
+}
+
+/* Global Dark Theme */
+body {
+    background: var(--dark-bg-primary) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+/* Sidebar Dark Theme */
+.sidebar {
+    background: var(--sidebar-bg) !important;
+    border-right: 1px solid var(--dark-border) !important;
+    box-shadow: none !important;
+}
+
+.sidebar-header {
+    border-bottom: 1px solid var(--dark-border) !important;
+}
+
+.sidebar-logo {
+    color: var(--accent-green) !important;
+}
+
+.sidebar-user {
+    background: var(--dark-bg-secondary) !important;
+    border: 1px solid var(--dark-border);
+}
+
+.sidebar-user-name {
+    color: var(--dark-text-primary) !important;
+}
+
+.sidebar-user-role {
+    color: var(--dark-text-secondary) !important;
+}
+
+.nav-section-title {
+    color: var(--dark-text-tertiary) !important;
+}
+
+.sidebar-nav-link {
+    color: var(--sidebar-text) !important;
+}
+
+.sidebar-nav-link:hover {
+    background: var(--sidebar-hover-bg) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.sidebar-nav-link.active {
+    background: var(--sidebar-active-bg) !important;
+    color: var(--sidebar-active-text) !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Main Content Dark Theme */
+.main-content {
+    background: var(--dark-bg-primary) !important;
+}
+
+.page-title {
+    color: var(--dark-text-primary) !important;
+}
+
+.page-subtitle {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* Card Dark Theme */
+.card {
+    background: var(--dark-bg-secondary) !important;
+    border: 1px solid var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.card:hover {
+    border-color: var(--dark-border-hover) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.card-header {
+    background: var(--dark-bg-tertiary) !important;
+    border-bottom: 1px solid var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.card-title {
+    color: var(--dark-text-primary) !important;
+}
+
+.card-body {
+    color: var(--dark-text-primary) !important;
+}
+
+/* Dashboard Stats Cards */
+.stat-card {
+    background: var(--dark-bg-secondary) !important;
+    border: 1px solid var(--dark-border) !important;
+    border-radius: 12px;
+    padding: 24px;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    border-color: var(--dark-border-hover) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+.stat-card-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #ffffff;
+}
+
+.stat-card-icon.blue {
+    background: var(--accent-blue);
+}
+
+.stat-card-icon.green {
+    background: var(--accent-green);
+}
+
+.stat-card-icon.orange {
+    background: var(--accent-orange);
+}
+
+.stat-card-icon.red {
+    background: var(--accent-red);
+}
+
+.stat-card-icon.purple {
+    background: var(--accent-purple);
+}
+
+.stat-card-icon.pink {
+    background: var(--accent-pink);
+}
+
+.stat-card-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--dark-text-primary);
+    margin: 16px 0 8px 0;
+}
+
+.stat-card-label {
+    font-size: 14px;
+    color: var(--dark-text-secondary);
+    margin-bottom: 8px;
+}
+
+.stat-card-change {
+    font-size: 12px;
+    color: var(--dark-text-tertiary);
+}
+
+.stat-card-change.positive {
+    color: var(--accent-green);
+}
+
+.stat-card-change.negative {
+    color: var(--accent-red);
+}
+
+/* Alert Banner Dark Theme */
+.alert {
+    border: 1px solid var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.alert-info {
+    background: #1e3a8a !important;
+    border-color: var(--accent-blue) !important;
+}
+
+.alert-success {
+    background: #065f46 !important;
+    border-color: var(--accent-green) !important;
+}
+
+.alert-warning {
+    background: #78350f !important;
+    border-color: var(--accent-orange) !important;
+}
+
+.alert-danger {
+    background: #7f1d1d !important;
+    border-color: var(--accent-red) !important;
+}
+
+/* Button Dark Theme */
+.btn {
+    border: 1px solid var(--dark-border) !important;
+}
+
+.btn-primary {
+    background: var(--accent-blue) !important;
+    border-color: var(--accent-blue) !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+}
+
+.btn-success {
+    background: var(--accent-green) !important;
+    border-color: var(--accent-green) !important;
+    color: #ffffff !important;
+}
+
+.btn-success:hover {
+    background: #059669 !important;
+    border-color: #059669 !important;
+}
+
+.btn-warning {
+    background: var(--accent-orange) !important;
+    border-color: var(--accent-orange) !important;
+    color: #ffffff !important;
+}
+
+.btn-warning:hover {
+    background: #d97706 !important;
+    border-color: #d97706 !important;
+}
+
+.btn-danger {
+    background: var(--accent-red) !important;
+    border-color: var(--accent-red) !important;
+    color: #ffffff !important;
+}
+
+.btn-danger:hover {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+}
+
+.btn-secondary {
+    background: transparent !important;
+    border-color: var(--dark-border) !important;
+    color: var(--dark-text-secondary) !important;
+}
+
+.btn-secondary:hover {
+    background: var(--dark-bg-tertiary) !important;
+    border-color: var(--dark-border-hover) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+/* Form Dark Theme */
+.form-control {
+    background: var(--dark-bg-tertiary) !important;
+    border: 1px solid var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.form-control:focus {
+    background: var(--dark-bg-tertiary) !important;
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.form-control::placeholder {
+    color: var(--dark-text-tertiary) !important;
+}
+
+.form-label {
+    color: var(--dark-text-primary) !important;
+}
+
+.form-select {
+    background: var(--dark-bg-tertiary) !important;
+    border: 1px solid var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.form-select:focus {
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Table Dark Theme */
+.table {
+    color: var(--dark-text-primary) !important;
+}
+
+.table thead th {
+    background: var(--dark-bg-tertiary) !important;
+    border-color: var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.table tbody tr {
+    border-color: var(--dark-border) !important;
+}
+
+.table tbody tr:hover {
+    background: var(--dark-bg-tertiary) !important;
+}
+
+.table tbody td {
+    border-color: var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+/* Badge Dark Theme */
+.badge {
+    border: 1px solid transparent;
+}
+
+.badge-primary {
+    background: var(--accent-blue) !important;
+    color: #ffffff !important;
+}
+
+.badge-success {
+    background: var(--accent-green) !important;
+    color: #ffffff !important;
+}
+
+.badge-warning {
+    background: var(--accent-orange) !important;
+    color: #ffffff !important;
+}
+
+.badge-danger {
+    background: var(--accent-red) !important;
+    color: #ffffff !important;
+}
+
+.badge-info {
+    background: var(--accent-blue) !important;
+    color: #ffffff !important;
+}
+
+/* Modal Dark Theme */
+.modal-content {
+    background: var(--dark-bg-secondary) !important;
+    border: 1px solid var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--dark-border) !important;
+}
+
+.modal-title {
+    color: var(--dark-text-primary) !important;
+}
+
+.modal-footer {
+    border-top: 1px solid var(--dark-border) !important;
+}
+
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Dropdown Dark Theme */
+.dropdown-menu {
+    background: var(--dark-bg-secondary) !important;
+    border: 1px solid var(--dark-border) !important;
+}
+
+.dropdown-item {
+    color: var(--dark-text-primary) !important;
+}
+
+.dropdown-item:hover {
+    background: var(--dark-bg-tertiary) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.dropdown-divider {
+    border-color: var(--dark-border) !important;
+}
+
+/* Pagination Dark Theme */
+.pagination .page-link {
+    background: var(--dark-bg-secondary) !important;
+    border-color: var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.pagination .page-link:hover {
+    background: var(--dark-bg-tertiary) !important;
+    border-color: var(--dark-border-hover) !important;
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--accent-blue) !important;
+    border-color: var(--accent-blue) !important;
+}
+
+/* Breadcrumb Dark Theme */
+.breadcrumb {
+    background: var(--dark-bg-secondary) !important;
+}
+
+.breadcrumb-item {
+    color: var(--dark-text-secondary) !important;
+}
+
+.breadcrumb-item.active {
+    color: var(--dark-text-primary) !important;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: var(--dark-text-tertiary) !important;
+}
+
+/* List Group Dark Theme */
+.list-group-item {
+    background: var(--dark-bg-secondary) !important;
+    border-color: var(--dark-border) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+.list-group-item:hover {
+    background: var(--dark-bg-tertiary) !important;
+}
+
+.list-group-item.active {
+    background: var(--accent-blue) !important;
+    border-color: var(--accent-blue) !important;
+}
+
+/* Progress Bar Dark Theme */
+.progress {
+    background: var(--dark-bg-tertiary) !important;
+}
+
+.progress-bar {
+    background: var(--accent-blue) !important;
+}
+
+/* Tooltip Dark Theme */
+.tooltip-inner {
+    background: var(--dark-bg-tertiary) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+/* Text Colors */
+.text-muted {
+    color: var(--dark-text-secondary) !important;
+}
+
+.text-primary {
+    color: var(--accent-blue) !important;
+}
+
+.text-success {
+    color: var(--accent-green) !important;
+}
+
+.text-warning {
+    color: var(--accent-orange) !important;
+}
+
+.text-danger {
+    color: var(--accent-red) !important;
+}
+
+/* Background Colors */
+.bg-light {
+    background: var(--dark-bg-secondary) !important;
+}
+
+.bg-dark {
+    background: var(--dark-bg-primary) !important;
+}
+
+/* Border Colors */
+.border {
+    border-color: var(--dark-border) !important;
+}
+
+/* Scrollbar Dark Theme */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--dark-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--dark-bg-tertiary);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--dark-border-hover);
+}
+
+/* Selection Dark Theme */
+::selection {
+    background: var(--accent-blue);
+    color: #ffffff;
+}
+
+::-moz-selection {
+    background: var(--accent-blue);
+    color: #ffffff;
+}
