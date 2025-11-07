@@ -213,9 +213,19 @@ def verify_slip_with_thunder(
                 "status": "error",
                 "message": f"Thunder API ตอบกลับข้อมูลที่ไม่ถูกต้อง (HTTP {resp.status_code})",
             }
+        
         # ตรวจสอบ HTTP status code ตาม Thunder API documentation
         if resp.status_code == 200:
-            # HTTP 200 = Success
+            # HTTP 200 = Success (หรือ Duplicate ถ้า Thunder API ส่ง 200 พร้อม status 409 ใน body)
+            if result.get("status") == 409:
+                logger.warning("⚠️ Thunder API: Duplicate slip detected (Status 409 in body)")
+                return {
+                    "status": "duplicate",
+                    "type": "thunder",
+                    "message": "สลิปนี้เคยถูกใช้แล้ว",
+                    "data": result.get("data", {})
+                }
+            
             if result.get("status") == 200:
                 logger.info("✅ Thunder API verification successful!")
                 # ดึงข้อมูลจาก response ตาม Thunder API structure
@@ -390,9 +400,18 @@ def verify_slip_with_thunder(
                     "message": "📱 ไม่พบ QR Code ในรูปภาพ\n\n💡 คำแนะนำ:\n• ถ่ายรูปสลิปให้เห็น QR Code ชัดเจน\n• หลีกเลี่ยงเงาสะท้อนหรือการเบลอของภาพ"
                 }
             else:
-                return {"status": "error", "message": f"🔍 Thunder API Not Found: {error_msg}"}
-        elif resp.status_code == 429:
-            return {"status": "error", "message": "⏳ ใช้งาน Thunder API เกินจำนวนที่กำหนด กรุณารอสักครู่แล้วลองใหม่"}
+                 return {"status": "error", "message": f"🔍 Thunder API Not Found: {error_msg}"}
+            
+        elif resp.status_code == 409:
+            # HTTP 409 = Duplicate (ตาม Thunder API documentation)
+            logger.warning("⚠️ Thunder API: Duplicate slip detected (Status 409)")
+            return {
+                "status": "duplicate",
+                "type": "thunder",
+                "message": "สลิปนี้เคยถูกใช้แล้ว",
+                "data": result.get("data", {})
+            }
+        
         elif resp.status_code >= 500:
             # HTTP 500+ = Server Error - จัดการตาม Thunder API documentation
             error_msg = result.get("message", "server_error")
@@ -529,7 +548,25 @@ def test_thunder_api_connection(api_key: str) -> Dict[str, Any]:
         session = create_requests_session()
         resp = session.get(endpoint, headers=headers, timeout=15)
         
+        if resp.status_code == 409:
+            logger.warning('⚠️ Thunder API: Duplicate slip detected (Status 409)')
+            return {
+                'status': 'duplicate',
+                'type': 'thunder',
+                'message': 'สลิปนี้เคยถูกใช้แล้ว',
+                'data': result.get('data', {})
+            }
+
         if resp.status_code == 200:
+            # HTTP 200 = Success (หรือ Duplicate ถ้า Thunder API ส่ง 200 พร้อม status 409 ใน body)
+            if result.get('status') == 409:
+                logger.warning('⚠️ Thunder API: Duplicate slip detected (Status 409 in body)')
+                return {
+                    'status': 'duplicate',
+                    'type': 'thunder',
+                    'message': 'สลิปนี้เคยถูกใช้แล้ว',
+                    'data': result.get('data', {})
+                }
             data = resp.json()
             # ดึงข้อมูลยอดเหลือและวันหมดอายุ
             balance = data.get("balance", 0)

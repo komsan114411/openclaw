@@ -1514,9 +1514,20 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
                 result_text = f"🔄 สลิปซ้ำ +{dup_count}"
             else:
                 result_text = f"🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
-        else:
+        elif result.get("status") == "error":
+            # ใช้ข้อความจาก result.get('message') โดยตรง
             result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
             logger.error(f"❌ Slip verification failed: {result}")
+        elif result.get("status") == "not_found":
+            result_text = f"🔍 {result.get('message', 'ไม่พบข้อมูลสลิป')}"
+            logger.warning(f"⚠️ Slip not found: {result}")
+        elif result.get("status") == "qr_not_found":
+            result_text = f"📱 {result.get('message', 'ไม่พบ QR Code ในรูปภาพ')}"
+            logger.warning(f"⚠️ QR Code not found: {result}")
+        else:
+            # สำหรับสถานะอื่นๆ ที่ไม่คาดคิด
+            result_text = f"⚠️ สถานะการตรวจสอบไม่ชัดเจน: {result.get('status')}"
+            logger.error(f"⚠️ Unexpected slip verification status: {result}")
         
         # Save slip verification result
         app.state.chat_message_model.save_message(
