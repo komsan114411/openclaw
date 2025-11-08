@@ -2263,6 +2263,12 @@ async def get_slip_templates_list(request: Request, account_id: str):
         
         # Get current selected template from account settings
         current_template_id = account.get("settings", {}).get("slip_template_id", "")
+        if current_template_id:
+            try:
+                current_template_id = str(current_template_id)
+            except Exception as convert_error:
+                logger.warning(f"⚠️ Unable to convert slip_template_id to string: {convert_error}")
+                current_template_id = ""
         
         # Format templates for frontend with correct field names
         formatted_templates = []

@@ -607,7 +607,7 @@
                 console.log('📊 Number of templates:', data.templates.length);
                 
                 // Set hidden input value
-                hiddenInput.value = currentTemplateId;
+                hiddenInput.value = currentTemplateId || '';
                 console.log('✅ Set hidden input value:', hiddenInput.value);
 
                 // Generate template cards
@@ -690,7 +690,7 @@
             return;
         }
         
-        hiddenInput.value = templateId;
+        hiddenInput.value = (templateId || '').trim();
         console.log('✅ Updated hidden input value:', hiddenInput.value);
         
         // Update visual selection
@@ -829,13 +829,15 @@
         const apiKeyInput = document.getElementById('slipApiKey');
         const apiKeyValue = apiKeyInput.value;
         const templateIdInput = document.getElementById('slipTemplateId');
+        const selectedTemplateId = (templateIdInput.value || '').trim();
         
         console.log('📋 Template ID input value:', templateIdInput.value);
+        console.log('📋 Normalized template ID:', selectedTemplateId || '(none)');
         
         const data = {
             slip_verification_enabled: document.getElementById('slipEnabled').checked,
             slip_api_provider: document.getElementById('slipApiProvider').value,
-            slip_template_id: templateIdInput.value
+            slip_template_id: selectedTemplateId || null
         };
         
         console.log('📤 Sending data:', data);
