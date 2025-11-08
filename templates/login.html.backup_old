@@ -8,7 +8,7 @@
     <link href="/static/css/modern-theme.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8C42 50%, #FFA366 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -24,7 +24,7 @@
             content: '';
             position: absolute;
             border-radius: 50%;
-            background: rgba(16, 185, 129, 0.05);
+            background: rgba(255, 255, 255, 0.1);
             animation: float 20s infinite ease-in-out;
         }
 
@@ -56,9 +56,9 @@
         }
 
         .login-card {
-            background: #1f1f1f;
+            background: var(--white);
             border-radius: var(--radius-xl);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
             padding: 48px 40px;
             animation: slideUp 0.6s ease;
         }
@@ -82,13 +82,13 @@
         .login-logo {
             width: 80px;
             height: 80px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: linear-gradient(135deg, #FF6B35, #FF8C42);
             border-radius: var(--radius-xl);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 24px;
-            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
         }
 
         .login-logo i {
@@ -99,13 +99,13 @@
         .login-title {
             font-size: 28px;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--black);
             margin-bottom: 8px;
         }
 
         .login-subtitle {
             font-size: 15px;
-            color: #9ca3af;
+            color: var(--gray-600);
         }
 
         .form-group {
@@ -117,7 +117,7 @@
             margin-bottom: 8px;
             font-size: 14px;
             font-weight: 600;
-            color: #d1d5db;
+            color: var(--gray-700);
         }
 
         .input-group {
@@ -137,8 +137,8 @@
             width: 100%;
             padding: 14px 16px 14px 48px;
             font-size: 15px;
-            color: #ffffff;
-            background: #2d2d2d;
+            color: var(--black);
+            background: var(--gray-50);
             border: 2px solid transparent;
             border-radius: var(--radius-md);
             transition: all var(--transition-base);
@@ -146,9 +146,9 @@
 
         .form-control:focus {
             outline: none;
-            background: #1a1a1a;
-            border-color: #10b981;
-            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+            background: var(--white);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
         }
 
         .form-control::placeholder {
@@ -161,7 +161,7 @@
             font-size: 16px;
             font-weight: 600;
             color: var(--white);
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: linear-gradient(135deg, #FF6B35, #FF8C42);
             border: none;
             border-radius: var(--radius-md);
             cursor: pointer;
@@ -171,7 +171,7 @@
 
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 12px 32px rgba(255, 107, 53, 0.3);
         }
 
         .btn-login:active {
@@ -194,12 +194,12 @@
         .divider::after {
             content: '';
             flex: 1;
-            border-bottom: 1px solid #374151;
+            border-bottom: 1px solid var(--gray-300);
         }
 
         .divider span {
             padding: 0 16px;
-            color: #6b7280;
+            color: var(--gray-500);
             font-size: 14px;
         }
 
@@ -207,18 +207,18 @@
             text-align: center;
             margin-top: 24px;
             font-size: 14px;
-            color: #9ca3af;
+            color: var(--gray-600);
         }
 
         .register-link a {
-            color: #10b981;
+            color: var(--primary-color);
             font-weight: 600;
             text-decoration: none;
             transition: color var(--transition-base);
         }
 
         .register-link a:hover {
-            color: #059669;
+            color: var(--primary-hover);
             text-decoration: underline;
         }
 
@@ -245,15 +245,13 @@
         }
 
         .alert-success {
-            background: rgba(16, 185, 129, 0.1);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            background: var(--success-light);
+            color: var(--success-color);
         }
 
         .alert-danger {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            background: var(--danger-light);
+            color: var(--danger-color);
         }
 
         .alert i {
@@ -272,7 +270,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #d1d5db;
+            color: var(--gray-700);
         }
 
         .remember-me input[type="checkbox"] {
@@ -282,7 +280,7 @@
         }
 
         .forgot-password {
-            color: #10b981;
+            color: var(--primary-color);
             text-decoration: none;
             font-weight: 500;
         }
@@ -412,7 +410,7 @@
                 if (data.success) {
                     // Show success message
                     submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> เข้าสู่ระบบสำเร็จ!';
-                    submitBtn.style.background = '#10b981';
+                    submitBtn.style.background = '#48BB78';
                     
                     // Redirect after short delay
                     setTimeout(() => {

@@ -1761,6 +1761,25 @@ def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
 async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
     """Send slip verification result using template"""
     try:
+        # Log input parameters
+        logger.info(f"📤 Sending slip result")
+        logger.info(f"👤 User ID: {user_id}")
+        logger.info(f"🎯 Template ID: {slip_template_id}")
+        logger.info(f"📊 Channel ID: {channel_id}")
+        logger.info(f"✅ Result status: {result.get('status')}")
+        
+        # Validate inputs
+        if not user_id:
+            logger.error("❌ User ID is empty")
+            return
+        
+        if not result:
+            logger.error("❌ Result is empty")
+            return
+        
+        if not result.get("status"):
+            logger.error("❌ Result status is missing")
+            return
         url = "https://api.line.me/v2/bot/message/push"
         headers = {
             "Content-Type": "application/json",
@@ -1775,7 +1794,11 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             try:
                 from bson import ObjectId
                 template = app.state.slip_template_model.get_template_by_id(slip_template_id)
-                logger.info(f"🎯 Using selected template: {template.get('template_name') if template else 'None'}")
+                if template:
+                    logger.info(f"🎯 Using selected template: {template.get('template_name')}")
+                    logger.info(f"📋 Template type: {template.get('template_type')}")
+                else:
+                    logger.warning(f"⚠️ Template not found for ID: {slip_template_id}")
             except Exception as e:
                 logger.warning(f"⚠️ Could not get selected template: {e}")
         
@@ -1783,7 +1806,11 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         if not template and channel_id:
             try:
                 template = app.state.slip_template_model.get_default_template(channel_id)
-                logger.info(f"📋 Using default template: {template.get('template_name') if template else 'None'}")
+                if template:
+                    logger.info(f"📋 Using default template: {template.get('template_name')}")
+                    logger.info(f"📋 Template type: {template.get('template_type')}")
+                else:
+                    logger.warning(f"⚠️ No default template found for channel: {channel_id}")
             except Exception as e:
                 logger.warning(f"⚠️ Could not get default template: {e}")
         
@@ -1829,20 +1856,43 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             error_message = create_error_flex_message(result.get("message", "เกิดข้อผิดพลาด"))
             messages = [error_message]
         
+        # Validate messages
+        if not messages:
+            logger.warning("⚠️ No messages generated, using fallback")
+            # Fallback to simple text message
+            amount = "N/A"
+            if result.get("data") and isinstance(result["data"], dict):
+                amount = result["data"].get("amount", "N/A")
+            messages = [{
+                "type": "text",
+                "text": f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {amount} บาท"
+            }]
+        
+        logger.info(f"💬 Sending {len(messages)} message(s)")
+        
         data = {
             "to": user_id,
             "messages": messages
         }
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, headers=headers, json=data)
+            logger.info(f"📡 LINE API response status: {response.status_code}")
+            
             if response.status_code != 200:
                 logger.error(f"❌ LINE API error: {response.text}")
+                logger.error(f"📊 Request data: {data}")
             else:
                 logger.info("✅ Slip result sent successfully")
+                logger.info(f"📊 Response: {response.text}")
                 
     except Exception as e:
         logger.error(f"❌ Error sending slip result: {e}")
+        logger.error(f"📊 User ID: {user_id}")
+        logger.error(f"📊 Result: {result}")
+        logger.error(f"📊 Template ID: {slip_template_id}")
+        import traceback
+        logger.error(f"📊 Traceback: {traceback.format_exc()}")
 
 
 # ==================== Slip Template Routes ====================
