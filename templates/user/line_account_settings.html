@@ -524,25 +524,48 @@
 
     // Load slip templates as cards
     async function loadSlipTemplates() {
+        console.log('🔄 Starting to load slip templates...');
+        
+        const grid = document.getElementById('templateCardsGrid');
+        const hiddenInput = document.getElementById('slipTemplateId');
+        
+        if (!grid) {
+            console.error('❌ templateCardsGrid element not found!');
+            return;
+        }
+        
+        if (!hiddenInput) {
+            console.error('❌ slipTemplateId input not found!');
+            return;
+        }
+        
+        console.log('✅ Grid and hidden input found');
+        
         try {
+            console.log(`📡 Fetching templates from: /api/user/line-accounts/${accountId}/slip-templates-list`);
             const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates-list`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
-
             console.log('📋 Loaded templates:', data);
-
-            const grid = document.getElementById('templateCardsGrid');
-            const hiddenInput = document.getElementById('slipTemplateId');
 
             if (data.success && data.templates && data.templates.length > 0) {
                 const currentTemplateId = data.current_template_id || '';
+                console.log('🎯 Current template ID:', currentTemplateId);
                 
                 // Set hidden input value
                 hiddenInput.value = currentTemplateId;
+                console.log('✅ Set hidden input value:', hiddenInput.value);
 
                 // Generate template cards
-                grid.innerHTML = data.templates.map(template => {
+                const cardsHTML = data.templates.map(template => {
                     const isSelected = template.is_selected || template.id === currentTemplateId;
                     const templateName = template.name || 'เทมเพลต';
+                    
+                    console.log(`📝 Template: ${templateName}, Selected: ${isSelected}, ID: ${template.id}`);
                     
                     // Generate preview based on template name
                     let previewHTML = generateTemplatePreview(templateName);
@@ -566,7 +589,11 @@
                         </div>
                     `;
                 }).join('');
+                
+                grid.innerHTML = cardsHTML;
+                console.log(`✅ Successfully rendered ${data.templates.length} template cards`);
             } else {
+                console.log('⚠️ No templates found or data.success is false');
                 grid.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #94A3B8; grid-column: 1/-1;">
                         <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
@@ -581,11 +608,12 @@
             }
         } catch (error) {
             console.error('❌ Error loading templates:', error);
-            const grid = document.getElementById('templateCardsGrid');
+            console.error('Stack trace:', error.stack);
             grid.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #EF4444; grid-column: 1/-1;">
                     <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
                     <div>เกิดข้อผิดพลาดในการโหลดเทมเพลต</div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #64748B;">${error.message}</div>
                 </div>
             `;
         }
@@ -593,8 +621,17 @@
     
     // Select template card
     function selectTemplateCard(templateId, templateName) {
+        console.log('🎯 Selecting template:', templateId, templateName);
+        
         // Update hidden input
-        document.getElementById('slipTemplateId').value = templateId;
+        const hiddenInput = document.getElementById('slipTemplateId');
+        if (!hiddenInput) {
+            console.error('❌ slipTemplateId input not found!');
+            return;
+        }
+        
+        hiddenInput.value = templateId;
+        console.log('✅ Updated hidden input value:', hiddenInput.value);
         
         // Update visual selection
         document.querySelectorAll('.template-card-inline').forEach(card => {
@@ -610,6 +647,9 @@
             badge.className = 'selected-badge';
             badge.textContent = '✓ เลือกแล้ว';
             selectedCard.insertBefore(badge, selectedCard.firstChild);
+            console.log('✅ Updated visual selection');
+        } else {
+            console.error('❌ Selected card not found:', templateId);
         }
         
         console.log('✅ Template selected:', templateId, templateName);
@@ -724,18 +764,26 @@
 
     // Save slip settings
     async function saveSlipSettings() {
+        console.log('💾 Starting to save slip settings...');
+        
         const apiKeyInput = document.getElementById('slipApiKey');
         const apiKeyValue = apiKeyInput.value;
+        const templateIdInput = document.getElementById('slipTemplateId');
+        
+        console.log('📋 Template ID input value:', templateIdInput.value);
         
         const data = {
             slip_verification_enabled: document.getElementById('slipEnabled').checked,
             slip_api_provider: document.getElementById('slipApiProvider').value,
-            slip_template_id: document.getElementById('slipTemplateId').value
+            slip_template_id: templateIdInput.value
         };
+        
+        console.log('📤 Sending data:', data);
         
         // ส่ง API Key เฉพาะเมื่อไม่ใช่ placeholder (มีการเปลี่ยนจริง)
         if (apiKeyValue && !apiKeyValue.startsWith('*')) {
             data.slip_api_key = apiKeyValue;
+            console.log('🔑 Including API key in request');
         }
 
         try {
@@ -745,7 +793,10 @@
                 body: JSON.stringify(data)
             });
 
+            console.log('📡 Response status:', response.status);
             const result = await response.json();
+            console.log('📊 Response data:', result);
+            
             if (result.success) {
                 // อัพเดท data attribute ถ้ามีการบันทึก API Key ใหม่
                 if (apiKeyValue && !apiKeyValue.startsWith('*')) {
@@ -753,13 +804,19 @@
                     apiKeyInput.dataset.hasKey = 'true';
                     apiKeyInput.value = '********************************';
                 }
-                alert('บันทึกการตั้งค่าสำเร็จ');
+                console.log('✅ Settings saved successfully');
+                showNotification('success', '✅ บันทึกการตั้งค่าสำเร็จ!');
+                
+                // Reload templates to reflect changes
+                setTimeout(() => loadSlipTemplates(), 500);
             } else {
-                alert('เกิดข้อผิดพลาด: ' + result.message);
+                console.error('❌ Save failed:', result.message);
+                showNotification('error', 'เกิดข้อผิดพลาด: ' + result.message);
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('เกิดข้อผิดพลาดในการบันทึก');
+            console.error('❌ Error saving settings:', error);
+            console.error('Stack trace:', error.stack);
+            showNotification('error', 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
         }
     }
 
@@ -907,7 +964,20 @@
         document.getElementById('statusLabel').textContent = this.checked ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
     });
 
-    // Load templates on page load
-    loadSlipTemplates();
+    // Load templates on page load - ใช้ window.onload เพื่อให้แน่ใจว่า DOM พร้อม
+    window.addEventListener('load', function() {
+        console.log('🚀 Page loaded, loading templates...');
+        loadSlipTemplates();
+    });
+    
+    // โหลดเทมเพลตเมื่อคลิกที่ tab slip ด้วย
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+        if (tab.dataset.tab === 'slip') {
+            tab.addEventListener('click', function() {
+                console.log('📋 Slip tab clicked, reloading templates...');
+                setTimeout(() => loadSlipTemplates(), 100);
+            });
+        }
+    });
 </script>
 {% endblock %}
