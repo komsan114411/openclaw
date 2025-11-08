@@ -142,13 +142,15 @@ class SlipTemplate:
             print(f"Error setting default template: {e}")
             return False
     
-    def init_default_templates(self, channel_id: str) -> bool:
+    def init_default_templates(self, channel_id: str, force: bool = False) -> bool:
         """Initialize default premium templates for new channel"""
         try:
-            # Check if templates already exist
-            existing = self.collection.find_one({"channel_id": channel_id})
-            if existing:
-                return True
+            # Check if templates already exist (unless force is True)
+            if not force:
+                existing = self.collection.find_one({"channel_id": channel_id})
+                if existing:
+                    print(f"ℹ️ Templates already exist for channel {channel_id}")
+                    return True
             
             # Load Flex templates from JSON file
             import json
@@ -245,12 +247,21 @@ class SlipTemplate:
             
             # Insert all templates
             if templates_to_insert:
+                # If force, delete existing templates first
+                if force:
+                    self.collection.delete_many({"channel_id": channel_id})
+                    print(f"🗑️ Deleted existing templates for channel {channel_id}")
+                
                 self.collection.insert_many(templates_to_insert)
                 print(f"✅ Initialized {len(templates_to_insert)} premium templates for channel {channel_id}")
+            else:
+                print(f"⚠️ No templates to insert for channel {channel_id}")
             
             return True
         except Exception as e:
-            print(f"Error initializing default templates: {e}")
+            print(f"❌ Error initializing default templates: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def render_template(self, template_text: str, data: Dict[str, Any]) -> str:

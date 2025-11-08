@@ -189,6 +189,107 @@ def format_thai_datetime(date_str: str = "", time_str: str = "") -> str:
 # -----------------------------
 # FLEX (Improved)
 # -----------------------------
+def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+    """Render flex message template with result data"""
+    try:
+        import json
+        import copy
+        
+        data = result.get("data", {}) or {}
+        
+        # Extract amount
+        amount_obj = data.get("amount", {})
+        if isinstance(amount_obj, dict):
+            amount = amount_obj.get("amount", 0)
+        else:
+            amount = amount_obj
+        amount_display = format_currency(amount)
+        amount_number = f"{amount:,.2f}" if isinstance(amount, (int, float)) else str(amount)
+        
+        # Format datetime
+        datetime_str = format_thai_datetime(
+            data.get("date", data.get("trans_date", "")) or "",
+            data.get("time", data.get("trans_time", "")) or ""
+        )
+        
+        # Get reference
+        reference = data.get("transRef", data.get("reference", "-"))
+        
+        # Get sender/receiver info
+        sender = data.get("sender", {})
+        receiver = data.get("receiver", {})
+        
+        # Extract sender info
+        if isinstance(sender, str):
+            sender_name = sender
+            sender_account = ""
+            sender_bank_code = ""
+            sender_bank = ""
+        else:
+            sender_name_dict = sender.get("account", {}).get("name", {})
+            sender_name = sender_name_dict.get("th", "") or sender_name_dict.get("en", "") or "ไม่ระบุชื่อ"
+            sender_acc = sender.get("account", {}).get("bank", {}).get("account", "")
+            sender_account = mask_account_formatted(sender_acc) if sender_acc else ""
+            sender_bank_code = sender.get("bank", {}).get("id", "")
+            sender_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "")
+        
+        # Extract receiver info
+        if isinstance(receiver, str):
+            receiver_name = receiver
+            receiver_account = ""
+            receiver_bank_code = ""
+            receiver_bank = ""
+        else:
+            receiver_name_dict = receiver.get("account", {}).get("name", {})
+            receiver_name = receiver_name_dict.get("th", "") or receiver_name_dict.get("en", "") or "ไม่ระบุชื่อ"
+            receiver_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
+            receiver_account = mask_account_formatted(receiver_acc) if receiver_acc else ""
+            receiver_bank_code = receiver.get("bank", {}).get("id", "")
+            receiver_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
+        
+        # Get bank logos
+        sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank)
+        receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank)
+        
+        # Get verified time
+        import pytz
+        from datetime import datetime
+        thai_tz = pytz.timezone("Asia/Bangkok")
+        verified_time = datetime.now(thai_tz).strftime("%d %b %y, %H:%M น.").replace("Jan","ม.ค.").replace("Feb","ก.พ.").replace("Mar","มี.ค.").replace("Apr","เม.ย.").replace("May","พ.ค.").replace("Jun","มิ.ย.").replace("Jul","ก.ค.").replace("Aug","ส.ค.").replace("Sep","ก.ย.").replace("Oct","ต.ค.").replace("Nov","พ.ย.").replace("Dec","ธ.ค.")
+        
+        # Prepare replacement data
+        replacement_data = {
+            "{{amount}}": amount_display,
+            "{{amount_number}}": amount_number,
+            "{{datetime}}": datetime_str,
+            "{{reference}}": reference,
+            "{{sender_name}}": sender_name,
+            "{{sender_account}}": sender_account,
+            "{{sender_bank}}": sender_bank,
+            "{{sender_bank_logo}}": sender_bank_logo,
+            "{{receiver_name}}": receiver_name,
+            "{{receiver_account}}": receiver_account,
+            "{{receiver_bank}}": receiver_bank,
+            "{{receiver_bank_logo}}": receiver_bank_logo,
+            "{{verified_time}}": verified_time
+        }
+        
+        # Deep copy template to avoid modifying original
+        flex_copy = copy.deepcopy(flex_template)
+        
+        # Convert to JSON string, replace, and convert back
+        flex_json = json.dumps(flex_copy)
+        for key, value in replacement_data.items():
+            flex_json = flex_json.replace(key, str(value))
+        
+        rendered_flex = json.loads(flex_json)
+        
+        logger.info(f"✅ Flex template rendered successfully")
+        return {"type": "flex", "altText": f"ยืนยันการชำระเงิน {amount_display}", "contents": rendered_flex}
+    except Exception as e:
+        logger.error(f"❌ Error rendering flex template: {e}", exc_info=True)
+        return None
+
 def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str = None, db = None) -> Dict[str, Any]:
     """
     สร้าง Flex Message ที่ดูทันสมัยและสวยงามยิ่งขึ้น
@@ -205,14 +306,14 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
                 template = db.slip_templates.find_one({"_id": ObjectId(template_id)})
                 if template and template.get("template_flex"):
                     logger.info(f"🎯 Using custom template: {template.get('template_name')}")
-                    # Import render function
-                    import sys
-                    import os
-                    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-                    from main import render_flex_template
-                    return render_flex_template(template["template_flex"], result)
+                    rendered = render_flex_template_with_data(template["template_flex"], result)
+                    if rendered:
+                        return rendered
+                    logger.warning(f"⚠️ Template rendering failed, using default")
             except Exception as e:
                 logger.warning(f"⚠️ Could not use custom template: {e}")
+                import traceback
+                traceback.print_exc()
         
         # ใช้ default template
         status = (result or {}).get("status")

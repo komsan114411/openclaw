@@ -2032,9 +2032,14 @@ async def slip_template_manager(request: Request, account_id: str = None):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     # Initialize default templates if not exists
-    app.state.slip_template_model.init_default_templates(account["channel_id"])
-    
+    # Force refresh if no templates found
     templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
+    if not templates_list:
+        logger.info(f"🔄 No templates found, force initializing for channel {account['channel_id']}")
+        app.state.slip_template_model.init_default_templates(account["channel_id"], force=True)
+        templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
+    else:
+        logger.info(f"✅ Found {len(templates_list)} existing templates")
     
     # Get current selected template from account settings
     current_template_id = account.get("settings", {}).get("slip_template_id", "")

@@ -514,10 +514,46 @@
             <div class="template-preview-wrapper">
                 <div class="template-preview-phone">
                     <div class="template-preview-content">
+                        {% if template.template_name.startswith('🌟') %}
+                        <div style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                            <div style="text-align: center; font-size: 36px; margin-bottom: 8px;">✓</div>
+                            <div style="text-align: center; font-size: 18px; font-weight: bold;">ชำระเงินสำเร็จ</div>
+                            <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">13 ส.ค. 68, 14:30 น.</div>
+                        </div>
+                        <div style="background: #F0FDF4; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                            <div style="color: #16A34A; font-size: 28px; font-weight: 800;">฿1,500.00</div>
+                        </div>
+                        {% elif template.template_name.startswith('⚠️') %}
+                        <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                            <div style="text-align: center; font-size: 36px; margin-bottom: 8px;">⚠</div>
+                            <div style="text-align: center; font-size: 18px; font-weight: bold;">สลิปซ้ำ</div>
+                            <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">สลิปนี้เคยถูกใช้แล้ว</div>
+                        </div>
+                        <div style="background: #FFFBEB; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                            <div style="color: #D97706; font-size: 28px; font-weight: 800;">฿1,500.00</div>
+                        </div>
+                        {% elif template.template_name.startswith('✨') %}
+                        <div style="background: #F0FDF4; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                            <div style="text-align: center; font-size: 28px; font-weight: 800; color: #1E293B; margin-bottom: 6px;">฿1,500.00</div>
+                            <div style="text-align: center; font-size: 11px; color: #64748B;">13 ส.ค. 68, 14:30 น.</div>
+                        </div>
+                        <div style="margin-top: 12px; padding: 12px; border-top: 1px solid #E2E8F0; font-size: 11px; color: #64748B; text-align: center;">
+                            จาก: นาย A → ไปยัง: นาย B
+                        </div>
+                        {% elif template.template_name.startswith('🚀') %}
+                        <div style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                            <div style="font-size: 11px; opacity: 0.9;">การโอนเงิน</div>
+                            <div style="font-size: 18px; font-weight: bold; margin-top: 4px;">ธุรกรรมสำเร็จ</div>
+                        </div>
+                        <div style="background: #EEF2FF; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                            <div style="color: #4338CA; font-size: 28px; font-weight: 800;">฿1,500.00</div>
+                        </div>
+                        {% else %}
                         <img src="{{ template.preview_image or 'https://via.placeholder.com/280x400/667eea/FFFFFF?text=Template+Preview' }}" 
                              alt="{{ template.template_name }}" 
                              class="template-preview-image"
                              onerror="this.src='https://via.placeholder.com/280x400/667eea/FFFFFF?text=Template+Preview'">
+                        {% endif %}
                     </div>
                 </div>
             </div>
