@@ -957,3 +957,74 @@ pre {
         padding: 1rem;
     }
 }
+
+/* ===================================
+   TEXT CONTRAST IMPROVEMENTS
+   ================================= */
+
+/* Template Cards */
+.template-name, .template-title {
+    color: var(--dark-text-primary) !important;
+}
+
+.template-description {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* Message Content */
+.message-user, .message-content {
+    color: var(--dark-text-primary) !important;
+}
+
+.message-time {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* Activity Items */
+.activity-title {
+    color: var(--dark-text-primary) !important;
+}
+
+.activity-time, .activity-description {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* Stats Cards */
+.stat-value {
+    color: var(--dark-text-primary) !important;
+}
+
+.stat-label {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* Table Text */
+table th {
+    color: var(--dark-text-primary) !important;
+}
+
+table td {
+    color: var(--dark-text-primary) !important;
+}
+
+table tbody tr:hover td {
+    color: var(--dark-text-primary) !important;
+}
+
+/* Card Text */
+.card-title {
+    color: var(--dark-text-primary) !important;
+}
+
+.card-text {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* List Group Items */
+.list-group-item {
+    color: var(--dark-text-primary) !important;
+}
+
+.list-group-item-text {
+    color: var(--dark-text-secondary) !important;
+}
