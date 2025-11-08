@@ -239,10 +239,18 @@
 
             <div class="form-group">
                 <label class="form-label">เทมเพลตข้อความตอบกลับ</label>
-                <select class="form-control template-selector" id="slipTemplateId">
-                    <option value="">-- เลือกเทมเพลต --</option>
-                </select>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select class="form-control template-selector" id="slipTemplateId" style="flex: 1;">
+                        <option value="">-- เลือกเทมเพลต --</option>
+                    </select>
+                    <a href="/user/line-accounts/{{ account._id }}/slip-templates" class="btn btn-secondary" style="white-space: nowrap;">
+                        <i class="fas fa-cog"></i> จัดการเทมเพลต
+                    </a>
+                </div>
                 <small class="text-muted">เทมเพลตที่จะใช้ตอบกลับเมื่อตรวจสอบสลิปสำเร็จ</small>
+                <div id="templateInfo" style="margin-top: 10px; display: none; padding: 10px; background: #f0f9ff; border-left: 3px solid #0284c7; border-radius: 4px;">
+                    <small id="templateInfoText" style="color: #0369a1;"></small>
+                </div>
             </div>
 
             <div class="flex gap-md">
@@ -415,24 +423,79 @@
             const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates-list`);
             const data = await response.json();
 
+            console.log('📋 Loaded templates:', data);
+
             const select = document.getElementById('slipTemplateId');
             select.innerHTML = '<option value="">-- เลือกเทมเพลต --</option>';
 
             if (data.success && data.templates) {
+                const currentTemplateId = data.current_template_id || '';
+                let selectedTemplateFound = false;
+
                 data.templates.forEach(template => {
                     const option = document.createElement('option');
                     option.value = template.id;
-                    option.textContent = template.name;
-                    if (template.id === '{{ account.slip_template_id }}') {
+                    
+                    // Add visual indicators
+                    let displayName = template.name;
+                    if (template.is_selected || template.id === currentTemplateId) {
+                        displayName = `✓ ${template.name} (กำลังใช้)`;
                         option.selected = true;
+                        selectedTemplateFound = true;
+                    } else if (template.is_default) {
+                        displayName = `${template.name} (ค่าเริ่มต้น)`;
                     }
+                    
+                    option.textContent = displayName;
+                    option.dataset.templateType = template.template_type;
+                    option.dataset.description = template.description;
+                    
                     select.appendChild(option);
                 });
+
+                // Log selection status
+                console.log('✅ Selected template found:', selectedTemplateFound);
+                console.log('📌 Current template ID:', currentTemplateId);
+                console.log('🎯 Select value:', select.value);
+                
+                // Show info about selected template
+                updateTemplateInfo();
             }
         } catch (error) {
-            console.error('Error loading templates:', error);
+            console.error('❌ Error loading templates:', error);
         }
     }
+    
+    // Update template info display
+    function updateTemplateInfo() {
+        const select = document.getElementById('slipTemplateId');
+        const infoDiv = document.getElementById('templateInfo');
+        const infoText = document.getElementById('templateInfoText');
+        
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const type = selectedOption.dataset.templateType || 'flex';
+            const description = selectedOption.dataset.description || '';
+            
+            infoText.innerHTML = `
+                <strong>📋 เทมเพลตที่เลือก:</strong> ${selectedOption.text}<br>
+                <strong>ประเภท:</strong> ${type === 'flex' ? 'Flex Message' : 'Text Message'}<br>
+                ${description ? `<strong>รายละเอียด:</strong> ${description}` : ''}
+            `;
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    }
+    
+    // Listen for template selection changes
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('slipTemplateId');
+        if (select) {
+            select.addEventListener('change', updateTemplateInfo);
+        }
+    });
 
     // Save general settings
     async function saveGeneralSettings() {

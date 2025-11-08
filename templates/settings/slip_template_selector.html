@@ -192,13 +192,17 @@
         {% if templates %}
         <div class="template-grid">
             {% for template in templates %}
-            <div class="template-card {% if template.is_default %}selected{% endif %}" 
+            <div class="template-card {% if template.is_selected %}selected{% endif %}" 
                  data-template-id="{{ template._id }}"
                  onclick="selectTemplate('{{ template._id }}')">
                 
-                {% if template.is_default %}
+                {% if template.is_selected %}
                 <div class="template-default-badge">
-                    <i class="fas fa-check"></i> ใช้งานอยู่
+                    <i class="fas fa-check"></i> กำลังใช้งาน
+                </div>
+                {% elif template.is_default %}
+                <div class="template-default-badge" style="background: #6b7280;">
+                    <i class="fas fa-star"></i> ค่าเริ่มต้น
                 </div>
                 {% endif %}
                 
@@ -226,13 +230,13 @@
                         <span>ใช้งาน {{ template.usage_count or 0 }} ครั้ง</span>
                     </div>
                     
-                    {% if not template.is_default %}
-                    <button class="btn-set-default" onclick="event.stopPropagation(); setDefaultTemplate('{{ template._id }}')">
-                        <i class="fas fa-check"></i> ตั้งเป็นค่าเริ่มต้น
+                    {% if template.is_selected %}
+                    <button class="btn-set-default" disabled style="background: #10b981;">
+                        <i class="fas fa-check-circle"></i> เทมเพลตที่กำลังใช้
                     </button>
                     {% else %}
-                    <button class="btn-set-default" disabled>
-                        <i class="fas fa-check-circle"></i> เทมเพลตปัจจุบัน
+                    <button class="btn-set-default" onclick="event.stopPropagation(); setDefaultTemplate('{{ template._id }}')">
+                        <i class="fas fa-check"></i> เลือกเทมเพลตนี้
                     </button>
                     {% endif %}
                 </div>
@@ -364,6 +368,9 @@
 
     async function setDefaultTemplate(templateId) {
         try {
+            console.log('🎯 Setting template:', templateId);
+            showNotification('info', 'กำลังตั้งค่าเทมเพลต...');
+            
             const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}/default`, {
                 method: 'PUT',
                 headers: {
@@ -372,15 +379,16 @@
             });
 
             const result = await response.json();
+            console.log('📊 Response:', result);
 
             if (response.ok) {
-                showNotification('success', 'ตั้งค่าเทมเพลตเริ่มต้นสำเร็จ');
-                setTimeout(() => location.reload(), 1000);
+                showNotification('success', 'เทมเพลตถูกเลือกแล้ว! กำลังรีเฟรชหน้า...');
+                setTimeout(() => location.reload(), 1500);
             } else {
                 showNotification('error', result.message || 'เกิดข้อผิดพลาด');
             }
         } catch (error) {
-            console.error('Error:', error);
+            console.error('❌ Error:', error);
             showNotification('error', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
         }
     }
