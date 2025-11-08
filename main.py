@@ -2044,11 +2044,17 @@ async def slip_template_manager(request: Request, account_id: str = None):
     # Get current selected template from account settings
     current_template_id = account.get("settings", {}).get("slip_template_id", "")
     
-    # Mark templates with selection status
+    # Mark templates with selection status and convert datetime
     for template in templates_list:
         template_id = str(template["_id"])
         template["is_selected"] = (template_id == current_template_id)
         template["_id"] = template_id  # Convert ObjectId to string
+        
+        # Convert datetime to string for JSON serialization
+        if "created_at" in template and template["created_at"]:
+            template["created_at"] = template["created_at"].isoformat()
+        if "updated_at" in template and template["updated_at"]:
+            template["updated_at"] = template["updated_at"].isoformat()
     
     logger.info(f"📋 Template selector - Account: {account_id}, Current template: {current_template_id}")
     logger.info(f"📋 Found {len(templates_list)} templates")

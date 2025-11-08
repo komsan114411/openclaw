@@ -284,6 +284,62 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
         
         rendered_flex = json.loads(flex_json)
         
+        # Add duplicate warning if status is duplicate
+        status = result.get("status", "")
+        if status == "duplicate":
+            # Insert duplicate warning block after amount
+            body_contents = rendered_flex.get("contents", {}).get("body", {}).get("contents", [])
+            if len(body_contents) > 1:
+                # Create duplicate warning block
+                duplicate_warning = {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "⚠️",
+                                    "size": "xl",
+                                    "flex": 0,
+                                    "color": "#DC2626"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "สลิปซ้ำ!",
+                                            "size": "lg",
+                                            "weight": "bold",
+                                            "color": "#DC2626"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": "สลิปนี้เคยถูกตรวจสอบไปแล้ว กรุณาตรวจสอบกับผู้โอนอีกครั้ง",
+                                            "size": "xs",
+                                            "color": "#DC2626",
+                                            "wrap": True,
+                                            "margin": "xs"
+                                        }
+                                    ],
+                                    "margin": "md"
+                                }
+                            ]
+                        }
+                    ],
+                    "backgroundColor": "#FEE2E2",
+                    "cornerRadius": "12px",
+                    "paddingAll": "16px",
+                    "margin": "lg"
+                }
+                # Insert after amount box (index 1)
+                body_contents.insert(1, duplicate_warning)
+                logger.info(f"⚠️ Added duplicate warning to flex message")
+        
         logger.info(f"✅ Flex template rendered successfully")
         return {"type": "flex", "altText": f"ยืนยันการชำระเงิน {amount_display}", "contents": rendered_flex}
     except Exception as e:
@@ -300,7 +356,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
     """
     try:
         # ถ้ามี template_id และ db ให้ดึง custom template
-        if template_id and db:
+        if template_id and db is not None:
             try:
                 from bson import ObjectId
                 template = db.slip_templates.find_one({"_id": ObjectId(template_id)})

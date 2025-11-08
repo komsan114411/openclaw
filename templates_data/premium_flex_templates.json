@@ -1,7 +1,7 @@
 {
   "premium_success": {
     "type": "bubble",
-    "size": "mega",
+    "size": "giga",
     "header": {
       "type": "box",
       "layout": "vertical",
@@ -251,6 +251,14 @@
           "layout": "vertical",
           "contents": [
             {
+              "type": "text",
+              "text": "รายละเอียดธุรกรรม",
+              "size": "sm",
+              "weight": "bold",
+              "color": "#1E293B",
+              "margin": "lg"
+            },
+            {
               "type": "box",
               "layout": "horizontal",
               "contents": [
@@ -267,10 +275,32 @@
                   "size": "sm",
                   "color": "#1E293B",
                   "align": "end",
-                  "weight": "bold"
+                  "weight": "bold",
+                  "wrap": true
                 }
               ],
-              "margin": "lg"
+              "margin": "md"
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "วันที่โอน",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{datetime}}",
+                  "size": "sm",
+                  "color": "#1E293B",
+                  "align": "end"
+                }
+              ],
+              "margin": "md"
             },
             {
               "type": "box",
