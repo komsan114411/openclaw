@@ -2034,14 +2034,35 @@ async def set_default_slip_template(request: Request, account_id: str, template_
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
+        # 1. Set template as default in slip_templates collection
         success = app.state.slip_template_model.set_default_template(account["channel_id"], template_id)
         
         if success:
-            await manager.broadcast({
-                "type": "success",
-                "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"
-            })
-            return {"success": True, "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"}
+            # 2. Update account settings to use this template
+            current_settings = account.get("settings", {})
+            current_settings["slip_template_id"] = template_id
+            
+            # Update account with new settings
+            update_success = app.state.line_account_model.update_settings(
+                account_id=account_id,
+                settings=current_settings
+            )
+            
+            if update_success:
+                logger.info(f"✅ Set default template {template_id} for account {account_id}")
+                logger.info(f"✅ Updated account settings with slip_template_id: {template_id}")
+                
+                await manager.broadcast({
+                    "type": "success",
+                    "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"
+                })
+                return {"success": True, "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"}
+            else:
+                logger.error(f"❌ Failed to update account settings for {account_id}")
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "message": "ไม่สามารถอัปเดตการตั้งค่าบัญชีได้"}
+                )
         else:
             return JSONResponse(
                 status_code=500,
