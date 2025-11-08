@@ -1541,6 +1541,8 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         
         # Send result with template
         slip_template_id = settings.get("slip_template_id")
+        logger.info(f"🎯 Using template ID from settings: {slip_template_id}")
+        logger.info(f"📊 Full settings: {settings}")
         await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
         
     except Exception as e:
@@ -1933,12 +1935,25 @@ async def slip_template_manager(request: Request, account_id: str = None):
     
     templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
     
+    # Get current selected template from account settings
+    current_template_id = account.get("settings", {}).get("slip_template_id", "")
+    
+    # Mark templates with selection status
+    for template in templates_list:
+        template_id = str(template["_id"])
+        template["is_selected"] = (template_id == current_template_id)
+        template["_id"] = template_id  # Convert ObjectId to string
+    
+    logger.info(f"📋 Template selector - Account: {account_id}, Current template: {current_template_id}")
+    logger.info(f"📋 Found {len(templates_list)} templates")
+    
     return templates.TemplateResponse("settings/slip_template_selector.html", {
         "request": request,
         "user": user,
         "account": account,
         "account_id": account_id,
-        "templates": templates_list
+        "templates": templates_list,
+        "current_template_id": current_template_id
     })
 
 @app.post("/api/user/line-accounts/{account_id}/slip-templates")
@@ -2095,17 +2110,34 @@ async def get_slip_templates_list(request: Request, account_id: str):
         
         templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
         
-        # Convert ObjectId to string
+        # Get current selected template from account settings
+        current_template_id = account.get("settings", {}).get("slip_template_id", "")
+        
+        # Format templates for frontend with correct field names
+        formatted_templates = []
         for template in templates_list:
-            if "_id" in template:
-                template["_id"] = str(template["_id"])
+            template_id = str(template["_id"])
+            formatted_templates.append({
+                "id": template_id,
+                "name": template.get("template_name", "ไม่มีชื่อ"),
+                "description": template.get("description", ""),
+                "template_type": template.get("template_type", "flex"),
+                "is_default": template.get("is_default", False),
+                "usage_count": template.get("usage_count", 0),
+                "is_selected": template_id == current_template_id
+            })
+        
+        logger.info(f"📋 Returning {len(formatted_templates)} templates, current selected: {current_template_id}")
         
         return {
             "success": True,
-            "templates": templates_list
+            "templates": formatted_templates,
+            "current_template_id": current_template_id
         }
     except Exception as e:
         logger.error(f"Error getting slip templates: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายการ Template"}
