@@ -32,16 +32,48 @@
     }
 
     .stat-card {
-        background: var(--white);
-        border-radius: var(--radius-lg);
-        padding: var(--spacing-xl);
-        box-shadow: var(--shadow-md);
-        transition: all var(--transition-base);
+        position: relative;
+        background: var(--dark-bg-secondary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        overflow: hidden;
+        border: 1px solid var(--dark-border);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
     }
 
     .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+    
+    .stat-card.blue::before {
+        --card-color-1: #3b82f6;
+        --card-color-2: #60a5fa;
+    }
+    
+    .stat-card.green::before {
+        --card-color-1: #10b981;
+        --card-color-2: #34d399;
+    }
+    
+    .stat-card.orange::before {
+        --card-color-1: #f59e0b;
+        --card-color-2: #fbbf24;
+    }
+    
+    .stat-card.red::before {
+        --card-color-1: #ef4444;
+        --card-color-2: #f87171;
     }
 
     .stat-card-header {
@@ -60,11 +92,31 @@
     .stat-card-icon {
         width: 48px;
         height: 48px;
-        border-radius: var(--radius-md);
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 24px;
+    }
+    
+    .stat-card-icon.bg-blue {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+    }
+    
+    .stat-card-icon.bg-green {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+    
+    .stat-card-icon.bg-orange {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+    
+    .stat-card-icon.bg-red {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
     }
 
     .stat-card-value {
@@ -174,10 +226,10 @@
 {% block content %}
 <!-- Stats Grid -->
 <div class="stats-grid">
-    <div class="stat-card">
+    <div class="stat-card blue">
         <div class="stat-card-header">
             <span class="stat-card-title">ผู้ใช้ทั้งหมด</span>
-            <div class="stat-card-icon" style="background: var(--info-light); color: var(--info-color);">
+            <div class="stat-card-icon bg-blue">
                 <i class="fas fa-users"></i>
             </div>
         </div>
@@ -188,10 +240,10 @@
         </div>
     </div>
 
-    <div class="stat-card">
+    <div class="stat-card green">
         <div class="stat-card-header">
             <span class="stat-card-title">บัญชี LINE OA</span>
-            <div class="stat-card-icon" style="background: var(--success-light); color: var(--success-color);">
+            <div class="stat-card-icon bg-green">
                 <i class="fab fa-line"></i>
             </div>
         </div>

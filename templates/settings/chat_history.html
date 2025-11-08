@@ -208,6 +208,39 @@
 {% endblock %}
 
 {% block content %}
+<!-- Selected Channel Info -->
+<div class="channel-info-card" id="selectedChannelInfo" style="display: none;">
+    <div class="card-title">
+        <i class="bi bi-chat-dots"></i>
+        บัญชี LINE ที่เลือก
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="channel-info-item">
+                <div class="channel-info-label">ชื่อบัญชี</div>
+                <div class="channel-info-value" id="channelName">-</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="channel-info-item">
+                <div class="channel-info-label">Channel ID</div>
+                <div class="channel-info-value" id="channelId">-</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="channel-info-item">
+                <div class="channel-info-label">สถานะ</div>
+                <div class="channel-info-value">
+                    <span class="status-badge online" id="channelStatus">
+                        <span class="status-badge-dot"></span>
+                        เชื่อมต่อ
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Statistics -->
 <div class="stats-row">
     <div class="stat-card">
@@ -270,14 +303,33 @@
     <div class="filter-tags" id="activeTags"></div>
 </div>
 
-<!-- Chat Messages -->
-<div class="chat-container">
-    <div class="chat-messages" id="chatMessages">
-        <div class="empty-state">
-            <i class="fas fa-comments"></i>
-            <p>กรุณาเลือกบัญชี LINE เพื่อดูประวัติการแชท</p>
-        </div>
+<!-- Loading State -->
+<div class="loading-state" id="loadingState" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">กำลังโหลดข้อมูล...</div>
+</div>
+
+<!-- Empty State (No Selection) -->
+<div class="empty-state" id="emptyStateNoSelection">
+    <div class="empty-icon">
+        <i class="bi bi-chat-dots"></i>
     </div>
+    <h4>เลือกบัญชี LINE</h4>
+    <p>กรุณาเลือกบัญชี LINE เพื่อดูประวัติการแชท</p>
+</div>
+
+<!-- Empty State (No Data) -->
+<div class="empty-state" id="emptyStateNoData" style="display: none;">
+    <div class="empty-icon">
+        <i class="bi bi-inbox"></i>
+    </div>
+    <h4>ไม่มีประวัติการแชท</h4>
+    <p>เริ่มใช้งานระบบเพื่อสร้างประวัติการแชท</p>
+</div>
+
+<!-- Chat Messages -->
+<div class="chat-container" id="chatContainer" style="display: none;">
+    <div class="chat-messages" id="chatMessages"></div>
 </div>
 {% endblock %}
 
@@ -291,13 +343,28 @@
         search: ''
     };
 
+    // Load saved channel on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedChannelId = localStorage.getItem('selected_channel_id');
+        if (savedChannelId) {
+            const accountSelect = document.getElementById('accountSelect');
+            accountSelect.value = savedChannelId;
+            currentFilters.account = savedChannelId;
+            loadMessages(savedChannelId);
+        }
+    });
+
     // Event listeners
     document.getElementById('accountSelect').addEventListener('change', function() {
         currentFilters.account = this.value;
+        
+        // Save to localStorage
         if (this.value) {
+            localStorage.setItem('selected_channel_id', this.value);
             loadMessages(this.value);
         } else {
-            showEmptyState();
+            localStorage.removeItem('selected_channel_id');
+            showEmptyState('noSelection');
         }
         updateFilterTags();
     });
@@ -314,8 +381,59 @@
         updateFilterTags();
     });
 
+    // Show loading state
+    function showLoading() {
+        document.getElementById('loadingState').style.display = 'block';
+        document.getElementById('emptyStateNoSelection').style.display = 'none';
+        document.getElementById('emptyStateNoData').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'none';
+        document.getElementById('selectedChannelInfo').style.display = 'none';
+    }
+
+    // Show empty state
+    function showEmptyState(type = 'noSelection') {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'none';
+        document.getElementById('selectedChannelInfo').style.display = 'none';
+        
+        if (type === 'noSelection') {
+            document.getElementById('emptyStateNoSelection').style.display = 'block';
+            document.getElementById('emptyStateNoData').style.display = 'none';
+        } else {
+            document.getElementById('emptyStateNoSelection').style.display = 'none';
+            document.getElementById('emptyStateNoData').style.display = 'block';
+        }
+    }
+
+    // Show chat container
+    function showChatContainer() {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('emptyStateNoSelection').style.display = 'none';
+        document.getElementById('emptyStateNoData').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        document.getElementById('selectedChannelInfo').style.display = 'block';
+    }
+
+    // Update channel info
+    function updateChannelInfo(accountId) {
+        const accountSelect = document.getElementById('accountSelect');
+        const selectedOption = accountSelect.options[accountSelect.selectedIndex];
+        const accountName = selectedOption.text;
+        
+        document.getElementById('channelName').textContent = accountName;
+        document.getElementById('channelId').textContent = accountId;
+        
+        // You can add more logic here to check actual status
+        const statusBadge = document.getElementById('channelStatus');
+        statusBadge.className = 'status-badge online';
+        statusBadge.innerHTML = '<span class="status-badge-dot"></span> เชื่อมต่อ';
+    }
+
     // Load messages
     async function loadMessages(accountId) {
+        showLoading();
+        updateChannelInfo(accountId);
+        
         try {
             const response = await fetch(`/api/chat-messages/${accountId}/users`);
             const usersData = await response.json();
@@ -339,14 +457,22 @@
 
             if (data.success) {
                 allMessages = data.messages || [];
-                applyFilters();
-                updateStats();
+                
+                if (allMessages.length === 0) {
+                    showEmptyState('noData');
+                } else {
+                    showChatContainer();
+                    applyFilters();
+                    updateStats();
+                }
             } else {
                 showError('ไม่สามารถโหลดข้อความได้');
+                showEmptyState('noData');
             }
         } catch (error) {
             console.error('Error loading messages:', error);
             showError('เกิดข้อผิดพลาดในการโหลดข้อความ');
+            showEmptyState('noData');
         }
     }
 

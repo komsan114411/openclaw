@@ -547,3 +547,413 @@ body {
     background: var(--accent-blue);
     color: #ffffff;
 }
+
+/* ===================================
+   GRADIENT BORDER CARDS
+   ================================= */
+
+.stat-card-gradient {
+    position: relative;
+    background: var(--dark-bg-secondary);
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow: hidden;
+    border: 1px solid var(--dark-border);
+    transition: all 0.3s ease;
+}
+
+.stat-card-gradient::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
+}
+
+.stat-card-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+.stat-card-gradient.blue::before {
+    --card-color-1: #3b82f6;
+    --card-color-2: #60a5fa;
+}
+
+.stat-card-gradient.green::before {
+    --card-color-1: #10b981;
+    --card-color-2: #34d399;
+}
+
+.stat-card-gradient.orange::before {
+    --card-color-1: #f59e0b;
+    --card-color-2: #fbbf24;
+}
+
+.stat-card-gradient.red::before {
+    --card-color-1: #ef4444;
+    --card-color-2: #f87171;
+}
+
+.stat-card-gradient.purple::before {
+    --card-color-1: #8b5cf6;
+    --card-color-2: #a78bfa;
+}
+
+.stat-card-gradient.pink::before {
+    --card-color-1: #ec4899;
+    --card-color-2: #f472b6;
+}
+
+/* ===================================
+   ICON BOX
+   ================================= */
+
+.icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 1rem;
+}
+
+.icon-box.bg-blue {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.icon-box.bg-green {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.icon-box.bg-orange {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.icon-box.bg-red {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.icon-box.bg-purple {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.icon-box.bg-pink {
+    background: rgba(236, 72, 153, 0.1);
+    color: #ec4899;
+}
+
+/* ===================================
+   LOADING STATES
+   ================================= */
+
+.loading-state {
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 4px solid var(--dark-bg-tertiary);
+    border-top-color: var(--accent-green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--dark-text-secondary);
+    font-size: 14px;
+}
+
+/* ===================================
+   EMPTY STATES
+   ================================= */
+
+.empty-state {
+    padding: 4rem 2rem;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+    background: rgba(107, 114, 128, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: #6b7280;
+}
+
+.empty-state h4 {
+    color: var(--dark-text-primary);
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+}
+
+.empty-state p {
+    color: var(--dark-text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.empty-state .btn {
+    margin-top: 0.5rem;
+}
+
+/* ===================================
+   CHANNEL INFO DISPLAY
+   ================================= */
+
+.channel-info-card {
+    background: linear-gradient(135deg, var(--dark-bg-secondary) 0%, var(--dark-bg-tertiary) 100%);
+    border: 1px solid var(--dark-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.channel-info-card .card-title {
+    color: var(--dark-text-primary);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.channel-info-card .card-title i {
+    color: var(--accent-green);
+}
+
+.channel-info-item {
+    margin-bottom: 0.75rem;
+}
+
+.channel-info-item:last-child {
+    margin-bottom: 0;
+}
+
+.channel-info-label {
+    color: var(--dark-text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.channel-info-value {
+    color: var(--dark-text-primary);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* ===================================
+   ENHANCED TABLE STYLES
+   ================================= */
+
+.table-responsive {
+    background: var(--dark-bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--dark-border);
+    overflow: hidden;
+}
+
+.table-dark-enhanced {
+    margin-bottom: 0;
+}
+
+.table-dark-enhanced thead {
+    background: var(--dark-bg-tertiary);
+}
+
+.table-dark-enhanced thead th {
+    color: var(--dark-text-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+    border-bottom: 2px solid var(--dark-border);
+}
+
+.table-dark-enhanced tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-dark-enhanced tbody tr:hover {
+    background: var(--dark-bg-tertiary);
+}
+
+.table-dark-enhanced tbody td {
+    color: var(--dark-text-primary);
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+/* ===================================
+   STATUS BADGES
+   ================================= */
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-badge.online {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--accent-green);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-badge.offline {
+    background: rgba(107, 114, 128, 0.1);
+    color: var(--dark-text-tertiary);
+    border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+.status-badge.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* ===================================
+   IMPROVED CONTRAST FOR TEXT
+   ================================= */
+
+/* Ensure all text has proper contrast */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--dark-text-primary) !important;
+}
+
+p {
+    color: var(--dark-text-primary) !important;
+}
+
+a {
+    color: var(--accent-blue) !important;
+}
+
+a:hover {
+    color: #60a5fa !important;
+}
+
+/* Labels and small text */
+label, .form-label, .form-text {
+    color: var(--dark-text-primary) !important;
+}
+
+small, .small {
+    color: var(--dark-text-secondary) !important;
+}
+
+/* List items */
+li {
+    color: var(--dark-text-primary) !important;
+}
+
+/* Strong and bold */
+strong, b {
+    color: var(--dark-text-primary) !important;
+}
+
+/* Code blocks */
+code {
+    background: var(--dark-bg-tertiary) !important;
+    color: var(--accent-orange) !important;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+}
+
+pre {
+    background: var(--dark-bg-tertiary) !important;
+    color: var(--dark-text-primary) !important;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--dark-border);
+}
+
+/* ===================================
+   SPINNER ANIMATION
+   ================================= */
+
+.spinner-border {
+    border-color: var(--dark-bg-tertiary);
+    border-right-color: var(--accent-green);
+}
+
+.spinner-border.text-success {
+    border-color: rgba(16, 185, 129, 0.2);
+    border-right-color: var(--accent-green);
+}
+
+.spinner-border.text-primary {
+    border-color: rgba(59, 130, 246, 0.2);
+    border-right-color: var(--accent-blue);
+}
+
+/* ===================================
+   HOVER EFFECTS
+   ================================= */
+
+.hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ===================================
+   RESPONSIVE UTILITIES
+   ================================= */
+
+@media (max-width: 768px) {
+    .stat-card-gradient {
+        padding: 1rem;
+    }
+    
+    .icon-box {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+    
+    .empty-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+    
+    .channel-info-card {
+        padding: 1rem;
+    }
+}
