@@ -1,0 +1,1040 @@
+{
+  "premium_success": {
+    "type": "bubble",
+    "size": "mega",
+    "header": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "✓",
+                      "size": "xxl",
+                      "color": "#22C55E",
+                      "weight": "bold",
+                      "align": "center"
+                    }
+                  ],
+                  "width": "56px",
+                  "height": "56px",
+                  "backgroundColor": "#FFFFFF",
+                  "cornerRadius": "28px",
+                  "justifyContent": "center",
+                  "alignItems": "center"
+                }
+              ],
+              "flex": 0
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ชำระเงินสำเร็จ",
+                  "size": "xxl",
+                  "weight": "bold",
+                  "color": "#FFFFFF"
+                },
+                {
+                  "type": "text",
+                  "text": "{{datetime}}",
+                  "size": "xs",
+                  "color": "#FFFFFF99",
+                  "margin": "sm"
+                }
+              ],
+              "margin": "md",
+              "justifyContent": "center"
+            }
+          ]
+        }
+      ],
+      "backgroundColor": "#22C55E",
+      "paddingAll": "24px"
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "จำนวนเงิน",
+              "size": "xs",
+              "color": "#64748B",
+              "weight": "bold"
+            },
+            {
+              "type": "text",
+              "text": "{{amount}}",
+              "size": "5xl",
+              "weight": "bold",
+              "color": "#22C55E",
+              "margin": "xs"
+            }
+          ],
+          "paddingAll": "20px",
+          "backgroundColor": "#F0FDF4",
+          "cornerRadius": "16px"
+        },
+        {
+          "type": "separator",
+          "margin": "xl",
+          "color": "#E2E8F0"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "image",
+                  "url": "{{sender_bank_logo}}",
+                  "size": "64px",
+                  "aspectRatio": "1:1",
+                  "aspectMode": "cover"
+                }
+              ],
+              "width": "64px",
+              "height": "64px",
+              "cornerRadius": "32px",
+              "backgroundColor": "#F8FAFC",
+              "justifyContent": "center",
+              "alignItems": "center",
+              "flex": 0
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ผู้โอน",
+                  "size": "xxs",
+                  "color": "#94A3B8",
+                  "weight": "bold"
+                },
+                {
+                  "type": "text",
+                  "text": "{{sender_name}}",
+                  "size": "lg",
+                  "weight": "bold",
+                  "color": "#1E293B",
+                  "wrap": true,
+                  "margin": "xs"
+                },
+                {
+                  "type": "text",
+                  "text": "{{sender_account}}",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "margin": "xs"
+                }
+              ],
+              "margin": "md",
+              "justifyContent": "center"
+            }
+          ],
+          "margin": "xl"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "⬇",
+                  "size": "xl",
+                  "color": "#CBD5E1",
+                  "align": "center"
+                }
+              ],
+              "width": "64px",
+              "flex": 0
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [],
+              "margin": "md"
+            }
+          ],
+          "margin": "md"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "image",
+                  "url": "{{receiver_bank_logo}}",
+                  "size": "64px",
+                  "aspectRatio": "1:1",
+                  "aspectMode": "cover"
+                }
+              ],
+              "width": "64px",
+              "height": "64px",
+              "cornerRadius": "32px",
+              "backgroundColor": "#F8FAFC",
+              "justifyContent": "center",
+              "alignItems": "center",
+              "flex": 0
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ผู้รับ",
+                  "size": "xxs",
+                  "color": "#94A3B8",
+                  "weight": "bold"
+                },
+                {
+                  "type": "text",
+                  "text": "{{receiver_name}}",
+                  "size": "lg",
+                  "weight": "bold",
+                  "color": "#1E293B",
+                  "wrap": true,
+                  "margin": "xs"
+                },
+                {
+                  "type": "text",
+                  "text": "{{receiver_account}}",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "margin": "xs"
+                }
+              ],
+              "margin": "md",
+              "justifyContent": "center"
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "margin": "xl",
+          "color": "#E2E8F0"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "เลขอ้างอิง",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{reference}}",
+                  "size": "sm",
+                  "color": "#1E293B",
+                  "align": "end",
+                  "weight": "bold"
+                }
+              ],
+              "margin": "lg"
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ตรวจสอบเมื่อ",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{verified_time}}",
+                  "size": "sm",
+                  "color": "#1E293B",
+                  "align": "end"
+                }
+              ],
+              "margin": "md"
+            }
+          ]
+        }
+      ],
+      "backgroundColor": "#FFFFFF",
+      "paddingAll": "24px"
+    },
+    "footer": {
+      "type": "box",
+      "layout": "horizontal",
+      "contents": [
+        {
+          "type": "text",
+          "text": "🔒",
+          "size": "sm",
+          "flex": 0
+        },
+        {
+          "type": "text",
+          "text": "สลิปจริงตรวจสอบโดย Thunder Mobile App",
+          "size": "xs",
+          "color": "#64748B",
+          "margin": "sm",
+          "weight": "bold"
+        }
+      ],
+      "backgroundColor": "#F8FAFC",
+      "paddingAll": "16px"
+    }
+  },
+  "premium_duplicate": {
+    "type": "bubble",
+    "size": "mega",
+    "header": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "⚠",
+                      "size": "xxl",
+                      "color": "#F59E0B",
+                      "weight": "bold",
+                      "align": "center"
+                    }
+                  ],
+                  "width": "56px",
+                  "height": "56px",
+                  "backgroundColor": "#FFFFFF",
+                  "cornerRadius": "28px",
+                  "justifyContent": "center",
+                  "alignItems": "center"
+                }
+              ],
+              "flex": 0
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "สลิปซ้ำ",
+                  "size": "xxl",
+                  "weight": "bold",
+                  "color": "#FFFFFF"
+                },
+                {
+                  "type": "text",
+                  "text": "สลิปนี้เคยถูกใช้แล้ว",
+                  "size": "xs",
+                  "color": "#FFFFFF99",
+                  "margin": "sm"
+                }
+              ],
+              "margin": "md",
+              "justifyContent": "center"
+            }
+          ]
+        }
+      ],
+      "backgroundColor": "#F59E0B",
+      "paddingAll": "24px"
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "⚠️",
+                  "size": "lg",
+                  "flex": 0
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "สลิปนี้ถูกตรวจสอบแล้ว",
+                      "size": "md",
+                      "weight": "bold",
+                      "color": "#DC2626"
+                    },
+                    {
+                      "type": "text",
+                      "text": "กรุณาตรวจสอบกับผู้โอนอีกครั้ง",
+                      "size": "xs",
+                      "color": "#DC2626",
+                      "wrap": true,
+                      "margin": "xs"
+                    }
+                  ],
+                  "margin": "md"
+                }
+              ]
+            }
+          ],
+          "backgroundColor": "#FEE2E2",
+          "cornerRadius": "12px",
+          "paddingAll": "16px"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "จำนวนเงิน",
+              "size": "xs",
+              "color": "#64748B",
+              "weight": "bold"
+            },
+            {
+              "type": "text",
+              "text": "{{amount}}",
+              "size": "5xl",
+              "weight": "bold",
+              "color": "#F59E0B",
+              "margin": "xs"
+            }
+          ],
+          "paddingAll": "20px",
+          "backgroundColor": "#FFFBEB",
+          "cornerRadius": "16px",
+          "margin": "lg"
+        },
+        {
+          "type": "separator",
+          "margin": "xl",
+          "color": "#E2E8F0"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ผู้โอน",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{sender_name}}",
+                  "size": "sm",
+                  "color": "#1E293B",
+                  "align": "end",
+                  "wrap": true,
+                  "weight": "bold"
+                }
+              ],
+              "margin": "lg"
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "ธนาคาร",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{sender_account}}",
+                  "size": "sm",
+                  "color": "#1E293B",
+                  "align": "end"
+                }
+              ],
+              "margin": "md"
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "เลขอ้างอิง",
+                  "size": "sm",
+                  "color": "#64748B",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{reference}}",
+                  "size": "sm",
+                  "color": "#1E293B",
+                  "align": "end",
+                  "weight": "bold"
+                }
+              ],
+              "margin": "md"
+            }
+          ]
+        }
+      ],
+      "backgroundColor": "#FFFFFF",
+      "paddingAll": "24px"
+    },
+    "footer": {
+      "type": "box",
+      "layout": "horizontal",
+      "contents": [
+        {
+          "type": "text",
+          "text": "🔍",
+          "size": "sm",
+          "flex": 0
+        },
+        {
+          "type": "text",
+          "text": "ตรวจสอบโดย Thunder Mobile App",
+          "size": "xs",
+          "color": "#64748B",
+          "margin": "sm",
+          "weight": "bold"
+        }
+      ],
+      "backgroundColor": "#F8FAFC",
+      "paddingAll": "16px"
+    }
+  },
+  "premium_minimal": {
+    "type": "bubble",
+    "size": "mega",
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "text",
+              "text": "✓",
+              "size": "xxl",
+              "color": "#22C55E",
+              "weight": "bold",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "ชำระเงินสำเร็จ",
+              "size": "xl",
+              "weight": "bold",
+              "color": "#1E293B",
+              "margin": "md"
+            }
+          ],
+          "paddingAll": "24px",
+          "backgroundColor": "#F0FDF4",
+          "cornerRadius": "16px"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "{{amount}}",
+              "size": "5xl",
+              "weight": "bold",
+              "color": "#1E293B",
+              "align": "center"
+            },
+            {
+              "type": "text",
+              "text": "{{datetime}}",
+              "size": "sm",
+              "color": "#94A3B8",
+              "align": "center",
+              "margin": "md"
+            }
+          ],
+          "margin": "xl",
+          "spacing": "sm"
+        },
+        {
+          "type": "separator",
+          "margin": "xl",
+          "color": "#E2E8F0"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "จาก",
+                      "size": "xs",
+                      "color": "#94A3B8"
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{sender_name}}",
+                      "size": "md",
+                      "weight": "bold",
+                      "color": "#1E293B",
+                      "wrap": true,
+                      "margin": "xs"
+                    }
+                  ],
+                  "flex": 1
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "ไปยัง",
+                      "size": "xs",
+                      "color": "#94A3B8",
+                      "align": "end"
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{receiver_name}}",
+                      "size": "md",
+                      "weight": "bold",
+                      "color": "#1E293B",
+                      "align": "end",
+                      "wrap": true,
+                      "margin": "xs"
+                    }
+                  ],
+                  "flex": 1
+                }
+              ],
+              "margin": "xl"
+            },
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "Ref: {{reference}}",
+                  "size": "xs",
+                  "color": "#94A3B8",
+                  "align": "center"
+                }
+              ],
+              "margin": "xl"
+            }
+          ]
+        }
+      ],
+      "backgroundColor": "#FFFFFF",
+      "paddingAll": "28px"
+    },
+    "footer": {
+      "type": "box",
+      "layout": "horizontal",
+      "contents": [
+        {
+          "type": "text",
+          "text": "Verified by Thunder",
+          "size": "xs",
+          "color": "#94A3B8",
+          "align": "center",
+          "weight": "bold"
+        }
+      ],
+      "backgroundColor": "#F8FAFC",
+      "paddingAll": "12px"
+    }
+  },
+  "premium_modern": {
+    "type": "bubble",
+    "size": "mega",
+    "header": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "การโอนเงิน",
+              "size": "sm",
+              "color": "#FFFFFF99",
+              "weight": "bold"
+            },
+            {
+              "type": "text",
+              "text": "ธุรกรรมสำเร็จ",
+              "size": "xxl",
+              "weight": "bold",
+              "color": "#FFFFFF",
+              "margin": "xs"
+            }
+          ]
+        }
+      ],
+      "paddingAll": "24px",
+      "backgroundColor": "#4F46E5"
+    },
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "baseline",
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "฿",
+                  "size": "3xl",
+                  "color": "#4F46E5",
+                  "weight": "bold",
+                  "flex": 0
+                },
+                {
+                  "type": "text",
+                  "text": "{{amount_number}}",
+                  "size": "5xl",
+                  "color": "#1E293B",
+                  "weight": "bold",
+                  "margin": "sm"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": "{{datetime}}",
+              "size": "sm",
+              "color": "#64748B",
+              "margin": "md"
+            }
+          ],
+          "paddingAll": "20px",
+          "backgroundColor": "#EEF2FF",
+          "cornerRadius": "16px"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "box",
+                      "layout": "vertical",
+                      "contents": [
+                        {
+                          "type": "image",
+                          "url": "{{sender_bank_logo}}",
+                          "size": "full",
+                          "aspectRatio": "1:1",
+                          "aspectMode": "cover"
+                        }
+                      ],
+                      "width": "56px",
+                      "height": "56px",
+                      "cornerRadius": "28px",
+                      "backgroundColor": "#F1F5F9"
+                    }
+                  ],
+                  "flex": 0
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "FROM",
+                      "size": "xxs",
+                      "color": "#94A3B8",
+                      "weight": "bold",
+                      "margin": "none"
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{sender_name}}",
+                      "size": "md",
+                      "weight": "bold",
+                      "color": "#1E293B",
+                      "wrap": true,
+                      "margin": "xs"
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{sender_account}}",
+                      "size": "xs",
+                      "color": "#64748B",
+                      "margin": "xs"
+                    }
+                  ],
+                  "margin": "md",
+                  "justifyContent": "center"
+                }
+              ]
+            }
+          ],
+          "margin": "xl",
+          "paddingAll": "16px",
+          "backgroundColor": "#F8FAFC",
+          "cornerRadius": "12px"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "separator",
+                  "color": "#CBD5E1"
+                }
+              ],
+              "flex": 1,
+              "justifyContent": "center",
+              "margin": "none"
+            },
+            {
+              "type": "text",
+              "text": "→",
+              "size": "xl",
+              "color": "#4F46E5",
+              "weight": "bold",
+              "margin": "md",
+              "flex": 0
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "contents": [
+                {
+                  "type": "separator",
+                  "color": "#CBD5E1"
+                }
+              ],
+              "flex": 1,
+              "justifyContent": "center",
+              "margin": "none"
+            }
+          ],
+          "margin": "md"
+        },
+        {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "box",
+              "layout": "horizontal",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "box",
+                      "layout": "vertical",
+                      "contents": [
+                        {
+                          "type": "image",
+                          "url": "{{receiver_bank_logo}}",
+                          "size": "full",
+                          "aspectRatio": "1:1",
+                          "aspectMode": "cover"
+                        }
+                      ],
+                      "width": "56px",
+                      "height": "56px",
+                      "cornerRadius": "28px",
+                      "backgroundColor": "#F1F5F9"
+                    }
+                  ],
+                  "flex": 0
+                },
+                {
+                  "type": "box",
+                  "layout": "vertical",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "TO",
+                      "size": "xxs",
+                      "color": "#94A3B8",
+                      "weight": "bold",
+                      "margin": "none"
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{receiver_name}}",
+                      "size": "md",
+                      "weight": "bold",
+                      "color": "#1E293B",
+                      "wrap": true,
+                      "margin": "xs"
+                    },
+                    {
+                      "type": "text",
+                      "text": "{{receiver_account}}",
+                      "size": "xs",
+                      "color": "#64748B",
+                      "margin": "xs"
+                    }
+                  ],
+                  "margin": "md",
+                  "justifyContent": "center"
+                }
+              ]
+            }
+          ],
+          "margin": "md",
+          "paddingAll": "16px",
+          "backgroundColor": "#F8FAFC",
+          "cornerRadius": "12px"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "text",
+              "text": "Reference No.",
+              "size": "xs",
+              "color": "#64748B",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "{{reference}}",
+              "size": "xs",
+              "color": "#1E293B",
+              "align": "end",
+              "weight": "bold"
+            }
+          ],
+          "margin": "xl"
+        }
+      ],
+      "backgroundColor": "#FFFFFF",
+      "paddingAll": "24px"
+    },
+    "footer": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "contents": [
+            {
+              "type": "text",
+              "text": "✓",
+              "size": "sm",
+              "color": "#22C55E",
+              "weight": "bold",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "Verified & Secured by Thunder",
+              "size": "xs",
+              "color": "#64748B",
+              "margin": "sm",
+              "weight": "bold"
+            }
+          ],
+          "justifyContent": "center"
+        }
+      ],
+      "backgroundColor": "#F8FAFC",
+      "paddingAll": "16px"
+    }
+  }
+}

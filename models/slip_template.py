@@ -143,7 +143,7 @@ class SlipTemplate:
             return False
     
     def init_default_templates(self, channel_id: str) -> bool:
-        """Initialize default templates for new channel"""
+        """Initialize default premium templates for new channel"""
         try:
             # Check if templates already exist
             existing = self.collection.find_one({"channel_id": channel_id})
@@ -154,7 +154,17 @@ class SlipTemplate:
             import json
             import os
             
-            # Load beautiful slip template
+            # Load premium templates
+            premium_templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "premium_flex_templates.json")
+            premium_templates = {}
+            try:
+                with open(premium_templates_path, 'r', encoding='utf-8') as f:
+                    premium_templates = json.load(f)
+                print(f"✅ Loaded {len(premium_templates)} premium templates")
+            except Exception as e:
+                print(f"Warning: Could not load premium templates: {e}")
+            
+            # Load fallback templates
             beautiful_template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "beautiful_slip_template.json")
             beautiful_template = None
             try:
@@ -163,48 +173,81 @@ class SlipTemplate:
             except Exception as e:
                 print(f"Warning: Could not load beautiful template: {e}")
             
-            # Load other flex templates
-            flex_templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "flex_templates.json")
-            flex_templates = {}
-            try:
-                with open(flex_templates_path, 'r', encoding='utf-8') as f:
-                    flex_templates = json.load(f)
-            except Exception as e:
-                print(f"Warning: Could not load flex templates: {e}")
+            templates_to_insert = []
             
-            # Template 1: Success with details (Flex Message)
+            # Template 1: Premium Success (Default)
             template1 = {
                 "channel_id": channel_id,
-                "template_id": f"template_success_{int(datetime.utcnow().timestamp() * 1000)}",
-                "template_name": "สลิปสำเร็จ - แสดงรายละเอียด (Flex)",
+                "template_id": f"template_premium_success_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "🌟 Premium - ชำระเงินสำเร็จ",
                 "template_text": "",
-                "template_flex": beautiful_template if beautiful_template else flex_templates.get("slip_success_detailed"),
+                "template_flex": premium_templates.get("premium_success") or beautiful_template,
                 "template_type": "flex",
-                "preview_image": "/static/images/templates/template_example_1.png",
-                "description": "Template สำหรับแสดงรายละเอียดสลิปที่ตรวจสอบสำเร็จแบบ Flex Message",
+                "preview_image": "https://via.placeholder.com/400x600/22C55E/FFFFFF?text=Premium+Success",
+                "description": "เทมเพลตพรีเมียมสำหรับแสดงการชำระเงินสำเร็จ - ดีไซน์สวยงาม มีรายละเอียดครบถ้วน",
                 "is_default": True,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "usage_count": 0
             }
+            templates_to_insert.append(template1)
             
-            # Template 2: Simple confirmation (Text)
+            # Template 2: Premium Duplicate Warning
             template2 = {
                 "channel_id": channel_id,
-                "template_id": f"template_simple_{int(datetime.utcnow().timestamp() * 1000)}",
-                "template_name": "สลิปสำเร็จ - ยืนยันอย่างง่าย (Text)",
-                "template_text": "✅ ตรวจสอบสลิปสำเร็จ\n\n💰 จำนวนเงิน: {amount} บาท\n👤 ผู้โอน: {sender}\n📅 วันที่: {date}\n⏰ เวลา: {time}\n\nขอบคุณที่ใช้บริการ!",
-                "template_flex": None,
-                "template_type": "text",
-                "preview_image": "/static/images/templates/template_example_2.png",
-                "description": "Template แบบข้อความธรรมดา สำหรับยืนยันการรับเงิน",
+                "template_id": f"template_premium_duplicate_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "⚠️ Premium - สลิปซ้ำ",
+                "template_text": "",
+                "template_flex": premium_templates.get("premium_duplicate"),
+                "template_type": "flex",
+                "preview_image": "https://via.placeholder.com/400x600/F59E0B/FFFFFF?text=Premium+Duplicate",
+                "description": "เทมเพลตพรีเมียมสำหรับแจ้งเตือนสลิปซ้ำ - เน้นความชัดเจนและเตือนอย่างสุภาพ",
                 "is_default": False,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "usage_count": 0
             }
+            templates_to_insert.append(template2)
             
-            self.collection.insert_many([template1, template2])
+            # Template 3: Premium Minimal
+            template3 = {
+                "channel_id": channel_id,
+                "template_id": f"template_premium_minimal_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "✨ Premium - Minimal Style",
+                "template_text": "",
+                "template_flex": premium_templates.get("premium_minimal"),
+                "template_type": "flex",
+                "preview_image": "https://via.placeholder.com/400x600/FFFFFF/1E293B?text=Premium+Minimal",
+                "description": "เทมเพลตพรีเมียม สไตล์มินิมอล - เรียบง่าย สะดุดตา เหมาะกับธุรกิจที่ชอบความเรียบหรู",
+                "is_default": False,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "usage_count": 0
+            }
+            templates_to_insert.append(template3)
+            
+            # Template 4: Premium Modern
+            template4 = {
+                "channel_id": channel_id,
+                "template_id": f"template_premium_modern_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "🚀 Premium - Modern Design",
+                "template_text": "",
+                "template_flex": premium_templates.get("premium_modern"),
+                "template_type": "flex",
+                "preview_image": "https://via.placeholder.com/400x600/4F46E5/FFFFFF?text=Premium+Modern",
+                "description": "เทมเพลตพรีเมียม ดีไซน์ทันสมัย - สวยงาม โดดเด่น เหมาะสำหรับแบรนด์สมัยใหม่",
+                "is_default": False,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "usage_count": 0
+            }
+            templates_to_insert.append(template4)
+            
+            # Insert all templates
+            if templates_to_insert:
+                self.collection.insert_many(templates_to_insert)
+                print(f"✅ Initialized {len(templates_to_insert)} premium templates for channel {channel_id}")
+            
             return True
         except Exception as e:
             print(f"Error initializing default templates: {e}")

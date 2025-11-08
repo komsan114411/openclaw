@@ -1760,6 +1760,107 @@ def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
         logger.error(f"❌ Error rendering template: {e}")
         return template_text
 
+def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+    """Render flex message template with result data"""
+    try:
+        import json
+        import copy
+        from services.slip_formatter import format_currency, format_thai_datetime, mask_account_formatted, get_bank_logo
+        
+        data = result.get("data", {}) or {}
+        
+        # Extract amount
+        amount_obj = data.get("amount", {})
+        if isinstance(amount_obj, dict):
+            amount = amount_obj.get("amount", 0)
+        else:
+            amount = amount_obj
+        amount_display = format_currency(amount)
+        amount_number = f"{amount:,.2f}" if isinstance(amount, (int, float)) else str(amount)
+        
+        # Format datetime
+        datetime_str = format_thai_datetime(
+            data.get("date", data.get("trans_date", "")) or "",
+            data.get("time", data.get("trans_time", "")) or ""
+        )
+        
+        # Get reference
+        reference = data.get("transRef", data.get("reference", "-"))
+        
+        # Get sender/receiver info
+        sender = data.get("sender", {})
+        receiver = data.get("receiver", {})
+        
+        # Extract sender info
+        if isinstance(sender, str):
+            sender_name = sender
+            sender_account = ""
+            sender_bank_code = ""
+            sender_bank = ""
+        else:
+            sender_name_dict = sender.get("account", {}).get("name", {})
+            sender_name = sender_name_dict.get("th", "") or sender_name_dict.get("en", "") or "ไม่ระบุชื่อ"
+            sender_acc = sender.get("account", {}).get("bank", {}).get("account", "")
+            sender_account = mask_account_formatted(sender_acc) if sender_acc else ""
+            sender_bank_code = sender.get("bank", {}).get("id", "")
+            sender_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "")
+        
+        # Extract receiver info
+        if isinstance(receiver, str):
+            receiver_name = receiver
+            receiver_account = ""
+            receiver_bank_code = ""
+            receiver_bank = ""
+        else:
+            receiver_name_dict = receiver.get("account", {}).get("name", {})
+            receiver_name = receiver_name_dict.get("th", "") or receiver_name_dict.get("en", "") or "ไม่ระบุชื่อ"
+            receiver_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
+            receiver_account = mask_account_formatted(receiver_acc) if receiver_acc else ""
+            receiver_bank_code = receiver.get("bank", {}).get("id", "")
+            receiver_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
+        
+        # Get bank logos
+        sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank)
+        receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank)
+        
+        # Get verified time
+        import pytz
+        thai_tz = pytz.timezone("Asia/Bangkok")
+        verified_time = datetime.now(thai_tz).strftime("%d %b %y, %H:%M น.").replace("Jan","ม.ค.").replace("Feb","ก.พ.").replace("Mar","มี.ค.").replace("Apr","เม.ย.").replace("May","พ.ค.").replace("Jun","มิ.ย.").replace("Jul","ก.ค.").replace("Aug","ส.ค.").replace("Sep","ก.ย.").replace("Oct","ต.ค.").replace("Nov","พ.ย.").replace("Dec","ธ.ค.")
+        
+        # Prepare replacement data
+        replacement_data = {
+            "{{amount}}": amount_display,
+            "{{amount_number}}": amount_number,
+            "{{datetime}}": datetime_str,
+            "{{reference}}": reference,
+            "{{sender_name}}": sender_name,
+            "{{sender_account}}": sender_account,
+            "{{sender_bank}}": sender_bank,
+            "{{sender_bank_logo}}": sender_bank_logo,
+            "{{receiver_name}}": receiver_name,
+            "{{receiver_account}}": receiver_account,
+            "{{receiver_bank}}": receiver_bank,
+            "{{receiver_bank_logo}}": receiver_bank_logo,
+            "{{verified_time}}": verified_time
+        }
+        
+        # Deep copy template to avoid modifying original
+        flex_copy = copy.deepcopy(flex_template)
+        
+        # Convert to JSON string, replace, and convert back
+        flex_json = json.dumps(flex_copy)
+        for key, value in replacement_data.items():
+            flex_json = flex_json.replace(key, str(value))
+        
+        rendered_flex = json.loads(flex_json)
+        
+        logger.info(f"✅ Flex template rendered successfully")
+        return rendered_flex
+    except Exception as e:
+        logger.error(f"❌ Error rendering flex template: {e}", exc_info=True)
+        return flex_template
+
 async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
     """Send slip verification result using template"""
     try:
@@ -1947,13 +2048,36 @@ async def slip_template_manager(request: Request, account_id: str = None):
     logger.info(f"📋 Template selector - Account: {account_id}, Current template: {current_template_id}")
     logger.info(f"📋 Found {len(templates_list)} templates")
     
-    return templates.TemplateResponse("settings/slip_template_selector.html", {
+    # Use premium template selector
+    return templates.TemplateResponse("settings/slip_template_selector_premium.html", {
         "request": request,
         "user": user,
         "account": account,
         "account_id": account_id,
         "templates": templates_list,
         "current_template_id": current_template_id
+    })
+
+@app.get("/user/line-accounts/{account_id}/slip-templates/create", response_class=HTMLResponse)
+async def template_creator_page(request: Request, account_id: str):
+    """Template creator page"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    return templates.TemplateResponse("settings/template_creator.html", {
+        "request": request,
+        "user": user,
+        "account": account,
+        "account_id": account_id
     })
 
 @app.post("/api/user/line-accounts/{account_id}/slip-templates")
@@ -1973,10 +2097,26 @@ async def create_slip_template(request: Request, account_id: str):
     try:
         data = await request.json()
         
+        # Load premium template if template_type is specified
+        template_flex = None
+        if data.get("template_type"):
+            import json
+            import os
+            premium_templates_path = os.path.join(os.path.dirname(__file__), "templates_data", "premium_flex_templates.json")
+            try:
+                with open(premium_templates_path, 'r', encoding='utf-8') as f:
+                    premium_templates = json.load(f)
+                    template_flex = premium_templates.get(data.get("template_type"))
+                    logger.info(f"✅ Loaded premium template: {data.get('template_type')}")
+            except Exception as e:
+                logger.error(f"❌ Error loading premium template: {e}")
+        
         template_id = app.state.slip_template_model.create_template(
             channel_id=account["channel_id"],
             template_name=data.get("template_name"),
-            template_text=data.get("template_text"),
+            template_text=data.get("template_text", ""),
+            template_flex=template_flex,
+            template_type=data.get("template_type", "flex") if template_flex else "text",
             description=data.get("description", ""),
             is_default=data.get("is_default", False)
         )
