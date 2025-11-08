@@ -248,8 +248,32 @@
                     </a>
                 </div>
                 <small class="text-muted">เทมเพลตที่จะใช้ตอบกลับเมื่อตรวจสอบสลิปสำเร็จ</small>
-                <div id="templateInfo" style="margin-top: 10px; display: none; padding: 10px; background: #f0f9ff; border-left: 3px solid #0284c7; border-radius: 4px;">
-                    <small id="templateInfoText" style="color: #0369a1;"></small>
+                
+                <!-- Template Preview Card -->
+                <div id="templatePreviewCard" style="margin-top: 16px; display: none;">
+                    <div style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 2px solid #e5e7eb;">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; color: white;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="font-size: 28px;">📱</div>
+                                <div>
+                                    <div style="font-size: 18px; font-weight: 700;" id="previewTemplateName">เทมเพลต</div>
+                                    <div style="font-size: 12px; opacity: 0.9;">ตัวอย่าง LINE Message</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="padding: 20px; background: #f8fafc;">
+                            <div style="max-width: 320px; margin: 0 auto;">
+                                <div style="background: white; border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" id="previewTemplateContent">
+                                    <!-- Preview will be inserted here -->
+                                </div>
+                            </div>
+                            <div style="margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 13px; color: #0369a1;" id="previewTemplateDescription">
+                                    เลือกเทมเพลตเพื่อดูตัวอย่าง
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -447,6 +471,7 @@
                     }
                     
                     option.textContent = displayName;
+                    option.dataset.templateName = template.name;
                     option.dataset.templateType = template.template_type;
                     option.dataset.description = template.description;
                     
@@ -466,26 +491,88 @@
         }
     }
     
-    // Update template info display
+    // Update template info display with beautiful preview
     function updateTemplateInfo() {
         const select = document.getElementById('slipTemplateId');
-        const infoDiv = document.getElementById('templateInfo');
-        const infoText = document.getElementById('templateInfoText');
+        const previewCard = document.getElementById('templatePreviewCard');
+        const previewName = document.getElementById('previewTemplateName');
+        const previewContent = document.getElementById('previewTemplateContent');
+        const previewDesc = document.getElementById('previewTemplateDescription');
         
         const selectedOption = select.options[select.selectedIndex];
         
         if (selectedOption && selectedOption.value) {
+            const templateName = selectedOption.dataset.templateName || selectedOption.text;
             const type = selectedOption.dataset.templateType || 'flex';
             const description = selectedOption.dataset.description || '';
             
-            infoText.innerHTML = `
-                <strong>📋 เทมเพลตที่เลือก:</strong> ${selectedOption.text}<br>
-                <strong>ประเภท:</strong> ${type === 'flex' ? 'Flex Message' : 'Text Message'}<br>
-                ${description ? `<strong>รายละเอียด:</strong> ${description}` : ''}
-            `;
-            infoDiv.style.display = 'block';
+            // Show preview card
+            previewCard.style.display = 'block';
+            previewName.textContent = templateName;
+            previewDesc.innerHTML = `<strong>ประเภท:</strong> ${type === 'flex' ? '✨ Flex Message' : '📝 Text Message'} ${description ? `<br><strong>รายละเอียด:</strong> ${description}` : ''}`;
+            
+            // Generate preview based on template name
+            let previewHTML = '';
+            
+            if (templateName.includes('🌟') || templateName.toLowerCase().includes('success')) {
+                previewHTML = `
+                    <div style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div style="text-align: center; font-size: 36px; margin-bottom: 8px;">✓</div>
+                        <div style="text-align: center; font-size: 18px; font-weight: bold;">ชำระเงินสำเร็จ</div>
+                        <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">13 ส.ค. 68, 14:30 น.</div>
+                    </div>
+                    <div style="background: #F0FDF4; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                        <div style="color: #16A34A; font-size: 28px; font-weight: 800;">฿1,500.00</div>
+                    </div>
+                    <div style="margin-top: 12px; padding: 10px; font-size: 11px; color: #64748B; text-align: center;">
+                        ผู้โอน: นาย A<br>ผู้รับ: นาย B
+                    </div>
+                `;
+            } else if (templateName.includes('⚠️') || templateName.toLowerCase().includes('duplicate') || templateName.includes('ซ้ำ')) {
+                previewHTML = `
+                    <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div style="text-align: center; font-size: 36px; margin-bottom: 8px;">⚠</div>
+                        <div style="text-align: center; font-size: 18px; font-weight: bold;">สลิปซ้ำ</div>
+                        <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">สลิปนี้เคยถูกใช้แล้ว</div>
+                    </div>
+                    <div style="background: #FFFBEB; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                        <div style="color: #D97706; font-size: 28px; font-weight: 800;">฿1,500.00</div>
+                    </div>
+                `;
+            } else if (templateName.includes('✨') || templateName.toLowerCase().includes('minimal')) {
+                previewHTML = `
+                    <div style="background: #F0FDF4; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div style="text-align: center; font-size: 28px; font-weight: 800; color: #1E293B; margin-bottom: 6px;">฿1,500.00</div>
+                        <div style="text-align: center; font-size: 11px; color: #64748B;">13 ส.ค. 68, 14:30 น.</div>
+                    </div>
+                    <div style="margin-top: 12px; padding: 12px; border-top: 1px solid #E2E8F0; font-size: 11px; color: #64748B; text-align: center;">
+                        จาก: นาย A → ไปยัง: นาย B
+                    </div>
+                `;
+            } else if (templateName.includes('🚀') || templateName.toLowerCase().includes('modern')) {
+                previewHTML = `
+                    <div style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div style="font-size: 11px; opacity: 0.9;">การโอนเงิน</div>
+                        <div style="font-size: 18px; font-weight: bold; margin-top: 4px;">ธุรกรรมสำเร็จ</div>
+                    </div>
+                    <div style="background: #EEF2FF; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                        <div style="color: #4338CA; font-size: 28px; font-weight: 800;">฿1,500.00</div>
+                    </div>
+                `;
+            } else {
+                // Default preview
+                previewHTML = `
+                    <div style="text-align: center; padding: 20px; color: #94A3B8;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📋</div>
+                        <div style="font-size: 14px;">เทมเพลตมาตรฐาน</div>
+                        <div style="font-size: 12px; margin-top: 8px;">แสดงข้อมูลสลิปแบบธรรมดา</div>
+                    </div>
+                `;
+            }
+            
+            previewContent.innerHTML = previewHTML;
         } else {
-            infoDiv.style.display = 'none';
+            previewCard.style.display = 'none';
         }
     }
     
