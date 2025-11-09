@@ -518,6 +518,9 @@
     // Make sure we get accountId safely
     let accountId = '{{ account._id }}';
     console.log('🔑 Account ID:', accountId);
+    
+    // Track if templates have been loaded (global scope for access in functions)
+    let templatesLoaded = false;
 
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
@@ -534,17 +537,30 @@
                 this.classList.add('active');
                 document.getElementById('section-' + this.dataset.tab).classList.add('active');
                 
-                // If slip tab, reload templates
+                // If slip tab, load templates (only load once or on explicit reload)
                 if (this.dataset.tab === 'slip') {
                     console.log('📋 Slip tab clicked, loading templates...');
-                    setTimeout(() => loadSlipTemplates(), 100);
+                    if (!templatesLoaded) {
+                        setTimeout(() => {
+                            loadSlipTemplates();
+                            templatesLoaded = true;
+                        }, 100);
+                    } else {
+                        console.log('✅ Templates already loaded');
+                    }
                 }
             });
         });
         
-        // Initial load of templates
-        console.log('🚀 Initial template load...');
-        setTimeout(() => loadSlipTemplates(), 500);
+        // Check if slip tab is initially active and load templates
+        const slipTab = document.querySelector('[data-tab="slip"]');
+        if (slipTab && slipTab.classList.contains('active')) {
+            console.log('🚀 Slip tab is initially active, loading templates...');
+            setTimeout(() => {
+                loadSlipTemplates();
+                templatesLoaded = true;
+            }, 300);
+        }
     });
 
     // Load slip templates as cards
@@ -870,7 +886,11 @@
                 showNotification('success', '✅ บันทึกการตั้งค่าสำเร็จ!');
                 
                 // Reload templates to reflect changes
-                setTimeout(() => loadSlipTemplates(), 500);
+                templatesLoaded = false;
+                setTimeout(() => {
+                    loadSlipTemplates();
+                    templatesLoaded = true;
+                }, 500);
             } else {
                 console.error('❌ Save failed:', result.message);
                 showNotification('error', 'เกิดข้อผิดพลาด: ' + result.message);
