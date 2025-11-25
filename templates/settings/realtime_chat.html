@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}แชทสด - LINE OA Management{% endblock %}
+{% block title %}ประวัติการแชท - LINE OA Management{% endblock %}
 
 {% block sidebar_nav %}
-{% include 'includes/standard_menu.html' %}
+{% include 'includes/admin_menu.html' %}
 {% endblock %}
 
-{% block page_title %}แชทสด{% endblock %}
+{% block page_title %}ประวัติการแชท{% endblock %}
 
 {% block page_subtitle %}
 <p class="page-subtitle">ดูและตอบกลับข้อความแบบ Real-time</p>
@@ -18,16 +18,16 @@
         display: grid;
         grid-template-columns: 350px 1fr;
         gap: 0;
-        height: calc(100vh - 200px);
+        height: calc(100vh - 250px);
         background: var(--white);
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-md);
         overflow: hidden;
     }
 
-    /* ========== Left Sidebar (User List) ========== */
+    /* Left Sidebar (User List) */
     .users-sidebar {
-        border-right: 1px solid var(--gray-200);
+        border-right: 2px solid var(--gray-200);
         display: flex;
         flex-direction: column;
         background: var(--gray-50);
@@ -35,27 +35,38 @@
 
     .users-header {
         padding: var(--spacing-lg);
-        border-bottom: 1px solid var(--gray-200);
+        border-bottom: 2px solid var(--gray-200);
         background: var(--white);
     }
 
     .users-header h3 {
         margin: 0 0 var(--spacing-md) 0;
         font-size: var(--font-size-lg);
-        color: var(--black);
+        font-weight: var(--font-weight-bold);
+        color: var(--gray-900);
     }
-    
+
     .account-selector {
         margin-bottom: var(--spacing-md);
     }
-    
+
     .account-selector select {
         width: 100%;
-        padding: var(--spacing-sm) var(--spacing-md);
-        border: 1px solid var(--gray-300);
+        padding: var(--spacing-md);
+        border: 2px solid var(--gray-300);
         border-radius: var(--radius-md);
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
         background: var(--white);
+        color: var(--gray-900);
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+
+    .account-selector select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-light);
     }
 
     .search-box {
@@ -64,24 +75,34 @@
 
     .search-box input {
         width: 100%;
-        padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 40px;
-        border: 1px solid var(--gray-300);
+        padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) 42px;
+        border: 2px solid var(--gray-300);
         border-radius: var(--radius-md);
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-base);
+        background: var(--white);
+        color: var(--gray-900);
+        transition: all var(--transition-base);
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-light);
     }
 
     .search-box i {
         position: absolute;
-        left: 12px;
+        left: 14px;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--gray-400);
+        color: var(--gray-500);
+        font-size: var(--font-size-lg);
     }
 
     .users-list {
         flex: 1;
         overflow-y: auto;
-        padding: var(--spacing-sm);
+        padding: var(--spacing-md);
     }
 
     .user-item {
@@ -92,34 +113,41 @@
         border-radius: var(--radius-md);
         cursor: pointer;
         transition: all var(--transition-base);
-        margin-bottom: var(--spacing-xs);
+        margin-bottom: var(--spacing-sm);
         background: var(--white);
-        border: 1px solid transparent;
+        border: 2px solid transparent;
     }
 
     .user-item:hover {
         background: var(--primary-light);
         border-color: var(--primary-color);
+        transform: translateX(4px);
     }
 
     .user-item.active {
         background: var(--primary-color);
         color: var(--white);
-        border-color: var(--primary-color);
+        border-color: var(--primary-dark);
+        box-shadow: var(--shadow-md);
     }
 
     .user-avatar {
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--white);
-        font-weight: 600;
+        font-weight: 700;
         font-size: var(--font-size-lg);
         flex-shrink: 0;
+    }
+
+    .user-item.active .user-avatar {
+        background: var(--white);
+        color: var(--primary-color);
     }
 
     .user-info {
@@ -134,18 +162,23 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: var(--gray-900);
+    }
+
+    .user-item.active .user-name {
+        color: var(--white);
     }
 
     .user-last-message {
         font-size: var(--font-size-sm);
-        color: var(--gray-500);
+        color: var(--gray-600);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
     .user-item.active .user-last-message {
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.9);
     }
 
     .user-meta {
@@ -157,36 +190,37 @@
 
     .user-time {
         font-size: var(--font-size-xs);
-        color: var(--gray-400);
+        color: var(--gray-500);
+        font-weight: var(--font-weight-medium);
     }
 
     .user-item.active .user-time {
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.85);
     }
 
     .unread-badge {
         background: var(--error-color);
         color: var(--white);
         border-radius: var(--radius-full);
-        padding: 2px 8px;
+        padding: 3px 8px;
         font-size: var(--font-size-xs);
-        font-weight: 600;
-        min-width: 20px;
+        font-weight: 700;
+        min-width: 22px;
         text-align: center;
     }
 
-    /* ========== Right Panel (Chat Area) ========== */
+    /* Right Panel (Chat Area) */
     .chat-panel {
         display: flex;
         flex-direction: column;
-        background: var(--white);
+        background: var(--gray-50);
         height: 100%;
         overflow: hidden;
     }
 
     .chat-header {
         padding: var(--spacing-lg);
-        border-bottom: 1px solid var(--gray-200);
+        border-bottom: 2px solid var(--gray-200);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -200,27 +234,29 @@
     }
 
     .chat-header-avatar {
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--white);
-        font-weight: 600;
+        font-weight: 700;
+        font-size: var(--font-size-lg);
     }
 
     .chat-header-details h3 {
         margin: 0;
         font-size: var(--font-size-lg);
-        color: var(--black);
+        font-weight: var(--font-weight-bold);
+        color: var(--gray-900);
     }
 
     .chat-header-details p {
         margin: 0;
         font-size: var(--font-size-sm);
-        color: var(--gray-500);
+        color: var(--gray-600);
     }
 
     .chat-header-actions {
@@ -230,40 +266,43 @@
     }
 
     #searchInChat {
-        padding: 8px 12px;
-        border: 1px solid var(--gray-300);
+        padding: 10px 14px;
+        border: 2px solid var(--gray-300);
         border-radius: var(--radius-md);
         font-size: var(--font-size-sm);
         width: 200px;
-        transition: all 0.3s ease;
+        transition: all var(--transition-base);
+        background: var(--white);
+        color: var(--gray-900);
     }
 
     #searchInChat:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        box-shadow: 0 0 0 3px var(--primary-light);
     }
 
     .filter-btn {
         background: var(--white);
-        border: 1px solid var(--gray-300);
+        border: 2px solid var(--gray-300);
         border-radius: var(--radius-md);
-        padding: 8px 12px;
+        padding: 10px 14px;
         cursor: pointer;
-        transition: all 0.3s ease;
-        color: var(--gray-600);
+        transition: all var(--transition-base);
+        color: var(--gray-700);
         font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
     }
 
     .filter-btn:hover {
         background: var(--gray-100);
-        border-color: var(--primary-color);
-        color: var(--primary-color);
+        border-color: var(--gray-400);
+        color: var(--gray-900);
     }
 
     .filter-btn.active {
         background: var(--primary-color);
-        border-color: var(--primary-color);
+        border-color: var(--primary-dark);
         color: var(--white);
     }
 
@@ -272,26 +311,26 @@
         overflow-y: auto;
         overflow-x: hidden;
         padding: var(--spacing-lg);
-        background: #f7f8fa;
+        background: #f7f9fc;
         scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
     }
 
     .chat-messages::-webkit-scrollbar {
-        width: 8px;
+        width: 10px;
     }
 
     .chat-messages::-webkit-scrollbar-track {
-        background: #f1f1f1;
+        background: var(--gray-200);
+        border-radius: var(--radius-sm);
     }
 
     .chat-messages::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 4px;
+        background: var(--gray-400);
+        border-radius: var(--radius-sm);
     }
 
     .chat-messages::-webkit-scrollbar-thumb:hover {
-        background: #555;
+        background: var(--gray-500);
     }
 
     .message-group {
@@ -300,23 +339,24 @@
 
     .message-date-divider {
         text-align: center;
-        margin: var(--spacing-lg) 0;
+        margin: var(--spacing-xl) 0;
     }
 
     .message-date-divider span {
-        background: var(--gray-200);
-        color: var(--gray-600);
-        padding: 4px 12px;
+        background: var(--white);
+        color: var(--gray-700);
+        padding: 6px 16px;
         border-radius: var(--radius-full);
-        font-size: var(--font-size-xs);
+        font-size: var(--font-size-sm);
         font-weight: 600;
+        box-shadow: var(--shadow-sm);
     }
 
     .message {
         display: flex;
         gap: var(--spacing-sm);
         margin-bottom: var(--spacing-md);
-        max-width: 70%;
+        max-width: 75%;
     }
 
     .message.user {
@@ -331,21 +371,21 @@
     }
 
     .message-avatar {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
-        background: var(--gray-300);
+        background: var(--gray-400);
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--white);
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-base);
         font-weight: 600;
         flex-shrink: 0;
     }
 
     .message.user .message-avatar {
-        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     }
 
     .message.bot .message-avatar {
@@ -354,43 +394,46 @@
 
     .message-content {
         flex: 1;
+        min-width: 0;
     }
 
     .message-bubble {
         background: var(--white);
-        padding: var(--spacing-sm) var(--spacing-md);
-        border-radius: var(--radius-md);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        padding: var(--spacing-md) var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
         word-wrap: break-word;
+        border: 1px solid var(--gray-200);
     }
 
     .message.bot .message-bubble {
         background: var(--primary-color);
         color: var(--white);
+        border-color: var(--primary-dark);
     }
 
     .message-text {
         font-size: var(--font-size-base);
-        line-height: 1.5;
+        line-height: 1.6;
         margin: 0;
         white-space: pre-wrap;
         word-wrap: break-word;
     }
 
     .message-image {
-        max-width: 250px;
+        max-width: 280px;
         width: auto;
         border-radius: var(--radius-md);
         overflow: hidden;
         cursor: pointer;
-        margin-top: var(--spacing-xs);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.2s ease;
+        margin-top: var(--spacing-sm);
+        box-shadow: var(--shadow-md);
+        transition: transform var(--transition-base);
     }
-    
+
     .message-image:hover {
         transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: var(--shadow-lg);
     }
 
     .message-image img {
@@ -400,31 +443,23 @@
         max-height: 400px;
         object-fit: contain;
     }
-    
-    /* Responsive: มือถือ */
-    @media (max-width: 768px) {
-        .message-image {
-            max-width: 200px;
-        }
-        
-        .message-image img {
-            max-height: 300px;
-        }
-    }
 
     .message-time {
         font-size: var(--font-size-xs);
-        color: var(--gray-400);
-        margin-top: 4px;
+        color: var(--gray-500);
+        margin-top: 6px;
+        font-weight: var(--font-weight-medium);
     }
 
     .message.bot .message-time {
         text-align: right;
+        color: var(--white);
+        opacity: 0.85;
     }
 
     .chat-input-area {
         padding: var(--spacing-lg);
-        border-top: 1px solid var(--gray-200);
+        border-top: 2px solid var(--gray-200);
         background: var(--white);
     }
 
@@ -436,14 +471,17 @@
 
     .chat-input {
         flex: 1;
-        min-height: 44px;
-        max-height: 120px;
-        padding: var(--spacing-sm) var(--spacing-md);
-        border: 1px solid var(--gray-300);
+        min-height: 48px;
+        max-height: 140px;
+        padding: var(--spacing-md) var(--spacing-lg);
+        border: 2px solid var(--gray-300);
         border-radius: var(--radius-md);
         font-size: var(--font-size-base);
         resize: none;
         font-family: inherit;
+        background: var(--white);
+        color: var(--gray-900);
+        transition: all var(--transition-base);
     }
 
     .chat-input:focus {
@@ -456,7 +494,7 @@
         background: var(--primary-color);
         color: var(--white);
         border: none;
-        padding: var(--spacing-sm) var(--spacing-lg);
+        padding: var(--spacing-md) var(--spacing-xl);
         border-radius: var(--radius-md);
         font-size: var(--font-size-base);
         font-weight: 600;
@@ -464,12 +502,13 @@
         transition: all var(--transition-base);
         display: flex;
         align-items: center;
-        gap: var(--spacing-xs);
+        gap: var(--spacing-sm);
     }
 
-    .send-button:hover {
+    .send-button:hover:not(:disabled) {
         background: var(--primary-dark);
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
     }
 
     .send-button:disabled {
@@ -478,55 +517,11 @@
         transform: none;
     }
 
-    .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: var(--gray-600);
-    }
-
-    .empty-state i {
-        font-size: 64px;
-        margin-bottom: var(--spacing-md);
-        color: var(--gray-500);
-    }
-
-    .empty-state p {
-        font-size: var(--font-size-lg);
-        margin: 0;
-        color: var(--gray-700);
-        font-weight: 500;
-    }
-
-    /* Scrollbar styling */
-    .users-list::-webkit-scrollbar,
-    .chat-messages::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .users-list::-webkit-scrollbar-track,
-    .chat-messages::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .users-list::-webkit-scrollbar-thumb,
-    .chat-messages::-webkit-scrollbar-thumb {
-        background: var(--gray-300);
-        border-radius: 3px;
-    }
-
-    .users-list::-webkit-scrollbar-thumb:hover,
-    .chat-messages::-webkit-scrollbar-thumb:hover {
-        background: var(--gray-400);
-    }
-
     /* Responsive */
     @media (max-width: 768px) {
         .chat-layout {
             grid-template-columns: 1fr;
-            height: calc(100vh - 150px);
+            height: calc(100vh - 180px);
         }
 
         .users-sidebar {
@@ -538,34 +533,11 @@
         }
 
         .message {
-            max-width: 85%;
+            max-width: 90%;
         }
-        
-        .chat-header-info h3 {
-            font-size: var(--font-size-md);
-        }
-        
-        .chat-input-box {
-            padding: var(--spacing-sm);
-        }
-        
-        .chat-input-box textarea {
-            font-size: var(--font-size-sm);
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .chat-layout {
-            height: calc(100vh - 120px);
-        }
-        
-        .message-text {
-            font-size: var(--font-size-sm);
-        }
-        
-        .chat-header-actions button {
-            padding: 6px 10px;
-            font-size: var(--font-size-xs);
+
+        .message-image {
+            max-width: 220px;
         }
     }
 </style>
@@ -580,16 +552,16 @@
                 <select id="accountSelector">
                     <option value="">เลือกบัญชี LINE OA</option>
                     {% for account in line_accounts %}
-                    <option value="{{ account._id }}" {% if account._id == current_account_id %}selected{% endif %}>
-                        {{ account.display_name or account.name }}
+                    <option value="{{ account._id }}" {% if account._id==current_account_id %}selected{% endif %}>
+                        {{ account.account_name or account.name }}
                     </option>
                     {% endfor %}
                 </select>
             </div>
-            <h3>ทั้งหมด</h3>
+            <h3>ผู้ใช้ทั้งหมด</h3>
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="searchUsers" placeholder="ค้นหา...">
+                <input type="text" id="searchUsers" placeholder="ค้นหาผู้ใช้...">
             </div>
         </div>
         <div class="users-list" id="usersList">
@@ -625,9 +597,6 @@
                 <button class="filter-btn" data-filter="image" title="รูปภาพ">
                     <i class="fas fa-image"></i>
                 </button>
-                <button class="filter-btn" data-filter="video" title="วิดีโอ">
-                    <i class="fas fa-video"></i>
-                </button>
             </div>
         </div>
 
@@ -662,29 +631,45 @@
     let isLoadingMessages = false;
     let hasMoreMessages = true;
 
-    // Get account ID from URL or selection
-    const urlParams = new URLSearchParams(window.location.search);
-    currentAccountId = urlParams.get('account_id');
+    // Get account ID from selection
+    const accountSelector = document.getElementById('accountSelector');
+
+    accountSelector.addEventListener('change', (e) => {
+        currentAccountId = e.target.value;
+        if (currentAccountId) {
+            loadUsers();
+        }
+    });
+
+    // Auto-select first account if available
+    if (accountSelector.options.length > 1 && !currentAccountId) {
+        accountSelector.selectedIndex = 1;
+        currentAccountId = accountSelector.value;
+        if (currentAccountId) {
+            loadUsers();
+        }
+    }
 
     // Initialize WebSocket for real-time updates
     function initWebSocket() {
-        ws = new WebSocket(`ws://${window.location.host}/ws/notifications`);
-        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/notifications`);
+
         ws.onopen = () => {
             console.log('✅ WebSocket connected');
         };
-        
+
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'new_message') {
                 handleNewMessage(data);
             }
         };
-        
+
         ws.onerror = (error) => {
             console.error('❌ WebSocket error:', error);
         };
-        
+
         ws.onclose = () => {
             console.log('🔌 WebSocket disconnected, reconnecting...');
             setTimeout(initWebSocket, 3000);
@@ -723,7 +708,7 @@
             document.getElementById('usersList').innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <p>เกิดข้อผิดพลาด</p>
+                    <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
                 </div>
             `;
         }
@@ -736,13 +721,13 @@
             const initial = (user.user_name || 'U')[0].toUpperCase();
             const lastMessage = user.last_message || 'ไม่มีข้อความ';
             const time = formatTime(user.last_message_time);
-            
+
             return `
-                <div class="user-item" onclick="selectUser('${user.user_id}', '${user.user_name || 'ผู้ใช้'}')">
+                <div class="user-item" onclick="selectUser('${user.user_id}', '${escapeHtml(user.user_name || 'ผู้ใช้')}')">
                     <div class="user-avatar">${initial}</div>
                     <div class="user-info">
-                        <div class="user-name">${user.user_name || 'Unknown'}</div>
-                        <div class="user-last-message">${lastMessage}</div>
+                        <div class="user-name">${escapeHtml(user.user_name || 'Unknown')}</div>
+                        <div class="user-last-message">${escapeHtml(lastMessage.substring(0, 30))}${lastMessage.length > 30 ? '...' : ''}</div>
                     </div>
                     <div class="user-meta">
                         <div class="user-time">${time}</div>
@@ -754,7 +739,7 @@
     }
 
     // Select user and load chat
-    async function selectUser(userId, userName) {
+    function selectUser(userId, userName) {
         currentUserId = userId;
 
         // Update active state
@@ -771,38 +756,29 @@
         document.getElementById('chatHeaderName').textContent = userName || 'ผู้ใช้';
 
         // Load messages
-        await loadMessages(userId);
+        loadMessages(userId);
     }
 
     // Load messages for selected user
-    async function loadMessages(userId, append = false) {
-        if (isLoadingMessages) return;
-        
+    async function loadMessages(userId) {
+        if (isLoadingMessages || !currentAccountId) return;
+
         try {
             isLoadingMessages = true;
-            const offset = append ? messageOffset : 0;
-            const response = await fetch(`/api/chat-messages/${currentAccountId}/${userId}?limit=${messageLimit}&skip=${offset}`);
+            const response = await fetch(`/api/chat-messages/${currentAccountId}/${userId}?limit=${messageLimit}&skip=0`);
             const data = await response.json();
 
             if (data.success) {
-                if (append) {
-                    // Append older messages
-                    const chatMessages = document.getElementById('chatMessages');
-                    const scrollHeight = chatMessages.scrollHeight;
-                    
-                    renderMessages(data.messages, true);
-                    
-                    // Maintain scroll position
-                    chatMessages.scrollTop = chatMessages.scrollHeight - scrollHeight;
-                    
-                    messageOffset += data.messages.length;
-                    hasMoreMessages = data.messages.length === messageLimit;
-                } else {
-                    // Initial load or refresh
-                    messageOffset = data.messages.length;
-                    hasMoreMessages = data.messages.length === messageLimit;
-                    renderMessages(data.messages, false);
-                }
+                renderMessages(data.messages);
+                messageOffset = data.messages.length;
+                hasMoreMessages = data.messages.length === messageLimit;
+            } else {
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>ยังไม่มีข้อความ</p>
+                    </div>
+                `;
             }
         } catch (error) {
             console.error('Error loading messages:', error);
@@ -812,108 +788,37 @@
     }
 
     // Render messages
-    function renderMessages(messages, append = false) {
+    function renderMessages(messages) {
         const chatMessages = document.getElementById('chatMessages');
-        
-        if (messages.length === 0 && !append) {
+        if (messages.length === 0) {
             chatMessages.innerHTML = `
                 <div class="empty-state">
-                    <i class="fas fa-comments"></i>
+                    <i class="fas fa-inbox"></i>
                     <p>ยังไม่มีข้อความ</p>
                 </div>
             `;
             return;
         }
 
-        // Messages are already sorted by timestamp DESC from API
-        // So we need to reverse to show oldest first (top) and newest last (bottom)
-        const sortedMessages = append ? messages.reverse() : messages.reverse();
-
-        const messagesHtml = sortedMessages.map(msg => {
-            const senderClass = msg.sender === 'user' ? 'user' : 'bot';
-            const initial = msg.sender === 'user' ? 'U' : 'B';
-            const content = msg.content || msg.text || '';
-            const time = formatTime(msg.timestamp);
-
-            let contentHtml = '';
-            
-            // Handle different message types
-            if (msg.message_type === 'image') {
-                // Use proxy endpoint to get image from database
-                const imageUrl = `/api/line-image/${currentAccountId}/${msg.message_id}`;
-                contentHtml = `
-                    <div class="message-image">
-                        <img src="${imageUrl}" alt="Image" onclick="window.open('${imageUrl}', '_blank')" 
-                             onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'200\' height=\'200\'/%3E%3Ctext fill=\'%23999\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\'%3EImage%3C/text%3E%3C/svg%3E';">
-                    </div>
-                `;
-                // Add text content if exists
-                if (content && content !== '[รูปภาพ]') {
-                    contentHtml += `<p class="message-text">${content}</p>`;
-                }
-            } else if (msg.message_type === 'video') {
-                contentHtml = `
-                    <div class="message-video">
-                        <i class="fas fa-video"></i>
-                        <p>วิดีโอ</p>
-                    </div>
-                `;
-                if (content && content !== '[วิดีโอ]') {
-                    contentHtml += `<p class="message-text">${content}</p>`;
-                }
-            } else if (msg.message_type === 'sticker') {
-                contentHtml = `
-                    <div class="message-sticker">
-                        <i class="fas fa-smile"></i>
-                        <p>สติกเกอร์</p>
-                    </div>
-                `;
-            } else if (msg.message_type === 'audio') {
-                contentHtml = `
-                    <div class="message-audio">
-                        <i class="fas fa-microphone"></i>
-                        <p>ข้อความเสียง</p>
-                    </div>
-                `;
-            } else if (msg.message_type === 'file') {
-                contentHtml = `
-                    <div class="message-file">
-                        <i class="fas fa-file"></i>
-                        <p>ไฟล์</p>
-                    </div>
-                `;
-            } else {
-                // Text message
-                contentHtml = `<p class="message-text">${content}</p>`;
-            }
+        chatMessages.innerHTML = messages.reverse().map(msg => {
+            const isUser = msg.direction === 'incoming';
+            const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
             return `
-                <div class="message ${senderClass}">
-                    <div class="message-avatar">${initial}</div>
+                <div class="message ${isUser ? 'user' : 'bot'}">
+                    <div class="message-avatar">${isUser ? 'U' : 'B'}</div>
                     <div class="message-content">
                         <div class="message-bubble">
-                            ${contentHtml}
+                            <p class="message-text">${escapeHtml(msg.text || '')}</p>
                         </div>
                         <div class="message-time">${time}</div>
                     </div>
                 </div>
             `;
         }).join('');
-        
-        if (append) {
-            // Prepend older messages
-            const oldScrollHeight = chatMessages.scrollHeight;
-            chatMessages.innerHTML = messagesHtml + chatMessages.innerHTML;
-            // Maintain scroll position
-            chatMessages.scrollTop = chatMessages.scrollHeight - oldScrollHeight;
-        } else {
-            // Replace all messages
-            chatMessages.innerHTML = messagesHtml;
-            // Always scroll to bottom to show newest messages
-            setTimeout(() => {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, 100);
-        }
+
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     // Send message
@@ -921,193 +826,64 @@
         const input = document.getElementById('messageInput');
         const message = input.value.trim();
 
-        if (!message || !currentUserId) return;
+        if (!message || !currentUserId || !currentAccountId) return;
 
         try {
-            const response = await fetch(`/api/line/push-message`, {
+            const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    account_id: currentAccountId,
-                    user_id: currentUserId,
+                    to: currentUserId,
                     message: message
                 })
             });
 
             if (response.ok) {
                 input.value = '';
-                // Reload messages
-                await loadMessages(currentUserId);
+                loadMessages(currentUserId);
             }
         } catch (error) {
             console.error('Error sending message:', error);
-            alert('ไม่สามารถส่งข้อความได้');
         }
     }
 
-    // Handle new message from WebSocket
-    function handleNewMessage(data) {
-        if (data.user_id === currentUserId) {
-            loadMessages(currentUserId);
-        }
-        loadUsers(); // Refresh user list
-    }
-
-    // Format time
+    // Helper functions
     function formatTime(timestamp) {
         if (!timestamp) return '';
         const date = new Date(timestamp);
         const now = new Date();
-        const diff = now - date;
+        const diff = (now - date) / 1000 / 60; // minutes
 
-        if (diff < 60000) return 'เมื่อสักครู่';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)} นาที`;
-        if (diff < 86400000) return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        if (diff < 1) return 'เมื่อสักครู่';
+        if (diff < 60) return `${Math.floor(diff)} นาทีที่แล้ว`;
+        if (diff < 1440) return `${Math.floor(diff / 60)} ชั่วโมงที่แล้ว`;
         return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
     }
 
-    // Search users
-    document.getElementById('searchUsers').addEventListener('input', function() {
-        const query = this.value.toLowerCase();
-        const filtered = allUsers.filter(user => 
-            (user.user_name || '').toLowerCase().includes(query)
-        );
-        renderUsers(filtered);
-    });
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-    // Auto-resize textarea
-    document.getElementById('messageInput').addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
+    // Initialize
+    initWebSocket();
 
-    // Send on Enter (Shift+Enter for new line)
-    document.getElementById('messageInput').addEventListener('keydown', function(e) {
+    // Enter to send
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
     });
 
-    // Search users
-    document.getElementById('searchUsers').addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        const userItems = document.querySelectorAll('.user-item');
-        
-        userItems.forEach(item => {
-            const userName = item.querySelector('.user-name')?.textContent.toLowerCase() || '';
-            const lastMessage = item.querySelector('.user-last-message')?.textContent.toLowerCase() || '';
-            
-            if (userName.includes(searchTerm) || lastMessage.includes(searchTerm)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        });
+    // Search functionality
+    document.getElementById('searchUsers').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const filtered = allUsers.filter(user =>
+            (user.user_name || '').toLowerCase().includes(query)
+        );
+        renderUsers(filtered);
     });
-
-    // Account selector change event
-    document.getElementById('accountSelector').addEventListener('change', function() {
-        const newAccountId = this.value;
-        if (newAccountId) {
-            // Save to localStorage
-            localStorage.setItem('selectedAccountId', newAccountId);
-            window.location.href = `/settings/chat-history?account_id=${newAccountId}`;
-        }
-    });
-
-    // Load saved account from localStorage if no account_id in URL
-    if (!currentAccountId) {
-        const savedAccountId = localStorage.getItem('selectedAccountId');
-        if (savedAccountId) {
-            window.location.href = `/settings/chat-history?account_id=${savedAccountId}`;
-        }
-    } else {
-        // Save current account to localStorage
-        localStorage.setItem('selectedAccountId', currentAccountId);
-    }
-
-    // Add scroll event listener for infinite scroll
-    document.getElementById('chatMessages').addEventListener('scroll', function(e) {
-        // Load more messages when scrolled to top
-        if (e.target.scrollTop === 0 && hasMoreMessages && currentUserId) {
-            loadMessages(currentUserId, true);
-        }
-    });
-
-    // Search in chat toggle
-    document.getElementById('searchBtn').addEventListener('click', function() {
-        const searchInput = document.getElementById('searchInChat');
-        if (searchInput.style.display === 'none') {
-            searchInput.style.display = 'block';
-            searchInput.focus();
-        } else {
-            searchInput.style.display = 'none';
-            searchInput.value = '';
-            filterMessages('all', '');
-        }
-    });
-
-    // Search in chat
-    document.getElementById('searchInChat').addEventListener('input', function(e) {
-        const query = e.target.value;
-        const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
-        filterMessages(activeFilter, query);
-    });
-
-    // Filter buttons
-    document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
-        btn.addEventListener('click', function() {
-            // Remove active class from all filter buttons
-            document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
-            // Add active class to clicked button
-            this.classList.add('active');
-            
-            const filter = this.dataset.filter;
-            const query = document.getElementById('searchInChat').value;
-            filterMessages(filter, query);
-        });
-    });
-
-    // Set default active filter
-    document.querySelector('.filter-btn[data-filter="all"]')?.classList.add('active');
-
-    // Filter messages function
-    function filterMessages(type, searchQuery = '') {
-        const messages = document.querySelectorAll('.message');
-        
-        messages.forEach(msg => {
-            let show = true;
-            
-            // Filter by type
-            if (type !== 'all') {
-                const hasText = msg.querySelector('.message-text');
-                const hasImage = msg.querySelector('.message-image');
-                const hasVideo = msg.querySelector('video');
-                
-                if (type === 'text' && !hasText) show = false;
-                if (type === 'image' && !hasImage) show = false;
-                if (type === 'video' && !hasVideo) show = false;
-            }
-            
-            // Filter by search query
-            if (searchQuery && show) {
-                const text = msg.textContent.toLowerCase();
-                if (!text.includes(searchQuery.toLowerCase())) {
-                    show = false;
-                }
-            }
-            
-            msg.style.display = show ? 'flex' : 'none';
-        });
-    }
-
-    // Initialize
-    if (currentAccountId) {
-        loadUsers();
-        initWebSocket();
-        // Auto-refresh every 10 seconds
-        setInterval(loadUsers, 10000);
-    }
 </script>
 {% endblock %}

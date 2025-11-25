@@ -1,29 +1,27 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LINE OA Management{% endblock %}</title>
-    
+
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Modern Theme CSS -->
-    <link href="/static/css/modern-theme.css" rel="stylesheet">
-    
-    <!-- Dark Theme CSS -->
-    <link href="/static/css/dark-theme.css" rel="stylesheet">
-    
+
+    <!-- Clean Theme CSS -->
+    <link href="/static/css/clean-theme.css" rel="stylesheet">
+
     <!-- Custom CSS -->
     {% block extra_css %}{% endblock %}
-    
+
     <style>
         /* Base Layout */
         .app-container {
             display: flex;
             min-height: 100vh;
         }
-        
+
         /* Sidebar */
         .sidebar {
             position: fixed;
@@ -31,18 +29,18 @@
             top: 0;
             width: 280px;
             height: 100vh;
-            background: linear-gradient(180deg, #FF6B35 0%, #FF8C42 100%);
+            background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             box-shadow: var(--shadow-xl);
             overflow-y: auto;
             z-index: 999;
             transition: transform var(--transition-base);
         }
-        
+
         .sidebar-header {
             padding: var(--spacing-xl);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
-        
+
         .sidebar-logo {
             display: flex;
             align-items: center;
@@ -53,38 +51,43 @@
             text-decoration: none;
             transition: transform var(--transition-base);
         }
-        
+
         .sidebar-logo:hover {
             transform: scale(1.05);
         }
-        
+
         .sidebar-logo i {
             font-size: 32px;
         }
-        
+
         .sidebar-user {
             margin-top: var(--spacing-lg);
             padding: var(--spacing-md);
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: var(--radius-md);
             backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         .sidebar-user-name {
             font-weight: 600;
             color: var(--white);
             margin-bottom: 4px;
+            font-size: var(--font-size-base);
         }
-        
+
         .sidebar-user-role {
             font-size: var(--font-size-sm);
-            color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.85);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
         }
-        
+
         .sidebar-nav {
             padding: var(--spacing-lg);
         }
-        
+
         .nav-section-title {
             padding: var(--spacing-sm) var(--spacing-md);
             font-size: var(--font-size-xs);
@@ -94,15 +97,15 @@
             letter-spacing: 0.5px;
             margin-top: var(--spacing-md);
         }
-        
+
         .nav-section-title:first-child {
             margin-top: 0;
         }
-        
+
         .sidebar-nav-item {
             margin-bottom: var(--spacing-xs);
         }
-        
+
         .sidebar-nav-link {
             display: flex;
             align-items: center;
@@ -114,25 +117,25 @@
             transition: all var(--transition-base);
             text-decoration: none;
         }
-        
+
         .sidebar-nav-link:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
             color: var(--white);
             transform: translateX(4px);
         }
-        
+
         .sidebar-nav-link.active {
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.2);
             color: var(--white);
             font-weight: 600;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
-        
+
         .sidebar-nav-link i {
             width: 20px;
             text-align: center;
         }
-        
+
         /* Main Content */
         .main-content {
             margin-left: 280px;
@@ -141,31 +144,34 @@
             background: var(--gray-50);
             min-height: 100vh;
         }
-        
+
         /* Page Header */
         .page-header {
             margin-bottom: var(--spacing-2xl);
         }
-        
+
         .page-title-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
         }
-        
+
         .page-title {
             font-size: var(--font-size-3xl);
             font-weight: 700;
-            color: var(--black);
+            color: var(--gray-900);
             margin: 0;
         }
-        
+
         .page-subtitle {
             font-size: var(--font-size-base);
             color: var(--gray-600);
+            margin-top: var(--spacing-xs);
         }
-        
+
         /* Mobile Menu Toggle */
         .mobile-menu-toggle {
             display: none;
@@ -181,46 +187,47 @@
             box-shadow: var(--shadow-lg);
             cursor: pointer;
             z-index: 1000;
+            font-size: var(--font-size-xl);
         }
-        
+
         /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
                 transform: translateX(-100%);
             }
-            
+
             .sidebar.show {
                 transform: translateX(0);
             }
-            
+
             .main-content {
                 margin-left: 0;
             }
-            
+
             .mobile-menu-toggle {
                 display: flex;
                 align-items: center;
                 justify-content: center;
             }
         }
-        
+
         @media (max-width: 768px) {
             .main-content {
                 padding: var(--spacing-lg);
             }
-            
+
             .page-title {
                 font-size: var(--font-size-2xl);
             }
-            
+
             .page-title-row {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: var(--spacing-md);
             }
         }
     </style>
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar -->
@@ -230,7 +237,7 @@
                     <i class="fab fa-line"></i>
                     <span>LINE OA</span>
                 </a>
-                
+
                 {% if user %}
                 <div class="sidebar-user">
                     <div class="sidebar-user-name">{{ user.full_name or user.username }}</div>
@@ -244,14 +251,14 @@
                 </div>
                 {% endif %}
             </div>
-            
+
             <nav class="sidebar-nav">
                 {% block sidebar_nav %}
                 <!-- Navigation items will be defined in child templates -->
                 {% endblock %}
             </nav>
         </aside>
-        
+
         <!-- Main Content -->
         <main class="main-content">
             {% block page_header %}
@@ -265,24 +272,24 @@
                 </div>
             </div>
             {% endblock %}
-            
+
             {% block content %}
             <!-- Main content goes here -->
             {% endblock %}
         </main>
     </div>
-    
+
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">
         <i class="fas fa-bars"></i>
     </button>
-    
+
     <!-- Scripts -->
     <script>
         // Mobile menu toggle
         const sidebar = document.getElementById('sidebar');
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-        
+
         if (mobileMenuToggle) {
             mobileMenuToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('show');
@@ -293,7 +300,7 @@
                     icon.className = 'fas fa-bars';
                 }
             });
-            
+
             // Close sidebar when clicking outside on mobile
             document.addEventListener('click', (e) => {
                 if (window.innerWidth <= 1024) {
@@ -304,7 +311,7 @@
                 }
             });
         }
-        
+
         // Set active nav link
         const currentPath = window.location.pathname;
         document.querySelectorAll('.sidebar-nav-link').forEach(link => {
@@ -313,7 +320,8 @@
             }
         });
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>

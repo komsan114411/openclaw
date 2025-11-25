@@ -791,6 +791,68 @@ async def delete_line_account_by_admin(request: Request, account_id: str):
             content={"success": False, "message": "เกิดข้อผิดพลาดในการลบบัญชี LINE"}
         )
 
+@app.post("/api/admin/line-accounts/{account_id}/test")
+async def test_line_account_connection(request: Request, account_id: str):
+    """Test LINE account connection (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # Get account details
+        account = app.state.line_account_model.get_account(account_id)
+        if not account:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "ไม่พบบัญชี LINE"}
+            )
+        
+        # Test connection by getting bot info from LINE API
+        headers = {
+            "Authorization": f"Bearer {account['channel_access_token']}",
+            "Content-Type": "application/json"
+        }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                "https://api.line.me/v2/bot/info",
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                bot_info = response.json()
+                return {
+                    "success": True,
+                    "message": "เชื่อมต่อสำเร็จ",
+                    "bot_info": {
+                        "display_name": bot_info.get("displayName"),
+                        "user_id": bot_info.get("userId"),
+                        "basic_id": bot_info.get("basicId")
+                    }
+                }
+            else:
+                error_data = response.json() if response.text else {}
+                error_message = error_data.get("message", "ไม่สามารถเชื่อมต่อได้")
+                logger.error(f"LINE API error: {response.status_code} - {error_message}")
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "message": f"ไม่สามารถเชื่อมต่อ LINE API: {error_message}"
+                    }
+                )
+    except httpx.TimeoutException:
+        return JSONResponse(
+            status_code=408,
+            content={"success": False, "message": "หมดเวลาการเชื่อมต่อ"}
+        )
+    except Exception as e:
+        logger.error(f"Error testing LINE account: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
+        )
+
 # ==================== User Routes ====================
 
 @app.get("/user/dashboard", response_class=HTMLResponse)
