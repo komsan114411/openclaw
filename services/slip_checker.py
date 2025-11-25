@@ -447,6 +447,53 @@ def verify_slip_with_thunder(
         except:
             pass
 
+def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
+    """ทดสอบการเชื่อมต่อ Thunder API"""
+    if not api_token:
+        return {"status": "error", "message": "API Token is required"}
+    logger.info("🧪 Testing Thunder API connection...")
+    # สร้าง test image data (minimal JPEG markers)
+    # Keep this a valid bytes literal to avoid syntax/escape issues.
+    test_image = b'\xff\xd8\xff\xd9'
+    endpoint = "https://api.thunder.in.th/v1/verify"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "User-Agent": "LINE-OA-Middleware-Test/2.0"
+    }
+    files = {
+        "file": ("test.jpg", test_image, "image/jpeg")
+    }
+    data = {
+        "checkDuplicate": "false"
+    }
+    try:
+        session = create_requests_session()
+        resp = session.post(endpoint, headers=headers, files=files, data=data, timeout=30)
+        session.close()
+        logger.info(f"🧪 Thunder API test response: {resp.status_code}")
+        if resp.status_code in [200, 400, 404]:  # Expected responses
+            try:
+                result = resp.json()
+                return {
+                    "status": "success",
+                    "message": "Thunder API connection successful",
+                    "response_code": resp.status_code,
+                    "api_message": result.get("message", "OK")
+                }
+            except:
+                return {
+                    "status": "success",
+                    "message": "Thunder API connection successful (non-JSON response)",
+                    "response_code": resp.status_code
+                }
+        elif resp.status_code == 401:
+            return {"status": "error", "message": "Invalid API Token"}
+        elif resp.status_code == 403:
+            return {"status": "error", "message": "Access denied or quota exceeded"}
+        else:
+            return {"status": "error", "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Connection failed: {str(e)}"}
 
 # ==================== SlipChecker Class ====================
 class SlipChecker:
@@ -501,7 +548,25 @@ def test_thunder_api_connection(api_key: str) -> Dict[str, Any]:
         session = create_requests_session()
         resp = session.get(endpoint, headers=headers, timeout=15)
         
+        if resp.status_code == 409:
+            logger.warning('⚠️ Thunder API: Duplicate slip detected (Status 409)')
+            return {
+                'status': 'duplicate',
+                'type': 'thunder',
+                'message': 'สลิปนี้เคยถูกใช้แล้ว',
+                'data': result.get('data', {})
+            }
+
         if resp.status_code == 200:
+            # HTTP 200 = Success (หรือ Duplicate ถ้า Thunder API ส่ง 200 พร้อม status 409 ใน body)
+            if result.get('status') == 409:
+                logger.warning('⚠️ Thunder API: Duplicate slip detected (Status 409 in body)')
+                return {
+                    'status': 'duplicate',
+                    'type': 'thunder',
+                    'message': 'สลิปนี้เคยถูกใช้แล้ว',
+                    'data': result.get('data', {})
+                }
             data = resp.json()
             # ดึงข้อมูลยอดเหลือและวันหมดอายุ
             balance = data.get("balance", 0)

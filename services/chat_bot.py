@@ -8,11 +8,20 @@ import os
 logger = logging.getLogger("chat_bot_service")
 
 async def _fetch_chat_history(user_id: str, limit: int = 5) -> List[Dict[str, str]]:
-    """Helper to asynchronously fetch chat history from database."""
+    """Helper to asynchronously fetch chat history."""
     try:
-        # Skip chat history for now - will be implemented with proper database access
-        # The chat_message_model should be passed as parameter in the future
-        return []
+        from models.database import get_user_chat_history
+        history = await get_user_chat_history(user_id, limit=limit)
+        
+        # Convert ChatRecord objects to dict format
+        messages = []
+        for record in history:
+            if hasattr(record, 'direction') and hasattr(record, 'message_text'):
+                role = "user" if record.direction == "in" else "assistant"
+                if record.message_text:
+                    messages.append({"role": role, "content": record.message_text})
+        
+        return messages
     except Exception as e:
         logger.warning(f"⚠️ Could not get chat history: {e}")
         return []

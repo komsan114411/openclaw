@@ -119,22 +119,6 @@ async def lifespan(app: FastAPI):
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
         
-        # Initialize ConfigManager with database
-        from utils.config_manager import config_manager
-        config_manager.initialize_db(app.state.db)
-        logger.info("✅ ConfigManager initialized")
-        
-        # Initialize System Monitor
-        from services.system_monitor import init_system_monitor
-        app.state.system_monitor = init_system_monitor(app.state.db)
-        app.state.system_monitor.start_monitoring(interval=120)  # Check every 2 minutes
-        logger.info("✅ SystemMonitor initialized and started")
-        
-        # Initialize Error Handler
-        from services.error_handler import init_error_handler
-        app.state.error_handler = init_error_handler(app.state.db)
-        logger.info("✅ ErrorHandler initialized")
-        
         logger.info("✅ Models initialized")
         
         IS_READY = True
@@ -148,15 +132,6 @@ async def lifespan(app: FastAPI):
     finally:
         global SHUTDOWN_INITIATED
         SHUTDOWN_INITIATED = True
-        
-        # Stop System Monitor
-        try:
-            if hasattr(app.state, 'system_monitor'):
-                app.state.system_monitor.stop_monitoring()
-                logger.info("✅ SystemMonitor stopped")
-        except Exception as e:
-            logger.warning(f"⚠️ Error stopping SystemMonitor: {e}")
-        
         logger.info("🛑 Shutting down...")
 
 # Create FastAPI app
@@ -175,38 +150,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler - บันทึก error ทั้งหมด"""
-    try:
-        # Log error
-        logger.error(f"❌ Unhandled exception: {exc}")
-        
-        # Try to log to error handler
-        if hasattr(app.state, 'error_handler'):
-            app.state.error_handler.log_error(
-                component="global",
-                error=exc,
-                context={
-                    "url": str(request.url),
-                    "method": request.method,
-                    "client": request.client.host if request.client else "unknown"
-                },
-                severity="error"
-            )
-    except Exception as log_error:
-        logger.error(f"❌ Error in exception handler: {log_error}")
-    
-    return JSONResponse(
-        status_code=500,
-        content={
-            "success": False,
-            "message": "เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง",
-            "error_type": type(exc).__name__
-        }
-    )
 
 # Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1100,178 +1043,11 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    try:
-        # Basic health check
-        health_status = {
-            "status": "healthy",
-            "ready": IS_READY,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        # Check database connection
-        try:
-            if hasattr(app.state, 'database'):
-                db_result = app.state.database.test_connection()
-                health_status["database"] = db_result.get("status", "unknown")
-            else:
-                health_status["database"] = "not_initialized"
-        except Exception as db_error:
-            health_status["database"] = "error"
-            health_status["database_error"] = str(db_error)
-        
-        # Determine overall status
-        if health_status.get("database") != "connected":
-            health_status["status"] = "degraded"
-        
-        return health_status
-        
-    except Exception as e:
-        logger.error(f"❌ Health check error: {e}")
-        return {
-            "status": "error",
-            "ready": IS_READY,
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
-        }
-
-@app.get("/api/system/health")
-async def detailed_system_health(request: Request):
-    """Detailed system health check (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        if hasattr(app.state, 'system_monitor'):
-            health = await app.state.system_monitor.check_system_health()
-            return health
-        else:
-            return {"status": "error", "message": "System monitor not initialized"}
-    except Exception as e:
-        logger.error(f"❌ Detailed health check error: {e}")
-        return {"status": "error", "message": str(e)}
-
-@app.post("/api/system/recovery")
-async def trigger_system_recovery(request: Request):
-    """Trigger system auto-recovery (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        if hasattr(app.state, 'system_monitor'):
-            result = await app.state.system_monitor.auto_recovery()
-            return {"success": True, "recovery_result": result}
-        else:
-            return {"success": False, "message": "System monitor not initialized"}
-    except Exception as e:
-        logger.error(f"❌ Recovery trigger error: {e}")
-        return {"success": False, "message": str(e)}
-
-@app.get("/api/system/status")
-async def get_system_status(request: Request):
-    """Get current system status (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        status = {
-            "ready": IS_READY,
-            "shutdown_initiated": SHUTDOWN_INITIATED,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        if hasattr(app.state, 'system_monitor'):
-            status["monitor"] = app.state.system_monitor.get_status()
-        
-        # Add statistics
-        try:
-            status["statistics"] = {
-                "total_users": len(app.state.user_model.get_all_users()),
-                "total_line_accounts": len(app.state.line_account_model.get_all_accounts()),
-                "active_websockets": len(manager.active_connections)
-            }
-        except Exception as stats_error:
-            status["statistics_error"] = str(stats_error)
-        
-        return status
-        
-    except Exception as e:
-        logger.error(f"❌ System status error: {e}")
-        return {"status": "error", "message": str(e)}
-
-@app.get("/api/system/errors")
-async def get_system_errors(
-    request: Request,
-    limit: int = 50,
-    component: Optional[str] = None,
-    severity: Optional[str] = None
-):
-    """Get system errors (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        if hasattr(app.state, 'error_handler'):
-            errors = app.state.error_handler.get_recent_errors(
-                limit=limit,
-                component=component,
-                severity=severity
-            )
-            stats = app.state.error_handler.get_error_stats()
-            return {
-                "success": True,
-                "errors": errors,
-                "stats": stats
-            }
-        else:
-            return {"success": False, "message": "Error handler not initialized"}
-    except Exception as e:
-        logger.error(f"❌ Get errors failed: {e}")
-        return {"success": False, "message": str(e)}
-
-@app.post("/api/system/errors/{error_id}/resolve")
-async def resolve_error(request: Request, error_id: str):
-    """Mark error as resolved (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        if hasattr(app.state, 'error_handler'):
-            success = app.state.error_handler.mark_resolved(error_id)
-            if success:
-                return {"success": True, "message": "Error marked as resolved"}
-            else:
-                return {"success": False, "message": "Could not resolve error"}
-        else:
-            return {"success": False, "message": "Error handler not initialized"}
-    except Exception as e:
-        logger.error(f"❌ Resolve error failed: {e}")
-        return {"success": False, "message": str(e)}
-
-@app.delete("/api/system/errors/cleanup")
-async def cleanup_old_errors(request: Request, days: int = 30):
-    """Delete old errors (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    try:
-        if hasattr(app.state, 'error_handler'):
-            deleted_count = app.state.error_handler.clear_old_errors(days=days)
-            return {
-                "success": True,
-                "message": f"Deleted {deleted_count} old errors",
-                "deleted_count": deleted_count
-            }
-        else:
-            return {"success": False, "message": "Error handler not initialized"}
-    except Exception as e:
-        logger.error(f"❌ Cleanup errors failed: {e}")
-        return {"success": False, "message": str(e)}
+    return {
+        "status": "healthy",
+        "ready": IS_READY,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 @app.get("/error-code-guide", response_class=HTMLResponse)
 async def error_code_guide(request: Request):
@@ -1497,7 +1273,7 @@ async def line_webhook(request: Request, account_id: str):
         expected_signature = base64.b64encode(hash_digest).decode('utf-8')
         
         if signature != expected_signature:
-            logger.error(f"❌ Invalid signature for account: {account_id}")
+            logger.error(f"❌ Invalid signature for channel: {channel_id}")
             raise HTTPException(status_code=400, detail="Invalid signature")
         
         # Parse webhook data
@@ -1824,6 +1600,105 @@ async def send_line_reply(reply_token: str, text: str, access_token: str):
                 
     except Exception as e:
         logger.error(f"❌ Error sending LINE reply: {e}")
+
+def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
+    """Render Flex Message template with result data"""
+    try:
+        import json
+        import copy
+        from services.slip_formatter import get_bank_logo, mask_account_formatted
+        
+        # Extract data from result (handle both formats)
+        if isinstance(result, dict) and "data" in result:
+            data = result["data"] or {}
+            status = result.get("status", "success")
+        else:
+            data = result if isinstance(result, dict) else {}
+            status = "success"
+        
+        # Extract amount
+        amount_obj = data.get("amount", {})
+        if isinstance(amount_obj, dict):
+            amount = amount_obj.get("amount", 0)
+        else:
+            amount = amount_obj
+        amount_display = f"{amount:,.2f}"
+        
+        # Extract sender/receiver (รองรับทั้ง string และ dict)
+        sender = data.get("sender", {})
+        receiver = data.get("receiver", {})
+        
+        if isinstance(sender, str):
+            s_name = sender
+            s_bank = data.get("sender_bank", "")
+            s_acc = ""
+        else:
+            sender_name = sender.get("account", {}).get("name", {})
+            s_name = sender_name.get("th", "") or sender_name.get("en", "") or data.get("sender_name", "ไม่ระบุชื่อ")
+            s_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "") or data.get("sender_bank", "")
+            s_acc = sender.get("account", {}).get("bank", {}).get("account", "")
+            s_code = sender.get("bank", {}).get("id", "")
+        
+        if isinstance(receiver, str):
+            r_name = receiver
+            r_bank = data.get("receiver_bank", "")
+            r_acc = ""
+        else:
+            receiver_name = receiver.get("account", {}).get("name", {})
+            r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or data.get("receiver_name", "ไม่ระบุชื่อ")
+            r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "") or data.get("receiver_bank", "")
+            r_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
+            r_code = receiver.get("bank", {}).get("id", "")
+        
+        # Format account numbers
+        s_acc_display = mask_account_formatted(s_acc) if s_acc else ""
+        r_acc_display = mask_account_formatted(r_acc) if r_acc else ""
+        
+        # Get bank logos
+        try:
+            s_logo = get_bank_logo(s_code if not isinstance(sender, str) else "", s_bank, db=None)
+            r_logo = get_bank_logo(r_code if not isinstance(receiver, str) else "", r_bank, db=None)
+        except:
+            s_logo = "https://via.placeholder.com/48"
+            r_logo = "https://via.placeholder.com/48"
+        
+        # Extract date/time
+        date_str = data.get("date", data.get("trans_date", "")) or "-"
+        time_str = data.get("time", data.get("trans_time", "")) or "-"
+        ref_no = data.get("transRef") or data.get("reference") or "-"
+        verified_time = datetime.now().strftime("%d/%m/%Y %H:%M")
+        
+        # Create replacement map
+        replacements = {
+            "{{amount}}": amount_display,
+            "{{sender_name}}": s_name,
+            "{{sender_bank}}": s_bank,
+            "{{sender_account}}": s_acc_display,
+            "{{sender_bank_logo}}": s_logo,
+            "{{receiver_name}}": r_name,
+            "{{receiver_bank}}": r_bank,
+            "{{receiver_account}}": r_acc_display,
+            "{{receiver_bank_logo}}": r_logo,
+            "{{date}}": date_str,
+            "{{time}}": time_str,
+            "{{reference}}": ref_no,
+            "{{verified_time}}": verified_time
+        }
+        
+        # Convert template to JSON string, replace variables, then parse back
+        template_str = json.dumps(flex_template)
+        for key, value in replacements.items():
+            template_str = template_str.replace(key, str(value))
+        
+        rendered_template = json.loads(template_str)
+        return rendered_template
+        
+    except Exception as e:
+        logger.error(f"❌ Error rendering flex template: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return original template as fallback
+        return flex_template
 
 def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
     """Render slip template with result data"""

@@ -1,539 +1,140 @@
 {% extends "base.html" %}
 
-{% block title %}🎨 เลือกเทมเพลตสลิป - LINE OA Management{% endblock %}
+{% block title %}เลือกเทมเพลตสลิป - LINE OA Management{% endblock %}
 
 {% block extra_css %}
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=Prompt:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-    /* ==================== Theme Variables ==================== */
-    :root {
-        --template-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --success-gradient: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
-        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    }
-
-    /* ==================== Page Container ==================== */
-    .page-container {
-        font-family: 'Prompt', 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
-    /* ==================== Header Card ==================== */
-    .header-card {
-        background: var(--template-gradient);
-        border-radius: 20px;
-        padding: 32px;
-        margin-bottom: 32px;
-        color: white;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .header-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    }
-
-    .header-content {
-        position: relative;
-        z-index: 1;
-    }
-
-    .header-title {
-        font-size: 28px;
-        font-weight: 700;
-        margin-bottom: 8px;
-        letter-spacing: -0.02em;
-    }
-
-    .header-subtitle {
-        font-size: 16px;
-        opacity: 0.9;
-    }
-
-    .header-action {
-        margin-top: 20px;
-    }
-
-    .btn-create {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 14px 28px;
-        background: white;
-        color: #667eea;
-        border: none;
-        border-radius: 12px;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .btn-create:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-    }
-
-    /* ==================== Stats Row ==================== */
-    .stats-row {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 32px;
-    }
-
-    .stat-card {
-        flex: 1;
-        background: white;
-        border-radius: 16px;
-        padding: 20px 24px;
-        box-shadow: var(--card-shadow);
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        transition: all 0.3s ease;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--card-shadow-hover);
-    }
-
-    .stat-icon {
-        width: 52px;
-        height: 52px;
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-    }
-
-    .stat-icon.purple {
-        background: rgba(102, 126, 234, 0.12);
-        color: #667eea;
-    }
-
-    .stat-icon.green {
-        background: rgba(34, 197, 94, 0.12);
-        color: #22C55E;
-    }
-
-    .stat-icon.orange {
-        background: rgba(245, 158, 11, 0.12);
-        color: #F59E0B;
-    }
-
-    .stat-info {
-        flex: 1;
-    }
-
-    .stat-value {
-        font-size: 28px;
-        font-weight: 700;
-        color: #1E293B;
-        line-height: 1.2;
-    }
-
-    .stat-label {
-        font-size: 14px;
-        color: #64748B;
-        margin-top: 2px;
-    }
-
-    /* ==================== Template Grid ==================== */
     .template-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 24px;
+        margin-top: 24px;
     }
 
     .template-card {
         background: white;
-        border-radius: 20px;
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: var(--card-shadow);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
         cursor: pointer;
         position: relative;
-        border: 2px solid transparent;
     }
 
     .template-card:hover {
-        transform: translateY(-8px);
-        box-shadow: var(--card-shadow-hover);
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     }
 
     .template-card.selected {
-        border-color: #667eea;
-        box-shadow: 0 12px 40px rgba(102, 126, 234, 0.25);
+        border: 3px solid #4F46E5;
+        box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3);
     }
 
-    /* ==================== Template Preview ==================== */
     .template-preview {
         width: 100%;
-        height: 200px;
+        height: 250px;
         object-fit: cover;
-        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        background: #f3f4f6;
     }
 
-    .template-preview-wrapper {
-        position: relative;
-        height: 200px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    .template-preview-wrapper::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    }
-
-    .preview-phone-mini {
-        width: 120px;
-        background: white;
-        border-radius: 16px;
-        padding: 8px;
-        box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-        position: relative;
-        z-index: 1;
-        transition: transform 0.3s ease;
-    }
-
-    .template-card:hover .preview-phone-mini {
-        transform: scale(1.08);
-    }
-
-    .preview-phone-mini::before {
-        content: '';
-        position: absolute;
-        top: 4px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 30px;
-        height: 3px;
-        background: #E2E8F0;
-        border-radius: 2px;
-    }
-
-    .preview-phone-content {
-        margin-top: 12px;
-        border-radius: 10px;
-        overflow: hidden;
-        background: #F8FAFC;
-        min-height: 100px;
-    }
-
-    /* ==================== Template Info ==================== */
     .template-info {
-        padding: 24px;
-    }
-
-    .template-default-badge {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        background: var(--success-gradient);
-        color: white;
-        padding: 8px 14px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 700;
-        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        padding: 16px;
     }
 
     .template-name {
         font-size: 18px;
-        font-weight: 700;
-        color: #1E293B;
+        font-weight: 600;
+        color: #1f2937;
         margin-bottom: 8px;
-        letter-spacing: -0.01em;
     }
 
     .template-description {
         font-size: 14px;
-        color: #64748B;
-        margin-bottom: 16px;
-        line-height: 1.5;
-    }
-
-    .template-badges {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 16px;
+        color: #6b7280;
+        margin-bottom: 12px;
     }
 
     .template-type-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 8px;
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
     }
 
     .template-type-flex {
-        background: #DBEAFE;
-        color: #1E40AF;
+        background: #dbeafe;
+        color: #1e40af;
     }
 
     .template-type-text {
-        background: #D1FAE5;
-        color: #065F46;
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .template-default-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: #10b981;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .template-usage {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding-top: 16px;
-        border-top: 1px solid #E2E8F0;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e5e7eb;
         font-size: 13px;
-        color: #64748B;
+        color: #6b7280;
     }
 
-    /* ==================== Action Button ==================== */
     .btn-set-default {
-        margin-top: 16px;
+        margin-top: 12px;
         width: 100%;
-        padding: 12px;
-        background: var(--template-gradient);
+        padding: 8px;
+        background: #4F46E5;
         color: white;
         border: none;
-        border-radius: 10px;
+        border-radius: 6px;
         cursor: pointer;
         font-size: 14px;
-        font-weight: 600;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
+        font-weight: 500;
+        transition: background 0.2s;
     }
 
-    .btn-set-default:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35);
+    .btn-set-default:hover {
+        background: #4338CA;
     }
 
     .btn-set-default:disabled {
-        background: var(--success-gradient);
-        cursor: default;
+        background: #9ca3af;
+        cursor: not-allowed;
     }
 
-    /* ==================== Empty State ==================== */
     .empty-state {
         text-align: center;
-        padding: 80px 20px;
-        background: white;
-        border-radius: 20px;
-        box-shadow: var(--card-shadow);
+        padding: 60px 20px;
     }
 
     .empty-state-icon {
-        font-size: 80px;
-        margin-bottom: 20px;
-        opacity: 0.6;
+        font-size: 64px;
+        color: #d1d5db;
+        margin-bottom: 16px;
     }
 
     .empty-state-text {
-        font-size: 20px;
-        color: #1E293B;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-
-    .empty-state-subtext {
-        font-size: 15px;
-        color: #64748B;
-        margin-bottom: 28px;
-    }
-
-    /* ==================== Modal ==================== */
-    .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        animation: modalFadeIn 0.3s ease;
-        padding: 20px;
-    }
-
-    @keyframes modalFadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    .modal-content {
-        background: white;
-        border-radius: 24px;
-        max-width: 600px;
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-        animation: modalSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    @keyframes modalSlideUp {
-        from {
-            transform: translateY(40px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    .modal-header {
-        padding: 24px 28px;
-        border-bottom: 1px solid #E2E8F0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .modal-title {
-        font-size: 22px;
-        font-weight: 700;
-        color: #1E293B;
-        margin: 0;
-    }
-
-    .modal-close {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #F1F5F9;
-        border: none;
-        font-size: 22px;
-        color: #64748B;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal-close:hover {
-        background: #E2E8F0;
-        color: #1E293B;
-    }
-
-    .modal-body {
-        padding: 28px;
-    }
-
-    .modal-footer {
-        padding: 20px 28px;
-        border-top: 1px solid #E2E8F0;
-        display: flex;
-        gap: 12px;
-    }
-
-    .modal-footer .btn {
-        flex: 1;
-        padding: 14px;
-        border-radius: 12px;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .modal-footer .btn-primary {
-        background: var(--template-gradient);
-        color: white;
-        border: none;
-    }
-
-    .modal-footer .btn-secondary {
-        background: #F1F5F9;
-        color: #475569;
-        border: none;
-    }
-
-    /* ==================== Notification ==================== */
-    .notification {
-        position: fixed;
-        top: 24px;
-        right: 24px;
-        padding: 16px 24px;
-        border-radius: 14px;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.2);
-        z-index: 10001;
-        font-weight: 600;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        animation: notifySlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .notification.success {
-        background: var(--success-gradient);
-        color: white;
-    }
-
-    .notification.error {
-        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-        color: white;
-    }
-
-    .notification.info {
-        background: var(--template-gradient);
-        color: white;
-    }
-
-    @keyframes notifySlideIn {
-        from { transform: translateX(120%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-
-    @keyframes notifySlideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(120%); opacity: 0; }
-    }
-
-    /* ==================== Responsive ==================== */
-    @media (max-width: 768px) {
-        .stats-row {
-            flex-direction: column;
-        }
-
-        .template-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .header-card {
-            padding: 24px;
-        }
-
-        .header-title {
-            font-size: 22px;
-        }
+        font-size: 18px;
+        color: #6b7280;
+        margin-bottom: 24px;
     }
 </style>
 {% endblock %}
@@ -556,7 +157,7 @@
 <div class="nav-section-title">การตั้งค่า</div>
 <div class="sidebar-nav-item">
     <a href="/user/line-accounts/{{ account_id }}/slip-templates" class="sidebar-nav-link active">
-        <i class="fas fa-palette"></i>
+        <i class="fas fa-file-invoice"></i>
         <span>เทมเพลตสลิป</span>
     </a>
 </div>
@@ -568,146 +169,99 @@
 </div>
 {% endblock %}
 
-{% block page_header %}{% endblock %}
+{% block page_title %}เลือกเทมเพลตสลิป{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">เลือกเทมเพลตที่ต้องการใช้สำหรับตอบกลับสลิป</p>
+{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" onclick="createNewTemplate()">
+    <i class="fas fa-plus"></i>
+    <span>สร้างเทมเพลตใหม่</span>
+</button>
+{% endblock %}
 
 {% block content %}
-<div class="page-container">
-    <!-- Header Card -->
-    <div class="header-card">
-        <div class="header-content">
-            <h1 class="header-title">🎨 เลือกเทมเพลตสลิป</h1>
-            <p class="header-subtitle">เลือกรูปแบบข้อความที่ต้องการใช้ตอบกลับลูกค้าอัตโนมัติ</p>
-            <div class="header-action">
-                <button class="btn-create" onclick="createNewTemplate()">
-                    <i class="fas fa-plus-circle"></i>
-                    <span>สร้างเทมเพลตใหม่</span>
-                </button>
-            </div>
-        </div>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">เทมเพลตที่มี</h3>
+        <div class="badge badge-secondary">{{ templates|length if templates else 0 }} เทมเพลต</div>
     </div>
-
-    <!-- Stats Row -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-icon purple">
-                <i class="fas fa-palette"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">{{ templates|length if templates else 0 }}</div>
-                <div class="stat-label">เทมเพลตทั้งหมด</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">{% if templates %}{% set active = templates|selectattr('is_selected')|list %}{{ active|length }}{% else %}0{% endif %}</div>
-                <div class="stat-label">กำลังใช้งาน</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon orange">
-                <i class="fas fa-chart-bar"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-value">{% if templates %}{% set total = templates|map(attribute='usage_count')|sum %}{{ total }}{% else %}0{% endif %}</div>
-                <div class="stat-label">การใช้งานรวม</div>
-            </div>
-        </div>
-    </div>
-
-    {% if templates %}
-    <!-- Template Grid -->
-    <div class="template-grid">
-        {% for template in templates %}
-        <div class="template-card {% if template.is_selected %}selected{% endif %}" 
-             data-template-id="{{ template._id }}"
-             onclick="selectTemplate('{{ template._id }}')">
-            
-            {% if template.is_selected %}
-            <div class="template-default-badge">
-                <i class="fas fa-check-circle"></i> กำลังใช้งาน
-            </div>
-            {% elif template.is_default %}
-            <div class="template-default-badge" style="background: linear-gradient(135deg, #64748B 0%, #475569 100%);">
-                <i class="fas fa-star"></i> ค่าเริ่มต้น
-            </div>
-            {% endif %}
-            
-            <div class="template-preview-wrapper">
-                <div class="preview-phone-mini">
-                    <div class="preview-phone-content">
-                        {% if template.template_name.startswith('🌟') %}
-                        <div style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 8px; border-radius: 6px; text-align: center; font-size: 10px; font-weight: bold;">
-                            <div style="font-size: 18px; margin-bottom: 4px;">✓</div>
-                            สำเร็จ
-                        </div>
-                        {% elif template.template_name.startswith('⚠️') %}
-                        <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 8px; border-radius: 6px; text-align: center; font-size: 10px; font-weight: bold;">
-                            <div style="font-size: 18px; margin-bottom: 4px;">⚠</div>
-                            สลิปซ้ำ
-                        </div>
-                        {% else %}
-                        <div style="padding: 12px; text-align: center;">
-                            <div style="font-size: 24px; margin-bottom: 6px;">📋</div>
-                            <div style="font-size: 9px; color: #64748B;">เทมเพลต</div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <div class="template-info">
-                <div class="template-name">{{ template.template_name }}</div>
-                <div class="template-description">{{ template.description or 'เทมเพลตสำหรับตอบกลับลูกค้าอัตโนมัติ' }}</div>
-                
-                <div class="template-badges">
-                    <span class="template-type-badge template-type-{{ template.template_type or 'flex' }}">
-                        {% if template.template_type == 'text' %}
-                        <i class="fas fa-align-left"></i> Text
-                        {% else %}
-                        <i class="fas fa-th-large"></i> Flex
-                        {% endif %}
-                    </span>
-                </div>
-                
-                <div class="template-usage">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>ใช้งาน {{ template.usage_count or 0 }} ครั้ง</span>
-                </div>
+    <div class="card-body">
+        {% if templates %}
+        <div class="template-grid">
+            {% for template in templates %}
+            <div class="template-card {% if template.is_selected %}selected{% endif %}" 
+                 data-template-id="{{ template._id }}"
+                 onclick="selectTemplate('{{ template._id }}')">
                 
                 {% if template.is_selected %}
-                <button class="btn-set-default" disabled>
-                    <i class="fas fa-check-circle"></i> เทมเพลตที่กำลังใช้
-                </button>
-                {% else %}
-                <button class="btn-set-default" onclick="event.stopPropagation(); setDefaultTemplate('{{ template._id }}')">
-                    <i class="fas fa-check"></i> เลือกเทมเพลตนี้
-                </button>
+                <div class="template-default-badge">
+                    <i class="fas fa-check"></i> กำลังใช้งาน
+                </div>
+                {% elif template.is_default %}
+                <div class="template-default-badge" style="background: #6b7280;">
+                    <i class="fas fa-star"></i> ค่าเริ่มต้น
+                </div>
                 {% endif %}
+                
+                <img src="{{ template.preview_image or '/static/images/templates/default.png' }}" 
+                     alt="{{ template.template_name }}" 
+                     class="template-preview"
+                     onerror="this.src='/static/images/templates/default.png'">
+                
+                <div class="template-info">
+                    <div class="template-name">{{ template.template_name }}</div>
+                    <div class="template-description">{{ template.description or 'ไม่มีคำอธิบาย' }}</div>
+                    
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="template-type-badge template-type-{{ template.template_type or 'flex' }}">
+                            {% if template.template_type == 'text' %}
+                            <i class="fas fa-align-left"></i> Text
+                            {% else %}
+                            <i class="fas fa-th-large"></i> Flex
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="template-usage">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>ใช้งาน {{ template.usage_count or 0 }} ครั้ง</span>
+                    </div>
+                    
+                    {% if template.is_selected %}
+                    <button class="btn-set-default" disabled style="background: #10b981;">
+                        <i class="fas fa-check-circle"></i> เทมเพลตที่กำลังใช้
+                    </button>
+                    {% else %}
+                    <button class="btn-set-default" onclick="event.stopPropagation(); setDefaultTemplate('{{ template._id }}')">
+                        <i class="fas fa-check"></i> เลือกเทมเพลตนี้
+                    </button>
+                    {% endif %}
+                </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="empty-state-text">ยังไม่มีเทมเพลต</div>
+            <button class="btn btn-primary" onclick="createNewTemplate()">
+                <i class="fas fa-plus"></i> สร้างเทมเพลตแรก
+            </button>
+        </div>
+        {% endif %}
     </div>
-    {% else %}
-    <!-- Empty State -->
-    <div class="empty-state">
-        <div class="empty-state-icon">📋</div>
-        <div class="empty-state-text">ยังไม่มีเทมเพลต</div>
-        <div class="empty-state-subtext">สร้างเทมเพลตแรกของคุณเพื่อเริ่มใช้งาน</div>
-        <button class="btn-create" onclick="createNewTemplate()">
-            <i class="fas fa-plus-circle"></i> สร้างเทมเพลตแรก
-        </button>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     const accountId = '{{ account_id }}';
-    const templates = {{ templates|tojson|safe }};
+    let currentPreviewTemplate = null;
 
     function selectTemplate(templateId) {
         // Visual feedback
@@ -715,59 +269,88 @@
             card.classList.remove('selected');
         });
         const selectedCard = document.querySelector(`[data-template-id="${templateId}"]`);
-        if (selectedCard) {
-            selectedCard.classList.add('selected');
-        }
+        selectedCard.classList.add('selected');
         
-        // Show preview modal
+        // Show preview
         showTemplatePreview(templateId);
     }
     
     function showTemplatePreview(templateId) {
+        // Find template data
+        const templates = {{ templates|tojson|safe }};
         const template = templates.find(t => t._id === templateId);
+        
         if (!template) return;
         
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.id = 'preview-modal';
+        currentPreviewTemplate = template;
         
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title">${template.template_name}</h2>
-                    <button class="modal-close" onclick="closePreview()">&times;</button>
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'preview-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        `;
+        
+        const previewImage = template.preview_image || '/static/images/templates/default.png';
+        
+        modalContent.innerHTML = `
+            <div style="padding: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0; font-size: 24px; color: #1f2937;">${template.template_name}</h2>
+                    <button onclick="closePreview()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280;">&times;</button>
                 </div>
-                <div class="modal-body">
-                    <div style="background: #F8FAFC; padding: 20px; border-radius: 16px; margin-bottom: 20px;">
-                        <p style="margin: 0; color: #64748B; font-size: 15px; line-height: 1.6;">${template.description || 'ไม่มีคำอธิบาย'}</p>
-                    </div>
-                    
-                    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-                        <span class="template-type-badge template-type-${template.template_type || 'flex'}">
-                            <i class="fas fa-${template.template_type === 'text' ? 'align-left' : 'th-large'}"></i>
-                            ${template.template_type === 'text' ? 'Text Message' : 'Flex Message'}
-                        </span>
-                    </div>
-                    
-                    <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px;">
-                        <img src="${template.preview_image || '/static/images/templates/default.png'}" 
-                             alt="Preview" 
-                             style="max-width: 100%; max-height: 300px; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.3);"
-                             onerror="this.src='/static/images/templates/default.png'">
-                    </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <span style="display: inline-block; padding: 6px 12px; background: ${template.template_type === 'flex' ? '#dbeafe' : '#d1fae5'}; color: ${template.template_type === 'flex' ? '#1e40af' : '#065f46'}; border-radius: 12px; font-size: 14px; font-weight: 500;">
+                        ${template.template_type === 'flex' ? 'Flex Message' : 'Text Message'}
+                    </span>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="closePreview()">ปิด</button>
-                    <button class="btn btn-primary" onclick="setDefaultTemplate('${template._id}')">
-                        <i class="fas fa-check"></i> เลือกใช้เทมเพลตนี้
+                
+                <div style="background: #f9fafb; padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">${template.description || 'ไม่มีคำอธิบาย'}</p>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="${previewImage}" alt="Preview" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" onerror="this.src='/static/images/templates/default.png'">
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="setDefaultTemplate('${template._id}')" style="flex: 1; padding: 12px; background: #4F46E5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer;">
+                        ตั้งเป็นค่าเริ่มต้น
+                    </button>
+                    <button onclick="closePreview()" style="flex: 1; padding: 12px; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer;">
+                        ปิด
                     </button>
                 </div>
             </div>
         `;
         
+        modal.appendChild(modalContent);
         document.body.appendChild(modal);
-        document.body.style.overflow = 'hidden';
         
+        // Close on background click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 closePreview();
@@ -778,17 +361,15 @@
     function closePreview() {
         const modal = document.getElementById('preview-modal');
         if (modal) {
-            modal.style.animation = 'fadeOut 0.2s ease forwards';
-            setTimeout(() => {
-                modal.remove();
-                document.body.style.overflow = '';
-            }, 200);
+            modal.style.animation = 'fadeOut 0.2s ease';
+            setTimeout(() => modal.remove(), 200);
         }
     }
 
     async function setDefaultTemplate(templateId) {
         try {
-            showNotification('info', '⏳ กำลังตั้งค่าเทมเพลต...');
+            console.log('🎯 Setting template:', templateId);
+            showNotification('info', 'กำลังตั้งค่าเทมเพลต...');
             
             const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}/default`, {
                 method: 'PUT',
@@ -798,50 +379,106 @@
             });
 
             const result = await response.json();
+            console.log('📊 Response:', result);
 
             if (response.ok) {
-                showNotification('success', '✅ เลือกเทมเพลตสำเร็จ!');
-                setTimeout(() => location.reload(), 1200);
+                showNotification('success', 'เทมเพลตถูกเลือกแล้ว! กำลังรีเฟรชหน้า...');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                showNotification('error', '❌ ' + (result.message || 'เกิดข้อผิดพลาด'));
+                showNotification('error', result.message || 'เกิดข้อผิดพลาด');
             }
         } catch (error) {
-            console.error('Error:', error);
-            showNotification('error', '❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
+            console.error('❌ Error:', error);
+            showNotification('error', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
         }
     }
 
     function createNewTemplate() {
-        window.location.href = `/user/line-accounts/${accountId}/slip-templates/create`;
+        // TODO: Implement template creation modal
+        showNotification('info', 'ฟีเจอร์นี้กำลังพัฒนา');
     }
 
     function showNotification(type, message) {
-        document.querySelectorAll('.notification').forEach(n => n.remove());
-        
+        // Simple notification (you can enhance this)
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            info: '#3b82f6'
+        };
+
         const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        
-        let icon = '';
-        switch(type) {
-            case 'success': icon = '<i class="fas fa-check-circle"></i>'; break;
-            case 'error': icon = '<i class="fas fa-exclamation-circle"></i>'; break;
-            case 'info': icon = '<i class="fas fa-info-circle"></i>'; break;
-        }
-        
-        notification.innerHTML = `${icon}<span>${message}</span>`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type]};
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
         document.body.appendChild(notification);
 
         setTimeout(() => {
-            notification.style.animation = 'notifySlideOut 0.3s ease forwards';
+            notification.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
 </script>
 
 <style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
     @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
+    }
+    
+    @keyframes slideUp {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
 </style>
 {% endblock %}
