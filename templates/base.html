@@ -593,10 +593,35 @@
                 subtree: false
             });
 
-            // Also intercept Bootstrap modal events
-            document.addEventListener('hidden.bs.modal', function() {
-                setTimeout(cleanupModals, 10);
+            // Intercept ALL Bootstrap modal events to prevent backdrop creation
+            ['show', 'shown', 'hide', 'hidden', 'hidePrevented'].forEach(eventType => {
+                document.addEventListener(eventType + '.bs.modal', function(e) {
+                    console.log('🔔 Bootstrap modal event:', eventType);
+                    setTimeout(cleanupModals, 10);
+                }, true); // Use capture phase
             });
+
+            // Override Bootstrap Modal if it exists
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const OriginalModal = bootstrap.Modal;
+                bootstrap.Modal = function(element, config) {
+                    const modal = new OriginalModal(element, config);
+                    const originalShow = modal.show;
+                    const originalHide = modal.hide;
+                    
+                    modal.show = function() {
+                        originalShow.call(this);
+                        setTimeout(cleanupModals, 50);
+                    };
+                    
+                    modal.hide = function() {
+                        originalHide.call(this);
+                        setTimeout(cleanupModals, 50);
+                    };
+                    
+                    return modal;
+                };
+            }
 
             // Run cleanup every 500ms as a safety net - MORE FREQUENT
             setInterval(cleanupModals, 500);
