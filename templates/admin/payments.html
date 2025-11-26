@@ -103,6 +103,7 @@
     let currentFilter = 'pending';
     let imageModal;
     let rejectModal;
+    let paymentsData = []; // Store payments data for image viewing
 
     function showAlert(message, type = 'success') {
         const container = document.getElementById('alert-container');
@@ -146,7 +147,8 @@
             const data = await response.json();
 
             if (data.success) {
-                renderPayments(data.payments || []);
+                paymentsData = data.payments || []; // Store for image viewing
+                renderPayments(paymentsData);
             } else {
                 showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
@@ -165,7 +167,7 @@
             return;
         }
 
-        payments.forEach(p => {
+        payments.forEach((p, index) => {
             const date = new Date(p.created_at).toLocaleString('th-TH');
             let statusBadge = '';
             let actions = '';
@@ -196,16 +198,22 @@
             let evidence = '';
             if (p.payment_type === 'bank_transfer') {
                 if (p.slip_image || p.has_slip || p.slip_image_data) {
-                    const imageData = p.slip_image || (p.slip_image_data ? `data:image/jpeg;base64,${p.slip_image_data}` : '');
-                    evidence = `<button class="btn btn-outline-primary btn-sm" onclick="viewImage('${imageData}')"><i class="bi bi-image"></i> ดูสลิป</button>`;
+                    // Use index to reference image data instead of embedding base64 in onclick
+                    evidence = `<button class="btn btn-outline-primary btn-sm" onclick="viewSlipImage(${index})"><i class="bi bi-image"></i> ดูสลิป</button>`;
                     
                     // Show verification info if available
                     if (p.verification_result) {
                         const vf = p.verification_result;
                         if (vf.verified) {
                             evidence += `<br><small class="text-success"><i class="bi bi-check-circle"></i> ตรวจสอบผ่าน</small>`;
+                            if (vf.receiver_name) {
+                                evidence += `<br><small class="text-muted">ชื่อ: ${vf.receiver_name}</small>`;
+                            }
                             if (vf.receiver_account) {
                                 evidence += `<br><small class="text-muted">บัญชี: ${vf.receiver_account}</small>`;
+                            }
+                            if (vf.amount !== undefined && vf.amount !== null) {
+                                evidence += `<br><small class="text-muted">ยอด: ฿${vf.amount.toLocaleString()}</small>`;
                             }
                         } else {
                             // Show verification issues
@@ -216,6 +224,9 @@
                             }
                             if (vf.issues && vf.issues.length > 0) {
                                 evidence += `<br><small class="text-danger">${vf.issues.join('<br>')}</small>`;
+                            }
+                            if (vf.receiver_name) {
+                                evidence += `<br><small class="text-muted">ชื่อในสลิป: ${vf.receiver_name}</small>`;
                             }
                             if (vf.receiver_account) {
                                 evidence += `<br><small class="text-muted">บัญชีในสลิป: ${vf.receiver_account}</small>`;
@@ -264,6 +275,28 @@
         `;
             tbody.innerHTML += row;
         });
+    }
+
+    function viewSlipImage(index) {
+        const payment = paymentsData[index];
+        if (!payment) {
+            showAlert('ไม่พบข้อมูลสลิป', 'danger');
+            return;
+        }
+        
+        let imageData = payment.slip_image || payment.slip_image_data;
+        if (!imageData) {
+            showAlert('ไม่พบรูปสลิป', 'danger');
+            return;
+        }
+        
+        // Add data URL prefix if not present
+        if (!imageData.startsWith('data:')) {
+            imageData = `data:image/jpeg;base64,${imageData}`;
+        }
+        
+        document.getElementById('modalImage').src = imageData;
+        imageModal.show();
     }
 
     function viewImage(base64) {
