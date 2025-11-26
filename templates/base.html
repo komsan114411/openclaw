@@ -330,20 +330,77 @@
     <!-- Bootstrap 5 JS Bundle (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <style>
+        /* CRITICAL FIX: Force hide any modal backdrops */
+        .modal-backdrop {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* Ensure body is never locked */
+        body.modal-open {
+            overflow: auto !important;
+            padding-right: 0 !important;
+        }
+    </style>
+
     <script>
-        // Clean up any stuck modal backdrops on page load
-        document.addEventListener('DOMContentLoaded', function () {
-            // Remove any stuck modal backdrops
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(backdrop => backdrop.remove());
+        // AGGRESSIVE CLEANUP: Run immediately (before DOMContentLoaded)
+        (function () {
+            function cleanupModals() {
+                // Remove all modal backdrops
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length > 0) {
+                    console.log('🧹 Removing', backdrops.length, 'stuck modal backdrop(s)');
+                    backdrops.forEach(backdrop => backdrop.remove());
+                }
 
-            // Remove modal-open class from body
-            document.body.classList.remove('modal-open');
+                // Remove modal-open class
+                if (document.body.classList.contains('modal-open')) {
+                    console.log('🧹 Removing modal-open class from body');
+                    document.body.classList.remove('modal-open');
+                }
 
-            // Reset body overflow
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-        });
+                // Reset body styles
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+
+                // Hide any remaining modals
+                const modals = document.querySelectorAll('.modal.show');
+                modals.forEach(modal => {
+                    modal.classList.remove('show');
+                    modal.style.display = 'none';
+                });
+            }
+
+            // Run cleanup IMMEDIATELY
+            cleanupModals();
+
+            // Run again on DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', cleanupModals);
+
+            // Run again after a short delay (catch any late-loading scripts)
+            setTimeout(cleanupModals, 100);
+            setTimeout(cleanupModals, 500);
+
+            // Monitor for new backdrops and remove them immediately
+            const observer = new MutationObserver(function (mutations) {
+                mutations.forEach(function (mutation) {
+                    mutation.addedNodes.forEach(function (node) {
+                        if (node.classList && node.classList.contains('modal-backdrop')) {
+                            console.log('🚫 Blocking new modal backdrop');
+                            node.remove();
+                        }
+                    });
+                });
+            });
+
+            observer.observe(document.body || document.documentElement, {
+                childList: true,
+                subtree: false
+            });
+        })();
     </script>
 
     {% block extra_js %}{% endblock %}
