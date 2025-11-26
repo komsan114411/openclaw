@@ -210,15 +210,16 @@ class UpdateLineAccountSettingsRequest(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
     ai_enabled: Optional[bool] = None
-    ai_api_key: Optional[str] = None
     ai_model: Optional[str] = None
     ai_system_prompt: Optional[str] = None
     ai_temperature: Optional[float] = None
     ai_fallback_message: Optional[str] = None
+    ai_response_mode: Optional[str] = None  # "immediate" or "processing"
+    ai_immediate_message: Optional[str] = None  # Message sent immediately when response_mode is "immediate"
     slip_verification_enabled: Optional[bool] = None
-    slip_api_provider: Optional[str] = None
-    slip_api_key: Optional[str] = None
     slip_template_id: Optional[str] = None
+    slip_response_mode: Optional[str] = None  # "immediate" or "processing"
+    slip_immediate_message: Optional[str] = None  # Message sent immediately when response_mode is "immediate"
 
 class CreateBankAccountRequest(BaseModel):
     account_name: str
@@ -1094,8 +1095,6 @@ async def update_line_account_settings_api(
         # Update AI settings
         if data.ai_enabled is not None:
             settings["ai_enabled"] = data.ai_enabled
-        if data.ai_api_key is not None:
-            settings["ai_api_key"] = data.ai_api_key
         if data.ai_model is not None:
             settings["ai_model"] = data.ai_model
         if data.ai_system_prompt is not None:
@@ -1104,16 +1103,20 @@ async def update_line_account_settings_api(
             settings["ai_temperature"] = data.ai_temperature
         if data.ai_fallback_message is not None:
             settings["ai_fallback_message"] = data.ai_fallback_message
+        if data.ai_response_mode is not None:
+            settings["ai_response_mode"] = data.ai_response_mode
+        if data.ai_immediate_message is not None:
+            settings["ai_immediate_message"] = data.ai_immediate_message
         
         # Update slip verification settings
         if data.slip_verification_enabled is not None:
             settings["slip_verification_enabled"] = data.slip_verification_enabled
-        if data.slip_api_provider is not None:
-            settings["slip_api_provider"] = data.slip_api_provider
-        if data.slip_api_key is not None:
-            settings["slip_api_key"] = data.slip_api_key
         if data.slip_template_id is not None:
             settings["slip_template_id"] = data.slip_template_id
+        if data.slip_response_mode is not None:
+            settings["slip_response_mode"] = data.slip_response_mode
+        if data.slip_immediate_message is not None:
+            settings["slip_immediate_message"] = data.slip_immediate_message
         
         update_data["settings"] = settings
         update_data["updated_at"] = datetime.utcnow()

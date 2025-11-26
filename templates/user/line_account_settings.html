@@ -319,24 +319,19 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">API สำหรับตรวจสอบสลิป</label>
-                <select class="form-control" id="slipApiProvider">
-                    <option value="thunder" {% if account.settings and account.settings.slip_api_provider == 'thunder' %}selected{% endif %}>Thunder API</option>
-                    <option value="slipok" {% if account.settings and account.settings.slip_api_provider == 'slipok' %}selected{% endif %}>SlipOK API</option>
+                <label class="form-label">โหมดการตอบกลับ</label>
+                <select class="form-control" id="slipResponseMode">
+                    <option value="immediate" {% if account.settings and account.settings.slip_response_mode == 'immediate' %}selected{% elif not account.settings or not account.settings.slip_response_mode %}selected{% endif %}>ตอบกลับทันที (ส่งข้อความก่อน แล้วค่อยตรวจสอบ)</option>
+                    <option value="processing" {% if account.settings and account.settings.slip_response_mode == 'processing' %}selected{% endif %}>ประมวลผลก่อน (ตรวจสอบเสร็จแล้วค่อยส่งผล)</option>
                 </select>
+                <small class="text-muted">เลือกว่าจะตอบกลับลูกค้าทันทีหรือรอให้ตรวจสอบเสร็จก่อน</small>
             </div>
 
-            <div class="form-group">
-                <label class="form-label required">API Key</label>
-                <input type="password" class="form-control" id="slipApiKey" 
-                       value="{% if account.settings and account.settings.slip_api_key %}********************************{% endif %}" 
-                       data-has-key="{{ 'true' if (account.settings and account.settings.slip_api_key) else 'false' }}"
-                       data-real-key="{{ (account.settings.slip_api_key if account.settings else '') or '' }}"
-                       placeholder="กรอก API Key สำหรับตรวจสอบสลิป">
-                <small class="text-muted">
-                    Thunder API: <a href="https://thunder.in.th" target="_blank">https://thunder.in.th</a><br>
-                    SlipOK API: <a href="https://slipok.com" target="_blank">https://slipok.com</a>
-                </small>
+            <div class="form-group" id="slipImmediateMessageGroup">
+                <label class="form-label">ข้อความตอบกลับทันที</label>
+                <textarea class="form-control" id="slipImmediateMessage" rows="3" 
+                          placeholder="ขอบคุณสำหรับสลิป กำลังตรวจสอบ...">{{ account.settings.slip_immediate_message if account.settings and account.settings.slip_immediate_message else 'ขอบคุณสำหรับสลิป กำลังตรวจสอบ...' }}</textarea>
+                <small class="text-muted">ข้อความที่จะส่งทันทีเมื่อลูกค้าส่งสลิปมา (ใช้เมื่อโหมด = ตอบกลับทันที)</small>
             </div>
 
             <div class="form-group">
@@ -366,18 +361,10 @@
                 <input type="hidden" id="slipTemplateId" name="slipTemplateId" value="">
             </div>
 
-            <div class="flex gap-md">
-                <button class="btn btn-secondary" onclick="testSlipAPI()">
-                    <i class="fas fa-vial"></i>
-                    <span>ทดสอบ API</span>
-                </button>
-                <button class="btn btn-primary" onclick="saveSlipSettings()">
-                    <i class="fas fa-save"></i>
-                    <span>บันทึกการตั้งค่า</span>
-                </button>
-            </div>
-
-            <div class="api-test-result" id="slipTestResult"></div>
+            <button class="btn btn-primary" onclick="saveSlipSettings()">
+                <i class="fas fa-save"></i>
+                <span>บันทึกการตั้งค่า</span>
+            </button>
         </div>
     </div>
 </div>
@@ -401,24 +388,19 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">AI Model</label>
-                <select class="form-control" id="aiModel">
-                    <option value="gpt-3.5-turbo" {% if account.ai_model == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo (เร็ว, ประหยัด)</option>
-                    <option value="gpt-4" {% if account.ai_model == 'gpt-4' %}selected{% endif %}>GPT-4 (ฉลาด, แม่นยำ)</option>
-                    <option value="gpt-4-turbo" {% if account.ai_model == 'gpt-4-turbo' %}selected{% endif %}>GPT-4 Turbo (สมดุล)</option>
+                <label class="form-label">โหมดการตอบกลับ</label>
+                <select class="form-control" id="aiResponseMode">
+                    <option value="immediate" {% if account.settings and account.settings.ai_response_mode == 'immediate' %}selected{% elif not account.settings or not account.settings.ai_response_mode %}selected{% endif %}>ตอบกลับทันที (ส่งข้อความก่อน แล้วค่อยประมวลผล)</option>
+                    <option value="processing" {% if account.settings and account.settings.ai_response_mode == 'processing' %}selected{% endif %}>ประมวลผลก่อน (ประมวลผลเสร็จแล้วค่อยส่งผล)</option>
                 </select>
+                <small class="text-muted">เลือกว่าจะตอบกลับลูกค้าทันทีหรือรอให้ประมวลผลเสร็จก่อน</small>
             </div>
 
-            <div class="form-group">
-                <label class="form-label required">OpenAI API Key</label>
-                <input type="password" class="form-control" id="aiApiKey" 
-                       value="{% if account.ai_api_key %}********************************{% endif %}" 
-                       data-has-key="{{ 'true' if account.ai_api_key else 'false' }}"
-                       data-real-key="{{ account.ai_api_key or '' }}"
-                       placeholder="sk-...">
-                <small class="text-muted">
-                    หา API Key ได้ที่ <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a>
-                </small>
+            <div class="form-group" id="aiImmediateMessageGroup">
+                <label class="form-label">ข้อความตอบกลับทันที</label>
+                <textarea class="form-control" id="aiImmediateMessage" rows="3" 
+                          placeholder="กำลังประมวลผล กรุณารอสักครู่...">{{ account.settings.ai_immediate_message if account.settings and account.settings.ai_immediate_message else 'กำลังประมวลผล กรุณารอสักครู่...' }}</textarea>
+                <small class="text-muted">ข้อความที่จะส่งทันทีเมื่อลูกค้าส่งข้อความมา (ใช้เมื่อโหมด = ตอบกลับทันที)</small>
             </div>
 
             <div class="form-group">
@@ -525,6 +507,19 @@
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ DOM Content Loaded');
+        
+        // Initialize response mode fields
+        updateResponseModeFields();
+        
+        // Add event listeners for response mode changes
+        const slipResponseMode = document.getElementById('slipResponseMode');
+        const aiResponseMode = document.getElementById('aiResponseMode');
+        if (slipResponseMode) {
+            slipResponseMode.addEventListener('change', updateResponseModeFields);
+        }
+        if (aiResponseMode) {
+            aiResponseMode.addEventListener('change', updateResponseModeFields);
+        }
         
         // Tab switching
         document.querySelectorAll('.settings-tab').forEach(tab => {
@@ -842,8 +837,6 @@
     async function saveSlipSettings() {
         console.log('💾 Starting to save slip settings...');
         
-        const apiKeyInput = document.getElementById('slipApiKey');
-        const apiKeyValue = apiKeyInput.value;
         const templateIdInput = document.getElementById('slipTemplateId');
         const selectedTemplateId = (templateIdInput.value || '').trim();
         
@@ -852,17 +845,12 @@
         
         const data = {
             slip_verification_enabled: document.getElementById('slipEnabled').checked,
-            slip_api_provider: document.getElementById('slipApiProvider').value,
-            slip_template_id: selectedTemplateId || null
+            slip_template_id: selectedTemplateId || null,
+            slip_response_mode: document.getElementById('slipResponseMode').value,
+            slip_immediate_message: document.getElementById('slipImmediateMessage').value
         };
         
         console.log('📤 Sending data:', data);
-        
-        // ส่ง API Key เฉพาะเมื่อไม่ใช่ placeholder (มีการเปลี่ยนจริง)
-        if (apiKeyValue && !apiKeyValue.startsWith('*')) {
-            data.slip_api_key = apiKeyValue;
-            console.log('🔑 Including API key in request');
-        }
 
         try {
             const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
@@ -876,12 +864,6 @@
             console.log('📊 Response data:', result);
             
             if (result.success) {
-                // อัพเดท data attribute ถ้ามีการบันทึก API Key ใหม่
-                if (apiKeyValue && !apiKeyValue.startsWith('*')) {
-                    apiKeyInput.dataset.realKey = apiKeyValue;
-                    apiKeyInput.dataset.hasKey = 'true';
-                    apiKeyInput.value = '********************************';
-                }
                 console.log('✅ Settings saved successfully');
                 showNotification('success', '✅ บันทึกการตั้งค่าสำเร็จ!');
                 
@@ -902,88 +884,43 @@
         }
     }
 
-    // Test slip API
-    async function testSlipAPI() {
-        const resultDiv = document.getElementById('slipTestResult');
-        const apiKeyInput = document.getElementById('slipApiKey');
-        
-        // ดึง API Key จริงจาก data attribute หรือ input value
-        let apiKey = apiKeyInput.value;
-        if (apiKey.startsWith('*')) {
-            // ถ้าเป็น placeholder ให้ใช้ค่าจริง
-            apiKey = apiKeyInput.dataset.realKey;
-        }
-        
-        if (!apiKey) {
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'api-test-result error';
-            resultDiv.innerHTML = '<strong><i class="fas fa-times-circle"></i> ข้อผิดพลาด</strong><br>API Key ไม่ถูกต้อง กรุณาบันทึกครั้ง';
-            return;
-        }
-        
-        resultDiv.style.display = 'block';
-        resultDiv.className = 'api-test-result';
-        resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังทดสอบ...';
-
-        try {
-            const response = await fetch(`/api/user/line-accounts/${accountId}/test-slip-api`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    api_provider: document.getElementById('slipApiProvider').value,
-                    api_key: apiKey
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                resultDiv.className = 'api-test-result success';
-                let html = `
-                    <strong><i class="fas fa-check-circle"></i> ทดสอบสำเร็จ!</strong><br>
-                    ${result.message || 'API ทำงานได้ปกติ'}
-                `;
-                // แสดงยอดเหลือและวันหมดอายุถ้ามี
-                if (result.balance !== undefined) {
-                    html += `<br><strong>ยอดคงเหลือ:</strong> ${result.balance.toLocaleString()} ครั้ง`;
-                }
-                if (result.expires_at) {
-                    html += `<br><strong>หมดอายุ:</strong> ${result.expires_at}`;
-                }
-                resultDiv.innerHTML = html;
+    // Toggle immediate message fields based on response mode
+    function updateResponseModeFields() {
+        // Slip response mode
+        const slipModeEl = document.getElementById('slipResponseMode');
+        const slipImmediateGroup = document.getElementById('slipImmediateMessageGroup');
+        if (slipModeEl && slipImmediateGroup) {
+            const slipMode = slipModeEl.value;
+            if (slipMode === 'immediate') {
+                slipImmediateGroup.style.display = 'block';
             } else {
-                resultDiv.className = 'api-test-result error';
-                resultDiv.innerHTML = `
-                    <strong><i class="fas fa-times-circle"></i> ทดสอบล้มเหลว</strong><br>
-                    ${result.message || 'ไม่สามารถเชื่อมต่อกับ API ได้'}
-                `;
+                slipImmediateGroup.style.display = 'none';
             }
-        } catch (error) {
-            resultDiv.className = 'api-test-result error';
-            resultDiv.innerHTML = `
-                <strong><i class="fas fa-times-circle"></i> เกิดข้อผิดพลาด</strong><br>
-                ${error.message}
-            `;
+        }
+        
+        // AI response mode
+        const aiModeEl = document.getElementById('aiResponseMode');
+        const aiImmediateGroup = document.getElementById('aiImmediateMessageGroup');
+        if (aiModeEl && aiImmediateGroup) {
+            const aiMode = aiModeEl.value;
+            if (aiMode === 'immediate') {
+                aiImmediateGroup.style.display = 'block';
+            } else {
+                aiImmediateGroup.style.display = 'none';
+            }
         }
     }
 
     // Save chatbot settings
     async function saveChatbotSettings() {
-        const apiKeyInput = document.getElementById('aiApiKey');
-        const apiKeyValue = apiKeyInput.value;
-        
         const data = {
             ai_enabled: document.getElementById('aiEnabled').checked,
-            ai_model: document.getElementById('aiModel').value,
             ai_system_prompt: document.getElementById('aiSystemPrompt').value,
             ai_temperature: parseFloat(document.getElementById('aiTemperature').value),
-            ai_fallback_message: document.getElementById('aiFallbackMessage').value
+            ai_fallback_message: document.getElementById('aiFallbackMessage').value,
+            ai_response_mode: document.getElementById('aiResponseMode').value,
+            ai_immediate_message: document.getElementById('aiImmediateMessage').value
         };
-        
-        // Send API Key only if not placeholder
-        if (apiKeyValue && !apiKeyValue.startsWith('*')) {
-            data.ai_api_key = apiKeyValue;
-        }
 
         try {
             const response = await fetch(`/api/user/line-accounts/${accountId}/settings`, {
