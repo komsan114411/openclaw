@@ -56,6 +56,10 @@ class PackageModel:
         
         return packages
     
+    def get_active_packages(self) -> list:
+        """Get only active packages (convenience method)"""
+        return self.get_all_packages(active_only=True)
+    
     def get_free_starter_package(self) -> Optional[Dict[str, Any]]:
         """Get the free starter package"""
         package = self.collection.find_one({

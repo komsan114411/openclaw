@@ -1468,7 +1468,7 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         owner_id = account.get("owner_id")
         if owner_id:
             quota_status = app.state.subscription_model.check_quota(owner_id)
-            if quota_status["remaining"] <= 0:
+            if quota_status["remaining_slips"] <= 0:  # Fixed: was "remaining"
                 await send_line_reply(
                     reply_token,
                     "⚠️ โควต้าตรวจสอบสลิปของคุณหมดแล้ว\nกรุณาอัพเกรดแพ็คเกจเพื่อใช้งานต่อ",

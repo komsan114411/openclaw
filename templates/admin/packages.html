@@ -28,51 +28,6 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTitle">สร้างแพ็คเกจใหม่</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="packageForm">
-                    <input type="hidden" id="packageId">
-
-                    <div class="mb-3">
-                        <label class="form-label">ชื่อแพ็คเกจ</label>
-                        <input type="text" class="form-control" id="packageName" required>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">ราคา (บาท)</label>
-                            <input type="number" class="form-control" id="packagePrice" required min="0">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">จำนวนวัน</label>
-                            <input type="number" class="form-control" id="packageDuration" required min="1" value="30">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">โควต้าสลิป (จำนวนครั้ง)</label>
-                        <input type="number" class="form-control" id="packageQuota" required min="1">
-                        <div class="form-text">จำนวนสลิปที่ตรวจสอบได้ในแพ็คเกจนี้</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">รายละเอียด (Features)</label>
-                        <textarea class="form-control" id="packageFeatures" rows="3"
-                            placeholder="แยกแต่ละบรรทัดด้วยการขึ้นบรรทัดใหม่"></textarea>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="isFreeStarter">
-                        <label class="form-check-label" for="isFreeStarter">
-                            เป็นแพ็คเกจเริ่มต้นฟรี (แจกอัตโนมัติเมื่อสมัครสมาชิก)
-                        </label>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                <button type="button" class="btn btn-primary" onclick="savePackage()">บันทึก</button>
             </div>
         </div>
     </div>
