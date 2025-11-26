@@ -331,30 +331,79 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <style>
-        /* CRITICAL FIX: Force hide any modal backdrops */
-        .modal-backdrop {
+        /* CRITICAL FIX: Force hide any modal backdrops and overlays */
+        .modal-backdrop,
+        .modal-backdrop.show,
+        .modal-backdrop.fade,
+        .modal-backdrop.fade.show {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
+        }
+
+        /* Hide any gray overlays */
+        [class*="backdrop"],
+        [class*="overlay"],
+        [id*="backdrop"],
+        [id*="overlay"] {
             display: none !important;
             opacity: 0 !important;
             pointer-events: none !important;
+            z-index: -1 !important;
         }
 
         /* Ensure body is never locked */
-        body.modal-open {
+        body.modal-open,
+        body.modal-open.modal-open {
             overflow: auto !important;
             padding-right: 0 !important;
+            position: static !important;
+        }
+
+        /* Ensure no overlay blocks interaction */
+        body {
+            position: relative !important;
+        }
+        
+        /* Make sure app container is always accessible */
+        .app-container {
+            position: relative !important;
+            z-index: 1 !important;
         }
     </style>
 
     <script>
-        // AGGRESSIVE CLEANUP: Run immediately (before DOMContentLoaded)
+        // ULTRA AGGRESSIVE CLEANUP: Run immediately and continuously
         (function () {
             function cleanupModals() {
-                // Remove all modal backdrops
-                const backdrops = document.querySelectorAll('.modal-backdrop');
-                if (backdrops.length > 0) {
-                    console.log('🧹 Removing', backdrops.length, 'stuck modal backdrop(s)');
-                    backdrops.forEach(backdrop => backdrop.remove());
-                }
+                // Remove all modal backdrops (multiple selectors)
+                const selectors = [
+                    '.modal-backdrop',
+                    '[class*="backdrop"]',
+                    '[class*="overlay"]',
+                    '[id*="backdrop"]',
+                    '[id*="overlay"]'
+                ];
+                
+                selectors.forEach(selector => {
+                    try {
+                        const elements = document.querySelectorAll(selector);
+                        if (elements.length > 0) {
+                            elements.forEach(el => {
+                                if (el.classList && (el.classList.contains('modal-backdrop') || 
+                                    el.style.backgroundColor === 'rgba(0, 0, 0, 0.5)' ||
+                                    el.style.backgroundColor === 'rgba(0, 0, 0, 0.6)')) {
+                                    console.log('🧹 Removing backdrop/overlay:', selector);
+                                    el.remove();
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        // Ignore errors
+                    }
+                });
 
                 // Remove modal-open class
                 if (document.body.classList.contains('modal-open')) {
@@ -365,41 +414,104 @@
                 // Reset body styles
                 document.body.style.overflow = '';
                 document.body.style.paddingRight = '';
+                document.body.style.position = '';
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.paddingRight = '';
 
                 // Hide any remaining modals
-                const modals = document.querySelectorAll('.modal.show');
+                const modals = document.querySelectorAll('.modal.show, .modal.fade.show');
                 modals.forEach(modal => {
-                    modal.classList.remove('show');
+                    modal.classList.remove('show', 'fade');
                     modal.style.display = 'none';
+                });
+
+                // Remove any fixed/absolute positioned gray divs that might be overlays
+                const allDivs = document.querySelectorAll('body > div');
+                allDivs.forEach(div => {
+                    const style = window.getComputedStyle(div);
+                    const bgColor = style.backgroundColor;
+                    const position = style.position;
+                    const zIndex = parseInt(style.zIndex) || 0;
+                    
+                    // Check if it's a gray overlay
+                    if ((position === 'fixed' || position === 'absolute') && 
+                        zIndex > 1000 && 
+                        (bgColor.includes('rgba(0, 0, 0') || bgColor.includes('rgb(0, 0, 0'))) {
+                        console.log('🧹 Removing suspicious overlay div');
+                        div.remove();
+                    }
                 });
             }
 
             // Run cleanup IMMEDIATELY
-            cleanupModals();
+            if (document.body) {
+                cleanupModals();
+            } else {
+                document.addEventListener('DOMContentLoaded', cleanupModals);
+            }
 
             // Run again on DOMContentLoaded
             document.addEventListener('DOMContentLoaded', cleanupModals);
 
-            // Run again after a short delay (catch any late-loading scripts)
+            // Run repeatedly to catch any late-loading scripts
+            setTimeout(cleanupModals, 50);
             setTimeout(cleanupModals, 100);
+            setTimeout(cleanupModals, 200);
             setTimeout(cleanupModals, 500);
+            setTimeout(cleanupModals, 1000);
 
             // Monitor for new backdrops and remove them immediately
             const observer = new MutationObserver(function (mutations) {
+                let shouldCleanup = false;
                 mutations.forEach(function (mutation) {
                     mutation.addedNodes.forEach(function (node) {
-                        if (node.classList && node.classList.contains('modal-backdrop')) {
-                            console.log('🚫 Blocking new modal backdrop');
-                            node.remove();
+                        if (node.nodeType === 1) { // Element node
+                            if (node.classList && (
+                                node.classList.contains('modal-backdrop') ||
+                                node.classList.contains('backdrop') ||
+                                node.classList.contains('overlay')
+                            )) {
+                                shouldCleanup = true;
+                            }
+                            // Check for gray overlay divs
+                            if (node.tagName === 'DIV') {
+                                const style = window.getComputedStyle(node);
+                                const bgColor = style.backgroundColor;
+                                if (bgColor.includes('rgba(0, 0, 0') || bgColor.includes('rgb(0, 0, 0')) {
+                                    const zIndex = parseInt(style.zIndex) || 0;
+                                    if (zIndex > 1000) {
+                                        shouldCleanup = true;
+                                    }
+                                }
+                            }
                         }
                     });
                 });
+                if (shouldCleanup) {
+                    console.log('🚫 Detected new backdrop/overlay, removing...');
+                    cleanupModals();
+                }
             });
 
-            observer.observe(document.body || document.documentElement, {
+            // Observe body and document for changes
+            if (document.body) {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            observer.observe(document.documentElement, {
                 childList: true,
                 subtree: false
             });
+
+            // Also intercept Bootstrap modal events
+            document.addEventListener('hidden.bs.modal', function() {
+                setTimeout(cleanupModals, 10);
+            });
+
+            // Run cleanup every 2 seconds as a safety net
+            setInterval(cleanupModals, 2000);
         })();
     </script>
 
