@@ -13,7 +13,8 @@
     </a>
 </div>
 <div class="sidebar-nav-item">
-    <a href="/admin/line-accounts" class="sidebar-nav-link {% if '/admin/line-accounts' in request.path %}active{% endif %}">
+    <a href="/admin/line-accounts"
+        class="sidebar-nav-link {% if '/admin/line-accounts' in request.path %}active{% endif %}">
         <i class="fab fa-line"></i>
         <span>บัญชี LINE OA</span>
     </a>
@@ -22,6 +23,27 @@
     <a href="/admin/banks" class="sidebar-nav-link {% if '/admin/banks' in request.path %}active{% endif %}">
         <i class="fas fa-university"></i>
         <span>จัดการธนาคาร</span>
+    </a>
+</div>
+
+<div class="nav-section-title">SaaS Management</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/packages" class="sidebar-nav-link {% if '/admin/packages' in request.path %}active{% endif %}">
+        <i class="fas fa-box"></i>
+        <span>จัดการแพ็คเกจ</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/system-settings"
+        class="sidebar-nav-link {% if '/admin/system-settings' in request.path %}active{% endif %}">
+        <i class="fas fa-cog"></i>
+        <span>ตั้งค่าระบบ</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/payments" class="sidebar-nav-link {% if '/admin/payments' in request.path %}active{% endif %}">
+        <i class="fas fa-money-bill-wave"></i>
+        <span>ตรวจสอบการชำระเงิน</span>
     </a>
 </div>
 

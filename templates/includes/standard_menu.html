@@ -7,7 +7,8 @@
     </a>
 </div>
 <div class="sidebar-nav-item">
-    <a href="/user/line-accounts" class="sidebar-nav-link {% if '/user/line-accounts' in request.path or '/user/add-line-account' in request.path %}active{% endif %}">
+    <a href="/user/line-accounts"
+        class="sidebar-nav-link {% if '/user/line-accounts' in request.path or '/user/add-line-account' in request.path %}active{% endif %}">
         <i class="fab fa-line"></i>
         <span>บัญชี LINE</span>
     </a>
@@ -16,6 +17,20 @@
     <a href="/settings/chat-history" class="sidebar-nav-link {% if '/chat-history' in request.path %}active{% endif %}">
         <i class="fas fa-comments"></i>
         <span>ประวัติการแชท</span>
+    </a>
+</div>
+
+<div class="nav-section-title">SaaS</div>
+<div class="sidebar-nav-item">
+    <a href="/user/packages" class="sidebar-nav-link {% if '/user/packages' in request.path %}active{% endif %}">
+        <i class="fas fa-crown"></i>
+        <span>แพ็คเกจ / อัพเกรด</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/user/quota" class="sidebar-nav-link {% if '/user/quota' in request.path %}active{% endif %}">
+        <i class="fas fa-chart-pie"></i>
+        <span>โควต้าการใช้งาน</span>
     </a>
 </div>
 
