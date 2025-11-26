@@ -1,56 +1,47 @@
-{% extends "base.html" %}
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link active" href="#" onclick="filterPayments('pending', this)">รอตรวจสอบ (Pending)</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterPayments('verified', this)">อนุมัติแล้ว (Verified)</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterPayments('rejected', this)">ปฏิเสธ (Rejected)</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" onclick="filterPayments(null, this)">ทั้งหมด (All)</a>
+    </li>
+</ul>
 
-{% block title %}ตรวจสอบการชำระเงิน - Admin{% endblock %}
-
-{% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">💰 ตรวจสอบการชำระเงิน (Payments)</h2>
-
-    <!-- Filter Tabs -->
-    <ul class="nav nav-tabs mb-4">
-        <li class="nav-item">
-            <a class="nav-link active" href="#" onclick="filterPayments('pending', this)">รอตรวจสอบ (Pending)</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="filterPayments('verified', this)">อนุมัติแล้ว (Verified)</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="filterPayments('rejected', this)">ปฏิเสธ (Rejected)</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#" onclick="filterPayments(null, this)">ทั้งหมด (All)</a>
-        </li>
-    </ul>
-
-    <!-- Payments Table -->
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>วันที่</th>
-                            <th>ผู้ใช้</th>
-                            <th>แพ็คเกจ</th>
-                            <th>ยอดเงิน</th>
-                            <th>ประเภท</th>
-                            <th>หลักฐาน</th>
-                            <th>สถานะ</th>
-                            <th>จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="paymentsTableBody">
-                        <!-- Rows will be loaded here -->
-                        <tr>
-                            <td colspan="8" class="text-center py-5">
-                                <div class="spinner-border text-primary" role="status"></div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+<!-- Payments Table -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>วันที่</th>
+                        <th>ผู้ใช้</th>
+                        <th>แพ็คเกจ</th>
+                        <th>ยอดเงิน</th>
+                        <th>ประเภท</th>
+                        <th>หลักฐาน</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentsTableBody">
+                    <!-- Rows will be loaded here -->
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Image Modal -->

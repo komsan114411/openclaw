@@ -1,70 +1,60 @@
-{% extends "base.html" %}
-
-{% block title %}โควต้าการใช้งาน - User{% endblock %}
-
-{% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">📊 โควต้าการใช้งาน (Usage Quota)</h2>
-
-    <div class="row">
-        <!-- Quota Summary Cards -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm h-100 border-primary">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-muted mb-3">โควต้าตรวจสอบสลิป</h5>
-                    <div class="display-4 fw-bold text-primary mb-2" id="slipQuota">- / -</div>
-                    <p class="text-muted">สลิปคงเหลือ</p>
-                    <div class="progress mt-3" style="height: 10px;">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: 0%" id="slipProgress">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm h-100 border-success">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-muted mb-3">อายุการใช้งาน</h5>
-                    <div class="display-4 fw-bold text-success mb-2" id="daysRemaining">- วัน</div>
-                    <p class="text-muted" id="expireDate">หมดอายุ: -</p>
-                    <div class="progress mt-3" style="height: 10px;">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: 0%" id="daysProgress">
-                        </div>
-                    </div>
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm h-100 border-primary">
+        <div class="card-body text-center">
+            <h5 class="card-title text-muted mb-3">โควต้าตรวจสอบสลิป</h5>
+            <div class="display-4 fw-bold text-primary mb-2" id="slipQuota">- / -</div>
+            <p class="text-muted">สลิปคงเหลือ</p>
+            <div class="progress mt-3" style="height: 10px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: 0%" id="slipProgress">
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Subscription History -->
-    <div class="card shadow-sm mt-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">ประวัติการสมัครสมาชิก (Subscription History)</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>วันที่สมัคร</th>
-                            <th>แพ็คเกจ</th>
-                            <th>ราคา</th>
-                            <th>วันหมดอายุ</th>
-                            <th>สถานะ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody">
-                        <tr>
-                            <td colspan="5" class="text-center py-4">
-                                <div class="spinner-border text-primary" role="status"></div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm h-100 border-success">
+        <div class="card-body text-center">
+            <h5 class="card-title text-muted mb-3">อายุการใช้งาน</h5>
+            <div class="display-4 fw-bold text-success mb-2" id="daysRemaining">- วัน</div>
+            <p class="text-muted" id="expireDate">หมดอายุ: -</p>
+            <div class="progress mt-3" style="height: 10px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: 0%" id="daysProgress">
+                </div>
             </div>
         </div>
     </div>
+</div>
+</div>
+
+<!-- Subscription History -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">ประวัติการสมัครสมาชิก (Subscription History)</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>วันที่สมัคร</th>
+                        <th>แพ็คเกจ</th>
+                        <th>ราคา</th>
+                        <th>วันหมดอายุ</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 </div>
 
 <script>

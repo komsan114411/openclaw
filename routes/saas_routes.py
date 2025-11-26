@@ -132,7 +132,7 @@ def register_saas_routes(app):
         
         try:
             data = await request.json()
-            success = app.state.system_settings_model.update_settings(data)
+            success = app.state.system_settings_model.update_settings(data, user["user_id"])  # Fixed: Added admin_id
             if success:
                 return {"success": True, "message": "Settings updated"}
             return JSONResponse(status_code=500, content={"success": False, "message": "Failed to update"})

@@ -1,25 +1,15 @@
-{% extends "base.html" %}
+</button>
+</div>
 
-{% block title %}จัดการแพ็คเกจ - Admin{% endblock %}
-
-{% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📦 จัดการแพ็คเกจ (Packages)</h2>
-        <button class="btn btn-primary" onclick="openCreateModal()">
-            <i class="bi bi-plus-lg"></i> สร้างแพ็คเกจใหม่
-        </button>
-    </div>
-
-    <!-- Packages Grid -->
-    <div class="row" id="packagesGrid">
-        <!-- Loading state -->
-        <div class="col-12 text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
+<!-- Packages Grid -->
+<div class="row" id="packagesGrid">
+    <!-- Loading state -->
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Create/Edit Modal -->
