@@ -331,46 +331,88 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <style>
-        /* CRITICAL FIX: Force hide any modal backdrops and overlays */
+        /* CRITICAL FIX: Force hide any modal backdrops and overlays - HIGHEST PRIORITY */
         .modal-backdrop,
         .modal-backdrop.show,
         .modal-backdrop.fade,
-        .modal-backdrop.fade.show {
+        .modal-backdrop.fade.show,
+        div.modal-backdrop,
+        body > div.modal-backdrop {
             display: none !important;
             opacity: 0 !important;
             visibility: hidden !important;
             pointer-events: none !important;
-            z-index: -1 !important;
+            z-index: -9999 !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 0 !important;
+            height: 0 !important;
         }
 
-        /* Hide any gray overlays */
+        /* Hide any gray overlays - ALL POSSIBLE VARIATIONS */
         [class*="backdrop"],
         [class*="overlay"],
         [id*="backdrop"],
-        [id*="overlay"] {
+        [id*="overlay"],
+        div[class*="backdrop"],
+        div[class*="overlay"],
+        body > div[style*="position: fixed"],
+        body > div[style*="position:fixed"],
+        body > div[style*="position: absolute"],
+        body > div[style*="position:absolute"] {
             display: none !important;
             opacity: 0 !important;
+            visibility: hidden !important;
             pointer-events: none !important;
-            z-index: -1 !important;
+            z-index: -9999 !important;
+        }
+
+        /* Target any div with dark background that covers the screen */
+        body > div:not(.app-container):not(.sidebar):not(.main-content) {
+            position: relative !important;
         }
 
         /* Ensure body is never locked */
         body.modal-open,
-        body.modal-open.modal-open {
+        body.modal-open.modal-open,
+        html.modal-open,
+        html.modal-open.modal-open {
             overflow: auto !important;
+            overflow-x: hidden !important;
             padding-right: 0 !important;
             position: static !important;
         }
 
         /* Ensure no overlay blocks interaction */
-        body {
+        body,
+        html {
             position: relative !important;
+            overflow: auto !important;
         }
         
         /* Make sure app container is always accessible */
         .app-container {
             position: relative !important;
             z-index: 1 !important;
+        }
+
+        /* Ensure main content is always clickable */
+        .app-container,
+        .app-container *,
+        .main-content,
+        .main-content *,
+        .sidebar,
+        .sidebar * {
+            pointer-events: auto !important;
+        }
+
+        /* Except for hidden overlays - they should never be clickable */
+        .modal-backdrop,
+        [class*="backdrop"],
+        [class*="overlay"],
+        div[style*="position: fixed"][style*="z-index"]:not(.app-container):not(.sidebar):not(.main-content) {
+            pointer-events: none !important;
         }
     </style>
 
@@ -384,7 +426,9 @@
                     '[class*="backdrop"]',
                     '[class*="overlay"]',
                     '[id*="backdrop"]',
-                    '[id*="overlay"]'
+                    '[id*="overlay"]',
+                    'div.modal-backdrop',
+                    'body > div.modal-backdrop'
                 ];
                 
                 selectors.forEach(selector => {
@@ -392,26 +436,78 @@
                         const elements = document.querySelectorAll(selector);
                         if (elements.length > 0) {
                             elements.forEach(el => {
-                                if (el.classList && (el.classList.contains('modal-backdrop') || 
-                                    el.style.backgroundColor === 'rgba(0, 0, 0, 0.5)' ||
-                                    el.style.backgroundColor === 'rgba(0, 0, 0, 0.6)')) {
-                                    console.log('🧹 Removing backdrop/overlay:', selector);
-                                    el.remove();
-                                }
+                                console.log('🧹 Removing backdrop/overlay:', selector, el);
+                                el.style.display = 'none';
+                                el.style.opacity = '0';
+                                el.style.visibility = 'hidden';
+                                el.style.pointerEvents = 'none';
+                                el.style.zIndex = '-9999';
+                                el.remove();
                             });
                         }
                     } catch (e) {
-                        // Ignore errors
+                        console.error('Error removing overlay:', e);
                     }
                 });
 
-                // Remove modal-open class
+                // Remove ALL divs that might be overlays - more aggressive check
+                try {
+                    const allDivs = document.querySelectorAll('body > div');
+                    allDivs.forEach(div => {
+                        // Skip app container and known good elements
+                        if (div.classList.contains('app-container') || 
+                            div.classList.contains('sidebar') || 
+                            div.classList.contains('main-content')) {
+                            return;
+                        }
+
+                        const style = window.getComputedStyle(div);
+                        const bgColor = style.backgroundColor;
+                        const position = style.position;
+                        const zIndex = parseInt(style.zIndex) || 0;
+                        const width = style.width;
+                        const height = style.height;
+                        const opacity = parseFloat(style.opacity) || 1;
+                        
+                        // Check if it's a gray/black overlay covering the screen
+                        const isFullScreen = (width === '100%' || width.includes('100%') || 
+                                            parseInt(width) >= window.innerWidth - 10) &&
+                                           (height === '100%' || height.includes('100%') || 
+                                            parseInt(height) >= window.innerHeight - 10);
+                        
+                        const isDarkBackground = bgColor.includes('rgba(0, 0, 0') || 
+                                                 bgColor.includes('rgb(0, 0, 0') ||
+                                                 bgColor.includes('rgba(0,0,0') ||
+                                                 bgColor.includes('rgb(0,0,0');
+                        
+                        if ((position === 'fixed' || position === 'absolute') && 
+                            (zIndex > 1000 || isFullScreen) && 
+                            (isDarkBackground || opacity < 1)) {
+                            console.log('🧹 Removing suspicious overlay div:', {
+                                position, zIndex, bgColor, width, height, opacity
+                            });
+                            div.style.display = 'none';
+                            div.style.opacity = '0';
+                            div.style.visibility = 'hidden';
+                            div.style.pointerEvents = 'none';
+                            div.style.zIndex = '-9999';
+                            div.remove();
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error checking divs:', e);
+                }
+
+                // Remove modal-open class from body and html
                 if (document.body.classList.contains('modal-open')) {
                     console.log('🧹 Removing modal-open class from body');
                     document.body.classList.remove('modal-open');
                 }
+                if (document.documentElement.classList.contains('modal-open')) {
+                    document.documentElement.classList.remove('modal-open');
+                }
 
-                // Reset body styles
+                // Reset body and html styles
                 document.body.style.overflow = '';
                 document.body.style.paddingRight = '';
                 document.body.style.position = '';
@@ -419,46 +515,38 @@
                 document.documentElement.style.paddingRight = '';
 
                 // Hide any remaining modals
-                const modals = document.querySelectorAll('.modal.show, .modal.fade.show');
+                const modals = document.querySelectorAll('.modal.show, .modal.fade.show, .modal[style*="display: block"]');
                 modals.forEach(modal => {
                     modal.classList.remove('show', 'fade');
                     modal.style.display = 'none';
                 });
-
-                // Remove any fixed/absolute positioned gray divs that might be overlays
-                const allDivs = document.querySelectorAll('body > div');
-                allDivs.forEach(div => {
-                    const style = window.getComputedStyle(div);
-                    const bgColor = style.backgroundColor;
-                    const position = style.position;
-                    const zIndex = parseInt(style.zIndex) || 0;
-                    
-                    // Check if it's a gray overlay
-                    if ((position === 'fixed' || position === 'absolute') && 
-                        zIndex > 1000 && 
-                        (bgColor.includes('rgba(0, 0, 0') || bgColor.includes('rgb(0, 0, 0'))) {
-                        console.log('🧹 Removing suspicious overlay div');
-                        div.remove();
-                    }
-                });
             }
 
-            // Run cleanup IMMEDIATELY
+            // Run cleanup IMMEDIATELY - even before DOM is ready
             if (document.body) {
                 cleanupModals();
-            } else {
+            } else if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', cleanupModals);
+            } else {
+                cleanupModals();
             }
 
             // Run again on DOMContentLoaded
-            document.addEventListener('DOMContentLoaded', cleanupModals);
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', cleanupModals);
+            } else {
+                cleanupModals();
+            }
 
-            // Run repeatedly to catch any late-loading scripts
+            // Run repeatedly to catch any late-loading scripts - MORE FREQUENT
+            setTimeout(cleanupModals, 10);
+            setTimeout(cleanupModals, 25);
             setTimeout(cleanupModals, 50);
             setTimeout(cleanupModals, 100);
             setTimeout(cleanupModals, 200);
             setTimeout(cleanupModals, 500);
             setTimeout(cleanupModals, 1000);
+            setTimeout(cleanupModals, 2000);
 
             // Monitor for new backdrops and remove them immediately
             const observer = new MutationObserver(function (mutations) {
@@ -510,8 +598,21 @@
                 setTimeout(cleanupModals, 10);
             });
 
-            // Run cleanup every 2 seconds as a safety net
-            setInterval(cleanupModals, 2000);
+            // Run cleanup every 500ms as a safety net - MORE FREQUENT
+            setInterval(cleanupModals, 500);
+            
+            // Also run on window load
+            window.addEventListener('load', cleanupModals);
+            
+            // Run on visibility change (when user switches tabs back)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    cleanupModals();
+                }
+            });
+            
+            // Run on focus (when user clicks back into window)
+            window.addEventListener('focus', cleanupModals);
         })();
     </script>
 
