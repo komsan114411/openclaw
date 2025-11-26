@@ -40,7 +40,7 @@
         border: 1px solid var(--dark-border);
         transition: all 0.3s ease;
     }
-    
+
     .stat-card::before {
         content: '';
         position: absolute;
@@ -55,22 +55,22 @@
         transform: translateY(-2px);
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
     }
-    
+
     .stat-card.blue::before {
         --card-color-1: #3b82f6;
         --card-color-2: #60a5fa;
     }
-    
+
     .stat-card.green::before {
         --card-color-1: #10b981;
         --card-color-2: #34d399;
     }
-    
+
     .stat-card.orange::before {
         --card-color-1: #f59e0b;
         --card-color-2: #fbbf24;
     }
-    
+
     .stat-card.red::before {
         --card-color-1: #ef4444;
         --card-color-2: #f87171;
@@ -98,22 +98,22 @@
         justify-content: center;
         font-size: 24px;
     }
-    
+
     .stat-card-icon.bg-blue {
         background: rgba(59, 130, 246, 0.1);
         color: #3b82f6;
     }
-    
+
     .stat-card-icon.bg-green {
         background: rgba(16, 185, 129, 0.1);
         color: #10b981;
     }
-    
+
     .stat-card-icon.bg-orange {
         background: rgba(245, 158, 11, 0.1);
         color: #f59e0b;
     }
-    
+
     .stat-card-icon.bg-red {
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;
@@ -170,8 +170,15 @@
     }
 
     @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
     }
 
     /* Recent Activity */
@@ -294,27 +301,27 @@
         <div class="card-body p-0">
             <ul class="activity-list">
                 {% if recent_activities %}
-                    {% for activity in recent_activities %}
-                    <li class="activity-item">
-                        <div class="activity-icon" style="background: var(--info-light); color: var(--info-color);">
-                            <i class="fas fa-{{ activity.icon or 'bell' }}"></i>
-                        </div>
-                        <div class="activity-content">
-                            <div class="activity-title">{{ activity.title }}</div>
-                            <div class="activity-time">{{ activity.time }}</div>
-                        </div>
-                    </li>
-                    {% endfor %}
+                {% for activity in recent_activities %}
+                <li class="activity-item">
+                    <div class="activity-icon" style="background: var(--info-light); color: var(--info-color);">
+                        <i class="fas fa-{{ activity.icon or 'bell' }}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">{{ activity.title }}</div>
+                        <div class="activity-time">{{ activity.time }}</div>
+                    </div>
+                </li>
+                {% endfor %}
                 {% else %}
-                    <li class="activity-item">
-                        <div class="activity-icon" style="background: var(--gray-200); color: var(--gray-600);">
-                            <i class="fas fa-info-circle"></i>
-                        </div>
-                        <div class="activity-content">
-                            <div class="activity-title">ยังไม่มีกิจกรรม</div>
-                            <div class="activity-time">เริ่มใช้งานระบบเพื่อดูกิจกรรม</div>
-                        </div>
-                    </li>
+                <li class="activity-item">
+                    <div class="activity-icon" style="background: var(--gray-200); color: var(--gray-600);">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">ยังไม่มีกิจกรรม</div>
+                        <div class="activity-time">เริ่มใช้งานระบบเพื่อดูกิจกรรม</div>
+                    </div>
+                </li>
                 {% endif %}
             </ul>
         </div>
@@ -385,35 +392,35 @@
 
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        
+        const wsUrl = `${protocol}//${window.location.host}/ws/notifications`;
+
         ws = new WebSocket(wsUrl);
-        
+
         ws.onopen = () => {
             console.log('WebSocket connected');
             connectionDot.classList.add('connected');
             connectionDot.classList.remove('disconnected');
             connectionText.textContent = 'เชื่อมต่อแล้ว';
         };
-        
+
         ws.onclose = () => {
             console.log('WebSocket disconnected');
             connectionDot.classList.remove('connected');
             connectionDot.classList.add('disconnected');
             connectionText.textContent = 'ไม่ได้เชื่อมต่อ';
-            
+
             // Reconnect after 5 seconds
             setTimeout(connectWebSocket, 5000);
         };
-        
+
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
         };
-        
+
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log('Received:', data);
-            
+
             // Handle real-time updates
             if (data.type === 'stats_update') {
                 updateStats(data);

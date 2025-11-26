@@ -66,12 +66,12 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"📱 WebSocket connected. Total: {len(self.active_connections)}")
+        logger.info(f" WebSocket connected. Total: {len(self.active_connections)}")
     
     async def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        logger.info(f"📱 WebSocket disconnected. Total: {len(self.active_connections)}")
+        logger.info(f" WebSocket disconnected. Total: {len(self.active_connections)}")
     
     async def broadcast(self, message: dict):
         """Broadcast message to all connected clients"""
@@ -95,12 +95,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     global IS_READY
     
-    logger.info("🚀 Starting LINE OA Management System...")
+    logger.info(" Starting LINE OA Management System...")
     
     try:
         # Initialize database
         database = init_database()
-        logger.info("✅ Database initialized")
+        logger.info("[OK] Database initialized")
         
         # Initialize models
         app.state.database = database
@@ -119,20 +119,20 @@ async def lifespan(app: FastAPI):
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
         
-        logger.info("✅ Models initialized")
+        logger.info("[OK] Models initialized")
         
         IS_READY = True
-        logger.info("✅ System ready!")
+        logger.info("[OK] System ready!")
         
         yield
         
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}")
+        logger.error(f"[ERROR] Startup failed: {e}")
         raise
     finally:
         global SHUTDOWN_INITIATED
         SHUTDOWN_INITIATED = True
-        logger.info("🛑 Shutting down...")
+        logger.info(" Shutting down...")
 
 # Create FastAPI app
 app = FastAPI(
@@ -179,6 +179,11 @@ class UpdateUserRequest(BaseModel):
     full_name: Optional[str] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
+
+class ChangeUserPasswordRequest(BaseModel):
+    new_password: str
+    confirm_password: str
+
 
 class CreateLineAccountRequest(BaseModel):
     account_name: str
@@ -295,7 +300,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         return response
         
     except Exception as e:
-        logger.error(f"❌ Login error: {e}")
+        logger.error(f"[ERROR] Login error: {e}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการเข้าสู่ระบบ"}
@@ -382,7 +387,7 @@ async def change_password(
             )
         
     except Exception as e:
-        logger.error(f"❌ Change password error: {e}")
+        logger.error(f"[ERROR] Change password error: {e}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน"}
@@ -413,10 +418,38 @@ async def admin_dashboard(request: Request):
     # นับจำนวนสลิปที่ตรวจสอบ
     total_slips_verified = 0
     try:
-        from models.slip_history import SlipHistory
-        total_slips_verified = SlipHistory.objects().count()
+        total_slips_verified = app.state.slip_history_model.get_total_count()
     except:
         pass
+    
+    # Get recent activities
+    recent_activities = []
+    try:
+        # Recent users (last 5)
+        recent_users_list = app.state.user_model.get_all_users()
+        for u in recent_users_list[:5]:
+            if u.get('created_at'):
+                recent_activities.append({
+                    'icon': 'user-plus',
+                    'title': f"ผู้ใช้ใหม่: {u.get('username', 'N/A')}",
+                    'time': u['created_at'].strftime('%d/%m/%Y %H:%M') if hasattr(u['created_at'], 'strftime') else str(u['created_at'])
+                })
+        
+        # Recent LINE accounts
+        recent_line_list = app.state.line_account_model.get_all_accounts()
+        for acc in recent_line_list[:3]:
+            if acc.get('created_at'):
+                recent_activities.append({
+                    'icon': 'link',
+                    'title': f"บัญชี LINE ใหม่: {acc.get('account_name', 'N/A')}",
+                    'time': acc['created_at'].strftime('%d/%m/%Y %H:%M') if hasattr(acc['created_at'], 'strftime') else str(acc['created_at'])
+                })
+        
+        # Sort by time (most recent first)
+        recent_activities = sorted(recent_activities, key=lambda x: x['time'], reverse=True)[:10]
+    except Exception as e:
+        logger.error(f"Error getting recent activities: {e}")
+        recent_activities = []
     
     recent_users = app.state.user_model.get_all_users()[:5]
     recent_line_accounts = app.state.line_account_model.get_all_accounts()[:5]
@@ -429,7 +462,8 @@ async def admin_dashboard(request: Request):
         "total_messages_today": total_messages_today,
         "total_slips_verified": total_slips_verified,
         "recent_users": recent_users,
-        "recent_line_accounts": recent_line_accounts
+        "recent_line_accounts": recent_line_accounts,
+        "recent_activities": recent_activities
     })
 
 @app.get("/admin/users", response_class=HTMLResponse)
@@ -535,6 +569,111 @@ async def restore_user_api(request: Request, user_id: str):
             content={"success": False, "message": "ไม่สามารถกู้คืนผู้ใช้ได้"}
         )
 
+@app.put("/api/admin/users/{user_id}")
+async def update_user_api(request: Request, user_id: str, data: UpdateUserRequest):
+    """Update user information (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # Get current user data
+        target_user = app.state.user_model.get_user_by_id(user_id)
+        if not target_user:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "ไม่พบผู้ใช้"}
+            )
+        
+        # Prepare update data
+        update_data = {}
+        if data.email is not None:
+            update_data["email"] = data.email
+        if data.full_name is not None:
+            update_data["full_name"] = data.full_name
+        if data.role is not None:
+            # Validate role
+            if data.role not in ["admin", "user"]:
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": "บทบาทไม่ถูกต้อง"}
+                )
+            update_data["role"] = data.role
+        if data.is_active is not None:
+            update_data["is_active"] = data.is_active
+        
+        # Update user
+        success = app.state.user_model.update_user(user_id, update_data)
+        
+        if success:
+            await manager.broadcast({
+                "type": "success",
+                "message": f"อัปเดตข้อมูลผู้ใช้ {target_user['username']} สำเร็จ"
+            })
+            return {"success": True, "message": "อัปเดตข้อมูลผู้ใช้ส งร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error updating user: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้"}
+        )
+
+@app.post("/api/admin/users/{user_id}/password")
+async def change_user_password_api(request: Request, user_id: str, data: ChangeUserPasswordRequest):
+    """Change user password (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        # Get target user
+        target_user = app.state.user_model.get_user_by_id(user_id)
+        if not target_user:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "ไม่พบผู้ใช้"}
+            )
+        
+        # Validate passwords match
+        if data.new_password != data.confirm_password:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "รหัสผ่านใหม่ไม่ตรงกัน"}
+            )
+        
+        # Validate password length
+        if len(data.new_password) < 6:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"}
+            )
+        
+        # Update password (admin can change any user's password without knowing old password)
+        success = app.state.user_model.update_password(user_id, data.new_password)
+        
+        if success:
+            await manager.broadcast({
+                "type": "success",
+                "message": f"เปลี่ยนรหัสผ่านผู้ใช้ {target_user['username']} สำเร็จ"
+            })
+            return {"success": True, "message": "เปลี่ยนรหัสผ่านสำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถเปลี่ยนรหัสผ่านได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error changing user password: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน"}
+        )
+
 @app.get("/admin/line-accounts", response_class=HTMLResponse)
 async def admin_line_accounts(request: Request):
     """Admin LINE accounts management page"""
@@ -561,6 +700,93 @@ async def admin_banks(request: Request):
         "request": request,
         "user": user
     })
+
+@app.get("/admin/slip-test", response_class=HTMLResponse)
+async def admin_slip_test_page(request: Request):
+    """Slip verification testing page"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        return RedirectResponse(url="/login")
+    
+    # Get all slip templates
+    templates_list = app.state.slip_template_model.get_all_templates()
+    
+    return templates.TemplateResponse("admin/slip_test.html", {
+        "request": request,
+        "user": user,
+        "templates": templates_list
+    })
+
+@app.post("/api/admin/slip-test")
+async def test_slip_verification(request: Request):
+    """Test slip verification API"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from fastapi import UploadFile, File, Form
+        form = await request.form()
+        slip_image = form.get("slip_image")
+        template_id = form.get("template_id")
+        
+        if not slip_image or not template_id:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "กรุณาอัพโหลดภาพสลิปและเลือกเทมเพลต"}
+            )
+        
+        # Read image data
+        image_data = await slip_image.read()
+        
+        # Save temp file for verification
+        import tempfile
+        import os
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
+            tmp_file.write(image_data)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Verify slip using SlipChecker
+            slip_checker = SlipChecker()
+            verification_result = slip_checker.verify_slip(tmp_path)
+            
+            # Get template
+            template = app.state.slip_template_model.get_template_by_id(template_id)
+            
+            # Create preview
+            template_preview = {"flex_message": "N/A", "text_message": "N/A"}
+            
+            if verification_result.get("success") and template:
+                # Render template with result
+                if template.get("template_type") == "text":
+                    from services.slip_formatter import render_slip_template
+                    text_msg = render_slip_template(template.get("template_text", ""), verification_result)
+                    template_preview["text_message"] = text_msg
+                else:
+                    from services.slip_formatter import create_beautiful_slip_flex_message
+                    flex_msg = create_beautiful_slip_flex_message(verification_result)
+                    template_preview["flex_message"] = str(flex_msg)
+            
+            return {
+                "success": True,
+                "verification_result": verification_result,
+                "template_preview": template_preview
+            }
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            
+    except Exception as e:
+        logger.error(f"Error testing slip: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
+        )
+
 
 @app.get("/admin/api/banks")
 async def get_banks_api(request: Request):
@@ -1078,14 +1304,14 @@ async def update_line_account_settings_api(
         success = result.modified_count > 0 or result.matched_count > 0
         
         # Always return success if matched (even if not modified)
-        logger.info(f"✅ Settings updated - matched: {result.matched_count}, modified: {result.modified_count}")
+        logger.info(f"[OK] Settings updated - matched: {result.matched_count}, modified: {result.modified_count}")
         await manager.broadcast({
             "type": "success",
             "message": "อัปเดตการตั้งค่าสำเร็จ"
         })
         return {"success": True, "message": "บันทึกการตั้งค่าสำเร็จ"}
     except Exception as e:
-        logger.error(f"❌ Error updating settings: {e}", exc_info=True)
+        logger.error(f"[ERROR] Error updating settings: {e}", exc_info=True)
         return {"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
 
 # ==================== WebSocket ====================
@@ -1301,7 +1527,7 @@ async def system_status(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"🚀 Starting server on {settings.HOST}:{settings.PORT}")
+    logger.info(f" Starting server on {settings.HOST}:{settings.PORT}")
     uvicorn.run(
         app, 
         host=settings.HOST, 
@@ -1318,7 +1544,7 @@ async def line_webhook(request: Request, account_id: str):
         # Get LINE account by ID
         account = app.state.line_account_model.get_account_by_id(account_id)
         if not account:
-            logger.error(f"❌ LINE account not found: {account_id}")
+            logger.error(f"[ERROR] LINE account not found: {account_id}")
             raise HTTPException(status_code=404, detail="Account not found")
         
         # Verify signature
@@ -1335,7 +1561,7 @@ async def line_webhook(request: Request, account_id: str):
         expected_signature = base64.b64encode(hash_digest).decode('utf-8')
         
         if signature != expected_signature:
-            logger.error(f"❌ Invalid signature for channel: {channel_id}")
+            logger.error(f"[ERROR] Invalid signature for channel: {channel_id}")
             raise HTTPException(status_code=400, detail="Invalid signature")
         
         # Parse webhook data
@@ -1352,7 +1578,7 @@ async def line_webhook(request: Request, account_id: str):
         return {"status": "ok"}
         
     except Exception as e:
-        logger.error(f"❌ Webhook error: {e}")
+        logger.error(f"[ERROR] Webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
 async def process_line_event(event: Dict[str, Any], account: Dict[str, Any]):
@@ -1370,7 +1596,7 @@ async def process_line_event(event: Dict[str, Any], account: Dict[str, Any]):
             logger.info(f"Unhandled event type: {event_type}")
             
     except Exception as e:
-        logger.error(f"❌ Error processing event: {e}")
+        logger.error(f"[ERROR] Error processing event: {e}")
 
 async def handle_message_event(event: Dict[str, Any], account: Dict[str, Any]):
     """Handle message event"""
@@ -1394,7 +1620,7 @@ async def handle_message_event(event: Dict[str, Any], account: Dict[str, Any]):
             await handle_image_message(message_id, reply_token, user_id, account)
             
     except Exception as e:
-        logger.error(f"❌ Error handling message event: {e}")
+        logger.error(f"[ERROR] Error handling message event: {e}")
 
 async def handle_text_message(text: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle text message with AI"""
@@ -1434,7 +1660,7 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
                     # Use default AI settings
                     response_text = await get_chat_response_async(text)
             except Exception as ai_error:
-                logger.warning(f"⚠️ AI response failed: {ai_error}")
+                logger.warning(f"[WARN] AI response failed: {ai_error}")
                 # ใช้ fallback message
                 if ai_fallback_message and ai_fallback_message != "0":
                     response_text = ai_fallback_message
@@ -1461,10 +1687,10 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
             # Send reply
             await send_line_reply(reply_token, response_text, account["channel_access_token"])
         else:
-            logger.info("🔕 AI fallback set to 0 - no response sent")
+            logger.info(" AI fallback set to 0 - no response sent")
         
     except Exception as e:
-        logger.error(f"❌ Error handling text message: {e}")
+        logger.error(f"[ERROR] Error handling text message: {e}")
 
 async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle image message (slip verification)"""
@@ -1477,9 +1703,9 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             response = requests.get(image_url, headers=headers, timeout=30)
             response.raise_for_status()
             image_data = response.content
-            logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes")
+            logger.info(f"[OK] Downloaded image from LINE: {len(image_data)} bytes")
         except Exception as e:
-            logger.error(f"❌ Error downloading image from LINE: {e}")
+            logger.error(f"[ERROR] Error downloading image from LINE: {e}")
         
         # Save image message with image data stored in database
         import base64
@@ -1527,9 +1753,9 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         )
         
         # Verify slip
-        logger.info(f"🔍 Starting slip verification for message_id: {message_id}")
-        logger.info(f"🔑 API Key (first 10 chars): {slip_api_key[:10]}...")
-        logger.info(f"🔑 LINE Token (first 10 chars): {account['channel_access_token'][:10]}...")
+        logger.info(f" Starting slip verification for message_id: {message_id}")
+        logger.info(f" API Key (first 10 chars): {slip_api_key[:10]}...")
+        logger.info(f" LINE Token (first 10 chars): {account['channel_access_token'][:10]}...")
         
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
         
@@ -1540,8 +1766,8 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             provider=slip_api_provider
         )
         
-        logger.info(f"📊 Slip verification result: {result.get('status')}")
-        logger.info(f"📄 Result message: {result.get('message', 'No message')}")
+        logger.info(f" Slip verification result: {result.get('status')}")
+        logger.info(f" Result message: {result.get('message', 'No message')}")
         
         # ตรวจสอบและบันทึกสลิปซ้ำ
         if result.get("status") in ["success", "duplicate"]:
@@ -1564,32 +1790,32 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             # เพิ่มข้อมูลจำนวนครั้งที่ซ้ำใน result
             if duplicate_count > 0:
                 result["duplicate_count"] = duplicate_count
-                result["message"] = f"🔄 สลิปซ้ำ +{duplicate_count}"
+                result["message"] = f" สลิปซ้ำ +{duplicate_count}"
         
         # Update statistics
         if result.get("status") == "success":
             app.state.line_account_model.increment_slip_count(account["_id"])
-            result_text = f"✅ สลิปถูกต้อง"
+            result_text = f"[OK] สลิปถูกต้อง"
         elif result.get("status") == "duplicate":
             dup_count = result.get("duplicate_count", 0)
             if dup_count > 0:
-                result_text = f"🔄 สลิปซ้ำ +{dup_count}"
+                result_text = f" สลิปซ้ำ +{dup_count}"
             else:
-                result_text = f"🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
+                result_text = f" สลิปนี้เคยถูกตรวจสอบแล้ว"
         elif result.get("status") == "error":
             # ใช้ข้อความจาก result.get('message') โดยตรง
-            result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
-            logger.error(f"❌ Slip verification failed: {result}")
+            result_text = f"[ERROR] {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
+            logger.error(f"[ERROR] Slip verification failed: {result}")
         elif result.get("status") == "not_found":
-            result_text = f"🔍 {result.get('message', 'ไม่พบข้อมูลสลิป')}"
-            logger.warning(f"⚠️ Slip not found: {result}")
+            result_text = f" {result.get('message', 'ไม่พบข้อมูลสลิป')}"
+            logger.warning(f"[WARN] Slip not found: {result}")
         elif result.get("status") == "qr_not_found":
-            result_text = f"📱 {result.get('message', 'ไม่พบ QR Code ในรูปภาพ')}"
-            logger.warning(f"⚠️ QR Code not found: {result}")
+            result_text = f" {result.get('message', 'ไม่พบ QR Code ในรูปภาพ')}"
+            logger.warning(f"[WARN] QR Code not found: {result}")
         else:
             # สำหรับสถานะอื่นๆ ที่ไม่คาดคิด
-            result_text = f"⚠️ สถานะการตรวจสอบไม่ชัดเจน: {result.get('status')}"
-            logger.error(f"⚠️ Unexpected slip verification status: {result}")
+            result_text = f"[WARN] สถานะการตรวจสอบไม่ชัดเจน: {result.get('status')}"
+            logger.error(f"[WARN] Unexpected slip verification status: {result}")
         
         # Save slip verification result
         app.state.chat_message_model.save_message(
@@ -1603,12 +1829,12 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         
         # Send result with template
         slip_template_id = settings.get("slip_template_id")
-        logger.info(f"🎯 Using template ID from settings: {slip_template_id}")
-        logger.info(f"📊 Full settings: {settings}")
+        logger.info(f" Using template ID from settings: {slip_template_id}")
+        logger.info(f" Full settings: {settings}")
         await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
         
     except Exception as e:
-        logger.error(f"❌ Error handling image message: {e}")
+        logger.error(f"[ERROR] Error handling image message: {e}")
 
 async def handle_follow_event(event: Dict[str, Any], account: Dict[str, Any]):
     """Handle follow event"""
@@ -1624,7 +1850,7 @@ async def handle_follow_event(event: Dict[str, Any], account: Dict[str, Any]):
         await send_line_reply(reply_token, welcome_message, account["channel_access_token"])
         
     except Exception as e:
-        logger.error(f"❌ Error handling follow event: {e}")
+        logger.error(f"[ERROR] Error handling follow event: {e}")
 
 async def handle_unfollow_event(event: Dict[str, Any], account: Dict[str, Any]):
     """Handle unfollow event"""
@@ -1633,7 +1859,7 @@ async def handle_unfollow_event(event: Dict[str, Any], account: Dict[str, Any]):
         logger.info(f"User {user_id} unfollowed account {account['channel_id']}")
         
     except Exception as e:
-        logger.error(f"❌ Error handling unfollow event: {e}")
+        logger.error(f"[ERROR] Error handling unfollow event: {e}")
 
 async def send_line_reply(reply_token: str, text: str, access_token: str):
     """Send LINE reply message"""
@@ -1656,12 +1882,12 @@ async def send_line_reply(reply_token: str, text: str, access_token: str):
         async with httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=data)
             if response.status_code != 200:
-                logger.error(f"❌ LINE API error: {response.text}")
+                logger.error(f"[ERROR] LINE API error: {response.text}")
             else:
-                logger.info("✅ Reply sent successfully")
+                logger.info("[OK] Reply sent successfully")
                 
     except Exception as e:
-        logger.error(f"❌ Error sending LINE reply: {e}")
+        logger.error(f"[ERROR] Error sending LINE reply: {e}")
 
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render Flex Message template with result data"""
@@ -1756,7 +1982,7 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         return rendered_template
         
     except Exception as e:
-        logger.error(f"❌ Error rendering flex template: {e}")
+        logger.error(f"[ERROR] Error rendering flex template: {e}")
         import traceback
         traceback.print_exc()
         # Return original template as fallback
@@ -1819,7 +2045,7 @@ def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
         
         return rendered
     except Exception as e:
-        logger.error(f"❌ Error rendering template: {e}")
+        logger.error(f"[ERROR] Error rendering template: {e}")
         return template_text
 
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
@@ -1917,33 +2143,33 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         
         rendered_flex = json.loads(flex_json)
         
-        logger.info(f"✅ Flex template rendered successfully")
+        logger.info(f"[OK] Flex template rendered successfully")
         return rendered_flex
     except Exception as e:
-        logger.error(f"❌ Error rendering flex template: {e}", exc_info=True)
+        logger.error(f"[ERROR] Error rendering flex template: {e}", exc_info=True)
         return flex_template
 
 async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
     """Send slip verification result using template"""
     try:
         # Log input parameters
-        logger.info(f"📤 Sending slip result")
-        logger.info(f"👤 User ID: {user_id}")
-        logger.info(f"🎯 Template ID: {slip_template_id}")
-        logger.info(f"📊 Channel ID: {channel_id}")
-        logger.info(f"✅ Result status: {result.get('status')}")
+        logger.info(f" Sending slip result")
+        logger.info(f" User ID: {user_id}")
+        logger.info(f" Template ID: {slip_template_id}")
+        logger.info(f" Channel ID: {channel_id}")
+        logger.info(f"[OK] Result status: {result.get('status')}")
         
         # Validate inputs
         if not user_id:
-            logger.error("❌ User ID is empty")
+            logger.error("[ERROR] User ID is empty")
             return
         
         if not result:
-            logger.error("❌ Result is empty")
+            logger.error("[ERROR] Result is empty")
             return
         
         if not result.get("status"):
-            logger.error("❌ Result status is missing")
+            logger.error("[ERROR] Result status is missing")
             return
         url = "https://api.line.me/v2/bot/message/push"
         headers = {
@@ -1960,24 +2186,24 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
                 from bson import ObjectId
                 template = app.state.slip_template_model.get_template_by_id(slip_template_id)
                 if template:
-                    logger.info(f"🎯 Using selected template: {template.get('template_name')}")
-                    logger.info(f"📋 Template type: {template.get('template_type')}")
+                    logger.info(f" Using selected template: {template.get('template_name')}")
+                    logger.info(f" Template type: {template.get('template_type')}")
                 else:
-                    logger.warning(f"⚠️ Template not found for ID: {slip_template_id}")
+                    logger.warning(f"[WARN] Template not found for ID: {slip_template_id}")
             except Exception as e:
-                logger.warning(f"⚠️ Could not get selected template: {e}")
+                logger.warning(f"[WARN] Could not get selected template: {e}")
         
         # Fallback to default template
         if not template and channel_id:
             try:
                 template = app.state.slip_template_model.get_default_template(channel_id)
                 if template:
-                    logger.info(f"📋 Using default template: {template.get('template_name')}")
-                    logger.info(f"📋 Template type: {template.get('template_type')}")
+                    logger.info(f" Using default template: {template.get('template_name')}")
+                    logger.info(f" Template type: {template.get('template_type')}")
                 else:
-                    logger.warning(f"⚠️ No default template found for channel: {channel_id}")
+                    logger.warning(f"[WARN] No default template found for channel: {channel_id}")
             except Exception as e:
-                logger.warning(f"⚠️ Could not get default template: {e}")
+                logger.warning(f"[WARN] Could not get default template: {e}")
         
         if result.get("status") in ["success", "duplicate"]:
             # Use template if available
@@ -1992,7 +2218,7 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
                     
                     # Add duplicate warning if needed
                     if result.get("status") == "duplicate":
-                        warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว"
+                        warning_text = "[WARN] คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว"
                         messages.insert(0, {"type": "text", "text": warning_text})
                 else:
                     # Use flex message template
@@ -2023,17 +2249,17 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         
         # Validate messages
         if not messages:
-            logger.warning("⚠️ No messages generated, using fallback")
+            logger.warning("[WARN] No messages generated, using fallback")
             # Fallback to simple text message
             amount = "N/A"
             if result.get("data") and isinstance(result["data"], dict):
                 amount = result["data"].get("amount", "N/A")
             messages = [{
                 "type": "text",
-                "text": f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {amount} บาท"
+                "text": f"[OK] ตรวจสอบสลิปสำเร็จ\n จำนวน: {amount} บาท"
             }]
         
-        logger.info(f"💬 Sending {len(messages)} message(s)")
+        logger.info(f" Sending {len(messages)} message(s)")
         
         data = {
             "to": user_id,
@@ -2042,22 +2268,22 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, headers=headers, json=data)
-            logger.info(f"📡 LINE API response status: {response.status_code}")
+            logger.info(f" LINE API response status: {response.status_code}")
             
             if response.status_code != 200:
-                logger.error(f"❌ LINE API error: {response.text}")
-                logger.error(f"📊 Request data: {data}")
+                logger.error(f"[ERROR] LINE API error: {response.text}")
+                logger.error(f" Request data: {data}")
             else:
-                logger.info("✅ Slip result sent successfully")
-                logger.info(f"📊 Response: {response.text}")
+                logger.info("[OK] Slip result sent successfully")
+                logger.info(f" Response: {response.text}")
                 
     except Exception as e:
-        logger.error(f"❌ Error sending slip result: {e}")
-        logger.error(f"📊 User ID: {user_id}")
-        logger.error(f"📊 Result: {result}")
-        logger.error(f"📊 Template ID: {slip_template_id}")
+        logger.error(f"[ERROR] Error sending slip result: {e}")
+        logger.error(f" User ID: {user_id}")
+        logger.error(f" Result: {result}")
+        logger.error(f" Template ID: {slip_template_id}")
         import traceback
-        logger.error(f"📊 Traceback: {traceback.format_exc()}")
+        logger.error(f" Traceback: {traceback.format_exc()}")
 
 
 # ==================== Slip Template Routes ====================
@@ -2097,11 +2323,11 @@ async def slip_template_manager(request: Request, account_id: str = None):
     # Force refresh if no templates found
     templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
     if not templates_list:
-        logger.info(f"🔄 No templates found, force initializing for channel {account['channel_id']}")
+        logger.info(f" No templates found, force initializing for channel {account['channel_id']}")
         app.state.slip_template_model.init_default_templates(account["channel_id"], force=True)
         templates_list = app.state.slip_template_model.get_templates_by_channel(account["channel_id"])
     else:
-        logger.info(f"✅ Found {len(templates_list)} existing templates")
+        logger.info(f"[OK] Found {len(templates_list)} existing templates")
     
     # Get current selected template from account settings
     current_template_id = account.get("settings", {}).get("slip_template_id", "")
@@ -2118,8 +2344,8 @@ async def slip_template_manager(request: Request, account_id: str = None):
         if "updated_at" in template and template["updated_at"]:
             template["updated_at"] = template["updated_at"].isoformat()
     
-    logger.info(f"📋 Template selector - Account: {account_id}, Current template: {current_template_id}")
-    logger.info(f"📋 Found {len(templates_list)} templates")
+    logger.info(f" Template selector - Account: {account_id}, Current template: {current_template_id}")
+    logger.info(f" Found {len(templates_list)} templates")
     
     # Use premium template selector
     return templates.TemplateResponse("settings/slip_template_selector_premium.html", {
@@ -2180,9 +2406,9 @@ async def create_slip_template(request: Request, account_id: str):
                 with open(premium_templates_path, 'r', encoding='utf-8') as f:
                     premium_templates = json.load(f)
                     template_flex = premium_templates.get(data.get("template_type"))
-                    logger.info(f"✅ Loaded premium template: {data.get('template_type')}")
+                    logger.info(f"[OK] Loaded premium template: {data.get('template_type')}")
             except Exception as e:
-                logger.error(f"❌ Error loading premium template: {e}")
+                logger.error(f"[ERROR] Error loading premium template: {e}")
         
         template_id = app.state.slip_template_model.create_template(
             channel_id=account["channel_id"],
@@ -2277,8 +2503,8 @@ async def set_default_slip_template(request: Request, account_id: str, template_
             )
             
             if update_success:
-                logger.info(f"✅ Set default template {template_id} for account {account_id}")
-                logger.info(f"✅ Updated account settings with slip_template_id: {template_id}")
+                logger.info(f"[OK] Set default template {template_id} for account {account_id}")
+                logger.info(f"[OK] Updated account settings with slip_template_id: {template_id}")
                 
                 await manager.broadcast({
                     "type": "success",
@@ -2286,7 +2512,7 @@ async def set_default_slip_template(request: Request, account_id: str, template_
                 })
                 return {"success": True, "message": "ตั้งเป็น Template เริ่มต้นสำเร็จ"}
             else:
-                logger.error(f"❌ Failed to update account settings for {account_id}")
+                logger.error(f"[ERROR] Failed to update account settings for {account_id}")
                 return JSONResponse(
                     status_code=500,
                     content={"success": False, "message": "ไม่สามารถอัปเดตการตั้งค่าบัญชีได้"}
@@ -2329,7 +2555,7 @@ async def get_slip_templates_list(request: Request, account_id: str):
             try:
                 current_template_id = str(current_template_id)
             except Exception as convert_error:
-                logger.warning(f"⚠️ Unable to convert slip_template_id to string: {convert_error}")
+                logger.warning(f"[WARN] Unable to convert slip_template_id to string: {convert_error}")
                 current_template_id = ""
         
         # Format templates for frontend with correct field names
@@ -2346,7 +2572,7 @@ async def get_slip_templates_list(request: Request, account_id: str):
                 "is_selected": template_id == current_template_id
             })
         
-        logger.info(f"📋 Returning {len(formatted_templates)} templates, current selected: {current_template_id}")
+        logger.info(f" Returning {len(formatted_templates)} templates, current selected: {current_template_id}")
         
         return {
             "success": True,
@@ -2560,6 +2786,85 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str, lim
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อความ"}
+        )
+
+@app.post("/api/chat-messages/{account_id}/send")
+async def send_chat_message(request: Request, account_id: str):
+    """Send message to LINE user from dashboard"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        line_user_id = data.get("user_id")
+        message_text = data.get("message", "").strip()
+        
+        if not line_user_id or not message_text:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "กรุณาระบุผู้รับและข้อความ"}
+            )
+        
+        # Send via LINE Bot API
+        import requests
+        headers = {
+            "Authorization": f"Bearer {account.get('channel_access_token')}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "to": line_user_id,
+            "messages": [{
+                "type": "text",
+                "text": message_text
+            }]
+        }
+        
+        response = requests.post(
+            "https://api.line.me/v2/bot/message/push",
+            headers=headers,
+            json=payload
+        )
+        
+        if response.status_code == 200:
+            # Save to database
+            app.state.chat_message_model.save_message(
+                account_id=account_id,
+                user_id=line_user_id,
+                message_type="text",
+                text=message_text,
+                sender="bot",
+                timestamp=datetime.now()
+            )
+            
+            # Broadcast via WebSocket
+            await manager.broadcast({
+                "type": "new_message",
+                "account_id": account_id,
+                "user_id": line_user_id,
+                "message": message_text
+            })
+            
+            return {"success": True, "message": "ส่งข้อความสำเร็จ"}
+        else:
+            logger.error(f"LINE API error: {response.status_code} - {response.text}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"เกิดข้อผิดพลาดในการส่งข้อความ: {response.text}"}
+            )
+    except Exception as e:
+        logger.error(f"Error sending chat message: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการส่งข้อความ"}
         )
 
 @app.get("/api/line-image/{account_id}/{message_id}")

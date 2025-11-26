@@ -11,7 +11,7 @@ from dotenv import load_dotenv, find_dotenv
 env_file = find_dotenv()
 if env_file:
     load_dotenv(env_file, override=True)
-    print(f"✅ Settings: Loaded .env from {env_file}")
+    print(f"[OK] Settings: Loaded .env from {env_file}")
 else:
     # ลองหาเองในหลายๆ ที่
     possible_paths = [
@@ -24,10 +24,10 @@ else:
     for path in possible_paths:
         if path.exists():
             load_dotenv(path, override=True)
-            print(f"✅ Settings: Loaded .env from {path}")
+            print(f"[OK] Settings: Loaded .env from {path}")
             break
     else:
-        print("⚠️ Settings: No .env file found")
+        print("[WARN] Settings: No .env file found")
         load_dotenv()  # ลอง load จาก default location
 
 class Settings:
@@ -63,9 +63,9 @@ class Settings:
     @classmethod
     def validate(cls) -> bool:
         """Validate required settings"""
-        print(f"🔍 Validating settings...")
-        print(f"🔍 MONGODB_URI: {'✅ Set' if cls.MONGODB_URI else '❌ NOT SET'}")
-        print(f"🔍 MONGODB_DATABASE: {cls.MONGODB_DATABASE}")
+        print(f"[DEBUG] Validating settings...")
+        print(f"[DEBUG] MONGODB_URI: {'[OK] Set' if cls.MONGODB_URI else '[ERROR] NOT SET'}")
+        print(f"[DEBUG] MONGODB_DATABASE: {cls.MONGODB_DATABASE}")
         
         if not cls.MONGODB_URI:
             raise ValueError("MONGODB_URI is required")
@@ -77,7 +77,7 @@ class Settings:
         print("=" * 50)
         print("Configuration Status:")
         print("=" * 50)
-        print(f"MONGODB_URI: {'✅ Set' if cls.MONGODB_URI else '❌ Not set'}")
+        print(f"MONGODB_URI: {'[OK] Set' if cls.MONGODB_URI else '[ERROR] Not set'}")
         print(f"MONGODB_DATABASE: {cls.MONGODB_DATABASE}")
         print(f"HOST: {cls.HOST}")
         print(f"PORT: {cls.PORT}")

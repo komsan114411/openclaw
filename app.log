@@ -1,0 +1,89 @@
+2025-11-26 02:30:34,518 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 02:30:34,660 - main_app - INFO - 🚀 Starting server on 0.0.0.0:8000
+2025-11-26 02:30:34,734 - main_app - INFO - 🚀 Starting LINE OA Management System...
+2025-11-26 02:30:34,739 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 02:30:35,853 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 02:30:35,853 - main_app - INFO - ✅ Database initialized
+2025-11-26 02:30:35,977 - user_model - INFO - ✅ User indexes created
+2025-11-26 02:30:36,213 - session_model - INFO - ✅ Session indexes created
+2025-11-26 02:30:36,393 - line_account_model - INFO - ✅ LINE Account indexes created
+2025-11-26 02:30:37,127 - bank_account_model - INFO - ✅ Bank Account indexes created
+2025-11-26 02:30:37,434 - main_app - INFO - ✅ Models initialized
+2025-11-26 02:30:37,436 - main_app - INFO - ✅ System ready!
+2025-11-26 02:33:01,927 - user_model - WARNING - Invalid password for user: admin
+2025-11-26 02:33:26,180 - user_model - WARNING - User not found: adminadmin
+2025-11-26 02:38:51,649 - user_model - INFO - ✅ User authenticated: admin
+2025-11-26 02:38:51,700 - session_model - INFO - ✅ Session created for user: admin
+2025-11-26 02:43:00,466 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 02:43:00,520 - main_app - INFO -  Starting server on 0.0.0.0:8000
+2025-11-26 02:43:00,564 - main_app - INFO -  Starting LINE OA Management System...
+2025-11-26 02:43:00,564 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 02:43:01,724 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 02:43:01,724 - main_app - INFO - [OK] Database initialized
+2025-11-26 02:43:01,846 - user_model - INFO - ✅ User indexes created
+2025-11-26 02:43:02,111 - session_model - INFO - ✅ Session indexes created
+2025-11-26 02:43:02,292 - line_account_model - INFO - ✅ LINE Account indexes created
+2025-11-26 02:43:03,039 - bank_account_model - INFO - ✅ Bank Account indexes created
+2025-11-26 02:43:03,359 - main_app - INFO - [OK] Models initialized
+2025-11-26 02:43:03,360 - main_app - INFO - [OK] System ready!
+2025-11-26 02:43:03,361 - main_app - INFO -  Shutting down...
+2025-11-26 02:43:26,572 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 02:43:26,652 - main_app - INFO -  Starting server on 0.0.0.0:8000
+2025-11-26 02:43:26,716 - main_app - INFO -  Starting LINE OA Management System...
+2025-11-26 02:43:26,716 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 02:43:27,873 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 02:43:27,873 - main_app - INFO - [OK] Database initialized
+2025-11-26 02:43:27,993 - user_model - INFO - ✅ User indexes created
+2025-11-26 02:43:28,224 - session_model - INFO - ✅ Session indexes created
+2025-11-26 02:43:28,401 - line_account_model - INFO - ✅ LINE Account indexes created
+2025-11-26 02:43:29,118 - bank_account_model - INFO - ✅ Bank Account indexes created
+2025-11-26 02:43:29,427 - main_app - INFO - [OK] Models initialized
+2025-11-26 02:43:29,427 - main_app - INFO - [OK] System ready!
+2025-11-26 02:44:38,772 - user_model - WARNING - Invalid password for user: admin
+2025-11-26 02:45:42,240 - user_model - INFO - ✅ User authenticated: admin
+2025-11-26 02:45:42,305 - session_model - INFO - ✅ Session created for user: admin
+2025-11-26 02:49:28,550 - main_app - ERROR - Error testing LINE account: 'LineAccount' object has no attribute 'get_account'
+2025-11-26 02:49:35,132 - main_app - ERROR - Error testing LINE account: 'LineAccount' object has no attribute 'get_account'
+2025-11-26 02:49:40,983 - main_app - INFO -  WebSocket connected. Total: 1
+2025-11-26 02:51:20,172 - main_app - INFO -  WebSocket disconnected. Total: 0
+2025-11-26 07:26:29,069 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\limitrack\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\limitrack\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2025-11-26 11:07:53,525 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 11:07:53,644 - main_app - INFO -  Starting server on 0.0.0.0:8000
+2025-11-26 11:07:53,727 - main_app - INFO -  Starting LINE OA Management System...
+2025-11-26 11:07:53,728 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 11:07:55,386 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 11:07:55,387 - main_app - INFO - [OK] Database initialized
+2025-11-26 11:07:55,507 - user_model - INFO - ✅ User indexes created
+2025-11-26 11:07:55,736 - session_model - INFO - ✅ Session indexes created
+2025-11-26 11:07:55,917 - line_account_model - INFO - ✅ LINE Account indexes created
+2025-11-26 11:07:56,642 - bank_account_model - INFO - ✅ Bank Account indexes created
+2025-11-26 11:07:56,937 - main_app - INFO - [OK] Models initialized
+2025-11-26 11:07:56,937 - main_app - INFO - [OK] System ready!
+2025-11-26 13:51:05,597 - asyncio - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\limitrack\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\limitrack\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2025-11-26 14:42:35,944 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 14:42:36,039 - main_app - INFO -  Starting server on 0.0.0.0:8000
+2025-11-26 14:42:36,104 - main_app - INFO -  Starting LINE OA Management System...
+2025-11-26 14:42:36,104 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 14:42:37,433 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 14:42:37,433 - main_app - INFO - [OK] Database initialized
+2025-11-26 14:42:37,554 - user_model - INFO - ✅ User indexes created
+2025-11-26 14:42:37,781 - session_model - INFO - ✅ Session indexes created
+2025-11-26 14:42:37,965 - line_account_model - INFO - ✅ LINE Account indexes created
+2025-11-26 14:42:38,706 - bank_account_model - INFO - ✅ Bank Account indexes created
+2025-11-26 14:42:39,015 - main_app - INFO - [OK] Models initialized
+2025-11-26 14:42:39,015 - main_app - INFO - [OK] System ready!
+2025-11-26 14:42:39,016 - main_app - INFO -  Shutting down...

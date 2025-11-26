@@ -16,7 +16,7 @@ from dotenv import load_dotenv, find_dotenv
 env_file = find_dotenv()
 if env_file:
     load_dotenv(env_file)
-    print(f"✅ Loaded .env from: {env_file}")
+    print(f"[OK] Loaded .env from: {env_file}")
 else:
     # ลองหาเองในหลายๆ ที่
     possible_paths = [
@@ -29,10 +29,10 @@ else:
     for path in possible_paths:
         if path.exists():
             load_dotenv(path)
-            print(f"✅ Loaded .env from: {path}")
+            print(f"[OK] Loaded .env from: {path}")
             break
     else:
-        print("⚠️ No .env file found")
+        print("[WARN] No .env file found")
 
 logger = logging.getLogger("database")
 
@@ -53,17 +53,17 @@ class Database:
             mongodb_uri = os.getenv('MONGODB_URI', '').strip()
             
             # Debug: แสดงว่ามี URI หรือไม่
-            print(f"🔍 MongoDB URI check: {'Found' if mongodb_uri else 'NOT FOUND'}")
-            print(f"🔍 URI length: {len(mongodb_uri) if mongodb_uri else 0}")
+            print(f"[DEBUG] MongoDB URI check: {'Found' if mongodb_uri else 'NOT FOUND'}")
+            print(f"[DEBUG] URI length: {len(mongodb_uri) if mongodb_uri else 0}")
             
             # ถ้ายังไม่มี ลองใช้จาก settings (สำหรับ local)
             if not mongodb_uri:
                 try:
                     from config import settings
                     mongodb_uri = settings.MONGODB_URI
-                    print(f"🔍 Loaded URI from settings module")
+                    print(f"[DEBUG] Loaded URI from settings module")
                 except Exception as e:
-                    print(f"⚠️ Cannot import settings: {e}")
+                    print(f"[WARN] Cannot import settings: {e}")
             
             # ตรวจสอบว่ามี URI หรือไม่
             if not mongodb_uri:
@@ -101,12 +101,12 @@ class Database:
             self.db = self.client[db_name]
             self.async_db = self.async_client[db_name]
             
-            logger.info(f"✅ MongoDB connected successfully (database: {db_name})")
-            print(f"✅ MongoDB connected successfully (database: {db_name})")
+            logger.info(f"[OK] MongoDB connected successfully (database: {db_name})")
+            print(f"[OK] MongoDB connected successfully (database: {db_name})")
             
         except Exception as e:
-            logger.error(f"❌ MongoDB connection failed: {e}")
-            print(f"❌ MongoDB connection failed: {e}")
+            logger.error(f"[ERROR] MongoDB connection failed: {e}")
+            print(f"[ERROR] MongoDB connection failed: {e}")
             raise
     
     def get_db(self):
@@ -124,9 +124,9 @@ class Database:
                 self.client.close()
             if self.async_client:
                 self.async_client.close()
-            logger.info("✅ Database connections closed")
+
         except Exception as e:
-            logger.error(f"❌ Error closing database connections: {e}")
+            logger.error(f"[ERROR] Error closing database connections: {e}")
     
     def test_connection(self) -> dict:
         """Test database connection"""
@@ -135,13 +135,13 @@ class Database:
             return {
                 "status": "connected",
                 "type": "MongoDB",
-                "message": "✅ Database connection is healthy"
+                "message": "[OK] Database connection is healthy"
             }
         except Exception as e:
             return {
                 "status": "error",
                 "type": "MongoDB",
-                "message": f"❌ Database connection failed: {str(e)}"
+                "message": f"[ERROR] Database connection failed: {str(e)}"
             }
 
 # Global database instance

@@ -56,6 +56,7 @@
             opacity: 0;
             transform: translateY(30px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -174,7 +175,8 @@
                     <tr>
                         <td>
                             <div class="d-flex align-items-center gap-sm">
-                                <div style="width: 32px; height: 32px; background: var(--primary-light); color: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                                <div
+                                    style="width: 32px; height: 32px; background: var(--primary-light); color: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">
                                     {{ user_item.username[0].upper() }}
                                 </div>
                                 <span class="font-weight-600">{{ user_item.username }}</span>
@@ -206,15 +208,30 @@
                         </td>
                         <td>{{ user_item.created_at.strftime('%d/%m/%Y') if user_item.created_at else '-' }}</td>
                         <td>
-                            {% if user_item.is_active %}
-                            <button class="btn-action btn-delete" onclick="deleteUser('{{ user_item._id }}', '{{ user_item.username }}')">
-                                <i class="fas fa-trash"></i> ลบ
-                            </button>
-                            {% else %}
-                            <button class="btn-action btn-success" onclick="restoreUser('{{ user_item._id }}', '{{ user_item.username }}')">
-                                <i class="fas fa-undo"></i> กู้คืน
-                            </button>
-                            {% endif %}
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                {% if user_item.is_active %}
+                                <button class="btn-action" style="background: var(--info-color); color: white;"
+                                    onclick="editUser('{{ user_item._id }}', '{{ user_item.username }}', '{{ user_item.email or '' }}', '{{ user_item.full_name or '' }}', '{{ user_item.role }}')"
+                                    title="แก้ไขข้อมูล">
+                                    <i class="fas fa-edit"></i> แก้ไข
+                                </button>
+                                <button class="btn-action" style="background: var(--warning-color); color: white;"
+                                    onclick="showChangePasswordModal('{{ user_item._id }}', '{{  user_item.username }}')"
+                                    title="เปลี่ยนรหัสผ่าน">
+                                    <i class="fas fa-key"></i> รหัสผ่าน
+                                </button>
+                                <button class="btn-action btn-delete"
+                                    onclick="deleteUser('{{ user_item._id }}', '{{ user_item.username }}')"
+                                    title="ลบผู้ใช้">
+                                    <i class="fas fa-trash"></i> ลบ
+                                </button>
+                                {% else %}
+                                <button class="btn-action btn-success"
+                                    onclick="restoreUser('{{ user_item._id }}', '{{ user_item.username }}')">
+                                    <i class="fas fa-undo"></i> กู้คืน
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -262,6 +279,73 @@
         </form>
     </div>
 </div>
+
+<!-- Edit User Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">แก้ไขข้อมูลผู้ใช้</h2>
+            <button class="btn-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editUserForm">
+            <input type="hidden" id="edit_user_id">
+            <div class="form-group">
+                <label class="form-label">ชื่อผู้ใช้</label>
+                <input type="text" class="form-control" id="edit_username" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">ชื่อ-นามสกุล</label>
+                <input type="text" class="form-control" id="edit_full_name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">อีเมล</label>
+                <input type="email" class="form-control" id="edit_email">
+            </div>
+            <div class="form-group">
+                <label class="form-label">บทบาท</label>
+                <select class="form-select" id="edit_role">
+                    <option value="user">ผู้ใช้</option>
+                    <option value="admin">ผู้ดูแลระบบ</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-save"></i>
+                <span>บันทึกการแก้ไข</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">เปลี่ยนรหัสผ่าน</h2>
+            <button class="btn-close" onclick="closeChangePasswordModal()">&times;</button>
+        </div>
+        <form id="changePasswordForm">
+            <input type="hidden" id="change_user_id">
+            <div class="form-group">
+                <label class="form-label">ผู้ใช้</label>
+                <input type="text" class="form-control" id="change_username" disabled>
+            </div>
+            <div class="form-group">
+                <label class="form-label">รหัสผ่านใหม่</label>
+                <input type="password" class="form-control" id="new_password" required minlength="6"
+                    placeholder="อย่างน้อย 6 ตัวอักษร">
+            </div>
+            <div class="form-group">
+                <label class="form-label">ยืนยันรหัสผ่านใหม่</label>
+                <input type="password" class="form-control" id="confirm_password" required minlength="6"
+                    placeholder="กรอกรหัสผ่านอีกครั้ง">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-key"></i>
+                <span>เปลี่ยนรหัสผ่าน</span>
+            </button>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -298,7 +382,7 @@
 
     document.getElementById('createUserForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const data = {
             username: document.getElementById('username').value,
             password: document.getElementById('password').value,
@@ -378,5 +462,122 @@
             showAlert('เกิดข้อผิดพลาดในการกู้คืนผู้ใช้', 'danger');
         }
     }
+
+    // Edit User Functions
+    function editUser(userId, username, email, fullName, role) {
+        document.getElementById('edit_user_id').value = userId;
+        document.getElementById('edit_username').value = username;
+        document.getElementById('edit_email').value = email;
+        document.getElementById('edit_full_name').value = fullName;
+        document.getElementById('edit_role').value = role;
+        document.getElementById('editModal').classList.add('show');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('show');
+        document.getElementById('editUserForm').reset();
+    }
+
+    // Close edit modal when clicking outside
+    document.getElementById('editModal').addEventListener('click', (e) => {
+        if (e.target.id === 'editModal') {
+            closeEditModal();
+        }
+    });
+
+    document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const userId = document.getElementById('edit_user_id').value;
+        const data = {
+            email: document.getElementById('edit_email').value || null,
+            full_name: document.getElementById('edit_full_name').value || null,
+            role: document.getElementById('edit_role').value
+        };
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('อัปเดตข้อมูลผู้ใช้สำเร็จ', 'success');
+                closeEditModal();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert(result.message || 'เกิดข้อผิดพลาด', 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้', 'danger');
+        }
+    });
+
+    // Change Password Functions
+    function showChangePasswordModal(userId, username) {
+        document.getElementById('change_user_id').value = userId;
+        document.getElementById('change_username').value = username;
+        document.getElementById('changePasswordModal').classList.add('show');
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.remove('show');
+        document.getElementById('changePasswordForm').reset();
+    }
+
+    // Close change password modal when clicking outside
+    document.getElementById('changePasswordModal').addEventListener('click', (e) => {
+        if (e.target.id === 'changePasswordModal') {
+            closeChangePasswordModal();
+        }
+    });
+
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const userId = document.getElementById('change_user_id').value;
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        // Validate password match
+        if (newPassword !== confirmPassword) {
+            showAlert('รหัสผ่านไม่ตรงกัน', 'danger');
+            return;
+        }
+
+        const data = {
+            new_password: newPassword,
+            confirm_password: confirmPassword
+        };
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('เปลี่ยนรหัสผ่านสำเร็จ', 'success');
+                closeChangePasswordModal();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert(result.message || 'เกิดข้อผิดพลาด', 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน', 'danger');
+        }
+    });
 </script>
 {% endblock %}
