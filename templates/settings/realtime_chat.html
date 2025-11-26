@@ -3,7 +3,11 @@
 {% block title %}ประวัติการแชท - LINE OA Management{% endblock %}
 
 {% block sidebar_nav %}
+{% if user.role == 'admin' %}
 {% include 'includes/admin_menu.html' %}
+{% else %}
+{% include 'includes/standard_menu.html' %}
+{% endif %}
 {% endblock %}
 
 {% block page_title %}ประวัติการแชท{% endblock %}
@@ -788,98 +792,67 @@
     }
 
     // Render messages
+    // Render messages
     function renderMessages(messages) {
         const chatMessages = document.getElementById('chatMessages');
-        if (messages.length === 0) {
+        if (!messages || messages.length === 0) {
             chatMessages.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-inbox"></i>
                     <p>ยังไม่มีข้อความ</p>
                 </div>
             `;
-            // Send message
-            async function sendMessage() {
-                const input = document.getElementById('messageInput');
-                const message = input.value.trim();
-                const sendBtn = document.getElementById('sendButton');
+            return;
+        }
 
-                if (!message || !currentAccountId || !currentUserId) return;
+        chatMessages.innerHTML = ''; // Clear current
 
-                // Disable input while sending
-                input.disabled = true;
-                sendBtn.disabled = true;
-                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>ส่ง...</span>';
+        // Sort messages by timestamp (oldest first)
+        messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                try {
-                    const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            user_id: currentUserId,
-                            message: message
-                        })
-                    });
+        messages.forEach(msg => {
+            appendMessage(msg, false); // false = don't scroll yet
+        });
 
-                    const data = await response.json();
+        scrollToBottom();
+    }
 
-                    if (data.success) {
-                        // Clear input
-                        input.value = '';
+    // Append single message
+    function appendMessage(msg, shouldScroll = true) {
+        const chatMessages = document.getElementById('chatMessages');
+        const isBot = msg.sender === 'bot';
+        const time = formatTime(msg.timestamp);
+        // Determine avatar: Bot gets 'A' (Admin) or 'B' (Bot), User gets from header
+        const initial = isBot ? 'A' : (document.getElementById('chatHeaderAvatar').textContent || 'U');
 
-                        // Add message to chat immediately (optimistic update)
-                        appendMessage({
-                            sender: 'bot',
-                            text: message,
-                            timestamp: new Date().toISOString(),
-                            message_type: 'text'
-                        });
-
-                    } else {
-                        alert('ส่งข้อความไม่สำเร็จ: ' + data.message);
-                    }
-                } catch (error) {
-                    console.error('Error sending message:', error);
-                    alert('เกิดข้อผิดพลาดในการส่งข้อความ');
-                } finally {
-                    input.disabled = false;
-                    sendBtn.disabled = false;
-                    sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>ส่ง</span>';
-                    input.focus();
-                }
+        let contentHtml = '';
+        if (msg.message_type === 'image') {
+            // Handle image URL
+            let imageUrl = msg.image_url || msg.media_url;
+            if (!imageUrl && msg.message_id) {
+                imageUrl = `/api/line-image/${currentAccountId}/${msg.message_id}`;
             }
 
-            // Append single message
-            function appendMessage(msg) {
-                const chatMessages = document.getElementById('chatMessages');
-                const isBot = msg.sender === 'bot';
-                const time = formatTime(msg.timestamp);
-                const initial = isBot ? 'A' : (document.getElementById('chatHeaderAvatar').textContent || 'U');
-
-                let contentHtml = '';
-                if (msg.message_type === 'image') {
-                    const imageUrl = msg.image_url || `/api/line-image/${currentAccountId}/${msg.message_id}`;
-                    contentHtml = `
+            contentHtml = `
                 <div class="message-image" onclick="window.open('${imageUrl}', '_blank')">
-                    <img src="${imageUrl}" alt="Image" loading="lazy">
+                    <img src="${imageUrl}" alt="Image" loading="lazy" onerror="this.style.display='none'; this.parentElement.innerHTML='[รูปภาพไม่สามารถโหลดได้]'">
                 </div>
             `;
-                } else if (msg.message_type === 'flex') {
-                    contentHtml = `
+        } else if (msg.message_type === 'flex') {
+            contentHtml = `
                 <div class="message-bubble">
                     <div class="message-text"><em>[Flex Message]</em><br>ดูตัวอย่างใน LINE</div>
                 </div>
             `;
-                } else {
-                    contentHtml = `
+        } else {
+            contentHtml = `
                 <div class="message-bubble">
-                    <div class="message-text">${escapeHtml(msg.text || '')}</div>
+                    <div class="message-text">${escapeHtml(msg.text || msg.content || '')}</div>
                 </div>
             `;
-                }
+        }
 
-                const html = `
+        const html = `
             <div class="message ${isBot ? 'bot' : 'user'}">
                 <div class="message-avatar">${initial}</div>
                 <div class="message-content">
@@ -889,141 +862,130 @@
             </div>
         `;
 
-                // Remove empty state if exists
-                const emptyState = chatMessages.querySelector('.empty-state');
-                if (emptyState) emptyState.remove();
+        // Remove empty state if exists
+        const emptyState = chatMessages.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
 
-                chatMessages.insertAdjacentHTML('beforeend', html);
-                scrollToBottom();
-            }
+        chatMessages.insertAdjacentHTML('beforeend', html);
 
-            // Handle new message from WebSocket
-            function handleNewMessage(data) {
-                if (data.account_id === currentAccountId && data.user_id === currentUserId) {
-                    appendMessage({
-                        sender: 'bot', // Assuming broadcast is for sent messages
-                        text: data.message,
-                        timestamp: new Date().toISOString(),
-                        message_type: 'text'
-                    });
-                } else if (data.account_id === currentAccountId) {
-                    // Update user list if message is from another user
-                    loadUsers();
-                }
-            }
+        if (shouldScroll) scrollToBottom();
+    }
 
-            // Helper: Format time
-            function formatTime(isoString) {
-                if (!isoString) return '';
-                const date = new Date(isoString);
-                return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-            }
+    // Send message
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        const sendBtn = document.getElementById('sendButton');
 
-            // Helper: Escape HTML
-            function escapeHtml(text) {
-                if (!text) return '';
-                return text
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#039;");
-            }
+        if (!message || !currentUserId || !currentAccountId) return;
 
-            // Helper: Scroll to bottom
-            function scrollToBottom() {
-                const chatMessages = document.getElementById('chatMessages');
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            // Search functionality
-            document.getElementById('searchUsers').addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                const filtered = allUsers.filter(u =>
-                    (u.user_name && u.user_name.toLowerCase().includes(term)) ||
-                    (u.last_message && u.last_message.toLowerCase().includes(term))
-                );
-                renderUsers(filtered);
-            });
-
-            // Enter key to send
-            document.getElementById('messageInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-
-                    return `
-<div class="message ${isUser ? 'user' : 'bot'}">
-    <div class="message-avatar">${isUser ? 'U' : 'B'}</div>
-    <div class="message-content">
-        <div class="message-bubble">
-            <p class="message-text">${escapeHtml(msg.text || '')}</p>
-        </div>
-        <div class="message-time">${time}</div>
-    </div>
-</div>
-`;
-                }).join('');
-
-            // Scroll to bottom
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Disable input while sending
+        input.disabled = true;
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         }
 
-        // Send message
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
+        try {
+            const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    message: message
+                })
+            });
 
-            if (!message || !currentUserId || !currentAccountId) return;
+            const data = await response.json();
 
-            try {
-                const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        to: currentUserId,
-                        message: message
-                    })
+            if (data.success) {
+                input.value = '';
+
+                // Optimistic update
+                appendMessage({
+                    sender: 'bot',
+                    text: message,
+                    timestamp: new Date().toISOString(),
+                    message_type: 'text'
                 });
 
-                if (response.ok) {
-                    input.value = '';
-                    loadMessages(currentUserId);
-                }
-            } catch (error) {
-                console.error('Error sending message:', error);
+            } else {
+                alert('ส่งข้อความไม่สำเร็จ: ' + data.message);
             }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('เกิดข้อผิดพลาดในการส่งข้อความ');
+        } finally {
+            input.disabled = false;
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>ส่ง</span>';
+            }
+            input.focus();
         }
+    }
 
-        // Helper functions
-        function formatTime(timestamp) {
-            if (!timestamp) return '';
-            const date = new Date(timestamp);
-            const now = new Date();
-            const diff = (now - date) / 1000 / 60; // minutes
-
-            if (diff < 1) return 'เมื่อสักครู่'; if (diff < 60) return `${Math.floor(diff)} นาทีที่แล้ว`; if (diff < 1440) return
-            `${Math.floor(diff / 60)} ชั่วโมงที่แล้ว`; return date.toLocaleDateString('th-TH', {
-                day: 'numeric', month: 'short'
+    // Handle new message from WebSocket
+    function handleNewMessage(data) {
+        if (data.account_id === currentAccountId && data.user_id === currentUserId) {
+            appendMessage({
+                sender: 'user', // WebSocket usually sends user messages
+                text: data.message,
+                timestamp: new Date().toISOString(),
+                message_type: data.message_type || 'text',
+                message_id: data.message_id
             });
-        } function escapeHtml(text) {
-            const div = document.createElement('div'); div.textContent = text; return
-            div.innerHTML;
-        } // Initialize initWebSocket(); // Enter to send
-        document.getElementById('messageInput').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+        } else if (data.account_id === currentAccountId) {
+            // Update user list if message is from another user
+            loadUsers();
+        }
+    }
 
-        // Search functionality
-        document.getElementById('searchUsers').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = allUsers.filter(user =>
-                (user.user_name || '').toLowerCase().includes(query)
-            );
-            renderUsers(filtered);
-        });
+    // Helper: Format time
+    function formatTime(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Helper: Escape HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Helper: Scroll to bottom
+    function scrollToBottom() {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Search functionality
+    document.getElementById('searchUsers').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = allUsers.filter(u =>
+            (u.user_name && u.user_name.toLowerCase().includes(term)) ||
+            (u.last_message && u.last_message.toLowerCase().includes(term))
+        );
+        renderUsers(filtered);
+    });
+
+    // Enter key to send
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Initialize
+    initWebSocket();
 </script>
 {% endblock %}

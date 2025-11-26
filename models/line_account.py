@@ -51,15 +51,29 @@ class LineAccount:
                 "owner_id": owner_id,
                 "description": description,
                 "settings": settings or {
-                    "ai_enabled": False,
-                    "ai_api_key": None,
-                    "ai_model": "gpt-3.5-turbo",
+                    # Bot Control Settings
+                    "bot_enabled": True,  # Master switch for bot
+                    
+                    # AI Chat Settings
+                    "ai_enabled": False,  # User can toggle AI on/off
+                    "ai_response_mode": "immediate",  # "immediate" or "processing"
+                    "ai_immediate_message": "กำลังประมวลผล กรุณารอสักครู่...",  # Message sent immediately
+                    "ai_custom_response": "",  # Custom message when AI is off
+                    "ai_api_key": None,  # Will be removed - use centralized
+                    "ai_model": "gpt-4-mini",  # Will be removed - use centralized
                     "ai_system_prompt": "คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์",
                     "ai_temperature": 0.7,
-                    "slip_verification_enabled": False,
-                    "slip_api_provider": "thunder",
-                    "slip_api_key": None,
-                    "slip_template_id": None,
+                    "ai_fallback_message": "ขอบคุณสำหรับข้อความของคุณ",  # When AI fails
+                    
+                    # Slip Verification Settings
+                    "slip_verification_enabled": True,  # User can toggle slip verification
+                    "slip_response_mode": "immediate",  # "immediate" or "processing"
+                    "slip_immediate_message": "ขอบคุณสำหรับสลิป กำลังตรวจสอบ...",  # Message sent immediately
+                    "slip_api_provider": "thunder",  # Will be removed - use centralized
+                    "slip_api_key": None,  # Will be removed - use centralized
+                    "slip_template_id": None,  # User selects template
+                    
+                    # General Settings
                     "auto_reply_enabled": True,
                     "webhook_enabled": True
                 },

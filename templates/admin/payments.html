@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}ตรวจสอบการชำระเงิน - Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">💰 ตรวจสอบการชำระเงิน (Payments)</h2>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" onclick="filterPayments('pending', this)">รอตรวจสอบ (Pending)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="filterPayments('verified', this)">อนุมัติแล้ว (Verified)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="filterPayments('rejected', this)">ปฏิเสธ (Rejected)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#" onclick="filterPayments(null, this)">ทั้งหมด (All)</a>
+        </li>
+    </ul>
+
+    <!-- Payments Table -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>วันที่</th>
+                            <th>ผู้ใช้</th>
+                            <th>แพ็คเกจ</th>
+                            <th>ยอดเงิน</th>
+                            <th>ประเภท</th>
+                            <th>หลักฐาน</th>
+                            <th>สถานะ</th>
+                            <th>จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsTableBody">
+                        <!-- Rows will be loaded here -->
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">หลักฐานการชำระเงิน</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center bg-dark">
+                <img src="" id="modalImage" class="img-fluid" style="max-height: 80vh;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ปฏิเสธการชำระเงิน</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rejectPaymentId">
+                <div class="mb-3">
+                    <label class="form-label">เหตุผลที่ปฏิเสธ</label>
+                    <textarea class="form-control" id="rejectReason" rows="3" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-danger" onclick="confirmReject()">ยืนยันปฏิเสธ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentFilter = 'pending';
+    let imageModal;
+    let rejectModal;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+        loadPayments();
+    });
+
+    function filterPayments(status, element) {
+        currentFilter = status;
+
+        // Update active tab
+        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        element.classList.add('active');
+
+        loadPayments();
+    }
+
+    async function loadPayments() {
+        try {
+            let url = '/api/admin/payments';
+            if (currentFilter) {
+                url += `?status_filter=${currentFilter}`;
+            }
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.success) {
+                renderPayments(data.payments);
+            } else {
+                alert('Error loading payments: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to load payments');
+        }
+    }
+
+    function renderPayments(payments) {
+        const tbody = document.getElementById('paymentsTableBody');
+        tbody.innerHTML = '';
+
+        if (payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">ไม่พบรายการ</td></tr>';
+            return;
+        }
+
+        payments.forEach(p => {
+            const date = new Date(p.created_at).toLocaleString('th-TH');
+            let statusBadge = '';
+            let actions = '';
+
+            if (p.status === 'pending') {
+                statusBadge = '<span class="badge bg-warning text-dark">รอตรวจสอบ</span>';
+                actions = `
+                <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')">
+                    <i class="bi bi-check-lg"></i>
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="openRejectModal('${p._id}')">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            `;
+            } else if (p.status === 'verified') {
+                statusBadge = '<span class="badge bg-success">อนุมัติแล้ว</span>';
+            } else {
+                statusBadge = '<span class="badge bg-danger">ปฏิเสธ</span>';
+            }
+
+            let evidence = '';
+            if (p.payment_type === 'bank_transfer' && p.slip_image) {
+                evidence = `<button class="btn btn-outline-primary btn-sm" onclick="viewImage('${p.slip_image}')"><i class="bi bi-image"></i> ดูสลิป</button>`;
+            } else if (p.payment_type === 'usdt') {
+                evidence = `<span class="text-monospace small" title="${p.transaction_hash}">${p.transaction_hash.substring(0, 10)}...</span>`;
+            }
+
+            const row = `
+            <tr>
+                <td>${date}</td>
+                <td>${p.user_id}</td>
+                <td>${p.package_id}</td> <!-- In real app, join with package name -->
+                <td>฿${p.amount.toLocaleString()}</td>
+                <td>${p.payment_type.toUpperCase()}</td>
+                <td>${evidence}</td>
+                <td>${statusBadge}</td>
+                <td>${actions}</td>
+            </tr>
+        `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function viewImage(base64) {
+        document.getElementById('modalImage').src = base64;
+        imageModal.show();
+    }
+
+    async function approvePayment(id) {
+        if (!confirm('ยืนยันการอนุมัติยอดเงินนี้?')) return;
+
+        try {
+            const response = await fetch(`/api/admin/payments/${id}/approve`, {
+                method: 'POST'
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                loadPayments();
+                alert('อนุมัติเรียบร้อย');
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to approve payment');
+        }
+    }
+
+    function openRejectModal(id) {
+        document.getElementById('rejectPaymentId').value = id;
+        document.getElementById('rejectReason').value = '';
+        rejectModal.show();
+    }
+
+    async function confirmReject() {
+        const id = document.getElementById('rejectPaymentId').value;
+        const reason = document.getElementById('rejectReason').value;
+
+        if (!reason) {
+            alert('กรุณาระบุเหตุผล');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/payments/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notes: reason })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                rejectModal.hide();
+                loadPayments();
+                alert('ปฏิเสธเรียบร้อย');
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to reject payment');
+        }
+    }
+</script>
+{% endblock %}

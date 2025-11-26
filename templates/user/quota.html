@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}โควต้าการใช้งาน - User{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">📊 โควต้าการใช้งาน (Usage Quota)</h2>
+
+    <div class="row">
+        <!-- Quota Summary Cards -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100 border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-muted mb-3">โควต้าตรวจสอบสลิป</h5>
+                    <div class="display-4 fw-bold text-primary mb-2" id="slipQuota">- / -</div>
+                    <p class="text-muted">สลิปคงเหลือ</p>
+                    <div class="progress mt-3" style="height: 10px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: 0%" id="slipProgress">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100 border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-muted mb-3">อายุการใช้งาน</h5>
+                    <div class="display-4 fw-bold text-success mb-2" id="daysRemaining">- วัน</div>
+                    <p class="text-muted" id="expireDate">หมดอายุ: -</p>
+                    <div class="progress mt-3" style="height: 10px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 0%" id="daysProgress">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription History -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">ประวัติการสมัครสมาชิก (Subscription History)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>วันที่สมัคร</th>
+                            <th>แพ็คเกจ</th>
+                            <th>ราคา</th>
+                            <th>วันหมดอายุ</th>
+                            <th>สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        loadQuota();
+        loadHistory();
+    });
+
+    async function loadQuota() {
+        try {
+            const response = await fetch('/api/user/quota');
+            const data = await response.json();
+
+            if (data.success) {
+                const q = data.quota;
+
+                // Slip Quota
+                document.getElementById('slipQuota').innerText = `${q.remaining_slips.toLocaleString()} / ${q.total_slips.toLocaleString()}`;
+                const slipPercent = q.total_slips > 0 ? (q.remaining_slips / q.total_slips) * 100 : 0;
+                document.getElementById('slipProgress').style.width = `${slipPercent}%`;
+
+                // Days Remaining
+                document.getElementById('daysRemaining').innerText = `${q.days_remaining} วัน`;
+                if (q.expiry_date) {
+                    const expDate = new Date(q.expiry_date).toLocaleDateString('th-TH', {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                    });
+                    document.getElementById('expireDate').innerText = `หมดอายุ: ${expDate}`;
+                } else {
+                    document.getElementById('expireDate').innerText = 'ไม่มีวันหมดอายุ';
+                }
+                // For days progress, we might need total days, but API might not return it directly if accumulated.
+                // Just show full bar or maybe specific logic if needed. For now, keep it simple.
+                document.getElementById('daysProgress').style.width = '100%';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function loadHistory() {
+        try {
+            const response = await fetch('/api/user/subscriptions');
+            const data = await response.json();
+
+            if (data.success) {
+                renderHistory(data.subscriptions);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    function renderHistory(subs) {
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+
+        if (subs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">ยังไม่มีประวัติการสมัคร</td></tr>';
+            return;
+        }
+
+        subs.forEach(sub => {
+            const startDate = new Date(sub.start_date).toLocaleDateString('th-TH');
+            const endDate = new Date(sub.end_date).toLocaleDateString('th-TH');
+            const status = sub.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Expired</span>';
+
+            const row = `
+            <tr>
+                <td>${startDate}</td>
+                <td>${sub.package_name}</td>
+                <td>฿${sub.price.toLocaleString()}</td>
+                <td>${endDate}</td>
+                <td>${status}</td>
+            </tr>
+        `;
+            tbody.innerHTML += row;
+        });
+    }
+</script>
+{% endblock %}

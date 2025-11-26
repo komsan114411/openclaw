@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการแพ็คเกจ - Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>📦 จัดการแพ็คเกจ (Packages)</h2>
+        <button class="btn btn-primary" onclick="openCreateModal()">
+            <i class="bi bi-plus-lg"></i> สร้างแพ็คเกจใหม่
+        </button>
+    </div>
+
+    <!-- Packages Grid -->
+    <div class="row" id="packagesGrid">
+        <!-- Loading state -->
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="packageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">สร้างแพ็คเกจใหม่</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="packageForm">
+                    <input type="hidden" id="packageId">
+
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อแพ็คเกจ</label>
+                        <input type="text" class="form-control" id="packageName" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ราคา (บาท)</label>
+                            <input type="number" class="form-control" id="packagePrice" required min="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">จำนวนวัน</label>
+                            <input type="number" class="form-control" id="packageDuration" required min="1" value="30">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">โควต้าสลิป (จำนวนครั้ง)</label>
+                        <input type="number" class="form-control" id="packageQuota" required min="1">
+                        <div class="form-text">จำนวนสลิปที่ตรวจสอบได้ในแพ็คเกจนี้</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">รายละเอียด (Features)</label>
+                        <textarea class="form-control" id="packageFeatures" rows="3"
+                            placeholder="แยกแต่ละบรรทัดด้วยการขึ้นบรรทัดใหม่"></textarea>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="isFreeStarter">
+                        <label class="form-check-label" for="isFreeStarter">
+                            เป็นแพ็คเกจเริ่มต้นฟรี (แจกอัตโนมัติเมื่อสมัครสมาชิก)
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="savePackage()">บันทึก</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let packageModal;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        packageModal = new bootstrap.Modal(document.getElementById('packageModal'));
+        loadPackages();
+    });
+
+    async function loadPackages() {
+        try {
+            const response = await fetch('/api/admin/packages');
+            const data = await response.json();
+
+            if (data.success) {
+                renderPackages(data.packages);
+            } else {
+                alert('Error loading packages: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to load packages');
+        }
+    }
+
+    function renderPackages(packages) {
+        const grid = document.getElementById('packagesGrid');
+        grid.innerHTML = '';
+
+        if (packages.length === 0) {
+            grid.innerHTML = '<div class="col-12 text-center text-muted py-5">ยังไม่มีแพ็คเกจ</div>';
+            return;
+        }
+
+        packages.forEach(pkg => {
+            const isFree = pkg.is_free_starter ? '<span class="badge bg-success mb-2">Free Starter</span>' : '';
+            const status = pkg.is_active ? '<span class="badge bg-primary">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
+
+            const card = `
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title">${pkg.name}</h5>
+                            ${status}
+                        </div>
+                        ${isFree}
+                        <h3 class="text-primary my-3">฿${pkg.price.toLocaleString()}</h3>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check-circle text-success"></i> ${pkg.slip_quota.toLocaleString()} สลิป</li>
+                            <li><i class="bi bi-clock text-info"></i> ${pkg.duration_days} วัน</li>
+                        </ul>
+                        <hr>
+                        <p class="small text-muted">${pkg.features.join('<br>')}</p>
+                    </div>
+                    <div class="card-footer bg-white border-top-0 d-flex justify-content-end gap-2 pb-3">
+                        <button class="btn btn-outline-primary btn-sm" onclick='editPackage(${JSON.stringify(pkg)})'>
+                            <i class="bi bi-pencil"></i> แก้ไข
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deletePackage('${pkg._id}')">
+                            <i class="bi bi-trash"></i> ลบ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+            grid.innerHTML += card;
+        });
+    }
+
+    function openCreateModal() {
+        document.getElementById('modalTitle').innerText = 'สร้างแพ็คเกจใหม่';
+        document.getElementById('packageForm').reset();
+        document.getElementById('packageId').value = '';
+        packageModal.show();
+    }
+
+    function editPackage(pkg) {
+        document.getElementById('modalTitle').innerText = 'แก้ไขแพ็คเกจ';
+        document.getElementById('packageId').value = pkg._id;
+        document.getElementById('packageName').value = pkg.name;
+        document.getElementById('packagePrice').value = pkg.price;
+        document.getElementById('packageDuration').value = pkg.duration_days;
+        document.getElementById('packageQuota').value = pkg.slip_quota;
+        document.getElementById('packageFeatures').value = pkg.features.join('\n');
+        document.getElementById('isFreeStarter').checked = pkg.is_free_starter;
+        packageModal.show();
+    }
+
+    async function savePackage() {
+        const id = document.getElementById('packageId').value;
+        const data = {
+            name: document.getElementById('packageName').value,
+            price: parseFloat(document.getElementById('packagePrice').value),
+            duration_days: parseInt(document.getElementById('packageDuration').value),
+            slip_quota: parseInt(document.getElementById('packageQuota').value),
+            features: document.getElementById('packageFeatures').value.split('\n').filter(f => f.trim()),
+            is_free_starter: document.getElementById('isFreeStarter').checked
+        };
+
+        try {
+            let response;
+            if (id) {
+                response = await fetch(`/api/admin/packages/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                response = await fetch('/api/admin/packages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                packageModal.hide();
+                loadPackages();
+                alert('บันทึกเรียบร้อย');
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to save package');
+        }
+    }
+
+    async function deletePackage(id) {
+        if (!confirm('คุณแน่ใจหรือไม่ที่จะลบแพ็คเกจนี้? (การลบจะเป็นการปิดการใช้งาน)')) return;
+
+        try {
+            const response = await fetch(`/api/admin/packages/${id}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                loadPackages();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to delete package');
+        }
+    }
+</script>
+{% endblock %}

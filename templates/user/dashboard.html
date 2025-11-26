@@ -30,7 +30,7 @@
         border: 1px solid var(--dark-border);
         transition: all 0.3s ease;
     }
-    
+
     .stat-card::before {
         content: '';
         position: absolute;
@@ -45,22 +45,22 @@
         transform: translateY(-2px);
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
     }
-    
+
     .stat-card.blue::before {
         --card-color-1: #3b82f6;
         --card-color-2: #60a5fa;
     }
-    
+
     .stat-card.green::before {
         --card-color-1: #10b981;
         --card-color-2: #34d399;
     }
-    
+
     .stat-card.orange::before {
         --card-color-1: #f59e0b;
         --card-color-2: #fbbf24;
     }
-    
+
     .stat-card.red::before {
         --card-color-1: #ef4444;
         --card-color-2: #f87171;
@@ -88,22 +88,22 @@
         justify-content: center;
         font-size: 24px;
     }
-    
+
     .stat-card-icon.bg-blue {
         background: rgba(59, 130, 246, 0.1);
         color: #3b82f6;
     }
-    
+
     .stat-card-icon.bg-green {
         background: rgba(16, 185, 129, 0.1);
         color: #10b981;
     }
-    
+
     .stat-card-icon.bg-orange {
         background: rgba(245, 158, 11, 0.1);
         color: #f59e0b;
     }
-    
+
     .stat-card-icon.bg-red {
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;
@@ -258,6 +258,21 @@
                 </div>
                 <div class="quick-action-title">เปลี่ยนรหัสผ่าน</div>
                 <div class="quick-action-desc">อัพเดทรหัสผ่านของคุณ</div>
+            </a>
+            <a href="/user/packages" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <div class="quick-action-title">อัพเกรดแพ็คเกจ</div>
+                <div class="quick-action-desc">เลือกแพ็คเกจที่เหมาะสม</div>
+            </a>
+
+            <a href="/user/quota" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--purple-light); color: var(--purple-color);">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="quick-action-title">โควต้าการใช้งาน</div>
+                <div class="quick-action-desc">ตรวจสอบสลิปและวันคงเหลือ</div>
             </a>
         </div>
     </div>

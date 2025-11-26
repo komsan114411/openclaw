@@ -2,6 +2,14 @@
 
 {% block title %}เทมเพลตสลิป Premium - LINE OA Management{% endblock %}
 
+{% block sidebar_nav %}
+{% if user.role == 'admin' %}
+{% include 'includes/admin_menu.html' %}
+{% else %}
+{% include 'includes/standard_menu.html' %}
+{% endif %}
+{% endblock %}
+
 {% block extra_css %}
 <style>
     /* Modern Layout */

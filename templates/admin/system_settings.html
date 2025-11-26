@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}ตั้งค่าระบบ - Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">⚙️ ตั้งค่าระบบ (System Settings)</h2>
+
+    <div class="row">
+        <!-- API Keys Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">API Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <form id="apiSettingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Slip Verification API Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="slipApiKey" placeholder="Enter API Key">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="toggleVisibility('slipApiKey')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-muted" id="slipApiKeyPreview"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">AI Service API Key (OpenAI/Claude)</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="aiApiKey" placeholder="Enter API Key">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    onclick="toggleVisibility('aiApiKey')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-muted" id="aiApiKeyPreview"></div>
+                        </div>
+
+                        <button type="button" class="btn btn-primary" onclick="saveApiSettings()">
+                            บันทึกการตั้งค่า API
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Accounts Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">บัญชีธนาคารรับเงิน</h5>
+                    <button class="btn btn-sm btn-success" onclick="openBankModal()">
+                        <i class="bi bi-plus"></i> เพิ่มบัญชี
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="bankAccountsList" class="list-group list-group-flush">
+                        <!-- Bank accounts will be loaded here -->
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Bank Account Modal -->
+<div class="modal fade" id="bankModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">เพิ่มบัญชีธนาคาร</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bankForm">
+                    <div class="mb-3">
+                        <label class="form-label">ธนาคาร</label>
+                        <select class="form-select" id="bankName" required>
+                            <option value="kbank">กสิกรไทย (KBANK)</option>
+                            <option value="scb">ไทยพาณิชย์ (SCB)</option>
+                            <option value="bbl">กรุงเทพ (BBL)</option>
+                            <option value="ktb">กรุงไทย (KTB)</option>
+                            <option value="ttb">ทีทีบี (TTB)</option>
+                            <option value="gsb">ออมสิน (GSB)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">เลขที่บัญชี</label>
+                        <input type="text" class="form-control" id="accountNumber" required placeholder="xxx-x-xxxxx-x">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อบัญชี</label>
+                        <input type="text" class="form-control" id="accountName" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="saveBankAccount()">เพิ่มบัญชี</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let bankModal;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bankModal = new bootstrap.Modal(document.getElementById('bankModal'));
+        loadSettings();
+    });
+
+    async function loadSettings() {
+        try {
+            const response = await fetch('/api/admin/system-settings');
+            const data = await response.json();
+
+            if (data.success) {
+                const settings = data.settings;
+
+                // Show previews if keys exist
+                if (settings.slip_api_key_preview) {
+                    document.getElementById('slipApiKeyPreview').innerText = `Current: ${settings.slip_api_key_preview}`;
+                }
+                if (settings.ai_api_key_preview) {
+                    document.getElementById('aiApiKeyPreview').innerText = `Current: ${settings.ai_api_key_preview}`;
+                }
+
+                renderBankAccounts(settings.bank_accounts || []);
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    }
+
+    function renderBankAccounts(accounts) {
+        const list = document.getElementById('bankAccountsList');
+        list.innerHTML = '';
+
+        if (accounts.length === 0) {
+            list.innerHTML = '<div class="text-center text-muted py-3">ยังไม่มีบัญชีธนาคาร</div>';
+            return;
+        }
+
+        accounts.forEach((acc, index) => {
+            const item = `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">${acc.bank_name.toUpperCase()} - ${acc.account_number}</h6>
+                    <small class="text-muted">${acc.account_name}</small>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteBankAccount(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+            list.innerHTML += item;
+        });
+    }
+
+    async function saveApiSettings() {
+        const slipKey = document.getElementById('slipApiKey').value;
+        const aiKey = document.getElementById('aiApiKey').value;
+
+        const data = {};
+        if (slipKey) data.slip_api_key = slipKey;
+        if (aiKey) data.ai_api_key = aiKey;
+
+        if (Object.keys(data).length === 0) {
+            alert('กรุณากรอกข้อมูลที่ต้องการแก้ไข');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/admin/system-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                alert('บันทึกการตั้งค่าเรียบร้อย');
+                document.getElementById('slipApiKey').value = '';
+                document.getElementById('aiApiKey').value = '';
+                loadSettings();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to save settings');
+        }
+    }
+
+    function openBankModal() {
+        document.getElementById('bankForm').reset();
+        bankModal.show();
+    }
+
+    async function saveBankAccount() {
+        const data = {
+            bank_name: document.getElementById('bankName').value,
+            account_number: document.getElementById('accountNumber').value,
+            account_name: document.getElementById('accountName').value
+        };
+
+        try {
+            const response = await fetch('/api/admin/system-settings/bank-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                bankModal.hide();
+                loadSettings();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to add bank account');
+        }
+    }
+
+    async function deleteBankAccount(index) {
+        if (!confirm('ต้องการลบบัญชีนี้ใช่หรือไม่?')) return;
+
+        try {
+            const response = await fetch(`/api/admin/system-settings/bank-accounts/${index}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                loadSettings();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to delete bank account');
+        }
+    }
+
+    function toggleVisibility(id) {
+        const input = document.getElementById(id);
+        if (input.type === "password") {
+            input.type = "text";
+        } else {
+            input.type = "password";
+        }
+    }
+</script>
+{% endblock %}
