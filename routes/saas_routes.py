@@ -47,7 +47,8 @@ def register_saas_routes(app):
             package_id = app.state.package_model.create_package(
                 name=data["name"], price=float(data["price"]), slip_quota=int(data["slip_quota"]),
                 duration_days=int(data["duration_days"]), description=data.get("description", ""),
-                features=data.get("features", []), is_free_starter=data.get("is_free_starter", False)
+                features=data.get("features", []), is_free_starter=data.get("is_free_starter", False),
+                price_usdt=float(data["price_usdt"]) if data.get("price_usdt") else None
             )
             return {"success": True, "message": "Package created", "package_id": package_id}
         except Exception as e:
@@ -124,9 +125,11 @@ def register_saas_routes(app):
                 normalized_accounts.append(normalized_acc)
             
             # Get USDT wallet info
+            usdt_enabled = settings.get("usdt_enabled", True)
             network = settings.get("usdt_network", "TRC20")
             address = settings.get("usdt_wallet_address", "")
             qr_image = settings.get("usdt_qr_image", "")
+            disabled_message = settings.get("usdt_disabled_message", "งดให้บริการชำระเงินด้วย USDT ชั่วคราว")
             
             # Generate explorer URL based on network
             explorer_url = ""
@@ -139,10 +142,12 @@ def register_saas_routes(app):
                     explorer_url = f"https://bscscan.com/address/{address}"
             
             usdt_wallet = {
+                "enabled": usdt_enabled,
                 "address": address,
                 "network": network,
                 "qr_image": qr_image,
-                "explorer_url": explorer_url
+                "explorer_url": explorer_url,
+                "disabled_message": disabled_message
             }
             
             return {
@@ -207,9 +212,11 @@ def register_saas_routes(app):
             safe_settings["ai_model"] = settings.get("ai_model", "gpt-4-mini")
             
             # USDT wallet settings
+            safe_settings["usdt_enabled"] = settings.get("usdt_enabled", True)
             safe_settings["usdt_network"] = settings.get("usdt_network", "TRC20")
             safe_settings["usdt_wallet_address"] = settings.get("usdt_wallet_address", "")
             safe_settings["usdt_qr_image"] = settings.get("usdt_qr_image", "")
+            safe_settings["usdt_disabled_message"] = settings.get("usdt_disabled_message", "งดให้บริการชำระเงินด้วย USDT ชั่วคราว")
             
             # Quota exceeded template settings
             safe_settings["quota_exceeded_response_type"] = settings.get("quota_exceeded_response_type", "text")

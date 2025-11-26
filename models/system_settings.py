@@ -37,9 +37,11 @@ class SystemSettingsModel:
                 ],
                 
                 # USDT Wallet Configuration
+                "usdt_enabled": True,  # Enable/disable USDT payment
                 "usdt_wallet_address": "",
                 "usdt_network": "TRC20",  # TRC20, ERC20, etc.
                 "usdt_qr_image": "",  # Base64 or URL of QR code image
+                "usdt_disabled_message": "งดให้บริการชำระเงินด้วย USDT ชั่วคราว",
                 
                 # Quota Exceeded Response Template
                 "quota_exceeded_response_type": "text",  # "text" or "flex"

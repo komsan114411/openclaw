@@ -1755,11 +1755,13 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         logger.info(f"📄 Result message: {result.get('message', 'No message')}")
         
         # [NEW] Deduct Quota (SaaS Integration)
-        # Deduct if verification was attempted and returned a valid result (success, duplicate, or api error)
-        # We don't deduct if it was an internal system error before reaching API
-        if owner_id and result.get("status") in ["success", "duplicate", "error", "not_found", "qr_not_found"]:
+        # Only deduct quota when slip verification is successful or duplicate
+        # Do NOT deduct for errors, not_found, qr_not_found - user should not pay for failed verifications
+        if owner_id and result.get("status") in ["success", "duplicate"]:
              app.state.subscription_model.use_slip_quota(owner_id)
-             logger.info(f"📉 Deducted 1 slip quota for user {owner_id}")
+             logger.info(f"📉 Deducted 1 slip quota for user {owner_id} (status: {result.get('status')})")
+        elif owner_id:
+             logger.info(f"⏸️ No quota deducted for user {owner_id} (status: {result.get('status')} - only deduct on success/duplicate)")
 
         # ตรวจสอบและบันทึกสลิปซ้ำ
         if result.get("status") in ["success", "duplicate"]:

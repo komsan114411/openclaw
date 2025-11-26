@@ -76,6 +76,7 @@
 
                     <!-- USDT Tab -->
                     <div class="tab-pane fade" id="usdt" role="tabpanel">
+                        <div id="usdtPriceDisplay"></div>
                         <div id="usdtPaymentSection">
                             <div class="text-center mb-3">
                                 <img id="usdtQrCode" src="" class="img-thumbnail mb-2" style="max-width: 150px; display: none;">
@@ -172,31 +173,47 @@
                     }
                     
                     // Update USDT wallet settings
-                    if (data.usdt_wallet && data.usdt_wallet.address) {
-                        document.getElementById('usdtPaymentSection').style.display = 'block';
-                        document.getElementById('usdtNotConfigured').style.display = 'none';
-                        
-                        document.getElementById('usdtAddress').value = data.usdt_wallet.address;
-                        document.getElementById('usdtNetworkLabel').innerText = `Wallet Address (${data.usdt_wallet.network || 'USDT'})`;
-                        
-                        // Show QR code
-                        const qrImg = document.getElementById('usdtQrCode');
-                        if (data.usdt_wallet.qr_image) {
-                            qrImg.src = data.usdt_wallet.qr_image;
-                            qrImg.style.display = 'block';
-                        } else {
-                            // Generate QR code if not provided
-                            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${data.usdt_wallet.address}`;
-                            qrImg.style.display = 'block';
-                        }
-                        
-                        // Show explorer link
-                        if (data.usdt_wallet.explorer_url) {
-                            document.getElementById('usdtExplorerLink').innerHTML = `
-                                <a href="${data.usdt_wallet.explorer_url}" target="_blank" class="btn btn-sm btn-outline-info">
-                                    <i class="bi bi-box-arrow-up-right"></i> ดูใน Explorer
-                                </a>
+                    if (data.usdt_wallet) {
+                        if (!data.usdt_wallet.enabled) {
+                            // USDT is disabled by admin
+                            document.getElementById('usdtPaymentSection').style.display = 'none';
+                            document.getElementById('usdtNotConfigured').innerHTML = `
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <strong>${data.usdt_wallet.disabled_message || 'งดให้บริการชำระเงินด้วย USDT ชั่วคราว'}</strong>
+                                </div>
                             `;
+                            document.getElementById('usdtNotConfigured').style.display = 'block';
+                        } else if (data.usdt_wallet.address) {
+                            document.getElementById('usdtPaymentSection').style.display = 'block';
+                            document.getElementById('usdtNotConfigured').style.display = 'none';
+                            
+                            document.getElementById('usdtAddress').value = data.usdt_wallet.address;
+                            document.getElementById('usdtNetworkLabel').innerText = `Wallet Address (${data.usdt_wallet.network || 'USDT'})`;
+                            
+                            // Show QR code
+                            const qrImg = document.getElementById('usdtQrCode');
+                            if (data.usdt_wallet.qr_image) {
+                                qrImg.src = data.usdt_wallet.qr_image;
+                                qrImg.style.display = 'block';
+                            } else {
+                                // Generate QR code if not provided
+                                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${data.usdt_wallet.address}`;
+                                qrImg.style.display = 'block';
+                            }
+                            
+                            // Show explorer link
+                            if (data.usdt_wallet.explorer_url) {
+                                document.getElementById('usdtExplorerLink').innerHTML = `
+                                    <a href="${data.usdt_wallet.explorer_url}" target="_blank" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-box-arrow-up-right"></i> ดูใน Explorer
+                                    </a>
+                                `;
+                            }
+                        } else {
+                            // USDT not configured
+                            document.getElementById('usdtPaymentSection').style.display = 'none';
+                            document.getElementById('usdtNotConfigured').style.display = 'block';
                         }
                     } else {
                         // USDT not configured
@@ -264,6 +281,7 @@
                         
                         <ul class="list-unstyled text-start mb-4">
                             <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>ตรวจสอบสลิป ${pkg.slip_quota.toLocaleString()} ใบ</li>
+                            ${pkg.price_usdt ? `<li class="mb-2"><i class="bi bi-currency-bitcoin text-warning me-2"></i>หรือชำระ ${pkg.price_usdt} USDT</li>` : ''}
                             ${(pkg.features || []).map(f => `<li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>${f}</li>`).join('')}
                         </ul>
                         
@@ -278,13 +296,29 @@
         });
     }
 
+    let selectedPackage = null;
+    
     function openSubscribeModal(pkg) {
+        selectedPackage = pkg;
         document.getElementById('selectedPackageId').value = pkg._id;
         document.getElementById('modalPackageName').innerText = pkg.name;
         document.getElementById('modalPackagePrice').innerText = `฿${pkg.price.toLocaleString()}`;
         document.getElementById('slipPreview').classList.add('d-none');
         document.getElementById('slipImage').value = '';
         document.getElementById('txid').value = '';
+        
+        // Update USDT price display if available
+        const usdtPriceElem = document.getElementById('usdtPriceDisplay');
+        if (usdtPriceElem) {
+            if (pkg.price_usdt) {
+                usdtPriceElem.innerHTML = `<div class="alert alert-info text-center mb-3">
+                    <i class="bi bi-currency-bitcoin"></i> จำนวนที่ต้องชำระ: <strong>${pkg.price_usdt} USDT</strong>
+                </div>`;
+                usdtPriceElem.style.display = 'block';
+            } else {
+                usdtPriceElem.style.display = 'none';
+            }
+        }
 
         subscribeModal.show();
     }

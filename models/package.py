@@ -17,13 +17,15 @@ class PackageModel:
         slip_quota: int,
         duration_days: int,
         is_free_starter: bool = False,
-        features: Optional[list] = None
+        features: Optional[list] = None,
+        price_usdt: Optional[float] = None
     ) -> str:
         """Create a new package"""
         package = {
             "name": name,
             "description": description,
             "price": float(price),
+            "price_usdt": float(price_usdt) if price_usdt is not None else None,
             "slip_quota": int(slip_quota),
             "duration_days": int(duration_days),
             "is_active": True,
