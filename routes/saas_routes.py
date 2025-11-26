@@ -489,7 +489,7 @@ def register_saas_routes(app):
 
     @app.get("/api/admin/payments")
     async def get_payments(request: Request, status_filter: str = None):
-        '''Get payments (Admin only)'''
+        '''Get payments with user and package details (Admin only)'''
         user = app.state.auth.get_current_user(request)
         if not user or user["role"] != UserRole.ADMIN:
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -499,7 +499,43 @@ def register_saas_routes(app):
                 payments = app.state.payment_model.get_payments_by_status(status_filter)
             else:
                 payments = app.state.payment_model.get_all_payments()
-            return {"success": True, "payments": payments}
+            
+            # Enrich payments with user and package information
+            enriched_payments = []
+            for payment in payments:
+                enriched = payment.copy()
+                
+                # Get user information
+                try:
+                    user_info = app.state.user_model.get_user_by_id(payment["user_id"])
+                    if user_info:
+                        enriched["user_name"] = user_info.get("username", "Unknown")
+                        enriched["user_email"] = user_info.get("email", "")
+                    else:
+                        enriched["user_name"] = "Unknown User"
+                        enriched["user_email"] = ""
+                except Exception as e:
+                    logger.warning(f"Error fetching user info for payment {payment['_id']}: {e}")
+                    enriched["user_name"] = "Unknown User"
+                    enriched["user_email"] = ""
+                
+                # Get package information
+                try:
+                    package = app.state.package_model.get_package_by_id(payment["package_id"])
+                    if package:
+                        enriched["package_name"] = package.get("name", "Unknown Package")
+                        enriched["package_price"] = package.get("price", 0)
+                    else:
+                        enriched["package_name"] = "Unknown Package"
+                        enriched["package_price"] = 0
+                except Exception as e:
+                    logger.warning(f"Error fetching package info for payment {payment['_id']}: {e}")
+                    enriched["package_name"] = "Unknown Package"
+                    enriched["package_price"] = 0
+                
+                enriched_payments.append(enriched)
+            
+            return {"success": True, "payments": enriched_payments}
         except Exception as e:
             logger.error(f"Error fetching payments: {e}")
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})

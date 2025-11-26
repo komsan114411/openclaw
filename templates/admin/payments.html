@@ -173,33 +173,60 @@
             if (p.status === 'pending') {
                 statusBadge = '<span class="badge bg-warning text-dark">รอตรวจสอบ</span>';
                 actions = `
-                <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')">
+                <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')" title="อนุมัติ">
                     <i class="bi bi-check-lg"></i>
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="openRejectModal('${p._id}')">
+                <button class="btn btn-danger btn-sm" onclick="openRejectModal('${p._id}')" title="ปฏิเสธ">
                     <i class="bi bi-x-lg"></i>
                 </button>
             `;
             } else if (p.status === 'verified') {
                 statusBadge = '<span class="badge bg-success">อนุมัติแล้ว</span>';
+                if (p.verified_at) {
+                    const verifiedDate = new Date(p.verified_at).toLocaleString('th-TH');
+                    statusBadge += `<br><small class="text-muted">${verifiedDate}</small>`;
+                }
             } else {
                 statusBadge = '<span class="badge bg-danger">ปฏิเสธ</span>';
+                if (p.admin_notes) {
+                    statusBadge += `<br><small class="text-muted" title="${p.admin_notes}">${p.admin_notes.substring(0, 30)}...</small>`;
+                }
             }
 
             let evidence = '';
-            if (p.payment_type === 'bank_transfer' && p.slip_image) {
-                evidence = `<button class="btn btn-outline-primary btn-sm" onclick="viewImage('${p.slip_image}')"><i class="bi bi-image"></i> ดูสลิป</button>`;
+            if (p.payment_type === 'bank_transfer') {
+                if (p.slip_image || p.has_slip) {
+                    const imageData = p.slip_image || (p.slip_image_data ? `data:image/jpeg;base64,${p.slip_image_data}` : '');
+                    evidence = `<button class="btn btn-outline-primary btn-sm" onclick="viewImage('${imageData}')"><i class="bi bi-image"></i> ดูสลิป</button>`;
+                } else {
+                    evidence = '<span class="text-muted">ไม่มีสลิป</span>';
+                }
             } else if (p.payment_type === 'usdt') {
-                evidence = `<span class="text-monospace small" title="${p.transaction_hash}">${p.transaction_hash.substring(0, 10)}...</span>`;
+                if (p.transaction_hash) {
+                    evidence = `<span class="text-monospace small" title="${p.transaction_hash}">${p.transaction_hash.substring(0, 10)}...</span>`;
+                } else {
+                    evidence = '<span class="text-muted">ไม่มี TXID</span>';
+                }
             }
+
+            const userName = p.user_name || p.user_id || 'Unknown';
+            const packageName = p.package_name || p.package_id || 'Unknown';
 
             const row = `
             <tr>
                 <td>${date}</td>
-                <td>${p.user_id}</td>
-                <td>${p.package_id}</td>
-                <td>฿${p.amount.toLocaleString()}</td>
-                <td>${p.payment_type.toUpperCase()}</td>
+                <td>
+                    <div>${userName}</div>
+                    ${p.user_email ? `<small class="text-muted">${p.user_email}</small>` : ''}
+                </td>
+                <td>
+                    <div>${packageName}</div>
+                    <small class="text-muted">฿${(p.package_price || p.amount || 0).toLocaleString()}</small>
+                </td>
+                <td><strong>฿${(p.amount || 0).toLocaleString()}</strong></td>
+                <td>
+                    ${p.payment_type === 'bank_transfer' ? '<span class="badge bg-info">โอนเงิน</span>' : '<span class="badge bg-warning">USDT</span>'}
+                </td>
                 <td>${evidence}</td>
                 <td>${statusBadge}</td>
                 <td>${actions}</td>

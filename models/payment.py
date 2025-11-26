@@ -148,6 +148,33 @@ class PaymentModel:
             admin_id=admin_id
         )
     
+    def get_payments_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get payments by status"""
+        payments = list(self.collection.find({"status": status}).sort("created_at", -1))
+        
+        for payment in payments:
+            payment["_id"] = str(payment["_id"])
+            # Remove slip image data from list view for performance
+            if "slip_image_data" in payment:
+                payment["has_slip"] = bool(payment["slip_image_data"])
+                payment["slip_image"] = payment["slip_image_data"]  # Keep for viewing
+                # Don't delete, keep it for modal viewing
+        
+        return payments
+    
+    def get_all_payments(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get all payments"""
+        payments = list(self.collection.find({}).sort("created_at", -1).limit(limit))
+        
+        for payment in payments:
+            payment["_id"] = str(payment["_id"])
+            # Keep slip_image_data for viewing but add flag
+            if "slip_image_data" in payment:
+                payment["has_slip"] = bool(payment["slip_image_data"])
+                payment["slip_image"] = payment["slip_image_data"]  # Keep for viewing
+        
+        return payments
+    
     def get_total_revenue(self, start_date: Optional[datetime] = None) -> float:
         """Calculate total revenue from verified payments"""
         query = {"status": "verified"}

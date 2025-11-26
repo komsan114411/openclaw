@@ -251,24 +251,52 @@
             // Check Thunder API
             if (status.thunder.configured) {
                 if (status.thunder.status === 'error') {
-                    warnings.push({
-                        type: 'danger',
-                        message: `⚠️ Thunder API: ${status.thunder.message || 'เกิดข้อผิดพลาด'}`
-                    });
-                } else if (status.thunder.balance !== undefined && status.thunder.balance <= 0) {
-                    warnings.push({
-                        type: 'warning',
-                        message: `⚠️ Thunder API: หมดโควต้าแล้ว (Balance: ${status.thunder.balance})`
-                    });
-                } else if (status.thunder.expires_at) {
-                    const expiresDate = new Date(status.thunder.expires_at);
-                    const now = new Date();
-                    const daysLeft = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
-                    if (daysLeft <= 7) {
+                    // Only show error if it's not a connection/parsing error
+                    const errorMsg = status.thunder.message || 'เกิดข้อผิดพลาด';
+                    if (!errorMsg.includes('Connection failed') && !errorMsg.includes('Invalid response format')) {
+                        warnings.push({
+                            type: 'danger',
+                            message: `⚠️ Thunder API: ${errorMsg}`
+                        });
+                    }
+                } else if (status.thunder.status === 'success') {
+                    // Only warn if balance is explicitly 0 or negative (not null/undefined)
+                    const balance = status.thunder.balance;
+                    if (balance !== null && balance !== undefined && typeof balance === 'number' && balance <= 0) {
                         warnings.push({
                             type: 'warning',
-                            message: `⚠️ Thunder API: หมดอายุในอีก ${daysLeft} วัน (${status.thunder.expires_at})`
+                            message: `⚠️ Thunder API: หมดโควต้าแล้ว (Balance: ${balance})`
                         });
+                    } else if (balance !== null && balance !== undefined && typeof balance === 'number' && balance > 0) {
+                        // Show positive balance info (optional)
+                        // warnings.push({
+                        //     type: 'info',
+                        //     message: `✅ Thunder API: ยอดคงเหลือ ${balance.toLocaleString()} ครั้ง`
+                        // });
+                    }
+                    
+                    // Check expiry date
+                    if (status.thunder.expires_at) {
+                        try {
+                            const expiresDate = new Date(status.thunder.expires_at);
+                            const now = new Date();
+                            if (!isNaN(expiresDate.getTime())) {
+                                const daysLeft = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+                                if (daysLeft <= 7 && daysLeft >= 0) {
+                                    warnings.push({
+                                        type: 'warning',
+                                        message: `⚠️ Thunder API: หมดอายุในอีก ${daysLeft} วัน`
+                                    });
+                                } else if (daysLeft < 0) {
+                                    warnings.push({
+                                        type: 'danger',
+                                        message: `⚠️ Thunder API: หมดอายุแล้ว (${daysLeft} วัน)`
+                                    });
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing expiry date:', e);
+                        }
                     }
                 }
             }
