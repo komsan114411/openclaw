@@ -1,3 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}ตรวจสอบการชำระเงิน - Admin{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/admin_menu.html" %}
+{% endblock %}
+
+{% block page_title %}ตรวจสอบการชำระเงิน{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ตรวจสอบและอนุมัติการชำระเงินจากผู้ใช้</p>
+{% endblock %}
+
+{% block content %}
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
         <a class="nav-link active" href="#" onclick="filterPayments('pending', this)">รอตรวจสอบ (Pending)</a>
@@ -42,7 +57,6 @@
         </div>
     </div>
 </div>
-</div>
 
 <!-- Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1">
@@ -82,10 +96,25 @@
     </div>
 </div>
 
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
 <script>
     let currentFilter = 'pending';
     let imageModal;
     let rejectModal;
+
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
         imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
@@ -111,16 +140,19 @@
             }
 
             const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.success) {
-                renderPayments(data.payments);
+                renderPayments(data.payments || []);
             } else {
-                alert('Error loading payments: ' + data.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to load payments');
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'danger');
         }
     }
 
@@ -165,7 +197,7 @@
             <tr>
                 <td>${date}</td>
                 <td>${p.user_id}</td>
-                <td>${p.package_id}</td> <!-- In real app, join with package name -->
+                <td>${p.package_id}</td>
                 <td>฿${p.amount.toLocaleString()}</td>
                 <td>${p.payment_type.toUpperCase()}</td>
                 <td>${evidence}</td>
@@ -189,17 +221,22 @@
             const response = await fetch(`/api/admin/payments/${id}/approve`, {
                 method: 'POST'
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const result = await response.json();
 
             if (result.success) {
+                showAlert('อนุมัติเรียบร้อย', 'success');
                 loadPayments();
-                alert('อนุมัติเรียบร้อย');
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถอนุมัติได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to approve payment');
+            showAlert('เกิดข้อผิดพลาดในการอนุมัติ', 'danger');
         }
     }
 
@@ -214,7 +251,7 @@
         const reason = document.getElementById('rejectReason').value;
 
         if (!reason) {
-            alert('กรุณาระบุเหตุผล');
+            showAlert('กรุณาระบุเหตุผล', 'warning');
             return;
         }
 
@@ -224,18 +261,23 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ notes: reason })
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const result = await response.json();
 
             if (result.success) {
                 rejectModal.hide();
+                showAlert('ปฏิเสธเรียบร้อย', 'success');
                 loadPayments();
-                alert('ปฏิเสธเรียบร้อย');
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถปฏิเสธได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to reject payment');
+            showAlert('เกิดข้อผิดพลาดในการปฏิเสธ', 'danger');
         }
     }
 </script>

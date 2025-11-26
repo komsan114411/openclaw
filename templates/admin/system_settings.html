@@ -1,3 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}ตั้งค่าระบบ - Admin{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/admin_menu.html" %}
+{% endblock %}
+
+{% block page_title %}ตั้งค่าระบบ{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการการตั้งค่าระบบและบัญชีธนาคาร</p>
+{% endblock %}
+
+{% block content %}
+<div class="row">
 <!-- API Keys Section -->
 <div class="col-md-6 mb-4">
     <div class="card shadow-sm h-100">
@@ -57,7 +73,6 @@
     </div>
 </div>
 </div>
-</div>
 
 <!-- Add Bank Account Modal -->
 <div class="modal fade" id="bankModal" tabindex="-1">
@@ -98,8 +113,23 @@
     </div>
 </div>
 
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
 <script>
     let bankModal;
+
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
         bankModal = new bootstrap.Modal(document.getElementById('bankModal'));
@@ -109,6 +139,9 @@
     async function loadSettings() {
         try {
             const response = await fetch('/api/admin/system-settings');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.success) {
@@ -123,9 +156,12 @@
                 }
 
                 renderBankAccounts(settings.bank_accounts || []);
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error loading settings:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'danger');
         }
     }
 
@@ -163,7 +199,7 @@
         if (aiKey) data.ai_api_key = aiKey;
 
         if (Object.keys(data).length === 0) {
-            alert('กรุณากรอกข้อมูลที่ต้องการแก้ไข');
+            showAlert('กรุณากรอกข้อมูลที่ต้องการแก้ไข', 'warning');
             return;
         }
 
@@ -173,19 +209,24 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const result = await response.json();
 
             if (result.success) {
-                alert('บันทึกการตั้งค่าเรียบร้อย');
+                showAlert('บันทึกการตั้งค่าเรียบร้อย', 'success');
                 document.getElementById('slipApiKey').value = '';
                 document.getElementById('aiApiKey').value = '';
                 loadSettings();
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถบันทึกข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to save settings');
+            showAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'danger');
         }
     }
 
@@ -207,17 +248,23 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const result = await response.json();
 
             if (result.success) {
                 bankModal.hide();
+                showAlert('เพิ่มบัญชีธนาคารสำเร็จ', 'success');
                 loadSettings();
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถเพิ่มบัญชีได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to add bank account');
+            showAlert('เกิดข้อผิดพลาดในการเพิ่มบัญชี', 'danger');
         }
     }
 
@@ -228,16 +275,22 @@
             const response = await fetch(`/api/admin/system-settings/bank-accounts/${index}`, {
                 method: 'DELETE'
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const result = await response.json();
 
             if (result.success) {
+                showAlert('ลบบัญชีธนาคารสำเร็จ', 'success');
                 loadSettings();
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถลบบัญชีได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to delete bank account');
+            showAlert('เกิดข้อผิดพลาดในการลบบัญชี', 'danger');
         }
     }
 
