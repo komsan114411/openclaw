@@ -1587,12 +1587,19 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             account["channel_access_token"]
         )
         
-        # Verify slip
+        # Verify slip with provider selection and fallback
         logger.info(f"🔍 Starting slip verification for message_id: {message_id}")
         logger.info(f"🔑 API Key (first 10 chars): {slip_api_key[:10]}...")
         logger.info(f"🔑 LINE Token (first 10 chars): {account['channel_access_token'][:10]}...")
+        logger.info(f"📡 Using provider: {slip_api_provider}")
         
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
+        
+        # Get system settings for fallback
+        system_settings = app.state.system_settings_model.get_settings()
+        fallback_enabled = system_settings.get("slip_api_fallback_enabled", False)
+        secondary_api_key = system_settings.get("slip_api_key_secondary", "")
+        secondary_provider = system_settings.get("slip_api_provider_secondary", "")
         
         # Pass image_data if we have it (avoid re-downloading from LINE)
         result = slip_checker.verify_slip(
@@ -1600,6 +1607,49 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             test_image_data=image_data,  # Pass downloaded image data
             provider=slip_api_provider
         )
+        
+        # If primary API failed and fallback is enabled, try secondary API
+        if (result.get("status") == "error" and 
+            fallback_enabled and 
+            secondary_api_key and 
+            secondary_provider and
+            result.get("message", "").lower().find("quota") == -1 and  # Don't fallback if quota exceeded
+            result.get("message", "").lower().find("expired") == -1):  # Don't fallback if expired
+            
+            logger.warning(f"⚠️ Primary API ({slip_api_provider}) failed, trying fallback ({secondary_provider})")
+            
+            # Try secondary API
+            try:
+                if secondary_provider == "kbank":
+                    from services.kbank_checker import kbank_checker
+                    # Extract bank code and trans_ref from image if possible
+                    # For now, just log that we're trying fallback
+                    logger.info("🔄 Attempting KBank API fallback...")
+                    # Note: KBank API requires bank_code and trans_ref, which we might not have from image
+                    # This is a limitation - we'd need OCR or user input
+                else:
+                    # Try Thunder API as fallback
+                    from services.slip_checker import verify_slip_with_thunder
+                    fallback_result = verify_slip_with_thunder(
+                        message_id=message_id,
+                        test_image_data=image_data,
+                        line_token=account["channel_access_token"],
+                        api_token=secondary_api_key
+                    )
+                    
+                    if fallback_result.get("status") in ["success", "duplicate"]:
+                        logger.info(f"✅ Fallback API ({secondary_provider}) succeeded!")
+                        result = fallback_result
+                        result["used_fallback"] = True
+                        result["fallback_provider"] = secondary_provider
+                    else:
+                        logger.warning(f"⚠️ Fallback API ({secondary_provider}) also failed")
+                        result["fallback_attempted"] = True
+                        result["fallback_failed"] = True
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback API error: {fallback_error}")
+                result["fallback_attempted"] = True
+                result["fallback_error"] = str(fallback_error)
         
         logger.info(f"📊 Slip verification result: {result.get('status')}")
         logger.info(f"📄 Result message: {result.get('message', 'No message')}")

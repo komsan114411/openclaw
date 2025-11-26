@@ -539,7 +539,15 @@ class SlipChecker:
         )
     
     def verify_slip(self, message_id: str = None, test_image_data: bytes = None, line_token: str = None, api_token: str = None, provider: str = "thunder") -> Dict[str, Any]:
-        """Verify slip with custom tokens"""
+        """Verify slip with custom tokens and provider selection"""
+        if provider == "kbank":
+            # KBank API requires bank_code and trans_ref, not image
+            # This would need to be handled differently
+            logger.warning("⚠️ KBank API requires bank_code and trans_ref, not image. Using Thunder API instead.")
+            provider = "thunder"
+        
+        # For now, always use Thunder API for image verification
+        # KBank API is better suited for text-based verification
         return verify_slip_with_thunder(
             message_id=message_id,
             test_image_data=test_image_data,
