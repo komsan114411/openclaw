@@ -1,4 +1,4 @@
-﻿"""
+"""
 SaaS Backend API Routes
 Package Management, System Settings, Payments, Subscriptions
 """
@@ -112,16 +112,35 @@ def register_saas_routes(app):
         
         try:
             settings = app.state.system_settings_model.get_settings()
-            if settings and "slip_api_key" in settings and settings["slip_api_key"]:
-                settings["slip_api_key_preview"] = settings["slip_api_key"][:10] + "..."
-                del settings["slip_api_key"]
-            if settings and "ai_api_key" in settings and settings["ai_api_key"]:
-                settings["ai_api_key_preview"] = settings["ai_api_key"][:10] + "..."
-                del settings["ai_api_key"]
-            return {"success": True, "settings": settings or {}}
+            if not settings:
+                # Return empty settings if not found
+                return {"success": True, "settings": {
+                    "slip_api_key_preview": "",
+                    "ai_api_key_preview": "",
+                    "bank_accounts": []
+                }}
+            
+            # Create a safe copy without sensitive data
+            safe_settings = {}
+            if "slip_api_key" in settings and settings["slip_api_key"]:
+                safe_settings["slip_api_key_preview"] = settings["slip_api_key"][:10] + "..."
+            else:
+                safe_settings["slip_api_key_preview"] = ""
+                
+            if "ai_api_key" in settings and settings["ai_api_key"]:
+                safe_settings["ai_api_key_preview"] = settings["ai_api_key"][:10] + "..."
+            else:
+                safe_settings["ai_api_key_preview"] = ""
+            
+            # Copy other safe fields
+            safe_settings["bank_accounts"] = settings.get("payment_bank_accounts", [])
+            safe_settings["slip_api_provider"] = settings.get("slip_api_provider", "thunder")
+            safe_settings["ai_model"] = settings.get("ai_model", "gpt-4-mini")
+            
+            return {"success": True, "settings": safe_settings}
         except Exception as e:
             logger.error(f"Error fetching settings: {e}")
-            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+            return JSONResponse(status_code=500, content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"})
 
     @app.put("/api/admin/system-settings")
     async def update_system_settings(request: Request):
@@ -152,17 +171,32 @@ def register_saas_routes(app):
             required = ["bank_name", "account_number", "account_name"]
             for field in required:
                 if field not in data:
-                    return JSONResponse(status_code=400, content={"success": False, "message": f"Missing: {field}"})
+                    return JSONResponse(status_code=400, content={"success": False, "message": f"กรุณากรอก: {field}"})
             
-            success = app.state.system_settings_model.add_bank_account(
-                data["bank_name"], data["account_number"], data["account_name"]
+            settings = app.state.system_settings_model.get_settings()
+            accounts = settings.get("payment_bank_accounts", [])
+            
+            # Check for duplicates
+            if any(acc.get("account_number") == data["account_number"] for acc in accounts):
+                return JSONResponse(status_code=400, content={"success": False, "message": "เลขที่บัญชีนี้มีอยู่แล้ว"})
+            
+            accounts.append({
+                "bank_name": data["bank_name"],
+                "account_number": data["account_number"],
+                "account_name": data["account_name"]
+            })
+            
+            success = app.state.system_settings_model.update_settings(
+                {"payment_bank_accounts": accounts},
+                user["user_id"]
             )
+            
             if success:
-                return {"success": True, "message": "Bank account added"}
-            return JSONResponse(status_code=500, content={"success": False, "message": "Failed to add"})
+                return {"success": True, "message": "เพิ่มบัญชีธนาคารสำเร็จ"}
+            return JSONResponse(status_code=500, content={"success": False, "message": "ไม่สามารถเพิ่มบัญชีได้"})
         except Exception as e:
             logger.error(f"Error adding bank account: {e}")
-            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+            return JSONResponse(status_code=500, content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"})
 
     @app.delete("/api/admin/system-settings/bank-accounts/{index}")
     async def remove_bank_account(request: Request, index: int):
@@ -172,13 +206,124 @@ def register_saas_routes(app):
             raise HTTPException(status_code=403, detail="Admin access required")
         
         try:
-            success = app.state.system_settings_model.remove_bank_account(index)
+            settings = app.state.system_settings_model.get_settings()
+            accounts = settings.get("payment_bank_accounts", [])
+            
+            if index < 0 or index >= len(accounts):
+                return JSONResponse(status_code=404, content={"success": False, "message": "ไม่พบบัญชีธนาคาร"})
+            
+            accounts.pop(index)
+            success = app.state.system_settings_model.update_settings(
+                {"payment_bank_accounts": accounts}, 
+                user["user_id"]
+            )
+            
             if success:
-                return {"success": True, "message": "Bank account removed"}
-            return JSONResponse(status_code=404, content={"success": False, "message": "Not found"})
+                return {"success": True, "message": "ลบบัญชีธนาคารสำเร็จ"}
+            return JSONResponse(status_code=500, content={"success": False, "message": "ไม่สามารถลบบัญชีได้"})
         except Exception as e:
             logger.error(f"Error removing bank account: {e}")
-            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+            return JSONResponse(status_code=500, content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"})
+    
+    @app.post("/api/admin/system-settings/test/slip-api")
+    async def test_slip_api(request: Request):
+        '''Test Slip API connection'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            data = await request.json()
+            api_key = data.get("api_key")
+            
+            if not api_key:
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": "กรุณากรอก API Key"}
+                )
+            
+            # Import test function
+            from services.slip_checker import test_thunder_api_connection
+            result = test_thunder_api_connection(api_key)
+            
+            # Convert result to match expected format
+            if result.get("status") == "success":
+                return JSONResponse(content={
+                    "success": True,
+                    "status": "success",
+                    "message": result.get("message", "เชื่อมต่อ API สำเร็จ")
+                })
+            else:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "success": False,
+                        "status": "error",
+                        "message": result.get("message", "ไม่สามารถเชื่อมต่อ API ได้")
+                    }
+                )
+        except Exception as e:
+            logger.error(f"Error testing slip API: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
+            )
+    
+    @app.post("/api/admin/system-settings/test/ai-api")
+    async def test_ai_api(request: Request):
+        '''Test AI API connection'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            data = await request.json()
+            api_key = data.get("api_key")
+            model = data.get("model", "gpt-4-mini")
+            
+            if not api_key:
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": "กรุณากรอก API Key"}
+                )
+            
+            # Test OpenAI API
+            try:
+                import openai
+                client = openai.OpenAI(api_key=api_key)
+                
+                # Simple test call
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": "Say 'API test successful' if you can read this."}
+                    ],
+                    max_tokens=20
+                )
+                
+                return JSONResponse(content={
+                    "success": True,
+                    "message": "เชื่อมต่อ API สำเร็จ",
+                    "response": response.choices[0].message.content,
+                    "model": model
+                })
+            except Exception as api_error:
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": f"ไม่สามารถเชื่อมต่อ API ได้: {str(api_error)}"}
+                )
+        except ImportError:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "OpenAI library ไม่ได้ติดตั้ง"}
+            )
+        except Exception as e:
+            logger.error(f"Error testing AI API: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
+            )
 
     # ==================== Payment & Subscription APIs ====================
     

@@ -30,8 +30,12 @@
                             onclick="toggleVisibility('slipApiKey')">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-outline-info" type="button" onclick="testSlipApi()" id="testSlipBtn">
+                            <i class="bi bi-check-circle"></i> ทดสอบ
+                        </button>
                     </div>
                     <div class="form-text text-muted" id="slipApiKeyPreview"></div>
+                    <div id="slipApiTestResult" class="mt-2"></div>
                 </div>
 
                 <div class="mb-3">
@@ -41,12 +45,16 @@
                         <button class="btn btn-outline-secondary" type="button" onclick="toggleVisibility('aiApiKey')">
                             <i class="bi bi-eye"></i>
                         </button>
+                        <button class="btn btn-outline-info" type="button" onclick="testAiApi()" id="testAiBtn">
+                            <i class="bi bi-check-circle"></i> ทดสอบ
+                        </button>
                     </div>
                     <div class="form-text text-muted" id="aiApiKeyPreview"></div>
+                    <div id="aiApiTestResult" class="mt-2"></div>
                 </div>
 
                 <button type="button" class="btn btn-primary" onclick="saveApiSettings()">
-                    บันทึกการตั้งค่า API
+                    <i class="bi bi-save"></i> บันทึกการตั้งค่า API
                 </button>
             </form>
         </div>
@@ -140,19 +148,24 @@
         try {
             const response = await fetch('/api/admin/system-settings');
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
 
             if (data.success) {
-                const settings = data.settings;
+                const settings = data.settings || {};
 
                 // Show previews if keys exist
                 if (settings.slip_api_key_preview) {
                     document.getElementById('slipApiKeyPreview').innerText = `Current: ${settings.slip_api_key_preview}`;
+                } else {
+                    document.getElementById('slipApiKeyPreview').innerText = 'ยังไม่ได้ตั้งค่า';
                 }
                 if (settings.ai_api_key_preview) {
                     document.getElementById('aiApiKeyPreview').innerText = `Current: ${settings.ai_api_key_preview}`;
+                } else {
+                    document.getElementById('aiApiKeyPreview').innerText = 'ยังไม่ได้ตั้งค่า';
                 }
 
                 renderBankAccounts(settings.bank_accounts || []);
@@ -161,7 +174,120 @@
             }
         } catch (error) {
             console.error('Error loading settings:', error);
-            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'danger');
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'danger');
+        }
+    }
+    
+    async function testSlipApi() {
+        const apiKey = document.getElementById('slipApiKey').value;
+        const testBtn = document.getElementById('testSlipBtn');
+        const resultDiv = document.getElementById('slipApiTestResult');
+        
+        if (!apiKey) {
+            showAlert('กรุณากรอก API Key ก่อนทดสอบ', 'warning');
+            return;
+        }
+        
+        // Disable button and show loading
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...';
+        resultDiv.innerHTML = '<div class="alert alert-info">กำลังทดสอบการเชื่อมต่อ...</div>';
+        
+        try {
+            const response = await fetch('/api/admin/system-settings/test/slip-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success' || result.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> 
+                        <strong>เชื่อมต่อสำเร็จ!</strong><br>
+                        ${result.message || 'API Key ใช้งานได้'}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        <strong>เชื่อมต่อไม่สำเร็จ</strong><br>
+                        ${result.message || 'ไม่สามารถเชื่อมต่อ API ได้'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error testing slip API:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>เกิดข้อผิดพลาด</strong><br>
+                    ${error.message}
+                </div>
+            `;
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-check-circle"></i> ทดสอบ';
+        }
+    }
+    
+    async function testAiApi() {
+        const apiKey = document.getElementById('aiApiKey').value;
+        const testBtn = document.getElementById('testAiBtn');
+        const resultDiv = document.getElementById('aiApiTestResult');
+        
+        if (!apiKey) {
+            showAlert('กรุณากรอก API Key ก่อนทดสอบ', 'warning');
+            return;
+        }
+        
+        // Disable button and show loading
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...';
+        resultDiv.innerHTML = '<div class="alert alert-info">กำลังทดสอบการเชื่อมต่อ...</div>';
+        
+        try {
+            const response = await fetch('/api/admin/system-settings/test/ai-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> 
+                        <strong>เชื่อมต่อสำเร็จ!</strong><br>
+                        ${result.message || 'API Key ใช้งานได้'}<br>
+                        <small>Response: ${result.response || ''}</small>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        <strong>เชื่อมต่อไม่สำเร็จ</strong><br>
+                        ${result.message || 'ไม่สามารถเชื่อมต่อ API ได้'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error testing AI API:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>เกิดข้อผิดพลาด</strong><br>
+                    ${error.message}
+                </div>
+            `;
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-check-circle"></i> ทดสอบ';
         }
     }
 
