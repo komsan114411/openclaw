@@ -195,9 +195,20 @@
 
             let evidence = '';
             if (p.payment_type === 'bank_transfer') {
-                if (p.slip_image || p.has_slip) {
+                if (p.slip_image || p.has_slip || p.slip_image_data) {
                     const imageData = p.slip_image || (p.slip_image_data ? `data:image/jpeg;base64,${p.slip_image_data}` : '');
                     evidence = `<button class="btn btn-outline-primary btn-sm" onclick="viewImage('${imageData}')"><i class="bi bi-image"></i> ดูสลิป</button>`;
+                    
+                    // Show verification info if available
+                    if (p.verification_result) {
+                        const vf = p.verification_result;
+                        if (vf.verified) {
+                            evidence += `<br><small class="text-success"><i class="bi bi-check-circle"></i> ตรวจสอบแล้ว</small>`;
+                            if (vf.receiver_account) {
+                                evidence += `<br><small class="text-muted">บัญชี: ${vf.receiver_account}</small>`;
+                            }
+                        }
+                    }
                 } else {
                     evidence = '<span class="text-muted">ไม่มีสลิป</span>';
                 }
