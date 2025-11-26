@@ -180,7 +180,10 @@ class User:
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "last_login": None,
-                "line_accounts": []
+                "line_accounts": [],
+                # SaaS subscription tracking
+                "current_subscription_id": None,
+                "total_slips_verified": 0
             }
             
             result = self.collection.insert_one(user_doc)
