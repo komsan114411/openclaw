@@ -1,5 +1,18 @@
-</div>
+{% extends "base.html" %}
 
+{% block title %}เลือกแพ็คเกจ - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/standard_menu.html" %}
+{% endblock %}
+
+{% block page_title %}เลือกแพ็คเกจ{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">เลือกแพ็คเกจที่เหมาะกับคุณ</p>
+{% endblock %}
+
+{% block content %}
 <!-- Packages Grid -->
 <div class="row justify-content-center" id="packagesGrid">
     <!-- Loading state -->
@@ -9,11 +22,10 @@
         </div>
     </div>
 </div>
-</div>
 
 <!-- Subscribe Modal -->
 <div class="modal fade" id="subscribeModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">ชำระเงิน</h5>
@@ -45,6 +57,9 @@
                         </div>
                         <div id="bankAccountsList" class="mb-3">
                             <!-- Bank accounts loaded here -->
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">แนบสลิปโอนเงิน</label>
@@ -62,11 +77,11 @@
                     <!-- USDT Tab -->
                     <div class="tab-pane fade" id="usdt" role="tabpanel">
                         <div class="text-center mb-3">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TL8k7wX8wX8wX8wX8wX8wX8wX8wX8wX8wX"
+                            <img id="usdtQrCode" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TL8k7wX8wX8wX8wX8wX8wX8wX8wX8wX8wX"
                                 class="img-thumbnail mb-2">
                             <p class="small text-muted mb-1">Wallet Address (TRC20)</p>
                             <div class="input-group input-group-sm mb-3">
-                                <input type="text" class="form-control text-center"
+                                <input type="text" class="form-control text-center" id="usdtAddress"
                                     value="TL8k7wX8wX8wX8wX8wX8wX8wX8wX8wX8wX" readonly>
                                 <button class="btn btn-outline-secondary" onclick="copyAddress()">Copy</button>
                             </div>
@@ -85,9 +100,24 @@
     </div>
 </div>
 
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
 <script>
     let subscribeModal;
     let bankAccounts = [];
+
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
         subscribeModal = new bootstrap.Modal(document.getElementById('subscribeModal'));
@@ -98,30 +128,40 @@
     async function loadPackages() {
         try {
             const response = await fetch('/api/user/packages');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.success) {
-                renderPackages(data.packages);
+                renderPackages(data.packages || []);
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูลแพ็คเกจ', 'danger');
         }
     }
 
     async function loadBankAccounts() {
         try {
-            // Note: In a real app, we might need a public endpoint for this or pass it via template context
-            // For now, we'll assume we can get it or hardcode for demo if API is admin-only
-            // Let's try to fetch from a public endpoint if we made one, or use a placeholder
-            // Since we didn't make a public bank API, I'll mock it for UI demo or use the admin one if user has access (which they don't)
-            // I will implement a quick public endpoint or just hardcode for now in the script for demo purposes
-            // Wait, I can't modify backend now easily without task boundary switch. 
-            // I'll assume the user might see hardcoded banks or I'll add a public endpoint later.
-            // For this session, let's hardcode a placeholder or try to fetch.
-
-            // Actually, let's just show a placeholder message if no API
-            const list = document.getElementById('bankAccountsList');
-            list.innerHTML = `
+            // Try to get bank accounts from system settings
+            const response = await fetch('/api/admin/system-settings');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.settings && data.settings.bank_accounts) {
+                    renderBankAccounts(data.settings.bank_accounts);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.log('Could not load bank accounts from admin API, using placeholder');
+        }
+        
+        // Fallback: Show placeholder
+        const list = document.getElementById('bankAccountsList');
+        list.innerHTML = `
             <div class="card mb-2">
                 <div class="card-body p-2">
                     <h6 class="mb-0 text-primary">กสิกรไทย (KBANK)</h6>
@@ -130,14 +170,39 @@
                 </div>
             </div>
         `;
-        } catch (error) {
-            console.error('Error:', error);
+    }
+
+    function renderBankAccounts(accounts) {
+        const list = document.getElementById('bankAccountsList');
+        list.innerHTML = '';
+
+        if (accounts.length === 0) {
+            list.innerHTML = '<div class="text-center text-muted py-3">ยังไม่มีบัญชีธนาคาร</div>';
+            return;
         }
+
+        accounts.forEach(acc => {
+            const item = `
+            <div class="card mb-2">
+                <div class="card-body p-2">
+                    <h6 class="mb-0 text-primary">${acc.bank_name.toUpperCase()}</h6>
+                    <p class="mb-0 fw-bold">${acc.account_number}</p>
+                    <small>${acc.account_name}</small>
+                </div>
+            </div>
+        `;
+            list.innerHTML += item;
+        });
     }
 
     function renderPackages(packages) {
         const grid = document.getElementById('packagesGrid');
         grid.innerHTML = '';
+
+        if (packages.length === 0) {
+            grid.innerHTML = '<div class="col-12 text-center text-muted py-5">ยังไม่มีแพ็คเกจ</div>';
+            return;
+        }
 
         packages.forEach(pkg => {
             const card = `
@@ -150,7 +215,7 @@
                         
                         <ul class="list-unstyled text-start mb-4">
                             <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>ตรวจสอบสลิป ${pkg.slip_quota.toLocaleString()} ใบ</li>
-                            ${pkg.features.map(f => `<li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>${f}</li>`).join('')}
+                            ${(pkg.features || []).map(f => `<li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>${f}</li>`).join('')}
                         </ul>
                         
                         <button class="btn btn-primary w-100 rounded-pill py-2" onclick='openSubscribeModal(${JSON.stringify(pkg)})'>
@@ -194,7 +259,7 @@
         const btn = document.getElementById('btnBankPay');
 
         if (!fileInput.files[0]) {
-            alert('กรุณาแนบสลิปโอนเงิน');
+            showAlert('กรุณาแนบสลิปโอนเงิน', 'warning');
             return;
         }
 
@@ -218,14 +283,20 @@
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const result = await response.json();
 
                 if (result.success) {
                     subscribeModal.hide();
-                    alert('แจ้งชำระเงินเรียบร้อย กรุณารอการตรวจสอบ');
-                    window.location.href = '/user/dashboard'; // Redirect to dashboard
+                    showAlert('แจ้งชำระเงินเรียบร้อย กรุณารอการตรวจสอบ', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/user/dashboard';
+                    }, 1500);
                 } else {
-                    alert('Error: ' + result.message);
+                    showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถส่งข้อมูลได้'), 'danger');
                 }
                 btn.disabled = false;
                 btn.innerText = 'แจ้งชำระเงิน';
@@ -235,7 +306,7 @@
 
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to submit payment');
+            showAlert('เกิดข้อผิดพลาดในการส่งข้อมูล', 'danger');
             btn.disabled = false;
             btn.innerText = 'แจ้งชำระเงิน';
         }
@@ -247,7 +318,7 @@
         const btn = document.getElementById('btnUsdtPay');
 
         if (!txid) {
-            alert('กรุณาระบุ Transaction Hash');
+            showAlert('กรุณาระบุ Transaction Hash', 'warning');
             return;
         }
 
@@ -264,18 +335,24 @@
                 })
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const result = await response.json();
 
             if (result.success) {
                 subscribeModal.hide();
-                alert('แจ้งชำระเงินเรียบร้อย กรุณารอการตรวจสอบ');
-                window.location.href = '/user/dashboard';
+                showAlert('แจ้งชำระเงินเรียบร้อย กรุณารอการตรวจสอบ', 'success');
+                setTimeout(() => {
+                    window.location.href = '/user/dashboard';
+                }, 1500);
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถส่งข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to submit payment');
+            showAlert('เกิดข้อผิดพลาดในการส่งข้อมูล', 'danger');
         } finally {
             btn.disabled = false;
             btn.innerText = 'แจ้งชำระเงิน';
@@ -283,8 +360,9 @@
     }
 
     function copyAddress() {
-        navigator.clipboard.writeText('TL8k7wX8wX8wX8wX8wX8wX8wX8wX8wX8wX');
-        alert('Copied address to clipboard');
+        const address = document.getElementById('usdtAddress').value;
+        navigator.clipboard.writeText(address);
+        showAlert('คัดลอกที่อยู่ Wallet แล้ว', 'success');
     }
 </script>
 

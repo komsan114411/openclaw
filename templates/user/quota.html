@@ -1,3 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}โควต้า - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/standard_menu.html" %}
+{% endblock %}
+
+{% block page_title %}โควต้าและการใช้งาน{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ตรวจสอบโควต้าและประวัติการใช้งาน</p>
+{% endblock %}
+
+{% block content %}
+<div class="row">
 <div class="col-md-6 mb-4">
     <div class="card shadow-sm h-100 border-primary">
         <div class="card-body text-center">
@@ -30,7 +46,7 @@
 <!-- Subscription History -->
 <div class="card shadow-sm mt-4">
     <div class="card-header bg-white">
-        <h5 class="mb-0">ประวัติการสมัครสมาชิก (Subscription History)</h5>
+        <h5 class="mb-0">ประวัติการสมัครสมาชิก</h5>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -55,9 +71,23 @@
         </div>
     </div>
 </div>
-</div>
+
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
 
 <script>
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         loadQuota();
         loadHistory();
@@ -66,18 +96,24 @@
     async function loadQuota() {
         try {
             const response = await fetch('/api/user/quota');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.success) {
-                const q = data.quota;
+                const q = data.quota || {};
 
                 // Slip Quota
-                document.getElementById('slipQuota').innerText = `${q.remaining_slips.toLocaleString()} / ${q.total_slips.toLocaleString()}`;
-                const slipPercent = q.total_slips > 0 ? (q.remaining_slips / q.total_slips) * 100 : 0;
+                const remaining = q.remaining_slips || 0;
+                const total = q.total_slips || 0;
+                document.getElementById('slipQuota').innerText = `${remaining.toLocaleString()} / ${total.toLocaleString()}`;
+                const slipPercent = total > 0 ? (remaining / total) * 100 : 0;
                 document.getElementById('slipProgress').style.width = `${slipPercent}%`;
 
                 // Days Remaining
-                document.getElementById('daysRemaining').innerText = `${q.days_remaining} วัน`;
+                const daysRemaining = q.days_remaining || 0;
+                document.getElementById('daysRemaining').innerText = `${daysRemaining} วัน`;
                 if (q.expiry_date) {
                     const expDate = new Date(q.expiry_date).toLocaleDateString('th-TH', {
                         year: 'numeric', month: 'long', day: 'numeric'
@@ -86,25 +122,32 @@
                 } else {
                     document.getElementById('expireDate').innerText = 'ไม่มีวันหมดอายุ';
                 }
-                // For days progress, we might need total days, but API might not return it directly if accumulated.
-                // Just show full bar or maybe specific logic if needed. For now, keep it simple.
                 document.getElementById('daysProgress').style.width = '100%';
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูลโควต้า', 'danger');
         }
     }
 
     async function loadHistory() {
         try {
             const response = await fetch('/api/user/subscriptions');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.success) {
-                renderHistory(data.subscriptions);
+                renderHistory(data.subscriptions || []);
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดประวัติ', 'danger');
         }
     }
 
@@ -125,8 +168,8 @@
             const row = `
             <tr>
                 <td>${startDate}</td>
-                <td>${sub.package_name}</td>
-                <td>฿${sub.price.toLocaleString()}</td>
+                <td>${sub.package_name || 'N/A'}</td>
+                <td>฿${(sub.price || 0).toLocaleString()}</td>
                 <td>${endDate}</td>
                 <td>${status}</td>
             </tr>

@@ -448,72 +448,83 @@ def verify_slip_with_thunder(
             pass
 
 def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
-    """ทดสอบการเชื่อมต่อ Thunder API"""
+    """ทดสอบการเชื่อมต่อ Thunder API ตาม documentation: https://document.thunder.in.th/documents/start"""
     if not api_token:
         return {"status": "error", "message": "API Token is required"}
     logger.info("🧪 Testing Thunder API connection...")
-    # สร้าง test image data (minimal JPEG markers)
-    # Keep this a valid bytes literal to avoid syntax/escape issues.
-    test_image = b'\xff\xd8\xff\xd9'
-    endpoint = "https://api.thunder.in.th/v1/verify"
+    
     headers = {
         "Authorization": f"Bearer {api_token}",
-        "User-Agent": "LINE-OA-Middleware-Test/2.0"
+        "User-Agent": "LINE-OA-Middleware/2.0"
     }
-    files = {
-        "file": ("test.jpg", test_image, "image/jpeg")
-    }
-    data = {
-        "checkDuplicate": "false"
-    }
+    
     try:
         session = create_requests_session()
-        resp = session.post(endpoint, headers=headers, files=files, data=data, timeout=30)
-        session.close()
-        logger.info(f"🧪 Thunder API test response: {resp.status_code}")
-        if resp.status_code in [200, 400, 404]:  # Expected responses
+        
+        # ใช้ v1/me endpoint ตาม Thunder API documentation เพื่อตรวจสอบ API key และดึงข้อมูล balance/expiresAt
+        endpoint = "https://api.thunder.in.th/v1/me"
+        logger.info(f"🔍 Testing Thunder API endpoint: {endpoint}")
+        
+        resp = session.get(endpoint, headers=headers, timeout=30)
+        logger.info(f"📈 Thunder API response: {resp.status_code}")
+        
+        if resp.status_code == 200:
             try:
-                result = resp.json()
+                data = resp.json()
+                balance = data.get("balance", 0)
+                expires_at = data.get("expiresAt", "")
                 
-                # Try to get balance and expires_at from account endpoint
-                balance = 0
-                expires_at = ""
-                try:
-                    account_resp = session.get(
-                        "https://api.thunder.in.th/v1/account",
-                        headers=headers,
-                        timeout=30
-                    )
-                    if account_resp.status_code == 200:
-                        account_data = account_resp.json()
-                        balance = account_data.get("balance", 0)
-                        expires_at = account_data.get("expiresAt", "")
-                except Exception as e:
-                    logger.warning(f"Could not fetch account info: {e}")
+                # แปลงวันหมดอายุเป็นรูปแบบไทย
+                expires_display = "ไม่ระบุ"
+                if expires_at:
+                    try:
+                        import pytz
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                        thai_tz = pytz.timezone('Asia/Bangkok')
+                        thai_dt = dt.astimezone(thai_tz)
+                        expires_display = thai_dt.strftime("%d/%m/%Y %H:%M")
+                    except Exception as e:
+                        logger.warning(f"Error parsing expiry date: {e}")
+                        expires_display = expires_at
+                
+                logger.info(f"✅ Account info: balance={balance}, expires_at={expires_display}")
+                session.close()
                 
                 return {
                     "status": "success",
                     "message": "Thunder API connection successful",
                     "response_code": resp.status_code,
-                    "api_message": result.get("message", "OK"),
                     "balance": balance,
-                    "expires_at": expires_at
+                    "expires_at": expires_at,
+                    "expires_at_display": expires_display
                 }
-            except:
+            except ValueError as e:
+                logger.error(f"❌ Cannot parse JSON response: {e}")
+                session.close()
                 return {
-                    "status": "success",
-                    "message": "Thunder API connection successful (non-JSON response)",
-                    "response_code": resp.status_code,
-                    "balance": 0,
-                    "expires_at": ""
+                    "status": "error",
+                    "message": f"Invalid response format: {str(e)}"
                 }
         elif resp.status_code == 401:
-            return {"status": "error", "message": "Invalid API Token"}
+            session.close()
+            return {"status": "error", "message": "Invalid API Token (Unauthorized)"}
         elif resp.status_code == 403:
+            session.close()
             return {"status": "error", "message": "Access denied or quota exceeded"}
         else:
-            return {"status": "error", "message": f"HTTP {resp.status_code}: {resp.text[:100]}"}
+            error_text = resp.text[:200] if resp.text else "No error message"
+            session.close()
+            return {
+                "status": "error",
+                "message": f"HTTP {resp.status_code}: {error_text}"
+            }
     except Exception as e:
+        logger.error(f"❌ Thunder API connection error: {e}")
+        try:
+            session.close()
+        except:
+            pass
         return {"status": "error", "message": f"Connection failed: {str(e)}"}
 
 # ==================== SlipChecker Class ====================
@@ -560,78 +571,3 @@ class SlipChecker:
         if not self.api_token:
             return {"status": "error", "message": "API Token is required"}
         return test_thunder_api_connection(self.api_token)
-
-
-def test_thunder_api_connection(api_key: str) -> Dict[str, Any]:
-    """Test Thunder API connection with a given API key."""
-    if not api_key:
-        return {"success": False, "message": "API Key is empty"}
-
-    endpoint = "https://api.thunder.in.th/v1/me"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "User-Agent": "LINE-OA-Middleware/2.0"
-    }
-
-    try:
-        session = create_requests_session()
-        resp = session.get(endpoint, headers=headers, timeout=15)
-        
-        if resp.status_code == 409:
-            logger.warning('⚠️ Thunder API: Duplicate slip detected (Status 409)')
-            return {
-                'status': 'duplicate',
-                'type': 'thunder',
-                'message': 'สลิปนี้เคยถูกใช้แล้ว',
-                'data': result.get('data', {})
-            }
-
-        if resp.status_code == 200:
-            # HTTP 200 = Success (หรือ Duplicate ถ้า Thunder API ส่ง 200 พร้อม status 409 ใน body)
-            if result.get('status') == 409:
-                logger.warning('⚠️ Thunder API: Duplicate slip detected (Status 409 in body)')
-                return {
-                    'status': 'duplicate',
-                    'type': 'thunder',
-                    'message': 'สลิปนี้เคยถูกใช้แล้ว',
-                    'data': result.get('data', {})
-                }
-            data = resp.json()
-            # ดึงข้อมูลยอดเหลือและวันหมดอายุ
-            balance = data.get("balance", 0)
-            expires_at = data.get("expiresAt", "")
-            
-            # แปลงวันหมดอายุเป็นรูปแบบไทย
-            expires_display = "ไม่ระบุ"
-            if expires_at:
-                try:
-                    import pytz
-                    from datetime import datetime
-                    dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-                    thai_tz = pytz.timezone('Asia/Bangkok')
-                    thai_dt = dt.astimezone(thai_tz)
-                    expires_display = thai_dt.strftime("%d/%m/%Y %H:%M")
-                except Exception as e:
-                    logger.warning(f"Error parsing expiry date: {e}")
-                    expires_display = expires_at
-            
-            session.close()
-            return {
-                "success": True, 
-                "message": "API Key is valid",
-                "balance": balance,
-                "expires_at": expires_display
-            }
-        elif resp.status_code == 401:
-            session.close()
-            return {"success": False, "message": "Invalid API Key"}
-        else:
-            session.close()
-            return {"success": False, "message": f"API Test Failed (HTTP {resp.status_code})"}
-    except Exception as e:
-        logger.error(f"Error testing Thunder API: {e}")
-        try:
-            session.close()
-        except:
-            pass
-        return {"success": False, "message": f"API Test Failed: {e}"}
