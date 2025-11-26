@@ -78,10 +78,10 @@ class SubscriptionModel:
         if not active_subs:
             return {
                 "status": "no_active_subscription",
-                "total_quota": 0,
+                "total_slips": 0,              # Renamed from total_quota
                 "total_used": 0,
-                "remaining": 0,
-                "earliest_expiry": None,
+                "remaining_slips": 0,          # Renamed from remaining
+                "expiry_date": None,           # Renamed from earliest_expiry
                 "days_remaining": 0
             }
         
@@ -104,10 +104,10 @@ class SubscriptionModel:
         
         return {
             "status": status,
-            "total_quota": total_quota,
+            "total_slips": total_quota,        # Renamed from total_quota
             "total_used": total_used,
-            "remaining": remaining,
-            "earliest_expiry": earliest_expiry,
+            "remaining_slips": remaining,      # Renamed from remaining
+            "expiry_date": earliest_expiry,    # Renamed from earliest_expiry
             "days_remaining": max(0, days_remaining),
             "active_subscriptions_count": len(active_subs)
         }

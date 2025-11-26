@@ -271,14 +271,29 @@ def register_saas_routes(app):
                 payment_id, "verified", {"verified_by": user["user_id"], "verified_at": datetime.utcnow()}
             )
             
+            # Fetch package details for quota and duration
+            package = app.state.package_model.get_package_by_id(payment["package_id"])
+            if not package:
+                return JSONResponse(status_code=404, content={"success": False, "message": "Package not found"})
+            
             existing_subs = app.state.subscription_model.get_user_subscriptions(payment["user_id"])
             active_subs = [s for s in existing_subs if s["status"] == "active"]
             
             if active_subs:
-                app.state.subscription_model.extend_subscription(active_subs[0]["_id"], payment["package_id"])
+                # Extend existing subscription with package quota and duration
+                app.state.subscription_model.extend_subscription(
+                    user_id=payment["user_id"],
+                    additional_slips=package["slip_quota"], 
+                    additional_days=package["duration_days"]
+                )
             else:
+                # Create new subscription with package quota and duration
                 app.state.subscription_model.create_subscription(
-                    user_id=payment["user_id"], package_id=payment["package_id"], payment_id=payment_id
+                    user_id=payment["user_id"], 
+                    package_id=payment["package_id"],
+                    slips_quota=package["slip_quota"],
+                    duration_days=package["duration_days"],
+                    payment_id=payment_id
                 )
             return {"success": True, "message": "Payment approved"}
         except Exception as e:
@@ -327,6 +342,20 @@ def register_saas_routes(app):
         
         try:
             subscriptions = app.state.subscription_model.get_user_subscriptions(user["user_id"])
+            
+            # Enrich with package details for UI
+            for sub in subscriptions:
+                package = app.state.package_model.get_package_by_id(sub.get("package_id"))
+                if package:
+                    sub["package_name"] = package["name"]
+                    sub["price"] = package["price"]
+                else:
+                    sub["package_name"] = "Unknown Package"
+                    sub["price"] = 0
+                
+                # Add is_active boolean for UI compatibility
+                sub["is_active"] = sub["status"] == "active"
+            
             return {"success": True, "subscriptions": subscriptions}
         except Exception as e:
             logger.error(f"Error fetching subscriptions: {e}")
