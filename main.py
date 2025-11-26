@@ -534,6 +534,49 @@ async def delete_user_api(request: Request, user_id: str):
             content={"success": False, "message": "ไม่สามารถลบผู้ใช้ได้"}
         )
 
+@app.put("/api/admin/users/{user_id}")
+async def update_user_api(request: Request, user_id: str):
+    """Update user information (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        update_data = {}
+        
+        if "email" in data:
+            update_data["email"] = data["email"]
+        if "full_name" in data:
+            update_data["full_name"] = data["full_name"]
+        if "role" in data:
+            update_data["role"] = data["role"]
+        
+        if not update_data:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ไม่มีข้อมูลที่จะอัปเดต"}
+            )
+        
+        success = app.state.user_model.update_user(user_id, update_data)
+        if success:
+            await manager.broadcast({
+                "type": "success",
+                "message": "อัปเดตข้อมูลผู้ใช้สำเร็จ"
+            })
+            return {"success": True, "message": "อัปเดตข้อมูลผู้ใช้สำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error updating user: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้"}
+        )
+
 @app.put("/api/admin/users/{user_id}/restore")
 async def restore_user_api(request: Request, user_id: str):
     """Restore deleted user (Admin only)"""

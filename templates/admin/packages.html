@@ -14,14 +14,53 @@
 
 <!-- Create/Edit Modal -->
 <div class="modal fade" id="packageModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTitle">สร้างแพ็คเกจใหม่</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="packageForm">
+                    <input type="hidden" id="packageId">
+                    <div class="mb-3">
+                        <label for="packageName" class="form-label">ชื่อแพ็คเกจ</label>
+                        <input type="text" class="form-control" id="packageName" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="packagePrice" class="form-label">ราคา (฿)</label>
+                            <input type="number" class="form-control" id="packagePrice" min="0" step="0.01" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="packageDuration" class="form-label">ระยะเวลา (วัน)</label>
+                            <input type="number" class="form-control" id="packageDuration" min="1" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="packageQuota" class="form-label">จำนวนสลิป</label>
+                        <input type="number" class="form-control" id="packageQuota" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="packageFeatures" class="form-label">ฟีเจอร์ (แต่ละบรรทัด = 1 ฟีเจอร์)</label>
+                        <textarea class="form-control" id="packageFeatures" rows="4" placeholder="ฟีเจอร์ 1&#10;ฟีเจอร์ 2&#10;ฟีเจอร์ 3"></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isFreeStarter">
+                        <label class="form-check-label" for="isFreeStarter">Free Starter Package</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="savePackage()">บันทึก</button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
 
 <script>
     let packageModal;
@@ -31,19 +70,34 @@
         loadPackages();
     });
 
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
     async function loadPackages() {
         try {
             const response = await fetch('/api/admin/packages');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
 
             if (data.success) {
-                renderPackages(data.packages);
+                renderPackages(data.packages || []);
             } else {
-                alert('Error loading packages: ' + data.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to load packages');
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูลแพ็คเกจ', 'danger');
         }
     }
 
@@ -138,17 +192,20 @@
                 });
             }
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const result = await response.json();
             if (result.success) {
                 packageModal.hide();
                 loadPackages();
-                alert('บันทึกเรียบร้อย');
+                showAlert('บันทึกข้อมูลสำเร็จ', 'success');
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถบันทึกข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to save package');
+            showAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'danger');
         }
     }
 
@@ -159,16 +216,20 @@
             const response = await fetch(`/api/admin/packages/${id}`, {
                 method: 'DELETE'
             });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const result = await response.json();
 
             if (result.success) {
                 loadPackages();
+                showAlert('ลบแพ็คเกจสำเร็จ', 'success');
             } else {
-                alert('Error: ' + result.message);
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถลบข้อมูลได้'), 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Failed to delete package');
+            showAlert('เกิดข้อผิดพลาดในการลบข้อมูล', 'danger');
         }
     }
 </script>
