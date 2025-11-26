@@ -251,31 +251,37 @@
             // Check Thunder API
             if (status.thunder.configured) {
                 if (status.thunder.status === 'error') {
-                    // Only show error if it's not a connection/parsing error
+                    // Only show critical errors, not connection/parsing errors
                     const errorMsg = status.thunder.message || 'เกิดข้อผิดพลาด';
-                    if (!errorMsg.includes('Connection failed') && !errorMsg.includes('Invalid response format')) {
+                    // Don't show these non-critical errors
+                    const ignoredErrors = [
+                        'Connection failed',
+                        'Invalid response format',
+                        'API Token is required',
+                        'ยังไม่ได้ตั้งค่า'
+                    ];
+                    const shouldIgnore = ignoredErrors.some(err => errorMsg.includes(err));
+                    if (!shouldIgnore) {
                         warnings.push({
                             type: 'danger',
                             message: `⚠️ Thunder API: ${errorMsg}`
                         });
                     }
                 } else if (status.thunder.status === 'success') {
-                    // Only warn if balance is explicitly 0 or negative (not null/undefined)
+                    // Only warn if balance is explicitly 0 or negative AND we got a valid response
                     const balance = status.thunder.balance;
-                    if (balance !== null && balance !== undefined && typeof balance === 'number' && balance <= 0) {
+                    // Must be a valid number response from a successful API call
+                    const hasValidBalance = balance !== null && balance !== undefined && typeof balance === 'number';
+                    
+                    if (hasValidBalance && balance <= 0) {
                         warnings.push({
                             type: 'warning',
-                            message: `⚠️ Thunder API: หมดโควต้าแล้ว (Balance: ${balance})`
+                            message: `⚠️ Thunder API: โควต้าหมดแล้ว (คงเหลือ: ${balance})`
                         });
-                    } else if (balance !== null && balance !== undefined && typeof balance === 'number' && balance > 0) {
-                        // Show positive balance info (optional)
-                        // warnings.push({
-                        //     type: 'info',
-                        //     message: `✅ Thunder API: ยอดคงเหลือ ${balance.toLocaleString()} ครั้ง`
-                        // });
                     }
+                    // Don't show positive balance - it's not necessary
                     
-                    // Check expiry date
+                    // Check expiry date - only if we have a valid date
                     if (status.thunder.expires_at) {
                         try {
                             const expiresDate = new Date(status.thunder.expires_at);
@@ -290,7 +296,7 @@
                                 } else if (daysLeft < 0) {
                                     warnings.push({
                                         type: 'danger',
-                                        message: `⚠️ Thunder API: หมดอายุแล้ว (${daysLeft} วัน)`
+                                        message: `⚠️ Thunder API: หมดอายุแล้ว`
                                     });
                                 }
                             }

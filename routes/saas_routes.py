@@ -100,6 +100,43 @@ def register_saas_routes(app):
         except Exception as e:
             logger.error(f"Error: {e}")
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    @app.get("/api/user/payment-info")
+    async def get_payment_info(request: Request):
+        '''Get payment information (bank accounts, USDT wallet) for users'''
+        user = app.state.auth.get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        try:
+            settings = app.state.system_settings_model.get_settings()
+            
+            # Get bank accounts with consistent field names
+            bank_accounts = settings.get("payment_bank_accounts", [])
+            # Ensure both account_number and account_no are available
+            normalized_accounts = []
+            for acc in bank_accounts:
+                normalized_acc = {
+                    "bank_name": acc.get("bank_name", ""),
+                    "account_number": acc.get("account_number", "") or acc.get("account_no", ""),
+                    "account_name": acc.get("account_name", "")
+                }
+                normalized_accounts.append(normalized_acc)
+            
+            # Get USDT wallet info
+            usdt_wallet = {
+                "address": settings.get("usdt_wallet_address", ""),
+                "network": settings.get("usdt_network", "TRC20")
+            }
+            
+            return {
+                "success": True,
+                "bank_accounts": normalized_accounts,
+                "usdt_wallet": usdt_wallet
+            }
+        except Exception as e:
+            logger.error(f"Error getting payment info: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
     # ==================== System Settings APIs ====================
     
@@ -132,8 +169,17 @@ def register_saas_routes(app):
             else:
                 safe_settings["ai_api_key_preview"] = ""
             
-            # Copy other safe fields
-            safe_settings["bank_accounts"] = settings.get("payment_bank_accounts", [])
+            # Copy other safe fields - normalize bank account field names
+            raw_bank_accounts = settings.get("payment_bank_accounts", [])
+            normalized_bank_accounts = []
+            for acc in raw_bank_accounts:
+                normalized_acc = {
+                    "bank_name": acc.get("bank_name", ""),
+                    "account_number": acc.get("account_number", "") or acc.get("account_no", ""),
+                    "account_name": acc.get("account_name", "")
+                }
+                normalized_bank_accounts.append(normalized_acc)
+            safe_settings["bank_accounts"] = normalized_bank_accounts
             safe_settings["slip_api_provider"] = settings.get("slip_api_provider", "thunder")
             safe_settings["slip_api_provider_secondary"] = settings.get("slip_api_provider_secondary", "")
             safe_settings["slip_api_fallback_enabled"] = settings.get("slip_api_fallback_enabled", False)
@@ -199,6 +245,7 @@ def register_saas_routes(app):
             accounts.append({
                 "bank_name": data["bank_name"],
                 "account_number": data["account_number"],
+                "account_no": data["account_number"],  # Also store as account_no for compatibility
                 "account_name": data["account_name"]
             })
             
@@ -324,32 +371,50 @@ def register_saas_routes(app):
         try:
             settings = app.state.system_settings_model.get_settings()
             status_info = {
-                "thunder": {"configured": False, "status": "unknown", "message": ""},
-                "kbank": {"configured": False, "status": "unknown", "message": ""}
+                "thunder": {"configured": False, "status": "not_configured", "message": "ยังไม่ได้ตั้งค่า"},
+                "kbank": {"configured": False, "status": "not_configured", "message": "ยังไม่ได้ตั้งค่า"}
             }
             
             # Check Thunder API
-            if settings.get("slip_api_key"):
+            slip_api_key = settings.get("slip_api_key", "").strip()
+            if slip_api_key:
                 try:
                     from services.slip_checker import test_thunder_api_connection
-                    result = test_thunder_api_connection(settings.get("slip_api_key"))
-                    status_info["thunder"] = {
-                        "configured": True,
-                        "status": result.get("status", "error"),
-                        "message": result.get("message", ""),
-                        "balance": result.get("balance", 0),
-                        "expires_at": result.get("expires_at", "")
-                    }
+                    result = test_thunder_api_connection(slip_api_key)
+                    
+                    if result.get("status") == "success":
+                        # Only include balance if it's a valid number from API response
+                        balance = result.get("balance")
+                        status_info["thunder"] = {
+                            "configured": True,
+                            "status": "success",
+                            "message": result.get("message", "เชื่อมต่อสำเร็จ"),
+                            "balance": balance if isinstance(balance, (int, float)) else None,
+                            "expires_at": result.get("expires_at", "")
+                        }
+                    else:
+                        status_info["thunder"] = {
+                            "configured": True,
+                            "status": "error",
+                            "message": result.get("message", "ไม่สามารถเชื่อมต่อได้"),
+                            "balance": None,
+                            "expires_at": ""
+                        }
                 except Exception as e:
+                    logger.error(f"Error checking Thunder API: {e}")
                     status_info["thunder"] = {
                         "configured": True,
                         "status": "error",
-                        "message": f"เกิดข้อผิดพลาด: {str(e)}"
+                        "message": f"เกิดข้อผิดพลาด: {str(e)}",
+                        "balance": None,
+                        "expires_at": ""
                     }
             
             # Check KBank API
             from utils.config_manager import config_manager
-            if config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"):
+            kbank_id = config_manager.get("kbank_consumer_id", "").strip()
+            kbank_secret = config_manager.get("kbank_consumer_secret", "").strip()
+            if kbank_id and kbank_secret:
                 try:
                     from services.kbank_checker import kbank_checker
                     result = kbank_checker.test_connection()
@@ -510,9 +575,12 @@ def register_saas_routes(app):
             
             # Verify against configured bank accounts
             matched_account = None
+            verification_issues = []
+            
             for bank_acc in bank_accounts:
                 # Normalize account numbers (remove spaces, dashes)
-                config_account_no = str(bank_acc.get("account_no", "")).replace(" ", "").replace("-", "")
+                # Support both field names: account_no and account_number
+                config_account_no = str(bank_acc.get("account_number", "") or bank_acc.get("account_no", "")).replace(" ", "").replace("-", "")
                 slip_account_no = str(receiver_account_no).replace(" ", "").replace("-", "")
                 
                 # Check account number match
@@ -526,91 +594,107 @@ def register_saas_routes(app):
                     matched_account = bank_acc
                     break
             
-            if not matched_account:
+            # Track verification status
+            account_matched = matched_account is not None
+            name_matched = True
+            amount_matched = True
+            expected_amount = float(package["price"])
+            actual_amount = float(slip_amount) if slip_amount else 0
+            
+            if not account_matched:
                 logger.warning(f"⚠️ Account number mismatch: {receiver_account_no} not in configured accounts")
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "success": False,
-                        "message": f"เลขบัญชีผู้รับไม่ตรงกับบัญชีที่ตั้งค่าไว้ (พบ: {receiver_account_no})"
-                    }
-                )
-            
-            # Verify account name (fuzzy match)
-            config_account_name = str(matched_account.get("account_name", "")).strip().lower()
-            slip_account_name = str(receiver_name).strip().lower()
-            
-            # Allow partial match (at least 50% similarity)
-            if config_account_name and slip_account_name:
-                # Simple similarity check
-                if config_account_name not in slip_account_name and slip_account_name not in config_account_name:
-                    # Check character similarity
-                    common_chars = sum(1 for c in config_account_name if c in slip_account_name)
-                    similarity = common_chars / max(len(config_account_name), len(slip_account_name))
-                    if similarity < 0.5:
-                        logger.warning(f"⚠️ Account name mismatch: '{receiver_name}' vs '{matched_account.get('account_name')}'")
-                        return JSONResponse(
-                            status_code=400,
-                            content={
-                                "success": False,
-                                "message": f"ชื่อบัญชีผู้รับไม่ตรงกับที่ตั้งค่าไว้ (พบ: {receiver_name})"
-                            }
-                        )
+                verification_issues.append(f"เลขบัญชีผู้รับไม่ตรง (พบ: {receiver_account_no})")
+            else:
+                # Verify account name (fuzzy match)
+                config_account_name = str(matched_account.get("account_name", "")).strip().lower()
+                slip_account_name = str(receiver_name).strip().lower()
+                
+                # Allow partial match (at least 50% similarity)
+                if config_account_name and slip_account_name:
+                    # Simple similarity check
+                    if config_account_name not in slip_account_name and slip_account_name not in config_account_name:
+                        # Check character similarity
+                        common_chars = sum(1 for c in config_account_name if c in slip_account_name)
+                        similarity = common_chars / max(len(config_account_name), len(slip_account_name))
+                        if similarity < 0.5:
+                            name_matched = False
+                            logger.warning(f"⚠️ Account name mismatch: '{receiver_name}' vs '{matched_account.get('account_name')}'")
+                            verification_issues.append(f"ชื่อบัญชีไม่ตรง (พบ: {receiver_name})")
             
             # Verify amount (allow small difference for fees)
-            expected_amount = float(package["price"])
-            actual_amount = float(slip_amount)
             amount_diff = abs(expected_amount - actual_amount)
             
             # Allow 5% difference or 10 baht, whichever is larger
             tolerance = max(expected_amount * 0.05, 10.0)
             
             if amount_diff > tolerance:
+                amount_matched = False
                 logger.warning(f"⚠️ Amount mismatch: Expected {expected_amount}, Got {actual_amount}, Diff: {amount_diff}")
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "success": False,
-                        "message": f"ยอดเงินไม่ตรงกับแพ็คเกจ (คาดหวัง: ฿{expected_amount:,.2f}, พบ: ฿{actual_amount:,.2f})"
-                    }
-                )
+                verification_issues.append(f"ยอดเงินไม่ตรง (คาดหวัง: ฿{expected_amount:,.2f}, พบ: ฿{actual_amount:,.2f})")
             
-            # All checks passed - create payment
-            logger.info(f"✅ Slip verification passed - Account: {receiver_account_no}, Amount: {actual_amount}")
-            
+            # Create payment regardless of verification result
+            # Admin can approve/reject manually
             payment_id = app.state.payment_model.create_payment(
                 user_id=user["user_id"],
                 package_id=package_id,
-                amount=actual_amount,  # Use actual amount from slip
+                amount=actual_amount if actual_amount > 0 else expected_amount,
                 payment_type="bank_transfer",
                 slip_image_data=image_bytes
             )
+            
+            # Check if all verifications passed
+            all_verified = account_matched and name_matched and amount_matched
+            
+            if all_verified:
+                logger.info(f"✅ Slip verification passed - Account: {receiver_account_no}, Amount: {actual_amount}")
+            else:
+                logger.info(f"⚠️ Slip verification issues - Payment created for admin review: {verification_issues}")
             
             # Store verification result
             app.state.payment_model.update_payment_status(
                 payment_id,
                 "pending",
                 verification_result={
-                    "verified": True,
+                    "verified": all_verified,
                     "receiver_account": receiver_account_no,
                     "receiver_name": receiver_name,
                     "amount": actual_amount,
-                    "matched_account": matched_account.get("account_name"),
-                    "verification_method": "thunder_api"
+                    "matched_account": matched_account.get("account_name") if matched_account else None,
+                    "verification_method": "thunder_api",
+                    "account_matched": account_matched,
+                    "name_matched": name_matched,
+                    "amount_matched": amount_matched,
+                    "issues": verification_issues
                 }
             )
             
-            return {
-                "success": True,
-                "message": "ตรวจสอบสลิปสำเร็จ รอการอนุมัติจากผู้ดูแลระบบ",
-                "payment_id": payment_id,
-                "verification": {
-                    "account_matched": True,
-                    "name_matched": True,
-                    "amount_matched": True,
-                    "amount": actual_amount
+            # Return success but indicate if manual review is needed
+            if all_verified:
+                return {
+                    "success": True,
+                    "message": "ตรวจสอบสลิปสำเร็จ รอการอนุมัติจากผู้ดูแลระบบ",
+                    "payment_id": payment_id,
+                    "verification": {
+                        "account_matched": True,
+                        "name_matched": True,
+                        "amount_matched": True,
+                        "amount": actual_amount
+                    }
                 }
-            }
+            else:
+                return {
+                    "success": True,
+                    "message": "รับข้อมูลการชำระเงินแล้ว รอการตรวจสอบจากผู้ดูแลระบบ",
+                    "payment_id": payment_id,
+                    "needs_review": True,
+                    "verification": {
+                        "account_matched": account_matched,
+                        "name_matched": name_matched,
+                        "amount_matched": amount_matched,
+                        "amount": actual_amount,
+                        "issues": verification_issues
+                    }
+                }
         except Exception as e:
             logger.error(f"Error creating payment: {e}", exc_info=True)
             return JSONResponse(status_code=500, content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"})

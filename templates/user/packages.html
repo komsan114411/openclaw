@@ -146,28 +146,32 @@
 
     async function loadBankAccounts() {
         try {
-            // Try to get bank accounts from system settings
-            const response = await fetch('/api/admin/system-settings');
+            // Get bank accounts from user payment info API
+            const response = await fetch('/api/user/payment-info');
             if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.settings && data.settings.bank_accounts) {
-                    renderBankAccounts(data.settings.bank_accounts);
+                if (data.success && data.bank_accounts && data.bank_accounts.length > 0) {
+                    renderBankAccounts(data.bank_accounts);
+                    
+                    // Also update USDT wallet if available
+                    if (data.usdt_wallet && data.usdt_wallet.address) {
+                        document.getElementById('usdtAddress').value = data.usdt_wallet.address;
+                        document.getElementById('usdtQrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${data.usdt_wallet.address}`;
+                    }
                     return;
                 }
             }
         } catch (error) {
-            console.log('Could not load bank accounts from admin API, using placeholder');
+            console.log('Could not load bank accounts:', error);
         }
         
-        // Fallback: Show placeholder
+        // Fallback: Show message to contact admin
         const list = document.getElementById('bankAccountsList');
         list.innerHTML = `
-            <div class="card mb-2">
-                <div class="card-body p-2">
-                    <h6 class="mb-0 text-primary">กสิกรไทย (KBANK)</h6>
-                    <p class="mb-0 fw-bold">000-0-00000-0</p>
-                    <small>บริษัท ไลน์ โอเอ จำกัด</small>
-                </div>
+            <div class="alert alert-warning mb-2">
+                <i class="bi bi-exclamation-triangle"></i> 
+                ยังไม่มีบัญชีธนาคารที่ตั้งค่าไว้<br>
+                <small>กรุณาติดต่อผู้ดูแลระบบ</small>
             </div>
         `;
     }

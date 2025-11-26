@@ -203,9 +203,21 @@
                     if (p.verification_result) {
                         const vf = p.verification_result;
                         if (vf.verified) {
-                            evidence += `<br><small class="text-success"><i class="bi bi-check-circle"></i> ตรวจสอบแล้ว</small>`;
+                            evidence += `<br><small class="text-success"><i class="bi bi-check-circle"></i> ตรวจสอบผ่าน</small>`;
                             if (vf.receiver_account) {
                                 evidence += `<br><small class="text-muted">บัญชี: ${vf.receiver_account}</small>`;
+                            }
+                        } else {
+                            // Show verification issues
+                            evidence += `<br><small class="text-warning"><i class="bi bi-exclamation-triangle"></i> ต้องตรวจสอบ</small>`;
+                            if (vf.issues && vf.issues.length > 0) {
+                                evidence += `<br><small class="text-danger">${vf.issues.join('<br>')}</small>`;
+                            }
+                            if (vf.receiver_account) {
+                                evidence += `<br><small class="text-muted">บัญชี: ${vf.receiver_account}</small>`;
+                            }
+                            if (vf.amount) {
+                                evidence += `<br><small class="text-muted">ยอด: ฿${vf.amount.toLocaleString()}</small>`;
                             }
                         }
                     }
