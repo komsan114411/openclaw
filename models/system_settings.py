@@ -39,6 +39,16 @@ class SystemSettingsModel:
                 # USDT Wallet Configuration
                 "usdt_wallet_address": "",
                 "usdt_network": "TRC20",  # TRC20, ERC20, etc.
+                "usdt_qr_image": "",  # Base64 or URL of QR code image
+                
+                # Quota Exceeded Response Template
+                "quota_exceeded_response_type": "text",  # "text" or "flex"
+                "quota_exceeded_message": "❌ โควต้าของคุณหมดแล้ว\n\nกรุณาติดต่อผู้ดูแลระบบเพื่ออัปเกรดแพ็คเกจ",
+                "quota_exceeded_flex_title": "โควต้าหมด",
+                "quota_exceeded_flex_body": "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาอัปเกรดแพ็คเกจเพื่อใช้งานต่อ",
+                "quota_exceeded_flex_button_text": "อัปเกรดแพ็คเกจ",
+                "quota_exceeded_flex_button_url": "",
+                "quota_exceeded_flex_image_url": "",
                 
                 # Quota Warning Thresholds
                 "quota_warning_slip_threshold": 50,  # Warn when < 50 slips remain

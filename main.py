@@ -876,6 +876,35 @@ async def create_line_account_by_admin(request: Request, data: CreateLineAccount
             content={"success": False, "message": "เกิดข้อผิดพลาดในการเพิ่มบัญชี LINE"}
         )
 
+@app.get("/api/admin/line-accounts")
+async def get_all_line_accounts(request: Request):
+    """Get all LINE accounts (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        accounts = app.state.line_account_model.get_all_accounts()
+        # Convert to JSON-serializable format
+        result = []
+        for acc in accounts:
+            acc_dict = {
+                "_id": str(acc.get("_id", "")),
+                "account_name": acc.get("account_name", ""),
+                "channel_id": acc.get("channel_id", ""),
+                "is_active": acc.get("is_active", True),
+                "owner_id": acc.get("owner_id", ""),
+                "created_at": acc.get("created_at").isoformat() if acc.get("created_at") else None
+            }
+            result.append(acc_dict)
+        return {"success": True, "accounts": result}
+    except Exception as e:
+        logger.error(f"Error fetching LINE accounts: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการโหลดข้อมูล"}
+        )
+
 @app.delete("/api/admin/line-accounts/{account_id}")
 async def delete_line_account_by_admin(request: Request, account_id: str):
     """Delete LINE account (Admin only)"""
@@ -901,6 +930,74 @@ async def delete_line_account_by_admin(request: Request, account_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการลบบัญชี LINE"}
+        )
+
+@app.post("/api/admin/line-accounts/{account_id}/test")
+async def test_line_connection(request: Request, account_id: str):
+    """Test LINE OA connection (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        import requests
+        
+        # Get LINE account
+        account = app.state.line_account_model.get_account_by_id(account_id)
+        if not account:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": "ไม่พบบัญชี LINE"}
+            )
+        
+        access_token = account.get("channel_access_token", "")
+        if not access_token:
+            return {"success": False, "message": "ไม่พบ Channel Access Token"}
+        
+        # Test connection by getting bot info
+        headers = {"Authorization": f"Bearer {access_token}"}
+        response = requests.get("https://api.line.me/v2/bot/info", headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            bot_info = response.json()
+            
+            # Get quota status if owner exists
+            quota_status = None
+            owner_id = account.get("owner_id")
+            if owner_id:
+                try:
+                    quota = app.state.subscription_model.check_quota(owner_id)
+                    quota_status = {
+                        "remaining": quota.get("slips_remaining", 0),
+                        "quota_exceeded": not quota.get("has_quota", True),
+                        "is_active": quota.get("is_active", False)
+                    }
+                except:
+                    pass
+            
+            return {
+                "success": True,
+                "message": "เชื่อมต่อสำเร็จ",
+                "bot_info": {
+                    "displayName": bot_info.get("displayName", ""),
+                    "userId": bot_info.get("userId", ""),
+                    "pictureUrl": bot_info.get("pictureUrl", "")
+                },
+                "quota_status": quota_status
+            }
+        elif response.status_code == 401:
+            return {"success": False, "message": "Token ไม่ถูกต้องหรือหมดอายุ"}
+        else:
+            return {"success": False, "message": f"เกิดข้อผิดพลาด: HTTP {response.status_code}"}
+    except requests.exceptions.Timeout:
+        return {"success": False, "message": "หมดเวลาในการเชื่อมต่อ"}
+    except requests.exceptions.ConnectionError:
+        return {"success": False, "message": "ไม่สามารถเชื่อมต่อ LINE API ได้"}
+    except Exception as e:
+        logger.error(f"Error testing LINE connection: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
         )
 
 # ==================== User Routes ====================

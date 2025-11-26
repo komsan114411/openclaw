@@ -124,9 +124,25 @@ def register_saas_routes(app):
                 normalized_accounts.append(normalized_acc)
             
             # Get USDT wallet info
+            network = settings.get("usdt_network", "TRC20")
+            address = settings.get("usdt_wallet_address", "")
+            qr_image = settings.get("usdt_qr_image", "")
+            
+            # Generate explorer URL based on network
+            explorer_url = ""
+            if address:
+                if network == "ERC20":
+                    explorer_url = f"https://etherscan.io/address/{address}"
+                elif network == "TRC20":
+                    explorer_url = f"https://tronscan.org/#/address/{address}"
+                elif network == "BEP20":
+                    explorer_url = f"https://bscscan.com/address/{address}"
+            
             usdt_wallet = {
-                "address": settings.get("usdt_wallet_address", ""),
-                "network": settings.get("usdt_network", "TRC20")
+                "address": address,
+                "network": network,
+                "qr_image": qr_image,
+                "explorer_url": explorer_url
             }
             
             return {
@@ -189,6 +205,20 @@ def register_saas_routes(app):
             else:
                 safe_settings["slip_api_key_secondary_preview"] = ""
             safe_settings["ai_model"] = settings.get("ai_model", "gpt-4-mini")
+            
+            # USDT wallet settings
+            safe_settings["usdt_network"] = settings.get("usdt_network", "TRC20")
+            safe_settings["usdt_wallet_address"] = settings.get("usdt_wallet_address", "")
+            safe_settings["usdt_qr_image"] = settings.get("usdt_qr_image", "")
+            
+            # Quota exceeded template settings
+            safe_settings["quota_exceeded_response_type"] = settings.get("quota_exceeded_response_type", "text")
+            safe_settings["quota_exceeded_message"] = settings.get("quota_exceeded_message", "")
+            safe_settings["quota_exceeded_flex_title"] = settings.get("quota_exceeded_flex_title", "")
+            safe_settings["quota_exceeded_flex_body"] = settings.get("quota_exceeded_flex_body", "")
+            safe_settings["quota_exceeded_flex_button_text"] = settings.get("quota_exceeded_flex_button_text", "")
+            safe_settings["quota_exceeded_flex_button_url"] = settings.get("quota_exceeded_flex_button_url", "")
+            safe_settings["quota_exceeded_flex_image_url"] = settings.get("quota_exceeded_flex_image_url", "")
             
             return {"success": True, "settings": safe_settings}
         except Exception as e:
