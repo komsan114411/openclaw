@@ -1,6 +1,25 @@
-</button>
-</div>
+{% extends "base.html" %}
 
+{% block title %}จัดการแพ็คเกจ - Admin{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/admin_menu.html" %}
+{% endblock %}
+
+{% block page_title %}จัดการแพ็คเกจ{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการแพ็คเกจและราคาในระบบ</p>
+{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary" onclick="openCreateModal()">
+    <i class="fas fa-plus"></i>
+    <span>สร้างแพ็คเกจใหม่</span>
+</button>
+{% endblock %}
+
+{% block content %}
 <!-- Packages Grid -->
 <div class="row" id="packagesGrid">
     <!-- Loading state -->
@@ -9,7 +28,6 @@
             <span class="visually-hidden">Loading...</span>
         </div>
     </div>
-</div>
 </div>
 
 <!-- Create/Edit Modal -->
