@@ -135,6 +135,13 @@ def register_saas_routes(app):
             # Copy other safe fields
             safe_settings["bank_accounts"] = settings.get("payment_bank_accounts", [])
             safe_settings["slip_api_provider"] = settings.get("slip_api_provider", "thunder")
+            safe_settings["slip_api_provider_secondary"] = settings.get("slip_api_provider_secondary", "")
+            safe_settings["slip_api_fallback_enabled"] = settings.get("slip_api_fallback_enabled", False)
+            safe_settings["slip_api_quota_warning"] = settings.get("slip_api_quota_warning", True)
+            if "slip_api_key_secondary" in settings and settings["slip_api_key_secondary"]:
+                safe_settings["slip_api_key_secondary_preview"] = settings["slip_api_key_secondary"][:10] + "..."
+            else:
+                safe_settings["slip_api_key_secondary_preview"] = ""
             safe_settings["ai_model"] = settings.get("ai_model", "gpt-4-mini")
             
             return {"success": True, "settings": safe_settings}
@@ -151,13 +158,22 @@ def register_saas_routes(app):
         
         try:
             data = await request.json()
-            success = app.state.system_settings_model.update_settings(data, user["user_id"])  # Fixed: Added admin_id
+            
+            # Handle secondary API key preview
+            if "slip_api_key_secondary" in data and data["slip_api_key_secondary"]:
+                # Keep the key, don't delete it
+                pass
+            elif "slip_api_key_secondary" in data and not data["slip_api_key_secondary"]:
+                # If empty, don't update it (keep existing)
+                del data["slip_api_key_secondary"]
+            
+            success = app.state.system_settings_model.update_settings(data, user["user_id"])
             if success:
-                return {"success": True, "message": "Settings updated"}
-            return JSONResponse(status_code=500, content={"success": False, "message": "Failed to update"})
+                return {"success": True, "message": "บันทึกการตั้งค่าสำเร็จ"}
+            return JSONResponse(status_code=500, content={"success": False, "message": "ไม่สามารถบันทึกการตั้งค่าได้"})
         except Exception as e:
             logger.error(f"Error updating settings: {e}")
-            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+            return JSONResponse(status_code=500, content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"})
 
     @app.post("/api/admin/system-settings/bank-accounts")
     async def add_bank_account(request: Request):
@@ -235,6 +251,7 @@ def register_saas_routes(app):
         try:
             data = await request.json()
             api_key = data.get("api_key")
+            provider = data.get("provider", "thunder")
             
             if not api_key:
                 return JSONResponse(
@@ -242,28 +259,115 @@ def register_saas_routes(app):
                     content={"success": False, "message": "กรุณากรอก API Key"}
                 )
             
-            # Import test function
-            from services.slip_checker import test_thunder_api_connection
-            result = test_thunder_api_connection(api_key)
-            
-            # Convert result to match expected format
-            if result.get("status") == "success":
-                return JSONResponse(content={
-                    "success": True,
-                    "status": "success",
-                    "message": result.get("message", "เชื่อมต่อ API สำเร็จ")
-                })
+            # Test based on provider
+            if provider == "kbank":
+                from services.kbank_checker import kbank_checker
+                # Update credentials temporarily for testing
+                from utils.config_manager import config_manager
+                original_id = config_manager.get("kbank_consumer_id", "")
+                original_secret = config_manager.get("kbank_consumer_secret", "")
+                
+                # For KBank, api_key might be consumer_id, need to handle differently
+                # For now, test with existing KBank checker
+                result = kbank_checker.test_connection()
+                
+                if result.get("status") == "success":
+                    return JSONResponse(content={
+                        "success": True,
+                        "status": "success",
+                        "message": result.get("message", "เชื่อมต่อ KBank API สำเร็จ")
+                    })
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "success": False,
+                            "status": "error",
+                            "message": result.get("message", "ไม่สามารถเชื่อมต่อ KBank API ได้")
+                        }
+                    )
             else:
-                return JSONResponse(
-                    status_code=400,
-                    content={
-                        "success": False,
-                        "status": "error",
-                        "message": result.get("message", "ไม่สามารถเชื่อมต่อ API ได้")
-                    }
-                )
+                # Test Thunder API
+                from services.slip_checker import test_thunder_api_connection
+                result = test_thunder_api_connection(api_key)
+                
+                # Convert result to match expected format
+                if result.get("status") == "success":
+                    return JSONResponse(content={
+                        "success": True,
+                        "status": "success",
+                        "message": result.get("message", "เชื่อมต่อ Thunder API สำเร็จ")
+                    })
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "success": False,
+                            "status": "error",
+                            "message": result.get("message", "ไม่สามารถเชื่อมต่อ Thunder API ได้")
+                        }
+                    )
         except Exception as e:
             logger.error(f"Error testing slip API: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
+            )
+    
+    @app.get("/api/admin/system-settings/api-status")
+    async def get_api_status(request: Request):
+        '''Get API status and quota information'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            settings = app.state.system_settings_model.get_settings()
+            status_info = {
+                "thunder": {"configured": False, "status": "unknown", "message": ""},
+                "kbank": {"configured": False, "status": "unknown", "message": ""}
+            }
+            
+            # Check Thunder API
+            if settings.get("slip_api_key"):
+                try:
+                    from services.slip_checker import test_thunder_api_connection
+                    result = test_thunder_api_connection(settings.get("slip_api_key"))
+                    status_info["thunder"] = {
+                        "configured": True,
+                        "status": result.get("status", "error"),
+                        "message": result.get("message", ""),
+                        "balance": result.get("balance", 0),
+                        "expires_at": result.get("expires_at", "")
+                    }
+                except Exception as e:
+                    status_info["thunder"] = {
+                        "configured": True,
+                        "status": "error",
+                        "message": f"เกิดข้อผิดพลาด: {str(e)}"
+                    }
+            
+            # Check KBank API
+            from utils.config_manager import config_manager
+            if config_manager.get("kbank_consumer_id") and config_manager.get("kbank_consumer_secret"):
+                try:
+                    from services.kbank_checker import kbank_checker
+                    result = kbank_checker.test_connection()
+                    status_info["kbank"] = {
+                        "configured": True,
+                        "status": result.get("status", "error"),
+                        "message": result.get("message", "")
+                    }
+                except Exception as e:
+                    status_info["kbank"] = {
+                        "configured": True,
+                        "status": "error",
+                        "message": f"เกิดข้อผิดพลาด: {str(e)}"
+                    }
+            
+            return JSONResponse(content={"success": True, "api_status": status_info})
+        except Exception as e:
+            logger.error(f"Error getting API status: {e}")
             return JSONResponse(
                 status_code=500,
                 content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}

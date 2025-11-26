@@ -23,7 +23,17 @@
         <div class="card-body">
             <form id="apiSettingsForm">
                 <div class="mb-3">
-                    <label class="form-label">Slip Verification API Key</label>
+                    <label class="form-label">Slip Verification API Provider</label>
+                    <select class="form-select" id="slipApiProvider" onchange="updateProviderFields()">
+                        <option value="thunder">Thunder API</option>
+                        <option value="kbank">KBank API</option>
+                        <option value="both">ใช้ทั้งสอง (Thunder + KBank)</option>
+                    </select>
+                    <div class="form-text text-muted">เลือก API ที่ใช้สำหรับตรวจสอบสลิป</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Slip Verification API Key (หลัก)</label>
                     <div class="input-group">
                         <input type="password" class="form-control" id="slipApiKey" placeholder="Enter API Key">
                         <button class="btn btn-outline-secondary" type="button"
@@ -36,6 +46,36 @@
                     </div>
                     <div class="form-text text-muted" id="slipApiKeyPreview"></div>
                     <div id="slipApiTestResult" class="mt-2"></div>
+                </div>
+                
+                <div class="mb-3" id="secondaryApiSection" style="display: none;">
+                    <label class="form-label">Slip Verification API Key (สำรอง)</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="slipApiKeySecondary" placeholder="Enter Secondary API Key">
+                        <button class="btn btn-outline-secondary" type="button"
+                            onclick="toggleVisibility('slipApiKeySecondary')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-info" type="button" onclick="testSlipApiSecondary()" id="testSlipSecondaryBtn">
+                            <i class="bi bi-check-circle"></i> ทดสอบ
+                        </button>
+                    </div>
+                    <div class="form-text text-muted" id="slipApiKeySecondaryPreview"></div>
+                    <div id="slipApiSecondaryTestResult" class="mt-2"></div>
+                </div>
+                
+                <div class="mb-3 form-check" id="fallbackCheckbox" style="display: none;">
+                    <input type="checkbox" class="form-check-input" id="slipApiFallbackEnabled">
+                    <label class="form-check-label" for="slipApiFallbackEnabled">
+                        เปิดใช้ Fallback (สลับไปใช้ API สำรองเมื่อ API หลักใช้ไม่ได้)
+                    </label>
+                </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="slipApiQuotaWarning" checked>
+                    <label class="form-check-label" for="slipApiQuotaWarning">
+                        แจ้งเตือนเมื่อ API หมดอายุหรือหมดโควต้า
+                    </label>
                 </div>
 
                 <div class="mb-3">
@@ -156,17 +196,33 @@
             if (data.success) {
                 const settings = data.settings || {};
 
+                // Set API provider
+                const provider = settings.slip_api_provider || 'thunder';
+                document.getElementById('slipApiProvider').value = provider;
+                updateProviderFields();
+                
                 // Show previews if keys exist
                 if (settings.slip_api_key_preview) {
                     document.getElementById('slipApiKeyPreview').innerText = `Current: ${settings.slip_api_key_preview}`;
                 } else {
                     document.getElementById('slipApiKeyPreview').innerText = 'ยังไม่ได้ตั้งค่า';
                 }
+                
+                if (settings.slip_api_key_secondary_preview) {
+                    document.getElementById('slipApiKeySecondaryPreview').innerText = `Current: ${settings.slip_api_key_secondary_preview}`;
+                } else {
+                    document.getElementById('slipApiKeySecondaryPreview').innerText = 'ยังไม่ได้ตั้งค่า';
+                }
+                
                 if (settings.ai_api_key_preview) {
                     document.getElementById('aiApiKeyPreview').innerText = `Current: ${settings.ai_api_key_preview}`;
                 } else {
                     document.getElementById('aiApiKeyPreview').innerText = 'ยังไม่ได้ตั้งค่า';
                 }
+                
+                // Set fallback checkbox
+                document.getElementById('slipApiFallbackEnabled').checked = settings.slip_api_fallback_enabled || false;
+                document.getElementById('slipApiQuotaWarning').checked = settings.slip_api_quota_warning !== false;
 
                 renderBankAccounts(settings.bank_accounts || []);
             } else {
@@ -180,6 +236,7 @@
     
     async function testSlipApi() {
         const apiKey = document.getElementById('slipApiKey').value;
+        const provider = document.getElementById('slipApiProvider').value;
         const testBtn = document.getElementById('testSlipBtn');
         const resultDiv = document.getElementById('slipApiTestResult');
         
@@ -187,6 +244,9 @@
             showAlert('กรุณากรอก API Key ก่อนทดสอบ', 'warning');
             return;
         }
+        
+        // Determine which provider to test
+        const testProvider = provider === 'both' ? 'thunder' : provider;
         
         // Disable button and show loading
         testBtn.disabled = true;
@@ -197,7 +257,7 @@
             const response = await fetch('/api/admin/system-settings/test/slip-api', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ api_key: apiKey })
+                body: JSON.stringify({ api_key: apiKey, provider: testProvider })
             });
             
             const result = await response.json();
@@ -291,6 +351,81 @@
         }
     }
 
+    function updateProviderFields() {
+        const provider = document.getElementById('slipApiProvider').value;
+        const secondarySection = document.getElementById('secondaryApiSection');
+        const fallbackCheckbox = document.getElementById('fallbackCheckbox');
+        
+        if (provider === 'both') {
+            secondarySection.style.display = 'block';
+            fallbackCheckbox.style.display = 'block';
+        } else {
+            secondarySection.style.display = 'none';
+            fallbackCheckbox.style.display = 'none';
+            document.getElementById('slipApiFallbackEnabled').checked = false;
+        }
+    }
+    
+    async function testSlipApiSecondary() {
+        const apiKey = document.getElementById('slipApiKeySecondary').value;
+        const provider = document.getElementById('slipApiProvider').value;
+        const testBtn = document.getElementById('testSlipSecondaryBtn');
+        const resultDiv = document.getElementById('slipApiSecondaryTestResult');
+        
+        if (!apiKey) {
+            showAlert('กรุณากรอก API Key สำรองก่อนทดสอบ', 'warning');
+            return;
+        }
+        
+        // Determine which provider to test (opposite of primary)
+        const primaryProvider = provider === 'both' ? 'thunder' : provider;
+        const secondaryProvider = primaryProvider === 'thunder' ? 'kbank' : 'thunder';
+        
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...';
+        resultDiv.innerHTML = '<div class="alert alert-info">กำลังทดสอบการเชื่อมต่อ...</div>';
+        
+        try {
+            const response = await fetch('/api/admin/system-settings/test/slip-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey, provider: secondaryProvider })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success' || result.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> 
+                        <strong>เชื่อมต่อสำเร็จ!</strong><br>
+                        ${result.message || 'API Key สำรองใช้งานได้'}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        <strong>เชื่อมต่อไม่สำเร็จ</strong><br>
+                        ${result.message || 'ไม่สามารถเชื่อมต่อ API ได้'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error testing secondary slip API:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>เกิดข้อผิดพลาด</strong><br>
+                    ${error.message}
+                </div>
+            `;
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-check-circle"></i> ทดสอบ';
+        }
+    }
+
     function renderBankAccounts(accounts) {
         const list = document.getElementById('bankAccountsList');
         list.innerHTML = '';
@@ -318,13 +453,29 @@
 
     async function saveApiSettings() {
         const slipKey = document.getElementById('slipApiKey').value;
+        const slipKeySecondary = document.getElementById('slipApiKeySecondary').value;
         const aiKey = document.getElementById('aiApiKey').value;
+        const provider = document.getElementById('slipApiProvider').value;
+        const fallbackEnabled = document.getElementById('slipApiFallbackEnabled').checked;
+        const quotaWarning = document.getElementById('slipApiQuotaWarning').checked;
 
         const data = {};
         if (slipKey) data.slip_api_key = slipKey;
+        if (slipKeySecondary) data.slip_api_key_secondary = slipKeySecondary;
         if (aiKey) data.ai_api_key = aiKey;
+        data.slip_api_provider = provider;
+        data.slip_api_fallback_enabled = fallbackEnabled;
+        data.slip_api_quota_warning = quotaWarning;
+        
+        // Set secondary provider if using both
+        if (provider === 'both') {
+            // If primary is thunder, secondary is kbank, and vice versa
+            const primaryProvider = 'thunder'; // Default primary
+            data.slip_api_provider_secondary = primaryProvider === 'thunder' ? 'kbank' : 'thunder';
+        }
 
-        if (Object.keys(data).length === 0) {
+        // Always include provider setting even if no keys
+        if (Object.keys(data).length === 0 && !provider) {
             showAlert('กรุณากรอกข้อมูลที่ต้องการแก้ไข', 'warning');
             return;
         }

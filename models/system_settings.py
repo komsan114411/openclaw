@@ -18,8 +18,12 @@ class SystemSettingsModel:
         if self.collection.count_documents({}) == 0:
             default_settings = {
                 # Slip API Configuration
-                "slip_api_provider": "thunder",
+                "slip_api_provider": "thunder",  # thunder, kbank, or both
                 "slip_api_key": "",
+                "slip_api_key_secondary": "",  # สำหรับ fallback
+                "slip_api_provider_secondary": "",  # kbank หรือ thunder (ถ้าใช้ทั้งสอง)
+                "slip_api_fallback_enabled": False,  # เปิดใช้ fallback หรือไม่
+                "slip_api_quota_warning": True,  # แจ้งเตือนเมื่อหมดโควต้า
                 
                 # AI Configuration
                 "ai_api_key": "",

@@ -577,6 +577,55 @@ async def update_user_api(request: Request, user_id: str):
             content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้"}
         )
 
+@app.post("/api/admin/users/{user_id}/password")
+async def change_user_password_api(request: Request, user_id: str):
+    """Change user password (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        new_password = data.get("new_password")
+        confirm_password = data.get("confirm_password")
+        
+        if not new_password or not confirm_password:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "กรุณากรอกรหัสผ่านใหม่และยืนยันรหัสผ่าน"}
+            )
+        
+        if new_password != confirm_password:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "รหัสผ่านใหม่ไม่ตรงกัน"}
+            )
+        
+        if len(new_password) < 6:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"}
+            )
+        
+        success = app.state.user_model.update_password(user_id, new_password, clear_force_change=True)
+        if success:
+            await manager.broadcast({
+                "type": "success",
+                "message": "เปลี่ยนรหัสผ่านผู้ใช้สำเร็จ"
+            })
+            return {"success": True, "message": "เปลี่ยนรหัสผ่านผู้ใช้สำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถเปลี่ยนรหัสผ่านได้"}
+            )
+    except Exception as e:
+        logger.error(f"Error changing user password: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน"}
+        )
+
 @app.put("/api/admin/users/{user_id}/restore")
 async def restore_user_api(request: Request, user_id: str):
     """Restore deleted user (Admin only)"""

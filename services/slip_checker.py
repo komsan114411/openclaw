@@ -474,17 +474,38 @@ def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
         if resp.status_code in [200, 400, 404]:  # Expected responses
             try:
                 result = resp.json()
+                
+                # Try to get balance and expires_at from account endpoint
+                balance = 0
+                expires_at = ""
+                try:
+                    account_resp = session.get(
+                        "https://api.thunder.in.th/v1/account",
+                        headers=headers,
+                        timeout=30
+                    )
+                    if account_resp.status_code == 200:
+                        account_data = account_resp.json()
+                        balance = account_data.get("balance", 0)
+                        expires_at = account_data.get("expiresAt", "")
+                except Exception as e:
+                    logger.warning(f"Could not fetch account info: {e}")
+                
                 return {
                     "status": "success",
                     "message": "Thunder API connection successful",
                     "response_code": resp.status_code,
-                    "api_message": result.get("message", "OK")
+                    "api_message": result.get("message", "OK"),
+                    "balance": balance,
+                    "expires_at": expires_at
                 }
             except:
                 return {
                     "status": "success",
                     "message": "Thunder API connection successful (non-JSON response)",
-                    "response_code": resp.status_code
+                    "response_code": resp.status_code,
+                    "balance": 0,
+                    "expires_at": ""
                 }
         elif resp.status_code == 401:
             return {"status": "error", "message": "Invalid API Token"}

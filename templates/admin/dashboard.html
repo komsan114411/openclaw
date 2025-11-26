@@ -231,6 +231,85 @@
 {% endblock %}
 
 {% block content %}
+<!-- API Status Alert (for Admin) -->
+<div id="apiStatusAlert" class="mb-4" style="display: none;"></div>
+
+<script>
+    // Check API status and show warnings
+    async function checkApiStatus() {
+        try {
+            const response = await fetch('/api/admin/system-settings/api-status');
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            if (!data.success || !data.api_status) return;
+            
+            const status = data.api_status;
+            const alertDiv = document.getElementById('apiStatusAlert');
+            let warnings = [];
+            
+            // Check Thunder API
+            if (status.thunder.configured) {
+                if (status.thunder.status === 'error') {
+                    warnings.push({
+                        type: 'danger',
+                        message: `⚠️ Thunder API: ${status.thunder.message || 'เกิดข้อผิดพลาด'}`
+                    });
+                } else if (status.thunder.balance !== undefined && status.thunder.balance <= 0) {
+                    warnings.push({
+                        type: 'warning',
+                        message: `⚠️ Thunder API: หมดโควต้าแล้ว (Balance: ${status.thunder.balance})`
+                    });
+                } else if (status.thunder.expires_at) {
+                    const expiresDate = new Date(status.thunder.expires_at);
+                    const now = new Date();
+                    const daysLeft = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+                    if (daysLeft <= 7) {
+                        warnings.push({
+                            type: 'warning',
+                            message: `⚠️ Thunder API: หมดอายุในอีก ${daysLeft} วัน (${status.thunder.expires_at})`
+                        });
+                    }
+                }
+            }
+            
+            // Check KBank API
+            if (status.kbank.configured) {
+                if (status.kbank.status === 'error') {
+                    warnings.push({
+                        type: 'danger',
+                        message: `⚠️ KBank API: ${status.kbank.message || 'เกิดข้อผิดพลาด'}`
+                    });
+                }
+            }
+            
+            // Show warnings
+            if (warnings.length > 0) {
+                let alertHTML = '';
+                warnings.forEach(warning => {
+                    alertHTML += `
+                        <div class="alert alert-${warning.type} alert-dismissible fade show">
+                            ${warning.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                });
+                alertDiv.innerHTML = alertHTML;
+                alertDiv.style.display = 'block';
+            } else {
+                alertDiv.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error checking API status:', error);
+        }
+    }
+    
+    // Check API status on page load and every 5 minutes
+    document.addEventListener('DOMContentLoaded', function() {
+        checkApiStatus();
+        setInterval(checkApiStatus, 5 * 60 * 1000); // Every 5 minutes
+    });
+</script>
 <!-- Stats Grid -->
 <div class="stats-grid">
     <div class="stat-card blue">
