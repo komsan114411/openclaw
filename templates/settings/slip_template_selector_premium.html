@@ -74,7 +74,7 @@
         background: white;
         border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         position: relative;
@@ -83,7 +83,7 @@
 
     .template-card:hover {
         transform: translateY(-8px);
-        box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
     }
 
     .template-card.selected {
@@ -106,7 +106,7 @@
         background: white;
         border-radius: 32px;
         padding: 12px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         position: relative;
     }
 
@@ -288,7 +288,7 @@
         background: white;
         border-radius: 40px;
         padding: 16px;
-        box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
         position: relative;
     }
 
@@ -344,7 +344,7 @@
         background: white;
         border-radius: 16px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
     .close-preview {
@@ -362,7 +362,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         transition: all 0.3s;
     }
 
@@ -373,8 +373,13 @@
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 
     @keyframes slideUp {
@@ -382,6 +387,7 @@
             transform: translateY(50px);
             opacity: 0;
         }
+
         to {
             transform: translateY(0);
             opacity: 1;
@@ -497,10 +503,9 @@
     {% if templates %}
     <div class="template-grid">
         {% for template in templates %}
-        <div class="template-card {% if template.is_selected %}selected{% endif %}" 
-             data-template-id="{{ template._id }}"
-             onclick="selectTemplate('{{ template._id }}')">
-            
+        <div class="template-card {% if template.is_selected %}selected{% endif %}"
+            data-template-id="{{ template._id }}" onclick="selectTemplate('{{ template._id }}')">
+
             {% if template.is_selected %}
             <div class="default-badge">
                 <i class="fas fa-check-circle"></i> กำลังใช้งาน
@@ -510,62 +515,73 @@
                 <i class="fas fa-star"></i> ค่าเริ่มต้น
             </div>
             {% endif %}
-            
+
             <div class="template-preview-wrapper">
                 <div class="template-preview-phone">
                     <div class="template-preview-content">
                         {% if template.template_name.startswith('🌟') %}
-                        <div style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div
+                            style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
                             <div style="text-align: center; font-size: 36px; margin-bottom: 8px;">✓</div>
                             <div style="text-align: center; font-size: 18px; font-weight: bold;">ชำระเงินสำเร็จ</div>
-                            <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">13 ส.ค. 68, 14:30 น.</div>
+                            <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">13 ส.ค. 68,
+                                14:30 น.</div>
                         </div>
-                        <div style="background: #F0FDF4; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                        <div
+                            style="background: #F0FDF4; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
                             <div style="color: #16A34A; font-size: 28px; font-weight: 800;">฿1,500.00</div>
                         </div>
                         {% elif template.template_name.startswith('⚠️') %}
-                        <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div
+                            style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
                             <div style="text-align: center; font-size: 36px; margin-bottom: 8px;">⚠</div>
                             <div style="text-align: center; font-size: 18px; font-weight: bold;">สลิปซ้ำ</div>
-                            <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">สลิปนี้เคยถูกใช้แล้ว</div>
+                            <div style="text-align: center; font-size: 11px; opacity: 0.9; margin-top: 6px;">
+                                สลิปนี้เคยถูกใช้แล้ว</div>
                         </div>
-                        <div style="background: #FFFBEB; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                        <div
+                            style="background: #FFFBEB; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
                             <div style="color: #D97706; font-size: 28px; font-weight: 800;">฿1,500.00</div>
                         </div>
                         {% elif template.template_name.startswith('✨') %}
                         <div style="background: #F0FDF4; padding: 16px; border-radius: 12px; font-family: sans-serif;">
-                            <div style="text-align: center; font-size: 28px; font-weight: 800; color: #1E293B; margin-bottom: 6px;">฿1,500.00</div>
+                            <div
+                                style="text-align: center; font-size: 28px; font-weight: 800; color: #1E293B; margin-bottom: 6px;">
+                                ฿1,500.00</div>
                             <div style="text-align: center; font-size: 11px; color: #64748B;">13 ส.ค. 68, 14:30 น.</div>
                         </div>
-                        <div style="margin-top: 12px; padding: 12px; border-top: 1px solid #E2E8F0; font-size: 11px; color: #64748B; text-align: center;">
+                        <div
+                            style="margin-top: 12px; padding: 12px; border-top: 1px solid #E2E8F0; font-size: 11px; color: #64748B; text-align: center;">
                             จาก: นาย A → ไปยัง: นาย B
                         </div>
                         {% elif template.template_name.startswith('🚀') %}
-                        <div style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
+                        <div
+                            style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); color: white; padding: 16px; border-radius: 12px; font-family: sans-serif;">
                             <div style="font-size: 11px; opacity: 0.9;">การโอนเงิน</div>
                             <div style="font-size: 18px; font-weight: bold; margin-top: 4px;">ธุรกรรมสำเร็จ</div>
                         </div>
-                        <div style="background: #EEF2FF; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
+                        <div
+                            style="background: #EEF2FF; padding: 14px; border-radius: 10px; margin-top: 12px; text-align: center;">
                             <div style="color: #4338CA; font-size: 28px; font-weight: 800;">฿1,500.00</div>
                         </div>
                         {% else %}
-                        <img src="{{ template.preview_image or 'https://via.placeholder.com/280x400/667eea/FFFFFF?text=Template+Preview' }}" 
-                             alt="{{ template.template_name }}" 
-                             class="template-preview-image"
-                             onerror="this.src='https://via.placeholder.com/280x400/667eea/FFFFFF?text=Template+Preview'">
+                        <img src="{{ template.preview_image or 'https://via.placeholder.com/280x400/667eea/FFFFFF?text=Template+Preview' }}"
+                            alt="{{ template.template_name }}" class="template-preview-image"
+                            onerror="this.src='https://via.placeholder.com/280x400/667eea/FFFFFF?text=Template+Preview'">
                         {% endif %}
                     </div>
                 </div>
             </div>
-            
+
             <div class="template-info">
                 <div class="template-badge premium">
                     ✨ PREMIUM
                 </div>
-                
+
                 <div class="template-name">{{ template.template_name }}</div>
-                <div class="template-description">{{ template.description or 'เทมเพลตพรีเมียมสำหรับการตอบกลับสลิปอัตโนมัติ' }}</div>
-                
+                <div class="template-description">{{ template.description or
+                    'เทมเพลตพรีเมียมสำหรับการตอบกลับสลิปอัตโนมัติ' }}</div>
+
                 <div class="template-stats">
                     <div class="template-stat">
                         <i class="fas fa-chart-line"></i>
@@ -576,9 +592,10 @@
                         <span>Flex Message</span>
                     </div>
                 </div>
-                
+
                 <div class="template-actions">
-                    <button class="btn-preview" onclick="event.stopPropagation(); showLivePreview('{{ template._id }}')">
+                    <button class="btn-preview"
+                        onclick="event.stopPropagation(); showLivePreview('{{ template._id }}')">
                         <i class="fas fa-eye"></i> Live Preview
                     </button>
                     {% if template.is_selected %}
@@ -586,7 +603,8 @@
                         <i class="fas fa-check-circle"></i> กำลังใช้
                     </button>
                     {% else %}
-                    <button class="btn-select" onclick="event.stopPropagation(); setDefaultTemplate('{{ template._id }}')">
+                    <button class="btn-select"
+                        onclick="event.stopPropagation(); setDefaultTemplate('{{ template._id }}')">
                         <i class="fas fa-check"></i> เลือกใช้
                     </button>
                     {% endif %}
@@ -615,7 +633,7 @@
 {% block extra_js %}
 <script>
     const accountId = '{{ account_id }}';
-    const templates = {{ templates|tojson|safe }};
+    const templates = {{ templates| tojson | safe }};
 
     function selectTemplate(templateId) {
         // Visual feedback
@@ -636,7 +654,97 @@
         const modal = document.createElement('div');
         modal.className = 'preview-modal';
         modal.id = 'preview-modal';
-        
+
+        let previewContent = '';
+
+        // Render preview based on template name/type
+        if (template.template_name.includes('สีเขียว') || template.template_name.includes('มาตรฐาน')) {
+            // Modern Green Preview
+            previewContent = `
+                <div style="background: #03C75A; padding: 20px; border-radius: 20px 20px 0 0; position: relative;">
+                    <div style="color: white; font-size: 12px; font-weight: bold;">SLIP VERIFIED</div>
+                    <div style="color: white; font-size: 20px; font-weight: bold; margin-top: 4px;">ตรวจสอบสลิปสำเร็จ</div>
+                    <div style="position: absolute; top: 18px; right: 18px; background: white; padding: 4px; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-check" style="color: #03C75A;"></i>
+                    </div>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 0 0 20px 20px;">
+                    <div style="text-align: center; color: #1DB446; font-size: 32px; font-weight: bold;">฿ 500.00</div>
+                    <div style="text-align: center; color: #aaaaaa; font-size: 12px; margin-top: 4px;">26 พ.ย. 68 14:30</div>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #aaaaaa; font-size: 14px;">ผู้โอน</span>
+                        <span style="color: #666666; font-size: 14px;">นายทดสอบ</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #aaaaaa; font-size: 14px;">ธนาคาร</span>
+                        <span style="color: #666666; font-size: 14px;">KBANK</span>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #aaaaaa; font-size: 14px;">ผู้รับ</span>
+                        <span style="color: #666666; font-size: 14px;">ร้านค้าตัวอย่าง</span>
+                    </div>
+                    <div style="text-align: center; color: #aaaaaa; font-size: 10px; margin-top: 20px;">Ref: 202411261430123456</div>
+                </div>
+            `;
+        } else if (template.template_name.includes('สีน้ำเงิน') || template.template_name.includes('ทางการ')) {
+            // Official Blue Preview
+            previewContent = `
+                <div style="background: white; padding: 20px; border-radius: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <div style="color: #113366; font-size: 12px; font-weight: bold;">PAYMENT SUCCESS</div>
+                            <div style="color: #113366; font-size: 24px; font-weight: bold; margin-top: 4px;">ชำระเงินสำเร็จ</div>
+                        </div>
+                        <div style="color: #113366; font-size: 24px;"><i class="fas fa-university"></i></div>
+                    </div>
+                    <div style="text-align: center; color: #113366; font-size: 36px; font-weight: bold; margin: 20px 0;">500.00 THB</div>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #888888; font-size: 14px;">จาก</span>
+                        <span style="color: #111111; font-size: 14px; font-weight: bold;">นายทดสอบ</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #888888; font-size: 14px;">ไปยัง</span>
+                        <span style="color: #111111; font-size: 14px; font-weight: bold;">ร้านค้าตัวอย่าง</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #888888; font-size: 14px;">เมื่อ</span>
+                        <span style="color: #111111; font-size: 14px;">26 พ.ย. 68 14:30</span>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <div style="text-align: center; color: #aaaaaa; font-size: 10px;">Ref: 202411261430123456</div>
+                </div>
+            `;
+        } else if (template.template_name.includes('แบบย่อ') || template.template_name.includes('Minimal')) {
+            // Minimal Preview
+            previewContent = `
+                <div style="background: white; padding: 20px; border-radius: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #1DB446; font-size: 12px; font-weight: bold;">RECEIVED</div>
+                            <div style="font-size: 24px; font-weight: bold;">฿ 500.00</div>
+                        </div>
+                        <div style="width: 40px; height: 40px; background: #f0f0f0; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-receipt" style="color: #666;"></i>
+                        </div>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                    <div style="font-size: 12px; color: #555555; margin-bottom: 4px;">จาก: นายทดสอบ</div>
+                    <div style="font-size: 12px; color: #555555;">เวลา: 14:30 น.</div>
+                </div>
+            `;
+        } else {
+            // Default Image Preview
+            previewContent = `
+                <img src="${template.preview_image || 'https://via.placeholder.com/400x600/667eea/FFFFFF?text=Template'}" 
+                     alt="Preview" 
+                     style="width: 100%; height: auto; display: block; border-radius: 16px;"
+                     onerror="this.src='https://via.placeholder.com/400x600/667eea/FFFFFF?text=Template'">
+            `;
+        }
+
         modal.innerHTML = `
             <div class="preview-modal-content">
                 <button class="close-preview" onclick="closePreview()">×</button>
@@ -652,10 +760,7 @@
                     
                     <div class="preview-content">
                         <div class="preview-message">
-                            <img src="${template.preview_image || 'https://via.placeholder.com/400x600/667eea/FFFFFF?text=Template'}" 
-                                 alt="Preview" 
-                                 style="width: 100%; height: auto; display: block;"
-                                 onerror="this.src='https://via.placeholder.com/400x600/667eea/FFFFFF?text=Template'">
+                            ${previewContent}
                         </div>
                         
                         <div style="margin-top: 16px; text-align: center;">
@@ -667,9 +772,9 @@
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
         // Close on background click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
@@ -689,7 +794,7 @@
     async function setDefaultTemplate(templateId) {
         try {
             showNotification('info', '⏳ กำลังตั้งค่าเทมเพลต...');
-            
+
             const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}/default`, {
                 method: 'PUT',
                 headers: {
@@ -754,6 +859,7 @@
             transform: translateX(400px);
             opacity: 0;
         }
+
         to {
             transform: translateX(0);
             opacity: 1;
@@ -765,6 +871,7 @@
             transform: translateX(0);
             opacity: 1;
         }
+
         to {
             transform: translateX(400px);
             opacity: 0;
@@ -772,8 +879,13 @@
     }
 
     @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
+        from {
+            opacity: 1;
+        }
+
+        to {
+            opacity: 0;
+        }
     }
 </style>
 {% endblock %}

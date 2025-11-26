@@ -797,93 +797,233 @@
                     <p>ยังไม่มีข้อความ</p>
                 </div>
             `;
-            return;
-        }
+            // Send message
+            async function sendMessage() {
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                const sendBtn = document.getElementById('sendButton');
 
-        chatMessages.innerHTML = messages.reverse().map(msg => {
-            const isUser = msg.direction === 'incoming';
-            const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                if (!message || !currentAccountId || !currentUserId) return;
 
-            return `
-                <div class="message ${isUser ? 'user' : 'bot'}">
-                    <div class="message-avatar">${isUser ? 'U' : 'B'}</div>
-                    <div class="message-content">
-                        <div class="message-bubble">
-                            <p class="message-text">${escapeHtml(msg.text || '')}</p>
-                        </div>
-                        <div class="message-time">${time}</div>
-                    </div>
+                // Disable input while sending
+                input.disabled = true;
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>ส่ง...</span>';
+
+                try {
+                    const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            user_id: currentUserId,
+                            message: message
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Clear input
+                        input.value = '';
+
+                        // Add message to chat immediately (optimistic update)
+                        appendMessage({
+                            sender: 'bot',
+                            text: message,
+                            timestamp: new Date().toISOString(),
+                            message_type: 'text'
+                        });
+
+                    } else {
+                        alert('ส่งข้อความไม่สำเร็จ: ' + data.message);
+                    }
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    alert('เกิดข้อผิดพลาดในการส่งข้อความ');
+                } finally {
+                    input.disabled = false;
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i><span>ส่ง</span>';
+                    input.focus();
+                }
+            }
+
+            // Append single message
+            function appendMessage(msg) {
+                const chatMessages = document.getElementById('chatMessages');
+                const isBot = msg.sender === 'bot';
+                const time = formatTime(msg.timestamp);
+                const initial = isBot ? 'A' : (document.getElementById('chatHeaderAvatar').textContent || 'U');
+
+                let contentHtml = '';
+                if (msg.message_type === 'image') {
+                    const imageUrl = msg.image_url || `/api/line-image/${currentAccountId}/${msg.message_id}`;
+                    contentHtml = `
+                <div class="message-image" onclick="window.open('${imageUrl}', '_blank')">
+                    <img src="${imageUrl}" alt="Image" loading="lazy">
                 </div>
             `;
-        }).join('');
+                } else if (msg.message_type === 'flex') {
+                    contentHtml = `
+                <div class="message-bubble">
+                    <div class="message-text"><em>[Flex Message]</em><br>ดูตัวอย่างใน LINE</div>
+                </div>
+            `;
+                } else {
+                    contentHtml = `
+                <div class="message-bubble">
+                    <div class="message-text">${escapeHtml(msg.text || '')}</div>
+                </div>
+            `;
+                }
 
-        // Scroll to bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+                const html = `
+            <div class="message ${isBot ? 'bot' : 'user'}">
+                <div class="message-avatar">${initial}</div>
+                <div class="message-content">
+                    ${contentHtml}
+                    <div class="message-time">${time}</div>
+                </div>
+            </div>
+        `;
 
-    // Send message
-    async function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim();
+                // Remove empty state if exists
+                const emptyState = chatMessages.querySelector('.empty-state');
+                if (emptyState) emptyState.remove();
 
-        if (!message || !currentUserId || !currentAccountId) return;
+                chatMessages.insertAdjacentHTML('beforeend', html);
+                scrollToBottom();
+            }
 
-        try {
-            const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: currentUserId,
-                    message: message
-                })
+            // Handle new message from WebSocket
+            function handleNewMessage(data) {
+                if (data.account_id === currentAccountId && data.user_id === currentUserId) {
+                    appendMessage({
+                        sender: 'bot', // Assuming broadcast is for sent messages
+                        text: data.message,
+                        timestamp: new Date().toISOString(),
+                        message_type: 'text'
+                    });
+                } else if (data.account_id === currentAccountId) {
+                    // Update user list if message is from another user
+                    loadUsers();
+                }
+            }
+
+            // Helper: Format time
+            function formatTime(isoString) {
+                if (!isoString) return '';
+                const date = new Date(isoString);
+                return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            // Helper: Escape HTML
+            function escapeHtml(text) {
+                if (!text) return '';
+                return text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            // Helper: Scroll to bottom
+            function scrollToBottom() {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // Search functionality
+            document.getElementById('searchUsers').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = allUsers.filter(u =>
+                    (u.user_name && u.user_name.toLowerCase().includes(term)) ||
+                    (u.last_message && u.last_message.toLowerCase().includes(term))
+                );
+                renderUsers(filtered);
             });
 
-            if (response.ok) {
-                input.value = '';
-                loadMessages(currentUserId);
+            // Enter key to send
+            document.getElementById('messageInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+                    return `
+<div class="message ${isUser ? 'user' : 'bot'}">
+    <div class="message-avatar">${isUser ? 'U' : 'B'}</div>
+    <div class="message-content">
+        <div class="message-bubble">
+            <p class="message-text">${escapeHtml(msg.text || '')}</p>
+        </div>
+        <div class="message-time">${time}</div>
+    </div>
+</div>
+`;
+                }).join('');
+
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message || !currentUserId || !currentAccountId) return;
+
+            try {
+                const response = await fetch(`/api/chat-messages/${currentAccountId}/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        to: currentUserId,
+                        message: message
+                    })
+                });
+
+                if (response.ok) {
+                    input.value = '';
+                    loadMessages(currentUserId);
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
             }
-        } catch (error) {
-            console.error('Error sending message:', error);
         }
-    }
 
-    // Helper functions
-    function formatTime(timestamp) {
-        if (!timestamp) return '';
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = (now - date) / 1000 / 60; // minutes
+        // Helper functions
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = (now - date) / 1000 / 60; // minutes
 
-        if (diff < 1) return 'เมื่อสักครู่';
-        if (diff < 60) return `${Math.floor(diff)} นาทีที่แล้ว`;
-        if (diff < 1440) return `${Math.floor(diff / 60)} ชั่วโมงที่แล้ว`;
-        return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-    }
+            if (diff < 1) return 'เมื่อสักครู่'; if (diff < 60) return `${Math.floor(diff)} นาทีที่แล้ว`; if (diff < 1440) return
+            `${Math.floor(diff / 60)} ชั่วโมงที่แล้ว`; return date.toLocaleDateString('th-TH', {
+                day: 'numeric', month: 'short'
+            });
+        } function escapeHtml(text) {
+            const div = document.createElement('div'); div.textContent = text; return
+            div.innerHTML;
+        } // Initialize initWebSocket(); // Enter to send
+        document.getElementById('messageInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // Initialize
-    initWebSocket();
-
-    // Enter to send
-    document.getElementById('messageInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-
-    // Search functionality
-    document.getElementById('searchUsers').addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        const filtered = allUsers.filter(user =>
-            (user.user_name || '').toLowerCase().includes(query)
-        );
-        renderUsers(filtered);
-    });
+        // Search functionality
+        document.getElementById('searchUsers').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allUsers.filter(user =>
+                (user.user_name || '').toLowerCase().includes(query)
+            );
+            renderUsers(filtered);
+        });
 </script>
 {% endblock %}

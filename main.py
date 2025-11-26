@@ -47,7 +47,23 @@ from models.slip_history import SlipHistory
 from models.bank import BankModel
 
 # Import middleware
-from middleware.auth import AuthMiddleware, get_current_user_from_request
+# Note: In a real project, these should be in separate files. 
+# For this single-file structure, we'll define them here or import if they exist.
+# Checking if middleware directory exists...
+if os.path.exists("middleware"):
+    from middleware.auth import AuthMiddleware, get_current_user_from_request
+else:
+    # Fallback: Define AuthMiddleware here if file is missing (unlikely based on previous context)
+    logger.warning("Middleware directory not found, using inline definition")
+    class AuthMiddleware:
+        def __init__(self, session_model):
+            self.session_model = session_model
+        
+        def get_current_user(self, request: Request):
+            session_id = request.cookies.get("session_id")
+            if not session_id:
+                return None
+            return self.session_model.get_session(session_id)
 
 # Import services
 from services.chat_bot import get_chat_response, get_chat_response_async
@@ -118,6 +134,443 @@ async def lifespan(app: FastAPI):
         
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
+        
+        # Initialize default templates
+        try:
+            templates_count = app.state.slip_template_model.collection.count_documents({})
+            if templates_count == 0:
+                logger.info("Initializing default slip templates...")
+                
+                # Template 1: Modern Green (Standard)
+                modern_green = {
+                    "name": "สลิปมาตรฐาน (สีเขียว)",
+                    "template_type": "flex",
+                    "template_flex": {
+                        "type": "bubble",
+                        "size": "mega",
+                        "header": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "SLIP VERIFIED",
+                                            "color": "#ffffff",
+                                            "weight": "bold",
+                                            "size": "sm"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": "ตรวจสอบสลิปสำเร็จ",
+                                            "color": "#ffffff",
+                                            "weight": "bold",
+                                            "size": "xl",
+                                            "margin": "md"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "image",
+                                    "url": "https://cdn-icons-png.flaticon.com/512/148/148767.png",
+                                    "backgroundColor": "#ffffff",
+                                    "paddingAll": "2px",
+                                    "cornerRadius": "20px",
+                                    "position": "absolute",
+                                    "offsetTop": "18px",
+                                    "offsetEnd": "18px",
+                                    "size": "40px"
+                                }
+                            ],
+                            "paddingAll": "20px",
+                            "backgroundColor": "#03C75A",
+                            "spacing": "md",
+                            "height": "100px",
+                            "paddingTop": "22px"
+                        },
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "฿ {amount}",
+                                    "weight": "bold",
+                                    "size": "3xl",
+                                    "color": "#1DB446",
+                                    "align": "center",
+                                    "margin": "md"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "{date} {time}",
+                                    "size": "xs",
+                                    "color": "#aaaaaa",
+                                    "align": "center",
+                                    "margin": "sm"
+                                },
+                                {
+                                    "type": "separator",
+                                    "margin": "xl"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "margin": "xl",
+                                    "spacing": "sm",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "spacing": "sm",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ผู้โอน",
+                                                    "color": "#aaaaaa",
+                                                    "size": "sm",
+                                                    "flex": 2
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{sender_name}",
+                                                    "wrap": True,
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "flex": 5,
+                                                    "align": "end"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "spacing": "sm",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ธนาคาร",
+                                                    "color": "#aaaaaa",
+                                                    "size": "sm",
+                                                    "flex": 2
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{sender_bank}",
+                                                    "wrap": True,
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "flex": 5,
+                                                    "align": "end"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "separator",
+                                            "margin": "lg"
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "spacing": "sm",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ผู้รับ",
+                                                    "color": "#aaaaaa",
+                                                    "size": "sm",
+                                                    "flex": 2
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{receiver_name}",
+                                                    "wrap": True,
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "flex": 5,
+                                                    "align": "end"
+                                                }
+                                            ],
+                                            "margin": "lg"
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "spacing": "sm",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ธนาคาร",
+                                                    "color": "#aaaaaa",
+                                                    "size": "sm",
+                                                    "flex": 2
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{receiver_bank}",
+                                                    "wrap": True,
+                                                    "color": "#666666",
+                                                    "size": "sm",
+                                                    "flex": 5,
+                                                    "align": "end"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "separator",
+                                    "margin": "xl"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "margin": "lg",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "Ref: {trans_ref}",
+                                            "size": "xxs",
+                                            "color": "#aaaaaa",
+                                            "align": "center"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+                
+                # Template 2: Official Blue (Business)
+                official_blue = {
+                    "name": "สลิปทางการ (สีน้ำเงิน)",
+                    "template_type": "flex",
+                    "template_flex": {
+                        "type": "bubble",
+                        "header": {
+                            "type": "box",
+                            "layout": "horizontal",
+                            "contents": [
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "PAYMENT SUCCESS",
+                                            "size": "sm",
+                                            "weight": "bold",
+                                            "color": "#113366"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": "ชำระเงินสำเร็จ",
+                                            "size": "xxl",
+                                            "weight": "bold",
+                                            "color": "#113366",
+                                            "margin": "md"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "image",
+                                    "url": "https://cdn-icons-png.flaticon.com/512/7518/7518748.png",
+                                    "align": "end",
+                                    "size": "xs"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "{amount} THB",
+                                    "size": "3xl",
+                                    "weight": "bold",
+                                    "color": "#113366",
+                                    "align": "center"
+                                },
+                                {
+                                    "type": "separator",
+                                    "margin": "xl"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "margin": "lg",
+                                    "spacing": "sm",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "จาก",
+                                                    "color": "#888888",
+                                                    "size": "sm",
+                                                    "flex": 1
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{sender_name}",
+                                                    "color": "#111111",
+                                                    "size": "sm",
+                                                    "flex": 3,
+                                                    "align": "end",
+                                                    "weight": "bold"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "ไปยัง",
+                                                    "color": "#888888",
+                                                    "size": "sm",
+                                                    "flex": 1
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{receiver_name}",
+                                                    "color": "#111111",
+                                                    "size": "sm",
+                                                    "flex": 3,
+                                                    "align": "end",
+                                                    "weight": "bold"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "baseline",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "เมื่อ",
+                                                    "color": "#888888",
+                                                    "size": "sm",
+                                                    "flex": 1
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "{date} {time}",
+                                                    "color": "#111111",
+                                                    "size": "sm",
+                                                    "flex": 3,
+                                                    "align": "end"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "footer": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "Ref: {trans_ref}",
+                                    "color": "#aaaaaa",
+                                    "size": "xxs",
+                                    "align": "center"
+                                }
+                            ]
+                        },
+                        "styles": {
+                            "footer": {
+                                "separator": True
+                            }
+                        }
+                    }
+                }
+                
+                # Template 3: Compact (Minimal)
+                compact_minimal = {
+                    "name": "แบบย่อ (Minimal)",
+                    "template_type": "flex",
+                    "template_flex": {
+                        "type": "bubble",
+                        "size": "kilo",
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "box",
+                                    "layout": "horizontal",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "vertical",
+                                            "contents": [
+                                                {
+                                                    "type": "text",
+                                                    "text": "RECEIVED",
+                                                    "color": "#1DB446",
+                                                    "size": "xs",
+                                                    "weight": "bold"
+                                                },
+                                                {
+                                                    "type": "text",
+                                                    "text": "฿ {amount}",
+                                                    "size": "xl",
+                                                    "weight": "bold"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "type": "image",
+                                            "url": "https://cdn-icons-png.flaticon.com/512/190/190411.png",
+                                            "flex": 0,
+                                            "size": "xs"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "separator",
+                                    "margin": "md"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "margin": "md",
+                                    "contents": [
+                                        {
+                                            "type": "text",
+                                            "text": "จาก: {sender_name}",
+                                            "size": "xs",
+                                            "color": "#555555"
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": "เวลา: {time}",
+                                            "size": "xs",
+                                            "color": "#555555"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "paddingAll": "15px"
+                        }
+                    }
+                }
+                
+                app.state.slip_template_model.collection.insert_many([modern_green, official_blue, compact_minimal])
+                logger.info("Default slip templates initialized.")
+                
+        except Exception as e:
+            logger.error(f"Error initializing templates: {e}")
         
         logger.info("[OK] Models initialized")
         
@@ -1026,7 +1479,7 @@ async def test_line_account_connection(request: Request, account_id: str):
     
     try:
         # Get account details
-        account = app.state.line_account_model.get_account(account_id)
+        account = app.state.line_account_model.get_account_by_id(account_id)
         if not account:
             return JSONResponse(
                 status_code=404,

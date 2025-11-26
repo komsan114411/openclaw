@@ -87,3 +87,30 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2025-11-26 14:42:39,015 - main_app - INFO - [OK] Models initialized
 2025-11-26 14:42:39,015 - main_app - INFO - [OK] System ready!
 2025-11-26 14:42:39,016 - main_app - INFO -  Shutting down...
+2025-11-26 15:04:10,968 - main_app - WARNING - Middleware directory not found, using inline definition
+2025-11-26 15:04:11,014 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 15:04:11,071 - main_app - INFO -  Starting server on 0.0.0.0:8000
+2025-11-26 15:04:11,108 - main_app - INFO -  Starting LINE OA Management System...
+2025-11-26 15:04:11,108 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 15:04:12,262 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 15:04:12,262 - main_app - INFO - [OK] Database initialized
+2025-11-26 15:04:12,379 - user_model - INFO - ✅ User indexes created
+2025-11-26 15:04:12,614 - session_model - INFO - ✅ Session indexes created
+2025-11-26 15:04:12,792 - line_account_model - INFO - ✅ LINE Account indexes created
+2025-11-26 15:04:13,512 - bank_account_model - INFO - ✅ Bank Account indexes created
+2025-11-26 15:04:13,857 - main_app - INFO - [OK] Models initialized
+2025-11-26 15:04:13,857 - main_app - INFO - [OK] System ready!
+2025-11-26 15:04:13,858 - main_app - INFO -  Shutting down...
+2025-11-26 15:05:50,438 - main_app - WARNING - Middleware directory not found, using inline definition
+2025-11-26 15:05:50,490 - config_manager - INFO - ✅ ConfigManager initialized
+2025-11-26 15:05:50,542 - main_app - INFO -  Starting server on 0.0.0.0:8000
+2025-11-26 15:05:50,581 - main_app - INFO -  Starting LINE OA Management System...
+2025-11-26 15:05:50,581 - database - INFO - Connecting to MongoDB... (URI length: 106)
+2025-11-26 15:05:51,727 - database - INFO - [OK] MongoDB connected successfully (database: lineoa_system)
+2025-11-26 15:05:51,727 - main_app - INFO - [OK] Database initialized
+2025-11-26 15:05:51,854 - user_model - INFO - ✅ User indexes created
+2025-11-26 15:05:52,080 - session_model - INFO - ✅ Session indexes created
+2025-11-26 15:05:52,263 - line_account_model - INFO - LINE Account indexes created
+2025-11-26 15:05:53,020 - bank_account_model - INFO - Bank Account indexes created
+2025-11-26 15:05:53,362 - main_app - INFO - [OK] Models initialized
+2025-11-26 15:05:53,363 - main_app - INFO - [OK] System ready!
