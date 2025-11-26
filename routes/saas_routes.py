@@ -558,79 +558,85 @@ def register_saas_routes(app):
                 api_token=slip_api_key
             )
             
-            if slip_result.get("status") != "success":
-                error_msg = slip_result.get("message", "ไม่สามารถตรวจสอบสลิปได้")
-                logger.warning(f"⚠️ Slip verification failed: {error_msg}")
-                return JSONResponse(
-                    status_code=400,
-                    content={"success": False, "message": f"ตรวจสอบสลิปไม่สำเร็จ: {error_msg}"}
-                )
-            
-            # Extract slip data
-            slip_data = slip_result.get("data", {})
-            receiver_account_no = slip_data.get("receiver_account_number", "")
-            receiver_name = slip_data.get("receiver_name_th", "") or slip_data.get("receiver_name_en", "")
-            slip_amount = slip_data.get("amount", 0)
-            receiver_bank_code = slip_data.get("receiver_bank_id", "")
-            
-            # Verify against configured bank accounts
-            matched_account = None
+            # Initialize verification variables
             verification_issues = []
-            
-            for bank_acc in bank_accounts:
-                # Normalize account numbers (remove spaces, dashes)
-                # Support both field names: account_no and account_number
-                config_account_no = str(bank_acc.get("account_number", "") or bank_acc.get("account_no", "")).replace(" ", "").replace("-", "")
-                slip_account_no = str(receiver_account_no).replace(" ", "").replace("-", "")
-                
-                # Check account number match
-                if config_account_no == slip_account_no:
-                    # Check bank code if available
-                    if receiver_bank_code:
-                        config_bank_code = str(bank_acc.get("bank_code", "")).strip()
-                        if config_bank_code and config_bank_code != receiver_bank_code:
-                            continue
-                    
-                    matched_account = bank_acc
-                    break
-            
-            # Track verification status
-            account_matched = matched_account is not None
+            account_matched = False
             name_matched = True
             amount_matched = True
             expected_amount = float(package["price"])
-            actual_amount = float(slip_amount) if slip_amount else 0
+            actual_amount = 0
+            receiver_account_no = ""
+            receiver_name = ""
+            matched_account = None
+            api_verified = False
             
-            if not account_matched:
-                logger.warning(f"⚠️ Account number mismatch: {receiver_account_no} not in configured accounts")
-                verification_issues.append(f"เลขบัญชีผู้รับไม่ตรง (พบ: {receiver_account_no})")
-            else:
-                # Verify account name (fuzzy match)
-                config_account_name = str(matched_account.get("account_name", "")).strip().lower()
-                slip_account_name = str(receiver_name).strip().lower()
+            # Check if slip verification succeeded
+            if slip_result.get("status") == "success":
+                api_verified = True
+                # Extract slip data
+                slip_data = slip_result.get("data", {})
+                receiver_account_no = slip_data.get("receiver_account_number", "")
+                receiver_name = slip_data.get("receiver_name_th", "") or slip_data.get("receiver_name_en", "")
+                slip_amount = slip_data.get("amount", 0)
+                receiver_bank_code = slip_data.get("receiver_bank_id", "")
+                actual_amount = float(slip_amount) if slip_amount else 0
                 
-                # Allow partial match (at least 50% similarity)
-                if config_account_name and slip_account_name:
-                    # Simple similarity check
-                    if config_account_name not in slip_account_name and slip_account_name not in config_account_name:
-                        # Check character similarity
-                        common_chars = sum(1 for c in config_account_name if c in slip_account_name)
-                        similarity = common_chars / max(len(config_account_name), len(slip_account_name))
-                        if similarity < 0.5:
-                            name_matched = False
-                            logger.warning(f"⚠️ Account name mismatch: '{receiver_name}' vs '{matched_account.get('account_name')}'")
-                            verification_issues.append(f"ชื่อบัญชีไม่ตรง (พบ: {receiver_name})")
-            
-            # Verify amount (allow small difference for fees)
-            amount_diff = abs(expected_amount - actual_amount)
-            
-            # Allow 5% difference or 10 baht, whichever is larger
-            tolerance = max(expected_amount * 0.05, 10.0)
-            
-            if amount_diff > tolerance:
-                amount_matched = False
-                logger.warning(f"⚠️ Amount mismatch: Expected {expected_amount}, Got {actual_amount}, Diff: {amount_diff}")
-                verification_issues.append(f"ยอดเงินไม่ตรง (คาดหวัง: ฿{expected_amount:,.2f}, พบ: ฿{actual_amount:,.2f})")
+                # Verify against configured bank accounts
+                for bank_acc in bank_accounts:
+                    # Normalize account numbers (remove spaces, dashes)
+                    # Support both field names: account_no and account_number
+                    config_account_no = str(bank_acc.get("account_number", "") or bank_acc.get("account_no", "")).replace(" ", "").replace("-", "")
+                    slip_account_no = str(receiver_account_no).replace(" ", "").replace("-", "")
+                    
+                    # Check account number match
+                    if config_account_no == slip_account_no:
+                        # Check bank code if available
+                        if receiver_bank_code:
+                            config_bank_code = str(bank_acc.get("bank_code", "")).strip()
+                            if config_bank_code and config_bank_code != receiver_bank_code:
+                                continue
+                        
+                        matched_account = bank_acc
+                        break
+                
+                # Track verification status
+                account_matched = matched_account is not None
+                
+                if not account_matched:
+                    logger.warning(f"⚠️ Account number mismatch: {receiver_account_no} not in configured accounts")
+                    verification_issues.append(f"เลขบัญชีผู้รับไม่ตรง (พบ: {receiver_account_no})")
+                else:
+                    # Verify account name (fuzzy match)
+                    config_account_name = str(matched_account.get("account_name", "")).strip().lower()
+                    slip_account_name = str(receiver_name).strip().lower()
+                    
+                    # Allow partial match (at least 50% similarity)
+                    if config_account_name and slip_account_name:
+                        # Simple similarity check
+                        if config_account_name not in slip_account_name and slip_account_name not in config_account_name:
+                            # Check character similarity
+                            common_chars = sum(1 for c in config_account_name if c in slip_account_name)
+                            similarity = common_chars / max(len(config_account_name), len(slip_account_name))
+                            if similarity < 0.5:
+                                name_matched = False
+                                logger.warning(f"⚠️ Account name mismatch: '{receiver_name}' vs '{matched_account.get('account_name')}'")
+                                verification_issues.append(f"ชื่อบัญชีไม่ตรง (พบ: {receiver_name})")
+                
+                # Verify amount (allow small difference for fees)
+                amount_diff = abs(expected_amount - actual_amount)
+                
+                # Allow 5% difference or 10 baht, whichever is larger
+                tolerance = max(expected_amount * 0.05, 10.0)
+                
+                if amount_diff > tolerance:
+                    amount_matched = False
+                    logger.warning(f"⚠️ Amount mismatch: Expected {expected_amount}, Got {actual_amount}, Diff: {amount_diff}")
+                    verification_issues.append(f"ยอดเงินไม่ตรง (คาดหวัง: ฿{expected_amount:,.2f}, พบ: ฿{actual_amount:,.2f})")
+            else:
+                # API failed to verify - create pending payment for manual review
+                error_msg = slip_result.get("message", "ไม่สามารถตรวจสอบสลิปได้")
+                logger.warning(f"⚠️ Slip verification API failed: {error_msg}")
+                verification_issues.append(f"ไม่สามารถตรวจสอบสลิปอัตโนมัติได้: {error_msg}")
             
             # Create payment regardless of verification result
             # Admin can approve/reject manually
@@ -656,9 +662,11 @@ def register_saas_routes(app):
                 "pending",
                 verification_result={
                     "verified": all_verified,
+                    "api_verified": api_verified,
                     "receiver_account": receiver_account_no,
                     "receiver_name": receiver_name,
                     "amount": actual_amount,
+                    "expected_amount": expected_amount,
                     "matched_account": matched_account.get("account_name") if matched_account else None,
                     "verification_method": "thunder_api",
                     "account_matched": account_matched,

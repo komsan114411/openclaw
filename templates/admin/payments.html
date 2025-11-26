@@ -209,15 +209,22 @@
                             }
                         } else {
                             // Show verification issues
-                            evidence += `<br><small class="text-warning"><i class="bi bi-exclamation-triangle"></i> ต้องตรวจสอบ</small>`;
+                            if (!vf.api_verified) {
+                                evidence += `<br><small class="text-danger"><i class="bi bi-x-circle"></i> ตรวจสอบอัตโนมัติไม่สำเร็จ</small>`;
+                            } else {
+                                evidence += `<br><small class="text-warning"><i class="bi bi-exclamation-triangle"></i> ข้อมูลไม่ตรง</small>`;
+                            }
                             if (vf.issues && vf.issues.length > 0) {
                                 evidence += `<br><small class="text-danger">${vf.issues.join('<br>')}</small>`;
                             }
                             if (vf.receiver_account) {
-                                evidence += `<br><small class="text-muted">บัญชี: ${vf.receiver_account}</small>`;
+                                evidence += `<br><small class="text-muted">บัญชีในสลิป: ${vf.receiver_account}</small>`;
                             }
-                            if (vf.amount) {
-                                evidence += `<br><small class="text-muted">ยอด: ฿${vf.amount.toLocaleString()}</small>`;
+                            if (vf.amount !== undefined && vf.amount !== null) {
+                                evidence += `<br><small class="text-muted">ยอดในสลิป: ฿${vf.amount.toLocaleString()}</small>`;
+                            }
+                            if (vf.expected_amount) {
+                                evidence += `<br><small class="text-muted">ยอดที่ต้องการ: ฿${vf.expected_amount.toLocaleString()}</small>`;
                             }
                         }
                     }

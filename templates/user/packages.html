@@ -295,10 +295,15 @@
 
                 if (result.success) {
                     subscribeModal.hide();
-                    showAlert('แจ้งชำระเงินเรียบร้อย กรุณารอการตรวจสอบ', 'success');
+                    if (result.needs_review) {
+                        // Payment needs manual review
+                        showAlert('รับข้อมูลการชำระเงินแล้ว รอการตรวจสอบจากผู้ดูแลระบบ', 'warning');
+                    } else {
+                        showAlert('แจ้งชำระเงินเรียบร้อย กรุณารอการอนุมัติ', 'success');
+                    }
                     setTimeout(() => {
                         window.location.href = '/user/dashboard';
-                    }, 1500);
+                    }, 2000);
                 } else {
                     showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถส่งข้อมูลได้'), 'danger');
                 }
