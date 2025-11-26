@@ -22,7 +22,7 @@ class LineAccount:
             self.collection.create_index("account_name", unique=True)
             self.collection.create_index("channel_id", unique=True)
             self.collection.create_index("owner_id")
-            logger.info("✅ LINE Account indexes created")
+            logger.info("LINE Account indexes created")
         except Exception as e:
             logger.error(f"❌ Error creating LINE account indexes: {e}")
     

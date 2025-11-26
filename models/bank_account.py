@@ -23,7 +23,7 @@ class BankAccount:
             self.collection.create_index("account_number")
             self.collection.create_index("owner_id")
             self.collection.create_index("line_account_id")
-            logger.info("✅ Bank Account indexes created")
+            logger.info("Bank Account indexes created")
         except Exception as e:
             logger.error(f"❌ Error creating bank account indexes: {e}")
     
