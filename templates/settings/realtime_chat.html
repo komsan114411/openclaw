@@ -718,17 +718,23 @@
         }
     }
 
-    // Render users list
+    // Render users list (sorted by newest message first - like Facebook Messenger)
     function renderUsers(users) {
         const usersList = document.getElementById('usersList');
         usersList.innerHTML = users.map(user => {
             const initial = (user.user_name || 'U')[0].toUpperCase();
             const lastMessage = user.last_message || 'ไม่มีข้อความ';
-            const time = formatTime(user.last_message_time);
+            const time = formatTimeShort(user.last_message_time);
+            const pictureUrl = user.picture_url;
+            
+            // Avatar: Use picture from LINE if available, otherwise show initial
+            const avatarHtml = pictureUrl 
+                ? `<img src="${pictureUrl}" alt="${initial}" class="user-avatar-img" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` 
+                : `<div class="user-avatar">${initial}</div>`;
 
             return `
-                <div class="user-item" onclick="selectUser('${user.user_id}', '${escapeHtml(user.user_name || 'ผู้ใช้')}')">
-                    <div class="user-avatar">${initial}</div>
+                <div class="user-item" onclick="selectUser('${user.user_id}', '${escapeHtml(user.user_name || 'ผู้ใช้')}', '${pictureUrl || ''}')">
+                    ${avatarHtml}
                     <div class="user-info">
                         <div class="user-name">${escapeHtml(user.user_name || 'Unknown')}</div>
                         <div class="user-last-message">${escapeHtml(lastMessage.substring(0, 30))}${lastMessage.length > 30 ? '...' : ''}</div>
@@ -743,7 +749,7 @@
     }
 
     // Select user and load chat
-    function selectUser(userId, userName) {
+    function selectUser(userId, userName, pictureUrl) {
         currentUserId = userId;
 
         // Update active state
@@ -754,9 +760,14 @@
         document.getElementById('chatHeader').style.display = 'flex';
         document.getElementById('chatInputArea').style.display = 'block';
 
-        // Update header
+        // Update header with avatar
         const initial = (userName || 'U')[0].toUpperCase();
-        document.getElementById('chatHeaderAvatar').textContent = initial;
+        const headerAvatar = document.getElementById('chatHeaderAvatar');
+        if (pictureUrl) {
+            headerAvatar.innerHTML = `<img src="${pictureUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        } else {
+            headerAvatar.innerHTML = initial;
+        }
         document.getElementById('chatHeaderName').textContent = userName || 'ผู้ใช้';
 
         // Load messages
@@ -943,11 +954,56 @@
         }
     }
 
-    // Helper: Format time
+    // Helper: Format time (Thai timezone friendly)
     function formatTime(isoString) {
         if (!isoString) return '';
-        const date = new Date(isoString);
-        return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        try {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                // Today - show time only
+                return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            } else if (diffDays === 1) {
+                return 'เมื่อวาน ' + date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            } else if (diffDays < 7) {
+                // Within week - show day name
+                const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+                return days[date.getDay()] + ' ' + date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                // Show full date
+                return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ' + 
+                       date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            }
+        } catch (e) {
+            return isoString;
+        }
+    }
+    
+    // Helper: Format time for user list (shorter)
+    function formatTimeShort(isoString) {
+        if (!isoString) return '';
+        try {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            } else if (diffDays === 1) {
+                return 'เมื่อวาน';
+            } else if (diffDays < 7) {
+                const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+                return days[date.getDay()];
+            } else {
+                return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            }
+        } catch (e) {
+            return '';
+        }
     }
 
     // Helper: Escape HTML

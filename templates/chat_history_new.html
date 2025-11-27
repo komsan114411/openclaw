@@ -419,23 +419,50 @@
                 return;
             }
 
+            // Users are already sorted by server (newest first)
             userList.innerHTML = users.map(user => {
                 const userName = escapeHtml(user.user_name || 'ผู้ใช้ที่ไม่รู้จัก');
                 const pictureUrl = user.picture_url || '';
-                const timeStr = user.last_message_time ? formatTime(user.last_message_time) : 'ไม่มีข้อความ';
+                const timeStr = user.last_message_time ? formatTimeShort(user.last_message_time) : '';
+                const lastMsg = escapeHtml(user.last_message || '');
                 
                 return `
                     <div class="chat-item" onclick="selectUser('${user.user_id}', '${userName.replace(/'/g, "\\'")}')">
                         <div class="d-flex align-items-center">
-                            ${pictureUrl ? `<img src="${pictureUrl}" class="rounded-circle me-2" style="width:36px;height:36px;object-fit:cover;">` : '<i class="fas fa-user-circle me-2" style="font-size:36px;color:#ccc;"></i>'}
-                            <div>
-                                <div class="chat-item-name">${userName}</div>
-                                <div class="chat-item-time">${timeStr}</div>
+                            ${pictureUrl ? `<img src="${pictureUrl}" class="rounded-circle me-2" style="width:40px;height:40px;object-fit:cover;">` : '<i class="fas fa-user-circle me-2" style="font-size:40px;color:#ccc;"></i>'}
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <div class="d-flex justify-content-between">
+                                    <div class="chat-item-name">${userName}</div>
+                                    <div class="chat-item-time">${timeStr}</div>
+                                </div>
+                                <div class="chat-item-preview text-muted small text-truncate">${lastMsg}</div>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+        
+        function formatTimeShort(timestamp) {
+            if (!timestamp) return '';
+            try {
+                const date = new Date(timestamp);
+                const now = new Date();
+                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 0) {
+                    return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                } else if (diffDays === 1) {
+                    return 'เมื่อวาน';
+                } else if (diffDays < 7) {
+                    const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+                    return days[date.getDay()];
+                } else {
+                    return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                }
+            } catch (e) {
+                return '';
+            }
         }
 
         function formatTime(timestamp) {

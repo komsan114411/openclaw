@@ -1661,11 +1661,99 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         if owner_id:
             quota_status = app.state.subscription_model.check_quota(owner_id)
             if quota_status["remaining_slips"] <= 0:  # Fixed: was "remaining"
-                await send_line_reply(
-                    reply_token,
-                    "⚠️ โควต้าตรวจสอบสลิปของคุณหมดแล้ว\nกรุณาอัพเกรดแพ็คเกจเพื่อใช้งานต่อ",
-                    account["channel_access_token"]
-                )
+                # Use configured quota exceeded message from system settings
+                system_settings = app.state.system_settings_model.get_settings()
+                response_type = system_settings.get("quota_exceeded_response_type", "text")
+                
+                if response_type == "flex":
+                    # Send Flex Message
+                    flex_title = system_settings.get("quota_exceeded_flex_title", "โควต้าหมด")
+                    flex_body = system_settings.get("quota_exceeded_flex_body", "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาอัปเกรดแพ็คเกจเพื่อใช้งานต่อ")
+                    flex_button_text = system_settings.get("quota_exceeded_flex_button_text", "อัปเกรดแพ็คเกจ")
+                    flex_button_url = system_settings.get("quota_exceeded_flex_button_url", "")
+                    flex_image_url = system_settings.get("quota_exceeded_flex_image_url", "")
+                    
+                    # Build Flex Message
+                    flex_contents = {
+                        "type": "bubble",
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": flex_title,
+                                    "weight": "bold",
+                                    "size": "xl",
+                                    "color": "#dc3545"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": flex_body,
+                                    "wrap": True,
+                                    "margin": "md"
+                                }
+                            ]
+                        }
+                    }
+                    
+                    # Add image if provided
+                    if flex_image_url:
+                        flex_contents["hero"] = {
+                            "type": "image",
+                            "url": flex_image_url,
+                            "size": "full",
+                            "aspectRatio": "20:13",
+                            "aspectMode": "cover"
+                        }
+                    
+                    # Add button if URL provided
+                    if flex_button_url and flex_button_text:
+                        flex_contents["footer"] = {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "button",
+                                    "action": {
+                                        "type": "uri",
+                                        "label": flex_button_text,
+                                        "uri": flex_button_url
+                                    },
+                                    "style": "primary"
+                                }
+                            ]
+                        }
+                    
+                    # Send Flex Message
+                    try:
+                        url = "https://api.line.me/v2/bot/message/reply"
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {account['channel_access_token']}"
+                        }
+                        data = {
+                            "replyToken": reply_token,
+                            "messages": [
+                                {
+                                    "type": "flex",
+                                    "altText": flex_title,
+                                    "contents": flex_contents
+                                }
+                            ]
+                        }
+                        async with httpx.AsyncClient() as client:
+                            await client.post(url, headers=headers, json=data)
+                    except Exception as e:
+                        logger.error(f"Error sending quota exceeded flex message: {e}")
+                else:
+                    # Send text message
+                    quota_message = system_settings.get("quota_exceeded_message", "❌ โควต้าของคุณหมดแล้ว\n\nกรุณาติดต่อผู้ดูแลระบบเพื่ออัปเกรดแพ็คเกจ")
+                    await send_line_reply(
+                        reply_token,
+                        quota_message,
+                        account["channel_access_token"]
+                    )
                 return
         
         # Get slip API settings
@@ -2747,32 +2835,54 @@ async def get_chat_users(request: Request, account_id: str):
         users = app.state.chat_message_model.get_unique_users(account_id)
         user_list = []
         
-        for user_id in users:
-            messages = app.state.chat_message_model.get_conversation(account_id, user_id, limit=1)
+        for uid in users:
+            # Get the LAST message (sorted by timestamp descending)
+            messages = app.state.chat_message_model.get_messages(account_id, uid, limit=1, skip=0)
             if messages:
                 last_msg = messages[0]
                 # Get user profile from LINE
-                user_name = user_id
+                user_name = uid
                 picture_url = None
                 try:
                     # ใช้ LINE Bot API ดึงโปรไฟล์ผู้ใช้
-                    import requests
+                    import requests as req
                     headers = {"Authorization": f"Bearer {account.get('channel_access_token')}"}
-                    response = requests.get(f"https://api.line.me/v2/bot/profile/{user_id}", headers=headers)
+                    response = req.get(f"https://api.line.me/v2/bot/profile/{uid}", headers=headers, timeout=5)
                     if response.status_code == 200:
                         profile = response.json()
-                        user_name = profile.get("displayName", user_id)
+                        user_name = profile.get("displayName", uid)
                         picture_url = profile.get("pictureUrl")
                 except Exception as e:
-                    logger.error(f"Error getting LINE profile: {e}")
+                    logger.warning(f"Could not get LINE profile for {uid}: {e}")
+                
+                # Get last message content
+                last_message_content = last_msg.get("content", "")
+                if last_msg.get("message_type") == "image":
+                    last_message_content = "[รูปภาพ]"
+                elif last_msg.get("message_type") == "sticker":
+                    last_message_content = "[สติกเกอร์]"
+                elif last_msg.get("message_type") == "video":
+                    last_message_content = "[วิดีโอ]"
+                elif last_msg.get("message_type") == "audio":
+                    last_message_content = "[ข้อความเสียง]"
+                elif last_msg.get("message_type") == "location":
+                    last_message_content = "[ตำแหน่ง]"
+                elif last_msg.get("message_type") == "file":
+                    last_message_content = "[ไฟล์]"
+                elif not last_message_content:
+                    last_message_content = "[ไม่มีข้อความ]"
                 
                 user_list.append({
-                    "user_id": user_id,
+                    "user_id": uid,
                     "user_name": user_name,
                     "picture_url": picture_url,
-                    "last_message": last_msg.get("text", last_msg.get("message_type", "[ไม่มีข้อความ]")),
-                    "last_message_time": last_msg.get("timestamp", "")
+                    "last_message": last_message_content,
+                    "last_message_time": last_msg.get("timestamp", ""),
+                    "last_message_timestamp": last_msg.get("timestamp", "")
                 })
+        
+        # Sort by last_message_time (newest first) - like Facebook Messenger
+        user_list.sort(key=lambda x: x.get("last_message_timestamp", ""), reverse=True)
         
         return {"success": True, "users": user_list}
     except Exception as e:
@@ -2780,6 +2890,74 @@ async def get_chat_users(request: Request, account_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายชื่อผู้ใช้"}
+        )
+
+@app.post("/api/chat-messages/{account_id}/send")
+async def send_chat_message_alt(request: Request, account_id: str):
+    """Alternative endpoint: Send a message to a LINE user via Push API (user_id in body)"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        target_user_id = data.get("user_id", "").strip()
+        message_text = data.get("message", "").strip()
+        
+        if not target_user_id:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ต้องระบุ user_id"}
+            )
+        
+        if not message_text:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ข้อความไม่สามารถว่างได้"}
+            )
+        
+        if len(message_text) > 5000:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ข้อความยาวเกินไป (สูงสุด 5000 ตัวอักษร)"}
+            )
+        
+        # Send message via LINE Push API
+        success = await send_line_push(
+            user_id=target_user_id,
+            text=message_text,
+            access_token=account["channel_access_token"]
+        )
+        
+        if success:
+            # Save message to database
+            app.state.chat_message_model.save_message(
+                account_id=account_id,
+                user_id=target_user_id,
+                message_type="text",
+                content=message_text,
+                sender="bot"
+            )
+            return {"success": True, "message": "ส่งข้อความสำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง"}
+            )
+            
+    except Exception as e:
+        logger.error(f"Error sending chat message: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการส่งข้อความ"}
         )
 
 @app.get("/api/chat-messages/{account_id}/{user_id}")
