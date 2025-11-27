@@ -548,21 +548,31 @@
 
     // Get media HTML
     function getMediaHtml(msg) {
-        if (!msg.media_url) return '';
-
         const msgType = msg.message_type || msg.type;
-        if (msgType === 'image') {
+        const accountId = currentFilters.account;
+        
+        if (msgType === 'image' && msg.message_id && accountId) {
+            // Use proxy endpoint for images (LINE URLs expire)
+            const imageUrl = `/api/line-image/${accountId}/${msg.message_id}`;
             return `
                 <div class="message-media">
-                    <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')">
+                    <img src="${imageUrl}" alt="Image" onclick="window.open('${imageUrl}', '_blank')" onerror="this.onerror=null;this.style.display='none';">
                 </div>
             `;
-        } else if (msgType === 'video') {
+        } else if (msgType === 'video' && msg.message_id && accountId) {
+            const videoUrl = `/api/line-image/${accountId}/${msg.message_id}`;
             return `
                 <div class="message-media">
                     <video controls>
-                        <source src="${msg.media_url}" type="video/mp4">
+                        <source src="${videoUrl}" type="video/mp4">
                     </video>
+                </div>
+            `;
+        } else if (msgType === 'image' && msg.media_url) {
+            // Fallback to media_url if message_id not available
+            return `
+                <div class="message-media">
+                    <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')" onerror="this.onerror=null;this.style.display='none';">
                 </div>
             `;
         }

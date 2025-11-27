@@ -335,8 +335,8 @@
             </div>
 
             <div class="chat-footer" id="chatFooter" style="display: none;">
-                <input type="text" id="messageInput" placeholder="พิมพ์ข้อความ..." readonly>
-                <button onclick="sendMessage()" disabled>
+                <input type="text" id="messageInput" placeholder="พิมพ์ข้อความตอบกลับ..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()" id="sendBtn">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -362,11 +362,21 @@
     <script>
         let currentAccountId = null;
         let currentUserId = null;
+        let currentUserName = null;
+        let isLoading = false;
+        let autoRefreshInterval = null;
         const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
 
         async function changeAccount() {
             currentAccountId = document.getElementById('accountSelect').value;
             currentUserId = null;
+            currentUserName = null;
+            
+            // Stop auto-refresh when changing account
+            stopAutoRefresh();
+            
+            // Hide chat footer
+            document.getElementById('chatFooter').style.display = 'none';
             
             if (!currentAccountId) {
                 document.getElementById('userList').innerHTML = '<div class="text-center text-muted py-3"><small>เลือกบัญชี LINE ก่อน</small></div>';
@@ -375,15 +385,30 @@
             }
 
             // Load users for this account
+            await loadUsers();
+        }
+
+        async function loadUsers() {
+            if (!currentAccountId) return;
+            
             try {
+                document.getElementById('userList').innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"></div></div>';
+                
                 const response = await fetch(`/api/chat-messages/${currentAccountId}/users`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
                     displayUsers(data.users);
+                } else {
+                    document.getElementById('userList').innerHTML = '<div class="text-center text-danger py-3"><small>เกิดข้อผิดพลาด</small></div>';
                 }
             } catch (error) {
                 console.error('Error loading users:', error);
+                document.getElementById('userList').innerHTML = '<div class="text-center text-danger py-3"><small>ไม่สามารถโหลดรายชื่อผู้ใช้ได้</small></div>';
             }
         }
 
@@ -394,16 +419,48 @@
                 return;
             }
 
-            userList.innerHTML = users.map(user => `
-                <div class="chat-item" onclick="selectUser('${user.user_id}', '${user.user_name || 'ผู้ใช้ที่ไม่รู้จัก'}')">
-                    <div class="chat-item-name">${user.user_name || 'ผู้ใช้ที่ไม่รู้จัก'}</div>
-                    <div class="chat-item-time">${user.last_message_time || 'ไม่มีข้อความ'}</div>
-                </div>
-            `).join('');
+            userList.innerHTML = users.map(user => {
+                const userName = escapeHtml(user.user_name || 'ผู้ใช้ที่ไม่รู้จัก');
+                const pictureUrl = user.picture_url || '';
+                const timeStr = user.last_message_time ? formatTime(user.last_message_time) : 'ไม่มีข้อความ';
+                
+                return `
+                    <div class="chat-item" onclick="selectUser('${user.user_id}', '${userName.replace(/'/g, "\\'")}')">
+                        <div class="d-flex align-items-center">
+                            ${pictureUrl ? `<img src="${pictureUrl}" class="rounded-circle me-2" style="width:36px;height:36px;object-fit:cover;">` : '<i class="fas fa-user-circle me-2" style="font-size:36px;color:#ccc;"></i>'}
+                            <div>
+                                <div class="chat-item-name">${userName}</div>
+                                <div class="chat-item-time">${timeStr}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatTime(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                const now = new Date();
+                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 0) {
+                    return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                } else if (diffDays === 1) {
+                    return 'เมื่อวาน';
+                } else if (diffDays < 7) {
+                    return `${diffDays} วันที่แล้ว`;
+                } else {
+                    return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                }
+            } catch (e) {
+                return timestamp;
+            }
         }
 
         async function selectUser(userId, userName) {
             currentUserId = userId;
+            currentUserName = userName;
             
             // Update header
             document.getElementById('chatTitle').textContent = `แชทกับ ${userName}`;
@@ -413,29 +470,51 @@
             document.querySelectorAll('.chat-item').forEach(item => {
                 item.classList.remove('active');
             });
-            event.target.closest('.chat-item').classList.add('active');
+            if (event && event.target) {
+                const chatItem = event.target.closest('.chat-item');
+                if (chatItem) chatItem.classList.add('active');
+            }
+            
+            // Show chat footer
+            document.getElementById('chatFooter').style.display = 'flex';
+            document.getElementById('messageInput').focus();
             
             // Load messages
             await loadMessages();
+            
+            // Start auto-refresh
+            startAutoRefresh();
         }
 
         async function loadMessages() {
-            if (!currentAccountId || !currentUserId) return;
+            if (!currentAccountId || !currentUserId || isLoading) return;
 
             try {
-                document.getElementById('chatMessages').innerHTML = '<div class="loading"><div class="spinner-border spinner-border-sm" role="status"></div></div>';
+                isLoading = true;
+                const chatMessages = document.getElementById('chatMessages');
                 
-                const response = await fetch(`/api/chat-messages/${currentAccountId}/${currentUserId}`);
+                // Show loading only on first load
+                if (chatMessages.querySelector('.empty-state') || chatMessages.innerHTML === '') {
+                    chatMessages.innerHTML = '<div class="loading"><div class="spinner-border spinner-border-sm" role="status"></div></div>';
+                }
+                
+                const response = await fetch(`/api/chat-messages/${currentAccountId}/${currentUserId}?limit=100`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
                     displayMessages(data.messages);
                 } else {
-                    document.getElementById('chatMessages').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>เกิดข้อผิดพลาดในการโหลดข้อความ</p></div>';
+                    chatMessages.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>เกิดข้อผิดพลาดในการโหลดข้อความ</p></div>';
                 }
             } catch (error) {
                 console.error('Error loading messages:', error);
-                document.getElementById('chatMessages').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>เกิดข้อผิดพลาด</p></div>';
+                document.getElementById('chatMessages').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>เกิดข้อผิดพลาด กรุณาลองใหม่</p></div>';
+            } finally {
+                isLoading = false;
             }
         }
 
@@ -447,17 +526,32 @@
                 return;
             }
 
+            // Sort messages by timestamp (oldest first)
+            messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
             chatMessages.innerHTML = messages.map(msg => {
                 const isUser = msg.sender === 'user';
                 const time = new Date(msg.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                const date = new Date(msg.timestamp).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
                 
                 let content = '';
                 if (msg.message_type === 'image') {
-                    content = `<img src="${msg.media_url}" class="message-image" onclick="showImage('${msg.media_url}')">`;
+                    // Use proxy endpoint for images
+                    const imageUrl = `/api/line-image/${currentAccountId}/${msg.message_id}`;
+                    content = `<img src="${imageUrl}" class="message-image" onclick="showImage('${imageUrl}')" onerror="this.onerror=null;this.src='/static/images/image-error.png';this.onclick=null;">`;
                 } else if (msg.message_type === 'video') {
-                    content = `<video width="200" controls><source src="${msg.media_url}"></video>`;
+                    const videoUrl = `/api/line-image/${currentAccountId}/${msg.message_id}`;
+                    content = `<video width="200" controls><source src="${videoUrl}"></video>`;
+                } else if (msg.message_type === 'sticker') {
+                    content = `<div class="text-muted"><i class="fas fa-sticky-note"></i> [สติกเกอร์]</div>`;
+                } else if (msg.message_type === 'location') {
+                    content = `<div><i class="fas fa-map-marker-alt text-danger"></i> [ตำแหน่งที่ตั้ง]</div>`;
+                } else if (msg.message_type === 'audio') {
+                    content = `<div><i class="fas fa-microphone"></i> [ข้อความเสียง]</div>`;
+                } else if (msg.message_type === 'file') {
+                    content = `<div><i class="fas fa-file"></i> [ไฟล์]</div>`;
                 } else {
-                    content = `<div>${escapeHtml(msg.content)}</div>`;
+                    content = `<div>${escapeHtml(msg.content || '')}</div>`;
                 }
 
                 return `
@@ -466,7 +560,7 @@
                             <div class="message-bubble ${isUser ? 'user' : 'bot'}">
                                 ${content}
                             </div>
-                            <div class="message-time">${time}</div>
+                            <div class="message-time">${date} ${time}</div>
                         </div>
                     </div>
                 `;
@@ -482,6 +576,7 @@
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
@@ -492,10 +587,93 @@
                 loadMessages();
             }
         }
-
-        function sendMessage() {
-            // Read-only for now
+        
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            // Auto-refresh every 10 seconds
+            autoRefreshInterval = setInterval(() => {
+                if (currentUserId && !isLoading) {
+                    loadMessages();
+                }
+            }, 10000);
         }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const btn = document.getElementById('sendBtn');
+            const message = input.value.trim();
+            
+            if (!message || !currentAccountId || !currentUserId) return;
+            
+            try {
+                // Disable input while sending
+                input.disabled = true;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                const response = await fetch(`/api/chat-messages/${currentAccountId}/${currentUserId}/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Clear input
+                    input.value = '';
+                    // Reload messages to show new message
+                    await loadMessages();
+                } else {
+                    showAlert(data.message || 'ไม่สามารถส่งข้อความได้', 'danger');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showAlert('เกิดข้อผิดพลาดในการส่งข้อความ', 'danger');
+            } finally {
+                // Re-enable input
+                input.disabled = false;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                input.focus();
+            }
+        }
+        
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.createElement('div');
+            alertContainer.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertContainer.style.cssText = 'top: 80px; right: 20px; z-index: 9999; max-width: 300px;';
+            alertContainer.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertContainer);
+            
+            setTimeout(() => {
+                alertContainer.remove();
+            }, 5000);
+        }
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
     </script>
 </body>
 </html>

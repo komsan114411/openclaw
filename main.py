@@ -1883,6 +1883,37 @@ async def send_line_reply(reply_token: str, text: str, access_token: str):
     except Exception as e:
         logger.error(f"❌ Error sending LINE reply: {e}")
 
+async def send_line_push(user_id: str, text: str, access_token: str) -> bool:
+    """Send LINE push message to user"""
+    try:
+        url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+        data = {
+            "to": user_id,
+            "messages": [
+                {
+                    "type": "text",
+                    "text": text
+                }
+            ]
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=data)
+            if response.status_code != 200:
+                logger.error(f"❌ LINE Push API error: {response.text}")
+                return False
+            else:
+                logger.info(f"✅ Push message sent successfully to {user_id}")
+                return True
+                
+    except Exception as e:
+        logger.error(f"❌ Error sending LINE push message: {e}")
+        return False
+
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render Flex Message template with result data"""
     try:
@@ -2780,6 +2811,67 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str, lim
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อความ"}
+        )
+
+@app.post("/api/chat-messages/{account_id}/{user_id}/send")
+async def send_chat_message(request: Request, account_id: str, user_id: str):
+    """Send a message to a LINE user via Push API"""
+    user = app.state.auth.get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    account = app.state.line_account_model.get_account_by_id(account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Check permission
+    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        message_text = data.get("message", "").strip()
+        
+        if not message_text:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ข้อความไม่สามารถว่างได้"}
+            )
+        
+        if len(message_text) > 5000:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "ข้อความยาวเกินไป (สูงสุด 5000 ตัวอักษร)"}
+            )
+        
+        # Send message via LINE Push API
+        success = await send_line_push(
+            user_id=user_id,
+            text=message_text,
+            access_token=account["channel_access_token"]
+        )
+        
+        if success:
+            # Save message to database
+            app.state.chat_message_model.save_message(
+                account_id=account_id,
+                user_id=user_id,
+                message_type="text",
+                content=message_text,
+                sender="bot"
+            )
+            return {"success": True, "message": "ส่งข้อความสำเร็จ"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง"}
+            )
+            
+    except Exception as e:
+        logger.error(f"Error sending chat message: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": "เกิดข้อผิดพลาดในการส่งข้อความ"}
         )
 
 @app.get("/api/line-image/{account_id}/{message_id}")
