@@ -88,8 +88,59 @@ class ChatMessage:
                         msg["timestamp"] = ts.isoformat()
             
             return messages
+            return messages
         except Exception as e:
             logger.error(f"❌ Error getting messages: {e}")
+            return []
+
+    def get_messages_paginated(
+        self,
+        account_id: str,
+        cursor: Optional[str] = None,
+        limit: int = 50,
+        user_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        ดึงข้อความแบบ Pagination (Cursor-based)
+        cursor: ObjectId ของข้อความสุดท้ายที่โหลดไปแล้ว (จะโหลดข้อความที่เก่ากว่านี้)
+        """
+        try:
+            query = {"account_id": account_id}
+            if user_id:
+                query["user_id"] = user_id
+            
+            # If cursor is provided, load messages older than cursor (timestamp < cursor_timestamp)
+            # But since we sort by timestamp desc, we can use _id for simplicity if timestamps are close
+            # Better to use _id for cursor as it's unique and monotonic (mostly)
+            if cursor:
+                try:
+                    query["_id"] = {"$lt": ObjectId(cursor)}
+                except:
+                    pass
+            
+            messages = list(
+                self.collection.find(query)
+                .sort("_id", -1) # Sort by ID desc (newest first)
+                .limit(limit)
+            )
+            
+            # Reverse to show oldest first in chat window (if needed) or keep newest first
+            # Usually chat APIs return newest first for pagination, but UI might want oldest first for display
+            # Let's return newest first (descending) consistent with get_messages
+            
+            # Convert ObjectId to string and format timestamp
+            for msg in messages:
+                msg["_id"] = str(msg["_id"])
+                if msg.get("timestamp"):
+                    ts = msg["timestamp"]
+                    if hasattr(ts, 'strftime'):
+                        msg["timestamp"] = ts.strftime('%Y-%m-%dT%H:%M:%S+07:00')
+                    elif hasattr(ts, 'isoformat'):
+                        msg["timestamp"] = ts.isoformat()
+            
+            return messages
+        except Exception as e:
+            logger.error(f"❌ Error getting paginated messages: {e}")
             return []
     
     def get_messages_by_date_range(

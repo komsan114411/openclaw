@@ -134,6 +134,28 @@ class SubscriptionModel:
         
         return False
     
+    def refund_slip_quota(self, user_id: str) -> bool:
+        """Refund one slip to user's quota (to oldest active subscription with usage)"""
+        active_subs = self.get_active_subscriptions(user_id)
+        
+        if not active_subs:
+            return False
+        
+        # Find subscription with usage (oldest first)
+        for sub in reversed(active_subs):  # Oldest first
+            if sub["slips_used"] > 0:
+                # Decrement usage
+                self.collection.update_one(
+                    {"_id": ObjectId(sub["_id"])},
+                    {
+                        "$inc": {"slips_used": -1},
+                        "$set": {"updated_at": datetime.now()}
+                    }
+                )
+                return True
+        
+        return False
+    
     def extend_subscription(
         self,
         user_id: str,

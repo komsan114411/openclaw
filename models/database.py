@@ -75,14 +75,26 @@ class Database:
             self.client = MongoClient(
                 mongodb_uri,
                 tlsCAFile=certifi.where(),
-                serverSelectionTimeoutMS=5000
+                serverSelectionTimeoutMS=5000,
+                maxPoolSize=50,              # Limit connection pool size
+                minPoolSize=10,              # Maintain minimum connections
+                retryWrites=True,            # Auto-retry failed writes
+                retryReads=True,             # Auto-retry failed reads
+                connectTimeoutMS=10000,      # Connection timeout
+                socketTimeoutMS=30000        # Socket operation timeout
             )
             
             # Async client for async operations
             self.async_client = AsyncIOMotorClient(
                 mongodb_uri,
                 tlsCAFile=certifi.where(),
-                serverSelectionTimeoutMS=5000
+                serverSelectionTimeoutMS=5000,
+                maxPoolSize=50,
+                minPoolSize=10,
+                retryWrites=True,
+                retryReads=True,
+                connectTimeoutMS=10000,
+                socketTimeoutMS=30000
             )
             
             # Test connection

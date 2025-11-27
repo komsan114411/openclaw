@@ -70,10 +70,19 @@ class Session:
                 self.delete_session(session_id)
                 return None
             
-            # Update last activity
+            # Sliding Window: Extend session expiration
+            # Calculate new expiration time
+            new_expires_at = datetime.utcnow() + timedelta(hours=24) # Default 24h, ideally should come from config or session data
+            
+            # Update last activity and expiration
             self.collection.update_one(
                 {"session_id": session_id},
-                {"$set": {"last_activity": datetime.utcnow()}}
+                {
+                    "$set": {
+                        "last_activity": datetime.utcnow(),
+                        "expires_at": new_expires_at
+                    }
+                }
             )
             
             session["_id"] = str(session["_id"])
