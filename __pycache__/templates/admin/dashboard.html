@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include 'includes/admin_menu.html' %}
+{% endblock %}
+
+{% block page_title %}แดชบอร์ด{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ภาพรวมระบบจัดการ LINE Official Account</p>
+{% endblock %}
+
+{% block page_actions %}
+<div class="d-flex align-items-center gap-md">
+    <div class="connection-status">
+        <div class="status-dot" id="connectionDot"></div>
+        <span id="connectionText">กำลังเชื่อมต่อ...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-2xl);
+    }
+
+    .stat-card {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-base);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--spacing-md);
+    }
+
+    .stat-card-title {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+        font-weight: 600;
+    }
+
+    .stat-card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .stat-card-value {
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--black);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .stat-card-change {
+        font-size: var(--font-size-sm);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        color: var(--gray-600);
+    }
+
+    .stat-card-change.positive {
+        color: var(--success-color);
+    }
+
+    .stat-card-change.negative {
+        color: var(--danger-color);
+    }
+
+    /* Connection Status */
+    .connection-status {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: 8px 16px;
+        background: var(--gray-100);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-sm);
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--gray-400);
+        animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+        background: var(--success-color);
+    }
+
+    .status-dot.disconnected {
+        background: var(--danger-color);
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* Recent Activity */
+    .activity-list {
+        list-style: none;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        border-bottom: 1px solid var(--gray-200);
+        transition: background var(--transition-fast);
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background: var(--gray-50);
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: var(--black);
+        margin-bottom: 4px;
+    }
+
+    .activity-time {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span class="stat-card-title">ผู้ใช้ทั้งหมด</span>
+            <div class="stat-card-icon" style="background: var(--info-light); color: var(--info-color);">
+                <i class="fas fa-users"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ total_users or 0 }}</div>
+        <div class="stat-card-change">
+            <i class="fas fa-user"></i>
+            <span>ผู้ใช้งานในระบบ</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span class="stat-card-title">บัญชี LINE OA</span>
+            <div class="stat-card-icon" style="background: var(--success-light); color: var(--success-color);">
+                <i class="fab fa-line"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ total_line_accounts or 0 }}</div>
+        <div class="stat-card-change">
+            <i class="fas fa-check-circle"></i>
+            <span>บัญชีที่เชื่อมต่อ</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span class="stat-card-title">ข้อความวันนี้</span>
+            <div class="stat-card-icon" style="background: var(--warning-light); color: var(--warning-color);">
+                <i class="fas fa-comments"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ total_messages_today or 0 }}</div>
+        <div class="stat-card-change positive">
+            <i class="fas fa-arrow-up"></i>
+            <span>เพิ่มขึ้น 12%</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span class="stat-card-title">สลิปที่ตรวจสอบ</span>
+            <div class="stat-card-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ total_slips_verified or 0 }}</div>
+        <div class="stat-card-change">
+            <i class="fas fa-check"></i>
+            <span>ตรวจสอบแล้ว</span>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity & Quick Actions -->
+<div class="grid grid-cols-2">
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">กิจกรรมล่าสุด</h3>
+            <a href="#" class="btn btn-ghost btn-sm">ดูทั้งหมด</a>
+        </div>
+        <div class="card-body p-0">
+            <ul class="activity-list">
+                {% if recent_activities %}
+                    {% for activity in recent_activities %}
+                    <li class="activity-item">
+                        <div class="activity-icon" style="background: var(--info-light); color: var(--info-color);">
+                            <i class="fas fa-{{ activity.icon or 'bell' }}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ activity.title }}</div>
+                            <div class="activity-time">{{ activity.time }}</div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="activity-item">
+                        <div class="activity-icon" style="background: var(--gray-200); color: var(--gray-600);">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">ยังไม่มีกิจกรรม</div>
+                            <div class="activity-time">เริ่มใช้งานระบบเพื่อดูกิจกรรม</div>
+                        </div>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">เมนูด่วน</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-2 gap-md">
+                <a href="/admin/users" class="btn btn-outline w-100">
+                    <i class="fas fa-user-plus"></i>
+                    <span>เพิ่มผู้ใช้</span>
+                </a>
+                <a href="/admin/line-accounts" class="btn btn-outline w-100">
+                    <i class="fab fa-line"></i>
+                    <span>เพิ่มบัญชี LINE</span>
+                </a>
+                <a href="/admin/bank-accounts" class="btn btn-outline w-100">
+                    <i class="fas fa-university"></i>
+                    <span>เพิ่มบัญชีธนาคาร</span>
+                </a>
+                <a href="/admin/slip-templates" class="btn btn-outline w-100">
+                    <i class="fas fa-file-invoice"></i>
+                    <span>จัดการเทมเพลต</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">สถานะระบบ</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-cols-4 gap-lg">
+            <div class="text-center">
+                <div class="badge badge-success mb-sm">ปกติ</div>
+                <div class="text-muted" style="font-size: var(--font-size-sm);">Database</div>
+            </div>
+            <div class="text-center">
+                <div class="badge badge-success mb-sm">ปกติ</div>
+                <div class="text-muted" style="font-size: var(--font-size-sm);">LINE API</div>
+            </div>
+            <div class="text-center">
+                <div class="badge badge-success mb-sm">ปกติ</div>
+                <div class="text-muted" style="font-size: var(--font-size-sm);">Slip API</div>
+            </div>
+            <div class="text-center">
+                <div class="badge badge-success mb-sm">ปกติ</div>
+                <div class="text-muted" style="font-size: var(--font-size-sm);">WebSocket</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // WebSocket connection for real-time updates
+    let ws;
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionText = document.getElementById('connectionText');
+
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            connectionDot.classList.add('connected');
+            connectionDot.classList.remove('disconnected');
+            connectionText.textContent = 'เชื่อมต่อแล้ว';
+        };
+        
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            connectionDot.classList.remove('connected');
+            connectionDot.classList.add('disconnected');
+            connectionText.textContent = 'ไม่ได้เชื่อมต่อ';
+            
+            // Reconnect after 5 seconds
+            setTimeout(connectWebSocket, 5000);
+        };
+        
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+        
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Received:', data);
+            
+            // Handle real-time updates
+            if (data.type === 'stats_update') {
+                updateStats(data);
+            }
+        };
+    }
+
+    function updateStats(data) {
+        // Update stats cards with new data
+        if (data.total_messages_today !== undefined) {
+            document.querySelector('.stat-card-value').textContent = data.total_messages_today;
+        }
+    }
+
+    // Connect on page load
+    connectWebSocket();
+
+    // Refresh stats every 30 seconds
+    setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'request_stats' }));
+        }
+    }, 30000);
+</script>
+{% endblock %}

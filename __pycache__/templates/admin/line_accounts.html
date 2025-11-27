@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}บัญชี LINE OA - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include 'includes/admin_menu.html' %}
+{% endblock %}
+
+{% block page_title %}บัญชี LINE Official Account{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการบัญชี LINE OA ทั้งหมดในระบบ</p>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">รายการบัญชี LINE OA</h3>
+        <a href="/user/add-line-account" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            <span>เพิ่มบัญชี LINE</span>
+        </a>
+    </div>
+    <div class="card-body">
+        {% if line_accounts %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ชื่อบัญชี</th>
+                        <th>เจ้าของ</th>
+                        <th>Channel ID</th>
+                        <th>สถานะ</th>
+                        <th>วันที่สร้าง</th>
+                        <th style="width: 200px;">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in line_accounts %}
+                    <tr>
+                        <td>{{ account.account_name or account.name or '-' }}</td>
+                        <td>{{ account.owner_username or account.owner_id or '-' }}</td>
+                        <td><code>{{ account.channel_id }}</code></td>
+                        <td>
+                            {% if account.is_active %}
+                            <span class="badge badge-success">ใช้งาน</span>
+                            {% else %}
+                            <span class="badge badge-danger">ระงับ</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ account.created_at.strftime('%d/%m/%Y') if account.created_at else '-' }}</td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="/user/line-accounts/{{ account._id }}/settings" class="btn btn-sm btn-secondary" title="ตั้งค่า">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                                <button onclick="deleteLineAccount('{{ account._id }}', '{{ account.account_name or account.name }}')" class="btn btn-sm btn-danger" title="ลบ">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">ยังไม่มีบัญชี LINE OA ในระบบ</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+function deleteLineAccount(accountId, accountName) {
+    if (!confirm(`คุณต้องการลบบัญชี LINE "${accountName}" ใช่หรือไม่?\n\nการลบจะไม่สามารถกู้คืนได้`)) {
+        return;
+    }
+    
+    fetch(`/api/admin/line-accounts/${accountId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('ลบบัญชี LINE สำเร็จ');
+            location.reload();
+        } else {
+            alert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถลบบัญชีได้'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('เกิดข้อผิดพลาดในการลบบัญชี');
+    });
+}
+</script>
+{% endblock %}
