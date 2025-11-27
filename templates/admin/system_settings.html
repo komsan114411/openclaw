@@ -1,0 +1,1008 @@
+{% extends "base.html" %}
+
+{% block title %}ตั้งค่าระบบ - Admin{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/admin_menu.html" %}
+{% endblock %}
+
+{% block page_title %}ตั้งค่าระบบ{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการการตั้งค่าระบบและบัญชีธนาคาร</p>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+<!-- API Keys Section -->
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-key"></i> API Configuration</h5>
+        </div>
+        <div class="card-body">
+            <form id="apiSettingsForm">
+                <div class="mb-3">
+                    <label class="form-label">Slip Verification API Provider</label>
+                    <select class="form-select" id="slipApiProvider" onchange="updateProviderFields()">
+                        <option value="thunder">Thunder API</option>
+                        <option value="kbank">KBank API</option>
+                        <option value="both">ใช้ทั้งสอง (Thunder + KBank)</option>
+                    </select>
+                    <div class="form-text text-muted">เลือก API ที่ใช้สำหรับตรวจสอบสลิป</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Slip Verification API Key (หลัก)</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="slipApiKey" placeholder="Enter API Key">
+                        <button class="btn btn-outline-secondary" type="button"
+                            onclick="toggleVisibility('slipApiKey')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-info" type="button" onclick="testSlipApi()" id="testSlipBtn">
+                            <i class="bi bi-check-circle"></i> ทดสอบ
+                        </button>
+                    </div>
+                    <div class="form-text text-muted" id="slipApiKeyPreview"></div>
+                    <div id="slipApiTestResult" class="mt-2"></div>
+                </div>
+                
+                <div class="mb-3" id="secondaryApiSection" style="display: none;">
+                    <label class="form-label">Slip Verification API Key (สำรอง)</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="slipApiKeySecondary" placeholder="Enter Secondary API Key">
+                        <button class="btn btn-outline-secondary" type="button"
+                            onclick="toggleVisibility('slipApiKeySecondary')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-info" type="button" onclick="testSlipApiSecondary()" id="testSlipSecondaryBtn">
+                            <i class="bi bi-check-circle"></i> ทดสอบ
+                        </button>
+                    </div>
+                    <div class="form-text text-muted" id="slipApiKeySecondaryPreview"></div>
+                    <div id="slipApiSecondaryTestResult" class="mt-2"></div>
+                </div>
+                
+                <div class="mb-3 form-check" id="fallbackCheckbox" style="display: none;">
+                    <input type="checkbox" class="form-check-input" id="slipApiFallbackEnabled">
+                    <label class="form-check-label" for="slipApiFallbackEnabled">
+                        เปิดใช้ Fallback (สลับไปใช้ API สำรองเมื่อ API หลักใช้ไม่ได้)
+                    </label>
+                </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="slipApiQuotaWarning" checked>
+                    <label class="form-check-label" for="slipApiQuotaWarning">
+                        แจ้งเตือนเมื่อ API หมดอายุหรือหมดโควต้า
+                    </label>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">AI Service API Key (OpenAI/Claude)</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="aiApiKey" placeholder="Enter API Key">
+                        <button class="btn btn-outline-secondary" type="button" onclick="toggleVisibility('aiApiKey')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-info" type="button" onclick="testAiApi()" id="testAiBtn">
+                            <i class="bi bi-check-circle"></i> ทดสอบ
+                        </button>
+                    </div>
+                    <div class="form-text text-muted" id="aiApiKeyPreview"></div>
+                    <div id="aiApiTestResult" class="mt-2"></div>
+                </div>
+
+                <button type="button" class="btn btn-primary" onclick="saveApiSettings()">
+                    <i class="bi bi-save"></i> บันทึกการตั้งค่า API
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bank Accounts Section -->
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-bank"></i> บัญชีธนาคารรับเงิน</h5>
+            <button class="btn btn-sm btn-success" onclick="openBankModal()">
+                <i class="bi bi-plus"></i> เพิ่มบัญชี
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="bankAccountsList" class="list-group list-group-flush">
+                <!-- Bank accounts will be loaded here -->
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Second Row -->
+<div class="row">
+<!-- USDT Wallet Section -->
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-currency-bitcoin"></i> USDT Wallet Configuration</h5>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="usdtEnabled" checked>
+                <label class="form-check-label" for="usdtEnabled">เปิดใช้งาน</label>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="usdtSettingsForm">
+                <div class="mb-3">
+                    <label class="form-label">Network</label>
+                    <select class="form-select" id="usdtNetwork">
+                        <option value="TRC20">TRC20 (Tron)</option>
+                        <option value="ERC20">ERC20 (Ethereum)</option>
+                        <option value="BEP20">BEP20 (BSC)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Wallet Address</label>
+                    <input type="text" class="form-control" id="usdtWalletAddress" placeholder="เช่น TL8k7wX8wX8wX8wX8wX...">
+                    <div class="form-text text-muted" id="usdtAddressPreview"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">QR Code Image</label>
+                    <input type="file" class="form-control" id="usdtQrImage" accept="image/*" onchange="previewQrImage()">
+                    <div class="mt-2 text-center">
+                        <img id="usdtQrPreview" src="" class="img-thumbnail d-none" style="max-width: 150px;">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">ข้อความเมื่อปิดใช้งาน</label>
+                    <input type="text" class="form-control" id="usdtDisabledMessage" placeholder="งดให้บริการชำระเงินด้วย USDT ชั่วคราว">
+                </div>
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle"></i> 
+                    ตรวจสอบธุรกรรม: 
+                    <a href="https://tronscan.org/" target="_blank">TronScan (TRC20)</a> | 
+                    <a href="https://etherscan.io/" target="_blank">Etherscan (ERC20)</a>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="saveUsdtSettings()">
+                    <i class="bi bi-save"></i> บันทึกการตั้งค่า USDT
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quota Exceeded Template Section -->
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-chat-square-text"></i> ข้อความเมื่อโควต้าหมด</h5>
+        </div>
+        <div class="card-body">
+            <form id="quotaTemplateForm">
+                <div class="mb-3">
+                    <label class="form-label">รูปแบบข้อความ</label>
+                    <select class="form-select" id="quotaResponseType" onchange="updateQuotaTemplateFields()">
+                        <option value="text">ข้อความธรรมดา (Text)</option>
+                        <option value="flex">Flex Message (พร้อมปุ่มและรูปภาพ)</option>
+                    </select>
+                </div>
+                
+                <!-- Text Message Section -->
+                <div id="textMessageSection">
+                    <div class="mb-3">
+                        <label class="form-label">ข้อความ</label>
+                        <textarea class="form-control" id="quotaExceededMessage" rows="4" placeholder="ข้อความที่จะส่งเมื่อโควต้าหมด..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Flex Message Section -->
+                <div id="flexMessageSection" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">หัวข้อ</label>
+                        <input type="text" class="form-control" id="quotaFlexTitle" placeholder="เช่น โควต้าหมด">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">รายละเอียด</label>
+                        <textarea class="form-control" id="quotaFlexBody" rows="3" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ข้อความปุ่ม</label>
+                        <input type="text" class="form-control" id="quotaFlexButtonText" placeholder="เช่น อัปเกรดแพ็คเกจ">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL ปุ่ม</label>
+                        <input type="url" class="form-control" id="quotaFlexButtonUrl" placeholder="https://...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL รูปภาพ (ถ้ามี)</label>
+                        <input type="url" class="form-control" id="quotaFlexImageUrl" placeholder="https://...">
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-primary" onclick="saveQuotaTemplate()">
+                    <i class="bi bi-save"></i> บันทึกเทมเพลต
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="previewQuotaTemplate()">
+                    <i class="bi bi-eye"></i> ดูตัวอย่าง
+                </button>
+            </form>
+            
+            <!-- Live Preview -->
+            <div id="templatePreviewContainer" class="mt-4" style="display: none;">
+                <hr>
+                <h6><i class="bi bi-phone"></i> ตัวอย่างที่ลูกค้าจะเห็น:</h6>
+                <div id="templatePreview" class="bg-light rounded p-3" style="max-width: 300px; margin: 0 auto;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Third Row: LINE Connection Testing -->
+<div class="row">
+<div class="col-12 mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-link-45deg"></i> ทดสอบการเชื่อมต่อ LINE OA</h5>
+        </div>
+        <div class="card-body">
+            <div class="row" id="lineAccountsTestList">
+                <!-- LINE accounts will be loaded here -->
+                <div class="col-12 text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2">กำลังโหลดรายการบัญชี LINE...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Add Bank Account Modal -->
+<div class="modal fade" id="bankModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">เพิ่มบัญชีธนาคาร</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bankForm">
+                    <div class="mb-3">
+                        <label class="form-label">ธนาคาร</label>
+                        <select class="form-select" id="bankName" required>
+                            <option value="kbank">กสิกรไทย (KBANK)</option>
+                            <option value="scb">ไทยพาณิชย์ (SCB)</option>
+                            <option value="bbl">กรุงเทพ (BBL)</option>
+                            <option value="ktb">กรุงไทย (KTB)</option>
+                            <option value="ttb">ทีทีบี (TTB)</option>
+                            <option value="gsb">ออมสิน (GSB)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">เลขที่บัญชี</label>
+                        <input type="text" class="form-control" id="accountNumber" required placeholder="xxx-x-xxxxx-x">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ชื่อบัญชี</label>
+                        <input type="text" class="form-control" id="accountName" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="saveBankAccount()">เพิ่มบัญชี</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
+<script>
+    let bankModal;
+    let currentSettings = {};
+
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bankModal = new bootstrap.Modal(document.getElementById('bankModal'));
+        loadSettings();
+        loadLineAccounts();
+    });
+
+    async function loadSettings() {
+        try {
+            const response = await fetch('/api/admin/system-settings');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.success) {
+                const settings = data.settings || {};
+                currentSettings = settings;
+
+                // Set API provider
+                const provider = settings.slip_api_provider || 'thunder';
+                document.getElementById('slipApiProvider').value = provider;
+                updateProviderFields();
+                
+                // Show previews if keys exist
+                if (settings.slip_api_key_preview) {
+                    document.getElementById('slipApiKeyPreview').innerText = `Current: ${settings.slip_api_key_preview}`;
+                } else {
+                    document.getElementById('slipApiKeyPreview').innerText = 'ยังไม่ได้ตั้งค่า';
+                }
+                
+                if (settings.slip_api_key_secondary_preview) {
+                    document.getElementById('slipApiKeySecondaryPreview').innerText = `Current: ${settings.slip_api_key_secondary_preview}`;
+                } else {
+                    document.getElementById('slipApiKeySecondaryPreview').innerText = 'ยังไม่ได้ตั้งค่า';
+                }
+                
+                if (settings.ai_api_key_preview) {
+                    document.getElementById('aiApiKeyPreview').innerText = `Current: ${settings.ai_api_key_preview}`;
+                } else {
+                    document.getElementById('aiApiKeyPreview').innerText = 'ยังไม่ได้ตั้งค่า';
+                }
+                
+                // Set fallback checkbox
+                document.getElementById('slipApiFallbackEnabled').checked = settings.slip_api_fallback_enabled || false;
+                document.getElementById('slipApiQuotaWarning').checked = settings.slip_api_quota_warning !== false;
+
+                renderBankAccounts(settings.bank_accounts || []);
+                
+                // Load USDT settings
+                document.getElementById('usdtEnabled').checked = settings.usdt_enabled !== false;
+                if (settings.usdt_network) {
+                    document.getElementById('usdtNetwork').value = settings.usdt_network;
+                }
+                if (settings.usdt_wallet_address) {
+                    document.getElementById('usdtAddressPreview').innerText = `Current: ${settings.usdt_wallet_address}`;
+                } else {
+                    document.getElementById('usdtAddressPreview').innerText = 'ยังไม่ได้ตั้งค่า';
+                }
+                if (settings.usdt_qr_image) {
+                    const qrPreview = document.getElementById('usdtQrPreview');
+                    qrPreview.src = settings.usdt_qr_image;
+                    qrPreview.classList.remove('d-none');
+                }
+                if (settings.usdt_disabled_message) {
+                    document.getElementById('usdtDisabledMessage').value = settings.usdt_disabled_message;
+                }
+                
+                // Load quota template settings
+                const responseType = settings.quota_exceeded_response_type || 'text';
+                document.getElementById('quotaResponseType').value = responseType;
+                updateQuotaTemplateFields();
+                
+                if (settings.quota_exceeded_message) {
+                    document.getElementById('quotaExceededMessage').value = settings.quota_exceeded_message;
+                }
+                if (settings.quota_exceeded_flex_title) {
+                    document.getElementById('quotaFlexTitle').value = settings.quota_exceeded_flex_title;
+                }
+                if (settings.quota_exceeded_flex_body) {
+                    document.getElementById('quotaFlexBody').value = settings.quota_exceeded_flex_body;
+                }
+                if (settings.quota_exceeded_flex_button_text) {
+                    document.getElementById('quotaFlexButtonText').value = settings.quota_exceeded_flex_button_text;
+                }
+                if (settings.quota_exceeded_flex_button_url) {
+                    document.getElementById('quotaFlexButtonUrl').value = settings.quota_exceeded_flex_button_url;
+                }
+                if (settings.quota_exceeded_flex_image_url) {
+                    document.getElementById('quotaFlexImageUrl').value = settings.quota_exceeded_flex_image_url;
+                }
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'danger');
+        }
+    }
+    
+    // USDT Settings Functions
+    function previewQrImage() {
+        const file = document.getElementById('usdtQrImage').files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('usdtQrPreview');
+                img.src = e.target.result;
+                img.classList.remove('d-none');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    async function saveUsdtSettings() {
+        const enabled = document.getElementById('usdtEnabled').checked;
+        const network = document.getElementById('usdtNetwork').value;
+        const address = document.getElementById('usdtWalletAddress').value;
+        const disabledMessage = document.getElementById('usdtDisabledMessage').value;
+        const qrFile = document.getElementById('usdtQrImage').files[0];
+        
+        const data = {
+            usdt_enabled: enabled,
+            usdt_network: network
+        };
+        
+        if (address) {
+            data.usdt_wallet_address = address;
+        }
+        
+        if (disabledMessage) {
+            data.usdt_disabled_message = disabledMessage;
+        }
+        
+        if (qrFile) {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                data.usdt_qr_image = e.target.result;
+                await saveSettings(data);
+            };
+            reader.readAsDataURL(qrFile);
+        } else {
+            await saveSettings(data);
+        }
+    }
+    
+    async function saveSettings(data) {
+        try {
+            const response = await fetch('/api/admin/system-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showAlert('บันทึกการตั้งค่าเรียบร้อย', 'success');
+                loadSettings();
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถบันทึกได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการบันทึก', 'danger');
+        }
+    }
+    
+    // Quota Template Functions
+    function updateQuotaTemplateFields() {
+        const type = document.getElementById('quotaResponseType').value;
+        document.getElementById('textMessageSection').style.display = type === 'text' ? 'block' : 'none';
+        document.getElementById('flexMessageSection').style.display = type === 'flex' ? 'block' : 'none';
+    }
+    
+    async function saveQuotaTemplate() {
+        const responseType = document.getElementById('quotaResponseType').value;
+        
+        const data = {
+            quota_exceeded_response_type: responseType
+        };
+        
+        if (responseType === 'text') {
+            data.quota_exceeded_message = document.getElementById('quotaExceededMessage').value;
+        } else {
+            data.quota_exceeded_flex_title = document.getElementById('quotaFlexTitle').value;
+            data.quota_exceeded_flex_body = document.getElementById('quotaFlexBody').value;
+            data.quota_exceeded_flex_button_text = document.getElementById('quotaFlexButtonText').value;
+            data.quota_exceeded_flex_button_url = document.getElementById('quotaFlexButtonUrl').value;
+            data.quota_exceeded_flex_image_url = document.getElementById('quotaFlexImageUrl').value;
+        }
+        
+        await saveSettings(data);
+    }
+    
+    function previewQuotaTemplate() {
+        const responseType = document.getElementById('quotaResponseType').value;
+        const container = document.getElementById('templatePreviewContainer');
+        const preview = document.getElementById('templatePreview');
+        
+        container.style.display = 'block';
+        
+        if (responseType === 'text') {
+            const message = document.getElementById('quotaExceededMessage').value || 'ไม่มีข้อความ';
+            preview.innerHTML = `
+                <div style="background: #e8e8e8; border-radius: 18px; padding: 12px 16px; font-size: 14px; line-height: 1.5;">
+                    ${message.replace(/\n/g, '<br>')}
+                </div>
+                <div class="text-muted small mt-2 text-end">ข้อความธรรมดา</div>
+            `;
+        } else {
+            const title = document.getElementById('quotaFlexTitle').value || 'โควต้าหมด';
+            const body = document.getElementById('quotaFlexBody').value || 'โควต้าหมดแล้ว กรุณาอัปเกรด';
+            const buttonText = document.getElementById('quotaFlexButtonText').value || 'ดำเนินการ';
+            const buttonUrl = document.getElementById('quotaFlexButtonUrl').value || '#';
+            const imageUrl = document.getElementById('quotaFlexImageUrl').value;
+            
+            let imageHtml = '';
+            if (imageUrl) {
+                imageHtml = `<img src="${imageUrl}" style="width: 100%; border-radius: 8px 8px 0 0; max-height: 150px; object-fit: cover;" onerror="this.style.display='none'">`;
+            }
+            
+            let buttonHtml = '';
+            if (buttonText && buttonUrl) {
+                buttonHtml = `
+                    <div style="border-top: 1px solid #eee; padding-top: 12px; margin-top: 12px;">
+                        <a href="${buttonUrl}" target="_blank" style="display: block; background: #00B900; color: white; text-align: center; padding: 10px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                            ${buttonText}
+                        </a>
+                    </div>
+                `;
+            }
+            
+            preview.innerHTML = `
+                <div style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                    ${imageHtml}
+                    <div style="padding: 16px;">
+                        <div style="font-weight: bold; font-size: 16px; color: #dc3545; margin-bottom: 8px;">
+                            ${title}
+                        </div>
+                        <div style="font-size: 14px; color: #333; line-height: 1.5;">
+                            ${body.replace(/\n/g, '<br>')}
+                        </div>
+                        ${buttonHtml}
+                    </div>
+                </div>
+                <div class="text-muted small mt-2 text-end">Flex Message</div>
+            `;
+        }
+        
+        // Scroll to preview
+        container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // LINE Connection Testing
+    async function loadLineAccounts() {
+        try {
+            const response = await fetch('/api/admin/line-accounts');
+            if (!response.ok) {
+                document.getElementById('lineAccountsTestList').innerHTML = '<div class="col-12 text-center text-muted">ไม่สามารถโหลดรายการบัญชี LINE ได้</div>';
+                return;
+            }
+            
+            const data = await response.json();
+            if (data.success && data.accounts && data.accounts.length > 0) {
+                renderLineAccountsTest(data.accounts);
+            } else {
+                document.getElementById('lineAccountsTestList').innerHTML = '<div class="col-12 text-center text-muted">ไม่พบบัญชี LINE OA ในระบบ</div>';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('lineAccountsTestList').innerHTML = '<div class="col-12 text-center text-muted">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+        }
+    }
+    
+    function renderLineAccountsTest(accounts) {
+        const container = document.getElementById('lineAccountsTestList');
+        container.innerHTML = '';
+        
+        accounts.forEach(account => {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 mb-3';
+            col.innerHTML = `
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="bi bi-line text-success"></i>
+                            ${account.account_name || account.channel_id || 'ไม่มีชื่อ'}
+                        </h6>
+                        <p class="card-text small text-muted">
+                            Channel ID: ${account.channel_id || 'N/A'}
+                        </p>
+                        <div id="lineStatus_${account._id}" class="mb-2">
+                            <span class="badge bg-secondary">ยังไม่ได้ทดสอบ</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary w-100" onclick="testLineConnection('${account._id}', '${account.account_name || ''}')">
+                            <i class="bi bi-link-45deg"></i> ทดสอบการเชื่อมต่อ
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(col);
+        });
+    }
+    
+    async function testLineConnection(accountId, accountName) {
+        const statusDiv = document.getElementById(`lineStatus_${accountId}`);
+        statusDiv.innerHTML = '<span class="badge bg-info"><span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...</span>';
+        
+        try {
+            const response = await fetch(`/api/admin/line-accounts/${accountId}/test`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                let statusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> เชื่อมต่อสำเร็จ</span>';
+                
+                if (result.quota_status) {
+                    if (result.quota_status.quota_exceeded) {
+                        statusHtml += '<br><span class="badge bg-danger mt-1">โควต้าหมด</span>';
+                    } else {
+                        statusHtml += `<br><span class="badge bg-primary mt-1">คงเหลือ ${result.quota_status.remaining} สลิป</span>`;
+                    }
+                }
+                
+                statusDiv.innerHTML = statusHtml;
+                showAlert(`เชื่อมต่อ ${accountName || 'LINE OA'} สำเร็จ`, 'success');
+            } else {
+                statusDiv.innerHTML = `<span class="badge bg-danger"><i class="bi bi-x-circle"></i> ไม่สามารถเชื่อมต่อได้</span><br><small class="text-danger">${result.message || 'ตรวจสอบ Token'}</small>`;
+                showAlert(`เชื่อมต่อ ${accountName || 'LINE OA'} ไม่สำเร็จ: ${result.message || ''}`, 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            statusDiv.innerHTML = '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> เกิดข้อผิดพลาด</span>';
+            showAlert('เกิดข้อผิดพลาดในการทดสอบ', 'danger');
+        }
+    }
+    
+    async function testSlipApi() {
+        const apiKey = document.getElementById('slipApiKey').value;
+        const provider = document.getElementById('slipApiProvider').value;
+        const testBtn = document.getElementById('testSlipBtn');
+        const resultDiv = document.getElementById('slipApiTestResult');
+        
+        if (!apiKey) {
+            showAlert('กรุณากรอก API Key ก่อนทดสอบ', 'warning');
+            return;
+        }
+        
+        // Determine which provider to test
+        const testProvider = provider === 'both' ? 'thunder' : provider;
+        
+        // Disable button and show loading
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...';
+        resultDiv.innerHTML = '<div class="alert alert-info">กำลังทดสอบการเชื่อมต่อ...</div>';
+        
+        try {
+            const response = await fetch('/api/admin/system-settings/test/slip-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey, provider: testProvider })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success' || result.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> 
+                        <strong>เชื่อมต่อสำเร็จ!</strong><br>
+                        ${result.message || 'API Key ใช้งานได้'}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        <strong>เชื่อมต่อไม่สำเร็จ</strong><br>
+                        ${result.message || 'ไม่สามารถเชื่อมต่อ API ได้'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error testing slip API:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>เกิดข้อผิดพลาด</strong><br>
+                    ${error.message}
+                </div>
+            `;
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-check-circle"></i> ทดสอบ';
+        }
+    }
+    
+    async function testAiApi() {
+        const apiKey = document.getElementById('aiApiKey').value;
+        const testBtn = document.getElementById('testAiBtn');
+        const resultDiv = document.getElementById('aiApiTestResult');
+        
+        if (!apiKey) {
+            showAlert('กรุณากรอก API Key ก่อนทดสอบ', 'warning');
+            return;
+        }
+        
+        // Disable button and show loading
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...';
+        resultDiv.innerHTML = '<div class="alert alert-info">กำลังทดสอบการเชื่อมต่อ...</div>';
+        
+        try {
+            const response = await fetch('/api/admin/system-settings/test/ai-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> 
+                        <strong>เชื่อมต่อสำเร็จ!</strong><br>
+                        ${result.message || 'API Key ใช้งานได้'}<br>
+                        <small>Response: ${result.response || ''}</small>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        <strong>เชื่อมต่อไม่สำเร็จ</strong><br>
+                        ${result.message || 'ไม่สามารถเชื่อมต่อ API ได้'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error testing AI API:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>เกิดข้อผิดพลาด</strong><br>
+                    ${error.message}
+                </div>
+            `;
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-check-circle"></i> ทดสอบ';
+        }
+    }
+
+    function updateProviderFields() {
+        const provider = document.getElementById('slipApiProvider').value;
+        const secondarySection = document.getElementById('secondaryApiSection');
+        const fallbackCheckbox = document.getElementById('fallbackCheckbox');
+        
+        if (provider === 'both') {
+            secondarySection.style.display = 'block';
+            fallbackCheckbox.style.display = 'block';
+        } else {
+            secondarySection.style.display = 'none';
+            fallbackCheckbox.style.display = 'none';
+            document.getElementById('slipApiFallbackEnabled').checked = false;
+        }
+    }
+    
+    async function testSlipApiSecondary() {
+        const apiKey = document.getElementById('slipApiKeySecondary').value;
+        const provider = document.getElementById('slipApiProvider').value;
+        const testBtn = document.getElementById('testSlipSecondaryBtn');
+        const resultDiv = document.getElementById('slipApiSecondaryTestResult');
+        
+        if (!apiKey) {
+            showAlert('กรุณากรอก API Key สำรองก่อนทดสอบ', 'warning');
+            return;
+        }
+        
+        // Determine which provider to test (opposite of primary)
+        const primaryProvider = provider === 'both' ? 'thunder' : provider;
+        const secondaryProvider = primaryProvider === 'thunder' ? 'kbank' : 'thunder';
+        
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> กำลังทดสอบ...';
+        resultDiv.innerHTML = '<div class="alert alert-info">กำลังทดสอบการเชื่อมต่อ...</div>';
+        
+        try {
+            const response = await fetch('/api/admin/system-settings/test/slip-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey, provider: secondaryProvider })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success' || result.success) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> 
+                        <strong>เชื่อมต่อสำเร็จ!</strong><br>
+                        ${result.message || 'API Key สำรองใช้งานได้'}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        <strong>เชื่อมต่อไม่สำเร็จ</strong><br>
+                        ${result.message || 'ไม่สามารถเชื่อมต่อ API ได้'}
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error testing secondary slip API:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-x-circle"></i> 
+                    <strong>เกิดข้อผิดพลาด</strong><br>
+                    ${error.message}
+                </div>
+            `;
+        } finally {
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-check-circle"></i> ทดสอบ';
+        }
+    }
+
+    function renderBankAccounts(accounts) {
+        const list = document.getElementById('bankAccountsList');
+        list.innerHTML = '';
+
+        if (accounts.length === 0) {
+            list.innerHTML = '<div class="text-center text-muted py-3">ยังไม่มีบัญชีธนาคาร</div>';
+            return;
+        }
+
+        accounts.forEach((acc, index) => {
+            const item = `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0">${acc.bank_name.toUpperCase()} - ${acc.account_number}</h6>
+                    <small class="text-muted">${acc.account_name}</small>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteBankAccount(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+            list.innerHTML += item;
+        });
+    }
+
+    async function saveApiSettings() {
+        const slipKey = document.getElementById('slipApiKey').value;
+        const slipKeySecondary = document.getElementById('slipApiKeySecondary').value;
+        const aiKey = document.getElementById('aiApiKey').value;
+        const provider = document.getElementById('slipApiProvider').value;
+        const fallbackEnabled = document.getElementById('slipApiFallbackEnabled').checked;
+        const quotaWarning = document.getElementById('slipApiQuotaWarning').checked;
+
+        const data = {};
+        if (slipKey) data.slip_api_key = slipKey;
+        if (slipKeySecondary) data.slip_api_key_secondary = slipKeySecondary;
+        if (aiKey) data.ai_api_key = aiKey;
+        data.slip_api_provider = provider;
+        data.slip_api_fallback_enabled = fallbackEnabled;
+        data.slip_api_quota_warning = quotaWarning;
+        
+        // Set secondary provider if using both
+        if (provider === 'both') {
+            // If primary is thunder, secondary is kbank, and vice versa
+            const primaryProvider = 'thunder'; // Default primary
+            data.slip_api_provider_secondary = primaryProvider === 'thunder' ? 'kbank' : 'thunder';
+        }
+
+        // Always include provider setting even if no keys
+        if (Object.keys(data).length === 0 && !provider) {
+            showAlert('กรุณากรอกข้อมูลที่ต้องการแก้ไข', 'warning');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/admin/system-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('บันทึกการตั้งค่าเรียบร้อย', 'success');
+                document.getElementById('slipApiKey').value = '';
+                document.getElementById('aiApiKey').value = '';
+                loadSettings();
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถบันทึกข้อมูลได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'danger');
+        }
+    }
+
+    function openBankModal() {
+        document.getElementById('bankForm').reset();
+        bankModal.show();
+    }
+
+    async function saveBankAccount() {
+        const data = {
+            bank_name: document.getElementById('bankName').value,
+            account_number: document.getElementById('accountNumber').value,
+            account_name: document.getElementById('accountName').value
+        };
+
+        try {
+            const response = await fetch('/api/admin/system-settings/bank-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+
+            if (result.success) {
+                bankModal.hide();
+                showAlert('เพิ่มบัญชีธนาคารสำเร็จ', 'success');
+                loadSettings();
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถเพิ่มบัญชีได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการเพิ่มบัญชี', 'danger');
+        }
+    }
+
+    async function deleteBankAccount(index) {
+        if (!confirm('ต้องการลบบัญชีนี้ใช่หรือไม่?')) return;
+
+        try {
+            const response = await fetch(`/api/admin/system-settings/bank-accounts/${index}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('ลบบัญชีธนาคารสำเร็จ', 'success');
+                loadSettings();
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถลบบัญชีได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการลบบัญชี', 'danger');
+        }
+    }
+
+    function toggleVisibility(id) {
+        const input = document.getElementById(id);
+        if (input.type === "password") {
+            input.type = "text";
+        } else {
+            input.type = "password";
+        }
+    }
+</script>
+{% endblock %}

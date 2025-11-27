@@ -1,0 +1,49 @@
+<!-- Standard Menu for User Pages -->
+<div class="nav-section-title">เมนูหลัก</div>
+<div class="sidebar-nav-item">
+    <a href="/user/dashboard" class="sidebar-nav-link {% if request.path == '/user/dashboard' %}active{% endif %}">
+        <i class="fas fa-home"></i>
+        <span>หน้าแรก</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/user/line-accounts"
+        class="sidebar-nav-link {% if '/user/line-accounts' in request.path or '/user/add-line-account' in request.path %}active{% endif %}">
+        <i class="fab fa-line"></i>
+        <span>บัญชี LINE</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/settings/chat-history" class="sidebar-nav-link {% if '/chat-history' in request.path %}active{% endif %}">
+        <i class="fas fa-comments"></i>
+        <span>ประวัติการแชท</span>
+    </a>
+</div>
+
+<div class="nav-section-title">SaaS</div>
+<div class="sidebar-nav-item">
+    <a href="/user/packages" class="sidebar-nav-link {% if '/user/packages' in request.path %}active{% endif %}">
+        <i class="fas fa-crown"></i>
+        <span>แพ็คเกจ / อัพเกรด</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/user/quota" class="sidebar-nav-link {% if '/user/quota' in request.path %}active{% endif %}">
+        <i class="fas fa-chart-pie"></i>
+        <span>โควต้าการใช้งาน</span>
+    </a>
+</div>
+
+<div class="nav-section-title">การตั้งค่า</div>
+<div class="sidebar-nav-item">
+    <a href="/change-password" class="sidebar-nav-link {% if request.path == '/change-password' %}active{% endif %}">
+        <i class="fas fa-key"></i>
+        <span>เปลี่ยนรหัสผ่าน</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/logout" class="sidebar-nav-link">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>ออกจากระบบ</span>
+    </a>
+</div>

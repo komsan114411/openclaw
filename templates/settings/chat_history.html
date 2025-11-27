@@ -1,0 +1,694 @@
+{% extends "base.html" %}
+
+{% block title %}ประวัติการแชท - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include 'includes/standard_menu.html' %}
+{% endblock %}
+
+{% block page_title %}ประวัติการแชท{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ดูประวัติการสนทนากับลูกค้าทั้งหมด</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-filters {
+        background: var(--white);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: var(--spacing-md);
+        align-items: end;
+    }
+
+    .filter-tags {
+        display: flex;
+        gap: var(--spacing-sm);
+        flex-wrap: wrap;
+        margin-top: var(--spacing-md);
+    }
+
+    .filter-tag {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-sm);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+    }
+
+    .filter-tag button {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        cursor: pointer;
+        padding: 0;
+        margin-left: var(--spacing-xs);
+    }
+
+    .chat-container {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+
+    .chat-messages {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: var(--spacing-lg);
+    }
+
+    .message-item {
+        margin-bottom: var(--spacing-lg);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        background: var(--gray-50);
+        transition: all var(--transition-base);
+    }
+
+    .message-item:hover {
+        background: var(--gray-100);
+        transform: translateX(4px);
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .message-user {
+        font-weight: 600;
+        color: var(--black);
+    }
+
+    .message-time {
+        font-size: var(--font-size-sm);
+        color: var(--gray-500);
+    }
+
+    .message-content {
+        color: var(--gray-700);
+        line-height: 1.6;
+    }
+
+    .message-media {
+        margin-top: var(--spacing-md);
+        display: flex;
+        gap: var(--spacing-sm);
+        flex-wrap: wrap;
+    }
+
+    .message-media img {
+        max-width: 200px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: transform var(--transition-base);
+    }
+
+    .message-media img:hover {
+        transform: scale(1.05);
+    }
+
+    .message-media video {
+        max-width: 300px;
+        border-radius: var(--radius-md);
+    }
+
+    .message-type-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        margin-left: var(--spacing-sm);
+    }
+
+    .badge-text {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    .badge-image {
+        background: var(--info-light);
+        color: var(--info-color);
+    }
+
+    .badge-video {
+        background: var(--success-light);
+        color: var(--success-color);
+    }
+
+    .badge-sticker {
+        background: var(--warning-light);
+        color: var(--warning-color);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: var(--spacing-3xl);
+        color: var(--gray-500);
+    }
+
+    .empty-state i {
+        font-size: 64px;
+        margin-bottom: var(--spacing-lg);
+        opacity: 0.3;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+    }
+
+    .stat-card {
+        background: var(--white);
+        padding: var(--spacing-lg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: var(--font-size-2xl);
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .stat-label {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+        margin-top: var(--spacing-xs);
+    }
+
+    @media (max-width: 768px) {
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Selected Channel Info -->
+<div class="channel-info-card" id="selectedChannelInfo" style="display: none;">
+    <div class="card-title">
+        <i class="bi bi-chat-dots"></i>
+        บัญชี LINE ที่เลือก
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="channel-info-item">
+                <div class="channel-info-label">ชื่อบัญชี</div>
+                <div class="channel-info-value" id="channelName">-</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="channel-info-item">
+                <div class="channel-info-label">Channel ID</div>
+                <div class="channel-info-value" id="channelId">-</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="channel-info-item">
+                <div class="channel-info-label">สถานะ</div>
+                <div class="channel-info-value">
+                    <span class="status-badge online" id="channelStatus">
+                        <span class="status-badge-dot"></span>
+                        เชื่อมต่อ
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-value" id="totalMessages">0</div>
+        <div class="stat-label">ข้อความทั้งหมด</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="totalImages">0</div>
+        <div class="stat-label">รูปภาพ</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="totalVideos">0</div>
+        <div class="stat-label">วิดีโอ</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="totalUsers">0</div>
+        <div class="stat-label">ผู้ใช้</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="chat-filters">
+    <div class="filter-row">
+        <div class="form-group mb-0">
+            <label class="form-label">เลือกบัญชี LINE</label>
+            <select class="form-control" id="accountSelect">
+                <option value="">-- เลือกบัญชี --</option>
+                {% for account in line_accounts %}
+                <option value="{{ account._id }}">{{ account.account_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group mb-0">
+            <label class="form-label">ประเภทข้อความ</label>
+            <select class="form-control" id="messageTypeFilter">
+                <option value="">ทั้งหมด</option>
+                <option value="text">ข้อความ</option>
+                <option value="image">รูปภาพ</option>
+                <option value="video">วิดีโอ</option>
+                <option value="sticker">สติกเกอร์</option>
+            </select>
+        </div>
+
+        <div class="form-group mb-0">
+            <label class="form-label">ค้นหา</label>
+            <input type="text" class="form-control" id="searchInput" placeholder="ค้นหาข้อความ...">
+        </div>
+
+        <div class="form-group mb-0">
+            <label class="form-label">&nbsp;</label>
+            <button class="btn btn-secondary w-full" onclick="clearFilters()">
+                <i class="fas fa-times"></i>
+                <span>ล้าง</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Active Filters -->
+    <div class="filter-tags" id="activeTags"></div>
+</div>
+
+<!-- Loading State -->
+<div class="loading-state" id="loadingState" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">กำลังโหลดข้อมูล...</div>
+</div>
+
+<!-- Empty State (No Selection) -->
+<div class="empty-state" id="emptyStateNoSelection">
+    <div class="empty-icon">
+        <i class="bi bi-chat-dots"></i>
+    </div>
+    <h4>เลือกบัญชี LINE</h4>
+    <p>กรุณาเลือกบัญชี LINE เพื่อดูประวัติการแชท</p>
+</div>
+
+<!-- Empty State (No Data) -->
+<div class="empty-state" id="emptyStateNoData" style="display: none;">
+    <div class="empty-icon">
+        <i class="bi bi-inbox"></i>
+    </div>
+    <h4>ไม่มีประวัติการแชท</h4>
+    <p>เริ่มใช้งานระบบเพื่อสร้างประวัติการแชท</p>
+</div>
+
+<!-- Chat Messages -->
+<div class="chat-container" id="chatContainer" style="display: none;">
+    <div class="chat-messages" id="chatMessages"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allMessages = [];
+    let filteredMessages = [];
+    let currentFilters = {
+        account: '',
+        type: '',
+        search: ''
+    };
+
+    // Load saved channel on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedChannelId = localStorage.getItem('selected_channel_id');
+        if (savedChannelId) {
+            const accountSelect = document.getElementById('accountSelect');
+            accountSelect.value = savedChannelId;
+            currentFilters.account = savedChannelId;
+            loadMessages(savedChannelId);
+        }
+    });
+
+    // Event listeners
+    document.getElementById('accountSelect').addEventListener('change', function() {
+        currentFilters.account = this.value;
+        
+        // Save to localStorage
+        if (this.value) {
+            localStorage.setItem('selected_channel_id', this.value);
+            loadMessages(this.value);
+        } else {
+            localStorage.removeItem('selected_channel_id');
+            showEmptyState('noSelection');
+        }
+        updateFilterTags();
+    });
+
+    document.getElementById('messageTypeFilter').addEventListener('change', function() {
+        currentFilters.type = this.value;
+        applyFilters();
+        updateFilterTags();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function() {
+        currentFilters.search = this.value;
+        applyFilters();
+        updateFilterTags();
+    });
+
+    // Show loading state
+    function showLoading() {
+        document.getElementById('loadingState').style.display = 'block';
+        document.getElementById('emptyStateNoSelection').style.display = 'none';
+        document.getElementById('emptyStateNoData').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'none';
+        document.getElementById('selectedChannelInfo').style.display = 'none';
+    }
+
+    // Show empty state
+    function showEmptyState(type = 'noSelection') {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'none';
+        document.getElementById('selectedChannelInfo').style.display = 'none';
+        
+        if (type === 'noSelection') {
+            document.getElementById('emptyStateNoSelection').style.display = 'block';
+            document.getElementById('emptyStateNoData').style.display = 'none';
+        } else {
+            document.getElementById('emptyStateNoSelection').style.display = 'none';
+            document.getElementById('emptyStateNoData').style.display = 'block';
+        }
+    }
+
+    // Show chat container
+    function showChatContainer() {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('emptyStateNoSelection').style.display = 'none';
+        document.getElementById('emptyStateNoData').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        document.getElementById('selectedChannelInfo').style.display = 'block';
+    }
+
+    // Update channel info
+    function updateChannelInfo(accountId) {
+        const accountSelect = document.getElementById('accountSelect');
+        const selectedOption = accountSelect.options[accountSelect.selectedIndex];
+        const accountName = selectedOption.text;
+        
+        document.getElementById('channelName').textContent = accountName;
+        document.getElementById('channelId').textContent = accountId;
+        
+        // You can add more logic here to check actual status
+        const statusBadge = document.getElementById('channelStatus');
+        statusBadge.className = 'status-badge online';
+        statusBadge.innerHTML = '<span class="status-badge-dot"></span> เชื่อมต่อ';
+    }
+
+    // Load messages
+    async function loadMessages(accountId) {
+        showLoading();
+        updateChannelInfo(accountId);
+        
+        try {
+            const response = await fetch(`/api/chat-messages/${accountId}/users`);
+            const usersData = await response.json();
+            
+            if (!usersData.success) {
+                showError('ไม่สามารถโหลดข้อมูลได้');
+                return;
+            }
+            
+            // Load all messages from all users
+            const allUserMessages = [];
+            for (const user of usersData.users) {
+                const msgResponse = await fetch(`/api/chat-messages/${accountId}/${user.user_id}`);
+                const msgData = await msgResponse.json();
+                if (msgData.success) {
+                    allUserMessages.push(...msgData.messages);
+                }
+            }
+            
+            const data = { success: true, messages: allUserMessages };
+
+            if (data.success) {
+                allMessages = data.messages || [];
+                
+                if (allMessages.length === 0) {
+                    showEmptyState('noData');
+                } else {
+                    showChatContainer();
+                    applyFilters();
+                    updateStats();
+                }
+            } else {
+                showError('ไม่สามารถโหลดข้อความได้');
+                showEmptyState('noData');
+            }
+        } catch (error) {
+            console.error('Error loading messages:', error);
+            showError('เกิดข้อผิดพลาดในการโหลดข้อความ');
+            showEmptyState('noData');
+        }
+    }
+
+    // Apply filters
+    function applyFilters() {
+        filteredMessages = allMessages.filter(msg => {
+            // Filter by type
+            if (currentFilters.type && msg.type !== currentFilters.type) {
+                return false;
+            }
+
+            // Filter by search
+            if (currentFilters.search) {
+                const searchLower = currentFilters.search.toLowerCase();
+                const textMatch = msg.text && msg.text.toLowerCase().includes(searchLower);
+                const userMatch = msg.user_name && msg.user_name.toLowerCase().includes(searchLower);
+                if (!textMatch && !userMatch) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        displayMessages();
+        updateStats();
+    }
+
+    // Display messages
+    function displayMessages() {
+        const container = document.getElementById('chatMessages');
+
+        if (filteredMessages.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <p>ไม่พบข้อความที่ตรงกับเงื่อนไขการค้นหา</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = filteredMessages.map(msg => {
+            const typeBadge = getTypeBadge(msg.message_type || msg.type);
+            const mediaHtml = getMediaHtml(msg);
+
+            return `
+                <div class="message-item">
+                    <div class="message-header">
+                        <span class="message-user">
+                            ${msg.user_name || 'Unknown'}
+                            ${typeBadge}
+                        </span>
+                        <span class="message-time">${formatTime(msg.timestamp)}</span>
+                    </div>
+                    <div class="message-content">${msg.content || msg.text || '<em>ไม่มีข้อความ</em>'}</div>
+                    ${mediaHtml}
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Get type badge
+    function getTypeBadge(type) {
+        const badges = {
+            'text': '<span class="message-type-badge badge-text">ข้อความ</span>',
+            'image': '<span class="message-type-badge badge-image">รูปภาพ</span>',
+            'video': '<span class="message-type-badge badge-video">วิดีโอ</span>',
+            'sticker': '<span class="message-type-badge badge-sticker">สติกเกอร์</span>'
+        };
+        return badges[type] || '';
+    }
+
+    // Get media HTML
+    function getMediaHtml(msg) {
+        const msgType = msg.message_type || msg.type;
+        const accountId = currentFilters.account;
+        
+        if (msgType === 'image' && msg.message_id && accountId) {
+            // Use proxy endpoint for images (LINE URLs expire)
+            const imageUrl = `/api/line-image/${accountId}/${msg.message_id}`;
+            return `
+                <div class="message-media">
+                    <img src="${imageUrl}" alt="Image" onclick="window.open('${imageUrl}', '_blank')" onerror="this.onerror=null;this.style.display='none';">
+                </div>
+            `;
+        } else if (msgType === 'video' && msg.message_id && accountId) {
+            const videoUrl = `/api/line-image/${accountId}/${msg.message_id}`;
+            return `
+                <div class="message-media">
+                    <video controls>
+                        <source src="${videoUrl}" type="video/mp4">
+                    </video>
+                </div>
+            `;
+        } else if (msgType === 'image' && msg.media_url) {
+            // Fallback to media_url if message_id not available
+            return `
+                <div class="message-media">
+                    <img src="${msg.media_url}" alt="Image" onclick="window.open('${msg.media_url}', '_blank')" onerror="this.onerror=null;this.style.display='none';">
+                </div>
+            `;
+        }
+
+        return '';
+    }
+
+    // Format time
+    function formatTime(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // Update stats
+    function updateStats() {
+        const stats = {
+            total: filteredMessages.length,
+            images: filteredMessages.filter(m => m.type === 'image').length,
+            videos: filteredMessages.filter(m => m.type === 'video').length,
+            users: new Set(filteredMessages.map(m => m.user_id)).size
+        };
+
+        document.getElementById('totalMessages').textContent = stats.total;
+        document.getElementById('totalImages').textContent = stats.images;
+        document.getElementById('totalVideos').textContent = stats.videos;
+        document.getElementById('totalUsers').textContent = stats.users;
+    }
+
+    // Update filter tags
+    function updateFilterTags() {
+        const container = document.getElementById('activeTags');
+        const tags = [];
+
+        if (currentFilters.type) {
+            const typeLabels = {
+                'text': 'ข้อความ',
+                'image': 'รูปภาพ',
+                'video': 'วิดีโอ',
+                'sticker': 'สติกเกอร์'
+            };
+            tags.push(`
+                <div class="filter-tag">
+                    ประเภท: ${typeLabels[currentFilters.type]}
+                    <button onclick="removeFilter('type')">×</button>
+                </div>
+            `);
+        }
+
+        if (currentFilters.search) {
+            tags.push(`
+                <div class="filter-tag">
+                    ค้นหา: "${currentFilters.search}"
+                    <button onclick="removeFilter('search')">×</button>
+                </div>
+            `);
+        }
+
+        container.innerHTML = tags.join('');
+        container.style.display = tags.length > 0 ? 'flex' : 'none';
+    }
+
+    // Remove filter
+    function removeFilter(filterType) {
+        if (filterType === 'type') {
+            currentFilters.type = '';
+            document.getElementById('messageTypeFilter').value = '';
+        } else if (filterType === 'search') {
+            currentFilters.search = '';
+            document.getElementById('searchInput').value = '';
+        }
+        applyFilters();
+        updateFilterTags();
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        currentFilters = {
+            account: currentFilters.account, // Keep account selection
+            type: '',
+            search: ''
+        };
+        document.getElementById('messageTypeFilter').value = '';
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+        updateFilterTags();
+    }
+
+    // Show empty state
+    function showEmptyState() {
+        document.getElementById('chatMessages').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <p>กรุณาเลือกบัญชี LINE เพื่อดูประวัติการแชท</p>
+            </div>
+        `;
+        updateStats();
+    }
+
+    // Show error
+    function showError(message) {
+        document.getElementById('chatMessages').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle" style="color: var(--error-color);"></i>
+                <p>${message}</p>
+            </div>
+        `;
+    }
+
+    // Initialize
+    updateStats();
+</script>
+{% endblock %}

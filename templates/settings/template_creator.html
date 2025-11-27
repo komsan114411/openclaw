@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+
+{% block title %}สร้างเทมเพลต Premium - LINE OA Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .creator-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+
+    .creator-grid {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 32px;
+        margin-top: 32px;
+    }
+
+    .creator-panel {
+        background: white;
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+
+    .creator-section {
+        margin-bottom: 32px;
+    }
+
+    .creator-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+        margin-bottom: 12px;
+        display: block;
+    }
+
+    .creator-input {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #E2E8F0;
+        border-radius: 12px;
+        font-size: 15px;
+        transition: all 0.3s;
+    }
+
+    .creator-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .creator-textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 14px 16px;
+        border: 2px solid #E2E8F0;
+        border-radius: 12px;
+        font-size: 15px;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .template-picker {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-top: 12px;
+    }
+
+    .template-option {
+        aspect-ratio: 3/4;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 3px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .template-option:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    }
+
+    .template-option.selected {
+        border-color: #22C55E;
+        box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+    }
+
+    .template-option-check {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 32px;
+        height: 32px;
+        background: #22C55E;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+
+    .template-option.selected .template-option-check {
+        display: flex;
+    }
+
+    .template-option-preview {
+        width: 100%;
+        height: 100%;
+        background: white;
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .template-option-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+
+    .template-option-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1E293B;
+        text-align: center;
+    }
+
+    /* Preview Panel */
+    .preview-panel {
+        position: sticky;
+        top: 24px;
+    }
+
+    .preview-phone {
+        background: white;
+        border-radius: 40px;
+        padding: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        position: relative;
+        margin: 0 auto;
+        max-width: 380px;
+    }
+
+    .preview-phone::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 8px;
+        background: #E2E8F0;
+        border-radius: 4px;
+    }
+
+    .preview-content {
+        margin-top: 32px;
+        background: #F8FAFC;
+        border-radius: 24px;
+        padding: 16px;
+        min-height: 400px;
+    }
+
+    .preview-message {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .preview-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #E2E8F0;
+    }
+
+    .preview-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .preview-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1E293B;
+    }
+
+    .creator-actions {
+        display: flex;
+        gap: 16px;
+        margin-top: 32px;
+    }
+
+    .btn-create {
+        flex: 1;
+        padding: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 16px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-cancel {
+        padding: 16px 32px;
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+        border-radius: 16px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-cancel:hover {
+        background: #667eea;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section-title">เมนูหลัก</div>
+<div class="sidebar-nav-item">
+    <a href="/user/dashboard" class="sidebar-nav-link">
+        <i class="fas fa-chart-line"></i>
+        <span>แดชบอร์ด</span>
+    </a>
+</div>
+<div class="sidebar-nav-item">
+    <a href="/user/line-accounts" class="sidebar-nav-link">
+        <i class="fab fa-line"></i>
+        <span>บัญชี LINE OA</span>
+    </a>
+</div>
+
+<div class="nav-section-title">การตั้งค่า</div>
+<div class="sidebar-nav-item">
+    <a href="/user/line-accounts/{{ account_id }}/slip-templates" class="sidebar-nav-link active">
+        <i class="fas fa-file-invoice"></i>
+        <span>เทมเพลตสลิป</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="creator-container">
+    <div style="text-align: center; margin-bottom: 48px;">
+        <h1 style="font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;">
+            🎨 สร้างเทมเพลต Premium
+        </h1>
+        <p style="font-size: 18px; color: #64748B;">
+            สร้างเทมเพลตสวยงามสำหรับการตอบกลับสลิปอัตโนมัติ
+        </p>
+    </div>
+
+    <div class="creator-grid">
+        <!-- Creator Form -->
+        <div class="creator-panel">
+            <div class="creator-section">
+                <label class="creator-label">ชื่อเทมเพลต</label>
+                <input type="text" class="creator-input" id="template-name" placeholder="เช่น: เทมเพลตสำเร็จสวยงาม">
+            </div>
+
+            <div class="creator-section">
+                <label class="creator-label">คำอธิบาย</label>
+                <textarea class="creator-textarea" id="template-description" placeholder="อธิบายเทมเพลตของคุณ..."></textarea>
+            </div>
+
+            <div class="creator-section">
+                <label class="creator-label">เลือกรูปแบบเทมเพลต</label>
+                <div class="template-picker">
+                    <div class="template-option" data-template="premium_success" onclick="selectTemplateType('premium_success')">
+                        <div class="template-option-check">✓</div>
+                        <div class="template-option-preview" style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);">
+                            <div class="template-option-icon">✓</div>
+                            <div class="template-option-name" style="color: white;">Success</div>
+                        </div>
+                    </div>
+
+                    <div class="template-option" data-template="premium_duplicate" onclick="selectTemplateType('premium_duplicate')">
+                        <div class="template-option-check">✓</div>
+                        <div class="template-option-preview" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+                            <div class="template-option-icon">⚠</div>
+                            <div class="template-option-name" style="color: white;">Duplicate</div>
+                        </div>
+                    </div>
+
+                    <div class="template-option" data-template="premium_minimal" onclick="selectTemplateType('premium_minimal')">
+                        <div class="template-option-check">✓</div>
+                        <div class="template-option-preview" style="background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);">
+                            <div class="template-option-icon" style="color: #1E293B;">✨</div>
+                            <div class="template-option-name">Minimal</div>
+                        </div>
+                    </div>
+
+                    <div class="template-option" data-template="premium_modern" onclick="selectTemplateType('premium_modern')">
+                        <div class="template-option-check">✓</div>
+                        <div class="template-option-preview" style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);">
+                            <div class="template-option-icon">🚀</div>
+                            <div class="template-option-name" style="color: white;">Modern</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="creator-actions">
+                <button class="btn-cancel" onclick="history.back()">
+                    <i class="fas fa-times"></i> ยกเลิก
+                </button>
+                <button class="btn-create" onclick="createTemplate()">
+                    <i class="fas fa-check"></i> สร้างเทมเพลต
+                </button>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="preview-panel">
+            <div class="creator-panel">
+                <h3 style="font-size: 20px; font-weight: 700; color: #1E293B; margin-bottom: 24px;">
+                    <i class="fas fa-eye"></i> ตัวอย่าง
+                </h3>
+                
+                <div class="preview-phone">
+                    <div class="preview-content">
+                        <div class="preview-header">
+                            <div class="preview-avatar">🏪</div>
+                            <div>
+                                <div class="preview-name" id="preview-name">เทมเพลตของคุณ</div>
+                                <div style="font-size: 12px; color: #64748B;">Preview Mode</div>
+                            </div>
+                        </div>
+                        
+                        <div class="preview-message" id="preview-message">
+                            <div style="text-align: center; padding: 40px 20px; color: #94A3B8;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">👆</div>
+                                <p>เลือกรูปแบบเทมเพลตด้านซ้าย</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const accountId = '{{ account_id }}';
+    let selectedTemplateType = 'premium_success';
+
+    function selectTemplateType(type) {
+        selectedTemplateType = type;
+        
+        // Update UI
+        document.querySelectorAll('.template-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        document.querySelector(`[data-template="${type}"]`).classList.add('selected');
+        
+        // Update preview
+        updatePreview();
+    }
+
+    function updatePreview() {
+        const name = document.getElementById('template-name').value || 'เทมเพลตของคุณ';
+        document.getElementById('preview-name').textContent = name;
+        
+        // Show preview based on template type
+        const previewMessage = document.getElementById('preview-message');
+        
+        const previews = {
+            premium_success: `
+                <div style="background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 24px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">✓</div>
+                    <div style="font-size: 24px; font-weight: 700;">ชำระเงินสำเร็จ</div>
+                    <div style="font-size: 14px; opacity: 0.9; margin-top: 8px;">13 ส.ค. 68, 14:30 น.</div>
+                </div>
+                <div style="background: #F0FDF4; padding: 20px; border-radius: 12px; margin-top: 16px; text-align: center;">
+                    <div style="color: #16A34A; font-size: 36px; font-weight: 800;">฿1,500.00</div>
+                </div>
+            `,
+            premium_duplicate: `
+                <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white; padding: 24px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">⚠</div>
+                    <div style="font-size: 24px; font-weight: 700;">สลิปซ้ำ</div>
+                    <div style="font-size: 14px; opacity: 0.9; margin-top: 8px;">สลิปนี้เคยถูกใช้แล้ว</div>
+                </div>
+                <div style="background: #FFFBEB; padding: 20px; border-radius: 12px; margin-top: 16px; text-align: center;">
+                    <div style="color: #D97706; font-size: 36px; font-weight: 800;">฿1,500.00</div>
+                </div>
+            `,
+            premium_minimal: `
+                <div style="background: #F0FDF4; padding: 24px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 36px; font-weight: 800; color: #1E293B; margin-bottom: 8px;">฿1,500.00</div>
+                    <div style="font-size: 14px; color: #64748B;">13 ส.ค. 68, 14:30 น.</div>
+                </div>
+                <div style="margin-top: 16px; padding: 16px; border-top: 1px solid #E2E8F0; font-size: 14px; color: #64748B; text-align: center;">
+                    จาก: นาย A → ไปยัง: นาย B
+                </div>
+            `,
+            premium_modern: `
+                <div style="background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); color: white; padding: 24px; border-radius: 12px;">
+                    <div style="font-size: 14px; opacity: 0.9;">การโอนเงิน</div>
+                    <div style="font-size: 24px; font-weight: 700; margin-top: 4px;">ธุรกรรมสำเร็จ</div>
+                </div>
+                <div style="background: #EEF2FF; padding: 20px; border-radius: 12px; margin-top: 16px; text-align: center;">
+                    <div style="color: #4338CA; font-size: 36px; font-weight: 800;">฿1,500.00</div>
+                </div>
+            `
+        };
+        
+        previewMessage.innerHTML = previews[selectedTemplateType];
+    }
+
+    async function createTemplate() {
+        const name = document.getElementById('template-name').value;
+        const description = document.getElementById('template-description').value;
+        
+        if (!name) {
+            alert('กรุณาใส่ชื่อเทมเพลต');
+            return;
+        }
+        
+        try {
+            showNotification('info', '⏳ กำลังสร้างเทมเพลต...');
+            
+            // Load template from server
+            const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    template_name: name,
+                    description: description,
+                    template_type: selectedTemplateType,
+                    template_text: '',
+                    is_default: false
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showNotification('success', '✅ สร้างเทมเพลตสำเร็จ! กำลังนำคุณกลับไปที่รายการเทมเพลต...');
+                setTimeout(() => {
+                    window.location.href = `/user/line-accounts/${accountId}/slip-templates`;
+                }, 1500);
+            } else {
+                showNotification('error', '❌ ' + (result.message || 'เกิดข้อผิดพลาด'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('error', '❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
+        }
+    }
+
+    function showNotification(type, message) {
+        const colors = {
+            success: '#22C55E',
+            error: '#EF4444',
+            info: '#667eea'
+        };
+
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 32px;
+            right: 32px;
+            background: ${colors[type]};
+            color: white;
+            padding: 20px 28px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 10001;
+            font-weight: 600;
+            font-size: 15px;
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Initialize
+    document.getElementById('template-name').addEventListener('input', updatePreview);
+    selectTemplateType('premium_success');
+</script>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}

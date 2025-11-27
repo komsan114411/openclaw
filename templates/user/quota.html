@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}โควต้า - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include "includes/standard_menu.html" %}
+{% endblock %}
+
+{% block page_title %}โควต้าและการใช้งาน{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">ตรวจสอบโควต้าและประวัติการใช้งาน</p>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm h-100 border-primary">
+        <div class="card-body text-center">
+            <h5 class="card-title text-muted mb-3">โควต้าตรวจสอบสลิป</h5>
+            <div class="display-4 fw-bold text-primary mb-2" id="slipQuota">- / -</div>
+            <p class="text-muted">สลิปคงเหลือ</p>
+            <div class="progress mt-3" style="height: 10px;">
+                <div class="progress-bar bg-primary" role="progressbar" style="width: 0%" id="slipProgress">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm h-100 border-success">
+        <div class="card-body text-center">
+            <h5 class="card-title text-muted mb-3">อายุการใช้งาน</h5>
+            <div class="display-4 fw-bold text-success mb-2" id="daysRemaining">- วัน</div>
+            <p class="text-muted" id="expireDate">หมดอายุ: -</p>
+            <div class="progress mt-3" style="height: 10px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: 0%" id="daysProgress">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Subscription History -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">ประวัติการสมัครสมาชิก</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>วันที่สมัคร</th>
+                        <th>แพ็คเกจ</th>
+                        <th>ราคา</th>
+                        <th>วันหมดอายุ</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container -->
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+
+<script>
+    function showAlert(message, type = 'success') {
+        const container = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        container.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadQuota();
+        loadHistory();
+    });
+
+    async function loadQuota() {
+        try {
+            const response = await fetch('/api/user/quota');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.success) {
+                const q = data.quota || {};
+
+                // Slip Quota
+                const remaining = q.remaining_slips || 0;
+                const total = q.total_slips || 0;
+                document.getElementById('slipQuota').innerText = `${remaining.toLocaleString()} / ${total.toLocaleString()}`;
+                const slipPercent = total > 0 ? (remaining / total) * 100 : 0;
+                document.getElementById('slipProgress').style.width = `${slipPercent}%`;
+
+                // Days Remaining
+                const daysRemaining = q.days_remaining || 0;
+                document.getElementById('daysRemaining').innerText = `${daysRemaining} วัน`;
+                if (q.expiry_date) {
+                    const expDate = new Date(q.expiry_date).toLocaleDateString('th-TH', {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                    });
+                    document.getElementById('expireDate').innerText = `หมดอายุ: ${expDate}`;
+                } else {
+                    document.getElementById('expireDate').innerText = 'ไม่มีวันหมดอายุ';
+                }
+                document.getElementById('daysProgress').style.width = '100%';
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูลโควต้า', 'danger');
+        }
+    }
+
+    async function loadHistory() {
+        try {
+            const response = await fetch('/api/user/subscriptions');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (data.success) {
+                renderHistory(data.subscriptions || []);
+            } else {
+                showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('เกิดข้อผิดพลาดในการโหลดประวัติ', 'danger');
+        }
+    }
+
+    function renderHistory(subs) {
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '';
+
+        if (subs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">ยังไม่มีประวัติการสมัคร</td></tr>';
+            return;
+        }
+
+        subs.forEach(sub => {
+            const startDate = new Date(sub.start_date).toLocaleDateString('th-TH');
+            const endDate = new Date(sub.end_date).toLocaleDateString('th-TH');
+            const status = sub.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Expired</span>';
+
+            const row = `
+            <tr>
+                <td>${startDate}</td>
+                <td>${sub.package_name || 'N/A'}</td>
+                <td>฿${(sub.price || 0).toLocaleString()}</td>
+                <td>${endDate}</td>
+                <td>${status}</td>
+            </tr>
+        `;
+            tbody.innerHTML += row;
+        });
+    }
+</script>
+{% endblock %}

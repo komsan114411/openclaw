@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - LINE OA Management{% endblock %}
+
+{% block sidebar_nav %}
+{% include 'includes/standard_menu.html' %}
+{% endblock %}
+
+{% block page_title %}ยินดีต้อนรับ, {{ user.username }}!{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">จัดการบัญชี LINE Official Account ของคุณ</p>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-2xl);
+    }
+
+    .stat-card {
+        position: relative;
+        background: var(--dark-bg-secondary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        overflow: hidden;
+        border: 1px solid var(--dark-border);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--card-color-1), var(--card-color-2));
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .stat-card.blue::before {
+        --card-color-1: #3b82f6;
+        --card-color-2: #60a5fa;
+    }
+
+    .stat-card.green::before {
+        --card-color-1: #10b981;
+        --card-color-2: #34d399;
+    }
+
+    .stat-card.orange::before {
+        --card-color-1: #f59e0b;
+        --card-color-2: #fbbf24;
+    }
+
+    .stat-card.red::before {
+        --card-color-1: #ef4444;
+        --card-color-2: #f87171;
+    }
+
+    .stat-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--spacing-md);
+    }
+
+    .stat-card-title {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+        font-weight: 600;
+    }
+
+    .stat-card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .stat-card-icon.bg-blue {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+    }
+
+    .stat-card-icon.bg-green {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+
+    .stat-card-icon.bg-orange {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    .stat-card-icon.bg-red {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    .stat-card-value {
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--black);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .stat-card-change {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-md);
+    }
+
+    .quick-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-xl);
+        background: var(--white);
+        border: 2px solid var(--gray-200);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--black);
+        transition: all var(--transition-base);
+    }
+
+    .quick-action-btn:hover {
+        border-color: var(--primary-color);
+        background: var(--primary-light);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--primary-light);
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+    }
+
+    .quick-action-title {
+        font-weight: 600;
+        font-size: var(--font-size-lg);
+    }
+
+    .quick-action-desc {
+        font-size: var(--font-size-sm);
+        color: var(--gray-600);
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card green">
+        <div class="stat-card-header">
+            <span class="stat-card-title">บัญชี LINE OA</span>
+            <div class="stat-card-icon bg-green">
+                <i class="fab fa-line"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ total_line_accounts or 0 }}</div>
+        <div class="stat-card-change">บัญชีที่เชื่อมต่อ</div>
+    </div>
+
+    <div class="stat-card blue">
+        <div class="stat-card-header">
+            <span class="stat-card-title">ข้อความวันนี้</span>
+            <div class="stat-card-icon bg-blue">
+                <i class="fas fa-comments"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ messages_today or 0 }}</div>
+        <div class="stat-card-change">ข้อความที่ได้รับ</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span class="stat-card-title">สลิปที่ตรวจสอบ</span>
+            <div class="stat-card-icon" style="background: var(--warning-light); color: var(--warning-color);">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ slips_verified or 0 }}</div>
+        <div class="stat-card-change">ตรวจสอบแล้ว</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span class="stat-card-title">บัญชีธนาคาร</span>
+            <div class="stat-card-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                <i class="fas fa-university"></i>
+            </div>
+        </div>
+        <div class="stat-card-value">{{ bank_accounts_count or 0 }}</div>
+        <div class="stat-card-change">บัญชีที่ลงทะเบียน</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">เมนูด่วน</h3>
+    </div>
+    <div class="card-body">
+        <div class="quick-actions">
+            <a href="/user/add-line-account" class="quick-action-btn">
+                <div class="quick-action-icon">
+                    <i class="fab fa-line"></i>
+                </div>
+                <div class="quick-action-title">เพิ่มบัญชี LINE</div>
+                <div class="quick-action-desc">เชื่อมต่อบัญชี LINE OA ใหม่</div>
+            </a>
+
+            <a href="/user/line-accounts" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--success-light); color: var(--success-color);">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="quick-action-title">จัดการบัญชี</div>
+                <div class="quick-action-desc">ตั้งค่าบัญชี LINE OA</div>
+            </a>
+
+            <a href="/user/chat-history" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--info-light); color: var(--info-color);">
+                    <i class="fas fa-history"></i>
+                </div>
+                <div class="quick-action-title">ประวัติการแชท</div>
+                <div class="quick-action-desc">ดูประวัติการสนทนา</div>
+            </a>
+
+            <a href="/change-password" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--warning-light); color: var(--warning-color);">
+                    <i class="fas fa-key"></i>
+                </div>
+                <div class="quick-action-title">เปลี่ยนรหัสผ่าน</div>
+                <div class="quick-action-desc">อัพเดทรหัสผ่านของคุณ</div>
+            </a>
+            <a href="/user/packages" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--primary-light); color: var(--primary-color);">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <div class="quick-action-title">อัพเกรดแพ็คเกจ</div>
+                <div class="quick-action-desc">เลือกแพ็คเกจที่เหมาะสม</div>
+            </a>
+
+            <a href="/user/quota" class="quick-action-btn">
+                <div class="quick-action-icon" style="background: var(--purple-light); color: var(--purple-color);">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="quick-action-title">โควต้าการใช้งาน</div>
+                <div class="quick-action-desc">ตรวจสอบสลิปและวันคงเหลือ</div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+{% if recent_messages %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">ข้อความล่าสุด</h3>
+        <a href="/user/chat-history" class="btn btn-ghost btn-sm">ดูทั้งหมด</a>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>เวลา</th>
+                        <th>ผู้ส่ง</th>
+                        <th>ข้อความ</th>
+                        <th>บัญชี LINE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for msg in recent_messages %}
+                    <tr>
+                        <td>{{ msg.timestamp.strftime('%d/%m/%Y %H:%M') if msg.timestamp else '-' }}</td>
+                        <td>{{ msg.sender_name or 'Unknown' }}</td>
+                        <td>{{ msg.text[:50] }}{% if msg.text|length > 50 %}...{% endif %}</td>
+                        <td>{{ msg.line_account_name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
