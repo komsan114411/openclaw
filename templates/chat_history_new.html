@@ -443,22 +443,45 @@
             }).join('');
         }
         
+        // Helper: Parse timestamp to Thailand timezone
+        function parseThaiTime(isoString) {
+            if (!isoString) return null;
+            try {
+                let date = new Date(isoString);
+                return date;
+            } catch (e) {
+                return null;
+            }
+        }
+        
         function formatTimeShort(timestamp) {
             if (!timestamp) return '';
             try {
-                const date = new Date(timestamp);
+                const date = parseThaiTime(timestamp);
+                if (!date) return '';
+                
                 const now = new Date();
-                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const diffDays = Math.floor((todayStart - msgDate) / (1000 * 60 * 60 * 24));
                 
                 if (diffDays === 0) {
-                    return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                    return date.toLocaleTimeString('th-TH', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        timeZone: 'Asia/Bangkok'
+                    });
                 } else if (diffDays === 1) {
                     return 'เมื่อวาน';
                 } else if (diffDays < 7) {
                     const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
                     return days[date.getDay()];
                 } else {
-                    return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                    return date.toLocaleDateString('th-TH', { 
+                        day: 'numeric', 
+                        month: 'short',
+                        timeZone: 'Asia/Bangkok'
+                    });
                 }
             } catch (e) {
                 return '';
@@ -467,18 +490,32 @@
 
         function formatTime(timestamp) {
             try {
-                const date = new Date(timestamp);
+                const date = parseThaiTime(timestamp);
+                if (!date) return timestamp;
                 const now = new Date();
-                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                const diffDays = Math.floor((todayStart - msgDate) / (1000 * 60 * 60 * 24));
+                
+                const timeStr = date.toLocaleTimeString('th-TH', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    timeZone: 'Asia/Bangkok'
+                });
                 
                 if (diffDays === 0) {
-                    return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                    return timeStr;
                 } else if (diffDays === 1) {
-                    return 'เมื่อวาน';
+                    return 'เมื่อวาน ' + timeStr;
                 } else if (diffDays < 7) {
-                    return `${diffDays} วันที่แล้ว`;
+                    const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+                    return days[date.getDay()] + ' ' + timeStr;
                 } else {
-                    return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                    return date.toLocaleDateString('th-TH', { 
+                        day: 'numeric', 
+                        month: 'short',
+                        timeZone: 'Asia/Bangkok'
+                    }) + ' ' + timeStr;
                 }
             } catch (e) {
                 return timestamp;
@@ -617,12 +654,12 @@
         
         function startAutoRefresh() {
             stopAutoRefresh();
-            // Auto-refresh every 10 seconds
+            // Auto-refresh every 3 seconds for faster updates
             autoRefreshInterval = setInterval(() => {
                 if (currentUserId && !isLoading) {
                     loadMessages();
                 }
-            }, 10000);
+            }, 3000);
         }
         
         function stopAutoRefresh() {

@@ -229,6 +229,14 @@
                     <i class="bi bi-eye"></i> ดูตัวอย่าง
                 </button>
             </form>
+            
+            <!-- Live Preview -->
+            <div id="templatePreviewContainer" class="mt-4" style="display: none;">
+                <hr>
+                <h6><i class="bi bi-phone"></i> ตัวอย่างที่ลูกค้าจะเห็น:</h6>
+                <div id="templatePreview" class="bg-light rounded p-3" style="max-width: 300px; margin: 0 auto;">
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -508,19 +516,61 @@
     
     function previewQuotaTemplate() {
         const responseType = document.getElementById('quotaResponseType').value;
-        let preview = '';
+        const container = document.getElementById('templatePreviewContainer');
+        const preview = document.getElementById('templatePreview');
+        
+        container.style.display = 'block';
         
         if (responseType === 'text') {
-            preview = document.getElementById('quotaExceededMessage').value || 'ไม่มีข้อความ';
-            alert('ตัวอย่างข้อความ:\n\n' + preview);
+            const message = document.getElementById('quotaExceededMessage').value || 'ไม่มีข้อความ';
+            preview.innerHTML = `
+                <div style="background: #e8e8e8; border-radius: 18px; padding: 12px 16px; font-size: 14px; line-height: 1.5;">
+                    ${message.replace(/\n/g, '<br>')}
+                </div>
+                <div class="text-muted small mt-2 text-end">ข้อความธรรมดา</div>
+            `;
         } else {
             const title = document.getElementById('quotaFlexTitle').value || 'โควต้าหมด';
-            const body = document.getElementById('quotaFlexBody').value || '';
-            const button = document.getElementById('quotaFlexButtonText').value || 'ดำเนินการ';
-            const url = document.getElementById('quotaFlexButtonUrl').value || '#';
+            const body = document.getElementById('quotaFlexBody').value || 'โควต้าหมดแล้ว กรุณาอัปเกรด';
+            const buttonText = document.getElementById('quotaFlexButtonText').value || 'ดำเนินการ';
+            const buttonUrl = document.getElementById('quotaFlexButtonUrl').value || '#';
+            const imageUrl = document.getElementById('quotaFlexImageUrl').value;
             
-            alert(`ตัวอย่าง Flex Message:\n\n📋 ${title}\n\n${body}\n\n[${button}] → ${url}`);
+            let imageHtml = '';
+            if (imageUrl) {
+                imageHtml = `<img src="${imageUrl}" style="width: 100%; border-radius: 8px 8px 0 0; max-height: 150px; object-fit: cover;" onerror="this.style.display='none'">`;
+            }
+            
+            let buttonHtml = '';
+            if (buttonText && buttonUrl) {
+                buttonHtml = `
+                    <div style="border-top: 1px solid #eee; padding-top: 12px; margin-top: 12px;">
+                        <a href="${buttonUrl}" target="_blank" style="display: block; background: #00B900; color: white; text-align: center; padding: 10px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                            ${buttonText}
+                        </a>
+                    </div>
+                `;
+            }
+            
+            preview.innerHTML = `
+                <div style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                    ${imageHtml}
+                    <div style="padding: 16px;">
+                        <div style="font-weight: bold; font-size: 16px; color: #dc3545; margin-bottom: 8px;">
+                            ${title}
+                        </div>
+                        <div style="font-size: 14px; color: #333; line-height: 1.5;">
+                            ${body.replace(/\n/g, '<br>')}
+                        </div>
+                        ${buttonHtml}
+                    </div>
+                </div>
+                <div class="text-muted small mt-2 text-end">Flex Message</div>
+            `;
         }
+        
+        // Scroll to preview
+        container.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     
     // LINE Connection Testing

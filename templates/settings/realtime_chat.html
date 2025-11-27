@@ -954,28 +954,60 @@
         }
     }
 
-    // Helper: Format time (Thai timezone friendly)
+    // Helper: Parse timestamp to Thailand timezone
+    function parseThaiTime(isoString) {
+        if (!isoString) return null;
+        try {
+            // Parse the ISO string
+            let date = new Date(isoString);
+            // If no timezone info in string, assume it's already Thailand time
+            // Add 'Z' check - if not present, it's local server time (Thailand)
+            if (!isoString.includes('Z') && !isoString.includes('+') && !isoString.includes('-')) {
+                // It's Thailand time, we need to treat it as such
+                // Create date as if it's UTC, then we don't need to convert
+                return date;
+            }
+            return date;
+        } catch (e) {
+            return null;
+        }
+    }
+    
+    // Helper: Format time (Thai timezone friendly) - matches LINE time
     function formatTime(isoString) {
         if (!isoString) return '';
         try {
-            const date = new Date(isoString);
+            const date = parseThaiTime(isoString);
+            if (!date) return '';
+            
             const now = new Date();
-            const diffMs = now - date;
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const diffDays = Math.floor((todayStart - msgDate) / (1000 * 60 * 60 * 24));
+            
+            // Format time using Thailand locale
+            const timeStr = date.toLocaleTimeString('th-TH', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                timeZone: 'Asia/Bangkok'
+            });
             
             if (diffDays === 0) {
                 // Today - show time only
-                return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                return timeStr;
             } else if (diffDays === 1) {
-                return 'เมื่อวาน ' + date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                return 'เมื่อวาน ' + timeStr;
             } else if (diffDays < 7) {
                 // Within week - show day name
                 const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-                return days[date.getDay()] + ' ' + date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                return days[date.getDay()] + ' ' + timeStr;
             } else {
                 // Show full date
-                return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ' + 
-                       date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                return date.toLocaleDateString('th-TH', { 
+                    day: 'numeric', 
+                    month: 'short',
+                    timeZone: 'Asia/Bangkok'
+                }) + ' ' + timeStr;
             }
         } catch (e) {
             return isoString;
@@ -986,20 +1018,31 @@
     function formatTimeShort(isoString) {
         if (!isoString) return '';
         try {
-            const date = new Date(isoString);
+            const date = parseThaiTime(isoString);
+            if (!date) return '';
+            
             const now = new Date();
-            const diffMs = now - date;
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const diffDays = Math.floor((todayStart - msgDate) / (1000 * 60 * 60 * 24));
             
             if (diffDays === 0) {
-                return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                return date.toLocaleTimeString('th-TH', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    timeZone: 'Asia/Bangkok'
+                });
             } else if (diffDays === 1) {
                 return 'เมื่อวาน';
             } else if (diffDays < 7) {
                 const days = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
                 return days[date.getDay()];
             } else {
-                return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                return date.toLocaleDateString('th-TH', { 
+                    day: 'numeric', 
+                    month: 'short',
+                    timeZone: 'Asia/Bangkok'
+                });
             }
         } catch (e) {
             return '';
