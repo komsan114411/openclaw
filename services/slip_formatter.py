@@ -353,6 +353,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
     - จัดวาง layout ให้ดูมีมิติ
     - เน้นตัวเลขและข้อมูลสำคัญให้เด่นชัด
     - รองรับ custom template จาก database
+    - แสดงรายละเอียดครบถ้วนทั้ง success และ duplicate
     """
     try:
         # ถ้ามี template_id และ db ให้ดึง custom template
@@ -378,7 +379,8 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
         logger.info(f"🔍 Creating Flex Message - Status: {status}")
         logger.info(f"🔍 Data keys: {list(data.keys()) if data else 'No data'}")
         
-        if not data:
+        # ✅ แสดงข้อมูลครบถ้วนทั้ง success และ duplicate
+        if not data and status not in ["success", "duplicate"]:
             logger.warning("⚠️ No data in result, returning error flex message")
             return create_error_flex_message(result.get("message", "ไม่สามารถดึงข้อมูลสลิปได้"))
 

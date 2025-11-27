@@ -1202,6 +1202,34 @@ def register_saas_routes(app):
             logger.error(f"Error rolling back reservation: {e}")
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
     
+    @app.post("/api/admin/reservations/fix/{user_id}")
+    async def fix_user_reservations(request: Request, user_id: str):
+        '''Fix stuck reservations for a user (Admin only)'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            result = app.state.quota_reservation_model.fix_stuck_reservations(user_id)
+            return {"success": True, **result}
+        except Exception as e:
+            logger.error(f"Error fixing reservations: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    @app.post("/api/admin/reservations/reset/{user_id}")
+    async def reset_user_reservations(request: Request, user_id: str):
+        '''Emergency reset all reservations for a user (Admin only)'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            result = app.state.quota_reservation_model.reset_all_reservations(user_id)
+            return {"success": True, **result}
+        except Exception as e:
+            logger.error(f"Error resetting reservations: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
     @app.get("/api/admin/quota/stats")
     async def get_quota_statistics(request: Request):
         '''Get overall quota statistics (Admin only)'''

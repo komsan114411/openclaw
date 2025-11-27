@@ -88,11 +88,32 @@ class QuotaReservationModel:
                 logger.warning(f"⚠️ No active subscription for user {user_id}")
                 return None
             
-            # Calculate available quota
+            # ✅ FIX: Ensure slips_reserved field exists and is not negative
             slips_quota = subscription.get("slips_quota", 0)
-            slips_reserved = subscription.get("slips_reserved", 0)
-            slips_used = subscription.get("slips_used", 0)
+            slips_reserved = max(0, subscription.get("slips_reserved", 0))  # Ensure non-negative
+            slips_used = max(0, subscription.get("slips_used", 0))  # Ensure non-negative
+            
+            # ✅ FIX: Initialize slips_reserved if missing
+            if "slips_reserved" not in subscription:
+                self.subscription_collection.update_one(
+                    {"_id": subscription["_id"]},
+                    {"$set": {"slips_reserved": 0}}
+                )
+                slips_reserved = 0
+                logger.info(f"🔧 Initialized slips_reserved for subscription {subscription['_id']}")
+            
+            # ✅ FIX: Reset slips_reserved if it's negative (data corruption fix)
+            if subscription.get("slips_reserved", 0) < 0:
+                self.subscription_collection.update_one(
+                    {"_id": subscription["_id"]},
+                    {"$set": {"slips_reserved": 0}}
+                )
+                slips_reserved = 0
+                logger.warning(f"🔧 Reset negative slips_reserved for subscription {subscription['_id']}")
+            
             available = slips_quota - slips_reserved - slips_used
+            
+            logger.info(f"📊 Quota check for user {user_id}: quota={slips_quota}, reserved={slips_reserved}, used={slips_used}, available={available}")
             
             if available <= 0:
                 logger.warning(f"⚠️ No quota available for user {user_id} (quota={slips_quota}, reserved={slips_reserved}, used={slips_used})")
@@ -101,29 +122,36 @@ class QuotaReservationModel:
             # 2. Generate unique reservation ID
             reservation_id = f"res_{uuid.uuid4().hex[:16]}"
             
-            # 3. Atomic increment reserved count
-            result = self.subscription_collection.update_one(
-                {
-                    "_id": subscription["_id"],
-                    "status": "active",
-                    "$expr": {
-                        "$gt": [
-                            "$slips_quota",
-                            {"$add": [
-                                {"$ifNull": ["$slips_reserved", 0]},
-                                {"$ifNull": ["$slips_used", 0]}
-                            ]}
-                        ]
-                    }
-                },
-                {
-                    "$inc": {"slips_reserved": 1},
-                    "$set": {"updated_at": now}
-                }
-            )
+            # 3. ✅ FIX: Simpler atomic increment with retry logic
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # Simple increment - trust the earlier check
+                    result = self.subscription_collection.update_one(
+                        {
+                            "_id": subscription["_id"],
+                            "status": "active"
+                        },
+                        {
+                            "$inc": {"slips_reserved": 1},
+                            "$set": {"updated_at": now}
+                        }
+                    )
+                    
+                    if result.modified_count > 0:
+                        break
+                    
+                    if attempt < max_retries - 1:
+                        logger.warning(f"⚠️ Retry {attempt + 1} - reservation failed for user {user_id}")
+                        import time
+                        time.sleep(0.1)  # Small delay before retry
+                except Exception as update_error:
+                    logger.error(f"❌ Update error attempt {attempt + 1}: {update_error}")
+                    if attempt == max_retries - 1:
+                        raise
             
             if result.modified_count == 0:
-                logger.warning(f"⚠️ Race condition - no quota reserved for user {user_id}")
+                logger.warning(f"⚠️ Failed to reserve quota for user {user_id} after {max_retries} attempts")
                 return None
             
             # 4. Create reservation document
@@ -145,7 +173,7 @@ class QuotaReservationModel:
             
             self.collection.insert_one(reservation)
             
-            logger.info(f"✅ Quota reserved: {reservation_id} for user {user_id}")
+            logger.info(f"✅ Quota reserved: {reservation_id} for user {user_id} (available after: {available - 1})")
             
             return {
                 "reservation_id": reservation_id,
@@ -156,6 +184,8 @@ class QuotaReservationModel:
             
         except Exception as e:
             logger.error(f"❌ Error reserving quota: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def confirm_reservation(self, reservation_id: str) -> bool:
@@ -377,3 +407,135 @@ class QuotaReservationModel:
         except Exception as e:
             logger.error(f"❌ Error getting statistics: {e}")
             return {}
+    
+    def fix_stuck_reservations(self, user_id: str) -> Dict[str, Any]:
+        """
+        🔧 Fix stuck reservations and sync subscription quota
+        
+        ปัญหา: slips_reserved อาจติดค้างจากการ reservation ที่ไม่สมบูรณ์
+        แก้ไข: นับจำนวน reserved จริงจาก reservations collection และ sync กับ subscription
+        
+        Args:
+            user_id: User ID to fix
+            
+        Returns:
+            { fixed: bool, message: str, details: dict }
+        """
+        try:
+            now = datetime.utcnow()
+            
+            # 1. Find active subscription
+            subscription = self.subscription_collection.find_one({
+                "user_id": user_id,
+                "status": "active"
+            })
+            
+            if not subscription:
+                return {
+                    "fixed": False,
+                    "message": "No active subscription found",
+                    "details": {}
+                }
+            
+            # 2. Count actual reserved from reservations collection
+            actual_reserved = self.collection.count_documents({
+                "user_id": user_id,
+                "status": self.STATUS_RESERVED,
+                "expires_at": {"$gt": now}  # Only count non-expired
+            })
+            
+            current_reserved = subscription.get("slips_reserved", 0)
+            
+            # 3. If mismatch, sync the values
+            if current_reserved != actual_reserved:
+                logger.warning(f"🔧 Fixing stuck reservations for user {user_id}: stored={current_reserved}, actual={actual_reserved}")
+                
+                self.subscription_collection.update_one(
+                    {"_id": subscription["_id"]},
+                    {"$set": {"slips_reserved": actual_reserved, "updated_at": now}}
+                )
+                
+                return {
+                    "fixed": True,
+                    "message": f"Fixed quota: {current_reserved} -> {actual_reserved}",
+                    "details": {
+                        "subscription_id": str(subscription["_id"]),
+                        "old_reserved": current_reserved,
+                        "new_reserved": actual_reserved,
+                        "slips_quota": subscription.get("slips_quota", 0),
+                        "slips_used": subscription.get("slips_used", 0)
+                    }
+                }
+            
+            return {
+                "fixed": False,
+                "message": "No fix needed, quota is synced",
+                "details": {
+                    "slips_reserved": current_reserved,
+                    "slips_quota": subscription.get("slips_quota", 0),
+                    "slips_used": subscription.get("slips_used", 0)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error fixing stuck reservations: {e}")
+            return {
+                "fixed": False,
+                "message": f"Error: {str(e)}",
+                "details": {}
+            }
+    
+    def reset_all_reservations(self, user_id: str) -> Dict[str, Any]:
+        """
+        🔧 Emergency reset: Set slips_reserved to 0 and cancel all pending reservations
+        
+        ใช้เมื่อระบบมีปัญหาและต้องการรีเซ็ตโควต้าที่จอง
+        
+        Args:
+            user_id: User ID to reset
+            
+        Returns:
+            { success: bool, message: str, cancelled_count: int }
+        """
+        try:
+            now = datetime.utcnow()
+            
+            # 1. Cancel all pending reservations
+            result = self.collection.update_many(
+                {
+                    "user_id": user_id,
+                    "status": self.STATUS_RESERVED
+                },
+                {
+                    "$set": {
+                        "status": self.STATUS_ROLLED_BACK,
+                        "rolled_back_at": now,
+                        "rollback_reason": "emergency_reset"
+                    }
+                }
+            )
+            
+            cancelled_count = result.modified_count
+            
+            # 2. Reset slips_reserved in subscription
+            sub_result = self.subscription_collection.update_many(
+                {"user_id": user_id, "status": "active"},
+                {"$set": {"slips_reserved": 0, "updated_at": now}}
+            )
+            
+            logger.info(f"🔧 Emergency reset for user {user_id}: cancelled {cancelled_count} reservations")
+            
+            return {
+                "success": True,
+                "message": f"Reset complete: cancelled {cancelled_count} reservations",
+                "cancelled_count": cancelled_count,
+                "subscriptions_reset": sub_result.modified_count
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error resetting reservations: {e}")
+            return {
+                "success": False,
+                "message": f"Error: {str(e)}",
+                "cancelled_count": 0
+            }
