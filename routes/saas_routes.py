@@ -614,9 +614,12 @@ def register_saas_routes(app):
             receiver_name = ""
             matched_account = None
             api_verified = False
+            trans_ref = ""
+            is_duplicate = False
+            duplicate_info = None
             
-            # Check if slip verification succeeded
-            if slip_result.get("status") == "success":
+            # Check if slip verification succeeded OR is duplicate
+            if slip_result.get("status") == "success" or slip_result.get("status") == "duplicate":
                 api_verified = True
                 # Extract slip data
                 slip_data = slip_result.get("data", {})
@@ -625,6 +628,24 @@ def register_saas_routes(app):
                 slip_amount = slip_data.get("amount", 0)
                 receiver_bank_code = slip_data.get("receiver_bank_id", "")
                 actual_amount = float(slip_amount) if slip_amount else 0
+                trans_ref = slip_data.get("transRef", "") or slip_data.get("reference", "")
+                
+                # ═══════════════════════════════════════════════════════════════════
+                # CHECK DUPLICATE SLIP IN PAYMENT SYSTEM
+                # ═══════════════════════════════════════════════════════════════════
+                if trans_ref:
+                    duplicate_info = app.state.payment_model.check_duplicate_slip(trans_ref)
+                    is_duplicate = duplicate_info.get("is_duplicate", False)
+                    
+                    if is_duplicate:
+                        logger.warning(f"⚠️ Duplicate payment slip detected: trans_ref={trans_ref}")
+                        verification_issues.append(f"สลิปซ้ำ: สลิปนี้เคยถูกใช้ชำระเงินแล้ว (ครั้งที่ {duplicate_info.get('duplicate_count', 1)})")
+                
+                # Also check if API reported as duplicate
+                if slip_result.get("status") == "duplicate":
+                    is_duplicate = True
+                    if "สลิปซ้ำ" not in str(verification_issues):
+                        verification_issues.append("สลิปซ้ำ: API แจ้งว่าสลิปนี้เคยถูกตรวจสอบแล้ว")
                 
                 # Verify against configured bank accounts
                 for bank_acc in bank_accounts:
@@ -693,7 +714,7 @@ def register_saas_routes(app):
                 slip_image_data=image_bytes
             )
             
-            # Check if all verifications passed
+            # Check if all verifications passed (account, name, amount - NOT including duplicate)
             all_verified = account_matched and name_matched and amount_matched
             
             if all_verified:
@@ -701,28 +722,130 @@ def register_saas_routes(app):
             else:
                 logger.info(f"⚠️ Slip verification issues - Payment created for admin review: {verification_issues}")
             
-            # Store verification result
+            # ═══════════════════════════════════════════════════════════════════
+            # DETERMINE PAYMENT STATUS AND AUTO-APPROVAL LOGIC
+            # ═══════════════════════════════════════════════════════════════════
+            payment_status = "pending"
+            admin_notes = ""
+            auto_approved = False
+            
+            if is_duplicate:
+                # DUPLICATE SLIP SCENARIO
+                if all_verified:
+                    # Data matches but slip is duplicate
+                    admin_notes = "⚠️ สลิปซ้ำ: ข้อมูลตรงกันแต่สลิปเคยถูกใช้ไปแล้ว (รอตรวจสอบ)"
+                    logger.info(f"⚠️ Duplicate slip with matching data - Payment marked pending: {trans_ref}")
+                else:
+                    admin_notes = f"⚠️ สลิปซ้ำ: {', '.join(verification_issues)}"
+                    logger.info(f"⚠️ Duplicate slip with issues - Payment marked pending: {trans_ref}")
+            else:
+                # NOT DUPLICATE
+                if all_verified:
+                    # All verifications passed AND not duplicate -> AUTO APPROVE
+                    payment_status = "verified"
+                    auto_approved = True
+                    admin_notes = "✅ ระบบอนุมัติอัตโนมัติ: ตรวจสอบสลิปสำเร็จ ข้อมูลถูกต้องครบถ้วน"
+                    logger.info(f"✅ Auto-approved payment - Account: {receiver_account_no}, Amount: {actual_amount}")
+                else:
+                    admin_notes = f"รอตรวจสอบ: {', '.join(verification_issues)}"
+            
+            # Build verification result
+            verification_result = {
+                "verified": all_verified,
+                "api_verified": api_verified,
+                "receiver_account": receiver_account_no,
+                "receiver_name": receiver_name,
+                "amount": actual_amount,
+                "expected_amount": expected_amount,
+                "matched_account": matched_account.get("account_name") if matched_account else None,
+                "verification_method": "thunder_api",
+                "account_matched": account_matched,
+                "name_matched": name_matched,
+                "amount_matched": amount_matched,
+                "is_duplicate": is_duplicate,
+                "trans_ref": trans_ref,
+                "issues": verification_issues,
+                "auto_approved": auto_approved
+            }
+            
+            # Update payment status
             app.state.payment_model.update_payment_status(
                 payment_id,
-                "pending",
-                verification_result={
-                    "verified": all_verified,
-                    "api_verified": api_verified,
-                    "receiver_account": receiver_account_no,
-                    "receiver_name": receiver_name,
-                    "amount": actual_amount,
-                    "expected_amount": expected_amount,
-                    "matched_account": matched_account.get("account_name") if matched_account else None,
-                    "verification_method": "thunder_api",
-                    "account_matched": account_matched,
-                    "name_matched": name_matched,
-                    "amount_matched": amount_matched,
-                    "issues": verification_issues
-                }
+                payment_status,
+                verification_result=verification_result,
+                admin_notes=admin_notes,
+                admin_id="system" if auto_approved else None
             )
             
-            # Return success but indicate if manual review is needed
-            if all_verified:
+            # ═══════════════════════════════════════════════════════════════════
+            # AUTO ACTIVATE SUBSCRIPTION IF AUTO-APPROVED
+            # ═══════════════════════════════════════════════════════════════════
+            if auto_approved:
+                try:
+                    # Add package to user's subscription
+                    success = app.state.subscription_model.add_subscription(
+                        user_id=user["user_id"],
+                        package_id=package_id,
+                        payment_id=payment_id
+                    )
+                    
+                    if success:
+                        logger.info(f"✅ Auto-activated subscription for user {user['user_id']} - Package: {package['name']}")
+                        return {
+                            "success": True,
+                            "message": f"🎉 ชำระเงินสำเร็จ! แพ็คเกจ '{package['name']}' ได้ถูกเติมให้คุณแล้ว",
+                            "payment_id": payment_id,
+                            "auto_approved": True,
+                            "package_name": package["name"],
+                            "verification": {
+                                "account_matched": True,
+                                "name_matched": True,
+                                "amount_matched": True,
+                                "amount": actual_amount
+                            }
+                        }
+                    else:
+                        # Subscription failed - revert to pending
+                        logger.error(f"❌ Failed to activate subscription for user {user['user_id']}")
+                        app.state.payment_model.update_payment_status(
+                            payment_id,
+                            "pending",
+                            admin_notes="❌ เติมแพ็คเกจอัตโนมัติล้มเหลว รอแอดมินตรวจสอบ"
+                        )
+                except Exception as e:
+                    logger.error(f"Error auto-activating subscription: {e}")
+                    app.state.payment_model.update_payment_status(
+                        payment_id,
+                        "pending",
+                        admin_notes=f"❌ เติมแพ็คเกจอัตโนมัติล้มเหลว: {str(e)}"
+                    )
+            
+            # Return response based on status
+            if is_duplicate:
+                # Show slip data even if duplicate
+                return {
+                    "success": True,
+                    "message": "⚠️ ตรวจพบสลิปซ้ำ: สลิปนี้เคยถูกใช้ชำระเงินแล้ว รอตรวจสอบจากผู้ดูแลระบบ",
+                    "payment_id": payment_id,
+                    "is_duplicate": True,
+                    "data_matched": all_verified,
+                    "needs_review": True,
+                    "slip_data": {
+                        "receiver_account": receiver_account_no,
+                        "receiver_name": receiver_name,
+                        "amount": actual_amount,
+                        "trans_ref": trans_ref
+                    },
+                    "verification": {
+                        "account_matched": account_matched,
+                        "name_matched": name_matched,
+                        "amount_matched": amount_matched,
+                        "amount": actual_amount,
+                        "issues": verification_issues,
+                        "note": "ข้อมูลตรงกันแต่สลิปซ้ำ" if all_verified else None
+                    }
+                }
+            elif all_verified:
                 return {
                     "success": True,
                     "message": "ตรวจสอบสลิปสำเร็จ รอการอนุมัติจากผู้ดูแลระบบ",
@@ -845,35 +968,53 @@ def register_saas_routes(app):
             if not payment:
                 return JSONResponse(status_code=404, content={"success": False, "message": "Not found"})
             
-            app.state.payment_model.update_payment_status(
-                payment_id, "verified", {"verified_by": user["user_id"], "verified_at": datetime.utcnow()}
-            )
+            # Check if already verified (e.g., auto-approved)
+            if payment.get("status") == "verified":
+                verification_result = payment.get("verification_result", {})
+                if verification_result.get("auto_approved"):
+                    return JSONResponse(
+                        status_code=400, 
+                        content={"success": False, "message": "การชำระเงินนี้ได้รับการอนุมัติอัตโนมัติไปแล้ว"}
+                    )
+                return JSONResponse(
+                    status_code=400, 
+                    content={"success": False, "message": "การชำระเงินนี้ได้รับการอนุมัติไปแล้ว"}
+                )
             
             # Fetch package details for quota and duration
             package = app.state.package_model.get_package_by_id(payment["package_id"])
             if not package:
                 return JSONResponse(status_code=404, content={"success": False, "message": "Package not found"})
             
-            existing_subs = app.state.subscription_model.get_user_subscriptions(payment["user_id"])
-            active_subs = [s for s in existing_subs if s["status"] == "active"]
+            # Update payment status with admin info
+            app.state.payment_model.update_payment_status(
+                payment_id, 
+                "verified", 
+                verification_result={
+                    **payment.get("verification_result", {}),
+                    "verified_by": user["user_id"],
+                    "admin_approved": True
+                },
+                admin_notes=f"อนุมัติโดย Admin: {user.get('username', user['user_id'])}",
+                admin_id=user["user_id"]
+            )
             
-            if active_subs:
-                # Extend existing subscription with package quota and duration
-                app.state.subscription_model.extend_subscription(
-                    user_id=payment["user_id"],
-                    additional_slips=package["slip_quota"], 
-                    additional_days=package["duration_days"]
-                )
+            # Add subscription using the new unified method
+            success = app.state.subscription_model.add_subscription(
+                user_id=payment["user_id"],
+                package_id=payment["package_id"],
+                payment_id=payment_id
+            )
+            
+            if success:
+                logger.info(f"✅ Admin approved payment {payment_id} for user {payment['user_id']}")
+                return {"success": True, "message": "อนุมัติการชำระเงินสำเร็จ และเติมแพ็คเกจให้ผู้ใช้แล้ว"}
             else:
-                # Create new subscription with package quota and duration
-                app.state.subscription_model.create_subscription(
-                    user_id=payment["user_id"], 
-                    package_id=payment["package_id"],
-                    slips_quota=package["slip_quota"],
-                    duration_days=package["duration_days"],
-                    payment_id=payment_id
+                logger.error(f"❌ Failed to add subscription for payment {payment_id}")
+                return JSONResponse(
+                    status_code=500, 
+                    content={"success": False, "message": "อนุมัติสำเร็จแต่ไม่สามารถเติมแพ็คเกจได้ กรุณาตรวจสอบ"}
                 )
-            return {"success": True, "message": "Payment approved"}
         except Exception as e:
             logger.error(f"Error approving payment: {e}")
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})

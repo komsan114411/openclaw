@@ -3,12 +3,69 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentModel:
     def __init__(self, db):
         self.db = db
         self.collection = db.payments
+        # Create indexes
+        self._ensure_indexes()
+    
+    def _ensure_indexes(self):
+        """Create indexes for efficient querying"""
+        try:
+            self.collection.create_index([("trans_ref", 1)], name="trans_ref_idx")
+            self.collection.create_index([("user_id", 1)], name="user_id_idx")
+            self.collection.create_index([("status", 1)], name="status_idx")
+            self.collection.create_index([("created_at", -1)], name="created_at_idx")
+        except Exception as e:
+            logger.warning(f"Index creation warning: {e}")
+    
+    def check_duplicate_slip(self, trans_ref: str) -> Dict[str, Any]:
+        """
+        ตรวจสอบว่า trans_ref (เลขอ้างอิงสลิป) ซ้ำหรือไม่
+        
+        Returns:
+            {
+                "is_duplicate": bool,
+                "existing_payment": dict or None,  # ข้อมูล payment เดิมถ้าซ้ำ
+                "duplicate_count": int
+            }
+        """
+        try:
+            if not trans_ref:
+                return {"is_duplicate": False, "existing_payment": None, "duplicate_count": 0}
+            
+            # Find existing payments with this trans_ref
+            existing = self.collection.find_one({
+                "verification_result.trans_ref": trans_ref
+            })
+            
+            count = self.collection.count_documents({
+                "verification_result.trans_ref": trans_ref
+            })
+            
+            if existing:
+                existing["_id"] = str(existing["_id"])
+                # Don't send slip image data in duplicate check
+                if "slip_image_data" in existing:
+                    existing["has_slip"] = True
+                    del existing["slip_image_data"]
+                
+                return {
+                    "is_duplicate": True,
+                    "existing_payment": existing,
+                    "duplicate_count": count
+                }
+            
+            return {"is_duplicate": False, "existing_payment": None, "duplicate_count": 0}
+        except Exception as e:
+            logger.error(f"Error checking duplicate slip: {e}")
+            return {"is_duplicate": False, "existing_payment": None, "duplicate_count": 0}
         
     def create_payment(
         self,

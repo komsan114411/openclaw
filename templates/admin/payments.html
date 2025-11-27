@@ -171,9 +171,22 @@
             const date = new Date(p.created_at).toLocaleString('th-TH');
             let statusBadge = '';
             let actions = '';
+            
+            // Check for duplicate and auto-approved flags
+            const vf = p.verification_result || {};
+            const isDuplicate = vf.is_duplicate || false;
+            const isAutoApproved = vf.auto_approved || false;
+            const transRef = vf.trans_ref || '';
 
             if (p.status === 'pending') {
-                statusBadge = '<span class="badge bg-warning text-dark">รอตรวจสอบ</span>';
+                if (isDuplicate) {
+                    statusBadge = '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill"></i> สลิปซ้ำ</span>';
+                    if (vf.verified) {
+                        statusBadge += '<br><span class="badge bg-warning text-dark mt-1">ข้อมูลตรงกัน</span>';
+                    }
+                } else {
+                    statusBadge = '<span class="badge bg-warning text-dark">รอตรวจสอบ</span>';
+                }
                 actions = `
                 <button class="btn btn-success btn-sm" onclick="approvePayment('${p._id}')" title="อนุมัติ">
                     <i class="bi bi-check-lg"></i>
@@ -183,7 +196,11 @@
                 </button>
             `;
             } else if (p.status === 'verified') {
-                statusBadge = '<span class="badge bg-success">อนุมัติแล้ว</span>';
+                if (isAutoApproved) {
+                    statusBadge = '<span class="badge bg-success"><i class="bi bi-robot"></i> อนุมัติอัตโนมัติ</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-success">อนุมัติแล้ว</span>';
+                }
                 if (p.verified_at) {
                     const verifiedDate = new Date(p.verified_at).toLocaleString('th-TH');
                     statusBadge += `<br><small class="text-muted">${verifiedDate}</small>`;
@@ -203,9 +220,16 @@
                     
                     // Show verification info if available
                     if (p.verification_result) {
-                        const vf = p.verification_result;
+                        // Show duplicate warning prominently
+                        if (vf.is_duplicate) {
+                            evidence += `<br><span class="badge bg-danger mt-1"><i class="bi bi-files"></i> สลิปซ้ำ</span>`;
+                            if (vf.trans_ref) {
+                                evidence += `<br><small class="text-muted font-monospace">Ref: ${vf.trans_ref}</small>`;
+                            }
+                        }
+                        
                         if (vf.verified) {
-                            evidence += `<br><small class="text-success"><i class="bi bi-check-circle"></i> ตรวจสอบผ่าน</small>`;
+                            evidence += `<br><small class="text-success"><i class="bi bi-check-circle"></i> ข้อมูลตรงกัน</small>`;
                             if (vf.receiver_name) {
                                 evidence += `<br><small class="text-muted">ชื่อ: ${vf.receiver_name}</small>`;
                             }
@@ -214,6 +238,10 @@
                             }
                             if (vf.amount !== undefined && vf.amount !== null) {
                                 evidence += `<br><small class="text-muted">ยอด: ฿${vf.amount.toLocaleString()}</small>`;
+                            }
+                            // Show note for duplicate with matching data
+                            if (vf.is_duplicate) {
+                                evidence += `<br><span class="badge bg-warning text-dark mt-1"><i class="bi bi-info-circle"></i> ข้อมูลตรงกันแต่สลิปซ้ำ</span>`;
                             }
                         } else {
                             // Show verification issues

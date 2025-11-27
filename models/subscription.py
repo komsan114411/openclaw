@@ -241,3 +241,100 @@ class SubscriptionModel:
             return result.modified_count > 0
         except:
             return False
+    
+    def add_subscription(
+        self,
+        user_id: str,
+        package_id: str,
+        payment_id: Optional[str] = None,
+        package_model=None
+    ) -> bool:
+        """
+        เพิ่ม subscription ให้ user โดยใช้ข้อมูลจาก package
+        - ถ้ามี subscription ที่ active อยู่ จะเพิ่ม quota และขยายวันหมดอายุ
+        - ถ้าไม่มี จะสร้าง subscription ใหม่
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get package details
+            package = None
+            if package_model:
+                package = package_model.get_package_by_id(package_id)
+            else:
+                # Try to get from db directly
+                try:
+                    package = self.db.packages.find_one({"_id": ObjectId(package_id)})
+                    if package:
+                        package["_id"] = str(package["_id"])
+                except:
+                    pass
+            
+            if not package:
+                logger.error(f"❌ Package not found: {package_id}")
+                return False
+            
+            slips_quota = package.get("slip_quota", 0)
+            duration_days = package.get("duration_days", 30)
+            
+            if slips_quota <= 0:
+                logger.error(f"❌ Invalid slip_quota in package: {slips_quota}")
+                return False
+            
+            # Check for active subscriptions
+            active_subs = self.get_active_subscriptions(user_id)
+            
+            if active_subs:
+                # Extend existing subscription
+                newest_sub = active_subs[0]
+                
+                new_end_date = newest_sub["end_date"] + timedelta(days=duration_days)
+                new_quota = newest_sub["slips_quota"] + slips_quota
+                
+                result = self.collection.update_one(
+                    {"_id": ObjectId(newest_sub["_id"])},
+                    {
+                        "$set": {
+                            "end_date": new_end_date,
+                            "slips_quota": new_quota,
+                            "updated_at": datetime.now()
+                        },
+                        "$push": {
+                            "package_history": {
+                                "package_id": package_id,
+                                "payment_id": payment_id,
+                                "added_quota": slips_quota,
+                                "added_days": duration_days,
+                                "added_at": datetime.now()
+                            }
+                        }
+                    }
+                )
+                
+                if result.modified_count > 0:
+                    logger.info(f"✅ Extended subscription for user {user_id}: +{slips_quota} slips, +{duration_days} days")
+                    return True
+                else:
+                    logger.error(f"❌ Failed to extend subscription for user {user_id}")
+                    return False
+            else:
+                # Create new subscription
+                subscription_id = self.create_subscription(
+                    user_id=user_id,
+                    package_id=package_id,
+                    slips_quota=slips_quota,
+                    duration_days=duration_days,
+                    payment_id=payment_id
+                )
+                
+                if subscription_id:
+                    logger.info(f"✅ Created new subscription for user {user_id}: {subscription_id}")
+                    return True
+                else:
+                    logger.error(f"❌ Failed to create subscription for user {user_id}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"❌ Error adding subscription: {e}")
+            return False
