@@ -107,6 +107,7 @@
             <thead>
                 <tr>
                     <th>ชื่อบัญชี</th>
+                    <th>เจ้าของ</th>
                     <th>Channel ID</th>
                     <th>AI</th>
                     <th>ตรวจสลิป</th>
@@ -119,6 +120,12 @@
                 {% for account in line_accounts %}
                 <tr>
                     <td><strong>{{ account.account_name }}</strong></td>
+                    <td>
+                        <span class="badge badge-info">
+                            <i class="fas fa-user"></i>
+                            {{ account.owner_username or 'N/A' }}
+                        </span>
+                    </td>
                     <td><code>{{ account.channel_id }}</code></td>
                     <td>
                         {% if account.settings and account.settings.ai_enabled %}

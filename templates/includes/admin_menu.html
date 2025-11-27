@@ -47,6 +47,14 @@
     </a>
 </div>
 
+<div class="nav-section-title">เทมเพลต</div>
+<div class="sidebar-nav-item">
+    <a href="/admin/slip-templates" class="sidebar-nav-link {% if '/admin/slip-templates' in request.path or '/settings/slip-template-manager' in request.path %}active{% endif %}">
+        <i class="fas fa-file-invoice"></i>
+        <span>เทมเพลตสลิป</span>
+    </a>
+</div>
+
 <div class="nav-section-title">การตั้งค่า</div>
 <div class="sidebar-nav-item">
     <a href="/settings/chat-history" class="sidebar-nav-link {% if '/chat-history' in request.path %}active{% endif %}">

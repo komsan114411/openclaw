@@ -227,6 +227,14 @@ def register_saas_routes(app):
             safe_settings["quota_exceeded_flex_button_url"] = settings.get("quota_exceeded_flex_button_url", "")
             safe_settings["quota_exceeded_flex_image_url"] = settings.get("quota_exceeded_flex_image_url", "")
             
+            # Duplicate slip settings
+            safe_settings["duplicate_refund_enabled"] = settings.get("duplicate_refund_enabled", True)
+            safe_settings["quota_warning_threshold"] = settings.get("quota_warning_threshold", 10)
+            safe_settings["quota_warning_enabled"] = settings.get("quota_warning_enabled", True)
+            safe_settings["contact_admin_url"] = settings.get("contact_admin_url", "")
+            safe_settings["contact_admin_line"] = settings.get("contact_admin_line", "")
+            safe_settings["contact_admin_email"] = settings.get("contact_admin_email", "")
+            
             return {"success": True, "settings": safe_settings}
         except Exception as e:
             logger.error(f"Error fetching settings: {e}")

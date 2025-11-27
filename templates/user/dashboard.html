@@ -174,6 +174,18 @@
 {% endblock %}
 
 {% block content %}
+<!-- Quota Warning Alert -->
+<div id="quotaWarningAlert" class="alert alert-warning mb-4" style="display: none; border-left: 4px solid #f59e0b;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+        <div>
+            <strong>⚠️ แจ้งเตือนโควต้า</strong>
+            <p class="mb-0" id="quotaWarningText">โควต้าสลิปใกล้หมด กรุณาอัพเกรดแพ็คเกจ</p>
+        </div>
+        <a href="/user/packages" class="btn btn-warning btn-sm ms-auto">อัพเกรด</a>
+    </div>
+</div>
+
 <!-- Stats Grid -->
 <div class="stats-grid">
     <div class="stat-card green">
@@ -198,6 +210,23 @@
         <div class="stat-card-change">ข้อความที่ได้รับ</div>
     </div>
 
+    <!-- Quota Card -->
+    <div class="stat-card" id="quotaCard">
+        <div class="stat-card-header">
+            <span class="stat-card-title">โควต้าสลิป</span>
+            <div class="stat-card-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+        </div>
+        <div class="stat-card-value" id="quotaRemaining">-</div>
+        <div class="stat-card-change">
+            <span id="quotaUsed">-</span> / <span id="quotaTotal">-</span> สลิป
+        </div>
+        <div class="progress mt-2" style="height: 6px; background: rgba(139, 92, 246, 0.2);">
+            <div class="progress-bar" role="progressbar" style="background: #8b5cf6;" id="quotaProgress"></div>
+        </div>
+    </div>
+
     <div class="stat-card">
         <div class="stat-card-header">
             <span class="stat-card-title">สลิปที่ตรวจสอบ</span>
@@ -207,17 +236,6 @@
         </div>
         <div class="stat-card-value">{{ slips_verified or 0 }}</div>
         <div class="stat-card-change">ตรวจสอบแล้ว</div>
-    </div>
-
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <span class="stat-card-title">บัญชีธนาคาร</span>
-            <div class="stat-card-icon" style="background: var(--primary-light); color: var(--primary-color);">
-                <i class="fas fa-university"></i>
-            </div>
-        </div>
-        <div class="stat-card-value">{{ bank_accounts_count or 0 }}</div>
-        <div class="stat-card-change">บัญชีที่ลงทะเบียน</div>
     </div>
 </div>
 
@@ -311,4 +329,64 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadQuotaInfo();
+});
+
+async function loadQuotaInfo() {
+    try {
+        const response = await fetch('/api/user/quota');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        if (data.success) {
+            const quota = data.quota;
+            const totalSlips = quota.total_slips || 0;
+            const usedSlips = quota.total_used || 0;
+            const remainingSlips = quota.remaining_slips || quota.available_slips || 0;
+            const warningThreshold = 10; // Default warning threshold
+            
+            // Update quota card
+            document.getElementById('quotaRemaining').textContent = remainingSlips.toLocaleString();
+            document.getElementById('quotaUsed').textContent = usedSlips.toLocaleString();
+            document.getElementById('quotaTotal').textContent = totalSlips.toLocaleString();
+            
+            // Update progress bar
+            const progressPercent = totalSlips > 0 ? Math.min((usedSlips / totalSlips) * 100, 100) : 0;
+            const progressBar = document.getElementById('quotaProgress');
+            progressBar.style.width = progressPercent + '%';
+            
+            // Change color based on usage
+            if (progressPercent >= 90) {
+                progressBar.style.background = '#ef4444';
+                document.getElementById('quotaCard').classList.add('red');
+            } else if (progressPercent >= 70) {
+                progressBar.style.background = '#f59e0b';
+                document.getElementById('quotaCard').classList.add('orange');
+            }
+            
+            // Show warning if low quota
+            if (remainingSlips <= warningThreshold && remainingSlips >= 0) {
+                const warningAlert = document.getElementById('quotaWarningAlert');
+                const warningText = document.getElementById('quotaWarningText');
+                
+                if (remainingSlips === 0) {
+                    warningText.textContent = '🚨 โควต้าสลิปหมดแล้ว! กรุณาอัพเกรดแพ็คเกจเพื่อใช้งานต่อ';
+                    warningAlert.className = 'alert alert-danger mb-4';
+                    warningAlert.style.borderLeftColor = '#ef4444';
+                } else {
+                    warningText.textContent = `⚠️ โควต้าสลิปเหลือเพียง ${remainingSlips} สลิป กรุณาอัพเกรดแพ็คเกจ`;
+                }
+                warningAlert.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading quota:', error);
+    }
+}
+</script>
 {% endblock %}

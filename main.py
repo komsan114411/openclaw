@@ -659,6 +659,15 @@ async def admin_line_accounts(request: Request):
     
     line_accounts = app.state.line_account_model.get_all_accounts(include_inactive=True)
     
+    # Add owner username to each account
+    for account in line_accounts:
+        owner_id = account.get("owner_id")
+        if owner_id:
+            owner = app.state.user_model.get_user_by_id(owner_id)
+            account["owner_username"] = owner.get("username") if owner else "N/A"
+        else:
+            account["owner_username"] = "N/A"
+    
     return templates.TemplateResponse("admin/line_accounts.html", {
         "request": request,
         "user": user,
