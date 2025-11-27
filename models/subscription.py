@@ -2,12 +2,37 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
+import logging
+
+logger = logging.getLogger("subscription_model")
 
 
 class SubscriptionModel:
     def __init__(self, db):
         self.db = db
         self.collection = db.subscriptions
+        self._ensure_indexes()
+    
+    def _ensure_indexes(self):
+        """Create necessary indexes"""
+        try:
+            self.collection.create_index("user_id")
+            self.collection.create_index("status")
+            self.collection.create_index([("user_id", 1), ("status", 1), ("end_date", -1)])
+            logger.info("✅ Subscription indexes created")
+        except Exception as e:
+            logger.error(f"❌ Error creating indexes: {e}")
+    
+    def _migrate_subscription(self, subscription: Dict) -> Dict:
+        """Migrate old subscription format to new format with slips_reserved"""
+        if "slips_reserved" not in subscription:
+            # Add slips_reserved field if missing
+            self.collection.update_one(
+                {"_id": subscription["_id"]},
+                {"$set": {"slips_reserved": 0}}
+            )
+            subscription["slips_reserved"] = 0
+        return subscription
         
     def create_subscription(
         self,
@@ -28,6 +53,7 @@ class SubscriptionModel:
             "end_date": end_date,
             "slips_quota": int(slips_quota),
             "slips_used": 0,
+            "slips_reserved": 0,  # NEW: Track reserved quota for two-phase commit
             "status": "active",
             "payment_id": payment_id,
             "created_at": now,
@@ -35,6 +61,7 @@ class SubscriptionModel:
         }
         
         result = self.collection.insert_one(subscription)
+        logger.info(f"✅ Subscription created for user {user_id}: {result.inserted_id}")
         return str(result.inserted_id)
     
     def get_active_subscriptions(self, user_id: str) -> List[Dict[str, Any]]:
@@ -47,6 +74,8 @@ class SubscriptionModel:
         
         for sub in subscriptions:
             sub["_id"] = str(sub["_id"])
+            # Migrate old subscriptions to new format
+            sub = self._migrate_subscription(sub)
             
         return subscriptions
     
@@ -72,30 +101,43 @@ class SubscriptionModel:
         return subscriptions
     
     def check_quota(self, user_id: str) -> Dict[str, Any]:
-        """Check remaining quota for a user across all active subscriptions"""
+        """
+        Check remaining quota for a user across all active subscriptions
+        
+        Available = total_quota - total_used - total_reserved
+        """
         active_subs = self.get_active_subscriptions(user_id)
         
         if not active_subs:
             return {
                 "status": "no_active_subscription",
-                "total_slips": 0,              # Renamed from total_quota
+                "total_slips": 0,
                 "total_used": 0,
-                "remaining_slips": 0,          # Renamed from remaining
-                "expiry_date": None,           # Renamed from earliest_expiry
-                "days_remaining": 0
+                "total_reserved": 0,
+                "remaining_slips": 0,
+                "available_slips": 0,  # NEW: Available for new reservations
+                "expiry_date": None,
+                "days_remaining": 0,
+                "has_quota": False
             }
         
         # Calculate total quota across all active subscriptions
-        total_quota = sum(sub["slips_quota"] for sub in active_subs)
-        total_used = sum(sub["slips_used"] for sub in active_subs)
+        total_quota = sum(sub.get("slips_quota", 0) for sub in active_subs)
+        total_used = sum(sub.get("slips_used", 0) for sub in active_subs)
+        total_reserved = sum(sub.get("slips_reserved", 0) for sub in active_subs)
+        
+        # Remaining = quota - used (for display)
         remaining = total_quota - total_used
+        
+        # Available = quota - used - reserved (for new reservations)
+        available = total_quota - total_used - total_reserved
         
         # Find earliest expiry date
         earliest_expiry = min(sub["end_date"] for sub in active_subs)
         days_remaining = (earliest_expiry - datetime.now()).days
         
         # Determine status
-        if remaining <= 0:
+        if available <= 0:
             status = "quota_exceeded"
         elif days_remaining <= 0:
             status = "expired"
@@ -104,12 +146,15 @@ class SubscriptionModel:
         
         return {
             "status": status,
-            "total_slips": total_quota,        # Renamed from total_quota
+            "total_slips": total_quota,
             "total_used": total_used,
-            "remaining_slips": remaining,      # Renamed from remaining
-            "expiry_date": earliest_expiry,    # Renamed from earliest_expiry
+            "total_reserved": total_reserved,
+            "remaining_slips": remaining,
+            "available_slips": max(0, available),  # NEW: Available for new reservations
+            "expiry_date": earliest_expiry,
             "days_remaining": max(0, days_remaining),
-            "active_subscriptions_count": len(active_subs)
+            "active_subscriptions_count": len(active_subs),
+            "has_quota": available > 0
         }
     
     def use_slip_quota(self, user_id: str) -> bool:

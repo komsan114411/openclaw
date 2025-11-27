@@ -50,6 +50,7 @@ from models.package import PackageModel
 from models.subscription import SubscriptionModel
 from models.payment import PaymentModel
 from models.system_settings import SystemSettingsModel
+from models.quota_reservation import QuotaReservationModel
 
 # Import middleware
 from middleware.auth import AuthMiddleware, get_current_user_from_request
@@ -58,6 +59,7 @@ from middleware.auth import AuthMiddleware, get_current_user_from_request
 from services.chat_bot import get_chat_response, get_chat_response_async
 from services.slip_checker import SlipChecker
 from services.slip_formatter import create_beautiful_slip_flex_message, create_error_flex_message
+from services.image_validator import validate_slip_image, get_error_template
 
 # Global variables
 IS_READY = False
@@ -126,6 +128,7 @@ async def lifespan(app: FastAPI):
         app.state.subscription_model = SubscriptionModel(app.state.db)
         app.state.payment_model = PaymentModel(app.state.db)
         app.state.system_settings_model = SystemSettingsModel(app.state.db)
+        app.state.quota_reservation_model = QuotaReservationModel(app.state.db)
         
         # Initialize auth middleware
         app.state.auth = AuthMiddleware(app.state.session_model)
@@ -1616,36 +1619,26 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
         logger.error(f"❌ Error handling text message: {e}")
 
 async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
-    """Handle image message (slip verification)"""
+    """
+    Handle image message (slip verification) with Two-Phase Commit
+    
+    Flow:
+    1. Pre-screening: ตรวจสอบไฟล์ก่อน (ไม่เสียโควต้า)
+    2. Quota Reservation: จองโควต้าก่อนยิง API
+    3. Bank Verification: ตรวจสอบกับ Thunder API
+    4. Finalization: Confirm หรือ Rollback ตามผลลัพธ์
+    5. Reply: ส่งผลลัพธ์กลับไปยังลูกค้า
+    """
+    reservation_id = None  # Track for emergency rollback
+    
     try:
-        # Download image from LINE and store in database
-        image_data = None
-        try:
-            image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
-            headers = {"Authorization": f"Bearer {account['channel_access_token']}"}
-            response = requests.get(image_url, headers=headers, timeout=30)
-            response.raise_for_status()
-            image_data = response.content
-            logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes")
-        except Exception as e:
-            logger.error(f"❌ Error downloading image from LINE: {e}")
-        
-        # Save image message with image data stored in database
-        import base64
-        image_base64 = base64.b64encode(image_data).decode('utf-8') if image_data else None
-        
-        app.state.chat_message_model.save_message(
-            account_id=account["_id"],
-            user_id=user_id,
-            message_type="image",
-            content="[รูปภาพ]",
-            message_id=message_id,
-            media_url=image_url,  # Keep URL for reference
-            sender="user",
-            metadata={"image_data": image_base64}  # Store base64 encoded image
-        )
-        
         settings = account.get("settings", {})
+        owner_id = account.get("owner_id")
+        system_settings = app.state.system_settings_model.get_settings()
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 0: CHECK SETTINGS
+        # ═══════════════════════════════════════════════════════════════════
         
         # Check if slip verification is enabled
         if not settings.get("slip_verification_enabled", False):
@@ -1656,267 +1649,325 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             )
             return
         
-        # [NEW] Check User Quota (SaaS Integration)
-        owner_id = account.get("owner_id")
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 1: DOWNLOAD & PRE-SCREENING
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Download image from LINE
+        image_data = None
+        image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
+        try:
+            headers = {"Authorization": f"Bearer {account['channel_access_token']}"}
+            response = requests.get(image_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            image_data = response.content
+            logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes")
+        except Exception as e:
+            logger.error(f"❌ Error downloading image from LINE: {e}")
+            await send_line_reply(
+                reply_token,
+                "❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองใหม่อีกครั้ง",
+                account["channel_access_token"]
+            )
+            return
+        
+        # Save image message to database
+        import base64
+        image_base64 = base64.b64encode(image_data).decode('utf-8') if image_data else None
+        
+        app.state.chat_message_model.save_message(
+            account_id=account["_id"],
+            user_id=user_id,
+            message_type="image",
+            content="[รูปภาพ]",
+            message_id=message_id,
+            media_url=image_url,
+            sender="user",
+            metadata={"image_data": image_base64}
+        )
+        
+        # Pre-screening: Validate image before API call
+        validation_result = validate_slip_image(image_data, system_settings)
+        
+        if not validation_result["valid"]:
+            # Invalid image - no quota deduction
+            error_template = get_error_template(validation_result["error_code"], system_settings)
+            error_message = validation_result.get("error_message") or error_template.get("message", "รูปภาพไม่ถูกต้อง")
+            
+            await send_line_reply(
+                reply_token,
+                f"📷 {error_message}",
+                account["channel_access_token"]
+            )
+            logger.warning(f"⚠️ Pre-screening failed: {validation_result['error_code']} - No quota deducted")
+            return
+        
+        logger.info(f"✅ Pre-screening passed: {validation_result['image_info']}")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 2: QUOTA RESERVATION (Two-Phase Commit)
+        # ═══════════════════════════════════════════════════════════════════
+        
         if owner_id:
-            quota_status = app.state.subscription_model.check_quota(owner_id)
-            if quota_status["remaining_slips"] <= 0:  # Fixed: was "remaining"
-                # Use configured quota exceeded message from system settings
-                system_settings = app.state.system_settings_model.get_settings()
+            # Reserve quota before calling API
+            reservation = app.state.quota_reservation_model.reserve_quota(
+                user_id=owner_id,
+                purpose="slip_verification",
+                message_id=message_id,
+                metadata={
+                    "account_id": account["_id"],
+                    "line_user_id": user_id,
+                    "image_size": len(image_data)
+                }
+            )
+            
+            if not reservation:
+                # No quota available - don't call API (save money!)
+                logger.warning(f"⚠️ No quota available for user {owner_id} - API not called")
+                
+                # Send quota exceeded message
                 response_type = system_settings.get("quota_exceeded_response_type", "text")
                 
                 if response_type == "flex":
-                    # Send Flex Message
                     flex_title = system_settings.get("quota_exceeded_flex_title", "โควต้าหมด")
-                    flex_body = system_settings.get("quota_exceeded_flex_body", "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาอัปเกรดแพ็คเกจเพื่อใช้งานต่อ")
-                    flex_button_text = system_settings.get("quota_exceeded_flex_button_text", "อัปเกรดแพ็คเกจ")
+                    flex_body = system_settings.get("quota_exceeded_flex_body", "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาติดต่อแอดมิน")
+                    flex_button_text = system_settings.get("quota_exceeded_flex_button_text", "")
                     flex_button_url = system_settings.get("quota_exceeded_flex_button_url", "")
-                    flex_image_url = system_settings.get("quota_exceeded_flex_image_url", "")
                     
-                    # Build Flex Message
                     flex_contents = {
                         "type": "bubble",
                         "body": {
                             "type": "box",
                             "layout": "vertical",
                             "contents": [
-                                {
-                                    "type": "text",
-                                    "text": flex_title,
-                                    "weight": "bold",
-                                    "size": "xl",
-                                    "color": "#dc3545"
-                                },
-                                {
-                                    "type": "text",
-                                    "text": flex_body,
-                                    "wrap": True,
-                                    "margin": "md"
-                                }
+                                {"type": "text", "text": flex_title, "weight": "bold", "size": "xl", "color": "#dc3545"},
+                                {"type": "text", "text": flex_body, "wrap": True, "margin": "md"}
                             ]
                         }
                     }
                     
-                    # Add image if provided
-                    if flex_image_url:
-                        flex_contents["hero"] = {
-                            "type": "image",
-                            "url": flex_image_url,
-                            "size": "full",
-                            "aspectRatio": "20:13",
-                            "aspectMode": "cover"
-                        }
-                    
-                    # Add button if URL provided
                     if flex_button_url and flex_button_text:
                         flex_contents["footer"] = {
                             "type": "box",
                             "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "button",
-                                    "action": {
-                                        "type": "uri",
-                                        "label": flex_button_text,
-                                        "uri": flex_button_url
-                                    },
-                                    "style": "primary"
-                                }
-                            ]
+                            "contents": [{"type": "button", "action": {"type": "uri", "label": flex_button_text, "uri": flex_button_url}, "style": "primary"}]
                         }
                     
-                    # Send Flex Message
                     try:
                         url = "https://api.line.me/v2/bot/message/reply"
-                        headers = {
-                            "Content-Type": "application/json",
-                            "Authorization": f"Bearer {account['channel_access_token']}"
-                        }
-                        data = {
-                            "replyToken": reply_token,
-                            "messages": [
-                                {
-                                    "type": "flex",
-                                    "altText": flex_title,
-                                    "contents": flex_contents
-                                }
-                            ]
-                        }
+                        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {account['channel_access_token']}"}
+                        data = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": flex_title, "contents": flex_contents}]}
                         async with httpx.AsyncClient() as client:
                             await client.post(url, headers=headers, json=data)
                     except Exception as e:
-                        logger.error(f"Error sending quota exceeded flex message: {e}")
+                        logger.error(f"Error sending quota exceeded flex: {e}")
                 else:
-                    # Send text message
-                    quota_message = system_settings.get("quota_exceeded_message", "❌ โควต้าของคุณหมดแล้ว\n\nกรุณาติดต่อผู้ดูแลระบบเพื่ออัปเกรดแพ็คเกจ")
-                    await send_line_reply(
-                        reply_token,
-                        quota_message,
-                        account["channel_access_token"]
-                    )
+                    quota_message = system_settings.get("quota_exceeded_message", "⚠️ สิทธิ์การตรวจสอบสลิปของร้านค้าหมดแล้ว กรุณาติดต่อแอดมิน")
+                    await send_line_reply(reply_token, quota_message, account["channel_access_token"])
+                
                 return
+            
+            reservation_id = reservation["reservation_id"]
+            logger.info(f"✅ Quota reserved: {reservation_id} (available after: {reservation.get('available_after', '?')})")
         
-        # Get slip API settings
-        slip_api_provider = settings.get("slip_api_provider", "thunder")
-        slip_api_key = settings.get("slip_api_key")
-        
-        if not slip_api_key:
-            await send_line_reply(
-                reply_token,
-                "ยังไม่ได้ตั้งค่า API Key สำหรับตรวจสอบสลิป",
-                account["channel_access_token"]
-            )
-            return
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 3: SEND PROCESSING MESSAGE & CALL API
+        # ═══════════════════════════════════════════════════════════════════
         
         # Send processing message
-        await send_line_reply(
-            reply_token,
-            "กำลังตรวจสอบสลิป กรุณารอสักครู่...",
-            account["channel_access_token"]
-        )
+        processing_msg = settings.get("slip_immediate_message", "⏳ กำลังตรวจสอบสลิป กรุณารอสักครู่...")
+        await send_line_reply(reply_token, processing_msg, account["channel_access_token"])
         
-        # Verify slip with provider selection and fallback
-        logger.info(f"🔍 Starting slip verification for message_id: {message_id}")
-        logger.info(f"🔑 API Key (first 10 chars): {slip_api_key[:10]}...")
-        logger.info(f"🔑 LINE Token (first 10 chars): {account['channel_access_token'][:10]}...")
-        logger.info(f"📡 Using provider: {slip_api_provider}")
+        # Get API settings
+        slip_api_key = settings.get("slip_api_key")
+        slip_api_provider = settings.get("slip_api_provider", "thunder")
         
+        if not slip_api_key:
+            # Rollback quota if no API key
+            if reservation_id:
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, "no_api_key")
+            await send_line_push(user_id, "❌ ยังไม่ได้ตั้งค่า API Key สำหรับตรวจสอบสลิป", account["channel_access_token"])
+            return
+        
+        # Call Thunder API
+        logger.info(f"🔍 Starting slip verification: message_id={message_id}")
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
         
-        # Get system settings for fallback
-        system_settings = app.state.system_settings_model.get_settings()
+        try:
+            result = slip_checker.verify_slip(
+                message_id=message_id,
+                test_image_data=image_data,
+                provider=slip_api_provider
+            )
+        except Exception as api_error:
+            # API Error - Rollback quota
+            if reservation_id:
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, f"api_error: {str(api_error)}")
+            logger.error(f"❌ API Error: {api_error}")
+            await send_line_push(user_id, "❌ เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่", account["channel_access_token"])
+            return
+        
+        # Try fallback if enabled and primary failed
         fallback_enabled = system_settings.get("slip_api_fallback_enabled", False)
         secondary_api_key = system_settings.get("slip_api_key_secondary", "")
-        secondary_provider = system_settings.get("slip_api_provider_secondary", "")
         
-        # Pass image_data if we have it (avoid re-downloading from LINE)
-        result = slip_checker.verify_slip(
-            message_id=message_id,
-            test_image_data=image_data,  # Pass downloaded image data
-            provider=slip_api_provider
-        )
-        
-        # If primary API failed and fallback is enabled, try secondary API
-        if (result.get("status") == "error" and 
-            fallback_enabled and 
-            secondary_api_key and 
-            secondary_provider and
-            result.get("message", "").lower().find("quota") == -1 and  # Don't fallback if quota exceeded
-            result.get("message", "").lower().find("expired") == -1):  # Don't fallback if expired
-            
-            logger.warning(f"⚠️ Primary API ({slip_api_provider}) failed, trying fallback ({secondary_provider})")
-            
-            # Try secondary API
+        if (result.get("status") == "error" and fallback_enabled and secondary_api_key and
+            "quota" not in result.get("message", "").lower() and "expired" not in result.get("message", "").lower()):
+            logger.warning(f"⚠️ Primary API failed, trying fallback...")
             try:
-                if secondary_provider == "kbank":
-                    from services.kbank_checker import kbank_checker
-                    # Extract bank code and trans_ref from image if possible
-                    # For now, just log that we're trying fallback
-                    logger.info("🔄 Attempting KBank API fallback...")
-                    # Note: KBank API requires bank_code and trans_ref, which we might not have from image
-                    # This is a limitation - we'd need OCR or user input
-                else:
-                    # Try Thunder API as fallback
-                    from services.slip_checker import verify_slip_with_thunder
-                    fallback_result = verify_slip_with_thunder(
-                        message_id=message_id,
-                        test_image_data=image_data,
-                        line_token=account["channel_access_token"],
-                        api_token=secondary_api_key
-                    )
-                    
-                    if fallback_result.get("status") in ["success", "duplicate"]:
-                        logger.info(f"✅ Fallback API ({secondary_provider}) succeeded!")
-                        result = fallback_result
-                        result["used_fallback"] = True
-                        result["fallback_provider"] = secondary_provider
-                    else:
-                        logger.warning(f"⚠️ Fallback API ({secondary_provider}) also failed")
-                        result["fallback_attempted"] = True
-                        result["fallback_failed"] = True
+                from services.slip_checker import verify_slip_with_thunder
+                fallback_result = verify_slip_with_thunder(
+                    message_id=message_id,
+                    test_image_data=image_data,
+                    line_token=account["channel_access_token"],
+                    api_token=secondary_api_key
+                )
+                if fallback_result.get("status") in ["success", "duplicate"]:
+                    result = fallback_result
+                    result["used_fallback"] = True
+                    logger.info("✅ Fallback API succeeded!")
             except Exception as fallback_error:
-                logger.error(f"❌ Fallback API error: {fallback_error}")
-                result["fallback_attempted"] = True
-                result["fallback_error"] = str(fallback_error)
+                logger.error(f"❌ Fallback also failed: {fallback_error}")
         
-        logger.info(f"📊 Slip verification result: {result.get('status')}")
-        logger.info(f"📄 Result message: {result.get('message', 'No message')}")
+        logger.info(f"📊 Verification result: status={result.get('status')}")
         
-        # [NEW] Deduct Quota (SaaS Integration)
-        # Only deduct quota when slip verification is successful or duplicate
-        # Do NOT deduct for errors, not_found, qr_not_found - user should not pay for failed verifications
-        if owner_id and result.get("status") in ["success", "duplicate"]:
-             app.state.subscription_model.use_slip_quota(owner_id)
-             logger.info(f"📉 Deducted 1 slip quota for user {owner_id} (status: {result.get('status')})")
-        elif owner_id:
-             logger.info(f"⏸️ No quota deducted for user {owner_id} (status: {result.get('status')} - only deduct on success/duplicate)")
-
-        # ตรวจสอบและบันทึกสลิปซ้ำ
-        if result.get("status") in ["success", "duplicate"]:
-            trans_ref = result.get("data", {}).get("transRef", "")
-            amount = result.get("data", {}).get("amount", 0)
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 4: FINALIZATION (Commit or Rollback)
+        # ═══════════════════════════════════════════════════════════════════
+        
+        status = result.get("status")
+        trans_ref = result.get("data", {}).get("transRef", "")
+        amount = result.get("data", {}).get("amount", 0)
+        
+        if status == "success":
+            # ✅ SUCCESS: Confirm quota
+            if reservation_id:
+                app.state.quota_reservation_model.confirm_reservation(reservation_id)
+                logger.info(f"✅ Quota confirmed for reservation {reservation_id}")
             
-            # นับจำนวนครั้งที่สลิปนี้ถูกตรวจสอบ (ก่อนบันทึกครั้งใหม่)
-            duplicate_count = app.state.slip_history_model.get_duplicate_count(trans_ref, account["_id"])
-            
-            # บันทึกประวัติการตรวจสอบสลิป
+            # Record transaction
             app.state.slip_history_model.record_slip(
                 account_id=account["_id"],
                 user_id=user_id,
                 trans_ref=trans_ref,
                 amount=float(amount) if amount else 0,
-                status=result.get("status"),
-                metadata={"message_id": message_id}
+                status="success",
+                metadata={"message_id": message_id, "reservation_id": reservation_id}
             )
             
-            # เพิ่มข้อมูลจำนวนครั้งที่ซ้ำใน result
-            if duplicate_count > 0:
-                result["duplicate_count"] = duplicate_count
-                result["message"] = f"🔄 สลิปซ้ำ +{duplicate_count}"
-        
-        # Update statistics
-        if result.get("status") == "success":
+            # Update statistics
             app.state.line_account_model.increment_slip_count(account["_id"])
-            result_text = f"✅ สลิปถูกต้อง"
-        elif result.get("status") == "duplicate":
-            dup_count = result.get("duplicate_count", 0)
-            if dup_count > 0:
-                result_text = f"🔄 สลิปซ้ำ +{dup_count}"
-            else:
-                result_text = f"🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
-        elif result.get("status") == "error":
-            # ใช้ข้อความจาก result.get('message') โดยตรง
-            result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
-            logger.error(f"❌ Slip verification failed: {result}")
-        elif result.get("status") == "not_found":
-            result_text = f"🔍 {result.get('message', 'ไม่พบข้อมูลสลิป')}"
-            logger.warning(f"⚠️ Slip not found: {result}")
-        elif result.get("status") == "qr_not_found":
-            result_text = f"📱 {result.get('message', 'ไม่พบ QR Code ในรูปภาพ')}"
-            logger.warning(f"⚠️ QR Code not found: {result}")
+            result_text = "✅ สลิปถูกต้อง"
+            
+        elif status == "duplicate":
+            # 🔄 DUPLICATE: Check refund settings
+            duplicate_count = app.state.slip_history_model.get_duplicate_count(trans_ref, account["_id"])
+            result["duplicate_count"] = duplicate_count + 1
+            
+            # Check if duplicate refund is enabled
+            duplicate_refund_enabled = system_settings.get("duplicate_refund_enabled", True)
+            
+            if duplicate_refund_enabled and reservation_id:
+                # Rollback quota (คืนเครดิต)
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, "duplicate")
+                result["quota_refunded"] = True
+                logger.info(f"🔄 Quota refunded for duplicate slip (reservation: {reservation_id})")
+            elif reservation_id:
+                # Confirm quota (ไม่คืนเครดิต)
+                app.state.quota_reservation_model.confirm_reservation(reservation_id)
+                result["quota_refunded"] = False
+                logger.info(f"⚠️ Quota NOT refunded for duplicate (setting disabled)")
+            
+            # Record duplicate
+            app.state.slip_history_model.record_slip(
+                account_id=account["_id"],
+                user_id=user_id,
+                trans_ref=trans_ref,
+                amount=float(amount) if amount else 0,
+                status="duplicate",
+                metadata={"message_id": message_id, "duplicate_count": duplicate_count + 1, "refunded": duplicate_refund_enabled}
+            )
+            
+            result_text = f"🔄 สลิปซ้ำ (ใช้ไปแล้ว {duplicate_count + 1} ครั้ง)"
+            if duplicate_refund_enabled:
+                result_text += " - ไม่หักเครดิต"
+            
+        elif status in ["not_found", "qr_not_found"]:
+            # 🔍 QR NOT FOUND: Rollback quota
+            if reservation_id:
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, status)
+                logger.info(f"🔄 Quota refunded for {status} (reservation: {reservation_id})")
+            
+            result_text = result.get("message", "ไม่พบ QR Code ในรูปภาพ กรุณาถ่ายรูปใหม่")
+            
         else:
-            # สำหรับสถานะอื่นๆ ที่ไม่คาดคิด
-            result_text = f"⚠️ สถานะการตรวจสอบไม่ชัดเจน: {result.get('status')}"
-            logger.error(f"⚠️ Unexpected slip verification status: {result}")
+            # ❌ ERROR: Rollback quota
+            if reservation_id:
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, f"error: {status}")
+                logger.info(f"🔄 Quota refunded for error (reservation: {reservation_id})")
+            
+            result_text = result.get("message", "เกิดข้อผิดพลาดในการตรวจสอบ")
         
-        # Save slip verification result
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 5: SAVE & REPLY
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Save result to chat
         app.state.chat_message_model.save_message(
             account_id=account["_id"],
             user_id=user_id,
             message_type="text",
             content=result_text,
             sender="bot",
-            metadata={"slip_result": result}
+            metadata={"slip_result": result, "reservation_id": reservation_id}
         )
         
         # Send result with template
         slip_template_id = settings.get("slip_template_id")
-        logger.info(f"🎯 Using template ID from settings: {slip_template_id}")
-        logger.info(f"📊 Full settings: {settings}")
         await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PHASE 6: BROADCAST QUOTA UPDATE (WebSocket)
+        # ═══════════════════════════════════════════════════════════════════
+        
+        if owner_id:
+            # Get updated quota and broadcast
+            quota_status = app.state.subscription_model.check_quota(owner_id)
+            await manager.broadcast({
+                "type": "quota_update",
+                "user_id": owner_id,
+                "data": {
+                    "total_slips": quota_status.get("total_slips", 0),
+                    "total_used": quota_status.get("total_used", 0),
+                    "remaining_slips": quota_status.get("remaining_slips", 0),
+                    "available_slips": quota_status.get("available_slips", 0)
+                }
+            })
+            
+            # Send warning if low quota
+            warning_threshold = system_settings.get("quota_warning_threshold", 10)
+            if quota_status.get("available_slips", 0) <= warning_threshold:
+                await manager.broadcast({
+                    "type": "quota_warning",
+                    "user_id": owner_id,
+                    "data": {
+                        "remaining": quota_status.get("available_slips", 0),
+                        "message": f"⚠️ โควต้าเหลือน้อย: {quota_status.get('available_slips', 0)} สลิป"
+                    }
+                })
         
     except Exception as e:
         logger.error(f"❌ Error handling image message: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Emergency rollback
+        if reservation_id:
+            try:
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, f"exception: {str(e)}")
+                logger.info(f"🔄 Emergency rollback for reservation {reservation_id}")
+            except Exception as rollback_error:
+                logger.error(f"❌ Emergency rollback failed: {rollback_error}")
 
 async def handle_follow_event(event: Dict[str, Any], account: Dict[str, Any]):
     """Handle follow event"""

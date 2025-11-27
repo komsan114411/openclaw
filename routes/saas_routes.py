@@ -950,3 +950,144 @@ def register_saas_routes(app):
         except Exception as e:
             logger.error(f"Error granting package: {e}")
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    # ==================== Quota Reservation APIs (Two-Phase Commit) ====================
+    
+    @app.get("/api/user/quota/detailed")
+    async def get_user_quota_detailed(request: Request):
+        '''Get detailed user quota with reservation info'''
+        user = app.state.auth.get_current_user(request)
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        try:
+            # Get quota status
+            quota = app.state.subscription_model.check_quota(user["user_id"])
+            
+            # Get active reservations
+            reservations = app.state.quota_reservation_model.get_user_reservations(
+                user["user_id"],
+                status="reserved",
+                limit=10
+            )
+            
+            # Get reservation statistics
+            stats = app.state.quota_reservation_model.get_statistics(user["user_id"])
+            
+            return {
+                "success": True,
+                "quota": quota,
+                "active_reservations": len(reservations),
+                "reservation_stats": stats
+            }
+        except Exception as e:
+            logger.error(f"Error checking detailed quota: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    @app.get("/api/admin/reservations")
+    async def get_all_reservations(request: Request, status_filter: str = None):
+        '''Get all quota reservations (Admin only)'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            # Get all reservations with optional status filter
+            query = {}
+            if status_filter:
+                query["status"] = status_filter
+            
+            reservations = list(app.state.quota_reservation_model.collection.find(query).sort("created_at", -1).limit(100))
+            
+            for res in reservations:
+                res["_id"] = str(res["_id"])
+                if res.get("created_at"):
+                    res["created_at"] = res["created_at"].isoformat()
+                if res.get("expires_at"):
+                    res["expires_at"] = res["expires_at"].isoformat()
+                if res.get("confirmed_at"):
+                    res["confirmed_at"] = res["confirmed_at"].isoformat()
+                if res.get("rolled_back_at"):
+                    res["rolled_back_at"] = res["rolled_back_at"].isoformat()
+            
+            # Get statistics
+            stats = app.state.quota_reservation_model.get_statistics()
+            
+            return {"success": True, "reservations": reservations, "statistics": stats}
+        except Exception as e:
+            logger.error(f"Error fetching reservations: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    @app.post("/api/admin/reservations/cleanup")
+    async def cleanup_expired_reservations(request: Request):
+        '''Cleanup expired reservations (Admin only)'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            count = app.state.quota_reservation_model.cleanup_expired_reservations()
+            return {"success": True, "message": f"Cleaned up {count} expired reservations", "count": count}
+        except Exception as e:
+            logger.error(f"Error cleaning up reservations: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    @app.post("/api/admin/reservations/{reservation_id}/rollback")
+    async def admin_rollback_reservation(request: Request, reservation_id: str):
+        '''Manually rollback a reservation (Admin only)'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            data = await request.json()
+            reason = data.get("reason", "admin_manual_rollback")
+            
+            success = app.state.quota_reservation_model.rollback_reservation(reservation_id, reason)
+            
+            if success:
+                return {"success": True, "message": "Reservation rolled back successfully"}
+            else:
+                return JSONResponse(status_code=400, content={"success": False, "message": "Failed to rollback reservation"})
+        except Exception as e:
+            logger.error(f"Error rolling back reservation: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    @app.get("/api/admin/quota/stats")
+    async def get_quota_statistics(request: Request):
+        '''Get overall quota statistics (Admin only)'''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            # Get reservation stats
+            reservation_stats = app.state.quota_reservation_model.get_statistics()
+            
+            # Get subscription stats
+            from datetime import datetime
+            active_subs = list(app.state.subscription_model.collection.find({
+                "status": "active",
+                "end_date": {"$gt": datetime.now()}
+            }))
+            
+            total_quota = sum(s.get("slips_quota", 0) for s in active_subs)
+            total_used = sum(s.get("slips_used", 0) for s in active_subs)
+            total_reserved = sum(s.get("slips_reserved", 0) for s in active_subs)
+            
+            return {
+                "success": True,
+                "statistics": {
+                    "subscriptions": {
+                        "active_count": len(active_subs),
+                        "total_quota": total_quota,
+                        "total_used": total_used,
+                        "total_reserved": total_reserved,
+                        "total_available": total_quota - total_used - total_reserved
+                    },
+                    "reservations": reservation_stats
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting quota stats: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})

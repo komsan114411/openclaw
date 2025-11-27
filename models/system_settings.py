@@ -43,16 +43,67 @@ class SystemSettingsModel:
                 "usdt_qr_image": "",  # Base64 or URL of QR code image
                 "usdt_disabled_message": "งดให้บริการชำระเงินด้วย USDT ชั่วคราว",
                 
-                # Quota Exceeded Response Template
+                # ═══════════════════════════════════════════════════════════════════
+                # TWO-PHASE COMMIT & QUOTA MANAGEMENT SETTINGS
+                # ═══════════════════════════════════════════════════════════════════
+                
+                # Duplicate Slip Handling
+                "duplicate_refund_enabled": True,  # คืนเครดิตเมื่อสลิปซ้ำหรือไม่
+                "duplicate_check_scope": "account",  # "account" (ตรวจซ้ำในร้านเดียว) or "global" (ตรวจซ้ำทุกร้าน)
+                
+                # Image Pre-screening Settings
+                "max_image_size_mb": 10,  # ขนาดไฟล์สูงสุด (MB)
+                "min_image_size_bytes": 1024,  # ขนาดไฟล์ต่ำสุด (bytes)
+                "allowed_image_types": ["image/jpeg", "image/png", "image/jpg"],
+                
+                # Quota Warning Settings
+                "quota_warning_threshold": 10,  # แจ้งเตือนเมื่อเหลือน้อยกว่านี้
+                "quota_warning_enabled": True,  # เปิดใช้การแจ้งเตือนโควต้า
+                
+                # Reservation Settings (Two-Phase Commit)
+                "reservation_expiry_minutes": 5,  # หมดอายุการจองหลัง x นาที
+                "auto_cleanup_enabled": True,  # ล้าง expired reservations อัตโนมัติ
+                
+                # ═══════════════════════════════════════════════════════════════════
+                # QUOTA EXCEEDED RESPONSE TEMPLATES
+                # ═══════════════════════════════════════════════════════════════════
+                
                 "quota_exceeded_response_type": "text",  # "text" or "flex"
-                "quota_exceeded_message": "❌ โควต้าของคุณหมดแล้ว\n\nกรุณาติดต่อผู้ดูแลระบบเพื่ออัปเกรดแพ็คเกจ",
+                "quota_exceeded_message": "⚠️ สิทธิ์การตรวจสอบสลิปของร้านค้าหมดแล้ว กรุณาติดต่อแอดมิน",
                 "quota_exceeded_flex_title": "โควต้าหมด",
                 "quota_exceeded_flex_body": "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาอัปเกรดแพ็คเกจเพื่อใช้งานต่อ",
                 "quota_exceeded_flex_button_text": "อัปเกรดแพ็คเกจ",
                 "quota_exceeded_flex_button_url": "",
                 "quota_exceeded_flex_image_url": "",
                 
-                # Quota Warning Thresholds
+                # ═══════════════════════════════════════════════════════════════════
+                # ERROR RESPONSE TEMPLATES (configurable from backend)
+                # ═══════════════════════════════════════════════════════════════════
+                
+                "templates": {
+                    "invalid_image": {
+                        "type": "text",
+                        "message": "📷 กรุณาส่งรูปภาพที่ถูกต้อง (JPEG/PNG ไม่เกิน 10MB)"
+                    },
+                    "qr_not_found": {
+                        "type": "text",
+                        "message": "📱 ไม่พบ QR Code กรุณาถ่ายรูปสลิปให้ชัดเจน"
+                    },
+                    "duplicate_with_refund": {
+                        "type": "flex",
+                        "message": "🔄 สลิปนี้เคยใช้แล้ว (ไม่หักเครดิต)"
+                    },
+                    "duplicate_no_refund": {
+                        "type": "flex",
+                        "message": "🔄 สลิปนี้เคยใช้แล้ว"
+                    },
+                    "api_error": {
+                        "type": "text",
+                        "message": "❌ เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่"
+                    }
+                },
+                
+                # Quota Warning Thresholds (Legacy - keep for backward compatibility)
                 "quota_warning_slip_threshold": 50,  # Warn when < 50 slips remain
                 "quota_warning_days_threshold": 7,    # Warn when < 7 days remain
                 
@@ -79,6 +130,42 @@ class SystemSettingsModel:
             }
             
             self.collection.insert_one(default_settings)
+        else:
+            # Migrate existing settings to add new fields
+            self._migrate_settings()
+    
+    def _migrate_settings(self):
+        """Migrate existing settings to add new fields"""
+        new_fields = {
+            # Two-Phase Commit settings
+            "duplicate_refund_enabled": True,
+            "duplicate_check_scope": "account",
+            "max_image_size_mb": 10,
+            "min_image_size_bytes": 1024,
+            "allowed_image_types": ["image/jpeg", "image/png", "image/jpg"],
+            "quota_warning_threshold": 10,
+            "quota_warning_enabled": True,
+            "reservation_expiry_minutes": 5,
+            "auto_cleanup_enabled": True,
+            "templates": {
+                "invalid_image": {"type": "text", "message": "📷 กรุณาส่งรูปภาพที่ถูกต้อง (JPEG/PNG ไม่เกิน 10MB)"},
+                "qr_not_found": {"type": "text", "message": "📱 ไม่พบ QR Code กรุณาถ่ายรูปสลิปให้ชัดเจน"},
+                "duplicate_with_refund": {"type": "flex", "message": "🔄 สลิปนี้เคยใช้แล้ว (ไม่หักเครดิต)"},
+                "duplicate_no_refund": {"type": "flex", "message": "🔄 สลิปนี้เคยใช้แล้ว"},
+                "api_error": {"type": "text", "message": "❌ เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่"}
+            }
+        }
+        
+        # Only add fields that don't exist
+        settings = self.collection.find_one({})
+        if settings:
+            update_fields = {}
+            for key, value in new_fields.items():
+                if key not in settings:
+                    update_fields[key] = value
+            
+            if update_fields:
+                self.collection.update_one({}, {"$set": update_fields})
     
     def get_settings(self) -> Dict[str, Any]:
         """Get current system settings"""
