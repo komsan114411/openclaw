@@ -1247,15 +1247,12 @@ async def system_status(request: Request):
         }
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    logger.info(f"🚀 Starting server on {settings.HOST}:{settings.PORT}")
-    uvicorn.run(
-        app, 
-        host=settings.HOST, 
-        port=settings.PORT,
-        log_level=settings.LOG_LEVEL.lower()
-    )
+# LINE Webhook handler code
+async def line_webhook_handler(request: Request, account_id: str):
+    """Handle LINE webhook"""
+    try:
+        account = app.state.line_account_model.get_account_by_id(account_id)
+        if not account:
             raise HTTPException(status_code=404, detail="Account not found")
         
         # Verify signature
@@ -2512,41 +2509,11 @@ async def chat_history_page(request: Request, account_id: str):
     
     return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
-        
-        for user_id in users:
-            messages = app.state.chat_message_model.get_conversation(account_id, user_id, limit=1)
-            if messages:
-                last_msg = messages[0]
-                # Get user profile from LINE
-                user_name = user_id
-                picture_url = None
-                try:
-                    # ใช้ LINE Bot API ดึงโปรไฟล์ผู้ใช้
-                    import requests
-                    headers = {"Authorization": f"Bearer {account.get('channel_access_token')}"}
-                    response = requests.get(f"https://api.line.me/v2/bot/profile/{user_id}", headers=headers)
-                    if response.status_code == 200:
-                        profile = response.json()
-                        user_name = profile.get("displayName", user_id)
-                        picture_url = profile.get("pictureUrl")
-                except Exception as e:
-                    logger.error(f"Error getting LINE profile: {e}")
-                
-                user_list.append({
-                    "user_id": user_id,
-                    "user_name": user_name,
-                    "picture_url": picture_url,
-                    "last_message": last_msg.get("text", last_msg.get("message_type", "[ไม่มีข้อความ]")),
-                    "last_message_time": last_msg.get("timestamp", "")
-                })
-        
-        return {"success": True, "users": user_list}
-    except Exception as e:
-        logger.error(f"Error getting chat users: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายชื่อผู้ใช้"}
-        )
+        "user": user,
+        "account": account,
+        "account_id": account_id,
+        "line_accounts": line_accounts
+    })
 
 @app.get("/api/chat-messages/{account_id}/{user_id}")
 async def get_chat_messages(request: Request, account_id: str, user_id: str, limit: int = 50, skip: int = 0):
@@ -2640,25 +2607,8 @@ async def get_line_image(request: Request, account_id: str, message_id: str):
                 raise HTTPException(status_code=response.status_code, detail="Failed to get image from LINE")
                 
     except Exception as e:
-
-    try:
-        data = await request.json()
-        api_key = data.get("api_key")
-        if not api_key:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "API Key is required"}
-            )
-
-        result = test_thunder_api_connection(api_key)
-        return JSONResponse(content=result)
-
-    except Exception as e:
-        logger.error(f"Error in test_thunder_api_route: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "Internal Server Error"}
-        )
+        logger.error(f"Error getting LINE image: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get image")
 
 
 # ==================== Bank Account Routes ====================
@@ -2980,3 +2930,13 @@ async def test_slip_api(request: Request, account_id: str):
             status_code=500,
             content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
         )
+
+if __name__ == "__main__":
+    import uvicorn
+    logger.info(f"🚀 Starting server on {settings.HOST}:{settings.PORT}")
+    uvicorn.run(
+        app, 
+        host=settings.HOST, 
+        port=settings.PORT,
+        log_level=settings.LOG_LEVEL.lower()
+    )
