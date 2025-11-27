@@ -76,10 +76,16 @@ class ChatMessage:
                 .limit(limit)
             )
             
-            # Convert ObjectId to string
+            # Convert ObjectId to string and format timestamp with Thailand timezone
             for msg in messages:
                 msg["_id"] = str(msg["_id"])
-                msg["timestamp"] = msg["timestamp"].isoformat()
+                if msg.get("timestamp"):
+                    ts = msg["timestamp"]
+                    if hasattr(ts, 'strftime'):
+                        # Format with Thailand timezone (+07:00)
+                        msg["timestamp"] = ts.strftime('%Y-%m-%dT%H:%M:%S+07:00')
+                    elif hasattr(ts, 'isoformat'):
+                        msg["timestamp"] = ts.isoformat()
             
             return messages
         except Exception as e:
@@ -137,10 +143,15 @@ class ChatMessage:
                 .limit(limit)
             )
             
-            # Convert ObjectId to string
+            # Convert ObjectId to string and format timestamp with Thailand timezone
             for msg in messages:
                 msg["_id"] = str(msg["_id"])
-                msg["timestamp"] = msg["timestamp"].isoformat()
+                if msg.get("timestamp"):
+                    ts = msg["timestamp"]
+                    if hasattr(ts, 'strftime'):
+                        msg["timestamp"] = ts.strftime('%Y-%m-%dT%H:%M:%S+07:00')
+                    elif hasattr(ts, 'isoformat'):
+                        msg["timestamp"] = ts.isoformat()
             
             return messages
         except Exception as e:

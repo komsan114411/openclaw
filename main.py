@@ -3068,50 +3068,80 @@ async def get_line_image(request: Request, account_id: str, message_id: str):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
-        # First, try to get image from database
-        from bson import ObjectId
+        import base64
+        from fastapi.responses import Response
+        
+        # Try to find the message with image data - try both string and ObjectId formats
+        message = None
+        
+        # Try with account_id as string first
         message = app.state.chat_message_model.collection.find_one({
             "message_id": message_id,
             "account_id": account_id
         })
         
-        if message and message.get("metadata", {}).get("image_data"):
-            # Decode base64 image from database
-            import base64
-            image_data = base64.b64decode(message["metadata"]["image_data"])
-            from fastapi.responses import Response
-            return Response(
-                content=image_data,
-                media_type="image/jpeg"
-            )
+        # If not found, try with account_id matching the account's _id (string form)
+        if not message:
+            message = app.state.chat_message_model.collection.find_one({
+                "message_id": message_id,
+                "account_id": str(account.get("_id", ""))
+            })
         
-        # Fallback: Get image from LINE API if not in database
+        # If found and has image data, return it
+        if message and message.get("metadata", {}).get("image_data"):
+            try:
+                image_data = base64.b64decode(message["metadata"]["image_data"])
+                return Response(
+                    content=image_data,
+                    media_type="image/jpeg",
+                    headers={"Cache-Control": "public, max-age=86400"}  # Cache for 1 day
+                )
+            except Exception as decode_error:
+                logger.warning(f"Failed to decode image from database: {decode_error}")
+        
+        # Fallback: Get image from LINE API
+        logger.info(f"📥 Fetching image from LINE API: {message_id}")
         image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
         headers = {
             "Authorization": f"Bearer {account['channel_access_token']}"
         }
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(image_url, headers=headers)
             
             if response.status_code == 200:
                 # Store image in database for future use
-                import base64
                 image_base64 = base64.b64encode(response.content).decode('utf-8')
+                
+                # Update existing message or create new record
                 if message:
                     app.state.chat_message_model.collection.update_one(
                         {"_id": message["_id"]},
                         {"$set": {"metadata.image_data": image_base64}}
                     )
+                else:
+                    # Try to find by just message_id
+                    result = app.state.chat_message_model.collection.update_one(
+                        {"message_id": message_id},
+                        {"$set": {"metadata.image_data": image_base64}}
+                    )
+                    if result.modified_count == 0:
+                        logger.warning(f"Could not update image for message_id: {message_id}")
                 
-                from fastapi.responses import Response
                 return Response(
                     content=response.content,
-                    media_type=response.headers.get("content-type", "image/jpeg")
+                    media_type=response.headers.get("content-type", "image/jpeg"),
+                    headers={"Cache-Control": "public, max-age=86400"}
                 )
+            elif response.status_code == 404:
+                logger.warning(f"Image not found in LINE API: {message_id}")
+                raise HTTPException(status_code=404, detail="Image not found or expired")
             else:
+                logger.error(f"LINE API error: {response.status_code}")
                 raise HTTPException(status_code=response.status_code, detail="Failed to get image from LINE")
                 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting LINE image: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
