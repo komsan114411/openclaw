@@ -5,7 +5,7 @@ Fixes Bug #11: Improved quota flow
 """
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from bson import ObjectId
 
 logger = logging.getLogger("slip_utils")
