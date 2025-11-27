@@ -45,11 +45,6 @@ from models.error_codes import ErrorCode, ResponseMessage
 from models.bank_account import BankAccount
 from models.slip_history import SlipHistory
 from models.bank import BankModel
-# SaaS Models
-from models.package import PackageModel
-from models.subscription import SubscriptionModel
-from models.payment import PaymentModel
-from models.system_settings import SystemSettingsModel
 
 # Import middleware
 from middleware.auth import AuthMiddleware, get_current_user_from_request
@@ -58,6 +53,13 @@ from middleware.auth import AuthMiddleware, get_current_user_from_request
 from services.chat_bot import get_chat_response, get_chat_response_async
 from services.slip_checker import SlipChecker
 from services.slip_formatter import create_beautiful_slip_flex_message, create_error_flex_message
+
+# Import utilities (New)
+from utils.rate_limiter import get_rate_limiter
+from utils.slip_utils import SlipVerificationManager, QuotaManager
+from utils.security import get_secure_storage
+from utils.session_manager import SessionManager
+from utils.api_monitor import ApiQuotaMonitor
 
 # Global variables
 IS_READY = False
@@ -78,15 +80,25 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
         logger.info(f"📱 WebSocket disconnected. Total: {len(self.active_connections)}")
     
-    async def broadcast(self, message: dict):
-        """Broadcast message to all connected clients"""
+    async def broadcast(self, message: dict, timeout: float = 5.0):
+        """Broadcast message to all connected clients with timeout per connection"""
         disconnected = []
-        for connection in self.active_connections:
+        
+        async def send_with_timeout(conn):
             try:
-                await connection.send_json(message)
+                async with asyncio.timeout(timeout):
+                    await conn.send_json(message)
+            except asyncio.TimeoutError:
+                logger.warning(f"⏱️ Timeout sending to websocket")
+                disconnected.append(conn)
             except Exception as e:
-                logger.error(f"Error sending to websocket: {e}")
-                disconnected.append(connection)
+                logger.error(f"❌ Error sending to websocket: {e}")
+                disconnected.append(conn)
+        
+        # Send to all connections concurrently
+        tasks = [send_with_timeout(conn) for conn in self.active_connections]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         
         # Remove disconnected clients
         for conn in disconnected:
@@ -120,19 +132,6 @@ async def lifespan(app: FastAPI):
         app.state.bank_account_model = BankAccount(app.state.db)
         app.state.slip_history_model = SlipHistory(app.state.db)
         app.state.bank_model = BankModel(app.state.db)
-        
-        # Initialize SaaS models
-        app.state.package_model = PackageModel(app.state.db)
-        app.state.subscription_model = SubscriptionModel(app.state.db)
-        app.state.payment_model = PaymentModel(app.state.db)
-        app.state.system_settings_model = SystemSettingsModel(app.state.db)
-        
-        # Initialize auth middleware
-        app.state.auth = AuthMiddleware(app.state.session_model)
-        
-        logger.info("✅ Models initialized")
-        
-        IS_READY = True
         logger.info("✅ System ready!")
         
         yield
@@ -152,14 +151,6 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan
 )
-
-# Register SaaS Routes
-from routes.saas_routes import register_saas_routes
-register_saas_routes(app)
-
-# Register UI Routes
-from routes.ui_routes import register_ui_routes
-register_ui_routes(app)
 
 # CORS middleware
 app.add_middleware(
@@ -210,16 +201,15 @@ class UpdateLineAccountSettingsRequest(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
     ai_enabled: Optional[bool] = None
+    ai_api_key: Optional[str] = None
     ai_model: Optional[str] = None
     ai_system_prompt: Optional[str] = None
     ai_temperature: Optional[float] = None
     ai_fallback_message: Optional[str] = None
-    ai_response_mode: Optional[str] = None  # "immediate" or "processing"
-    ai_immediate_message: Optional[str] = None  # Message sent immediately when response_mode is "immediate"
     slip_verification_enabled: Optional[bool] = None
+    slip_api_provider: Optional[str] = None
+    slip_api_key: Optional[str] = None
     slip_template_id: Optional[str] = None
-    slip_response_mode: Optional[str] = None  # "immediate" or "processing"
-    slip_immediate_message: Optional[str] = None  # Message sent immediately when response_mode is "immediate"
 
 class CreateBankAccountRequest(BaseModel):
     account_name: str
@@ -417,8 +407,8 @@ async def admin_dashboard(request: Request):
     if not user or user["role"] != UserRole.ADMIN:
         return RedirectResponse(url="/login")
     
-    total_users = len(app.state.user_model.get_all_users())
-    total_line_accounts = len(app.state.line_account_model.get_all_accounts())
+    total_users = app.state.db.users.count_documents({"is_active": True})
+    total_line_accounts = app.state.db.line_accounts.count_documents({})
     
     # นับจำนวนข้อความวันนี้
     from datetime import datetime, timedelta
@@ -533,98 +523,6 @@ async def delete_user_api(request: Request, user_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "ไม่สามารถลบผู้ใช้ได้"}
-        )
-
-@app.put("/api/admin/users/{user_id}")
-async def update_user_api(request: Request, user_id: str):
-    """Update user information (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        data = await request.json()
-        update_data = {}
-        
-        if "email" in data:
-            update_data["email"] = data["email"]
-        if "full_name" in data:
-            update_data["full_name"] = data["full_name"]
-        if "role" in data:
-            update_data["role"] = data["role"]
-        
-        if not update_data:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "ไม่มีข้อมูลที่จะอัปเดต"}
-            )
-        
-        success = app.state.user_model.update_user(user_id, update_data)
-        if success:
-            await manager.broadcast({
-                "type": "success",
-                "message": "อัปเดตข้อมูลผู้ใช้สำเร็จ"
-            })
-            return {"success": True, "message": "อัปเดตข้อมูลผู้ใช้สำเร็จ"}
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": "ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้"}
-            )
-    except Exception as e:
-        logger.error(f"Error updating user: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้"}
-        )
-
-@app.post("/api/admin/users/{user_id}/password")
-async def change_user_password_api(request: Request, user_id: str):
-    """Change user password (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        data = await request.json()
-        new_password = data.get("new_password")
-        confirm_password = data.get("confirm_password")
-        
-        if not new_password or not confirm_password:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "กรุณากรอกรหัสผ่านใหม่และยืนยันรหัสผ่าน"}
-            )
-        
-        if new_password != confirm_password:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "รหัสผ่านใหม่ไม่ตรงกัน"}
-            )
-        
-        if len(new_password) < 6:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"}
-            )
-        
-        success = app.state.user_model.update_password(user_id, new_password, clear_force_change=True)
-        if success:
-            await manager.broadcast({
-                "type": "success",
-                "message": "เปลี่ยนรหัสผ่านผู้ใช้สำเร็จ"
-            })
-            return {"success": True, "message": "เปลี่ยนรหัสผ่านผู้ใช้สำเร็จ"}
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": "ไม่สามารถเปลี่ยนรหัสผ่านได้"}
-            )
-    except Exception as e:
-        logger.error(f"Error changing user password: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน"}
         )
 
 @app.put("/api/admin/users/{user_id}/restore")
@@ -876,35 +774,6 @@ async def create_line_account_by_admin(request: Request, data: CreateLineAccount
             content={"success": False, "message": "เกิดข้อผิดพลาดในการเพิ่มบัญชี LINE"}
         )
 
-@app.get("/api/admin/line-accounts")
-async def get_all_line_accounts(request: Request):
-    """Get all LINE accounts (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        accounts = app.state.line_account_model.get_all_accounts()
-        # Convert to JSON-serializable format
-        result = []
-        for acc in accounts:
-            acc_dict = {
-                "_id": str(acc.get("_id", "")),
-                "account_name": acc.get("account_name", ""),
-                "channel_id": acc.get("channel_id", ""),
-                "is_active": acc.get("is_active", True),
-                "owner_id": acc.get("owner_id", ""),
-                "created_at": acc.get("created_at").isoformat() if acc.get("created_at") else None
-            }
-            result.append(acc_dict)
-        return {"success": True, "accounts": result}
-    except Exception as e:
-        logger.error(f"Error fetching LINE accounts: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการโหลดข้อมูล"}
-        )
-
 @app.delete("/api/admin/line-accounts/{account_id}")
 async def delete_line_account_by_admin(request: Request, account_id: str):
     """Delete LINE account (Admin only)"""
@@ -930,74 +799,6 @@ async def delete_line_account_by_admin(request: Request, account_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการลบบัญชี LINE"}
-        )
-
-@app.post("/api/admin/line-accounts/{account_id}/test")
-async def test_line_connection(request: Request, account_id: str):
-    """Test LINE OA connection (Admin only)"""
-    user = app.state.auth.get_current_user(request)
-    if not user or user["role"] != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        import requests
-        
-        # Get LINE account
-        account = app.state.line_account_model.get_account_by_id(account_id)
-        if not account:
-            return JSONResponse(
-                status_code=404,
-                content={"success": False, "message": "ไม่พบบัญชี LINE"}
-            )
-        
-        access_token = account.get("channel_access_token", "")
-        if not access_token:
-            return {"success": False, "message": "ไม่พบ Channel Access Token"}
-        
-        # Test connection by getting bot info
-        headers = {"Authorization": f"Bearer {access_token}"}
-        response = requests.get("https://api.line.me/v2/bot/info", headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            bot_info = response.json()
-            
-            # Get quota status if owner exists
-            quota_status = None
-            owner_id = account.get("owner_id")
-            if owner_id:
-                try:
-                    quota = app.state.subscription_model.check_quota(owner_id)
-                    quota_status = {
-                        "remaining": quota.get("slips_remaining", 0),
-                        "quota_exceeded": not quota.get("has_quota", True),
-                        "is_active": quota.get("is_active", False)
-                    }
-                except:
-                    pass
-            
-            return {
-                "success": True,
-                "message": "เชื่อมต่อสำเร็จ",
-                "bot_info": {
-                    "displayName": bot_info.get("displayName", ""),
-                    "userId": bot_info.get("userId", ""),
-                    "pictureUrl": bot_info.get("pictureUrl", "")
-                },
-                "quota_status": quota_status
-            }
-        elif response.status_code == 401:
-            return {"success": False, "message": "Token ไม่ถูกต้องหรือหมดอายุ"}
-        else:
-            return {"success": False, "message": f"เกิดข้อผิดพลาด: HTTP {response.status_code}"}
-    except requests.exceptions.Timeout:
-        return {"success": False, "message": "หมดเวลาในการเชื่อมต่อ"}
-    except requests.exceptions.ConnectionError:
-        return {"success": False, "message": "ไม่สามารถเชื่อมต่อ LINE API ได้"}
-    except Exception as e:
-        logger.error(f"Error testing LINE connection: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"เกิดข้อผิดพลาด: {str(e)}"}
         )
 
 # ==================== User Routes ====================
@@ -1192,6 +993,8 @@ async def update_line_account_settings_api(
         # Update AI settings
         if data.ai_enabled is not None:
             settings["ai_enabled"] = data.ai_enabled
+        if data.ai_api_key is not None:
+            settings["ai_api_key"] = data.ai_api_key
         if data.ai_model is not None:
             settings["ai_model"] = data.ai_model
         if data.ai_system_prompt is not None:
@@ -1200,20 +1003,16 @@ async def update_line_account_settings_api(
             settings["ai_temperature"] = data.ai_temperature
         if data.ai_fallback_message is not None:
             settings["ai_fallback_message"] = data.ai_fallback_message
-        if data.ai_response_mode is not None:
-            settings["ai_response_mode"] = data.ai_response_mode
-        if data.ai_immediate_message is not None:
-            settings["ai_immediate_message"] = data.ai_immediate_message
         
         # Update slip verification settings
         if data.slip_verification_enabled is not None:
             settings["slip_verification_enabled"] = data.slip_verification_enabled
+        if data.slip_api_provider is not None:
+            settings["slip_api_provider"] = data.slip_api_provider
+        if data.slip_api_key is not None:
+            settings["slip_api_key"] = data.slip_api_key
         if data.slip_template_id is not None:
             settings["slip_template_id"] = data.slip_template_id
-        if data.slip_response_mode is not None:
-            settings["slip_response_mode"] = data.slip_response_mode
-        if data.slip_immediate_message is not None:
-            settings["slip_immediate_message"] = data.slip_immediate_message
         
         update_data["settings"] = settings
         update_data["updated_at"] = datetime.utcnow()
@@ -1457,17 +1256,6 @@ if __name__ == "__main__":
         port=settings.PORT,
         log_level=settings.LOG_LEVEL.lower()
     )
-
-# ==================== LINE Webhook ====================
-
-@app.post("/webhook/line/{account_id}")
-async def line_webhook(request: Request, account_id: str):
-    """LINE Webhook endpoint for receiving messages"""
-    try:
-        # Get LINE account by ID
-        account = app.state.line_account_model.get_account_by_id(account_id)
-        if not account:
-            logger.error(f"❌ LINE account not found: {account_id}")
             raise HTTPException(status_code=404, detail="Account not found")
         
         # Verify signature
@@ -1484,7 +1272,7 @@ async def line_webhook(request: Request, account_id: str):
         expected_signature = base64.b64encode(hash_digest).decode('utf-8')
         
         if signature != expected_signature:
-            logger.error(f"❌ Invalid signature for channel: {channel_id}")
+            logger.error(f"❌ Invalid signature for account: {account_id}")
             raise HTTPException(status_code=400, detail="Invalid signature")
         
         # Parse webhook data
@@ -1618,7 +1406,41 @@ async def handle_text_message(text: str, reply_token: str, user_id: str, account
 async def handle_image_message(message_id: str, reply_token: str, user_id: str, account: Dict[str, Any]):
     """Handle image message (slip verification)"""
     try:
-        # Download image from LINE and store in database
+        # 1. Check if slip verification is enabled
+        settings = account.get("settings", {})
+        if not settings.get("slip_verification_enabled", False):
+            await send_line_reply(
+                reply_token,
+                "ระบบตรวจสอบสลิปยังไม่เปิดใช้งาน",
+                account["channel_access_token"]
+            )
+            return
+            
+        # 1. Send immediate feedback (UX Improvement)
+        await send_line_reply(
+            reply_token,
+            "📥 กำลังดาวน์โหลดและตรวจสอบรูปภาพ...",
+            account["channel_access_token"]
+        )
+
+        # 2. Check Quota (Bug #2 & #11 Fix)
+        # Use owner_id for quota check (quota belongs to account owner)
+        owner_id = account.get("owner_id")
+        reservation_id = None
+        
+        if owner_id:
+            reservation_id = app.state.quota_manager.reserve_quota(owner_id)
+            if not reservation_id:
+                # Quota exceeded
+                await send_line_reply(
+                    reply_token,
+                    "❌ โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาเติมแพ็กเกจ",
+                    account["channel_access_token"]
+                )
+                logger.warning(f"⚠️ Quota exceeded for owner {owner_id}")
+                return
+
+        # 3. Download image from LINE
         image_data = None
         try:
             image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
@@ -1627,10 +1449,52 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             response.raise_for_status()
             image_data = response.content
             logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes")
+            
+            # Image Validation (Bug #13 Fix)
+            # 1. Check size (Max 10MB)
+            if len(image_data) > 10 * 1024 * 1024:
+                logger.warning(f"⚠️ Image too large: {len(image_data)} bytes")
+                if reservation_id and owner_id:
+                    app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+                await send_line_reply(
+                    reply_token,
+                    "❌ รูปภาพมีขนาดใหญ่เกินไป (สูงสุด 10MB) กรุณาลองใหม่",
+                    account["channel_access_token"]
+                )
+                return
+
+            # 2. Check type (Magic numbers)
+            is_valid_image = False
+            if image_data.startswith(b'\xff\xd8'): # JPEG
+                is_valid_image = True
+            elif image_data.startswith(b'\x89PNG\r\n\x1a\n'): # PNG
+                is_valid_image = True
+                
+            if not is_valid_image:
+                logger.warning("⚠️ Invalid image format")
+                if reservation_id and owner_id:
+                    app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+                await send_line_reply(
+                    reply_token,
+                    "❌ ไฟล์ไม่ถูกต้อง กรุณาส่งรูปภาพ (JPEG/PNG) เท่านั้น",
+                    account["channel_access_token"]
+                )
+                return
+
         except Exception as e:
             logger.error(f"❌ Error downloading image from LINE: {e}")
+            # Rollback quota if download fails
+            if reservation_id and owner_id:
+                app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+                
+            await send_line_reply(
+                reply_token,
+                "❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง",
+                account["channel_access_token"]
+            )
+            return
         
-        # Save image message with image data stored in database
+        # 4. Save image message
         import base64
         image_base64 = base64.b64encode(image_data).decode('utf-8') if image_data else None
         
@@ -1640,266 +1504,130 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             message_type="image",
             content="[รูปภาพ]",
             message_id=message_id,
-            media_url=image_url,  # Keep URL for reference
+            media_url=image_url,
             sender="user",
-            metadata={"image_data": image_base64}  # Store base64 encoded image
+            metadata={"image_data": image_base64}
         )
         
-        settings = account.get("settings", {})
-        
-        # Check if slip verification is enabled
-        if not settings.get("slip_verification_enabled", False):
-            await send_line_reply(
-                reply_token,
-                "ระบบตรวจสอบสลิปยังไม่เปิดใช้งาน",
-                account["channel_access_token"]
-            )
-            return
-        
-        # [NEW] Check User Quota (SaaS Integration)
-        owner_id = account.get("owner_id")
-        if owner_id:
-            quota_status = app.state.subscription_model.check_quota(owner_id)
-            if quota_status["remaining_slips"] <= 0:  # Fixed: was "remaining"
-                # Use configured quota exceeded message from system settings
-                system_settings = app.state.system_settings_model.get_settings()
-                response_type = system_settings.get("quota_exceeded_response_type", "text")
-                
-                if response_type == "flex":
-                    # Send Flex Message
-                    flex_title = system_settings.get("quota_exceeded_flex_title", "โควต้าหมด")
-                    flex_body = system_settings.get("quota_exceeded_flex_body", "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาอัปเกรดแพ็คเกจเพื่อใช้งานต่อ")
-                    flex_button_text = system_settings.get("quota_exceeded_flex_button_text", "อัปเกรดแพ็คเกจ")
-                    flex_button_url = system_settings.get("quota_exceeded_flex_button_url", "")
-                    flex_image_url = system_settings.get("quota_exceeded_flex_image_url", "")
-                    
-                    # Build Flex Message
-                    flex_contents = {
-                        "type": "bubble",
-                        "body": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": flex_title,
-                                    "weight": "bold",
-                                    "size": "xl",
-                                    "color": "#dc3545"
-                                },
-                                {
-                                    "type": "text",
-                                    "text": flex_body,
-                                    "wrap": True,
-                                    "margin": "md"
-                                }
-                            ]
-                        }
-                    }
-                    
-                    # Add image if provided
-                    if flex_image_url:
-                        flex_contents["hero"] = {
-                            "type": "image",
-                            "url": flex_image_url,
-                            "size": "full",
-                            "aspectRatio": "20:13",
-                            "aspectMode": "cover"
-                        }
-                    
-                    # Add button if URL provided
-                    if flex_button_url and flex_button_text:
-                        flex_contents["footer"] = {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {
-                                    "type": "button",
-                                    "action": {
-                                        "type": "uri",
-                                        "label": flex_button_text,
-                                        "uri": flex_button_url
-                                    },
-                                    "style": "primary"
-                                }
-                            ]
-                        }
-                    
-                    # Send Flex Message
-                    try:
-                        url = "https://api.line.me/v2/bot/message/reply"
-                        headers = {
-                            "Content-Type": "application/json",
-                            "Authorization": f"Bearer {account['channel_access_token']}"
-                        }
-                        data = {
-                            "replyToken": reply_token,
-                            "messages": [
-                                {
-                                    "type": "flex",
-                                    "altText": flex_title,
-                                    "contents": flex_contents
-                                }
-                            ]
-                        }
-                        async with httpx.AsyncClient() as client:
-                            await client.post(url, headers=headers, json=data)
-                    except Exception as e:
-                        logger.error(f"Error sending quota exceeded flex message: {e}")
-                else:
-                    # Send text message
-                    quota_message = system_settings.get("quota_exceeded_message", "❌ โควต้าของคุณหมดแล้ว\n\nกรุณาติดต่อผู้ดูแลระบบเพื่ออัปเกรดแพ็คเกจ")
-                    await send_line_reply(
-                        reply_token,
-                        quota_message,
-                        account["channel_access_token"]
-                    )
-                return
-        
-        # Get slip API settings
+        # 5. Get slip API settings
         slip_api_provider = settings.get("slip_api_provider", "thunder")
         slip_api_key = settings.get("slip_api_key")
         
+        # Decrypt API key if encrypted (Bug #16 Fix)
+        # Note: settings.get might return plain text from env, but if we used account settings override:
+        account_settings = account.get("settings", {})
+        if account_settings.get("slip_api_key"):
+            # Use account specific key
+            encrypted_key = account_settings.get("slip_api_key")
+            try:
+                slip_api_key = app.state.secure_storage.decrypt(encrypted_key)
+            except:
+                # Fallback to plain text if decryption fails (legacy support)
+                slip_api_key = encrypted_key
+        
         if not slip_api_key:
+            if reservation_id and owner_id:
+                app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+                
             await send_line_reply(
                 reply_token,
-                "ยังไม่ได้ตั้งค่า API Key สำหรับตรวจสอบสลิป",
+                "❌ ระบบตรวจสอบสลิปยังไม่พร้อมใช้งาน\nกรุณาติดต่อแอดมินเพื่อตั้งค่าระบบ",
                 account["channel_access_token"]
             )
             return
         
-        # Send processing message
-        await send_line_reply(
-            reply_token,
-            "กำลังตรวจสอบสลิป กรุณารอสักครู่...",
-            account["channel_access_token"]
-        )
-        
-        # Verify slip with provider selection and fallback
+        # 6. Verify slip
         logger.info(f"🔍 Starting slip verification for message_id: {message_id}")
-        logger.info(f"🔑 API Key (first 10 chars): {slip_api_key[:10]}...")
-        logger.info(f"🔑 LINE Token (first 10 chars): {account['channel_access_token'][:10]}...")
-        logger.info(f"📡 Using provider: {slip_api_provider}")
         
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
         
-        # Get system settings for fallback
-        system_settings = app.state.system_settings_model.get_settings()
-        fallback_enabled = system_settings.get("slip_api_fallback_enabled", False)
-        secondary_api_key = system_settings.get("slip_api_key_secondary", "")
-        secondary_provider = system_settings.get("slip_api_provider_secondary", "")
-        
-        # Pass image_data if we have it (avoid re-downloading from LINE)
+        start_time = datetime.now()
         result = slip_checker.verify_slip(
             message_id=message_id,
-            test_image_data=image_data,  # Pass downloaded image data
+            test_image_data=image_data,
             provider=slip_api_provider
         )
+        end_time = datetime.now()
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
         
-        # If primary API failed and fallback is enabled, try secondary API
-        if (result.get("status") == "error" and 
-            fallback_enabled and 
-            secondary_api_key and 
-            secondary_provider and
-            result.get("message", "").lower().find("quota") == -1 and  # Don't fallback if quota exceeded
-            result.get("message", "").lower().find("expired") == -1):  # Don't fallback if expired
+        logger.info(f"📊 Slip verification result: {result.get('status')} ({duration_ms}ms)")
+        
+        # Record API usage (Bug #10 Fix)
+        if owner_id:
+            is_api_success = result.get("status") in ["success", "duplicate"]
+            # Note: duplicate is considered a successful API call (it returned valid data)
+            # But if status is "error", it's a failed call
             
-            logger.warning(f"⚠️ Primary API ({slip_api_provider}) failed, trying fallback ({secondary_provider})")
-            
-            # Try secondary API
-            try:
-                if secondary_provider == "kbank":
-                    from services.kbank_checker import kbank_checker
-                    # Extract bank code and trans_ref from image if possible
-                    # For now, just log that we're trying fallback
-                    logger.info("🔄 Attempting KBank API fallback...")
-                    # Note: KBank API requires bank_code and trans_ref, which we might not have from image
-                    # This is a limitation - we'd need OCR or user input
-                else:
-                    # Try Thunder API as fallback
-                    from services.slip_checker import verify_slip_with_thunder
-                    fallback_result = verify_slip_with_thunder(
-                        message_id=message_id,
-                        test_image_data=image_data,
-                        line_token=account["channel_access_token"],
-                        api_token=secondary_api_key
-                    )
-                    
-                    if fallback_result.get("status") in ["success", "duplicate"]:
-                        logger.info(f"✅ Fallback API ({secondary_provider}) succeeded!")
-                        result = fallback_result
-                        result["used_fallback"] = True
-                        result["fallback_provider"] = secondary_provider
-                    else:
-                        logger.warning(f"⚠️ Fallback API ({secondary_provider}) also failed")
-                        result["fallback_attempted"] = True
-                        result["fallback_failed"] = True
-            except Exception as fallback_error:
-                logger.error(f"❌ Fallback API error: {fallback_error}")
-                result["fallback_attempted"] = True
-                result["fallback_error"] = str(fallback_error)
+            app.state.api_monitor.record_api_call(
+                provider=slip_api_provider,
+                success=is_api_success,
+                account_id=account["_id"], # Use LINE account ID for tracking
+                response_time_ms=duration_ms
+            )
         
-        logger.info(f"📊 Slip verification result: {result.get('status')}")
-        logger.info(f"📄 Result message: {result.get('message', 'No message')}")
+        # 7. Handle Result & Quota Confirmation
+        status = result.get("status")
         
-        # [NEW] Deduct Quota (SaaS Integration)
-        # Only deduct quota when slip verification is successful or duplicate
-        # Do NOT deduct for errors, not_found, qr_not_found - user should not pay for failed verifications
-        if owner_id and result.get("status") in ["success", "duplicate"]:
-             app.state.subscription_model.use_slip_quota(owner_id)
-             logger.info(f"📉 Deducted 1 slip quota for user {owner_id} (status: {result.get('status')})")
-        elif owner_id:
-             logger.info(f"⏸️ No quota deducted for user {owner_id} (status: {result.get('status')} - only deduct on success/duplicate)")
-
-        # ตรวจสอบและบันทึกสลิปซ้ำ
-        if result.get("status") in ["success", "duplicate"]:
+        if status == "success":
+            # Confirm quota usage
+            if reservation_id and owner_id:
+                app.state.quota_manager.confirm_quota(owner_id, reservation_id)
+                
+            # Record slip (Atomic)
             trans_ref = result.get("data", {}).get("transRef", "")
             amount = result.get("data", {}).get("amount", 0)
             
-            # นับจำนวนครั้งที่สลิปนี้ถูกตรวจสอบ (ก่อนบันทึกครั้งใหม่)
-            duplicate_count = app.state.slip_history_model.get_duplicate_count(trans_ref, account["_id"])
-            
-            # บันทึกประวัติการตรวจสอบสลิป
-            app.state.slip_history_model.record_slip(
-                account_id=account["_id"],
+            is_new, msg = app.state.slip_manager.record_slip_atomic(
+                account_id=str(account["_id"]),
                 user_id=user_id,
                 trans_ref=trans_ref,
                 amount=float(amount) if amount else 0,
-                status=result.get("status"),
+                status=status,
                 metadata={"message_id": message_id}
             )
             
-            # เพิ่มข้อมูลจำนวนครั้งที่ซ้ำใน result
+            if not is_new:
+                # It's a duplicate (race condition caught)
+                result["status"] = "duplicate"
+                result["message"] = "สลิปนี้ถูกตรวจสอบไปแล้ว (Race Condition)"
+                result["duplicate_count"] = 1 # Approximate
+                logger.warning(f"⚠️ Duplicate slip caught by atomic check: {trans_ref}")
+            
+            app.state.line_account_model.increment_slip_count(account["_id"])
+            result_text = f"✅ สลิปถูกต้อง"
+            
+        elif status == "duplicate":
+            # Confirm quota usage (duplicates still count? usually yes, but depends on policy)
+            # For now, let's say duplicates DON'T count against quota to be nice
+            if reservation_id and owner_id:
+                app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+                
+            trans_ref = result.get("data", {}).get("transRef", "")
+            duplicate_count = app.state.slip_history_model.get_duplicate_count(trans_ref, account["_id"])
+            
             if duplicate_count > 0:
                 result["duplicate_count"] = duplicate_count
                 result["message"] = f"🔄 สลิปซ้ำ +{duplicate_count}"
-        
-        # Update statistics
-        if result.get("status") == "success":
-            app.state.line_account_model.increment_slip_count(account["_id"])
-            result_text = f"✅ สลิปถูกต้อง"
-        elif result.get("status") == "duplicate":
-            dup_count = result.get("duplicate_count", 0)
-            if dup_count > 0:
-                result_text = f"🔄 สลิปซ้ำ +{dup_count}"
+                result_text = f"🔄 สลิปซ้ำ +{duplicate_count}"
             else:
                 result_text = f"🔄 สลิปนี้เคยถูกตรวจสอบแล้ว"
-        elif result.get("status") == "error":
-            # ใช้ข้อความจาก result.get('message') โดยตรง
-            result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
-            logger.error(f"❌ Slip verification failed: {result}")
-        elif result.get("status") == "not_found":
-            result_text = f"🔍 {result.get('message', 'ไม่พบข้อมูลสลิป')}"
-            logger.warning(f"⚠️ Slip not found: {result}")
-        elif result.get("status") == "qr_not_found":
-            result_text = f"📱 {result.get('message', 'ไม่พบ QR Code ในรูปภาพ')}"
-            logger.warning(f"⚠️ QR Code not found: {result}")
+                
         else:
-            # สำหรับสถานะอื่นๆ ที่ไม่คาดคิด
-            result_text = f"⚠️ สถานะการตรวจสอบไม่ชัดเจน: {result.get('status')}"
-            logger.error(f"⚠️ Unexpected slip verification status: {result}")
+            # Error / Not Found / QR Not Found
+            # Rollback quota
+            if reservation_id and owner_id:
+                app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+                
+            if status == "error":
+                result_text = f"❌ {result.get('message', 'ไม่สามารถตรวจสอบสลิปได้')}"
+            elif status == "not_found":
+                result_text = f"🔍 {result.get('message', 'ไม่พบข้อมูลสลิป')}"
+            elif status == "qr_not_found":
+                result_text = f"📱 {result.get('message', 'ไม่พบ QR Code ในรูปภาพ')}"
+            else:
+                result_text = f"⚠️ สถานะการตรวจสอบไม่ชัดเจน: {status}"
         
-        # Save slip verification result
+        # 8. Save result message
         app.state.chat_message_model.save_message(
             account_id=account["_id"],
             user_id=user_id,
@@ -1909,14 +1637,18 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             metadata={"slip_result": result}
         )
         
-        # Send result with template
+        # 9. Send result with template
         slip_template_id = settings.get("slip_template_id")
-        logger.info(f"🎯 Using template ID from settings: {slip_template_id}")
-        logger.info(f"📊 Full settings: {settings}")
         await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
         
     except Exception as e:
         logger.error(f"❌ Error handling image message: {e}")
+        # Emergency rollback
+        try:
+            if 'reservation_id' in locals() and reservation_id and 'owner_id' in locals() and owner_id:
+                app.state.quota_manager.rollback_quota(owner_id, reservation_id)
+        except:
+            pass
 
 async def handle_follow_event(event: Dict[str, Any], account: Dict[str, Any]):
     """Handle follow event"""
@@ -1970,37 +1702,6 @@ async def send_line_reply(reply_token: str, text: str, access_token: str):
                 
     except Exception as e:
         logger.error(f"❌ Error sending LINE reply: {e}")
-
-async def send_line_push(user_id: str, text: str, access_token: str) -> bool:
-    """Send LINE push message to user"""
-    try:
-        url = "https://api.line.me/v2/bot/message/push"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {access_token}"
-        }
-        data = {
-            "to": user_id,
-            "messages": [
-                {
-                    "type": "text",
-                    "text": text
-                }
-            ]
-        }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=data)
-            if response.status_code != 200:
-                logger.error(f"❌ LINE Push API error: {response.text}")
-                return False
-            else:
-                logger.info(f"✅ Push message sent successfully to {user_id}")
-                return True
-                
-    except Exception as e:
-        logger.error(f"❌ Error sending LINE push message: {e}")
-        return False
 
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render Flex Message template with result data"""
@@ -2811,78 +2512,33 @@ async def chat_history_page(request: Request, account_id: str):
     
     return templates.TemplateResponse("settings/chat_history.html", {
         "request": request,
-        "user": user,
-        "line_accounts": line_accounts,
-        "current_account_id": account_id
-    })
-
-@app.get("/api/chat-messages/{account_id}/users")
-async def get_chat_users(request: Request, account_id: str):
-    """Get list of users who chatted with this account"""
-    user = app.state.auth.get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    account = app.state.line_account_model.get_account_by_id(account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
-    # Check permission
-    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        users = app.state.chat_message_model.get_unique_users(account_id)
-        user_list = []
         
-        for uid in users:
-            # Get the LAST message (sorted by timestamp descending)
-            messages = app.state.chat_message_model.get_messages(account_id, uid, limit=1, skip=0)
+        for user_id in users:
+            messages = app.state.chat_message_model.get_conversation(account_id, user_id, limit=1)
             if messages:
                 last_msg = messages[0]
                 # Get user profile from LINE
-                user_name = uid
+                user_name = user_id
                 picture_url = None
                 try:
                     # ใช้ LINE Bot API ดึงโปรไฟล์ผู้ใช้
-                    import requests as req
+                    import requests
                     headers = {"Authorization": f"Bearer {account.get('channel_access_token')}"}
-                    response = req.get(f"https://api.line.me/v2/bot/profile/{uid}", headers=headers, timeout=5)
+                    response = requests.get(f"https://api.line.me/v2/bot/profile/{user_id}", headers=headers)
                     if response.status_code == 200:
                         profile = response.json()
-                        user_name = profile.get("displayName", uid)
+                        user_name = profile.get("displayName", user_id)
                         picture_url = profile.get("pictureUrl")
                 except Exception as e:
-                    logger.warning(f"Could not get LINE profile for {uid}: {e}")
-                
-                # Get last message content
-                last_message_content = last_msg.get("content", "")
-                if last_msg.get("message_type") == "image":
-                    last_message_content = "[รูปภาพ]"
-                elif last_msg.get("message_type") == "sticker":
-                    last_message_content = "[สติกเกอร์]"
-                elif last_msg.get("message_type") == "video":
-                    last_message_content = "[วิดีโอ]"
-                elif last_msg.get("message_type") == "audio":
-                    last_message_content = "[ข้อความเสียง]"
-                elif last_msg.get("message_type") == "location":
-                    last_message_content = "[ตำแหน่ง]"
-                elif last_msg.get("message_type") == "file":
-                    last_message_content = "[ไฟล์]"
-                elif not last_message_content:
-                    last_message_content = "[ไม่มีข้อความ]"
+                    logger.error(f"Error getting LINE profile: {e}")
                 
                 user_list.append({
-                    "user_id": uid,
+                    "user_id": user_id,
                     "user_name": user_name,
                     "picture_url": picture_url,
-                    "last_message": last_message_content,
-                    "last_message_time": last_msg.get("timestamp", ""),
-                    "last_message_timestamp": last_msg.get("timestamp", "")
+                    "last_message": last_msg.get("text", last_msg.get("message_type", "[ไม่มีข้อความ]")),
+                    "last_message_time": last_msg.get("timestamp", "")
                 })
-        
-        # Sort by last_message_time (newest first) - like Facebook Messenger
-        user_list.sort(key=lambda x: x.get("last_message_timestamp", ""), reverse=True)
         
         return {"success": True, "users": user_list}
     except Exception as e:
@@ -2890,74 +2546,6 @@ async def get_chat_users(request: Request, account_id: str):
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงรายชื่อผู้ใช้"}
-        )
-
-@app.post("/api/chat-messages/{account_id}/send")
-async def send_chat_message_alt(request: Request, account_id: str):
-    """Alternative endpoint: Send a message to a LINE user via Push API (user_id in body)"""
-    user = app.state.auth.get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    account = app.state.line_account_model.get_account_by_id(account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
-    # Check permission
-    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        data = await request.json()
-        target_user_id = data.get("user_id", "").strip()
-        message_text = data.get("message", "").strip()
-        
-        if not target_user_id:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "ต้องระบุ user_id"}
-            )
-        
-        if not message_text:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "ข้อความไม่สามารถว่างได้"}
-            )
-        
-        if len(message_text) > 5000:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "ข้อความยาวเกินไป (สูงสุด 5000 ตัวอักษร)"}
-            )
-        
-        # Send message via LINE Push API
-        success = await send_line_push(
-            user_id=target_user_id,
-            text=message_text,
-            access_token=account["channel_access_token"]
-        )
-        
-        if success:
-            # Save message to database
-            app.state.chat_message_model.save_message(
-                account_id=account_id,
-                user_id=target_user_id,
-                message_type="text",
-                content=message_text,
-                sender="bot"
-            )
-            return {"success": True, "message": "ส่งข้อความสำเร็จ"}
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": "ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง"}
-            )
-            
-    except Exception as e:
-        logger.error(f"Error sending chat message: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการส่งข้อความ"}
         )
 
 @app.get("/api/chat-messages/{account_id}/{user_id}")
@@ -2991,67 +2579,6 @@ async def get_chat_messages(request: Request, account_id: str, user_id: str, lim
             content={"success": False, "message": "เกิดข้อผิดพลาดในการดึงข้อความ"}
         )
 
-@app.post("/api/chat-messages/{account_id}/{user_id}/send")
-async def send_chat_message(request: Request, account_id: str, user_id: str):
-    """Send a message to a LINE user via Push API"""
-    user = app.state.auth.get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    account = app.state.line_account_model.get_account_by_id(account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
-    # Check permission
-    if user["role"] != UserRole.ADMIN and account["owner_id"] != user["user_id"]:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
-    try:
-        data = await request.json()
-        message_text = data.get("message", "").strip()
-        
-        if not message_text:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "ข้อความไม่สามารถว่างได้"}
-            )
-        
-        if len(message_text) > 5000:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "ข้อความยาวเกินไป (สูงสุด 5000 ตัวอักษร)"}
-            )
-        
-        # Send message via LINE Push API
-        success = await send_line_push(
-            user_id=user_id,
-            text=message_text,
-            access_token=account["channel_access_token"]
-        )
-        
-        if success:
-            # Save message to database
-            app.state.chat_message_model.save_message(
-                account_id=account_id,
-                user_id=user_id,
-                message_type="text",
-                content=message_text,
-                sender="bot"
-            )
-            return {"success": True, "message": "ส่งข้อความสำเร็จ"}
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": "ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง"}
-            )
-            
-    except Exception as e:
-        logger.error(f"Error sending chat message: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": "เกิดข้อผิดพลาดในการส่งข้อความ"}
-        )
-
 @app.get("/api/line-image/{account_id}/{message_id}")
 async def get_line_image(request: Request, account_id: str, message_id: str):
     """Proxy endpoint to get LINE image from database"""
@@ -3068,92 +2595,51 @@ async def get_line_image(request: Request, account_id: str, message_id: str):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
-        import base64
-        from fastapi.responses import Response
-        
-        # Try to find the message with image data - try both string and ObjectId formats
-        message = None
-        
-        # Try with account_id as string first
+        # First, try to get image from database
+        from bson import ObjectId
         message = app.state.chat_message_model.collection.find_one({
             "message_id": message_id,
             "account_id": account_id
         })
         
-        # If not found, try with account_id matching the account's _id (string form)
-        if not message:
-            message = app.state.chat_message_model.collection.find_one({
-                "message_id": message_id,
-                "account_id": str(account.get("_id", ""))
-            })
-        
-        # If found and has image data, return it
         if message and message.get("metadata", {}).get("image_data"):
-            try:
-                image_data = base64.b64decode(message["metadata"]["image_data"])
-                return Response(
-                    content=image_data,
-                    media_type="image/jpeg",
-                    headers={"Cache-Control": "public, max-age=86400"}  # Cache for 1 day
-                )
-            except Exception as decode_error:
-                logger.warning(f"Failed to decode image from database: {decode_error}")
+            # Decode base64 image from database
+            import base64
+            image_data = base64.b64decode(message["metadata"]["image_data"])
+            from fastapi.responses import Response
+            return Response(
+                content=image_data,
+                media_type="image/jpeg"
+            )
         
-        # Fallback: Get image from LINE API
-        logger.info(f"📥 Fetching image from LINE API: {message_id}")
+        # Fallback: Get image from LINE API if not in database
         image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
         headers = {
             "Authorization": f"Bearer {account['channel_access_token']}"
         }
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.get(image_url, headers=headers)
             
             if response.status_code == 200:
                 # Store image in database for future use
+                import base64
                 image_base64 = base64.b64encode(response.content).decode('utf-8')
-                
-                # Update existing message or create new record
                 if message:
                     app.state.chat_message_model.collection.update_one(
                         {"_id": message["_id"]},
                         {"$set": {"metadata.image_data": image_base64}}
                     )
-                else:
-                    # Try to find by just message_id
-                    result = app.state.chat_message_model.collection.update_one(
-                        {"message_id": message_id},
-                        {"$set": {"metadata.image_data": image_base64}}
-                    )
-                    if result.modified_count == 0:
-                        logger.warning(f"Could not update image for message_id: {message_id}")
                 
+                from fastapi.responses import Response
                 return Response(
                     content=response.content,
-                    media_type=response.headers.get("content-type", "image/jpeg"),
-                    headers={"Cache-Control": "public, max-age=86400"}
+                    media_type=response.headers.get("content-type", "image/jpeg")
                 )
-            elif response.status_code == 404:
-                logger.warning(f"Image not found in LINE API: {message_id}")
-                raise HTTPException(status_code=404, detail="Image not found or expired")
             else:
-                logger.error(f"LINE API error: {response.status_code}")
                 raise HTTPException(status_code=response.status_code, detail="Failed to get image from LINE")
                 
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error getting LINE image: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-
-@app.post("/api/test-thunder-api")
-async def test_thunder_api_route(request: Request):
-    """API route to test Thunder API connection."""
-    user = app.state.auth.get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
 
     try:
         data = await request.json()
