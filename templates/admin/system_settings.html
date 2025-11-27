@@ -124,6 +124,65 @@
 
 <!-- Second Row -->
 <div class="row">
+<!-- Duplicate Slip Settings Section -->
+<div class="col-md-6 mb-4">
+    <div class="card shadow-sm border-warning">
+        <div class="card-header bg-warning bg-opacity-10">
+            <h5 class="mb-0"><i class="bi bi-copy text-warning"></i> การจัดการสลิปซ้ำ (Duplicate Slip)</h5>
+        </div>
+        <div class="card-body">
+            <form id="duplicateSettingsForm">
+                <!-- Duplicate Refund Toggle -->
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="duplicateRefundEnabled" checked>
+                        <label class="form-check-label" for="duplicateRefundEnabled">
+                            <strong>คืนเครดิตเมื่อสลิปซ้ำ</strong>
+                        </label>
+                    </div>
+                    <div class="form-text text-muted">
+                        เมื่อเปิด: ถ้าลูกค้าส่งสลิปซ้ำ → <strong class="text-success">ไม่หักเครดิต</strong><br>
+                        เมื่อปิด: ถ้าลูกค้าส่งสลิปซ้ำ → <strong class="text-danger">หักเครดิตตามปกติ</strong>
+                    </div>
+                </div>
+                
+                <!-- Duplicate Check Scope Info -->
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle"></i> <strong>การตรวจสอบสลิปซ้ำ (Per-LINE User)</strong>
+                    <hr class="my-2">
+                    <p class="mb-1">ระบบจะตรวจสอบว่า <strong>LINE user นี้</strong> เคยส่งสลิปใบเดียวกันมาก่อนหรือไม่:</p>
+                    <ul class="mb-0 small">
+                        <li>✅ <strong>LINE A</strong> ส่งสลิป X → ผ่าน (ครั้งแรกของ LINE A)</li>
+                        <li>✅ <strong>LINE B</strong> ส่งสลิป X → ผ่าน (ครั้งแรกของ LINE B)</li>
+                        <li>❌ <strong>LINE A</strong> ส่งสลิป X อีกครั้ง → ซ้ำ! (LINE A เคยส่งแล้ว)</li>
+                    </ul>
+                </div>
+                
+                <!-- Quota Warning Threshold -->
+                <div class="mb-3">
+                    <label class="form-label">แจ้งเตือนเมื่อโควต้าเหลือน้อยกว่า</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="quotaWarningThreshold" value="10" min="1" max="100">
+                        <span class="input-group-text">สลิป</span>
+                    </div>
+                    <div class="form-text text-muted">ระบบจะแจ้งเตือนเมื่อโควต้าคงเหลือน้อยกว่าจำนวนที่กำหนด</div>
+                </div>
+                
+                <!-- Contact Info for Quota Exceeded -->
+                <div class="mb-3">
+                    <label class="form-label">URL สำหรับติดต่อแอดมิน (เมื่อโควต้าหมด)</label>
+                    <input type="url" class="form-control" id="contactAdminUrl" placeholder="https://line.me/ti/p/xxxxx หรือ URL เว็บไซต์">
+                    <div class="form-text text-muted">ลิงก์นี้จะแสดงเป็นปุ่มเมื่อโควต้าหมด</div>
+                </div>
+                
+                <button type="button" class="btn btn-warning" onclick="saveDuplicateSettings()">
+                    <i class="bi bi-save"></i> บันทึกการตั้งค่าสลิปซ้ำ
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- USDT Wallet Section -->
 <div class="col-md-6 mb-4">
     <div class="card shadow-sm">
@@ -411,6 +470,15 @@
                 if (settings.quota_exceeded_flex_image_url) {
                     document.getElementById('quotaFlexImageUrl').value = settings.quota_exceeded_flex_image_url;
                 }
+                
+                // Load duplicate settings
+                document.getElementById('duplicateRefundEnabled').checked = settings.duplicate_refund_enabled !== false;
+                if (settings.quota_warning_threshold) {
+                    document.getElementById('quotaWarningThreshold').value = settings.quota_warning_threshold;
+                }
+                if (settings.contact_admin_url) {
+                    document.getElementById('contactAdminUrl').value = settings.contact_admin_url;
+                }
             } else {
                 showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
@@ -418,6 +486,21 @@
             console.error('Error loading settings:', error);
             showAlert('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'danger');
         }
+    }
+    
+    // Duplicate Settings Functions
+    async function saveDuplicateSettings() {
+        const duplicateRefundEnabled = document.getElementById('duplicateRefundEnabled').checked;
+        const quotaWarningThreshold = parseInt(document.getElementById('quotaWarningThreshold').value) || 10;
+        const contactAdminUrl = document.getElementById('contactAdminUrl').value;
+        
+        const data = {
+            duplicate_refund_enabled: duplicateRefundEnabled,
+            quota_warning_threshold: quotaWarningThreshold,
+            contact_admin_url: contactAdminUrl
+        };
+        
+        await saveSettings(data);
     }
     
     // USDT Settings Functions

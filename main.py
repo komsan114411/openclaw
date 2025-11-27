@@ -1725,43 +1725,234 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
                 # No quota available - don't call API (save money!)
                 logger.warning(f"⚠️ No quota available for user {owner_id} - API not called")
                 
-                # Send quota exceeded message
-                response_type = system_settings.get("quota_exceeded_response_type", "text")
+                # Get quota info for display
+                quota_status = app.state.subscription_model.check_quota(owner_id)
+                total_slips = quota_status.get("total_slips", 0)
+                total_used = quota_status.get("total_used", 0)
                 
-                if response_type == "flex":
-                    flex_title = system_settings.get("quota_exceeded_flex_title", "โควต้าหมด")
-                    flex_body = system_settings.get("quota_exceeded_flex_body", "โควต้าการตรวจสอบสลิปของคุณหมดแล้ว กรุณาติดต่อแอดมิน")
-                    flex_button_text = system_settings.get("quota_exceeded_flex_button_text", "")
-                    flex_button_url = system_settings.get("quota_exceeded_flex_button_url", "")
-                    
-                    flex_contents = {
-                        "type": "bubble",
-                        "body": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                {"type": "text", "text": flex_title, "weight": "bold", "size": "xl", "color": "#dc3545"},
-                                {"type": "text", "text": flex_body, "wrap": True, "margin": "md"}
-                            ]
+                # Get contact info from settings
+                contact_line = system_settings.get("contact_admin_line", "")
+                contact_url = system_settings.get("contact_admin_url", "")
+                flex_button_text = system_settings.get("quota_exceeded_flex_button_text", "ติดต่อแอดมิน")
+                flex_button_url = system_settings.get("quota_exceeded_flex_button_url", "") or contact_url
+                
+                # 🎨 Create Beautiful Quota Exceeded Flex Message
+                flex_contents = {
+                    "type": "bubble",
+                    "size": "mega",
+                    "header": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "⚠️",
+                                                "size": "xxl",
+                                                "align": "center"
+                                            }
+                                        ],
+                                        "width": "60px",
+                                        "height": "60px",
+                                        "backgroundColor": "#FEF3CD",
+                                        "cornerRadius": "30px",
+                                        "justifyContent": "center",
+                                        "alignItems": "center"
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "vertical",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "โควต้าหมด",
+                                                "weight": "bold",
+                                                "size": "xl",
+                                                "color": "#856404"
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": "Quota Exceeded",
+                                                "size": "sm",
+                                                "color": "#9A8866"
+                                            }
+                                        ],
+                                        "paddingStart": "15px",
+                                        "justifyContent": "center"
+                                    }
+                                ],
+                                "paddingAll": "15px"
+                            }
+                        ],
+                        "backgroundColor": "#FFF8E7",
+                        "paddingAll": "0px"
+                    },
+                    "body": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "สิทธิ์การตรวจสอบสลิปของร้านค้าหมดแล้ว",
+                                "wrap": True,
+                                "weight": "bold",
+                                "size": "md",
+                                "color": "#333333"
+                            },
+                            {
+                                "type": "text",
+                                "text": "กรุณาติดต่อแอดมินเพื่ออัปเกรดแพ็คเกจ",
+                                "wrap": True,
+                                "size": "sm",
+                                "color": "#666666",
+                                "margin": "sm"
+                            },
+                            {
+                                "type": "separator",
+                                "margin": "lg"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "📊 สถานะโควต้า",
+                                                "size": "sm",
+                                                "color": "#888888",
+                                                "flex": 1
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "ใช้ไปแล้ว",
+                                                "size": "sm",
+                                                "color": "#666666",
+                                                "flex": 1
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{total_used:,} สลิป",
+                                                "size": "sm",
+                                                "color": "#DC3545",
+                                                "weight": "bold",
+                                                "align": "end"
+                                            }
+                                        ],
+                                        "margin": "sm"
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "โควต้าทั้งหมด",
+                                                "size": "sm",
+                                                "color": "#666666",
+                                                "flex": 1
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": f"{total_slips:,} สลิป",
+                                                "size": "sm",
+                                                "color": "#333333",
+                                                "weight": "bold",
+                                                "align": "end"
+                                            }
+                                        ],
+                                        "margin": "sm"
+                                    },
+                                    {
+                                        "type": "box",
+                                        "layout": "horizontal",
+                                        "contents": [
+                                            {
+                                                "type": "text",
+                                                "text": "คงเหลือ",
+                                                "size": "sm",
+                                                "color": "#666666",
+                                                "flex": 1
+                                            },
+                                            {
+                                                "type": "text",
+                                                "text": "0 สลิป",
+                                                "size": "sm",
+                                                "color": "#DC3545",
+                                                "weight": "bold",
+                                                "align": "end"
+                                            }
+                                        ],
+                                        "margin": "sm"
+                                    }
+                                ],
+                                "margin": "lg",
+                                "backgroundColor": "#F8F9FA",
+                                "cornerRadius": "8px",
+                                "paddingAll": "12px"
+                            }
+                        ],
+                        "paddingAll": "20px"
+                    },
+                    "footer": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "action": {
+                                    "type": "uri",
+                                    "label": flex_button_text,
+                                    "uri": flex_button_url if flex_button_url else "https://line.me"
+                                },
+                                "style": "primary",
+                                "color": "#F59E0B",
+                                "height": "md"
+                            }
+                        ],
+                        "paddingAll": "15px"
+                    },
+                    "styles": {
+                        "header": {
+                            "separator": False
+                        },
+                        "footer": {
+                            "separator": True
                         }
                     }
-                    
-                    if flex_button_url and flex_button_text:
-                        flex_contents["footer"] = {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [{"type": "button", "action": {"type": "uri", "label": flex_button_text, "uri": flex_button_url}, "style": "primary"}]
-                        }
-                    
-                    try:
-                        url = "https://api.line.me/v2/bot/message/reply"
-                        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {account['channel_access_token']}"}
-                        data = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": flex_title, "contents": flex_contents}]}
-                        async with httpx.AsyncClient() as client:
-                            await client.post(url, headers=headers, json=data)
-                    except Exception as e:
-                        logger.error(f"Error sending quota exceeded flex: {e}")
-                else:
+                }
+                
+                # Remove footer if no button URL
+                if not flex_button_url:
+                    del flex_contents["footer"]
+                    del flex_contents["styles"]
+                
+                try:
+                    url = "https://api.line.me/v2/bot/message/reply"
+                    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {account['channel_access_token']}"}
+                    data = {"replyToken": reply_token, "messages": [{"type": "flex", "altText": "⚠️ โควต้าหมด - กรุณาติดต่อแอดมิน", "contents": flex_contents}]}
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(url, headers=headers, json=data)
+                        logger.info(f"📤 Quota exceeded flex sent: {response.status_code}")
+                except Exception as e:
+                    logger.error(f"Error sending quota exceeded flex: {e}")
+                    # Fallback to text message
                     quota_message = system_settings.get("quota_exceeded_message", "⚠️ สิทธิ์การตรวจสอบสลิปของร้านค้าหมดแล้ว กรุณาติดต่อแอดมิน")
                     await send_line_reply(reply_token, quota_message, account["channel_access_token"])
                 
@@ -1860,37 +2051,92 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             result_text = "✅ สลิปถูกต้อง"
             
         elif status == "duplicate":
-            # 🔄 DUPLICATE: Check refund settings
-            duplicate_count = app.state.slip_history_model.get_duplicate_count(trans_ref, account["_id"])
-            result["duplicate_count"] = duplicate_count + 1
+            # 🔄 DUPLICATE FROM API: แต่เราต้องตรวจสอบว่าซ้ำสำหรับ USER นี้หรือไม่
+            # เพราะ API อาจบอกว่าซ้ำแบบ global แต่ user นี้อาจเพิ่งส่งครั้งแรก
+            
+            # ตรวจสอบซ้ำแบบ per-LINE-user (ไม่ใช่ per-account)
+            duplicate_info = app.state.slip_history_model.is_duplicate_for_user(
+                trans_ref=trans_ref,
+                account_id=account["_id"],
+                user_id=user_id
+            )
+            
+            is_duplicate_for_this_user = duplicate_info["is_duplicate"]
+            user_duplicate_count = duplicate_info["user_count"]
+            total_account_usage = duplicate_info["total_account_count"]
+            
+            logger.info(f"📊 Duplicate check: user_dup={is_duplicate_for_this_user}, user_count={user_duplicate_count}, total={total_account_usage}")
             
             # Check if duplicate refund is enabled
             duplicate_refund_enabled = system_settings.get("duplicate_refund_enabled", True)
             
-            if duplicate_refund_enabled and reservation_id:
-                # Rollback quota (คืนเครดิต)
-                app.state.quota_reservation_model.rollback_reservation(reservation_id, "duplicate")
-                result["quota_refunded"] = True
-                logger.info(f"🔄 Quota refunded for duplicate slip (reservation: {reservation_id})")
-            elif reservation_id:
-                # Confirm quota (ไม่คืนเครดิต)
-                app.state.quota_reservation_model.confirm_reservation(reservation_id)
-                result["quota_refunded"] = False
-                logger.info(f"⚠️ Quota NOT refunded for duplicate (setting disabled)")
-            
-            # Record duplicate
-            app.state.slip_history_model.record_slip(
-                account_id=account["_id"],
-                user_id=user_id,
-                trans_ref=trans_ref,
-                amount=float(amount) if amount else 0,
-                status="duplicate",
-                metadata={"message_id": message_id, "duplicate_count": duplicate_count + 1, "refunded": duplicate_refund_enabled}
-            )
-            
-            result_text = f"🔄 สลิปซ้ำ (ใช้ไปแล้ว {duplicate_count + 1} ครั้ง)"
-            if duplicate_refund_enabled:
-                result_text += " - ไม่หักเครดิต"
+            if is_duplicate_for_this_user:
+                # ❌ ซ้ำจริงสำหรับ user นี้ - เคยส่งสลิปนี้มาแล้ว
+                result["duplicate_count"] = user_duplicate_count + 1
+                result["is_user_duplicate"] = True
+                
+                if duplicate_refund_enabled and reservation_id:
+                    # Rollback quota (คืนเครดิต)
+                    app.state.quota_reservation_model.rollback_reservation(reservation_id, "duplicate_same_user")
+                    result["quota_refunded"] = True
+                    logger.info(f"🔄 Quota refunded for duplicate slip from same user (reservation: {reservation_id})")
+                elif reservation_id:
+                    # Confirm quota (ไม่คืนเครดิต)
+                    app.state.quota_reservation_model.confirm_reservation(reservation_id)
+                    result["quota_refunded"] = False
+                    logger.info(f"⚠️ Quota NOT refunded for duplicate (setting disabled)")
+                
+                # Record duplicate
+                app.state.slip_history_model.record_slip(
+                    account_id=account["_id"],
+                    user_id=user_id,
+                    trans_ref=trans_ref,
+                    amount=float(amount) if amount else 0,
+                    status="duplicate",
+                    metadata={
+                        "message_id": message_id, 
+                        "user_duplicate_count": user_duplicate_count + 1,
+                        "total_account_usage": total_account_usage + 1,
+                        "refunded": duplicate_refund_enabled
+                    }
+                )
+                
+                result_text = f"🔄 สลิปซ้ำ (คุณใช้สลิปนี้ไปแล้ว {user_duplicate_count + 1} ครั้ง)"
+                if duplicate_refund_enabled:
+                    result_text += " - ไม่หักเครดิต"
+            else:
+                # ✅ ไม่ซ้ำสำหรับ user นี้ - แม้ API บอกว่าซ้ำ แต่คนละ LINE user
+                # ถือว่า SUCCESS เพราะ user นี้เพิ่งส่งครั้งแรก
+                result["status"] = "success"  # Override status
+                result["duplicate_count"] = 0
+                result["is_user_duplicate"] = False
+                result["note"] = "API reported duplicate but this is first submission for this LINE user"
+                
+                # Confirm quota (ตัดเครดิตปกติ)
+                if reservation_id:
+                    app.state.quota_reservation_model.confirm_reservation(reservation_id)
+                    logger.info(f"✅ Quota confirmed - different LINE user, first submission (reservation: {reservation_id})")
+                
+                # Record as success for this user
+                app.state.slip_history_model.record_slip(
+                    account_id=account["_id"],
+                    user_id=user_id,
+                    trans_ref=trans_ref,
+                    amount=float(amount) if amount else 0,
+                    status="success",
+                    metadata={
+                        "message_id": message_id,
+                        "reservation_id": reservation_id,
+                        "api_reported_duplicate": True,
+                        "first_for_user": True,
+                        "total_account_usage": total_account_usage + 1
+                    }
+                )
+                
+                # Update statistics
+                app.state.line_account_model.increment_slip_count(account["_id"])
+                result_text = "✅ สลิปถูกต้อง"
+                status = "success"  # Update status for reply logic
             
         elif status in ["not_found", "qr_not_found"]:
             # 🔍 QR NOT FOUND: Rollback quota
