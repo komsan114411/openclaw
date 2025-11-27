@@ -132,6 +132,12 @@ async def lifespan(app: FastAPI):
         app.state.bank_account_model = BankAccount(app.state.db)
         app.state.slip_history_model = SlipHistory(app.state.db)
         app.state.bank_model = BankModel(app.state.db)
+        
+        # Initialize auth middleware
+        from middleware.auth import AuthMiddleware
+        app.state.auth = AuthMiddleware(app.state.session_model)
+        logger.info("✅ Auth middleware initialized")
+        
         logger.info("✅ System ready!")
         
         yield
