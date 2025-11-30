@@ -152,16 +152,30 @@ def verify_slip_with_thunder(
             session = create_requests_session()
             url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
             headers = {"Authorization": f"Bearer {line_token}"}
+            logger.info(f"📥 Downloading image from LINE: {url}")
             resp = session.get(url, headers=headers, timeout=30)
             resp.raise_for_status()
             image_data = resp.content
             logger.info(f"✅ ดาวน์โหลดรูปจาก LINE สำเร็จ: {len(image_data)} bytes")
             session.close()
+        except requests.exceptions.HTTPError as e:
+            logger.exception("❌ HTTP Error downloading image from LINE: %s", e)
+            error_msg = f"ไม่สามารถดาวน์โหลดรูปจาก LINE ได้ (HTTP {e.response.status_code if hasattr(e, 'response') else 'Unknown'})"
+            return {"status": "error", "message": error_msg}
+        except requests.exceptions.Timeout as e:
+            logger.exception("❌ Timeout downloading image from LINE: %s", e)
+            return {"status": "error", "message": "การดาวน์โหลดรูปภาพจาก LINE ใช้เวลานานเกินไป กรุณาลองใหม่"}
         except Exception as e:
             logger.exception("❌ ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ: %s", e)
             return {"status": "error", "message": f"ไม่สามารถดาวน์โหลดรูปจาก LINE ได้: {str(e)}"}
+    
     if not image_data:
+        logger.error("❌ No image data available (test_image_data is None and message_id download failed)")
         return {"status": "error", "message": "ไม่พบข้อมูลรูปภาพ"}
+    
+    if len(image_data) == 0:
+        logger.error("❌ Image data is empty")
+        return {"status": "error", "message": "ข้อมูลรูปภาพว่างเปล่า"}
     # สร้าง unique identifier สำหรับรูปภาพ
     if message_id:
         unique_id = f"{message_id}_{int(time.time())}"

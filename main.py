@@ -1990,21 +1990,36 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             return
         
         # Call Thunder API
-        logger.info(f"🔍 Starting slip verification: message_id={message_id}")
+        logger.info(f"🔍 Starting slip verification: message_id={message_id}, image_size={len(image_data) if image_data else 0} bytes")
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
         
         try:
+            # Explicitly pass tokens to ensure they're used correctly
             result = slip_checker.verify_slip(
                 message_id=message_id,
                 test_image_data=image_data,
+                line_token=account["channel_access_token"],
+                api_token=slip_api_key,
                 provider=slip_api_provider
             )
+            
+            # Log result for debugging
+            if result:
+                logger.info(f"📊 Verification result received: status={result.get('status')}, message={result.get('message', '')[:100]}")
+            else:
+                logger.error("❌ Verification returned None or empty result")
+                result = {"status": "error", "message": "ไม่ได้รับผลลัพธ์จากการตรวจสอบสลิป"}
         except Exception as api_error:
             # API Error - Rollback quota
             if reservation_id:
                 app.state.quota_reservation_model.rollback_reservation(reservation_id, f"api_error: {str(api_error)}")
-            logger.error(f"❌ API Error: {api_error}")
-            await send_line_push(user_id, "❌ เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่", account["channel_access_token"])
+            logger.error(f"❌ API Error: {api_error}", exc_info=True)
+            # Try to send error message via push (reply token may have expired)
+            error_msg = f"❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป: {str(api_error)[:100]}"
+            try:
+                await send_line_push(user_id, error_msg, account["channel_access_token"])
+            except Exception as push_error:
+                logger.error(f"❌ Failed to send error message via push: {push_error}")
             return
         
         # Try fallback if enabled and primary failed
@@ -2031,13 +2046,38 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         
         logger.info(f"📊 Verification result: status={result.get('status')}")
         
+        # Validate result
+        if not result:
+            logger.error("❌ Verification returned None or empty result")
+            if reservation_id:
+                app.state.quota_reservation_model.rollback_reservation(reservation_id, "empty_result")
+            await send_line_push(user_id, "❌ ไม่ได้รับผลลัพธ์จากการตรวจสอบสลิป กรุณาลองใหม่", account["channel_access_token"])
+            return
+        
         # ═══════════════════════════════════════════════════════════════════
         # PHASE 4: FINALIZATION (Commit or Rollback)
         # ═══════════════════════════════════════════════════════════════════
         
         status = result.get("status")
-        trans_ref = result.get("data", {}).get("transRef", "")
-        amount = result.get("data", {}).get("amount", 0)
+        result_data = result.get("data", {}) or {}
+        trans_ref = result_data.get("transRef", result_data.get("reference", ""))
+        
+        # Extract amount - handle different formats
+        amount_raw = result_data.get("amount", 0)
+        if isinstance(amount_raw, dict):
+            # If amount is a dict, extract the value
+            amount = amount_raw.get("amount", amount_raw.get("raw", 0))
+        elif isinstance(amount_raw, str):
+            # If amount is a string, try to convert to float
+            try:
+                amount = float(amount_raw.replace(",", ""))
+            except (ValueError, AttributeError):
+                amount = 0
+        else:
+            amount = amount_raw or 0
+        
+        # Log detailed result for debugging
+        logger.info(f"📋 Result details: status={status}, trans_ref={trans_ref}, amount={amount}, amount_type={type(amount)}")
         
         if status == "success":
             # ✅ SUCCESS: Confirm quota
