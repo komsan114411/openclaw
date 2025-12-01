@@ -2223,7 +2223,7 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
                 status = "success"  # Update status for reply logic
             
         elif status in ["not_found", "qr_not_found"]:
-            # 🔍 QR NOT FOUND: Rollback quota
+            # 🔍 QR NOT FOUND: Rollback quota (แจ้งแบบเดิม - ไม่ใช้ template)
             if reservation_id:
                 app.state.quota_reservation_model.rollback_reservation(reservation_id, status)
                 logger.info(f"🔄 Quota refunded for {status} (reservation: {reservation_id})")
@@ -2231,12 +2231,24 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             result_text = result.get("message", "ไม่พบ QR Code ในรูปภาพ กรุณาถ่ายรูปใหม่")
             
         else:
-            # ❌ ERROR: Rollback quota
+            # ❌ ERROR: ตรวจสอบว่าเป็น token/API หมดอายุหรือรูปไม่ชัด
+            error_message = result.get("message", "เกิดข้อผิดพลาดในการตรวจสอบ")
+            is_token_expired = _is_token_or_api_expired_error(error_message)
+            
             if reservation_id:
                 app.state.quota_reservation_model.rollback_reservation(reservation_id, f"error: {status}")
                 logger.info(f"🔄 Quota refunded for error (reservation: {reservation_id})")
             
-            result_text = result.get("message", "เกิดข้อผิดพลาดในการตรวจสอบ")
+            if is_token_expired:
+                # Token/API หมดอายุ - ใช้ template จากหลังบ้าน
+                result_text = error_message  # จะถูกส่งผ่าน template ใน send_slip_result
+                result["use_template"] = True  # Flag เพื่อบอกให้ใช้ template
+                logger.info("🔑 Token/API expired error detected - will use template")
+            else:
+                # รูปไม่ชัด/ไม่มี QR - แจ้งแบบเดิม
+                result_text = error_message
+                result["use_template"] = False
+                logger.info("📷 Image quality error detected - will use standard message")
         
         # ═══════════════════════════════════════════════════════════════════
         # PHASE 5: SAVE & REPLY
@@ -2708,6 +2720,55 @@ async def send_slip_result_reply(reply_token: str, result: Dict[str, Any], acces
         logger.error(f"❌ Error sending slip result via reply: {e}", exc_info=True)
         raise
 
+def _is_token_or_api_expired_error(error_message: str) -> bool:
+    """ตรวจสอบว่า error เป็น token/API หมดอายุหรือไม่"""
+    if not error_message:
+        return False
+    
+    error_lower = error_message.lower()
+    
+    # Keywords ที่บ่งบอกว่าเป็น token/API หมดอายุ
+    token_expired_keywords = [
+        "token ไม่ถูกต้อง",
+        "token หมดอายุ",
+        "api token",
+        "unauthorized",
+        "expired",
+        "application_expired",
+        "quota_exceeded",
+        "ไม่มีสิทธิ์",
+        "access_denied",
+        "account_not_verified",
+        "application_deactivated",
+        "หมดอายุ",
+        "ไม่ถูกต้องหรือหมดอายุ"
+    ]
+    
+    # Keywords ที่บ่งบอกว่าเป็นรูปไม่ชัด/ไม่มี QR (ไม่ใช้ template)
+    image_quality_keywords = [
+        "ไม่สามารถอ่านข้อมูล",
+        "รูปภาพไม่ถูกต้อง",
+        "ไม่พบ qr code",
+        "qr_not_found",
+        "invalid_payload",
+        "invalid_image",
+        "ไม่ชัดเจน",
+        "ถ่ายรูป",
+        "รูปไม่ชัด"
+    ]
+    
+    # ตรวจสอบว่าเป็น image quality error ก่อน
+    for keyword in image_quality_keywords:
+        if keyword in error_lower:
+            return False
+    
+    # ตรวจสอบว่าเป็น token/API expired error
+    for keyword in token_expired_keywords:
+        if keyword in error_lower:
+            return True
+    
+    return False
+
 def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_template_id: str = None) -> List[Dict[str, Any]]:
     """Prepare messages for slip result (shared by reply and push)"""
     messages = []
@@ -2771,8 +2832,60 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
                 pass
     else:
         # Create error message
-        error_message = create_error_flex_message(result.get("message", "เกิดข้อผิดพลาด"))
-        messages = [error_message]
+        error_message_text = result.get("message", "เกิดข้อผิดพลาด")
+        use_template = result.get("use_template", False)
+        
+        # ถ้าเป็น token/API หมดอายุ ให้ใช้ template จากหลังบ้าน
+        if use_template:
+            # ใช้ template error จาก system settings
+            try:
+                from models.system_settings import SystemSettingsModel
+                system_settings = app.state.system_settings_model.get_settings()
+                
+                # หา error template จาก settings
+                error_template_id = system_settings.get("error_template_id")
+                if error_template_id:
+                    error_template = app.state.slip_template_model.get_template_by_id(error_template_id)
+                    if error_template:
+                        template_type = error_template.get("template_type", "flex")
+                        if template_type == "text":
+                            template_text = error_template.get("template_text", "")
+                            # Replace {{error_message}} ใน template
+                            rendered_text = template_text.replace("{{error_message}}", error_message_text)
+                            messages = [{"type": "text", "text": rendered_text}]
+                        else:
+                            # Use flex template
+                            template_flex = error_template.get("template_flex")
+                            if template_flex:
+                                # Replace {{error_message}} ใน flex template
+                                import json
+                                import copy
+                                flex_copy = copy.deepcopy(template_flex)
+                                flex_json = json.dumps(flex_copy)
+                                flex_json = flex_json.replace("{{error_message}}", error_message_text)
+                                rendered_flex = json.loads(flex_json)
+                                messages = [{"type": "flex", "altText": "ข้อผิดพลาด", "contents": rendered_flex}]
+                            else:
+                                # Fallback to default error flex
+                                error_message = create_error_flex_message(error_message_text)
+                                messages = [error_message]
+                    else:
+                        # Template not found, use default
+                        error_message = create_error_flex_message(error_message_text)
+                        messages = [error_message]
+                else:
+                    # No error template configured, use default
+                    error_message = create_error_flex_message(error_message_text)
+                    messages = [error_message]
+            except Exception as e:
+                logger.error(f"❌ Error using error template: {e}", exc_info=True)
+                # Fallback to default error flex
+                error_message = create_error_flex_message(error_message_text)
+                messages = [error_message]
+        else:
+            # รูปไม่ชัด/ไม่มี QR - ใช้ error flex message แบบเดิม
+            error_message = create_error_flex_message(error_message_text)
+            messages = [error_message]
     
     # Validate messages
     if not messages:
