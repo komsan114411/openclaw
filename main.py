@@ -1974,9 +1974,22 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         # PHASE 3: SEND PROCESSING MESSAGE & CALL API
         # ═══════════════════════════════════════════════════════════════════
         
-        # Send processing message
+        # Send processing message using push (to preserve reply_token for result)
+        # Note: reply_token can only be used once, so we use push for processing message
         processing_msg = settings.get("slip_immediate_message", "⏳ กำลังตรวจสอบสลิป กรุณารอสักครู่...")
-        await send_line_reply(reply_token, processing_msg, account["channel_access_token"])
+        try:
+            await send_line_push(user_id, processing_msg, account["channel_access_token"])
+            logger.info("✅ Processing message sent via push")
+        except Exception as push_error:
+            # If push fails (user not added bot), try reply token as fallback
+            logger.warning(f"⚠️ Push message failed, using reply token: {push_error}")
+            try:
+                await send_line_reply(reply_token, processing_msg, account["channel_access_token"])
+                logger.info("✅ Processing message sent via reply (reply_token will be consumed)")
+                # Mark reply_token as used so we use push for result
+                reply_token = None
+            except Exception as reply_error:
+                logger.error(f"❌ Both push and reply failed for processing message: {reply_error}")
         
         # Get API settings
         slip_api_key = settings.get("slip_api_key")
@@ -1991,6 +2004,8 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         
         # Call Thunder API
         logger.info(f"🔍 Starting slip verification: message_id={message_id}, image_size={len(image_data) if image_data else 0} bytes")
+        logger.info(f"🔑 API Key present: {bool(slip_api_key)}, Provider: {slip_api_provider}")
+        logger.info(f"📱 LINE Token present: {bool(account.get('channel_access_token'))}")
         slip_checker = SlipChecker(api_token=slip_api_key, line_token=account["channel_access_token"])
         
         try:
@@ -2217,9 +2232,28 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             metadata={"slip_result": result, "reservation_id": reservation_id}
         )
         
-        # Send result with template
+        # Send result with template using reply token (if still valid) or push message
         slip_template_id = settings.get("slip_template_id")
-        await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+        # Try to use reply token first (if not consumed by processing message), fallback to push if needed
+        if reply_token:
+            try:
+                await send_slip_result_reply(reply_token, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+                logger.info("✅ Sent result using reply token")
+            except Exception as reply_error:
+                logger.warning(f"⚠️ Failed to send via reply token (may have expired or been consumed): {reply_error}")
+                # Fallback to push message
+                try:
+                    await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+                    logger.info("✅ Sent result using push message (fallback)")
+                except Exception as push_error:
+                    logger.error(f"❌ Failed to send result via push message: {push_error}")
+        else:
+            # Reply token was consumed, use push message
+            try:
+                await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+                logger.info("✅ Sent result using push message (reply_token was consumed)")
+            except Exception as push_error:
+                logger.error(f"❌ Failed to send result via push message: {push_error}")
         
         # ═══════════════════════════════════════════════════════════════════
         # PHASE 6: BROADCAST QUOTA UPDATE (WebSocket)
@@ -2608,6 +2642,133 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         logger.error(f"❌ Error rendering flex template: {e}", exc_info=True)
         return flex_template
 
+async def send_slip_result_reply(reply_token: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
+    """Send slip verification result using reply token (for immediate response)"""
+    try:
+        logger.info(f"📤 Sending slip result via reply token")
+        logger.info(f"✅ Result status: {result.get('status')}")
+        
+        if not reply_token:
+            logger.error("❌ Reply token is empty")
+            raise ValueError("Reply token is required")
+        
+        if not result:
+            logger.error("❌ Result is empty")
+            raise ValueError("Result is required")
+        
+        if not result.get("status"):
+            logger.error("❌ Result status is missing")
+            raise ValueError("Result status is required")
+        
+        url = "https://api.line.me/v2/bot/message/reply"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+        
+        messages = _prepare_slip_messages(result, channel_id, slip_template_id)
+        
+        data = {
+            "replyToken": reply_token,
+            "messages": messages
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, headers=headers, json=data)
+            logger.info(f"📡 LINE Reply API response status: {response.status_code}")
+            
+            if response.status_code != 200:
+                error_text = response.text[:500] if response.text else "No error message"
+                logger.error(f"❌ LINE Reply API error: {error_text}")
+                raise Exception(f"LINE API error: {response.status_code} - {error_text}")
+            else:
+                logger.info("✅ Slip result sent successfully via reply")
+                
+    except Exception as e:
+        logger.error(f"❌ Error sending slip result via reply: {e}", exc_info=True)
+        raise
+
+def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_template_id: str = None) -> List[Dict[str, Any]]:
+    """Prepare messages for slip result (shared by reply and push)"""
+    messages = []
+    
+    # Get template (prefer selected template over default)
+    template = None
+    if slip_template_id:
+        try:
+            from bson import ObjectId
+            template = app.state.slip_template_model.get_template_by_id(slip_template_id)
+            if template:
+                logger.info(f"🎯 Using selected template: {template.get('template_name')}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get selected template: {e}")
+    
+    # Fallback to default template
+    if not template and channel_id:
+        try:
+            template = app.state.slip_template_model.get_default_template(channel_id)
+            if template:
+                logger.info(f"📋 Using default template: {template.get('template_name')}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get default template: {e}")
+    
+    if result.get("status") in ["success", "duplicate"]:
+        # Use template if available
+        if template:
+            template_type = template.get("template_type", "flex")
+            
+            if template_type == "text":
+                # Use text template
+                template_text = template.get("template_text", "")
+                rendered_text = render_slip_template(template_text, result)
+                messages = [{"type": "text", "text": rendered_text}]
+                
+                # Add duplicate warning if needed
+                if result.get("status") == "duplicate":
+                    warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว"
+                    messages.insert(0, {"type": "text", "text": warning_text})
+            else:
+                # Use flex message template
+                template_flex = template.get("template_flex")
+                if template_flex:
+                    # Render flex template with data
+                    flex_message = render_flex_template(template_flex, result)
+                    messages = [{"type": "flex", "altText": "ตรวจสอบสลิป", "contents": flex_message}]
+                else:
+                    # Fallback to default flex message
+                    flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
+                    messages = [flex_message]
+        else:
+            # Fallback to default flex message
+            flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
+            messages = [flex_message]
+            
+        # Increment template usage count
+        if template:
+            try:
+                app.state.slip_template_model.increment_usage_count(str(template["_id"]))
+            except:
+                pass
+    else:
+        # Create error message
+        error_message = create_error_flex_message(result.get("message", "เกิดข้อผิดพลาด"))
+        messages = [error_message]
+    
+    # Validate messages
+    if not messages:
+        logger.warning("⚠️ No messages generated, using fallback")
+        # Fallback to simple text message
+        amount = "N/A"
+        if result.get("data") and isinstance(result["data"], dict):
+            amount = result["data"].get("amount", "N/A")
+        messages = [{
+            "type": "text",
+            "text": f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {amount} บาท"
+        }]
+    
+    logger.info(f"💬 Prepared {len(messages)} message(s)")
+    return messages
+
 async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
     """Send slip verification result using template"""
     try:
@@ -2630,95 +2791,16 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         if not result.get("status"):
             logger.error("❌ Result status is missing")
             return
+        
         url = "https://api.line.me/v2/bot/message/push"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {access_token}"
         }
         
-        messages = []
+        messages = _prepare_slip_messages(result, channel_id, slip_template_id)
         
-        # Get template (prefer selected template over default)
-        template = None
-        if slip_template_id:
-            try:
-                from bson import ObjectId
-                template = app.state.slip_template_model.get_template_by_id(slip_template_id)
-                if template:
-                    logger.info(f"🎯 Using selected template: {template.get('template_name')}")
-                    logger.info(f"📋 Template type: {template.get('template_type')}")
-                else:
-                    logger.warning(f"⚠️ Template not found for ID: {slip_template_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Could not get selected template: {e}")
-        
-        # Fallback to default template
-        if not template and channel_id:
-            try:
-                template = app.state.slip_template_model.get_default_template(channel_id)
-                if template:
-                    logger.info(f"📋 Using default template: {template.get('template_name')}")
-                    logger.info(f"📋 Template type: {template.get('template_type')}")
-                else:
-                    logger.warning(f"⚠️ No default template found for channel: {channel_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Could not get default template: {e}")
-        
-        if result.get("status") in ["success", "duplicate"]:
-            # Use template if available
-            if template:
-                template_type = template.get("template_type", "flex")
-                
-                if template_type == "text":
-                    # Use text template
-                    template_text = template.get("template_text", "")
-                    rendered_text = render_slip_template(template_text, result)
-                    messages = [{"type": "text", "text": rendered_text}]
-                    
-                    # Add duplicate warning if needed
-                    if result.get("status") == "duplicate":
-                        warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว"
-                        messages.insert(0, {"type": "text", "text": warning_text})
-                else:
-                    # Use flex message template
-                    template_flex = template.get("template_flex")
-                    if template_flex:
-                        # Render flex template with data
-                        flex_message = render_flex_template(template_flex, result)
-                        messages = [{"type": "flex", "altText": "ตรวจสอบสลิป", "contents": flex_message}]
-                    else:
-                        # Fallback to default flex message with template_id
-                        flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
-                        messages = [flex_message]
-            else:
-                # Fallback to default flex message with template_id
-                flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
-                messages = [flex_message]
-                
-            # Increment template usage count
-            if template:
-                try:
-                    app.state.slip_template_model.increment_usage_count(str(template["_id"]))
-                except:
-                    pass
-        else:
-            # Create error message
-            error_message = create_error_flex_message(result.get("message", "เกิดข้อผิดพลาด"))
-            messages = [error_message]
-        
-        # Validate messages
-        if not messages:
-            logger.warning("⚠️ No messages generated, using fallback")
-            # Fallback to simple text message
-            amount = "N/A"
-            if result.get("data") and isinstance(result["data"], dict):
-                amount = result["data"].get("amount", "N/A")
-            messages = [{
-                "type": "text",
-                "text": f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {amount} บาท"
-            }]
-        
-        logger.info(f"💬 Sending {len(messages)} message(s)")
+        logger.info(f"💬 Sending {len(messages)} message(s) via push")
         
         data = {
             "to": user_id,
