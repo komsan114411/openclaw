@@ -139,7 +139,7 @@ class SystemSettingsModel:
     
     def _migrate_settings(self):
         """Migrate existing settings to add new fields"""
-            new_fields = {
+        new_fields = {
             # Two-Phase Commit settings
             "duplicate_refund_enabled": True,
             "duplicate_check_scope": "account",
