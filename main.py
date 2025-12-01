@@ -2049,12 +2049,29 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             if reservation_id:
                 app.state.quota_reservation_model.rollback_reservation(reservation_id, f"api_error: {str(api_error)}")
             logger.error(f"❌ API Error: {api_error}", exc_info=True)
-            # Try to send error message via push (reply token may have expired)
+            
+            # สร้าง result object เพื่อให้สามารถใช้ template ได้
             error_msg = f"❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป: {str(api_error)[:100]}"
+            result = {
+                "status": "error",
+                "message": error_msg,
+                "use_template": _is_token_or_api_expired_error(error_msg)
+            }
+            
+            # ส่งผลลัพธ์ผ่าน send_slip_result เพื่อให้ใช้ template ได้
+            slip_template_id = settings.get("slip_template_id")
             try:
-                await send_line_push(user_id, error_msg, account["channel_access_token"])
-            except Exception as push_error:
-                logger.error(f"❌ Failed to send error message via push: {push_error}")
+                if reply_token:
+                    await send_slip_result_reply(reply_token, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+                else:
+                    await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+            except Exception as send_error:
+                logger.error(f"❌ Failed to send error message: {send_error}")
+                # Fallback to simple push message
+                try:
+                    await send_line_push(user_id, error_msg, account["channel_access_token"])
+                except Exception as push_error:
+                    logger.error(f"❌ Failed to send error message via push: {push_error}")
             return
         
         # Try fallback if enabled and primary failed
@@ -2086,7 +2103,29 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             logger.error("❌ Verification returned None or empty result")
             if reservation_id:
                 app.state.quota_reservation_model.rollback_reservation(reservation_id, "empty_result")
-            await send_line_push(user_id, "❌ ไม่ได้รับผลลัพธ์จากการตรวจสอบสลิป กรุณาลองใหม่", account["channel_access_token"])
+            
+            # สร้าง result object เพื่อให้สามารถใช้ template ได้
+            error_msg = "❌ ไม่ได้รับผลลัพธ์จากการตรวจสอบสลิป กรุณาลองใหม่"
+            result = {
+                "status": "error",
+                "message": error_msg,
+                "use_template": False  # ไม่ใช่ token expired error
+            }
+            
+            # ส่งผลลัพธ์ผ่าน send_slip_result
+            slip_template_id = settings.get("slip_template_id")
+            try:
+                if reply_token:
+                    await send_slip_result_reply(reply_token, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+                else:
+                    await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
+            except Exception as send_error:
+                logger.error(f"❌ Failed to send error message: {send_error}")
+                # Fallback to simple push message
+                try:
+                    await send_line_push(user_id, error_msg, account["channel_access_token"])
+                except Exception as push_error:
+                    logger.error(f"❌ Failed to send error message via push: {push_error}")
             return
         
         # ═══════════════════════════════════════════════════════════════════
@@ -2254,15 +2293,18 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         # PHASE 5: SAVE & REPLY
         # ═══════════════════════════════════════════════════════════════════
         
-        # Save result to chat
-        app.state.chat_message_model.save_message(
-            account_id=account["_id"],
-            user_id=user_id,
-            message_type="text",
-            content=result_text,
-            sender="bot",
-            metadata={"slip_result": result, "reservation_id": reservation_id}
-        )
+        # Save result to chat (only if not error or if we want to save it)
+        try:
+            app.state.chat_message_model.save_message(
+                account_id=account["_id"],
+                user_id=user_id,
+                message_type="text",
+                content=result_text if result_text else result.get("message", "ไม่ทราบผลลัพธ์"),
+                sender="bot",
+                metadata={"slip_result": result, "reservation_id": reservation_id}
+            )
+        except Exception as save_error:
+            logger.error(f"❌ Failed to save message to chat: {save_error}")
         
         # Send result with template using reply token (if still valid) or push message
         slip_template_id = settings.get("slip_template_id")
@@ -2741,7 +2783,11 @@ def _is_token_or_api_expired_error(error_message: str) -> bool:
         "account_not_verified",
         "application_deactivated",
         "หมดอายุ",
-        "ไม่ถูกต้องหรือหมดอายุ"
+        "ไม่ถูกต้องหรือหมดอายุ",
+        "thunder api token",
+        "api key",
+        "token ไม่ถูกต้องหรือหมดอายุ",
+        "การยืนยันตัวตนล้มเหลว"
     ]
     
     # Keywords ที่บ่งบอกว่าเป็นรูปไม่ชัด/ไม่มี QR (ไม่ใช้ template)
@@ -2754,19 +2800,24 @@ def _is_token_or_api_expired_error(error_message: str) -> bool:
         "invalid_image",
         "ไม่ชัดเจน",
         "ถ่ายรูป",
-        "รูปไม่ชัด"
+        "รูปไม่ชัด",
+        "slip_not_found",
+        "ไม่พบข้อมูลสลิป"
     ]
     
-    # ตรวจสอบว่าเป็น image quality error ก่อน
+    # ตรวจสอบว่าเป็น image quality error ก่อน (priority)
     for keyword in image_quality_keywords:
         if keyword in error_lower:
+            logger.info(f"📷 Detected image quality error: {keyword}")
             return False
     
     # ตรวจสอบว่าเป็น token/API expired error
     for keyword in token_expired_keywords:
         if keyword in error_lower:
+            logger.info(f"🔑 Detected token/API expired error: {keyword}")
             return True
     
+    # Default: ถ้าไม่ใช่ทั้งสองประเภท ให้ถือว่าไม่ใช่ token expired (ใช้ default error message)
     return False
 
 def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_template_id: str = None) -> List[Dict[str, Any]]:
