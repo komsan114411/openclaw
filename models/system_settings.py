@@ -118,6 +118,9 @@ class SystemSettingsModel:
                 "contact_admin_email": "",
                 "contact_admin_url": "",
                 
+                # Error Template (for token/API expired errors)
+                "error_template_id": None,  # Template ID for displaying token/API expired errors
+                
                 # System Status
                 "system_active": True,
                 "maintenance_mode": False,
@@ -136,7 +139,7 @@ class SystemSettingsModel:
     
     def _migrate_settings(self):
         """Migrate existing settings to add new fields"""
-        new_fields = {
+            new_fields = {
             # Two-Phase Commit settings
             "duplicate_refund_enabled": True,
             "duplicate_check_scope": "account",
@@ -147,6 +150,8 @@ class SystemSettingsModel:
             "quota_warning_enabled": True,
             "reservation_expiry_minutes": 5,
             "auto_cleanup_enabled": True,
+            # Error template for token/API expired errors
+            "error_template_id": None,
             "templates": {
                 "invalid_image": {"type": "text", "message": "📷 กรุณาส่งรูปภาพที่ถูกต้อง (JPEG/PNG ไม่เกิน 10MB)"},
                 "qr_not_found": {"type": "text", "message": "📱 ไม่พบ QR Code กรุณาถ่ายรูปสลิปให้ชัดเจน"},
