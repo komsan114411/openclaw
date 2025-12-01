@@ -952,8 +952,6 @@ async def test_line_connection(request: Request, account_id: str):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
     try:
-        import requests
-        
         # Get LINE account
         account = app.state.line_account_model.get_account_by_id(account_id)
         if not account:
@@ -968,43 +966,47 @@ async def test_line_connection(request: Request, account_id: str):
         
         # Test connection by getting bot info
         headers = {"Authorization": f"Bearer {access_token}"}
-        response = requests.get("https://api.line.me/v2/bot/info", headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            bot_info = response.json()
-            
-            # Get quota status if owner exists
-            quota_status = None
-            owner_id = account.get("owner_id")
-            if owner_id:
-                try:
-                    quota = app.state.subscription_model.check_quota(owner_id)
-                    quota_status = {
-                        "remaining": quota.get("slips_remaining", 0),
-                        "quota_exceeded": not quota.get("has_quota", True),
-                        "is_active": quota.get("is_active", False)
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get("https://api.line.me/v2/bot/info", headers=headers)
+                
+                if response.status_code == 200:
+                    bot_info = response.json()
+                    
+                    # Get quota status if owner exists
+                    quota_status = None
+                    owner_id = account.get("owner_id")
+                    if owner_id:
+                        try:
+                            quota = app.state.subscription_model.check_quota(owner_id)
+                            quota_status = {
+                                "remaining": quota.get("slips_remaining", 0),
+                                "quota_exceeded": not quota.get("has_quota", True),
+                                "is_active": quota.get("is_active", False)
+                            }
+                        except:
+                            pass
+                    
+                    return {
+                        "success": True,
+                        "message": "เชื่อมต่อสำเร็จ",
+                        "bot_info": {
+                            "displayName": bot_info.get("displayName", ""),
+                            "userId": bot_info.get("userId", ""),
+                            "pictureUrl": bot_info.get("pictureUrl", "")
+                        },
+                        "quota_status": quota_status
                     }
-                except:
-                    pass
-            
-            return {
-                "success": True,
-                "message": "เชื่อมต่อสำเร็จ",
-                "bot_info": {
-                    "displayName": bot_info.get("displayName", ""),
-                    "userId": bot_info.get("userId", ""),
-                    "pictureUrl": bot_info.get("pictureUrl", "")
-                },
-                "quota_status": quota_status
-            }
-        elif response.status_code == 401:
-            return {"success": False, "message": "Token ไม่ถูกต้องหรือหมดอายุ"}
-        else:
-            return {"success": False, "message": f"เกิดข้อผิดพลาด: HTTP {response.status_code}"}
-    except requests.exceptions.Timeout:
-        return {"success": False, "message": "หมดเวลาในการเชื่อมต่อ"}
-    except requests.exceptions.ConnectionError:
-        return {"success": False, "message": "ไม่สามารถเชื่อมต่อ LINE API ได้"}
+                elif response.status_code == 401:
+                    return {"success": False, "message": "Token ไม่ถูกต้องหรือหมดอายุ"}
+                else:
+                    return {"success": False, "message": f"เกิดข้อผิดพลาด: HTTP {response.status_code}"}
+        except httpx.TimeoutException:
+            return {"success": False, "message": "หมดเวลาในการเชื่อมต่อ"}
+        except httpx.ConnectError:
+            return {"success": False, "message": "ไม่สามารถเชื่อมต่อ LINE API ได้"}
+        except httpx.HTTPStatusError as e:
+            return {"success": False, "message": f"เกิดข้อผิดพลาด: HTTP {e.response.status_code}"}
     except Exception as e:
         logger.error(f"Error testing LINE connection: {e}")
         return JSONResponse(
@@ -1662,17 +1664,35 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         # PHASE 1: DOWNLOAD & PRE-SCREENING
         # ═══════════════════════════════════════════════════════════════════
         
-        # Download image from LINE
+        # Download image from LINE using async httpx
         image_data = None
         image_url = f"https://api-data.line.me/v2/bot/message/{message_id}/content"
         try:
             headers = {"Authorization": f"Bearer {account['channel_access_token']}"}
-            response = requests.get(image_url, headers=headers, timeout=30)
-            response.raise_for_status()
-            image_data = response.content
-            logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes")
+            logger.info(f"📥 Downloading image from LINE: {image_url}")
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(image_url, headers=headers)
+                response.raise_for_status()
+                image_data = response.content
+                logger.info(f"✅ Downloaded image from LINE: {len(image_data)} bytes, content-type: {response.headers.get('content-type', 'unknown')}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ HTTP Error downloading image from LINE: {e.response.status_code} - {e.response.text[:200]}")
+            await send_line_reply(
+                reply_token,
+                f"❌ ไม่สามารถดาวน์โหลดรูปภาพได้ (HTTP {e.response.status_code}) กรุณาลองใหม่อีกครั้ง",
+                account["channel_access_token"]
+            )
+            return
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Timeout downloading image from LINE: {e}")
+            await send_line_reply(
+                reply_token,
+                "❌ การดาวน์โหลดรูปภาพใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง",
+                account["channel_access_token"]
+            )
+            return
         except Exception as e:
-            logger.error(f"❌ Error downloading image from LINE: {e}")
+            logger.error(f"❌ Error downloading image from LINE: {e}", exc_info=True)
             await send_line_reply(
                 reply_token,
                 "❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองใหม่อีกครั้ง",
