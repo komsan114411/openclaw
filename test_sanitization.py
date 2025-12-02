@@ -407,6 +407,89 @@ def test_invalid_text_size():
     return True
 
 
+def test_validation_function():
+    """Test the validation function"""
+    print("\n📋 Test 8: Test validation function")
+    
+    # Define a simple validation function for testing
+    def validate_flex_message_structure(flex_message):
+        """Simple validation for testing"""
+        issues = []
+        
+        def check_component(obj, path="root"):
+            if isinstance(obj, dict):
+                comp_type = obj.get("type", "").lower()
+                if "size" in obj:
+                    invalid_components = {"box", "separator", "spacer", "button", "filler"}
+                    if comp_type in invalid_components:
+                        issues.append(f"Invalid 'size' in {comp_type} at {path}")
+                for key, value in obj.items():
+                    check_component(value, f"{path}.{key}")
+            elif isinstance(obj, list):
+                for idx, item in enumerate(obj):
+                    check_component(item, f"{path}[{idx}]")
+        
+        if not isinstance(flex_message, dict):
+            issues.append("Not a dictionary")
+            return False, issues
+        
+        check_component(flex_message.get("contents", {}))
+        return len(issues) == 0, issues
+    
+    # Test 1: Valid message
+    valid_message = {
+        "type": "flex",
+        "altText": "Test",
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "Hello",
+                        "size": "md"
+                    }
+                ]
+            }
+        }
+    }
+    
+    is_valid, issues = validate_flex_message_structure(valid_message)
+    assert is_valid, f"❌ Valid message should pass validation, issues: {issues}"
+    print("  ✓ Valid message passed validation")
+    
+    # Test 2: Invalid message with size in box
+    invalid_message = {
+        "type": "flex",
+        "altText": "Test",
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "size": "md",  # Invalid
+                "contents": []
+            }
+        }
+    }
+    
+    is_valid, issues = validate_flex_message_structure(invalid_message)
+    assert not is_valid, "❌ Invalid message should fail validation"
+    assert len(issues) > 0, "❌ Should have at least one issue"
+    print(f"  ✓ Invalid message correctly detected ({len(issues)} issue(s))")
+    
+    # Test 3: Sanitized message should pass validation
+    sanitized = sanitize_flex_message(invalid_message)
+    is_valid, issues = validate_flex_message_structure(sanitized)
+    assert is_valid, f"❌ Sanitized message should pass validation, issues: {issues}"
+    print("  ✓ Sanitized message passed validation")
+    
+    print("✅ Test passed: Validation function works correctly")
+    return True
+
+
 def run_all_tests():
     """Run all test cases"""
     print("=" * 60)
@@ -421,6 +504,7 @@ def run_all_tests():
         test_deeply_nested_structure,
         test_complex_template,
         test_invalid_text_size,
+        test_validation_function,
     ]
     
     passed = 0

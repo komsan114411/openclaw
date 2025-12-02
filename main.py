@@ -2990,6 +2990,65 @@ def sanitize_flex_message(obj: Any) -> Any:
         # Return primitive values as-is
         return obj
 
+def validate_flex_message_structure(flex_message: Dict[str, Any]) -> tuple[bool, list[str]]:
+    """
+    Validate a flex message structure and return validation results
+    
+    Returns:
+        tuple: (is_valid: bool, issues: list[str])
+    """
+    issues = []
+    
+    def check_component(obj, path="root"):
+        """Recursively check for invalid properties"""
+        if isinstance(obj, dict):
+            comp_type = obj.get("type", "").lower()
+            
+            # Check for invalid 'size' property
+            if "size" in obj:
+                invalid_components = {"box", "separator", "spacer", "button", "filler"}
+                if comp_type in invalid_components:
+                    issues.append(f"Invalid 'size' property in {comp_type} at {path}")
+                elif comp_type == "text":
+                    valid_sizes = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+                    if obj["size"].lower() not in valid_sizes:
+                        issues.append(f"Invalid text size '{obj['size']}' at {path}")
+                elif comp_type == "image":
+                    valid_sizes = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+                    if obj["size"].lower() not in valid_sizes:
+                        issues.append(f"Invalid image size '{obj['size']}' at {path}")
+                elif comp_type == "bubble":
+                    valid_sizes = {'nano', 'micro', 'kilo', 'mega', 'giga'}
+                    if obj["size"].lower() not in valid_sizes:
+                        issues.append(f"Invalid bubble size '{obj['size']}' at {path}")
+                elif not comp_type:
+                    issues.append(f"'size' property in component without type at {path}")
+            
+            # Recursively check nested structures
+            for key, value in obj.items():
+                check_component(value, f"{path}.{key}")
+        
+        elif isinstance(obj, list):
+            for idx, item in enumerate(obj):
+                check_component(item, f"{path}[{idx}]")
+    
+    # Check the flex message structure
+    if not isinstance(flex_message, dict):
+        issues.append("Flex message is not a dictionary")
+        return False, issues
+    
+    if flex_message.get("type") != "flex":
+        issues.append(f"Message type is '{flex_message.get('type')}', expected 'flex'")
+    
+    if not flex_message.get("contents"):
+        issues.append("Flex message has no 'contents' field")
+        return False, issues
+    
+    # Check contents structure
+    check_component(flex_message["contents"])
+    
+    return len(issues) == 0, issues
+
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render flex message template with result data"""
     try:
@@ -3592,46 +3651,32 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         
         messages = _prepare_slip_messages(result, channel_id, slip_template_id)
         
-        # Validate messages before sending
+        # Validate messages before sending using the validation utility
         logger.info(f"🔍 Validating {len(messages)} message(s) before sending...")
         for i, msg in enumerate(messages):
             if msg.get("type") == "flex":
-                # Validate flex message structure
-                if not msg.get("contents"):
-                    logger.error(f"❌ Message {i+1}: Flex message has no contents!")
-                elif not isinstance(msg["contents"], dict):
-                    logger.error(f"❌ Message {i+1}: Flex message contents is not a dict!")
-                else:
-                    # Check for common issues
-                    contents = msg["contents"]
-                    if not contents.get("type"):
-                        logger.warning(f"⚠️ Message {i+1}: Flex message contents has no type!")
+                # Use the validation utility function
+                is_valid, issues = validate_flex_message_structure(msg)
+                
+                if not is_valid:
+                    logger.error(f"❌ Message {i+1}: Validation failed with {len(issues)} issue(s):")
+                    for issue in issues:
+                        logger.error(f"   - {issue}")
                     
-                    # Validate that no invalid 'size' properties remain
-                    def check_for_invalid_size(obj, path=""):
-                        """Recursively check for invalid size properties"""
-                        if isinstance(obj, dict):
-                            comp_type = obj.get("type", "").lower()
-                            if "size" in obj:
-                                if comp_type in ["box", "separator", "spacer", "button", "filler"]:
-                                    logger.error(f"❌ Message {i+1}: Found invalid 'size' in {comp_type} at {path}!")
-                                    return False
-                            for key, value in obj.items():
-                                if not check_for_invalid_size(value, f"{path}.{key}"):
-                                    return False
-                        elif isinstance(obj, list):
-                            for idx, item in enumerate(obj):
-                                if not check_for_invalid_size(item, f"{path}[{idx}]"):
-                                    return False
-                        return True
+                    # Try to sanitize one more time as emergency fix
+                    logger.info(f"🔧 Attempting emergency sanitization...")
+                    msg["contents"] = sanitize_flex_message(msg["contents"])
                     
-                    if not check_for_invalid_size(contents):
-                        logger.error(f"❌ Message {i+1}: Validation failed - found invalid properties!")
-                        # Try to sanitize one more time
-                        logger.info(f"🔧 Attempting emergency sanitization...")
-                        msg["contents"] = sanitize_flex_message(msg["contents"])
+                    # Re-validate after emergency sanitization
+                    is_valid_after, issues_after = validate_flex_message_structure(msg)
+                    if is_valid_after:
+                        logger.info(f"✅ Message {i+1}: Emergency sanitization successful!")
                     else:
-                        logger.info(f"✅ Message {i+1}: Validation passed")
+                        logger.error(f"❌ Message {i+1}: Still has {len(issues_after)} issue(s) after emergency sanitization")
+                        for issue in issues_after:
+                            logger.error(f"   - {issue}")
+                else:
+                    logger.info(f"✅ Message {i+1}: Validation passed")
         
         logger.info(f"💬 Sending {len(messages)} message(s) via push")
         
