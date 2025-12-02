@@ -2,6 +2,8 @@
 LINE OA Management System with Role-based Authentication
 Main Application File
 """
+from __future__ import annotations
+
 import json
 import hmac
 import hashlib
@@ -2874,16 +2876,23 @@ def sanitize_flex_message(obj: Any) -> Any:
     Sanitize Flex Message to fix invalid properties before sending to LINE API
     - Fixes invalid 'size' values (e.g., '68px' -> 'md') for 'text' components
     - Validates 'size' property for 'image' and 'bubble' components
-    - Removes 'size' property from invalid components (box, separator, etc.)
+    - Removes 'size' property from invalid components (box, separator, spacer, button, filler)
     - Recursively processes all nested objects and arrays
     - IMPORTANT: Sanitizes nested structures FIRST, then validates size property
+    
+    Note: Multiple passes may be needed for deeply nested structures because:
+    - Templates can have 3+ levels of nesting (bubble -> body -> box -> contents -> box -> text)
+    - Each pass can only sanitize one level at a time
+    - We continue until no more changes are detected
     """
     # Valid text sizes for LINE Flex Message
     VALID_TEXT_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
     # Valid image sizes
     VALID_IMAGE_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
-    # Valid bubble sizes
+    # Valid bubble sizes (nano, micro, kilo, mega, giga - as per LINE API documentation)
     VALID_BUBBLE_SIZES = {'nano', 'micro', 'kilo', 'mega', 'giga'}
+    # Components that CANNOT have 'size' property (as per LINE API specification)
+    INVALID_SIZE_COMPONENTS = {'box', 'separator', 'spacer', 'button', 'filler'}
     
     # Map pixel values to valid sizes
     def convert_pixel_size(pixel_size: str) -> str:
@@ -2936,20 +2945,33 @@ def sanitize_flex_message(obj: Any) -> Any:
         # Now check and handle 'size' property based on component type
         # IMPORTANT: Only text, image, and bubble components can have 'size' property
         if 'size' in obj:
-            component_type = sanitized_obj.get('type', '')
+            component_type = sanitized_obj.get('type', '').lower()
             size_value = obj['size']
             
-            # Only allow 'size' for specific component types
-            if component_type == 'text' and isinstance(size_value, str):
+            # Check if component type explicitly cannot have 'size'
+            if component_type in INVALID_SIZE_COMPONENTS:
+                logger.warning(f"⚠️ Removing invalid 'size' property from {component_type} component")
+                # Don't add 'size' to sanitized_obj - it's invalid for this component type
+            elif component_type == 'text' and isinstance(size_value, str):
                 # Fix invalid size values for text components
-                sanitized_obj['size'] = convert_pixel_size(size_value)
+                converted = convert_pixel_size(size_value)
+                if converted.lower() in VALID_TEXT_SIZES:
+                    sanitized_obj['size'] = converted
+                else:
+                    logger.warning(f"⚠️ Invalid text size: {size_value}, removing it")
+                    # Don't add invalid size
             elif component_type == 'image' and isinstance(size_value, str):
                 # Validate image size
                 if size_value.lower() in VALID_IMAGE_SIZES:
                     sanitized_obj['size'] = size_value
                 else:
-                    # Convert or use default
-                    sanitized_obj['size'] = convert_pixel_size(size_value)
+                    # Try to convert pixel values
+                    converted = convert_pixel_size(size_value)
+                    if converted.lower() in VALID_IMAGE_SIZES:
+                        sanitized_obj['size'] = converted
+                    else:
+                        logger.warning(f"⚠️ Invalid image size: {size_value}, removing it")
+                        # Don't add invalid size
             elif component_type == 'bubble' and isinstance(size_value, str):
                 # Validate bubble size
                 if size_value.lower() in VALID_BUBBLE_SIZES:
@@ -2958,14 +2980,14 @@ def sanitize_flex_message(obj: Any) -> Any:
                     # Use default if invalid
                     logger.warning(f"⚠️ Invalid bubble size: {size_value}, using 'mega' as default")
                     sanitized_obj['size'] = 'mega'
+            elif not component_type:
+                # Component without type - remove size
+                logger.warning(f"⚠️ Removing 'size' property from component without type")
+                # Don't add 'size' to sanitized_obj
             else:
-                # For ALL other component types (box, separator, spacer, button, filler, or unknown)
-                # 'size' is NOT valid - remove it
-                if component_type:
-                    logger.warning(f"⚠️ Removing invalid 'size' property from {component_type} component")
-                else:
-                    logger.warning(f"⚠️ Removing 'size' property from component without type (likely nested structure)")
-                # Don't add 'size' to sanitized_obj - it's invalid for this component type
+                # Unknown component type - remove size to be safe
+                logger.warning(f"⚠️ Removing 'size' property from unknown component type: {component_type}")
+                # Don't add 'size' to sanitized_obj
         
         return sanitized_obj
     elif isinstance(obj, list):
@@ -2975,10 +2997,108 @@ def sanitize_flex_message(obj: Any) -> Any:
         # Return primitive values as-is
         return obj
 
+def sanitize_flex_message_iterative(obj: Any, max_iterations: int = 5) -> Any:
+    """
+    Apply sanitize_flex_message iteratively until no more changes are detected
+    or max_iterations is reached. This is more efficient than blindly running
+    multiple passes.
+    
+    Args:
+        obj: The flex message object to sanitize
+        max_iterations: Maximum number of iterations (default: 5, enough for very deep nesting)
+    
+    Returns:
+        Sanitized flex message object
+    """
+    previous = None
+    current = obj
+    iterations = 0
+    
+    while iterations < max_iterations:
+        # Sanitize
+        current = sanitize_flex_message(current)
+        
+        # Check if anything changed by comparing JSON strings
+        try:
+            current_json = json.dumps(current, sort_keys=True)
+            if previous == current_json:
+                # No changes detected, we're done
+                logger.info(f"✅ Sanitization converged after {iterations + 1} iteration(s)")
+                break
+            previous = current_json
+        except (TypeError, ValueError):
+            # If we can't serialize to JSON, just do max iterations
+            pass
+        
+        iterations += 1
+    
+    if iterations >= max_iterations:
+        logger.warning(f"⚠️ Sanitization stopped after {max_iterations} iterations (max reached)")
+    
+    return current
+
+def validate_flex_message_structure(flex_message: Dict[str, Any]) -> tuple[bool, list[str]]:
+    """
+    Validate a flex message structure and return validation results
+    
+    Returns:
+        tuple: (is_valid: bool, issues: list[str])
+    """
+    issues = []
+    
+    def check_component(obj, path="root"):
+        """Recursively check for invalid properties"""
+        if isinstance(obj, dict):
+            comp_type = obj.get("type", "").lower()
+            
+            # Check for invalid 'size' property
+            if "size" in obj:
+                invalid_components = {"box", "separator", "spacer", "button", "filler"}
+                if comp_type in invalid_components:
+                    issues.append(f"Invalid 'size' property in {comp_type} at {path}")
+                elif comp_type == "text":
+                    valid_sizes = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+                    if obj["size"].lower() not in valid_sizes:
+                        issues.append(f"Invalid text size '{obj['size']}' at {path}")
+                elif comp_type == "image":
+                    valid_sizes = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+                    if obj["size"].lower() not in valid_sizes:
+                        issues.append(f"Invalid image size '{obj['size']}' at {path}")
+                elif comp_type == "bubble":
+                    valid_sizes = {'nano', 'micro', 'kilo', 'mega', 'giga'}
+                    if obj["size"].lower() not in valid_sizes:
+                        issues.append(f"Invalid bubble size '{obj['size']}' at {path}")
+                elif not comp_type:
+                    issues.append(f"'size' property in component without type at {path}")
+            
+            # Recursively check nested structures
+            for key, value in obj.items():
+                check_component(value, f"{path}.{key}")
+        
+        elif isinstance(obj, list):
+            for idx, item in enumerate(obj):
+                check_component(item, f"{path}[{idx}]")
+    
+    # Check the flex message structure
+    if not isinstance(flex_message, dict):
+        issues.append("Flex message is not a dictionary")
+        return False, issues
+    
+    if flex_message.get("type") != "flex":
+        issues.append(f"Message type is '{flex_message.get('type')}', expected 'flex'")
+    
+    if not flex_message.get("contents"):
+        issues.append("Flex message has no 'contents' field")
+        return False, issues
+    
+    # Check contents structure
+    check_component(flex_message["contents"])
+    
+    return len(issues) == 0, issues
+
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render flex message template with result data"""
     try:
-        import json
         import copy
         from services.slip_formatter import format_currency, format_thai_datetime, mask_account_formatted, get_bank_logo
         
@@ -3517,21 +3637,27 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
         }]
     
     # Sanitize all flex messages before returning
-    # Sanitize multiple times to ensure deeply nested structures are cleaned
+    # Use iterative sanitization to ensure deeply nested structures are cleaned efficiently
     sanitized_messages = []
     for msg in messages:
         if msg.get("type") == "flex" and msg.get("contents"):
-            # Sanitize multiple times to catch all nested invalid properties
-            sanitized_contents = sanitize_flex_message(msg["contents"])
-            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Second pass
-            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Third pass for deeply nested
-            msg["contents"] = sanitized_contents
+            # Apply iterative sanitization (will continue until no changes or max iterations)
+            logger.info(f"🧹 Sanitizing flex message iteratively...")
+            msg["contents"] = sanitize_flex_message_iterative(msg["contents"])
         sanitized_messages.append(msg)
     messages = sanitized_messages
     
     logger.info(f"💬 Prepared {len(messages)} message(s) for delivery")
     for i, msg in enumerate(messages):
         logger.info(f"   Message {i+1}: type={msg.get('type')}, altText={msg.get('altText', 'N/A')[:50]}")
+        # Log a sample of the message structure for debugging
+        if msg.get("type") == "flex" and msg.get("contents"):
+            try:
+                import json
+                msg_json = json.dumps(msg["contents"], ensure_ascii=False)
+                logger.info(f"   Flex message structure (first 200 chars): {msg_json[:200]}...")
+            except Exception as e:
+                logger.warning(f"   Could not serialize flex message for logging: {e}")
     
     return messages
 
@@ -3566,6 +3692,33 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
         
         messages = _prepare_slip_messages(result, channel_id, slip_template_id)
         
+        # Validate messages before sending using the validation utility
+        logger.info(f"🔍 Validating {len(messages)} message(s) before sending...")
+        for i, msg in enumerate(messages):
+            if msg.get("type") == "flex":
+                # Use the validation utility function
+                is_valid, issues = validate_flex_message_structure(msg)
+                
+                if not is_valid:
+                    logger.error(f"❌ Message {i+1}: Validation failed with {len(issues)} issue(s):")
+                    for issue in issues:
+                        logger.error(f"   - {issue}")
+                    
+                    # Try to sanitize one more time as emergency fix using iterative approach
+                    logger.info(f"🔧 Attempting emergency sanitization...")
+                    msg["contents"] = sanitize_flex_message_iterative(msg["contents"])
+                    
+                    # Re-validate after emergency sanitization
+                    is_valid_after, issues_after = validate_flex_message_structure(msg)
+                    if is_valid_after:
+                        logger.info(f"✅ Message {i+1}: Emergency sanitization successful!")
+                    else:
+                        logger.error(f"❌ Message {i+1}: Still has {len(issues_after)} issue(s) after emergency sanitization")
+                        for issue in issues_after:
+                            logger.error(f"   - {issue}")
+                else:
+                    logger.info(f"✅ Message {i+1}: Validation passed")
+        
         logger.info(f"💬 Sending {len(messages)} message(s) via push")
         
         data = {
@@ -3580,11 +3733,16 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             if response.status_code != 200:
                 error_text = response.text[:500] if response.text else "No error message"
                 logger.error(f"❌ LINE API error: {error_text}")
-                logger.error(f"📊 Request data: {data}")
+                # Log the full message structure for debugging
+                try:
+                    import json
+                    logger.error(f"📊 Request data (first 1000 chars): {json.dumps(data, ensure_ascii=False)[:1000]}...")
+                except:
+                    logger.error(f"📊 Request data: {str(data)[:1000]}...")
                 
                 # Try fallback to simple text message if flex message failed
                 if messages and messages[0].get("type") == "flex":
-                    logger.warning("⚠️ Flex message failed, trying fallback text message")
+                    logger.warning("⚠️ flex message failed, trying fallback text message")
                     try:
                         # Create simple text fallback
                         status = result.get("status", "unknown")

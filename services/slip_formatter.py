@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Dict, Any, Union
 from datetime import datetime
 import pytz, re
@@ -253,7 +254,6 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
         db: MongoDB database instance (required for bank logo lookup)
     """
     try:
-        import json
         import copy
         
         # Validate inputs
@@ -441,15 +441,52 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
         # LINE API rejects flex messages with 'size' on box/separator/etc
         def quick_sanitize(obj):
             """Quick sanitize to remove 'size' from invalid components"""
+            # Components that CANNOT have 'size' property
+            INVALID_SIZE_COMPONENTS = {'box', 'separator', 'spacer', 'button', 'filler'}
+            # Valid sizes
+            VALID_TEXT_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+            VALID_IMAGE_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+            VALID_BUBBLE_SIZES = {'nano', 'micro', 'kilo', 'mega', 'giga'}
+            
             if isinstance(obj, dict):
                 cleaned = {}
-                comp_type = obj.get('type', '')
+                comp_type = obj.get('type', '').lower()
                 for key, value in obj.items():
                     if key == 'size':
-                        # Only keep size for text, image, bubble components
-                        if comp_type in ['text', 'image', 'bubble']:
-                            cleaned[key] = value
-                        # Remove size for all other types (box, separator, spacer, etc)
+                        # Check if component type explicitly cannot have 'size'
+                        if comp_type in INVALID_SIZE_COMPONENTS:
+                            # Remove size for invalid components
+                            logger.warning(f"⚠️ Removing invalid 'size' from {comp_type} component in quick_sanitize")
+                            continue  # Skip adding this key
+                        elif comp_type == 'text':
+                            # Validate text size
+                            if isinstance(value, str) and value.lower() in VALID_TEXT_SIZES:
+                                cleaned[key] = value
+                            else:
+                                logger.warning(f"⚠️ Removing invalid text size: {value}")
+                                continue
+                        elif comp_type == 'image':
+                            # Validate image size
+                            if isinstance(value, str) and value.lower() in VALID_IMAGE_SIZES:
+                                cleaned[key] = value
+                            else:
+                                logger.warning(f"⚠️ Removing invalid image size: {value}")
+                                continue
+                        elif comp_type == 'bubble':
+                            # Validate bubble size
+                            if isinstance(value, str) and value.lower() in VALID_BUBBLE_SIZES:
+                                cleaned[key] = value
+                            else:
+                                logger.warning(f"⚠️ Invalid bubble size: {value}, using 'mega'")
+                                cleaned[key] = 'mega'
+                        elif not comp_type:
+                            # Component without type - remove size
+                            logger.warning(f"⚠️ Removing 'size' from component without type")
+                            continue
+                        else:
+                            # Unknown type - remove size to be safe
+                            logger.warning(f"⚠️ Removing 'size' from unknown type: {comp_type}")
+                            continue
                     else:
                         cleaned[key] = quick_sanitize(value)
                 return cleaned
@@ -457,8 +494,31 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
                 return [quick_sanitize(item) for item in obj]
             return obj
         
-        # Apply quick sanitization
-        rendered_flex = quick_sanitize(rendered_flex)
+        # Apply iterative sanitization to ensure deeply nested structures are cleaned efficiently
+        # Continue sanitizing until no changes are detected (max 5 iterations)
+        previous = None
+        iterations = 0
+        max_iterations = 5
+        
+        while iterations < max_iterations:
+            rendered_flex = quick_sanitize(rendered_flex)
+            
+            # Check if anything changed
+            try:
+                current_json = json.dumps(rendered_flex, sort_keys=True)
+                if previous == current_json:
+                    logger.info(f"✅ Sanitization converged after {iterations + 1} iteration(s)")
+                    break
+                previous = current_json
+            except (TypeError, ValueError):
+                # If we can't serialize, just do max iterations
+                pass
+            
+            iterations += 1
+        
+        if iterations >= max_iterations:
+            logger.warning(f"⚠️ Sanitization stopped after {max_iterations} iterations (max reached)")
+        
         logger.info(f"✅ Flex template rendered and sanitized successfully")
         return {"type": "flex", "altText": f"ยืนยันการชำระเงิน {amount_display}", "contents": rendered_flex}
     except Exception as e:
