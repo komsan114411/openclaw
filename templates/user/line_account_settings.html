@@ -891,6 +891,7 @@
     }
     
     // Render flex message preview as HTML
+    {% raw %}
     function renderFlexPreview(flexContent) {
         if (!flexContent || typeof flexContent !== 'object') {
             return '<div style="color: #94A3B8; font-size: 12px; text-align: center; padding: 20px;">ไม่มีข้อมูลตัวอย่าง</div>';
@@ -1049,6 +1050,7 @@
         
         return previewHTML;
     }
+    {% endraw %}
     
     function showNotification(type, message) {
         const colors = {
