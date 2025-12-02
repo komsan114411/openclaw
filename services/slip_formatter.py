@@ -338,7 +338,16 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
             # Insert duplicate warning block after amount
             body_contents = rendered_flex.get("contents", {}).get("body", {}).get("contents", [])
             if len(body_contents) > 1:
-                # Create duplicate warning block
+                # Create duplicate warning block - สีเหลือง
+                duplicate_count = result.get("duplicate_count", 1)
+                is_user_duplicate = result.get("is_user_duplicate", True)
+                
+                warning_text = "⚠️ สลิปซ้ำ"
+                if is_user_duplicate:
+                    warning_detail = f"คุณใช้สลิปนี้ไปแล้ว {duplicate_count} ครั้ง"
+                else:
+                    warning_detail = "สลิปนี้เคยถูกตรวจสอบไปแล้ว กรุณาตรวจสอบกับผู้โอนอีกครั้ง"
+                
                 duplicate_warning = {
                     "type": "box",
                     "layout": "vertical",
@@ -352,7 +361,7 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
                                     "text": "⚠️",
                                     "size": "xl",
                                     "flex": 0,
-                                    "color": "#DC2626"
+                                    "color": "#D97706"
                                 },
                                 {
                                     "type": "box",
@@ -360,29 +369,33 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
                                     "contents": [
                                         {
                                             "type": "text",
-                                            "text": "สลิปซ้ำ!",
-                                            "size": "lg",
+                                            "text": warning_text,
+                                            "size": "md",
                                             "weight": "bold",
-                                            "color": "#DC2626"
+                                            "color": "#92400E"
                                         },
                                         {
                                             "type": "text",
-                                            "text": "สลิปนี้เคยถูกตรวจสอบไปแล้ว กรุณาตรวจสอบกับผู้โอนอีกครั้ง",
-                                            "size": "xs",
-                                            "color": "#DC2626",
+                                            "text": warning_detail,
+                                            "size": "sm",
+                                            "color": "#78350F",
                                             "wrap": True,
                                             "margin": "xs"
                                         }
                                     ],
-                                    "margin": "md"
+                                    "margin": "md",
+                                    "flex": 1
                                 }
-                            ]
+                            ],
+                            "spacing": "sm"
                         }
                     ],
-                    "backgroundColor": "#FEE2E2",
+                    "backgroundColor": "#FEF3C7",
                     "cornerRadius": "12px",
                     "paddingAll": "16px",
-                    "margin": "lg"
+                    "margin": "lg",
+                    "borderColor": "#FCD34D",
+                    "borderWidth": "2px"
                 }
                 # Insert after amount box (index 1)
                 body_contents.insert(1, duplicate_warning)
@@ -585,26 +598,28 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    # แถบเตือนสลิปซ้ำ (ถ้าเป็น duplicate)
+                    # แถบเตือนสลิปซ้ำ (ถ้าเป็น duplicate) - สีเหลือง
                     *([{
                         "type": "box",
                         "layout": "horizontal",
                         "contents": [
-                            {"type": "text", "text": "⚠️", "size": "lg", "flex": 0},
+                            {"type": "text", "text": "⚠️", "size": "lg", "flex": 0, "color": "#D97706"},
                             {
                                 "type": "box",
                                 "layout": "vertical",
                                 "contents": [
-                                    {"type": "text", "text": "สลิปซ้ำ", "size": "md", "weight": "bold", "color": "#DC2626"},
-                                    {"type": "text", "text": f"สลิปนี้เคยถูกใช้แล้ว +{result.get('duplicate_count', 1)}", "size": "xs", "color": "#DC2626", "wrap": True}
+                                    {"type": "text", "text": "สลิปซ้ำ", "size": "md", "weight": "bold", "color": "#92400E"},
+                                    {"type": "text", "text": f"สลิปนี้เคยถูกใช้แล้ว +{result.get('duplicate_count', 1)}", "size": "xs", "color": "#78350F", "wrap": True}
                                 ],
                                 "margin": "md"
                             }
                         ],
-                        "backgroundColor": "#FEE2E2",
-                        "cornerRadius": "8px",
-                        "paddingAll": "12px",
-                        "spacing": "md"
+                        "backgroundColor": "#FEF3C7",
+                        "cornerRadius": "12px",
+                        "paddingAll": "16px",
+                        "spacing": "md",
+                        "borderColor": "#FCD34D",
+                        "borderWidth": "2px"
                     }] if status == "duplicate" else []),
                     
                     {

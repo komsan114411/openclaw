@@ -3033,6 +3033,104 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         
         rendered_flex = json.loads(flex_json)
         
+        # Add duplicate warning block if status is duplicate
+        status = result.get("status", "")
+        if status == "duplicate":
+            duplicate_count = result.get("duplicate_count", 1)
+            is_user_duplicate = result.get("is_user_duplicate", True)
+            
+            # Create warning block
+            warning_text = f"⚠️ สลิปซ้ำ"
+            if is_user_duplicate:
+                warning_detail = f"คุณใช้สลิปนี้ไปแล้ว {duplicate_count} ครั้ง"
+            else:
+                warning_detail = "สลิปนี้เคยถูกตรวจสอบแล้ว"
+            
+            duplicate_warning_block = {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "⚠️",
+                                "size": "xl",
+                                "flex": 0,
+                                "color": "#D97706"
+                            },
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": warning_text,
+                                        "size": "md",
+                                        "weight": "bold",
+                                        "color": "#92400E"
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": warning_detail,
+                                        "size": "sm",
+                                        "color": "#78350F",
+                                        "wrap": True,
+                                        "margin": "xs"
+                                    }
+                                ],
+                                "margin": "md",
+                                "flex": 1
+                            }
+                        ],
+                        "spacing": "sm"
+                    }
+                ],
+                "backgroundColor": "#FEF3C7",
+                "cornerRadius": "12px",
+                "paddingAll": "16px",
+                "margin": "lg",
+                "borderColor": "#FCD34D",
+                "borderWidth": "2px"
+            }
+            
+            # Insert warning block into body contents
+            # Flex message structure: bubble -> body -> contents (array)
+            # Try different possible structures
+            body_contents = None
+            
+            # Structure 1: Direct bubble with body
+            if isinstance(rendered_flex, dict) and "body" in rendered_flex:
+                body = rendered_flex.get("body")
+                if isinstance(body, dict) and "contents" in body:
+                    body_contents = body["contents"]
+            
+            # Structure 2: Nested in contents (bubble wrapper)
+            elif isinstance(rendered_flex, dict) and "contents" in rendered_flex:
+                contents = rendered_flex.get("contents")
+                if isinstance(contents, dict) and "body" in contents:
+                    body = contents.get("body")
+                    if isinstance(body, dict) and "contents" in body:
+                        body_contents = body["contents"]
+            
+            # Structure 3: Direct contents array (unlikely but possible)
+            elif isinstance(rendered_flex, list):
+                # If it's a list, try to find body in first item
+                if len(rendered_flex) > 0 and isinstance(rendered_flex[0], dict):
+                    if "body" in rendered_flex[0]:
+                        body = rendered_flex[0].get("body")
+                        if isinstance(body, dict) and "contents" in body:
+                            body_contents = body["contents"]
+            
+            # Add warning block if body_contents found
+            if body_contents and isinstance(body_contents, list):
+                body_contents.insert(0, duplicate_warning_block)
+                logger.info(f"✅ Added duplicate warning block (สีเหลือง) to flex message body")
+            else:
+                logger.warning("⚠️ Could not find body.contents to add duplicate warning block - template structure may be different")
+        
         # Sanitize flex message to fix invalid properties (e.g., '68px' -> 'md')
         rendered_flex = sanitize_flex_message(rendered_flex)
         
@@ -3179,12 +3277,18 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
                 # Use text template
                 template_text = template.get("template_text", "")
                 rendered_text = render_slip_template(template_text, result)
-                messages = [{"type": "text", "text": rendered_text}]
                 
-                # Add duplicate warning if needed
+                # Add duplicate warning prefix if needed
                 if result.get("status") == "duplicate":
-                    warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว"
-                    messages.insert(0, {"type": "text", "text": warning_text})
+                    duplicate_count = result.get("duplicate_count", 1)
+                    is_user_duplicate = result.get("is_user_duplicate", True)
+                    if is_user_duplicate:
+                        warning_text = f"⚠️ คำเตือน: สลิปนี้เคยถูกใช้งานแล้ว (คุณใช้สลิปนี้ไปแล้ว {duplicate_count} ครั้ง)\n\n"
+                    else:
+                        warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกตรวจสอบแล้ว\n\n"
+                    rendered_text = warning_text + rendered_text
+                
+                messages = [{"type": "text", "text": rendered_text}]
             else:
                 # Use flex message template
                 template_flex = template.get("template_flex")
