@@ -2759,105 +2759,6 @@ async def send_line_push(user_id: str, text: str, access_token: str) -> bool:
         logger.error(f"❌ Error sending LINE push message: {e}")
         return False
 
-def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
-    """Render Flex Message template with result data"""
-    try:
-        import json
-        import copy
-        from services.slip_formatter import get_bank_logo, mask_account_formatted
-        
-        # Extract data from result (handle both formats)
-        if isinstance(result, dict) and "data" in result:
-            data = result["data"] or {}
-            status = result.get("status", "success")
-        else:
-            data = result if isinstance(result, dict) else {}
-            status = "success"
-        
-        # Extract amount
-        amount_obj = data.get("amount", {})
-        if isinstance(amount_obj, dict):
-            amount = amount_obj.get("amount", 0)
-        else:
-            amount = amount_obj
-        amount_display = f"{amount:,.2f}"
-        
-        # Extract sender/receiver (รองรับทั้ง string และ dict)
-        sender = data.get("sender", {})
-        receiver = data.get("receiver", {})
-        
-        if isinstance(sender, str):
-            s_name = sender
-            s_bank = data.get("sender_bank", "")
-            s_acc = ""
-        else:
-            sender_name = sender.get("account", {}).get("name", {})
-            s_name = sender_name.get("th", "") or sender_name.get("en", "") or data.get("sender_name", "ไม่ระบุชื่อ")
-            s_bank = sender.get("bank", {}).get("short", "") or sender.get("bank", {}).get("name", "") or data.get("sender_bank", "")
-            s_acc = sender.get("account", {}).get("bank", {}).get("account", "")
-            s_code = sender.get("bank", {}).get("id", "")
-        
-        if isinstance(receiver, str):
-            r_name = receiver
-            r_bank = data.get("receiver_bank", "")
-            r_acc = ""
-        else:
-            receiver_name = receiver.get("account", {}).get("name", {})
-            r_name = receiver_name.get("th", "") or receiver_name.get("en", "") or data.get("receiver_name", "ไม่ระบุชื่อ")
-            r_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "") or data.get("receiver_bank", "")
-            r_acc = receiver.get("account", {}).get("bank", {}).get("account", "")
-            r_code = receiver.get("bank", {}).get("id", "")
-        
-        # Format account numbers
-        s_acc_display = mask_account_formatted(s_acc) if s_acc else ""
-        r_acc_display = mask_account_formatted(r_acc) if r_acc else ""
-        
-        # Get bank logos
-        try:
-            s_logo = get_bank_logo(s_code if not isinstance(sender, str) else "", s_bank, db=app.state.db)
-            r_logo = get_bank_logo(r_code if not isinstance(receiver, str) else "", r_bank, db=app.state.db)
-        except:
-            s_logo = "https://via.placeholder.com/48"
-            r_logo = "https://via.placeholder.com/48"
-        
-        # Extract date/time
-        date_str = data.get("date", data.get("trans_date", "")) or "-"
-        time_str = data.get("time", data.get("trans_time", "")) or "-"
-        ref_no = data.get("transRef") or data.get("reference") or "-"
-        verified_time = datetime.now().strftime("%d/%m/%Y %H:%M")
-        
-        # Create replacement map
-        replacements = {
-            "{{amount}}": amount_display,
-            "{{sender_name}}": s_name,
-            "{{sender_bank}}": s_bank,
-            "{{sender_account}}": s_acc_display,
-            "{{sender_bank_logo}}": s_logo,
-            "{{receiver_name}}": r_name,
-            "{{receiver_bank}}": r_bank,
-            "{{receiver_account}}": r_acc_display,
-            "{{receiver_bank_logo}}": r_logo,
-            "{{date}}": date_str,
-            "{{time}}": time_str,
-            "{{reference}}": ref_no,
-            "{{verified_time}}": verified_time
-        }
-        
-        # Convert template to JSON string, replace variables, then parse back
-        template_str = json.dumps(flex_template)
-        for key, value in replacements.items():
-            template_str = template_str.replace(key, str(value))
-        
-        rendered_template = json.loads(template_str)
-        return rendered_template
-        
-    except Exception as e:
-        logger.error(f"❌ Error rendering flex template: {e}")
-        import traceback
-        traceback.print_exc()
-        # Return original template as fallback
-        return flex_template
-
 def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
     """Render slip template with result data"""
     try:
@@ -2986,21 +2887,39 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         thai_tz = pytz.timezone("Asia/Bangkok")
         verified_time = datetime.now(thai_tz).strftime("%d %b %y, %H:%M น.").replace("Jan","ม.ค.").replace("Feb","ก.พ.").replace("Mar","มี.ค.").replace("Apr","เม.ย.").replace("May","พ.ค.").replace("Jun","มิ.ย.").replace("Jul","ก.ค.").replace("Aug","ส.ค.").replace("Sep","ก.ย.").replace("Oct","ต.ค.").replace("Nov","พ.ย.").replace("Dec","ธ.ค.")
         
-        # Prepare replacement data
+        # Prepare replacement data - รองรับทั้ง placeholders แบบเดิมและแบบใหม่
         replacement_data = {
+            # Amount
             "{{amount}}": amount_display,
             "{{amount_number}}": amount_number,
+            
+            # DateTime
             "{{datetime}}": datetime_str,
+            "{{date}}": datetime_str,
+            "{{time}}": datetime_str,
+            
+            # Reference
             "{{reference}}": reference,
+            "{{ref_no}}": reference,
+            "{{transRef}}": reference,
+            
+            # Sender - รองรับทั้ง 2 แบบ: {{sender_bank}} และ {{sender_bank_name}}
             "{{sender_name}}": sender_name,
             "{{sender_account}}": sender_account,
             "{{sender_bank}}": sender_bank,
+            "{{sender_bank_name}}": sender_bank,  # Alias สำหรับ template ที่ใช้ชื่อนี้
             "{{sender_bank_logo}}": sender_bank_logo,
+            
+            # Receiver - รองรับทั้ง 2 แบบ: {{receiver_bank}} และ {{receiver_bank_name}}
             "{{receiver_name}}": receiver_name,
             "{{receiver_account}}": receiver_account,
             "{{receiver_bank}}": receiver_bank,
+            "{{receiver_bank_name}}": receiver_bank,  # Alias สำหรับ template ที่ใช้ชื่อนี้
             "{{receiver_bank_logo}}": receiver_bank_logo,
-            "{{verified_time}}": verified_time
+            
+            # Verified time
+            "{{verified_time}}": verified_time,
+            "{{verified_at}}": verified_time
         }
         
         # Deep copy template to avoid modifying original
