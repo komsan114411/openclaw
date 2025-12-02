@@ -104,34 +104,43 @@ class BankModel:
         if not bank:
             return None
         
-        # Get logo_base64 - handle None and empty string
+        # Get logo_base64 - preserve it as-is if it exists
         logo_base64 = bank.get("logo_base64")
         
-        # Validate and clean logo_base64
+        # Only filter out truly invalid values, but keep valid base64 strings
         if logo_base64 is None:
-            logo_base64 = None
-        elif not isinstance(logo_base64, str):
-            # Try to convert to string if it's not
+            # None is fine, keep it
+            pass
+        elif isinstance(logo_base64, str):
+            # If it's a string, check if it's a valid base64 string
+            trimmed = logo_base64.strip()
+            if trimmed == '' or trimmed.lower() in ['null', 'none', 'undefined']:
+                # Empty or string representations of null
+                logo_base64 = None
+            else:
+                # Keep the logo_base64 as-is (don't strip, might be needed)
+                logo_base64 = trimmed
+        elif isinstance(logo_base64, bytes):
+            # If it's bytes, try to decode to string
             try:
-                logo_base64 = str(logo_base64)
+                logo_base64 = logo_base64.decode('utf-8')
             except:
                 logo_base64 = None
-        elif not logo_base64.strip():
-            # Empty string
-            logo_base64 = None
-        elif logo_base64.strip().lower() in ['null', 'none', 'undefined', '']:
-            # String representations of null
-            logo_base64 = None
         else:
-            # Valid logo - ensure it's clean
-            logo_base64 = logo_base64.strip()
+            # Other types - try to convert to string
+            try:
+                logo_base64 = str(logo_base64)
+                if logo_base64.strip() == '':
+                    logo_base64 = None
+            except:
+                logo_base64 = None
         
         result = {
             "id": str(bank["_id"]),
             "code": bank.get("code"),
             "name": bank.get("name"),
             "abbreviation": bank.get("abbreviation", bank.get("code")),
-            "logo_base64": logo_base64,  # Will be None if empty or invalid
+            "logo_base64": logo_base64,  # Keep as-is if valid
             "is_active": bank.get("is_active", True),
             "created_at": bank.get("created_at").isoformat() if bank.get("created_at") else None,
             "updated_at": bank.get("updated_at").isoformat() if bank.get("updated_at") else None

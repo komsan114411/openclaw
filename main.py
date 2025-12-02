@@ -788,8 +788,15 @@ async def get_banks_api(request: Request):
             bank_dict = app.state.bank_model.to_dict(bank)
             if bank_dict:
                 # Log logo status for debugging
-                has_logo = bank_dict.get("logo_base64") and len(bank_dict.get("logo_base64", "")) > 0
-                logger.debug(f"Bank {bank_dict.get('code')}: has_logo={has_logo}, logo_length={len(bank_dict.get('logo_base64', '')) if bank_dict.get('logo_base64') else 0}")
+                logo_base64 = bank_dict.get("logo_base64")
+                has_logo = logo_base64 and isinstance(logo_base64, str) and len(logo_base64) > 0
+                logo_length = len(logo_base64) if logo_base64 else 0
+                logger.info(f"Bank {bank_dict.get('code')} ({bank_dict.get('name')}): has_logo={has_logo}, logo_length={logo_length}")
+                
+                # Ensure logo_base64 is included in response (even if None)
+                if 'logo_base64' not in bank_dict:
+                    bank_dict['logo_base64'] = None
+                
                 bank_dicts.append(bank_dict)
         
         logger.info(f"✅ Returning {len(bank_dicts)} banks to admin")

@@ -377,11 +377,23 @@ async function loadBanks() {
         
         // Log logo status for debugging
         banks.forEach(bank => {
-            const hasLogo = bank.logo_base64 && typeof bank.logo_base64 === 'string' && bank.logo_base64.trim().length > 0;
+            const logo = bank.logo_base64;
+            const hasLogo = logo !== null && 
+                          logo !== undefined && 
+                          typeof logo === 'string' && 
+                          logo.trim().length > 0 &&
+                          logo.trim() !== 'null' &&
+                          logo.trim() !== 'undefined';
+            
             if (hasLogo) {
-                console.log(`  ✓ Bank ${bank.code} (${bank.name}) has logo (length: ${bank.logo_base64.length})`);
+                console.log(`  ✓ Bank ${bank.code} (${bank.name}) has logo (length: ${logo.length}, preview: ${logo.substring(0, 30)}...)`);
             } else {
-                console.log(`  ✗ Bank ${bank.code} (${bank.name}) has no logo`);
+                console.log(`  ✗ Bank ${bank.code} (${bank.name}) has no logo`, {
+                    logo_base64: logo,
+                    type: typeof logo,
+                    isNull: logo === null,
+                    isUndefined: logo === undefined
+                });
             }
         });
         
@@ -409,30 +421,53 @@ function renderBanksTable() {
     banks.forEach(bank => {
         const row = document.createElement('tr');
         
-        // Check if logo exists and is valid
-        const hasLogo = bank.logo_base64 && 
-                       typeof bank.logo_base64 === 'string' && 
-                       bank.logo_base64.trim().length > 0 &&
-                       bank.logo_base64 !== 'null' &&
-                       bank.logo_base64 !== 'undefined';
+        // Check if logo exists and is valid - be more lenient
+        let hasLogo = false;
+        let logoBase64 = null;
+        
+        if (bank.logo_base64 !== null && bank.logo_base64 !== undefined) {
+            if (typeof bank.logo_base64 === 'string') {
+                const trimmed = bank.logo_base64.trim();
+                if (trimmed.length > 0 && 
+                    trimmed !== 'null' && 
+                    trimmed !== 'undefined' && 
+                    trimmed !== 'None' &&
+                    trimmed.toLowerCase() !== 'none') {
+                    hasLogo = true;
+                    logoBase64 = trimmed;
+                }
+            } else if (typeof bank.logo_base64 === 'object') {
+                // Might be an object, try to stringify
+                try {
+                    const str = String(bank.logo_base64);
+                    if (str && str.trim().length > 0) {
+                        hasLogo = true;
+                        logoBase64 = str.trim();
+                    }
+                } catch (e) {
+                    console.warn('Could not convert logo_base64 to string:', e);
+                }
+            }
+        }
         
         // Debug logging
         if (hasLogo) {
-            console.log(`✅ Rendering logo for bank ${bank.code}: length=${bank.logo_base64.length}`);
+            console.log(`✅ Rendering logo for bank ${bank.code}: length=${logoBase64.length}, preview=${logoBase64.substring(0, 50)}...`);
         } else {
             console.log(`⚠️ No logo for bank ${bank.code}:`, {
                 logo_base64: bank.logo_base64,
                 type: typeof bank.logo_base64,
-                length: bank.logo_base64 ? bank.logo_base64.length : 0
+                value: bank.logo_base64
             });
         }
         
-        const logoHtml = hasLogo 
-            ? `<img src="data:image/png;base64,${bank.logo_base64}" 
+        const logoHtml = hasLogo && logoBase64
+            ? `<img src="data:image/png;base64,${logoBase64}" 
                     class="bank-logo" 
                     alt="${bank.name}" 
                     style="width: 56px; height: 56px; object-fit: contain; border-radius: 10px; border: 2px solid #E2E8F0; padding: 6px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
-                    onerror="console.error('❌ Failed to load logo for bank ${bank.code}'); this.onerror=null; this.style.display='none'; const parent = this.parentElement; if (parent) { parent.innerHTML='<div class=\\'no-logo\\' style=\\'width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;\\' onclick=\\'editBank(\\'${bank.id}\\')\\' title=\\'คลิกเพื่ออัพโหลดโลโก้\\'><i class=\\'fas fa-image\\'></i></div>'; }">
+                    onerror="console.error('❌ Failed to load logo for bank ${bank.code}'); this.onerror=null; this.style.display='none'; const parent = this.parentElement; if (parent) { parent.innerHTML='<div class=\\'no-logo\\' style=\\'width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;\\' onclick=\\'editBank(\\'${bank.id}\\')\\' title=\\'คลิกเพื่ออัพโหลดโลโก้\\'><i class=\\'fas fa-image\\'></i></div>'; }"
+                    onload="console.log('✅ Logo loaded successfully for bank ${bank.code}')">
             `
             : '<div class="no-logo" style="width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;" onclick="editBank(\'' + bank.id + '\')" title="คลิกเพื่ออัพโหลดโลโก้"><i class="fas fa-image"></i></div>';
         
@@ -476,22 +511,45 @@ function editBank(bankId) {
     const noLogoPlaceholder = document.getElementById('noLogoPlaceholder');
     const removeBtn = document.getElementById('removeLogo');
     
-    // Check if logo exists and is valid
-    const hasLogo = bank.logo_base64 && 
-                   typeof bank.logo_base64 === 'string' && 
-                   bank.logo_base64.trim().length > 0 &&
-                   bank.logo_base64 !== 'null' &&
-                   bank.logo_base64 !== 'undefined';
+    // Check if logo exists and is valid - be more lenient
+    let hasLogo = false;
+    let logoBase64 = null;
+    
+    if (bank.logo_base64 !== null && bank.logo_base64 !== undefined) {
+        if (typeof bank.logo_base64 === 'string') {
+            const trimmed = bank.logo_base64.trim();
+            if (trimmed.length > 0 && 
+                trimmed !== 'null' && 
+                trimmed !== 'undefined' && 
+                trimmed !== 'None' &&
+                trimmed.toLowerCase() !== 'none') {
+                hasLogo = true;
+                logoBase64 = trimmed;
+            }
+        } else if (typeof bank.logo_base64 === 'object') {
+            // Might be an object, try to stringify
+            try {
+                const str = String(bank.logo_base64);
+                if (str && str.trim().length > 0) {
+                    hasLogo = true;
+                    logoBase64 = str.trim();
+                }
+            } catch (e) {
+                console.warn('Could not convert logo_base64 to string:', e);
+            }
+        }
+    }
     
     console.log('🔍 Checking logo for bank:', bank.code, {
         hasLogo: hasLogo,
-        logo_base64: bank.logo_base64 ? `${bank.logo_base64.substring(0, 50)}...` : 'null',
-        type: typeof bank.logo_base64,
-        length: bank.logo_base64 ? bank.logo_base64.length : 0
+        logo_base64: logoBase64 ? `${logoBase64.substring(0, 50)}...` : 'null',
+        original_type: typeof bank.logo_base64,
+        original_value: bank.logo_base64,
+        length: logoBase64 ? logoBase64.length : 0
     });
     
-    if (hasLogo) {
-        const logoUrl = `data:image/png;base64,${bank.logo_base64}`;
+    if (hasLogo && logoBase64) {
+        const logoUrl = `data:image/png;base64,${logoBase64}`;
         logoImg.src = logoUrl;
         logoImg.style.display = 'block';
         noLogoPlaceholder.style.display = 'none';
@@ -513,7 +571,7 @@ function editBank(bankId) {
             console.log('✅ Logo image loaded successfully for bank:', bank.code);
         };
         
-        console.log('✅ Logo URL set for bank:', bank.code, 'length:', bank.logo_base64.length);
+        console.log('✅ Logo URL set for bank:', bank.code, 'length:', logoBase64.length);
     } else {
         logoImg.src = '';
         logoImg.style.display = 'none';
@@ -521,7 +579,7 @@ function editBank(bankId) {
         removeBtn.style.display = 'none';
         logoImg.dataset.shouldRemove = 'false';
         logoImg.dataset.hasLogo = 'false';
-        console.log('ℹ️ No logo for bank:', bank.code);
+        console.log('ℹ️ No logo for bank:', bank.code, 'logo_base64:', bank.logo_base64);
     }
     
     // Clear file input
