@@ -2811,8 +2811,8 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         
         # Get bank logos
         try:
-            s_logo = get_bank_logo(s_code if not isinstance(sender, str) else "", s_bank, db=None)
-            r_logo = get_bank_logo(r_code if not isinstance(receiver, str) else "", r_bank, db=None)
+            s_logo = get_bank_logo(s_code if not isinstance(sender, str) else "", s_bank, db=app.state.db)
+            r_logo = get_bank_logo(r_code if not isinstance(receiver, str) else "", r_bank, db=app.state.db)
         except:
             s_logo = "https://via.placeholder.com/48"
             r_logo = "https://via.placeholder.com/48"
@@ -2975,8 +2975,8 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
             receiver_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
         
         # Get bank logos
-        sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank)
-        receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank)
+        sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank, db=app.state.db)
+        receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank, db=app.state.db)
         
         # Get verified time
         import pytz
