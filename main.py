@@ -444,6 +444,24 @@ async def admin_dashboard(request: Request):
     recent_users = app.state.user_model.get_all_users()[:5]
     recent_line_accounts = app.state.line_account_model.get_all_accounts()[:5]
     
+    # ดึง API errors ที่เกิดขึ้นล่าสุด (24 ชั่วโมงที่ผ่านมา)
+    api_errors = []
+    try:
+        from datetime import datetime, timedelta
+        import pytz
+        thai_tz = pytz.timezone('Asia/Bangkok')
+        yesterday = datetime.now(thai_tz) - timedelta(hours=24)
+        
+        # ดึงจาก slip_history ที่มี error_detail
+        errors_collection = app.state.db.api_errors
+        recent_errors = list(errors_collection.find({
+            "timestamp": {"$gte": yesterday.isoformat()}
+        }).sort("timestamp", -1).limit(10))
+        
+        api_errors = recent_errors
+    except Exception as e:
+        logger.error(f"Error fetching API errors: {e}")
+    
     return templates.TemplateResponse("admin/dashboard.html", {
         "request": request,
         "user": user,
@@ -452,7 +470,8 @@ async def admin_dashboard(request: Request):
         "total_messages_today": total_messages_today,
         "total_slips_verified": total_slips_verified,
         "recent_users": recent_users,
-        "recent_line_accounts": recent_line_accounts
+        "recent_line_accounts": recent_line_accounts,
+        "api_errors": api_errors
     })
 
 @app.get("/admin/users", response_class=HTMLResponse)
@@ -2280,9 +2299,26 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             
             if is_token_expired:
                 # Token/API หมดอายุ - ใช้ template จากหลังบ้าน
-                result_text = error_message  # จะถูกส่งผ่าน template ใน send_slip_result
+                # ใช้ข้อความทั่วไป "API หมดอายุ" สำหรับผู้ใช้
+                result["message"] = "API หมดอายุ"  # ข้อความที่แสดงใน LINE
+                result_text = "API หมดอายุ"
                 result["use_template"] = True  # Flag เพื่อบอกให้ใช้ template
-                logger.info("🔑 Token/API expired error detected - will use template")
+                
+                # บันทึก error detail ไว้ใน metadata สำหรับแสดงในหน้าแอดมิน
+                error_detail = result.get("error_detail", error_message)
+                error_type = result.get("error_type", "api_expired")
+                api_provider = result.get("api_provider", "unknown")
+                
+                logger.info(f"🔑 Token/API expired error detected - Detail: {error_detail}, Provider: {api_provider}")
+                
+                # บันทึก error detail ใน metadata
+                result["admin_error_detail"] = {
+                    "detail": error_detail,
+                    "type": error_type,
+                    "provider": api_provider,
+                    "original_message": error_message,
+                    "timestamp": datetime.now().isoformat()
+                }
             else:
                 # รูปไม่ชัด/ไม่มี QR - แจ้งแบบเดิม
                 result_text = error_message
@@ -2305,6 +2341,28 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             )
         except Exception as save_error:
             logger.error(f"❌ Failed to save message to chat: {save_error}")
+        
+        # บันทึก API error detail ไว้ใน database สำหรับแสดงในหน้าแอดมิน
+        if result.get("admin_error_detail"):
+            try:
+                error_detail = result.get("admin_error_detail")
+                errors_collection = app.state.db.api_errors
+                errors_collection.insert_one({
+                    "account_id": account["_id"],
+                    "account_name": account.get("account_name", "Unknown"),
+                    "owner_id": owner_id,
+                    "line_user_id": user_id,
+                    "error_detail": error_detail.get("detail", ""),
+                    "error_type": error_detail.get("type", "api_expired"),
+                    "api_provider": error_detail.get("provider", "unknown"),
+                    "original_message": error_detail.get("original_message", ""),
+                    "timestamp": error_detail.get("timestamp", datetime.now().isoformat()),
+                    "message_id": message_id,
+                    "reservation_id": reservation_id
+                })
+                logger.info(f"📝 API error detail saved: {error_detail.get('provider')} - {error_detail.get('detail')}")
+            except Exception as error_save_error:
+                logger.error(f"❌ Failed to save API error detail: {error_save_error}")
         
         # Send result with template using reply token (if still valid) or push message
         slip_template_id = settings.get("slip_template_id")

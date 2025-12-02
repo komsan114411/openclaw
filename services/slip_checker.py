@@ -382,22 +382,64 @@ def verify_slip_with_thunder(
             # HTTP 401 = Unauthorized
             error_msg = result.get("message", "unauthorized")
             if error_msg == "unauthorized":
-                return {"status": "error", "message": "🔑 Thunder API Token ไม่ถูกต้องหรือหมดอายุ กรุณาตรวจสอบการตั้งค่า"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": "Thunder API Token ไม่ถูกต้องหรือหมดอายุ",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
             else:
-                return {"status": "error", "message": f"🔑 การยืนยันตัวตนล้มเหลว: {error_msg}"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": f"การยืนยันตัวตนล้มเหลว: {error_msg}",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
         elif resp.status_code == 403:
             # HTTP 403 = Forbidden - จัดการตาม Thunder API documentation
             error_msg = result.get("message", "access_denied")
             if error_msg == "access_denied":
-                return {"status": "error", "message": "🚫 ไม่มีสิทธิ์เข้าถึง Thunder API กรุณาติดต่อทีมสนับสนุน"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": "ไม่มีสิทธิ์เข้าถึง Thunder API",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
             elif error_msg == "account_not_verified":
-                return {"status": "error", "message": "⚠️ บัญชียังไม่ได้รับการยืนยัน KYC กรุณาติดต่อทีมสนับสนุน"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": "บัญชียังไม่ได้รับการยืนยัน KYC",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
             elif error_msg == "application_expired":
-                return {"status": "error", "message": "⏰ แอปพลิเคชันหมดอายุ กรุณาติดต่อทีมสนับสนุนหรืออัปเกรดแพ็กเกจ"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": "แอปพลิเคชัน Thunder หมดอายุ",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
             elif error_msg == "application_deactivated":
-                return {"status": "error", "message": "🔒 แอปพลิเคชันถูกปิดใช้งาน กรุณาติดต่อทีมสนับสนุน Thunder"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": "แอปพลิเคชัน Thunder ถูกปิดใช้งาน",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
             elif error_msg == "quota_exceeded":
-                return {"status": "error", "message": "📊 ใช้งาน API เกินโควต้าที่กำหนด กรุณาอัปเกรดแพ็กเกจหรือรอ"}
+                return {
+                    "status": "error", 
+                    "message": "API หมดอายุ",
+                    "error_detail": "ใช้งาน Thunder API เกินโควต้าที่กำหนด",
+                    "error_type": "api_expired",
+                    "api_provider": "thunder"
+                }
             else:
                 return {"status": "error", "message": f"🚫 Thunder API Forbidden: {error_msg}"}
         elif resp.status_code == 404:

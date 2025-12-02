@@ -234,6 +234,35 @@
 <!-- API Status Alert (for Admin) -->
 <div id="apiStatusAlert" class="mb-4" style="display: none;"></div>
 
+<!-- API Errors Alert (for Admin) -->
+{% if api_errors %}
+<div class="alert alert-warning mb-4" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <i class="fas fa-exclamation-triangle" style="color: #856404;"></i>
+        <strong style="color: #856404;">แจ้งเตือน: มี API หมดอายุ</strong>
+    </div>
+    <div style="font-size: 0.9rem; color: #856404;">
+        <p style="margin-bottom: 0.5rem;">พบ API ที่หมดอายุใน 24 ชั่วโมงที่ผ่านมา:</p>
+        <ul style="margin: 0; padding-left: 1.5rem;">
+            {% for error in api_errors[:5] %}
+            <li style="margin-bottom: 0.25rem;">
+                <strong>{{ error.get('api_provider', 'Unknown') }}:</strong> 
+                {{ error.get('error_detail', 'API หมดอายุ') }}
+                <span style="color: #6c757d; font-size: 0.85rem;">
+                    ({{ error.get('account_name', 'Unknown Account') }})
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if api_errors|length > 5 %}
+        <p style="margin-top: 0.5rem; margin-bottom: 0; font-size: 0.85rem; color: #6c757d;">
+            และอีก {{ api_errors|length - 5 }} รายการ
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <script>
     // Check API status and show warnings
     async function checkApiStatus() {
