@@ -412,10 +412,27 @@ function renderBanksTable() {
         // Check if logo exists and is valid
         const hasLogo = bank.logo_base64 && 
                        typeof bank.logo_base64 === 'string' && 
-                       bank.logo_base64.trim().length > 0;
+                       bank.logo_base64.trim().length > 0 &&
+                       bank.logo_base64 !== 'null' &&
+                       bank.logo_base64 !== 'undefined';
+        
+        // Debug logging
+        if (hasLogo) {
+            console.log(`✅ Rendering logo for bank ${bank.code}: length=${bank.logo_base64.length}`);
+        } else {
+            console.log(`⚠️ No logo for bank ${bank.code}:`, {
+                logo_base64: bank.logo_base64,
+                type: typeof bank.logo_base64,
+                length: bank.logo_base64 ? bank.logo_base64.length : 0
+            });
+        }
         
         const logoHtml = hasLogo 
-            ? `<img src="data:image/png;base64,${bank.logo_base64}" class="bank-logo" alt="${bank.name}" style="width: 56px; height: 56px; object-fit: contain; border-radius: 10px; border: 2px solid #E2E8F0; padding: 6px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-logo\\' style=\\'width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;\\' onclick=\\'editBank(\\'${bank.id}\\')\\' title=\\'คลิกเพื่ออัพโหลดโลโก้\\'><i class=\\'fas fa-image\\'></i></div>';">
+            ? `<img src="data:image/png;base64,${bank.logo_base64}" 
+                    class="bank-logo" 
+                    alt="${bank.name}" 
+                    style="width: 56px; height: 56px; object-fit: contain; border-radius: 10px; border: 2px solid #E2E8F0; padding: 6px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
+                    onerror="console.error('❌ Failed to load logo for bank ${bank.code}'); this.onerror=null; this.style.display='none'; const parent = this.parentElement; if (parent) { parent.innerHTML='<div class=\\'no-logo\\' style=\\'width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;\\' onclick=\\'editBank(\\'${bank.id}\\')\\' title=\\'คลิกเพื่ออัพโหลดโลโก้\\'><i class=\\'fas fa-image\\'></i></div>'; }">
             `
             : '<div class="no-logo" style="width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;" onclick="editBank(\'' + bank.id + '\')" title="คลิกเพื่ออัพโหลดโลโก้"><i class="fas fa-image"></i></div>';
         
@@ -462,16 +479,41 @@ function editBank(bankId) {
     // Check if logo exists and is valid
     const hasLogo = bank.logo_base64 && 
                    typeof bank.logo_base64 === 'string' && 
-                   bank.logo_base64.trim().length > 0;
+                   bank.logo_base64.trim().length > 0 &&
+                   bank.logo_base64 !== 'null' &&
+                   bank.logo_base64 !== 'undefined';
+    
+    console.log('🔍 Checking logo for bank:', bank.code, {
+        hasLogo: hasLogo,
+        logo_base64: bank.logo_base64 ? `${bank.logo_base64.substring(0, 50)}...` : 'null',
+        type: typeof bank.logo_base64,
+        length: bank.logo_base64 ? bank.logo_base64.length : 0
+    });
     
     if (hasLogo) {
-        logoImg.src = `data:image/png;base64,${bank.logo_base64}`;
+        const logoUrl = `data:image/png;base64,${bank.logo_base64}`;
+        logoImg.src = logoUrl;
         logoImg.style.display = 'block';
         noLogoPlaceholder.style.display = 'none';
         removeBtn.style.display = 'inline-block';
         logoImg.dataset.shouldRemove = 'false';
         logoImg.dataset.hasLogo = 'true';
-        console.log('✅ Logo loaded for bank:', bank.code, 'length:', bank.logo_base64.length);
+        
+        // Add error handler
+        logoImg.onerror = function() {
+            console.error('❌ Failed to load logo image for bank:', bank.code);
+            this.style.display = 'none';
+            noLogoPlaceholder.style.display = 'block';
+            removeBtn.style.display = 'none';
+            logoImg.dataset.hasLogo = 'false';
+        };
+        
+        // Add load handler
+        logoImg.onload = function() {
+            console.log('✅ Logo image loaded successfully for bank:', bank.code);
+        };
+        
+        console.log('✅ Logo URL set for bank:', bank.code, 'length:', bank.logo_base64.length);
     } else {
         logoImg.src = '';
         logoImg.style.display = 'none';

@@ -780,8 +780,25 @@ async def get_banks_api(request: Request):
     if not user or user["role"] != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
-    banks = app.state.bank_model.get_all_banks()
-    return [app.state.bank_model.to_dict(bank) for bank in banks]
+    try:
+        banks = app.state.bank_model.get_all_banks()
+        bank_dicts = []
+        
+        for bank in banks:
+            bank_dict = app.state.bank_model.to_dict(bank)
+            if bank_dict:
+                # Log logo status for debugging
+                has_logo = bank_dict.get("logo_base64") and len(bank_dict.get("logo_base64", "")) > 0
+                logger.debug(f"Bank {bank_dict.get('code')}: has_logo={has_logo}, logo_length={len(bank_dict.get('logo_base64', '')) if bank_dict.get('logo_base64') else 0}")
+                bank_dicts.append(bank_dict)
+        
+        logger.info(f"✅ Returning {len(bank_dicts)} banks to admin")
+        return bank_dicts
+    except Exception as e:
+        logger.error(f"❌ Error getting banks: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error retrieving banks: {str(e)}")
 
 @app.post("/admin/api/banks")
 async def create_bank_api(request: Request):

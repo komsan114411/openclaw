@@ -106,12 +106,27 @@ class BankModel:
         
         # Get logo_base64 - handle None and empty string
         logo_base64 = bank.get("logo_base64")
-        if logo_base64 is not None and not isinstance(logo_base64, str):
-            logo_base64 = None
-        elif isinstance(logo_base64, str) and not logo_base64.strip():
-            logo_base64 = None
         
-        return {
+        # Validate and clean logo_base64
+        if logo_base64 is None:
+            logo_base64 = None
+        elif not isinstance(logo_base64, str):
+            # Try to convert to string if it's not
+            try:
+                logo_base64 = str(logo_base64)
+            except:
+                logo_base64 = None
+        elif not logo_base64.strip():
+            # Empty string
+            logo_base64 = None
+        elif logo_base64.strip().lower() in ['null', 'none', 'undefined', '']:
+            # String representations of null
+            logo_base64 = None
+        else:
+            # Valid logo - ensure it's clean
+            logo_base64 = logo_base64.strip()
+        
+        result = {
             "id": str(bank["_id"]),
             "code": bank.get("code"),
             "name": bank.get("name"),
@@ -121,3 +136,5 @@ class BankModel:
             "created_at": bank.get("created_at").isoformat() if bank.get("created_at") else None,
             "updated_at": bank.get("updated_at").isoformat() if bank.get("updated_at") else None
         }
+        
+        return result
