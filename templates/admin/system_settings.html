@@ -327,7 +327,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">เพิ่มบัญชีธนาคาร</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" onclick="closeBankModal()"></button>
             </div>
             <div class="modal-body">
                 <form id="bankForm">
@@ -353,7 +353,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeBankModal()">ยกเลิก</button>
                 <button type="button" class="btn btn-primary" onclick="saveBankAccount()">เพิ่มบัญชี</button>
             </div>
         </div>
@@ -1037,6 +1037,7 @@
 
     function openBankModal() {
         document.getElementById('bankForm').reset();
+        bankModalElement.dataset.allowClose = '';
         bankModal.show();
     }
 
@@ -1061,7 +1062,7 @@
             const result = await response.json();
 
             if (result.success) {
-                bankModal.hide();
+                closeBankModal();
                 showAlert('เพิ่มบัญชีธนาคารสำเร็จ', 'success');
                 loadSettings();
             } else {
