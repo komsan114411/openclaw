@@ -2819,6 +2819,73 @@ def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
         logger.error(f"❌ Error rendering template: {e}")
         return template_text
 
+def sanitize_flex_message(obj: Any) -> Any:
+    """
+    Sanitize Flex Message to fix invalid properties before sending to LINE API
+    - Fixes invalid 'size' values (e.g., '68px' -> 'md')
+    - Recursively processes all nested objects and arrays
+    """
+    # Valid sizes for LINE Flex Message
+    VALID_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+    
+    # Map pixel values to valid sizes
+    def convert_pixel_size(pixel_size: str) -> str:
+        """Convert pixel size to valid LINE Flex size keyword"""
+        if not pixel_size or not isinstance(pixel_size, str):
+            return pixel_size
+            
+        # Already valid size
+        if pixel_size.lower() in VALID_SIZES:
+            return pixel_size
+            
+        # Extract number from pixel value (e.g., '68px' -> 68)
+        import re
+        match = re.match(r'^(\d+)(px)?$', pixel_size.strip(), re.IGNORECASE)
+        if match:
+            px_value = int(match.group(1))
+            # Map to approximate size keywords
+            if px_value <= 24:
+                return 'xxs'
+            elif px_value <= 32:
+                return 'xs'
+            elif px_value <= 48:
+                return 'sm'
+            elif px_value <= 64:
+                return 'md'
+            elif px_value <= 80:
+                return 'lg'
+            elif px_value <= 96:
+                return 'xl'
+            elif px_value <= 128:
+                return 'xxl'
+            elif px_value <= 160:
+                return '3xl'
+            elif px_value <= 200:
+                return '4xl'
+            elif px_value <= 256:
+                return '5xl'
+            else:
+                return 'full'
+        
+        return pixel_size
+    
+    if isinstance(obj, dict):
+        result = {}
+        for key, value in obj.items():
+            if key == 'size' and isinstance(value, str):
+                # Fix invalid size values
+                result[key] = convert_pixel_size(value)
+            else:
+                # Recursively process nested objects
+                result[key] = sanitize_flex_message(value)
+        return result
+    elif isinstance(obj, list):
+        # Process each item in the list
+        return [sanitize_flex_message(item) for item in obj]
+    else:
+        # Return primitive values as-is
+        return obj
+
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render flex message template with result data"""
     try:
@@ -2931,6 +2998,9 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
             flex_json = flex_json.replace(key, str(value))
         
         rendered_flex = json.loads(flex_json)
+        
+        # Sanitize flex message to fix invalid properties (e.g., '68px' -> 'md')
+        rendered_flex = sanitize_flex_message(rendered_flex)
         
         logger.info(f"✅ Flex template rendered successfully")
         return rendered_flex
@@ -3137,6 +3207,8 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
                                 flex_json = json.dumps(flex_copy)
                                 flex_json = flex_json.replace("{{error_message}}", error_message_text)
                                 rendered_flex = json.loads(flex_json)
+                                # Sanitize flex message to fix invalid properties
+                                rendered_flex = sanitize_flex_message(rendered_flex)
                                 messages = [{"type": "flex", "altText": "ข้อผิดพลาด", "contents": rendered_flex}]
                             else:
                                 # Fallback to default error flex
@@ -3171,6 +3243,14 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
             "type": "text",
             "text": f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {amount} บาท"
         }]
+    
+    # Sanitize all flex messages before returning
+    sanitized_messages = []
+    for msg in messages:
+        if msg.get("type") == "flex" and msg.get("contents"):
+            msg["contents"] = sanitize_flex_message(msg["contents"])
+        sanitized_messages.append(msg)
+    messages = sanitized_messages
     
     logger.info(f"💬 Prepared {len(messages)} message(s)")
     return messages

@@ -1378,3 +1378,124 @@ def register_saas_routes(app):
         except Exception as e:
             logger.error(f"Error getting quota stats: {e}")
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+    
+    # ==================== Migration/Fix APIs ====================
+    
+    @app.post("/api/admin/migrate/fix-template-sizes")
+    async def fix_template_sizes(request: Request):
+        '''
+        Fix invalid size properties in Flex Message templates stored in database
+        Converts pixel values (e.g., "68px") to valid LINE Flex Message size keywords
+        '''
+        user = app.state.auth.get_current_user(request)
+        if not user or user["role"] != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        try:
+            import re
+            import json
+            
+            # Valid sizes for LINE Flex Message
+            VALID_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+            
+            def convert_pixel_size(pixel_size: str) -> str:
+                """Convert pixel size to valid LINE Flex size keyword"""
+                if not pixel_size or not isinstance(pixel_size, str):
+                    return pixel_size
+                    
+                # Already valid size
+                if pixel_size.lower() in VALID_SIZES:
+                    return pixel_size
+                    
+                # Extract number from pixel value (e.g., '68px' -> 68)
+                match = re.match(r'^(\d+)(px)?$', pixel_size.strip(), re.IGNORECASE)
+                if match:
+                    px_value = int(match.group(1))
+                    # Map to approximate size keywords
+                    if px_value <= 24:
+                        return 'xxs'
+                    elif px_value <= 32:
+                        return 'xs'
+                    elif px_value <= 48:
+                        return 'sm'
+                    elif px_value <= 64:
+                        return 'md'
+                    elif px_value <= 80:
+                        return 'lg'
+                    elif px_value <= 96:
+                        return 'xl'
+                    elif px_value <= 128:
+                        return 'xxl'
+                    elif px_value <= 160:
+                        return '3xl'
+                    elif px_value <= 200:
+                        return '4xl'
+                    elif px_value <= 256:
+                        return '5xl'
+                    else:
+                        return 'full'
+                
+                return pixel_size
+            
+            def fix_sizes_recursive(obj):
+                """Recursively fix size properties in a flex message object"""
+                if isinstance(obj, dict):
+                    result = {}
+                    for key, value in obj.items():
+                        if key == 'size' and isinstance(value, str):
+                            result[key] = convert_pixel_size(value)
+                        else:
+                            result[key] = fix_sizes_recursive(value)
+                    return result
+                elif isinstance(obj, list):
+                    return [fix_sizes_recursive(item) for item in obj]
+                else:
+                    return obj
+            
+            # Get all templates from database
+            templates_collection = app.state.db.slip_templates
+            all_templates = list(templates_collection.find({}))
+            
+            fixed_count = 0
+            error_templates = []
+            
+            for template in all_templates:
+                try:
+                    template_flex = template.get("template_flex")
+                    if template_flex:
+                        # Convert to JSON and check for pixel sizes
+                        flex_json = json.dumps(template_flex)
+                        
+                        # Check if there are any pixel size values
+                        if re.search(r'"size"\s*:\s*"\d+px"', flex_json, re.IGNORECASE):
+                            # Fix the sizes
+                            fixed_flex = fix_sizes_recursive(template_flex)
+                            
+                            # Update in database
+                            templates_collection.update_one(
+                                {"_id": template["_id"]},
+                                {"$set": {"template_flex": fixed_flex, "updated_at": datetime.now()}}
+                            )
+                            
+                            fixed_count += 1
+                            logger.info(f"✅ Fixed template: {template.get('template_name', template['_id'])}")
+                except Exception as e:
+                    error_templates.append({
+                        "id": str(template.get("_id")),
+                        "name": template.get("template_name", "Unknown"),
+                        "error": str(e)
+                    })
+                    logger.error(f"❌ Error fixing template {template.get('template_name')}: {e}")
+            
+            return {
+                "success": True,
+                "message": f"Fixed {fixed_count} templates with invalid size properties",
+                "fixed_count": fixed_count,
+                "total_templates": len(all_templates),
+                "errors": error_templates if error_templates else None
+            }
+        except Exception as e:
+            logger.error(f"Error fixing template sizes: {e}")
+            import traceback
+            traceback.print_exc()
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
