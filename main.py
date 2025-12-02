@@ -1025,30 +1025,64 @@ async def init_thunder_banks(request: Request):
 
 @app.get("/api/bank-logo/{bank_code}")
 async def get_bank_logo_api(bank_code: str):
-    """Get bank logo by code - Returns data URI format"""
+    """Get bank logo by code - Returns actual image data for LINE Flex Messages"""
     try:
+        from fastapi.responses import Response, RedirectResponse
+        import base64
+        
         bank = app.state.bank_model.get_bank_by_code(bank_code)
         if not bank:
             logger.warning(f"⚠️ Bank with code {bank_code} not found")
-            # Return default logo instead of 404
+            # Redirect to default logo
             from services.slip_formatter import DEFAULT_LOGO
-            return {"logo_base64": DEFAULT_LOGO, "has_logo": False}
+            return RedirectResponse(url=DEFAULT_LOGO)
         
         logo_base64 = bank.get("logo_base64")
         
         # Validate logo_base64
         if not logo_base64 or not isinstance(logo_base64, str) or not logo_base64.strip():
-            logger.info(f"ℹ️ No logo for bank {bank_code}, returning default")
+            logger.info(f"ℹ️ No logo for bank {bank_code}, redirecting to default")
             from services.slip_formatter import DEFAULT_LOGO
-            return {"logo_base64": DEFAULT_LOGO, "has_logo": False}
+            return RedirectResponse(url=DEFAULT_LOGO)
         
-        # Return as data URI if not already
+        # If already HTTP URL, redirect to it
+        if logo_base64.startswith('http'):
+            logger.info(f"✅ Redirecting to HTTP URL for bank {bank_code}")
+            return RedirectResponse(url=logo_base64)
+        
+        # If data URI, extract and return image
         if logo_base64.startswith('data:'):
-            logger.info(f"✅ Returning logo for bank {bank_code} (data URI format)")
-            return {"logo_base64": logo_base64, "has_logo": True}
-        else:
-            logger.info(f"✅ Returning logo for bank {bank_code} (base64 format, length: {len(logo_base64)})")
-            return {"logo_base64": f"data:image/png;base64,{logo_base64}", "has_logo": True}
+            # Extract base64 data from data URI
+            # Format: data:image/png;base64,iVBORw0KG...
+            try:
+                parts = logo_base64.split(',', 1)
+                if len(parts) == 2:
+                    # Extract mime type
+                    mime_type = "image/png"  # default
+                    if 'image/' in parts[0]:
+                        mime_start = parts[0].find('image/')
+                        mime_end = parts[0].find(';', mime_start)
+                        if mime_end > mime_start:
+                            mime_type = parts[0][mime_start:mime_end]
+                    
+                    # Decode base64
+                    image_data = base64.b64decode(parts[1])
+                    logger.info(f"✅ Returning image for bank {bank_code} (size: {len(image_data)} bytes)")
+                    return Response(content=image_data, media_type=mime_type)
+            except Exception as decode_error:
+                logger.error(f"❌ Error decoding data URI for bank {bank_code}: {decode_error}")
+        
+        # Plain base64 string - decode and return
+        try:
+            image_data = base64.b64decode(logo_base64)
+            logger.info(f"✅ Returning image for bank {bank_code} (size: {len(image_data)} bytes)")
+            return Response(content=image_data, media_type="image/png")
+        except Exception as decode_error:
+            logger.error(f"❌ Error decoding base64 for bank {bank_code}: {decode_error}")
+            # Redirect to default logo
+            from services.slip_formatter import DEFAULT_LOGO
+            return RedirectResponse(url=DEFAULT_LOGO)
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -1065,10 +1099,10 @@ async def get_bank_logo_api(bank_code: str):
             })
         except:
             pass
-        # Return default logo instead of error
+        # Redirect to default logo instead of error
         try:
             from services.slip_formatter import DEFAULT_LOGO
-            return {"logo_base64": DEFAULT_LOGO, "has_logo": False, "error": str(e)}
+            return RedirectResponse(url=DEFAULT_LOGO)
         except:
             raise HTTPException(status_code=500, detail="Error retrieving bank logo")
 
