@@ -287,6 +287,18 @@
             align-items: center;
             justify-content: center;
         }
+        
+        /* Prevent modal from closing on backdrop click */
+        .modal.show::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: -1;
+        }
 
         .modal-content {
             background: white;
@@ -580,9 +592,29 @@
         }
 
         function closeCreateModal() {
-            document.getElementById('createModal').classList.remove('show');
+            const modal = document.getElementById('createModal');
+            modal.classList.remove('show');
             document.getElementById('createUserForm').reset();
+            document.body.style.overflow = '';
+            // Cleanup
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(b => b.remove());
         }
+        
+        // Close modal on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeCreateModal();
+            }
+        });
+        
+        // Close modal when clicking outside (only on backdrop, not content)
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('createModal');
+            if (modal && e.target === modal) {
+                closeCreateModal();
+            }
+        });
 
         document.getElementById('createUserForm').addEventListener('submit', async (e) => {
             e.preventDefault();
