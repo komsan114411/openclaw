@@ -93,7 +93,7 @@ def main():
                 # Validate flex structure
                 flex_data = template.get("template_flex")
                 if not isinstance(flex_data, dict):
-                    issues.append(f"❌ CRITICAL: template_flex is not a dict (type: {type(flex_data)})")
+                    issues.append(f"❌ CRITICAL: template_flex is not a dict (type: {type(flex_data).__name__})")
                 elif "type" not in flex_data:
                     issues.append("⚠️ WARNING: template_flex missing 'type' field")
             

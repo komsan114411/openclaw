@@ -3313,10 +3313,12 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
     messages = []
     
     # 🔍 ENHANCED LOGGING: Track template selection process
-    logger.info(f"📥 _prepare_slip_messages called:")
-    logger.info(f"   - result status: {result.get('status')}")
-    logger.info(f"   - channel_id: {channel_id}")
-    logger.info(f"   - slip_template_id: {slip_template_id}")
+    logger.info(
+        f"📥 _prepare_slip_messages called: "
+        f"status={result.get('status')}, "
+        f"channel_id={channel_id}, "
+        f"slip_template_id={slip_template_id}"
+    )
     
     # Get template (prefer selected template over default)
     template = None
@@ -3326,10 +3328,12 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
             logger.info(f"🔍 Attempting to get template by ID: {slip_template_id}")
             template = app.state.slip_template_model.get_template_by_id(slip_template_id)
             if template:
-                logger.info(f"🎯 Using selected template: {template.get('template_name')}")
-                logger.info(f"   - template_type: {template.get('template_type')}")
-                logger.info(f"   - has template_flex: {bool(template.get('template_flex'))}")
-                logger.info(f"   - has template_text: {bool(template.get('template_text'))}")
+                logger.info(
+                    f"🎯 Using selected template '{template.get('template_name')}': "
+                    f"type={template.get('template_type')}, "
+                    f"has_flex={bool(template.get('template_flex'))}, "
+                    f"has_text={bool(template.get('template_text'))}"
+                )
             else:
                 logger.warning(f"⚠️ Template with ID {slip_template_id} not found in database!")
         except Exception as e:
@@ -3343,10 +3347,12 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
             logger.info(f"🔍 Attempting to get default template for channel: {channel_id}")
             template = app.state.slip_template_model.get_default_template(channel_id)
             if template:
-                logger.info(f"📋 Using default template: {template.get('template_name')}")
-                logger.info(f"   - template_type: {template.get('template_type')}")
-                logger.info(f"   - has template_flex: {bool(template.get('template_flex'))}")
-                logger.info(f"   - has template_text: {bool(template.get('template_text'))}")
+                logger.info(
+                    f"📋 Using default template '{template.get('template_name')}': "
+                    f"type={template.get('template_type')}, "
+                    f"has_flex={bool(template.get('template_flex'))}, "
+                    f"has_text={bool(template.get('template_text'))}"
+                )
             else:
                 logger.warning(f"⚠️ No default template found for channel {channel_id}")
         except Exception as e:
