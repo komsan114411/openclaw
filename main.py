@@ -30,7 +30,7 @@ logger = logging.getLogger("main_app")
 import httpx
 from fastapi import FastAPI, Request, HTTPException, status, Form, Cookie, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -1027,14 +1027,12 @@ async def init_thunder_banks(request: Request):
 async def get_bank_logo_api(bank_code: str):
     """Get bank logo by code - Returns actual image data for LINE Flex Messages"""
     try:
-        from fastapi.responses import Response, RedirectResponse
-        import base64
+        from services.slip_formatter import DEFAULT_LOGO
         
         bank = app.state.bank_model.get_bank_by_code(bank_code)
         if not bank:
             logger.warning(f"⚠️ Bank with code {bank_code} not found")
             # Redirect to default logo
-            from services.slip_formatter import DEFAULT_LOGO
             return RedirectResponse(url=DEFAULT_LOGO)
         
         logo_base64 = bank.get("logo_base64")
@@ -1042,7 +1040,6 @@ async def get_bank_logo_api(bank_code: str):
         # Validate logo_base64
         if not logo_base64 or not isinstance(logo_base64, str) or not logo_base64.strip():
             logger.info(f"ℹ️ No logo for bank {bank_code}, redirecting to default")
-            from services.slip_formatter import DEFAULT_LOGO
             return RedirectResponse(url=DEFAULT_LOGO)
         
         # If already HTTP URL, redirect to it
@@ -1069,7 +1066,7 @@ async def get_bank_logo_api(bank_code: str):
                     image_data = base64.b64decode(parts[1])
                     logger.info(f"✅ Returning image for bank {bank_code} (size: {len(image_data)} bytes)")
                     return Response(content=image_data, media_type=mime_type)
-            except Exception as decode_error:
+            except (ValueError, TypeError, base64.binascii.Error) as decode_error:
                 logger.error(f"❌ Error decoding data URI for bank {bank_code}: {decode_error}")
         
         # Plain base64 string - decode and return
@@ -1077,10 +1074,9 @@ async def get_bank_logo_api(bank_code: str):
             image_data = base64.b64decode(logo_base64)
             logger.info(f"✅ Returning image for bank {bank_code} (size: {len(image_data)} bytes)")
             return Response(content=image_data, media_type="image/png")
-        except Exception as decode_error:
+        except (ValueError, TypeError, base64.binascii.Error) as decode_error:
             logger.error(f"❌ Error decoding base64 for bank {bank_code}: {decode_error}")
             # Redirect to default logo
-            from services.slip_formatter import DEFAULT_LOGO
             return RedirectResponse(url=DEFAULT_LOGO)
         
     except HTTPException:
