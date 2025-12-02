@@ -58,7 +58,8 @@
                 <thead>
                     <tr>
                         <th>ชื่อเทมเพลต</th>
-                        <th>เนื้อหา</th>
+                        <th>ประเภท</th>
+                        <th>ตัวอย่างการแสดงผล</th>
                         <th>สถานะ</th>
                         <th>การจัดการ</th>
                     </tr>
@@ -66,8 +67,24 @@
                 <tbody>
                     {% for template in templates %}
                     <tr>
-                        <td>{{ template.name }}</td>
-                        <td>{{ template.content[:50] }}...</td>
+                        <td>
+                            <strong>{{ template.template_name or template.name or 'ไม่มีชื่อ' }}</strong>
+                            {% if template.description %}
+                            <br><small class="text-muted">{{ template.description[:50] }}{% if template.description|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if template.template_type == 'text' %}
+                            <span class="badge badge-info"><i class="fas fa-align-left"></i> Text</span>
+                            {% else %}
+                            <span class="badge badge-primary"><i class="fas fa-th-large"></i> Flex</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="showTemplatePreview('{{ template._id }}', '{{ account._id if account else "" }}')">
+                                <i class="fas fa-eye"></i> ดูตัวอย่าง
+                            </button>
+                        </td>
                         <td>
                             {% if template.is_active %}
                             <span class="badge badge-success">ใช้งาน</span>
@@ -145,6 +162,198 @@
         }
     }
 
+    async function showTemplatePreview(templateId, accountId) {
+        if (!accountId) {
+            alert('ไม่พบบัญชี LINE');
+            return;
+        }
+        
+        try {
+            // Show loading
+            const loadingModal = document.createElement('div');
+            loadingModal.id = 'loading-preview-modal';
+            loadingModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            loadingModal.innerHTML = `
+                <div style="background: white; padding: 24px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⏳</div>
+                    <div style="font-size: 16px; color: #64748B;">กำลังโหลดตัวอย่าง...</div>
+                </div>
+            `;
+            document.body.appendChild(loadingModal);
+            
+            const response = await fetch(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}/preview`);
+            const data = await response.json();
+            
+            loadingModal.remove();
+            
+            if (!data.success || !data.content) {
+                alert('ไม่สามารถโหลดตัวอย่างได้');
+                return;
+            }
+            
+            // Create preview modal
+            const modal = document.createElement('div');
+            modal.id = 'preview-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                animation: fadeIn 0.2s ease;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 16px;
+                max-width: 600px;
+                width: 90%;
+                max-height: 90vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                animation: slideUp 0.3s ease;
+            `;
+            
+            let previewHTML = '';
+            if (data.type === 'text') {
+                previewHTML = `
+                    <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: #64748B; margin-bottom: 12px; text-transform: uppercase; font-weight: 600;">ตัวอย่างข้อความ</div>
+                        <div style="background: white; padding: 16px; border-radius: 8px; font-size: 14px; color: #1E293B; line-height: 1.6; white-space: pre-wrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">${escapeHtml(data.content)}</div>
+                    </div>
+                `;
+            } else {
+                // Flex message preview
+                const flexContent = data.content.contents || data.content;
+                previewHTML = `
+                    <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: #64748B; margin-bottom: 12px; text-transform: uppercase; font-weight: 600;">ตัวอย่าง Flex Message</div>
+                        <div style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            ${renderFlexPreviewForManager(flexContent)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            modalContent.innerHTML = `
+                <div style="padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0; font-size: 24px; color: #1f2937;">ตัวอย่างเทมเพลต</h2>
+                        <button onclick="closePreviewModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280;">&times;</button>
+                    </div>
+                    ${previewHTML}
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="closePreviewModal()" style="padding: 12px 24px; background: #4F46E5; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer;">
+                            ปิด
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closePreviewModal();
+                }
+            });
+        } catch (error) {
+            console.error('Error loading preview:', error);
+            alert('เกิดข้อผิดพลาดในการโหลดตัวอย่าง');
+        }
+    }
+    
+    function closePreviewModal() {
+        const modal = document.getElementById('preview-modal');
+        if (modal) {
+            modal.style.animation = 'fadeOut 0.2s ease';
+            setTimeout(() => modal.remove(), 200);
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function renderFlexPreviewForManager(flexContent) {
+        if (!flexContent || typeof flexContent !== 'object') {
+            return '<div style="color: #94A3B8; font-size: 12px;">ไม่มีข้อมูลตัวอย่าง</div>';
+        }
+        
+        let previewHTML = '';
+        
+        // Look for header
+        if (flexContent.header && flexContent.header.contents) {
+            flexContent.header.contents.forEach(item => {
+                if (item.type === 'text') {
+                    previewHTML += `
+                        <div style="font-size: 18px; font-weight: bold; color: #1E293B; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 2px solid #E2E8F0;">
+                            ${item.text || ''}
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        // Look for body content
+        if (flexContent.body && flexContent.body.contents) {
+            flexContent.body.contents.forEach(item => {
+                if (item.type === 'text') {
+                    const text = item.text || '';
+                    const size = item.size || 'md';
+                    const weight = item.weight || 'normal';
+                    const color = item.color || '#1E293B';
+                    
+                    previewHTML += `
+                        <div style="font-size: ${size === 'xl' ? '18px' : size === 'lg' ? '16px' : '14px'}; 
+                                    font-weight: ${weight}; 
+                                    color: ${color}; 
+                                    margin-bottom: 8px;">
+                            ${text}
+                        </div>
+                    `;
+                } else if (item.type === 'box' && item.contents) {
+                    item.contents.forEach(subItem => {
+                        if (subItem.type === 'text') {
+                            previewHTML += `
+                                <div style="font-size: 13px; color: #64748B; margin-bottom: 4px;">
+                                    ${subItem.text || ''}
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            });
+        }
+        
+        if (!previewHTML) {
+            previewHTML = '<div style="color: #94A3B8; font-size: 12px;">Flex Message Template</div>';
+        }
+        
+        return previewHTML;
+    }
+    
     function editTemplate(id) {
         alert('ฟังก์ชันแก้ไขจะเพิ่มในเวอร์ชั่นถัดไป');
     }

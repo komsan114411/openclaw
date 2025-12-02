@@ -628,8 +628,25 @@
                     
                     console.log(`📝 [${index + 1}] Template: "${templateName}", Selected: ${isSelected}, ID: ${template.id}`);
                     
-                    // Generate preview based on template name
-                    let previewHTML = generateTemplatePreview(templateName);
+                    // Generate preview - try to load actual preview from API
+                    let previewHTML = '<div style="text-align: center; padding: 20px; color: #94A3B8;"><div style="font-size: 32px; margin-bottom: 8px;">📋</div><div style="font-size: 12px;">กำลังโหลดตัวอย่าง...</div></div>';
+                    
+                    // Load actual preview asynchronously
+                    loadTemplatePreview(template.id, template.template_type || 'flex').then(actualPreview => {
+                        if (actualPreview) {
+                            const previewDiv = document.querySelector(`[data-template-id="${template.id}"] .template-card-preview`);
+                            if (previewDiv) {
+                                previewDiv.innerHTML = actualPreview;
+                            }
+                        }
+                    }).catch(err => {
+                        console.warn('Could not load preview for template:', template.id, err);
+                        // Fallback to generated preview
+                        const previewDiv = document.querySelector(`[data-template-id="${template.id}"] .template-card-preview`);
+                        if (previewDiv) {
+                            previewDiv.innerHTML = generateTemplatePreview(templateName);
+                        }
+                    });
                     
                     // Escape quotes in template name for onclick
                     const escapedName = templateName.replace(/'/g, "\\'");
@@ -657,6 +674,31 @@
                 grid.innerHTML = cardsHTML;
                 console.log(`✅ Successfully rendered ${data.templates.length} template cards`);
                 console.log(`✅ Grid innerHTML length: ${grid.innerHTML.length} characters`);
+                
+                // Load actual previews for all templates
+                data.templates.forEach(template => {
+                    loadTemplatePreview(template.id, template.template_type || 'flex', accountId).then(actualPreview => {
+                        if (actualPreview) {
+                            const previewDiv = document.getElementById(`preview-${template.id}`);
+                            if (previewDiv) {
+                                previewDiv.innerHTML = actualPreview;
+                            }
+                        } else {
+                            // Fallback to generated preview
+                            const previewDiv = document.getElementById(`preview-${template.id}`);
+                            if (previewDiv) {
+                                previewDiv.innerHTML = generateTemplatePreview(template.name || '');
+                            }
+                        }
+                    }).catch(err => {
+                        console.warn('Could not load preview for template:', template.id, err);
+                        // Fallback to generated preview
+                        const previewDiv = document.getElementById(`preview-${template.id}`);
+                        if (previewDiv) {
+                            previewDiv.innerHTML = generateTemplatePreview(template.name || '');
+                        }
+                    });
+                });
             } else {
                 console.log('⚠️ No templates found or data.success is false');
                 console.log('⚠️ Data:', data);
@@ -701,8 +743,14 @@
             return;
         }
         
-        hiddenInput.value = (templateId || '').trim();
-        console.log('✅ Updated hidden input value:', hiddenInput.value);
+        // Clear value if clicking the same template (deselect)
+        if (hiddenInput.value === templateId) {
+            hiddenInput.value = '';
+            console.log('🔄 Deselecting template');
+        } else {
+            hiddenInput.value = (templateId || '').trim();
+            console.log('✅ Updated hidden input value:', hiddenInput.value);
+        }
         
         // Update visual selection
         document.querySelectorAll('.template-card-inline').forEach(card => {
@@ -711,20 +759,25 @@
             if (badge) badge.remove();
         });
         
-        const selectedCard = document.querySelector(`[data-template-id="${templateId}"]`);
-        if (selectedCard) {
-            selectedCard.classList.add('selected');
-            const badge = document.createElement('div');
-            badge.className = 'selected-badge';
-            badge.textContent = '✓ เลือกแล้ว';
-            selectedCard.insertBefore(badge, selectedCard.firstChild);
-            console.log('✅ Updated visual selection');
-        } else {
-            console.error('❌ Selected card not found:', templateId);
+        // Only mark as selected if value is set
+        if (hiddenInput.value) {
+            const selectedCard = document.querySelector(`[data-template-id="${templateId}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+                const badge = document.createElement('div');
+                badge.className = 'selected-badge';
+                badge.textContent = '✓ กำลังใช้';
+                selectedCard.insertBefore(badge, selectedCard.firstChild);
+                console.log('✅ Updated visual selection');
+            } else {
+                console.error('❌ Selected card not found:', templateId);
+            }
         }
         
-        console.log('✅ Template selected:', templateId, templateName);
-        showNotification('success', `เลือกเทมเพลต: ${templateName}`);
+        console.log('✅ Template selection updated:', hiddenInput.value || '(none)');
+        
+        // Auto-save when selecting template
+        saveSlipSettings();
     }
     
     // Generate template preview HTML
@@ -774,6 +827,116 @@
                 </div>
             `;
         }
+    }
+    
+    // Load template preview from API
+    async function loadTemplatePreview(templateId, templateType, accountIdParam) {
+        const accId = accountIdParam || accountId;
+        if (!accId) {
+            console.warn('No account ID for preview');
+            return null;
+        }
+        
+        try {
+            const response = await fetch(`/api/user/line-accounts/${accId}/slip-templates/${templateId}/preview`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            if (data.success && data.content) {
+                if (templateType === 'text') {
+                    // Text preview
+                    const textContent = typeof data.content === 'string' ? data.content : JSON.stringify(data.content);
+                    return `
+                        <div style="background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; min-height: 100px;">
+                            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">Text Message Preview</div>
+                            <div style="font-size: 13px; color: #1E293B; line-height: 1.6; white-space: pre-wrap; background: white; padding: 12px; border-radius: 6px;">${escapeHtml(textContent)}</div>
+                        </div>
+                    `;
+                } else {
+                    // Flex preview - render as HTML
+                    const flexContent = data.content.contents || data.content;
+                    return `
+                        <div style="background: #F8FAFC; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0; min-height: 100px;">
+                            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">Flex Message Preview</div>
+                            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                ${renderFlexPreview(flexContent)}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.warn('Error loading template preview:', error);
+        }
+        return null;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Render flex message preview as HTML
+    function renderFlexPreview(flexContent) {
+        if (!flexContent || typeof flexContent !== 'object') {
+            return '<div style="color: #94A3B8; font-size: 12px;">ไม่มีข้อมูลตัวอย่าง</div>';
+        }
+        
+        // Try to extract key information from flex message
+        let previewHTML = '';
+        
+        // Look for body content
+        if (flexContent.body && flexContent.body.contents) {
+            flexContent.body.contents.forEach(item => {
+                if (item.type === 'text') {
+                    const text = item.text || '';
+                    const size = item.size || 'md';
+                    const weight = item.weight || 'normal';
+                    const color = item.color || '#1E293B';
+                    
+                    previewHTML += `
+                        <div style="font-size: ${size === 'xl' ? '18px' : size === 'lg' ? '16px' : '14px'}; 
+                                    font-weight: ${weight}; 
+                                    color: ${color}; 
+                                    margin-bottom: 4px;">
+                            ${text}
+                        </div>
+                    `;
+                } else if (item.type === 'box' && item.contents) {
+                    item.contents.forEach(subItem => {
+                        if (subItem.type === 'text') {
+                            previewHTML += `
+                                <div style="font-size: 12px; color: #64748B; margin-bottom: 2px;">
+                                    ${subItem.text || ''}
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Look for header
+        if (flexContent.header && flexContent.header.contents) {
+            flexContent.header.contents.forEach(item => {
+                if (item.type === 'text') {
+                    previewHTML = `
+                        <div style="font-size: 16px; font-weight: bold; color: #1E293B; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">
+                            ${item.text || ''}
+                        </div>
+                    ` + previewHTML;
+                }
+            });
+        }
+        
+        if (!previewHTML) {
+            previewHTML = '<div style="color: #94A3B8; font-size: 12px;">Flex Message Template</div>';
+        }
+        
+        return previewHTML;
     }
     
     function showNotification(type, message) {
