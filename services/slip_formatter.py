@@ -231,8 +231,14 @@ def format_thai_datetime(date_str: str = "", time_str: str = "") -> str:
 # -----------------------------
 # FLEX (Improved)
 # -----------------------------
-def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
-    """Render flex message template with result data"""
+def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[str, Any], db=None) -> Dict[str, Any]:
+    """Render flex message template with result data
+    
+    Args:
+        flex_template: Flex message template
+        result: Slip verification result data
+        db: MongoDB database instance (required for bank logo lookup)
+    """
     try:
         import json
         import copy
@@ -289,9 +295,9 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
             receiver_bank_code = receiver.get("bank", {}).get("id", "")
             receiver_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
         
-        # Get bank logos
-        sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank)
-        receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank)
+        # Get bank logos (pass db parameter for database lookup)
+        sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank, db=db)
+        receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank, db=db)
         
         # Get verified time
         import pytz
@@ -405,7 +411,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
                 template = db.slip_templates.find_one({"_id": ObjectId(template_id)})
                 if template and template.get("template_flex"):
                     logger.info(f"🎯 Using custom template: {template.get('template_name')}")
-                    rendered = render_flex_template_with_data(template["template_flex"], result)
+                    rendered = render_flex_template_with_data(template["template_flex"], result, db=db)
                     if rendered:
                         return rendered
                     logger.warning(f"⚠️ Template rendering failed, using default")

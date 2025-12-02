@@ -240,9 +240,9 @@
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
             <i class="fas fa-exclamation-triangle" style="color: #856404;"></i>
-            <strong style="color: #856404;">แจ้งเตือน: มี API หมดอายุ (คงเหลือ: {{ api_errors|length }})</strong>
+            <strong style="color: #856404;">แจ้งเตือน: มี API หมดอายุ ({{ api_errors|length }} รายการ)</strong>
         </div>
-        <button type="button" onclick="dismissApiErrorsAlert()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #856404; padding: 0; line-height: 1;" title="ปิดการแจ้งเตือนนี้">
+        <button type="button" onclick="dismissApiErrorsAlert()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #856404; padding: 0; line-height: 1;" title="ปิดการแจ้งเตือนนี้ (จะไม่แสดงอีกในเซสชันนี้)">
             <i class="fas fa-times"></i>
         </button>
     </div>
@@ -264,24 +264,26 @@
             และอีก {{ api_errors|length - 5 }} รายการ
         </p>
         {% endif %}
+        <p style="margin-top: 0.75rem; margin-bottom: 0; font-size: 0.85rem; color: #856404;">
+            <i class="fas fa-info-circle"></i> ข้อความ "API หมดอายุ" อาจเกิดจาก: โควต้าหมด, Token หมดอายุ, หรือบัญชียังไม่ได้ยืนยัน
+        </p>
     </div>
 </div>
 <script>
-    // Check if API errors alert was dismissed
+    // Check if API errors alert was dismissed (using sessionStorage - once per session)
     (function() {
         const apiErrorsAlertKey = 'apiErrorsAlertDismissed';
-        const apiErrorsCount = {{ api_errors|length }};
-        const lastDismissedCount = localStorage.getItem(apiErrorsAlertKey);
+        const isDismissed = sessionStorage.getItem(apiErrorsAlertKey) === 'true';
         
-        // Show alert if not dismissed or if there are new errors
-        if (!lastDismissedCount || parseInt(lastDismissedCount) !== apiErrorsCount) {
+        // Show alert if not dismissed in this session
+        if (!isDismissed) {
             document.getElementById('apiErrorsAlert').style.display = 'block';
         }
     })();
     
     function dismissApiErrorsAlert() {
-        const apiErrorsCount = {{ api_errors|length }};
-        localStorage.setItem('apiErrorsAlertDismissed', apiErrorsCount.toString());
+        // Mark as dismissed for this session (won't show again until browser is closed/reopened)
+        sessionStorage.setItem('apiErrorsAlertDismissed', 'true');
         document.getElementById('apiErrorsAlert').style.display = 'none';
     }
 </script>
@@ -322,6 +324,32 @@
 {% endif %}
 
 <script>
+    // Dismissed API warnings storage key
+    const API_WARNINGS_DISMISSED_KEY = 'apiWarningsDismissed';
+    
+    // Get dismissed warnings from sessionStorage
+    function getDismissedWarnings() {
+        try {
+            const dismissed = sessionStorage.getItem(API_WARNINGS_DISMISSED_KEY);
+            return dismissed ? JSON.parse(dismissed) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+    
+    // Save dismissed warning to sessionStorage
+    function dismissApiWarning(warningKey) {
+        const dismissed = getDismissedWarnings();
+        dismissed[warningKey] = Date.now();
+        sessionStorage.setItem(API_WARNINGS_DISMISSED_KEY, JSON.stringify(dismissed));
+    }
+    
+    // Check if warning was dismissed
+    function isWarningDismissed(warningKey) {
+        const dismissed = getDismissedWarnings();
+        return !!dismissed[warningKey];
+    }
+    
     // Check API status and show warnings
     async function checkApiStatus() {
         try {
@@ -351,6 +379,7 @@
                     if (!shouldIgnore) {
                         warnings.push({
                             type: 'danger',
+                            key: 'thunder_error',
                             message: `⚠️ Thunder API: ${errorMsg}`
                         });
                     }
@@ -363,7 +392,8 @@
                     if (hasValidBalance && balance <= 0) {
                         warnings.push({
                             type: 'warning',
-                            message: `⚠️ Thunder API: โควต้าหมดแล้ว (คงเหลือ: ${balance})`
+                            key: 'thunder_quota_zero',
+                            message: `⚠️ Thunder API: โควต้าหมดแล้ว (คงเหลือ: ${balance}) - ระบบตรวจสลิปจะไม่สามารถทำงานได้จนกว่าจะเติมโควต้า`
                         });
                     }
                     // Don't show positive balance - it's not necessary
@@ -378,11 +408,13 @@
                                 if (daysLeft <= 7 && daysLeft >= 0) {
                                     warnings.push({
                                         type: 'warning',
+                                        key: 'thunder_expiring_soon',
                                         message: `⚠️ Thunder API: หมดอายุในอีก ${daysLeft} วัน`
                                     });
                                 } else if (daysLeft < 0) {
                                     warnings.push({
                                         type: 'danger',
+                                        key: 'thunder_expired',
                                         message: `⚠️ Thunder API: หมดอายุแล้ว`
                                     });
                                 }
@@ -399,19 +431,25 @@
                 if (status.kbank.status === 'error') {
                     warnings.push({
                         type: 'danger',
+                        key: 'kbank_error',
                         message: `⚠️ KBank API: ${status.kbank.message || 'เกิดข้อผิดพลาด'}`
                     });
                 }
             }
             
+            // Filter out dismissed warnings
+            const activeWarnings = warnings.filter(w => !isWarningDismissed(w.key));
+            
             // Show warnings
-            if (warnings.length > 0) {
+            if (activeWarnings.length > 0) {
                 let alertHTML = '';
-                warnings.forEach(warning => {
+                activeWarnings.forEach(warning => {
                     alertHTML += `
-                        <div class="alert alert-${warning.type} alert-dismissible fade show">
-                            ${warning.message}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <div class="alert alert-${warning.type} alert-dismissible fade show" style="margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span>${warning.message}</span>
+                                <button type="button" class="btn-close" onclick="dismissApiWarning('${warning.key}'); this.closest('.alert').remove(); if(document.querySelectorAll('#apiStatusAlert .alert').length === 0) document.getElementById('apiStatusAlert').style.display = 'none';"></button>
+                            </div>
                         </div>
                     `;
                 });
