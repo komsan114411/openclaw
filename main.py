@@ -3706,7 +3706,7 @@ async def preview_slip_template(request: Request, account_id: str, template_id: 
             else:
                 # ใช้ default flex message
                 from services.slip_formatter import create_beautiful_slip_flex_message
-                flex_message = create_beautiful_slip_flex_message(sample_result)
+                flex_message = create_beautiful_slip_flex_message(sample_result, db=app.state.db)
                 return {
                     "success": True,
                     "type": "flex",

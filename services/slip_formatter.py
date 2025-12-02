@@ -499,14 +499,14 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
             r_bank = data.get("receiver_bank_name", data.get("receiver_bank_short", ""))
 
         try:
-            s_logo = get_bank_logo(s_code, s_bank, db=None)
+            s_logo = get_bank_logo(s_code, s_bank, db=db)
             logger.info(f"🏦 Sender bank logo: {s_code} -> {s_logo[:50] if s_logo else 'None'}...")
         except Exception as e:
             logger.error(f"❌ Error getting sender bank logo: {e}")
             s_logo = DEFAULT_LOGO
         
         try:
-            r_logo = get_bank_logo(r_code, r_bank, db=None)
+            r_logo = get_bank_logo(r_code, r_bank, db=db)
             logger.info(f"🏦 Receiver bank logo: {r_code} -> {r_logo[:50] if r_logo else 'None'}...")
         except Exception as e:
             logger.error(f"❌ Error getting receiver bank logo: {e}")
