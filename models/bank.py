@@ -50,13 +50,41 @@ class BankModel:
     def update_bank(self, bank_id: str, update_data: Dict) -> bool:
         """อัพเดตข้อมูลธนาคาร"""
         try:
-            update_data["updated_at"] = datetime.utcnow()
+            # Separate fields to set and unset
+            set_data = {}
+            unset_fields = []
+            
+            for key, value in update_data.items():
+                if key == "updated_at":
+                    set_data[key] = datetime.utcnow()
+                elif value is None:
+                    # If value is None, unset the field
+                    unset_fields.append(key)
+                else:
+                    set_data[key] = value
+            
+            # Always update updated_at
+            set_data["updated_at"] = datetime.utcnow()
+            
+            # Build update operation
+            update_op = {}
+            if set_data:
+                update_op["$set"] = set_data
+            if unset_fields:
+                update_op["$unset"] = {field: "" for field in unset_fields}
+            
+            if not update_op:
+                return False
+            
             result = self.collection.update_one(
                 {"_id": ObjectId(bank_id)},
-                {"$set": update_data}
+                update_op
             )
             return result.modified_count > 0 or result.matched_count > 0
-        except:
+        except Exception as e:
+            import logging
+            logger = logging.getLogger("bank_model")
+            logger.error(f"Error updating bank {bank_id}: {e}")
             return False
     
     def delete_bank(self, bank_id: str) -> bool:

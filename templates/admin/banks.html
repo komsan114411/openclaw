@@ -378,15 +378,34 @@ async function loadBanks() {
 
 function renderBanksTable() {
     const tbody = document.getElementById('banksTableBody');
+    if (!tbody) {
+        console.error('❌ banksTableBody not found');
+        return;
+    }
+    
     tbody.innerHTML = '';
+    
+    if (!banks || banks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #6B7280;">ไม่มีข้อมูลธนาคาร</td></tr>';
+        return;
+    }
     
     banks.forEach(bank => {
         const row = document.createElement('tr');
+        
+        // Check if logo exists and is valid
+        const hasLogo = bank.logo_base64 && 
+                       typeof bank.logo_base64 === 'string' && 
+                       bank.logo_base64.trim().length > 0;
+        
+        const logoHtml = hasLogo 
+            ? `<img src="data:image/png;base64,${bank.logo_base64}" class="bank-logo" alt="${bank.name}" style="width: 56px; height: 56px; object-fit: contain; border-radius: 10px; border: 2px solid #E2E8F0; padding: 6px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-logo\\' style=\\'width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;\\' onclick=\\'editBank(\\'${bank.id}\\')\\' title=\\'คลิกเพื่ออัพโหลดโลโก้\\'><i class=\\'fas fa-image\\'></i></div>';">
+            `
+            : '<div class="no-logo" style="width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;" onclick="editBank(\'' + bank.id + '\')" title="คลิกเพื่ออัพโหลดโลโก้"><i class="fas fa-image"></i></div>';
+        
         row.innerHTML = `
             <td style="padding: 12px; vertical-align: middle;">
-                ${bank.logo_base64 
-                    ? `<img src="data:image/png;base64,${bank.logo_base64}" class="bank-logo" alt="${bank.name}" style="width: 56px; height: 56px; object-fit: contain; border-radius: 10px; border: 2px solid #E2E8F0; padding: 6px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">`
-                    : '<div class="no-logo" style="width: 56px; height: 56px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: 2px dashed #D1D5DB; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 18px; cursor: pointer;" onclick="editBank(\'' + bank.id + '\')" title="คลิกเพื่ออัพโหลดโลโก้"><i class="fas fa-image"></i></div>'}
+                ${logoHtml}
             </td>
             <td style="padding: 12px; vertical-align: middle;"><code style="background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); padding: 6px 12px; border-radius: 8px; font-weight: 700; color: #1F2937; font-size: 14px; border: 1px solid #D1D5DB;">${bank.code}</code></td>
             <td style="padding: 12px; vertical-align: middle;"><strong style="color: #1E293B; font-size: 15px;">${bank.name}</strong></td>
@@ -424,13 +443,19 @@ function editBank(bankId) {
     const noLogoPlaceholder = document.getElementById('noLogoPlaceholder');
     const removeBtn = document.getElementById('removeLogo');
     
-    if (bank.logo_base64) {
+    // Check if logo exists and is valid
+    const hasLogo = bank.logo_base64 && 
+                   typeof bank.logo_base64 === 'string' && 
+                   bank.logo_base64.trim().length > 0;
+    
+    if (hasLogo) {
         logoImg.src = `data:image/png;base64,${bank.logo_base64}`;
         logoImg.style.display = 'block';
         noLogoPlaceholder.style.display = 'none';
         removeBtn.style.display = 'inline-block';
         logoImg.dataset.shouldRemove = 'false';
         logoImg.dataset.hasLogo = 'true';
+        console.log('✅ Logo loaded for bank:', bank.code, 'length:', bank.logo_base64.length);
     } else {
         logoImg.src = '';
         logoImg.style.display = 'none';
@@ -438,6 +463,7 @@ function editBank(bankId) {
         removeBtn.style.display = 'none';
         logoImg.dataset.shouldRemove = 'false';
         logoImg.dataset.hasLogo = 'false';
+        console.log('ℹ️ No logo for bank:', bank.code);
     }
     
     // Clear file input
@@ -533,11 +559,18 @@ async function saveBankChanges() {
         
         // Check if logo should be removed
         const shouldRemoveLogo = currentLogoImg && currentLogoImg.dataset.shouldRemove === 'true';
+        const hasExistingLogo = currentLogoImg && currentLogoImg.dataset.hasLogo === 'true';
+        
+        console.log('🔍 Logo status:', {
+            shouldRemove: shouldRemoveLogo,
+            hasExisting: hasExistingLogo,
+            hasNewFile: !!logoFile
+        });
         
         if (shouldRemoveLogo) {
-            // Logo was removed
+            // Logo was removed - explicitly set to null
             data.logo_base64 = null;
-            console.log('🗑️ Logo will be removed');
+            console.log('🗑️ Logo will be removed (set to null)');
         } else if (logoFile) {
             // Convert logo to base64 if provided
             try {

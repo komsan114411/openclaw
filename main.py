@@ -870,10 +870,10 @@ async def update_bank_api(request: Request, bank_id: str):
         if 'logo_base64' in data:
             # Handle logo update or removal
             if data['logo_base64'] is None:
-                # Remove logo
+                # Remove logo - set to None so model will use $unset
                 update_data['logo_base64'] = None
                 logger.info(f"🗑️ Removing logo for bank: {bank_id}")
-            elif data['logo_base64']:
+            elif isinstance(data['logo_base64'], str) and data['logo_base64'].strip():
                 # Validate base64
                 try:
                     import base64 as b64
@@ -886,6 +886,8 @@ async def update_bank_api(request: Request, bank_id: str):
                 except Exception as e:
                     logger.error(f"❌ Invalid base64 logo for bank {bank_id}: {e}")
                     raise HTTPException(status_code=400, detail=f"โลโก้ไม่ถูกต้อง: {str(e)}")
+            else:
+                logger.warning(f"⚠️ Invalid logo_base64 value type for bank {bank_id}: {type(data['logo_base64'])}")
         
         # Update bank
         if not update_data:
