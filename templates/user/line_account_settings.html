@@ -833,48 +833,50 @@
             if (templateType === 'text') {
                 const textContent = typeof data.content === 'string' ? data.content : JSON.stringify(data.content);
                 previewContent = `
-                    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 500px; width: 100%;">
-                        <div style="font-size: 14px; color: #64748B; margin-bottom: 12px; text-transform: uppercase; font-weight: 600;">ตัวอย่างข้อความ</div>
-                        <div style="background: #F8FAFC; padding: 20px; border-radius: 8px; font-size: 15px; color: #1E293B; line-height: 1.8; white-space: pre-wrap; border: 1px solid #E2E8F0;">${escapeHtml(textContent)}</div>
+                    <div style="background: white; padding: 28px; border-radius: 16px; max-width: 600px; width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.1);">
+                        <div style="font-size: 13px; color: #667eea; margin-bottom: 16px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-align-left"></i> ตัวอย่างข้อความ
+                        </div>
+                        <div style="background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); padding: 24px; border-radius: 12px; font-size: 16px; color: #1E293B; line-height: 1.9; white-space: pre-wrap; border: 2px solid #E2E8F0; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);">${escapeHtml(textContent)}</div>
                     </div>
                 `;
             } else {
                 const flexContent = data.content.contents || data.content;
                 previewContent = `
-                    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 600px; width: 100%;">
-                        <div style="font-size: 14px; color: #64748B; margin-bottom: 12px; text-transform: uppercase; font-weight: 600;">ตัวอย่าง Flex Message</div>
-                        <div style="background: #F8FAFC; padding: 20px; border-radius: 8px; border: 1px solid #E2E8F0;">
-                            ${renderFlexPreview(flexContent)}
-                        </div>
+                    <div style="background: white; padding: 0; border-radius: 16px; max-width: 700px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.12); overflow: hidden;">
+                        ${renderFlexPreview(flexContent)}
                     </div>
                 `;
             }
             
             modal.innerHTML = `
-                <div style="background: white; border-radius: 20px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-                    <div style="padding: 32px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 24px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 70px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); pointer-events: none;"></div>
+                    <div style="background: white; margin: 8px; border-radius: 20px; padding: 32px; position: relative;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                             <div>
-                                <h2 style="margin: 0; font-size: 28px; color: #1E293B; font-weight: 700;">${templateName}</h2>
-                                ${templateDesc ? `<p style="margin: 8px 0 0 0; color: #64748B; font-size: 14px;">${templateDesc}</p>` : ''}
+                                <h2 style="margin: 0; font-size: 32px; color: #1E293B; font-weight: 800; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">${templateName}</h2>
+                                ${templateDesc ? `<p style="margin: 12px 0 0 0; color: #64748B; font-size: 15px; line-height: 1.6;">${templateDesc}</p>` : ''}
                             </div>
-                            <button onclick="closeTemplatePreviewModal()" style="background: none; border: none; font-size: 32px; cursor: pointer; color: #94A3B8; padding: 0; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='#F8FAFC'; this.style.color='#64748B';" onmouseout="this.style.background='none'; this.style.color='#94A3B8';">&times;</button>
+                            <button onclick="closeTemplatePreviewModal()" style="background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); border: none; font-size: 24px; cursor: pointer; color: #64748B; padding: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onmouseover="this.style.transform='rotate(90deg)'; this.style.background='linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'; this.style.color='white';" onmouseout="this.style.transform='rotate(0deg)'; this.style.background='linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)'; this.style.color='#64748B';">&times;</button>
                         </div>
                         
-                        <div style="margin-bottom: 24px;">
-                            <span style="display: inline-block; padding: 8px 16px; background: ${templateType === 'flex' ? '#DBEAFE' : '#D1FAE5'}; color: ${templateType === 'flex' ? '#1E40AF' : '#065F46'}; border-radius: 12px; font-size: 13px; font-weight: 600;">
+                        <div style="margin-bottom: 28px;">
+                            <span style="display: inline-block; padding: 10px 20px; background: ${templateType === 'flex' ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)' : 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)'}; color: ${templateType === 'flex' ? '#1E40AF' : '#065F46'}; border-radius: 14px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                                 <i class="fas fa-${templateType === 'text' ? 'align-left' : 'th-large'}"></i> ${templateType === 'text' ? 'Text' : 'Flex'} Message
                             </span>
                         </div>
                         
-                        ${previewContent}
+                        <div style="background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); border-radius: 16px; padding: 24px; margin-bottom: 28px; border: 2px solid #E2E8F0; box-shadow: 0 8px 24px rgba(0,0,0,0.08);">
+                            ${previewContent}
+                        </div>
                         
-                        <div style="margin-top: 32px; padding-top: 24px; border-top: 2px solid #E2E8F0;">
-                            <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                                <button onclick="closeTemplatePreviewModal()" style="padding: 14px 28px; background: #F3F4F6; color: #374151; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#E5E7EB';" onmouseout="this.style.background='#F3F4F6';">
+                        <div style="margin-top: 32px; padding-top: 28px; border-top: 3px solid #E2E8F0; background: linear-gradient(135deg, #FAFBFC 0%, #F8FAFC 100%); margin-left: -32px; margin-right: -32px; margin-bottom: -32px; padding-left: 32px; padding-right: 32px; padding-bottom: 32px; border-radius: 0 0 20px 20px;">
+                            <div style="display: flex; gap: 16px; justify-content: flex-end;">
+                                <button onclick="closeTemplatePreviewModal()" style="padding: 16px 32px; background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%); color: #374151; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';">
                                     <i class="fas fa-times"></i> ปิด
                                 </button>
-                                <button onclick="confirmSelectTemplate('${templateId}', '${templateName.replace(/'/g, "\\'")}')" style="padding: 14px 28px; background: ${isCurrentlySelected ? '#10B981' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(102, 126, 234, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.3)';">
+                                <button onclick="confirmSelectTemplate('${templateId}', '${templateName.replace(/'/g, "\\'")}')" style="padding: 16px 36px; background: ${isCurrentlySelected ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}; color: white; border: none; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); transition: all 0.3s; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-3px) scale(1.02)'; this.style.boxShadow='0 8px 24px rgba(102, 126, 234, 0.5)';" onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)';">
                                     <i class="fas fa-check-circle"></i> ${isCurrentlySelected ? 'กำลังใช้งานอยู่' : 'ยืนยันเลือกเทมเพลตนี้'}
                                 </button>
                             </div>
@@ -1035,9 +1037,11 @@
                     // Flex preview - render as HTML
                     const flexContent = data.content.contents || data.content;
                     return `
-                        <div style="background: #F8FAFC; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0; min-height: 100px;">
-                            <div style="font-size: 11px; color: #64748B; margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">Flex Message Preview</div>
-                            <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); padding: 16px; border-radius: 12px; border: 2px solid #E2E8F0; min-height: 100px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);">
+                            <div style="font-size: 12px; color: #667eea; margin-bottom: 12px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-th-large"></i> Flex Message Preview
+                            </div>
+                            <div style="background: white; padding: 0; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden;">
                                 ${renderFlexPreview(flexContent)}
                             </div>
                         </div>
@@ -1166,48 +1170,60 @@
         if (!referenceText) referenceText = 'REF53070260912';
         if (!datetimeText) datetimeText = '22 ต.ค. 2566 10:30';
         
-        // Build complete preview HTML
+        // Get bank logos from API
+        const senderBankCode = '002';
+        const receiverBankCode = '004';
+        const senderLogoUrl = `/api/bank-logo/${senderBankCode}`;
+        const receiverLogoUrl = `/api/bank-logo/${receiverBankCode}`;
+        
+        // Build complete preview HTML with beautiful design
         previewHTML = `
-            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 2px solid #E2E8F0;">
                 ${headerText ? `
-                <div style="background: ${headerBgColor}; color: white; padding: 14px; text-align: center;">
-                    <div style="font-size: 15px; font-weight: bold;">${headerText}</div>
-                    ${datetimeText ? `<div style="font-size: 11px; color: rgba(255,255,255,0.9); margin-top: 4px;">${datetimeText}</div>` : ''}
+                <div style="background: linear-gradient(135deg, ${headerBgColor} 0%, ${headerBgColor}dd 100%); color: white; padding: 20px; text-align: center; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                    <div style="position: absolute; bottom: -30px; left: -30px; width: 100px; height: 100px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+                    <div style="position: relative; z-index: 1;">
+                        <div style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">${headerText}</div>
+                        ${datetimeText ? `<div style="font-size: 12px; color: rgba(255,255,255,0.95); font-weight: 500;">${datetimeText}</div>` : ''}
+                    </div>
                 </div>
                 ` : ''}
-                <div style="padding: 12px;">
+                <div style="padding: 20px;">
                     ${amountText ? `
-                    <div style="text-align: center; padding: 16px; background: #F0FDF4; border-radius: 8px; margin-bottom: 12px;">
-                        <div style="font-size: 24px; font-weight: bold; color: ${amountColor};">${amountText}</div>
+                    <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border-radius: 12px; margin-bottom: 16px; border: 2px solid #BBF7D0; box-shadow: 0 4px 16px rgba(34, 197, 94, 0.15);">
+                        <div style="font-size: 32px; font-weight: 900; color: ${amountColor}; text-shadow: 0 2px 8px rgba(34, 197, 94, 0.2); letter-spacing: -1px;">${amountText}</div>
                     </div>
                     ` : ''}
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #F8FAFC; border-radius: 6px;">
-                        <div style="width: 40px; height: 40px; background: #E2E8F0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <i class="fas fa-user" style="color: #64748B; font-size: 16px;"></i>
+                    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding: 16px; background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); border-radius: 12px; border: 2px solid #E2E8F0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); position: relative; overflow: hidden;">
+                            <img src="${senderLogoUrl}" alt="Sender Bank" style="width: 48px; height: 48px; object-fit: contain; border-radius: 50%; background: white; padding: 4px;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas fa-university\\' style=\\'color: white; font-size: 24px;\\'></i>';">
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 10px; color: #94A3B8; margin-bottom: 2px;">ผู้โอน</div>
-                            <div style="font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${senderName}</div>
-                            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${senderAccount} • ${senderBank}</div>
+                            <div style="font-size: 11px; color: #94A3B8; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">ผู้โอน</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${senderName}</div>
+                            <div style="font-size: 12px; color: #64748B; font-weight: 500;">${senderAccount} • ${senderBank}</div>
                         </div>
                     </div>
-                    <div style="text-align: center; margin: 8px 0;">
-                        <i class="fas fa-arrow-down" style="color: #CBD5E1; font-size: 14px;"></i>
+                    <div style="text-align: center; margin: 12px 0;">
+                        <div style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%); border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <i class="fas fa-arrow-down" style="color: #94A3B8; font-size: 16px; font-weight: bold;"></i>
+                        </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #F8FAFC; border-radius: 6px;">
-                        <div style="width: 40px; height: 40px; background: #E2E8F0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <i class="fas fa-building" style="color: #64748B; font-size: 16px;"></i>
+                    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding: 16px; background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); border-radius: 12px; border: 2px solid #E2E8F0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #10B981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); position: relative; overflow: hidden;">
+                            <img src="${receiverLogoUrl}" alt="Receiver Bank" style="width: 48px; height: 48px; object-fit: contain; border-radius: 50%; background: white; padding: 4px;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas fa-building\\' style=\\'color: white; font-size: 24px;\\'></i>';">
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 10px; color: #94A3B8; margin-bottom: 2px;">ผู้รับ</div>
-                            <div style="font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${receiverName}</div>
-                            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${receiverAccount} • ${receiverBank}</div>
+                            <div style="font-size: 11px; color: #94A3B8; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">ผู้รับ</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${receiverName}</div>
+                            <div style="font-size: 12px; color: #64748B; font-weight: 500;">${receiverAccount} • ${receiverBank}</div>
                         </div>
                     </div>
                     ${referenceText ? `
-                    <div style="padding: 8px; background: #F9FAFB; border-radius: 6px; margin-top: 8px; text-align: center;">
-                        <div style="font-size: 10px; color: #94A3B8; margin-bottom: 2px;">เลขอ้างอิง</div>
-                        <div style="font-size: 11px; font-weight: 600; color: #64748B;">${referenceText}</div>
+                    <div style="padding: 14px; background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%); border-radius: 10px; margin-top: 12px; text-align: center; border: 2px solid #E5E7EB;">
+                        <div style="font-size: 11px; color: #94A3B8; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">เลขอ้างอิง</div>
+                        <div style="font-size: 13px; font-weight: 700; color: #64748B; font-family: 'Courier New', monospace;">${referenceText}</div>
                     </div>
                     ` : ''}
                 </div>

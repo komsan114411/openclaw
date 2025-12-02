@@ -3404,7 +3404,14 @@ async def preview_slip_template(request: Request, account_id: str, template_id: 
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
         
-        # สร้างข้อมูลตัวอย่าง
+        # สร้างข้อมูลตัวอย่างพร้อม bank logos
+        from services.slip_formatter import get_bank_logo
+        
+        sender_bank_code = "002"
+        receiver_bank_code = "004"
+        sender_logo = get_bank_logo(sender_bank_code, "กรุงเทพ", app.state.db)
+        receiver_logo = get_bank_logo(receiver_bank_code, "กสิกรไทย", app.state.db)
+        
         sample_result = {
             "status": "success",
             "data": {
@@ -3414,19 +3421,21 @@ async def preview_slip_template(request: Request, account_id: str, template_id: 
                         "name": {"th": "นาย วินฉลิม แก้นนี"},
                         "bank": {"account": "xxx-x-x-6021x"}
                     },
-                    "bank": {"short": "กรุงเทพ", "id": "002"}
+                    "bank": {"short": "กรุงเทพ", "id": sender_bank_code, "name": "กรุงเทพ"}
                 },
                 "receiver": {
                     "account": {
                         "name": {"th": "บจก. ทินเดอร์ โซลูชั่น"},
                         "bank": {"account": "xxx-x-x-8041x"}
                     },
-                    "bank": {"short": "กสิกรไทย", "id": "004"}
+                    "bank": {"short": "กสิกรไทย", "id": receiver_bank_code, "name": "กสิกรไทย"}
                 },
                 "date": "22 ต.ค. 2566",
                 "time": "10:30",
                 "transRef": "53070260912"
-            }
+            },
+            "sender_bank_logo": sender_logo,
+            "receiver_bank_logo": receiver_logo
         }
         
         # Render template
