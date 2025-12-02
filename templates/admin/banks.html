@@ -356,6 +356,7 @@
 
 <script>
 let banks = [];
+let editBankModalInstance = null; // Store modal instance globally
 
 // Load banks on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -407,7 +408,10 @@ function renderBanksTable() {
 
 function editBank(bankId) {
     const bank = banks.find(b => b.id === bankId);
-    if (!bank) return;
+    if (!bank) {
+        showToast('❌ เกิดข้อผิดพลาด', 'ไม่พบข้อมูลธนาคาร', 'danger');
+        return;
+    }
     
     document.getElementById('editBankId').value = bank.id;
     document.getElementById('editBankCode').value = bank.code;
@@ -426,40 +430,65 @@ function editBank(bankId) {
         noLogoPlaceholder.style.display = 'none';
         removeBtn.style.display = 'inline-block';
         logoImg.dataset.shouldRemove = 'false';
+        logoImg.dataset.hasLogo = 'true';
     } else {
         logoImg.src = '';
         logoImg.style.display = 'none';
         noLogoPlaceholder.style.display = 'block';
         removeBtn.style.display = 'none';
         logoImg.dataset.shouldRemove = 'false';
+        logoImg.dataset.hasLogo = 'false';
     }
     
     // Clear file input
-    document.getElementById('editBankLogo').value = '';
+    const fileInput = document.getElementById('editBankLogo');
+    fileInput.value = '';
     
     // Show modal
     const modalElement = document.getElementById('editBankModal');
-    const modal = new bootstrap.Modal(modalElement, {
+    
+    // Dispose existing modal if any
+    if (editBankModalInstance) {
+        editBankModalInstance.dispose();
+    }
+    
+    editBankModalInstance = new bootstrap.Modal(modalElement, {
         backdrop: 'static',
         keyboard: false
     });
     
     // Prevent modal from closing on backdrop click
-    modalElement.addEventListener('hide.bs.modal', function (event) {
-        if (!event.target.dataset.allowClose) {
+    const handleHide = function (event) {
+        if (!modalElement.dataset.allowClose) {
             event.preventDefault();
             return false;
         }
-    });
+    };
     
-    function closeBankModal() {
+    // Remove old listener and add new one
+    modalElement.removeEventListener('hide.bs.modal', handleHide);
+    modalElement.addEventListener('hide.bs.modal', handleHide);
+    
+    editBankModalInstance.show();
+}
+
+// Global function to close edit bank modal
+function closeBankModal() {
+    if (!editBankModalInstance) {
+        const modalElement = document.getElementById('editBankModal');
+        if (modalElement) {
+            editBankModalInstance = bootstrap.Modal.getInstance(modalElement);
+        }
+    }
+    
+    if (editBankModalInstance) {
+        const modalElement = document.getElementById('editBankModal');
         modalElement.dataset.allowClose = 'true';
-        modal.hide();
+        editBankModalInstance.hide();
         setTimeout(() => {
             modalElement.dataset.allowClose = '';
         }, 100);
     }
-    modal.show();
 }
 
 async function saveBankChanges() {
@@ -469,17 +498,27 @@ async function saveBankChanges() {
     const bankCode = document.getElementById('editBankCode').value.trim();
     const isActive = document.getElementById('editBankActive').checked;
     const logoFile = document.getElementById('editBankLogo').files[0];
-    const removeLogoBtn = document.getElementById('removeLogo');
     const currentLogoImg = document.getElementById('currentLogoImg');
     
     // Validation
+    if (!bankId) {
+        showToast('❌ เกิดข้อผิดพลาด', 'ไม่พบรหัสธนาคาร', 'danger');
+        return;
+    }
+    
     if (!name) {
         showToast('❌ ข้อมูลไม่ครบ', 'กรุณากรอกชื่อธนาคาร', 'danger');
         return;
     }
     
-    // Show loading
+    // Get save button
     const saveBtn = event.target;
+    if (!saveBtn) {
+        console.error('❌ Save button not found');
+        return;
+    }
+    
+    // Show loading
     const originalText = saveBtn.innerHTML;
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
     saveBtn.disabled = true;
@@ -502,22 +541,30 @@ async function saveBankChanges() {
         } else if (logoFile) {
             // Convert logo to base64 if provided
             try {
+                console.log('📸 Converting logo to base64...');
                 const base64 = await fileToBase64(logoFile);
+                console.log('✅ Base64 conversion successful, length:', base64.length);
+                
                 // Remove data:image/...;base64, prefix if exists
                 if (base64.includes(',')) {
                     data.logo_base64 = base64.split(',')[1];
                 } else {
                     data.logo_base64 = base64;
                 }
-                console.log('✅ Logo converted to base64, length:', data.logo_base64 ? data.logo_base64.length : 0);
+                console.log('✅ Logo base64 prepared, length:', data.logo_base64 ? data.logo_base64.length : 0);
             } catch (error) {
-                console.error('Error converting logo to base64:', error);
-                throw new Error('ไม่สามารถแปลงรูปภาพเป็น base64 ได้');
+                console.error('❌ Error converting logo to base64:', error);
+                throw new Error('ไม่สามารถแปลงรูปภาพเป็น base64 ได้: ' + error.message);
             }
         }
         // If no logoFile and logo exists, keep existing logo (don't send logo_base64)
         
-        console.log('📤 Sending update request:', { ...data, logo_base64: data.logo_base64 ? `[${data.logo_base64.length} chars]` : 'null' });
+        console.log('📤 Sending update request:', { 
+            name: data.name, 
+            abbreviation: data.abbreviation,
+            is_active: data.is_active,
+            logo_base64: data.logo_base64 ? `[${data.logo_base64.length} chars]` : (data.logo_base64 === null ? 'null (removed)' : 'not sent (keep existing)')
+        });
         
         // Send update request
         const response = await fetch(`/admin/api/banks/${bankId}`, {
@@ -528,10 +575,18 @@ async function saveBankChanges() {
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        let result;
+        try {
+            result = await response.json();
+        } catch (e) {
+            const text = await response.text();
+            console.error('❌ Failed to parse response:', text);
+            throw new Error('ไม่สามารถอ่านข้อมูลจากเซิร์ฟเวอร์ได้');
+        }
         
         if (!response.ok) {
-            throw new Error(result.detail || result.message || 'Failed to update bank');
+            console.error('❌ Server error:', result);
+            throw new Error(result.detail || result.message || `Server error: ${response.status}`);
         }
         
         console.log('✅ Bank updated successfully:', result);
@@ -543,7 +598,8 @@ async function saveBankChanges() {
         await loadBanks();
         
         // Show success toast
-        showToast('✅ บันทึกสำเร็จ!', 'ข้อมูลธนาคารและโลโก้ถูกบันทึกเรียบร้อยแล้ว', 'success');
+        const logoMessage = shouldRemoveLogo ? 'และลบโลโก้' : (logoFile ? 'และอัพเดตโลโก้' : '');
+        showToast('✅ บันทึกสำเร็จ!', `ข้อมูลธนาคาร${logoMessage}ถูกบันทึกเรียบร้อยแล้ว`, 'success');
     } catch (error) {
         console.error('❌ Error saving bank:', error);
         const errorMessage = error.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง';
@@ -687,10 +743,25 @@ function previewLogo(event) {
         const noLogoPlaceholder = document.getElementById('noLogoPlaceholder');
         const removeBtn = document.getElementById('removeLogo');
         
+        if (!logoImg || !noLogoPlaceholder || !removeBtn) {
+            console.error('❌ Elements not found for previewLogo');
+            return;
+        }
+        
         logoImg.src = e.target.result;
         logoImg.style.display = 'block';
         noLogoPlaceholder.style.display = 'none';
         removeBtn.style.display = 'inline-block';
+        
+        // Reset removal flag since we have a new logo
+        logoImg.dataset.shouldRemove = 'false';
+        logoImg.dataset.hasLogo = 'true';
+        console.log('✅ Logo preview loaded');
+    };
+    reader.onerror = function(error) {
+        console.error('❌ Error reading file:', error);
+        showToast('❌ เกิดข้อผิดพลาด', 'ไม่สามารถอ่านไฟล์ได้', 'danger');
+        event.target.value = '';
     };
     reader.readAsDataURL(file);
 }
@@ -701,6 +772,11 @@ function removeLogo() {
     const removeBtn = document.getElementById('removeLogo');
     const fileInput = document.getElementById('editBankLogo');
     
+    if (!logoImg || !noLogoPlaceholder || !removeBtn || !fileInput) {
+        console.error('❌ Elements not found for removeLogo');
+        return;
+    }
+    
     // Clear logo
     logoImg.src = '';
     logoImg.style.display = 'none';
@@ -710,6 +786,7 @@ function removeLogo() {
     
     // Mark that logo should be removed
     logoImg.dataset.shouldRemove = 'true';
+    logoImg.dataset.hasLogo = 'false';
     console.log('🗑️ Logo marked for removal');
 }
 

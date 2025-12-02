@@ -874,18 +874,31 @@ async def update_bank_api(request: Request, bank_id: str):
                 update_data['logo_base64'] = None
                 logger.info(f"🗑️ Removing logo for bank: {bank_id}")
             elif data['logo_base64']:
-                # Update logo
-                update_data['logo_base64'] = data['logo_base64']
-                logger.info(f"🖼️ Updating logo for bank: {bank_id} (length: {len(data['logo_base64'])})")
+                # Validate base64
+                try:
+                    import base64 as b64
+                    # Try to decode to verify it's valid base64
+                    decoded = b64.b64decode(data['logo_base64'], validate=True)
+                    logger.info(f"✅ Valid base64 logo for bank {bank_id} (decoded size: {len(decoded)} bytes)")
+                    # Update logo
+                    update_data['logo_base64'] = data['logo_base64']
+                    logger.info(f"🖼️ Updating logo for bank: {bank_id} (base64 length: {len(data['logo_base64'])})")
+                except Exception as e:
+                    logger.error(f"❌ Invalid base64 logo for bank {bank_id}: {e}")
+                    raise HTTPException(status_code=400, detail=f"โลโก้ไม่ถูกต้อง: {str(e)}")
         
         # Update bank
+        if not update_data:
+            raise HTTPException(status_code=400, detail="ไม่มีข้อมูลที่จะอัพเดต")
+        
         success = app.state.bank_model.update_bank(bank_id, update_data)
         
         if success:
             logger.info(f"✅ Updated bank: {bank_id} - {update_data.get('name', 'N/A')}")
             return {"success": True, "message": "อัปเดตธนาคารสำเร็จ"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to update bank")
+            logger.error(f"❌ Failed to update bank: {bank_id}")
+            raise HTTPException(status_code=500, detail="ไม่สามารถอัพเดตธนาคารได้")
     except HTTPException:
         raise
     except Exception as e:
