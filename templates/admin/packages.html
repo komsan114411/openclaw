@@ -31,12 +31,12 @@
 </div>
 
 <!-- Create/Edit Modal -->
-<div class="modal fade" id="packageModal" tabindex="-1">
+<div class="modal fade" id="packageModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTitle">สร้างแพ็คเกจใหม่</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" onclick="closePackageModal()" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="packageForm">
@@ -74,7 +74,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-secondary" onclick="closePackageModal()">ยกเลิก</button>
                 <button type="button" class="btn btn-primary" onclick="savePackage()">บันทึก</button>
             </div>
         </div>
@@ -88,9 +88,33 @@
     let packageModal;
 
     document.addEventListener('DOMContentLoaded', function () {
-        packageModal = new bootstrap.Modal(document.getElementById('packageModal'));
+        const modalElement = document.getElementById('packageModal');
+        packageModal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        
+        // Prevent modal from closing on backdrop click
+        modalElement.addEventListener('hide.bs.modal', function (event) {
+            if (!event.target.dataset.allowClose) {
+                event.preventDefault();
+                return false;
+            }
+        });
+        
         loadPackages();
     });
+    
+    function closePackageModal() {
+        const modalElement = document.getElementById('packageModal');
+        modalElement.dataset.allowClose = 'true';
+        if (packageModal) {
+            packageModal.hide();
+        }
+        setTimeout(() => {
+            modalElement.dataset.allowClose = '';
+        }, 100);
+    }
 
     function showAlert(message, type = 'success') {
         const container = document.getElementById('alert-container');
@@ -173,7 +197,9 @@
         document.getElementById('modalTitle').innerText = 'สร้างแพ็คเกจใหม่';
         document.getElementById('packageForm').reset();
         document.getElementById('packageId').value = '';
-        packageModal.show();
+                const modalElement = document.getElementById('packageModal');
+                modalElement.dataset.allowClose = '';
+                packageModal.show();
     }
 
     function editPackage(pkg) {
@@ -186,7 +212,9 @@
         document.getElementById('packageQuota').value = pkg.slip_quota;
         document.getElementById('packageFeatures').value = pkg.features.join('\n');
         document.getElementById('isFreeStarter').checked = pkg.is_free_starter;
-        packageModal.show();
+                const modalElement = document.getElementById('packageModal');
+                modalElement.dataset.allowClose = '';
+                packageModal.show();
     }
 
     async function savePackage() {
@@ -223,7 +251,7 @@
             }
             const result = await response.json();
             if (result.success) {
-                packageModal.hide();
+                closePackageModal();
                 loadPackages();
                 showAlert('บันทึกข้อมูลสำเร็จ', 'success');
             } else {

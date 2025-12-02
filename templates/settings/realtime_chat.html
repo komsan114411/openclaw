@@ -624,11 +624,11 @@
 </div>
 
 <!-- Image Preview Modal -->
-<div class="modal fade" id="imagePreviewModal" tabindex="-1">
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content bg-dark">
             <div class="modal-header border-0">
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" onclick="closeImagePreviewModal()"></button>
             </div>
             <div class="modal-body text-center p-0">
                 <img id="imagePreviewImg" src="" class="img-fluid" style="max-height: 80vh;">
@@ -1092,11 +1092,37 @@
     
     // Show image in modal
     function showImageModal(imageUrl) {
-        const modal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+        const modalElement = document.getElementById('imagePreviewModal');
+        modalElement.dataset.allowClose = '';
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        
+        // Prevent modal from closing on backdrop click
+        modalElement.addEventListener('hide.bs.modal', function (event) {
+            if (!event.target.dataset.allowClose) {
+                event.preventDefault();
+                return false;
+            }
+        });
+        
         document.getElementById('imagePreviewImg').src = imageUrl;
         document.getElementById('imagePreviewDownload').href = imageUrl;
         document.getElementById('imagePreviewOpen').href = imageUrl;
         modal.show();
+    }
+    
+    function closeImagePreviewModal() {
+        const modalElement = document.getElementById('imagePreviewModal');
+        modalElement.dataset.allowClose = 'true';
+        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        setTimeout(() => {
+            modalElement.dataset.allowClose = '';
+        }, 100);
     }
 
     // Search functionality

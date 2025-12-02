@@ -59,12 +59,12 @@
 </div>
 
 <!-- Image Modal -->
-<div class="modal fade" id="imageModal" tabindex="-1">
+<div class="modal fade" id="imageModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">หลักฐานการชำระเงิน</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" onclick="closeImageModal()"></button>
             </div>
             <div class="modal-body text-center bg-dark">
                 <img src="" id="modalImage" class="img-fluid" style="max-height: 80vh;">
@@ -74,12 +74,12 @@
 </div>
 
 <!-- Reject Modal -->
-<div class="modal fade" id="rejectModal" tabindex="-1">
+<div class="modal fade" id="rejectModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">ปฏิเสธการชำระเงิน</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" onclick="closeRejectModal()"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="rejectPaymentId">
@@ -89,7 +89,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">ยกเลิก</button>
                 <button type="button" class="btn btn-danger" onclick="confirmReject()">ยืนยันปฏิเสธ</button>
             </div>
         </div>
@@ -118,8 +118,48 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
-        rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+        const imageModalElement = document.getElementById('imageModal');
+        const rejectModalElement = document.getElementById('rejectModal');
+        
+        imageModal = new bootstrap.Modal(imageModalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        rejectModal = new bootstrap.Modal(rejectModalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        
+        // Prevent modals from closing on backdrop click
+        imageModalElement.addEventListener('hide.bs.modal', function (event) {
+            if (!event.target.dataset.allowClose) {
+                event.preventDefault();
+                return false;
+            }
+        });
+        
+        rejectModalElement.addEventListener('hide.bs.modal', function (event) {
+            if (!event.target.dataset.allowClose) {
+                event.preventDefault();
+                return false;
+            }
+        });
+        
+        window.closeImageModal = function() {
+            imageModalElement.dataset.allowClose = 'true';
+            imageModal.hide();
+            setTimeout(() => {
+                imageModalElement.dataset.allowClose = '';
+            }, 100);
+        };
+        
+        window.closeRejectModal = function() {
+            rejectModalElement.dataset.allowClose = 'true';
+            rejectModal.hide();
+            setTimeout(() => {
+                rejectModalElement.dataset.allowClose = '';
+            }, 100);
+        };
         loadPayments();
     });
 
@@ -324,11 +364,13 @@
         }
         
         document.getElementById('modalImage').src = imageData;
+        imageModalElement.dataset.allowClose = '';
         imageModal.show();
     }
 
     function viewImage(base64) {
         document.getElementById('modalImage').src = base64;
+        imageModalElement.dataset.allowClose = '';
         imageModal.show();
     }
 
@@ -361,6 +403,7 @@
     function openRejectModal(id) {
         document.getElementById('rejectPaymentId').value = id;
         document.getElementById('rejectReason').value = '';
+        rejectModalElement.dataset.allowClose = '';
         rejectModal.show();
     }
 
@@ -387,7 +430,7 @@
             const result = await response.json();
 
             if (result.success) {
-                rejectModal.hide();
+                closeRejectModal();
                 showAlert('ปฏิเสธเรียบร้อย', 'success');
                 loadPayments();
             } else {

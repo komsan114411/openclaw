@@ -344,12 +344,12 @@
     </div>
 
     <!-- Modal for Image Preview -->
-    <div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal fade" id="imageModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">ดูรูปภาพ</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" onclick="closeImageModal()"></button>
                 </div>
                 <div class="modal-body text-center">
                     <img id="modalImage" src="" style="max-width: 100%; max-height: 500px;">
@@ -365,7 +365,27 @@
         let currentUserName = null;
         let isLoading = false;
         let autoRefreshInterval = null;
-        const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const imageModalElement = document.getElementById('imageModal');
+        const imageModal = new bootstrap.Modal(imageModalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        
+        // Prevent modal from closing on backdrop click
+        imageModalElement.addEventListener('hide.bs.modal', function (event) {
+            if (!event.target.dataset.allowClose) {
+                event.preventDefault();
+                return false;
+            }
+        });
+        
+        window.closeImageModal = function() {
+            imageModalElement.dataset.allowClose = 'true';
+            closeImageModal();
+            setTimeout(() => {
+                imageModalElement.dataset.allowClose = '';
+            }, 100);
+        };
 
         async function changeAccount() {
             currentAccountId = document.getElementById('accountSelect').value;
@@ -636,6 +656,7 @@
 
         function showImage(url) {
             document.getElementById('modalImage').src = url;
+            imageModalElement.dataset.allowClose = '';
             imageModal.show();
         }
 

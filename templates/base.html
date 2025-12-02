@@ -364,35 +364,131 @@
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
             document.body.style.position = '';
-            
-            // Close any open modals
-            const modals = document.querySelectorAll('.modal.show, .modal[style*="display"]');
-            modals.forEach(modal => {
-                modal.classList.remove('show');
-                modal.style.display = 'none';
+        }
+        
+        // Global modal management - prevent all modals from closing automatically
+        function setupModalProtection() {
+            // Find all Bootstrap modals and configure them
+            document.querySelectorAll('.modal.fade, .modal').forEach(modalElement => {
+                // Skip if already configured
+                if (modalElement.dataset.modalProtected) {
+                    return;
+                }
+                modalElement.dataset.modalProtected = 'true';
+                
+                // Set static backdrop and disable keyboard if not already set
+                if (!modalElement.hasAttribute('data-bs-backdrop')) {
+                    modalElement.setAttribute('data-bs-backdrop', 'static');
+                }
+                if (!modalElement.hasAttribute('data-bs-keyboard')) {
+                    modalElement.setAttribute('data-bs-keyboard', 'false');
+                }
+                
+                // Prevent auto-close on backdrop click
+                const hideHandler = function(event) {
+                    // Only allow closing if explicitly requested via data attribute
+                    if (!event.target.dataset.allowClose && !event.relatedTarget?.dataset?.allowClose) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return false;
+                    }
+                };
+                
+                // Remove old listener if exists and add new one
+                modalElement.removeEventListener('hide.bs.modal', hideHandler);
+                modalElement.addEventListener('hide.bs.modal', hideHandler);
+                
+                // Reinitialize Bootstrap modal with new settings if needed
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    let modalInstance = bootstrap.Modal.getInstance(modalElement);
+                    if (!modalInstance) {
+                        // Create new instance with protected settings
+                        modalInstance = new bootstrap.Modal(modalElement, {
+                            backdrop: 'static',
+                            keyboard: false
+                        });
+                    } else {
+                        // Update existing instance
+                        modalInstance._config.backdrop = 'static';
+                        modalInstance._config.keyboard = false;
+                    }
+                    
+                    // Override hide method to require explicit close
+                    if (modalInstance && !modalInstance._originalHide) {
+                        modalInstance._originalHide = modalInstance.hide.bind(modalInstance);
+                        modalInstance.hide = function() {
+                            modalElement.dataset.allowClose = 'true';
+                            modalInstance._originalHide();
+                            setTimeout(() => {
+                                modalElement.dataset.allowClose = '';
+                            }, 100);
+                        };
+                    }
+                }
             });
             
-            // Remove any fixed/absolute positioned overlays
-            const overlays = document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
-            overlays.forEach(overlay => {
-                const zIndex = window.getComputedStyle(overlay).zIndex;
-                if (zIndex && parseInt(zIndex) > 1000) {
-                    const display = window.getComputedStyle(overlay).display;
-                    if (display === 'block' || display === 'flex') {
-                        overlay.style.display = 'none';
-                    }
+            // Find all custom modals (non-Bootstrap)
+            document.querySelectorAll('[class*="modal"]:not(.modal.fade):not(.modal)').forEach(modalElement => {
+                if ((modalElement.classList.contains('modal') || modalElement.id.includes('Modal') || modalElement.id.includes('modal')) 
+                    && !modalElement.dataset.modalProtected) {
+                    modalElement.dataset.modalProtected = 'true';
+                    
+                    // Prevent closing on backdrop click
+                    modalElement.addEventListener('click', function(e) {
+                        if (e.target === modalElement && !modalElement.dataset.allowClose) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    });
                 }
             });
         }
         
+        // Helper function to safely close any modal
+        window.closeAnyModal = function(modalElement) {
+            if (!modalElement) return;
+            
+            modalElement.dataset.allowClose = 'true';
+            
+            // Try Bootstrap modal first
+            if (window.bootstrap && window.bootstrap.Modal) {
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                } else {
+                    // If no instance, try to hide manually
+                    modalElement.classList.remove('show');
+                    modalElement.style.display = 'none';
+                }
+            } else {
+                // Fallback for custom modals
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+            }
+            
+            // Cleanup
+            cleanupOverlays();
+            
+            // Reset after delay
+            setTimeout(() => {
+                modalElement.dataset.allowClose = '';
+            }, 100);
+        };
+        
         // Run cleanup on page load
-        document.addEventListener('DOMContentLoaded', cleanupOverlays);
+        document.addEventListener('DOMContentLoaded', function() {
+            cleanupOverlays();
+            setupModalProtection();
+        });
         
         // Run cleanup on page show (when navigating back)
-        window.addEventListener('pageshow', cleanupOverlays);
+        window.addEventListener('pageshow', function() {
+            cleanupOverlays();
+            setupModalProtection();
+        });
         
-        // Run cleanup periodically (every 2 seconds) to catch any stuck overlays
-        setInterval(cleanupOverlays, 2000);
+        // Run cleanup periodically (every 1 second) to catch any stuck overlays
+        setInterval(cleanupOverlays, 1000);
         
         // Run cleanup before page unload
         window.addEventListener('beforeunload', cleanupOverlays);
