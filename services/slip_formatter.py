@@ -61,15 +61,22 @@ def get_bank_logo(bank_code: str = None, bank_name: str = None, db=None) -> str:
                     if bank:
                         logger.info(f"🔍 Found bank in database: {bank.get('name')} (code: {bank_code})")
                         logo_base64 = bank.get("logo_base64")
-                        # Validate logo_base64
+                        
+                        # ✅ NEW APPROACH: Generate HTTP URL to our API endpoint
+                        # This converts base64 from database to HTTP URL that LINE API accepts
                         if logo_base64 and isinstance(logo_base64, str) and logo_base64.strip():
-                            # ถ้ามี base64 ให้ return เป็น data URI
-                            if logo_base64.startswith('data:'):
-                                logger.info(f"✅ Found logo for bank {bank_code} (data URI format, length: {len(logo_base64)})")
+                            if logo_base64.startswith('http'):
+                                # Already HTTP URL - use it directly
+                                logger.info(f"✅ Bank {bank_code} has HTTP URL logo in DB: {logo_base64[:80]}...")
                                 return logo_base64
                             else:
-                                logger.info(f"✅ Found logo for bank {bank_code} (base64 format, length: {len(logo_base64)})")
-                                return f"data:image/png;base64,{logo_base64}"
+                                # Generate API URL to serve this logo
+                                # Get base URL from environment or use default
+                                import os
+                                base_url = os.getenv('APP_BASE_URL', 'https://testpy-5374535a2971.herokuapp.com')
+                                api_url = f"{base_url}/api/bank-logo/{bank_code}"
+                                logger.info(f"✅ Generated API URL for bank {bank_code}: {api_url}")
+                                return api_url
                         else:
                             logger.warning(f"⚠️ Bank {bank_code} found but logo_base64 is empty or invalid")
                     else:
