@@ -140,10 +140,10 @@
     .template-card-preview {
         background: #F8FAFC;
         border-radius: 12px;
-        padding: 16px;
+        padding: 12px;
         margin-bottom: 12px;
-        min-height: 180px;
-        max-height: 250px;
+        min-height: 220px;
+        max-height: 280px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -671,8 +671,11 @@
                             <div class="template-card-info">
                                 <div class="template-card-name">${templateName}</div>
                                 <div class="template-card-desc">${template.description || 'เทมเพลตสำหรับตอบกลับอัตโนมัติ'}</div>
-                                <div class="template-card-type">
-                                    <i class="fas fa-th-large"></i> Flex Message
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #E2E8F0;">
+                                    <div class="template-card-type">
+                                        <i class="fas fa-${template.template_type === 'text' ? 'align-left' : 'th-large'}"></i> ${template.template_type === 'text' ? 'Text' : 'Flex'} Message
+                                    </div>
+                                    ${template.usage_count !== undefined ? `<div style="font-size: 11px; color: #94A3B8; display: flex; align-items: center; gap: 4px;"><i class="fas fa-chart-bar"></i> <span>${template.usage_count}</span></div>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -890,31 +893,45 @@
     // Render flex message preview as HTML
     function renderFlexPreview(flexContent) {
         if (!flexContent || typeof flexContent !== 'object') {
-            return '<div style="color: #94A3B8; font-size: 12px;">ไม่มีข้อมูลตัวอย่าง</div>';
+            return '<div style="color: #94A3B8; font-size: 12px; text-align: center; padding: 20px;">ไม่มีข้อมูลตัวอย่าง</div>';
         }
         
         // Try to extract key information from flex message
         let previewHTML = '';
         let headerText = '';
+        let headerBgColor = '#667eea';
         let amountText = '';
-        let senderInfo = '';
-        let receiverInfo = '';
+        let amountColor = '#22C55E';
+        let senderName = '';
+        let senderAccount = '';
+        let senderBank = '';
+        let receiverName = '';
+        let receiverAccount = '';
+        let receiverBank = '';
         let referenceText = '';
+        let datetimeText = '';
         
         // Look for header
         if (flexContent.header && flexContent.header.contents) {
-            const extractText = (contents) => {
-                let text = '';
+            const extractHeaderInfo = (contents) => {
                 contents.forEach(item => {
                     if (item.type === 'text') {
-                        text += (item.text || '') + ' ';
+                        const text = item.text || '';
+                        if (text.includes('{{') || text.length > 0) {
+                            headerText += text.replace(/\{\{[^}]+\}\}/g, '') + ' ';
+                        }
                     } else if (item.type === 'box' && item.contents) {
-                        text += extractText(item.contents);
+                        extractHeaderInfo(item.contents);
                     }
                 });
-                return text.trim();
             };
-            headerText = extractText(flexContent.header.contents);
+            extractHeaderInfo(flexContent.header.contents);
+            headerText = headerText.trim();
+            
+            // Get header background color
+            if (flexContent.header.backgroundColor) {
+                headerBgColor = flexContent.header.backgroundColor;
+            }
         }
         
         // Look for body content
@@ -923,14 +940,44 @@
                 contents.forEach(item => {
                     if (item.type === 'text') {
                         const text = item.text || '';
-                        if (text.includes('{{amount}}') || text.includes('฿') || /[\d,]+/.test(text)) {
+                        const color = item.color || '';
+                        
+                        // Amount
+                        if (text.includes('{{amount}}') || (text.includes('฿') && /[\d,]+/.test(text)) || item.size === '5xl' || item.size === '6xl') {
                             amountText = text.replace(/\{\{[^}]+\}\}/g, '฿1,500.00');
-                        } else if (text.includes('{{sender_name}}') || text.includes('ผู้โอน')) {
-                            senderInfo = text.replace(/\{\{[^}]+\}\}/g, 'นาย ตัวอย่าง');
-                        } else if (text.includes('{{receiver_name}}') || text.includes('ผู้รับ')) {
-                            receiverInfo = text.replace(/\{\{[^}]+\}\}/g, 'บริษัท ตัวอย่าง');
-                        } else if (text.includes('{{reference}}') || text.includes('Ref')) {
-                            referenceText = text.replace(/\{\{[^}]+\}\}/g, 'REF123456');
+                            amountColor = color || '#22C55E';
+                        }
+                        // Datetime
+                        else if (text.includes('{{datetime}}') || text.includes('{{date}}') || text.includes('{{time}}')) {
+                            datetimeText = text.replace(/\{\{[^}]+\}\}/g, '22 ต.ค. 2566 10:30');
+                        }
+                        // Sender name
+                        else if (text.includes('{{sender_name}}') || (text.includes('ผู้โอน') && !senderName)) {
+                            senderName = text.replace(/\{\{[^}]+\}\}/g, 'นาย ตัวอย่าง ผู้โอน');
+                        }
+                        // Sender account
+                        else if (text.includes('{{sender_account}}') || (text.includes('xxx') && !senderAccount)) {
+                            senderAccount = text.replace(/\{\{[^}]+\}\}/g, 'xxx-x-x-6021x');
+                        }
+                        // Sender bank
+                        else if (text.includes('{{sender_bank_name}}') || text.includes('{{sender_bank}}')) {
+                            senderBank = text.replace(/\{\{[^}]+\}\}/g, 'กรุงเทพ');
+                        }
+                        // Receiver name
+                        else if (text.includes('{{receiver_name}}') || (text.includes('ผู้รับ') && !receiverName)) {
+                            receiverName = text.replace(/\{\{[^}]+\}\}/g, 'บริษัท ตัวอย่าง จำกัด');
+                        }
+                        // Receiver account
+                        else if (text.includes('{{receiver_account}}') || (text.includes('xxx') && !receiverAccount)) {
+                            receiverAccount = text.replace(/\{\{[^}]+\}\}/g, 'xxx-x-x-8041x');
+                        }
+                        // Receiver bank
+                        else if (text.includes('{{receiver_bank_name}}') || text.includes('{{receiver_bank}}')) {
+                            receiverBank = text.replace(/\{\{[^}]+\}\}/g, 'กสิกรไทย');
+                        }
+                        // Reference
+                        else if (text.includes('{{reference}}') || text.includes('{{ref}}') || text.includes('Ref') || text.includes('REF')) {
+                            referenceText = text.replace(/\{\{[^}]+\}\}/g, 'REF53070260912');
                         }
                     } else if (item.type === 'box' && item.contents) {
                         extractBodyInfo(item.contents);
@@ -940,43 +987,65 @@
             extractBodyInfo(flexContent.body.contents);
         }
         
-        // Build preview HTML
-        if (headerText) {
-            previewHTML += `
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; border-radius: 8px 8px 0 0; margin-bottom: 8px;">
-                    <div style="font-size: 14px; font-weight: bold;">${headerText.replace(/\{\{[^}]+\}\}/g, '').substring(0, 30)}</div>
-                </div>
-            `;
-        }
+        // Set defaults if not found
+        if (!headerText) headerText = 'ชำระเงินสำเร็จ';
+        if (!amountText) amountText = '฿1,500.00';
+        if (!senderName) senderName = 'นาย ตัวอย่าง ผู้โอน';
+        if (!senderAccount) senderAccount = 'xxx-x-x-6021x';
+        if (!senderBank) senderBank = 'กรุงเทพ';
+        if (!receiverName) receiverName = 'บริษัท ตัวอย่าง จำกัด';
+        if (!receiverAccount) receiverAccount = 'xxx-x-x-8041x';
+        if (!receiverBank) receiverBank = 'กสิกรไทย';
+        if (!referenceText) referenceText = 'REF53070260912';
+        if (!datetimeText) datetimeText = '22 ต.ค. 2566 10:30';
         
-        if (amountText) {
-            previewHTML += `
-                <div style="text-align: center; padding: 12px; background: #F0FDF4; border-radius: 8px; margin-bottom: 8px;">
-                    <div style="font-size: 20px; font-weight: bold; color: #22C55E;">${amountText}</div>
+        // Build complete preview HTML
+        previewHTML = `
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                ${headerText ? `
+                <div style="background: ${headerBgColor}; color: white; padding: 14px; text-align: center;">
+                    <div style="font-size: 15px; font-weight: bold;">${headerText}</div>
+                    ${datetimeText ? `<div style="font-size: 11px; color: rgba(255,255,255,0.9); margin-top: 4px;">${datetimeText}</div>` : ''}
                 </div>
-            `;
-        }
-        
-        if (senderInfo || receiverInfo) {
-            previewHTML += `
-                <div style="padding: 8px; background: #F8FAFC; border-radius: 6px; margin-bottom: 4px;">
-                    ${senderInfo ? `<div style="font-size: 11px; color: #64748B;">จาก: ${senderInfo.substring(0, 20)}</div>` : ''}
-                    ${receiverInfo ? `<div style="font-size: 11px; color: #64748B; margin-top: 4px;">ไปยัง: ${receiverInfo.substring(0, 20)}</div>` : ''}
+                ` : ''}
+                <div style="padding: 12px;">
+                    ${amountText ? `
+                    <div style="text-align: center; padding: 16px; background: #F0FDF4; border-radius: 8px; margin-bottom: 12px;">
+                        <div style="font-size: 24px; font-weight: bold; color: ${amountColor};">${amountText}</div>
+                    </div>
+                    ` : ''}
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #F8FAFC; border-radius: 6px;">
+                        <div style="width: 40px; height: 40px; background: #E2E8F0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-user" style="color: #64748B; font-size: 16px;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 10px; color: #94A3B8; margin-bottom: 2px;">ผู้โอน</div>
+                            <div style="font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${senderName}</div>
+                            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${senderAccount} • ${senderBank}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin: 8px 0;">
+                        <i class="fas fa-arrow-down" style="color: #CBD5E1; font-size: 14px;"></i>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #F8FAFC; border-radius: 6px;">
+                        <div style="width: 40px; height: 40px; background: #E2E8F0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-building" style="color: #64748B; font-size: 16px;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 10px; color: #94A3B8; margin-bottom: 2px;">ผู้รับ</div>
+                            <div style="font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${receiverName}</div>
+                            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">${receiverAccount} • ${receiverBank}</div>
+                        </div>
+                    </div>
+                    ${referenceText ? `
+                    <div style="padding: 8px; background: #F9FAFB; border-radius: 6px; margin-top: 8px; text-align: center;">
+                        <div style="font-size: 10px; color: #94A3B8; margin-bottom: 2px;">เลขอ้างอิง</div>
+                        <div style="font-size: 11px; font-weight: 600; color: #64748B;">${referenceText}</div>
+                    </div>
+                    ` : ''}
                 </div>
-            `;
-        }
-        
-        if (referenceText) {
-            previewHTML += `
-                <div style="font-size: 10px; color: #94A3B8; text-align: center; margin-top: 8px;">
-                    ${referenceText.substring(0, 25)}
-                </div>
-            `;
-        }
-        
-        if (!previewHTML) {
-            previewHTML = '<div style="color: #94A3B8; font-size: 12px; text-align: center; padding: 20px;">Flex Message Template<br><small>ดูตัวอย่างได้เมื่อเลือกเทมเพลต</small></div>';
-        }
+            </div>
+        `;
         
         return previewHTML;
     }
