@@ -2,6 +2,8 @@
 LINE OA Management System with Role-based Authentication
 Main Application File
 """
+from __future__ import annotations
+
 import json
 import hmac
 import hashlib
