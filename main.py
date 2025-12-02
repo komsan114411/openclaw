@@ -124,6 +124,47 @@ async def lifespan(app: FastAPI):
         app.state.slip_history_model = SlipHistory(app.state.db)
         app.state.bank_model = BankModel(app.state.db)
         
+        # Auto-initialize banks if database is empty
+        try:
+            existing_banks = app.state.bank_model.get_all_banks()
+            if len(existing_banks) == 0:
+                logger.info("📋 No banks found, initializing default banks...")
+                # Initialize banks from Thunder API
+                BANKS = [
+                    {"code": "002", "abbr": "BBL", "name": "ธนาคารกรุงเทพ"},
+                    {"code": "004", "abbr": "KBANK", "name": "ธนาคารกสิกรไทย"},
+                    {"code": "006", "abbr": "KTB", "name": "ธนาคารกรุงไทย"},
+                    {"code": "011", "abbr": "TTB", "name": "ธนาคารทหารไทยธนชาต"},
+                    {"code": "014", "abbr": "SCB", "name": "ธนาคารไทยพาณิชย์"},
+                    {"code": "022", "abbr": "CIMBT", "name": "ธนาคารซีไอเอ็มบีไทย"},
+                    {"code": "024", "abbr": "UOBT", "name": "ธนาคารยูโอบี"},
+                    {"code": "025", "abbr": "BAY", "name": "ธนาคารกรุงศรีอยุธยา"},
+                    {"code": "030", "abbr": "GSB", "name": "ธนาคารออมสิน"},
+                    {"code": "033", "abbr": "GHB", "name": "ธนาคารอาคารสงเคราะห์"},
+                    {"code": "034", "abbr": "BAAC", "name": "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร"},
+                    {"code": "035", "abbr": "EXIM", "name": "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย"},
+                    {"code": "067", "abbr": "TISCO", "name": "ธนาคารทิสโก้"},
+                    {"code": "069", "abbr": "KKP", "name": "ธนาคารเกียรตินาคินภัทร"},
+                    {"code": "070", "abbr": "ICBCT", "name": "ธนาคารไอซีบีซี (ไทย)"},
+                    {"code": "071", "abbr": "TCD", "name": "ธนาคารไทยเครดิตเพื่อรายย่อย"},
+                    {"code": "073", "abbr": "LHFG", "name": "ธนาคารแลนด์ แอนด์ เฮ้าส์"},
+                    {"code": "098", "abbr": "SME", "name": "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย"},
+                ]
+                for bank_data in BANKS:
+                    try:
+                        app.state.bank_model.create_bank(
+                            code=bank_data["code"],
+                            name=bank_data["name"],
+                            abbreviation=bank_data["abbr"],
+                            logo_base64=None,
+                            is_active=True
+                        )
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not create bank {bank_data['code']}: {e}")
+                logger.info(f"✅ Initialized {len(BANKS)} default banks")
+        except Exception as e:
+            logger.error(f"❌ Error auto-initializing banks: {e}")
+        
         # Initialize SaaS models
         app.state.package_model = PackageModel(app.state.db)
         app.state.subscription_model = SubscriptionModel(app.state.db)
@@ -924,13 +965,39 @@ async def init_thunder_banks(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/bank-logo/{bank_code}")
-async def get_bank_logo(bank_code: str):
-    """Get bank logo by code"""
-    bank = app.state.bank_model.get_bank_by_code(bank_code)
-    if not bank or not bank.get("logo_base64"):
-        raise HTTPException(status_code=404, detail="Bank logo not found")
-    
-    return {"logo_base64": bank["logo_base64"]}
+async def get_bank_logo_api(bank_code: str):
+    """Get bank logo by code - Returns data URI format"""
+    try:
+        bank = app.state.bank_model.get_bank_by_code(bank_code)
+        if not bank:
+            raise HTTPException(status_code=404, detail=f"Bank with code {bank_code} not found")
+        
+        logo_base64 = bank.get("logo_base64")
+        if not logo_base64:
+            # Return default logo instead of 404
+            from services.slip_formatter import DEFAULT_LOGO
+            return {"logo_base64": DEFAULT_LOGO, "has_logo": False}
+        
+        # Return as data URI if not already
+        if logo_base64.startswith('data:'):
+            return {"logo_base64": logo_base64, "has_logo": True}
+        else:
+            return {"logo_base64": f"data:image/png;base64,{logo_base64}", "has_logo": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error getting bank logo: {e}")
+        # Log to system_errors for admin dashboard
+        try:
+            app.state.db.system_errors.insert_one({
+                "type": "bank_logo_api_error",
+                "bank_code": bank_code,
+                "error_message": str(e),
+                "timestamp": datetime.utcnow()
+            })
+        except:
+            pass
+        raise HTTPException(status_code=500, detail="Error retrieving bank logo")
 
 @app.get("/settings/realtime-chat", response_class=HTMLResponse)
 async def realtime_chat_page(request: Request):
