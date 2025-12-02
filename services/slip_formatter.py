@@ -34,38 +34,68 @@ DEFAULT_LOGO = "https://www.hood11.com/uploads/logo.webp"
 def get_bank_logo(bank_code: str = None, bank_name: str = None, db=None) -> str:
     """
     ดึง logo ธนาคารจาก database ก่อน ถ้าไม่มีค่อยใช้ hardcoded
+    Returns data URI format: data:image/png;base64,...
     """
+    error_info = None
     try:
         # ใช้ PyMongo แทน MongoEngine
         if db is None:
             from pymongo import MongoClient
             import os
-            client = MongoClient(os.getenv("MONGODB_URI"))
-            db = client.get_database()
+            try:
+                client = MongoClient(os.getenv("MONGODB_URI"))
+                db = client.get_database()
+            except Exception as db_error:
+                error_info = f"Database connection error: {str(db_error)}"
+                logger.warning(f"⚠️ {error_info}")
+                raise
         
         banks_collection = db.banks
         
         # ลองหาจาก code ก่อน
         if bank_code:
-            bank = banks_collection.find_one({"code": bank_code, "is_active": True})
-            if bank and bank.get("logo_base64"):
-                # ถ้ามี base64 ให้ return เป็น data URI
-                if bank["logo_base64"].startswith('data:'):
-                    return bank["logo_base64"]
-                else:
-                    return f"data:image/png;base64,{bank['logo_base64']}"
+            try:
+                bank = banks_collection.find_one({"code": bank_code, "is_active": True})
+                if bank and bank.get("logo_base64"):
+                    # ถ้ามี base64 ให้ return เป็น data URI
+                    if bank["logo_base64"].startswith('data:'):
+                        return bank["logo_base64"]
+                    else:
+                        return f"data:image/png;base64,{bank['logo_base64']}"
+            except Exception as query_error:
+                error_info = f"Query error for bank_code {bank_code}: {str(query_error)}"
+                logger.warning(f"⚠️ {error_info}")
         
         # ถ้าไม่มี code ลองหาจากชื่อ
         if bank_name:
-            bank = banks_collection.find_one({"name": {"$regex": bank_name, "$options": "i"}, "is_active": True})
-            if bank and bank.get("logo_base64"):
-                # ถ้ามี base64 ให้ return เป็น data URI
-                if bank["logo_base64"].startswith('data:'):
-                    return bank["logo_base64"]
-                else:
-                    return f"data:image/png;base64,{bank['logo_base64']}"
+            try:
+                bank = banks_collection.find_one({"name": {"$regex": bank_name, "$options": "i"}, "is_active": True})
+                if bank and bank.get("logo_base64"):
+                    # ถ้ามี base64 ให้ return เป็น data URI
+                    if bank["logo_base64"].startswith('data:'):
+                        return bank["logo_base64"]
+                    else:
+                        return f"data:image/png;base64,{bank['logo_base64']}"
+            except Exception as query_error:
+                error_info = f"Query error for bank_name {bank_name}: {str(query_error)}"
+                logger.warning(f"⚠️ {error_info}")
     except Exception as e:
-        logger.warning(f"Cannot load bank logo from database: {e}")
+        if not error_info:
+            error_info = f"Database error: {str(e)}"
+        logger.warning(f"⚠️ Cannot load bank logo from database: {error_info}")
+        # Log error to admin dashboard (will be handled by error logging system)
+        try:
+            if db:
+                error_collection = db.get_collection("system_errors")
+                error_collection.insert_one({
+                    "type": "bank_logo_error",
+                    "bank_code": bank_code,
+                    "bank_name": bank_name,
+                    "error_message": error_info,
+                    "timestamp": datetime.utcnow()
+                })
+        except:
+            pass
     
     # Fallback to hardcoded logos
     if bank_code and bank_code in BANK_LOGOS:

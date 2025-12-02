@@ -20,20 +20,26 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">รายการธนาคารทั้งหมด</h5>
-        <button class="btn btn-primary" onclick="initThunderBanks()">
-            <i class="fas fa-plus"></i> เพิ่มข้อมูลธนาคารจาก Thunder API
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-success" onclick="initThunderBanks()">
+                <i class="fas fa-database"></i> โหลดข้อมูลธนาคารทั้งหมด
+            </button>
+            <button class="btn btn-primary" onclick="showCreateBankModal()">
+                <i class="fas fa-plus"></i> เพิ่มธนาคารใหม่
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover" id="banksTable">
                 <thead>
                     <tr>
-                        <th>Logo</th>
-                        <th>รหัส</th>
+                        <th style="width: 80px;">Logo</th>
+                        <th style="width: 100px;">รหัส</th>
                         <th>ชื่อธนาคาร</th>
-                        <th>สถานะ</th>
-                        <th>การจัดการ</th>
+                        <th style="width: 120px;">ชื่อย่อ</th>
+                        <th style="width: 100px;">สถานะ</th>
+                        <th style="width: 120px;">การจัดการ</th>
                     </tr>
                 </thead>
                 <tbody id="banksTableBody">
@@ -44,25 +50,100 @@
     </div>
 </div>
 
+<!-- Create Bank Modal -->
+<div class="modal fade" id="createBankModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> เพิ่มธนาคารใหม่</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeCreateBankModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createBankForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">รหัสธนาคาร <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="createBankCode" placeholder="เช่น 002, 004, 006" required pattern="[0-9]{3}" maxlength="3">
+                        <small class="text-muted">รหัสธนาคาร 3 หลัก (เช่น 002 = กรุงเทพ, 004 = กสิกรไทย)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ชื่อย่อ (Abbreviation)</label>
+                        <input type="text" class="form-control" id="createBankAbbr" placeholder="เช่น BBL, KBANK, KTB">
+                        <small class="text-muted">ชื่อย่อของธนาคาร (ถ้ามี)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ชื่อธนาคาร <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="createBankName" placeholder="เช่น ธนาคารกรุงเทพ" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Logo ธนาคาร</label>
+                        <div class="logo-preview-container" id="createLogoPreviewContainer">
+                            <div class="logo-preview" id="createLogoPreview">
+                                <img id="createCurrentLogoImg" src="" alt="Logo" style="display: none;">
+                                <div id="createNoLogoPlaceholder" class="no-logo-placeholder">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                    <p class="text-muted mt-2">ยังไม่มี logo</p>
+                                </div>
+                            </div>
+                            <div class="logo-actions mt-3">
+                                <label for="createBankLogo" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-upload"></i> เลือกรูป
+                                </label>
+                                <button type="button" class="btn btn-danger btn-sm" id="createRemoveLogo" style="display: none;" onclick="removeCreateLogo()">
+                                    <i class="fas fa-trash"></i> ลบรูป
+                                </button>
+                                <input type="file" class="d-none" id="createBankLogo" accept="image/*" onchange="previewCreateLogo(event)">
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> รองรับ: JPG, PNG, GIF, WEBP | แนะนำขนาด 200x200px | ขนาดสูงสุด 2MB
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="createBankActive" checked>
+                            <label class="form-check-label" for="createBankActive">เปิดใช้งานทันที</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateBankModal()">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewBank()">
+                    <i class="fas fa-save"></i> บันทึก
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Bank Modal -->
 <div class="modal fade" id="editBankModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">แก้ไขธนาคาร</h5>
-                <button type="button" class="btn-close" onclick="closeBankModal()"></button>
+            <div class="modal-header" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> แก้ไขธนาคาร</h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeBankModal()"></button>
             </div>
             <div class="modal-body">
                 <form id="editBankForm">
                     <input type="hidden" id="editBankId">
                     
                     <div class="mb-3">
-                        <label class="form-label">รหัสธนาคาร</label>
-                        <input type="text" class="form-control" id="editBankCode" readonly>
+                        <label class="form-label fw-bold">รหัสธนาคาร</label>
+                        <input type="text" class="form-control" id="editBankCode" readonly style="background: #F3F4F6;">
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">ชื่อธนาคาร</label>
+                        <label class="form-label fw-bold">ชื่อย่อ (Abbreviation)</label>
+                        <input type="text" class="form-control" id="editBankAbbr" placeholder="เช่น BBL, KBANK">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ชื่อธนาคาร</label>
                         <input type="text" class="form-control" id="editBankName" required>
                     </div>
                     
@@ -86,7 +167,7 @@
                                 <input type="file" class="d-none" id="editBankLogo" accept="image/*" onchange="previewLogo(event)">
                             </div>
                             <small class="text-muted d-block mt-2">
-                                <i class="fas fa-info-circle"></i> รองรับ: JPG, PNG, GIF | แนะนำขนาด 200x200px
+                                <i class="fas fa-info-circle"></i> รองรับ: JPG, PNG, GIF, WEBP | แนะนำขนาด 200x200px | ขนาดสูงสุด 2MB
                             </small>
                         </div>
                     </div>
@@ -109,25 +190,38 @@
 
 <style>
 .bank-logo {
-    width: 35px;
-    height: 35px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
-    border-radius: 6px;
-    border: 1px solid #dee2e6;
-    padding: 3px;
+    border-radius: 8px;
+    border: 2px solid #E2E8F0;
+    padding: 4px;
+    background: white;
+    transition: all 0.2s;
+}
+
+.bank-logo:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .no-logo {
-    width: 35px;
-    height: 35px;
-    background: #f8f9fa;
-    border: 1px dashed #dee2e6;
-    border-radius: 6px;
+    width: 48px;
+    height: 48px;
+    background: #F3F4F6;
+    border: 2px dashed #D1D5DB;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #6c757d;
+    color: #9CA3AF;
     font-size: 12px;
+    transition: all 0.2s;
+}
+
+.no-logo:hover {
+    background: #E5E7EB;
+    border-color: #9CA3AF;
 }
 
 .badge-active {
@@ -271,18 +365,19 @@ function renderBanksTable() {
         row.innerHTML = `
             <td>
                 ${bank.logo_base64 
-                    ? `<img src="data:image/png;base64,${bank.logo_base64}" class="bank-logo" alt="${bank.name}">`
-                    : '<div class="no-logo">ไม่มี</div>'}
+                    ? `<img src="data:image/png;base64,${bank.logo_base64}" class="bank-logo" alt="${bank.name}" style="width: 48px; height: 48px; object-fit: contain; border-radius: 8px; border: 2px solid #E2E8F0; padding: 4px; background: white;">`
+                    : '<div class="no-logo" style="width: 48px; height: 48px; background: #F3F4F6; border: 2px dashed #D1D5DB; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; font-size: 10px;"><i class="fas fa-image"></i></div>'}
             </td>
-            <td><code>${bank.code}</code></td>
-            <td>${bank.name}</td>
+            <td><code style="background: #F3F4F6; padding: 4px 8px; border-radius: 6px; font-weight: 600; color: #1F2937;">${bank.code}</code></td>
+            <td><strong>${bank.name}</strong></td>
+            <td><span style="color: #6B7280; font-size: 13px;">${bank.abbreviation || bank.code}</span></td>
             <td>
-                <span class="badge ${bank.is_active ? 'badge-active' : 'badge-inactive'}">
-                    ${bank.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                <span class="badge ${bank.is_active ? 'badge-active' : 'badge-inactive'}" style="padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                    ${bank.is_active ? '✓ เปิดใช้งาน' : '✗ ปิดใช้งาน'}
                 </span>
             </td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="editBank('${bank.id}')">
+                <button class="btn btn-sm btn-primary" onclick="editBank('${bank.id}')" style="padding: 6px 12px; border-radius: 6px; font-size: 12px;">
                     <i class="fas fa-edit"></i> แก้ไข
                 </button>
             </td>
@@ -298,6 +393,7 @@ function editBank(bankId) {
     document.getElementById('editBankId').value = bank.id;
     document.getElementById('editBankCode').value = bank.code;
     document.getElementById('editBankName').value = bank.name;
+    document.getElementById('editBankAbbr').value = bank.abbreviation || bank.code;
     document.getElementById('editBankActive').checked = bank.is_active;
     
     // Show current logo
@@ -360,6 +456,7 @@ async function saveBankChanges() {
         // Prepare data
         const data = {
             name: name,
+            abbreviation: document.getElementById('editBankAbbr').value.trim() || bank.code,
             is_active: isActive
         };
         
@@ -408,9 +505,15 @@ function fileToBase64(file) {
 }
 
 async function initThunderBanks() {
-    if (!confirm('ต้องการเพิ่มข้อมูลธนาคาร 18 แห่งจาก Thunder API หรือไม่?\n\n(ถ้าธนาคารมีอยู่แล้วจะอัพเดตข้อมูล ไม่ลบ logo)')) {
+    if (!confirm('ต้องการโหลดข้อมูลธนาคารทั้งหมด 18 แห่งหรือไม่?\n\n(ถ้าธนาคารมีอยู่แล้วจะอัพเดตข้อมูล แต่จะไม่ลบ logo ที่มีอยู่)')) {
         return;
     }
+    
+    // Show loading
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลด...';
+    btn.disabled = true;
     
     try {
         const response = await fetch('/admin/api/banks/init-thunder-banks', {
@@ -420,20 +523,28 @@ async function initThunderBanks() {
             }
         });
         
-        if (!response.ok) throw new Error('Failed to initialize banks');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to initialize banks');
+        }
         
         const result = await response.json();
         
         // Reload banks
         await loadBanks();
         
-        showMessage(
-            `เพิ่มข้อมูลธนาคารสำเร็จ!<br>เพิ่มใหม่: ${result.added} ธนาคาร<br>อัพเดต: ${result.updated} ธนาคาร`,
-            'success'
-        );
+        let message = `✅ โหลดข้อมูลธนาคารสำเร็จ!<br>เพิ่มใหม่: ${result.added} ธนาคาร<br>อัพเดต: ${result.updated} ธนาคาร`;
+        if (result.errors && result.errors.length > 0) {
+            message += `<br><br>⚠️ มีข้อผิดพลาด ${result.errors.length} รายการ:<br>${result.errors.slice(0, 3).join('<br>')}`;
+        }
+        
+        showMessage(message, result.errors && result.errors.length > 0 ? 'warning' : 'success');
     } catch (error) {
         console.error('Error initializing banks:', error);
-        showMessage('เกิดข้อผิดพลาดในการเพิ่มข้อมูลธนาคาร', 'danger');
+        showMessage(`เกิดข้อผิดพลาด: ${error.message}`, 'danger');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
@@ -535,6 +646,178 @@ function removeLogo() {
     noLogoPlaceholder.style.display = 'block';
     removeBtn.style.display = 'none';
     fileInput.value = '';
+}
+
+// Create Bank Functions
+function showCreateBankModal() {
+    // Reset form
+    document.getElementById('createBankForm').reset();
+    document.getElementById('createCurrentLogoImg').style.display = 'none';
+    document.getElementById('createNoLogoPlaceholder').style.display = 'block';
+    document.getElementById('createRemoveLogo').style.display = 'none';
+    document.getElementById('createBankLogo').value = '';
+    
+    // Show modal
+    const modalElement = document.getElementById('createBankModal');
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: 'static',
+        keyboard: false
+    });
+    
+    modalElement.addEventListener('hide.bs.modal', function (event) {
+        if (!event.target.dataset.allowClose) {
+            event.preventDefault();
+            return false;
+        }
+    });
+    
+    window.closeCreateBankModal = function() {
+        modalElement.dataset.allowClose = 'true';
+        modal.hide();
+        setTimeout(() => {
+            modalElement.dataset.allowClose = '';
+        }, 100);
+    };
+    
+    modal.show();
+}
+
+function closeCreateBankModal() {
+    const modalElement = document.getElementById('createBankModal');
+    if (window.closeCreateBankModal) {
+        window.closeCreateBankModal();
+    } else {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modalElement.dataset.allowClose = 'true';
+            modal.hide();
+        }
+    }
+}
+
+function previewCreateLogo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showToast('❌ ไฟล์ไม่ถูกต้อง', 'กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'danger');
+        event.target.value = '';
+        return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('❌ ไฟล์ใหญ่เกินไป', 'ขนาดไฟล์ต้องไม่เกิน 2MB', 'danger');
+        event.target.value = '';
+        return;
+    }
+    
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const logoImg = document.getElementById('createCurrentLogoImg');
+        const noLogoPlaceholder = document.getElementById('createNoLogoPlaceholder');
+        const removeBtn = document.getElementById('createRemoveLogo');
+        
+        logoImg.src = e.target.result;
+        logoImg.style.display = 'block';
+        noLogoPlaceholder.style.display = 'none';
+        removeBtn.style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeCreateLogo() {
+    const logoImg = document.getElementById('createCurrentLogoImg');
+    const noLogoPlaceholder = document.getElementById('createNoLogoPlaceholder');
+    const removeBtn = document.getElementById('createRemoveLogo');
+    const fileInput = document.getElementById('createBankLogo');
+    
+    logoImg.src = '';
+    logoImg.style.display = 'none';
+    noLogoPlaceholder.style.display = 'block';
+    removeBtn.style.display = 'none';
+    fileInput.value = '';
+}
+
+async function saveNewBank() {
+    const code = document.getElementById('createBankCode').value.trim();
+    const abbr = document.getElementById('createBankAbbr').value.trim();
+    const name = document.getElementById('createBankName').value.trim();
+    const isActive = document.getElementById('createBankActive').checked;
+    const logoFile = document.getElementById('createBankLogo').files[0];
+    
+    // Validation
+    if (!code || !name) {
+        showToast('❌ ข้อมูลไม่ครบ', 'กรุณากรอกรหัสธนาคารและชื่อธนาคาร', 'danger');
+        return;
+    }
+    
+    if (!/^[0-9]{3}$/.test(code)) {
+        showToast('❌ รหัสธนาคารไม่ถูกต้อง', 'รหัสธนาคารต้องเป็นตัวเลข 3 หลัก', 'danger');
+        return;
+    }
+    
+    // Check if bank code already exists
+    const existingBank = banks.find(b => b.code === code);
+    if (existingBank) {
+        showToast('❌ รหัสธนาคารซ้ำ', `รหัส ${code} มีอยู่แล้ว (${existingBank.name})`, 'danger');
+        return;
+    }
+    
+    // Show loading
+    const saveBtn = event.target;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
+    saveBtn.disabled = true;
+    
+    try {
+        // Prepare data
+        const data = {
+            code: code,
+            name: name,
+            abbreviation: abbr || code,
+            is_active: isActive
+        };
+        
+        // Convert logo to base64 if provided
+        if (logoFile) {
+            const base64 = await fileToBase64(logoFile);
+            data.logo_base64 = base64.split(',')[1]; // Remove data:image/...;base64, prefix
+        }
+        
+        // Send create request
+        const response = await fetch('/admin/api/banks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.detail || 'Failed to create bank');
+        }
+        
+        // Close modal
+        closeCreateBankModal();
+        
+        // Reload banks
+        await loadBanks();
+        
+        // Show success toast
+        showToast('✅ บันทึกสำเร็จ!', `เพิ่มธนาคาร "${name}" เรียบร้อยแล้ว`, 'success');
+    } catch (error) {
+        console.error('Error creating bank:', error);
+        showToast('❌ เกิดข้อผิดพลาด', error.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง', 'danger');
+    } finally {
+        // Restore button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    }
 }
 </script>
 {% endblock %}

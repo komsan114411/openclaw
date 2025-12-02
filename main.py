@@ -10,6 +10,7 @@ import asyncio
 import logging
 import os
 import sys
+import re
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
@@ -415,7 +416,7 @@ async def change_password(
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
-    """Admin dashboard"""
+    """Admin dashboard page with error monitoring"""
     user = app.state.auth.get_current_user(request)
     if not user or user["role"] != UserRole.ADMIN:
         return RedirectResponse(url="/login")
@@ -462,6 +463,31 @@ async def admin_dashboard(request: Request):
     except Exception as e:
         logger.error(f"Error fetching API errors: {e}")
     
+    # ดึง System errors (bank logo errors, database connection errors, etc.)
+    system_errors = []
+    try:
+        from datetime import datetime, timedelta
+        import pytz
+        thai_tz = pytz.timezone('Asia/Bangkok')
+        yesterday = datetime.now(thai_tz) - timedelta(hours=24)
+        
+        # ดึงจาก system_errors collection
+        system_errors_collection = app.state.db.system_errors
+        recent_system_errors = list(system_errors_collection.find({
+            "timestamp": {"$gte": yesterday}
+        }).sort("timestamp", -1).limit(10))
+        
+        # Format errors for display
+        for error in recent_system_errors:
+            error_doc = {
+                "type": error.get("type", "unknown"),
+                "error_message": error.get("error_message", "Unknown error"),
+                "timestamp": error.get("timestamp", datetime.utcnow()).isoformat() if isinstance(error.get("timestamp"), datetime) else str(error.get("timestamp", ""))
+            }
+            system_errors.append(error_doc)
+    except Exception as e:
+        logger.error(f"Error fetching system errors: {e}")
+    
     return templates.TemplateResponse("admin/dashboard.html", {
         "request": request,
         "user": user,
@@ -471,7 +497,8 @@ async def admin_dashboard(request: Request):
         "total_slips_verified": total_slips_verified,
         "recent_users": recent_users,
         "recent_line_accounts": recent_line_accounts,
-        "api_errors": api_errors
+        "api_errors": api_errors,
+        "system_errors": system_errors
     })
 
 @app.get("/admin/users", response_class=HTMLResponse)
@@ -715,6 +742,56 @@ async def get_banks_api(request: Request):
     banks = app.state.bank_model.get_all_banks()
     return [app.state.bank_model.to_dict(bank) for bank in banks]
 
+@app.post("/admin/api/banks")
+async def create_bank_api(request: Request):
+    """Create new bank (Admin only)"""
+    user = app.state.auth.get_current_user(request)
+    if not user or user["role"] != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    try:
+        data = await request.json()
+        
+        code = data.get("code", "").strip()
+        name = data.get("name", "").strip()
+        abbreviation = data.get("abbreviation", code).strip()
+        logo_base64 = data.get("logo_base64")
+        is_active = data.get("is_active", True)
+        
+        # Validation
+        if not code or not name:
+            raise HTTPException(status_code=400, detail="รหัสธนาคารและชื่อธนาคารต้องไม่ว่าง")
+        
+        if not re.match(r'^[0-9]{3}$', code):
+            raise HTTPException(status_code=400, detail="รหัสธนาคารต้องเป็นตัวเลข 3 หลัก")
+        
+        # Check if bank code already exists
+        existing_bank = app.state.bank_model.get_bank_by_code(code)
+        if existing_bank:
+            raise HTTPException(status_code=400, detail=f"รหัสธนาคาร {code} มีอยู่แล้ว")
+        
+        # Create bank
+        bank = app.state.bank_model.create_bank(
+            code=code,
+            name=name,
+            abbreviation=abbreviation,
+            logo_base64=logo_base64,
+            is_active=is_active
+        )
+        
+        logger.info(f"✅ Created new bank: {code} - {name}")
+        
+        return {
+            "success": True,
+            "message": "สร้างธนาคารสำเร็จ",
+            "bank": app.state.bank_model.to_dict(bank)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error creating bank: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.put("/admin/api/banks/{bank_id}")
 async def update_bank_api(request: Request, bank_id: str):
     """Update bank (Admin only)"""
@@ -744,20 +821,24 @@ async def update_bank_api(request: Request, bank_id: str):
         success = app.state.bank_model.update_bank(bank_id, update_data)
         
         if success:
+            logger.info(f"✅ Updated bank: {bank_id}")
             return {"success": True, "message": "อัปเดตธนาคารสำเร็จ"}
         else:
             raise HTTPException(status_code=500, detail="Failed to update bank")
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"❌ Error updating bank: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/admin/api/banks/init-thunder-banks")
 async def init_thunder_banks(request: Request):
-    """Initialize banks from Thunder API bank codes (Admin only)"""
+    """Initialize banks from Thunder API bank codes (Admin only) - Auto initialize on first call"""
     user = app.state.auth.get_current_user(request)
     if not user or user["role"] != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
-    # Bank data from Thunder API
+    # Bank data from Thunder API - Complete list (18 banks)
     BANKS = [
         {"code": "002", "abbr": "BBL", "name": "ธนาคารกรุงเทพ"},
         {"code": "004", "abbr": "KBANK", "name": "ธนาคารกสิกรไทย"},
@@ -782,43 +863,64 @@ async def init_thunder_banks(request: Request):
     try:
         added_count = 0
         updated_count = 0
+        errors = []
         
         for bank_data in BANKS:
-            code = bank_data["code"]
-            abbr = bank_data["abbr"]
-            name = bank_data["name"]
-            
-            # Check if bank already exists
-            existing_bank = app.state.bank_model.get_bank_by_code(code)
-            
-            if existing_bank:
-                # Update existing bank (keep logo if exists)
-                update_data = {
-                    "name": name,
-                    "abbreviation": abbr,
-                    "is_active": True
-                }
-                app.state.bank_model.update_bank(str(existing_bank["_id"]), update_data)
-                updated_count += 1
-            else:
-                # Insert new bank
-                app.state.bank_model.create_bank(
-                    code=code,
-                    name=name,
-                    abbreviation=abbr,
-                    logo_base64=None,
-                    is_active=True
-                )
-                added_count += 1
+            try:
+                code = bank_data["code"]
+                abbr = bank_data["abbr"]
+                name = bank_data["name"]
+                
+                # Check if bank already exists
+                existing_bank = app.state.bank_model.get_bank_by_code(code)
+                
+                if existing_bank:
+                    # Update existing bank (keep logo if exists)
+                    existing_logo = existing_bank.get("logo_base64")
+                    update_data = {
+                        "name": name,
+                        "abbreviation": abbr,
+                        "is_active": True
+                    }
+                    # Only update logo if it doesn't exist
+                    if not existing_logo:
+                        update_data["logo_base64"] = None
+                    app.state.bank_model.update_bank(str(existing_bank["_id"]), update_data)
+                    updated_count += 1
+                    logger.info(f"✅ Updated bank: {code} - {name}")
+                else:
+                    # Insert new bank
+                    app.state.bank_model.create_bank(
+                        code=code,
+                        name=name,
+                        abbreviation=abbr,
+                        logo_base64=None,
+                        is_active=True
+                    )
+                    added_count += 1
+                    logger.info(f"✅ Added bank: {code} - {name}")
+            except Exception as e:
+                error_msg = f"Error processing bank {bank_data.get('code', 'unknown')}: {str(e)}"
+                errors.append(error_msg)
+                logger.error(f"❌ {error_msg}")
         
-        return {
+        result = {
             "success": True,
             "message": f"เพิ่มข้อมูลธนาคารสำเร็จ",
             "added": added_count,
             "updated": updated_count,
             "total": added_count + updated_count
         }
+        
+        if errors:
+            result["errors"] = errors
+            result["warning"] = f"มีข้อผิดพลาด {len(errors)} รายการ"
+        
+        return result
     except Exception as e:
+        logger.error(f"❌ Error initializing banks: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/bank-logo/{bank_code}")

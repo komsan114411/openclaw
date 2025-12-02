@@ -263,6 +263,40 @@
 </div>
 {% endif %}
 
+<!-- System Errors Alert (for Admin) -->
+{% if system_errors %}
+<div class="alert alert-danger mb-4" style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 8px; padding: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <i class="fas fa-exclamation-circle" style="color: #721c24;"></i>
+        <strong style="color: #721c24;">แจ้งเตือน: มีปัญหาทางเทคนิค</strong>
+    </div>
+    <div style="font-size: 0.9rem; color: #721c24;">
+        <p style="margin-bottom: 0.5rem;">พบปัญหาทางเทคนิคในระบบ:</p>
+        <ul style="margin: 0; padding-left: 1.5rem;">
+            {% for error in system_errors[:5] %}
+            <li style="margin-bottom: 0.25rem;">
+                <strong>{{ error.get('type', 'Unknown') }}:</strong> 
+                {{ error.get('error_message', 'เกิดข้อผิดพลาด') }}
+                <span style="color: #6c757d; font-size: 0.85rem;">
+                    ({{ error.get('timestamp', 'Unknown time') }})
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if system_errors|length > 5 %}
+        <p style="margin-top: 0.5rem; margin-bottom: 0; font-size: 0.85rem; color: #6c757d;">
+            และอีก {{ system_errors|length - 5 }} รายการ
+        </p>
+        {% endif %}
+        <div style="margin-top: 0.75rem;">
+            <a href="/admin/banks" class="btn btn-sm btn-outline-danger">
+                <i class="fas fa-cog"></i> ตรวจสอบและแก้ไข
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
     // Check API status and show warnings
     async function checkApiStatus() {
