@@ -3331,15 +3331,15 @@ async def get_slip_templates_list(request: Request, account_id: str):
         app.state.slip_template_model.init_default_templates(account["channel_id"])
         
         # Create new templates (Classic, Elegant, Professional) if they don't exist
-        existing_new_templates = app.state.slip_template_model.collection.find({
+        existing_new_templates = list(app.state.slip_template_model.collection.find({
             "channel_id": account["channel_id"],
             "template_name": {"$in": [
                 "💎 Classic Elegant - สไตล์คลาสสิกหรูหรา",
                 "✨ Elegant Premium - หรูหราโดดเด่น",
                 "💼 Professional Business - มืออาชีพ"
             ]}
-        })
-        if existing_new_templates.count() == 0:
+        }))
+        if len(existing_new_templates) == 0:
             logger.info("📝 Creating 3 new templates...")
             app.state.slip_template_model.create_new_templates(account["channel_id"])
         
