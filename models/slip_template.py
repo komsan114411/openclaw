@@ -142,6 +142,90 @@ class SlipTemplate:
             print(f"Error setting default template: {e}")
             return False
     
+    def create_new_templates(self, channel_id: str) -> bool:
+        """Create 3 new premium templates (Classic, Elegant, Professional)"""
+        try:
+            import json
+            import os
+            
+            # Load new templates
+            new_templates_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates_data", "new_templates.json")
+            new_templates = {}
+            try:
+                with open(new_templates_path, 'r', encoding='utf-8') as f:
+                    new_templates = json.load(f)
+                print(f"✅ Loaded {len(new_templates)} new templates")
+            except Exception as e:
+                print(f"Warning: Could not load new templates: {e}")
+                return False
+            
+            templates_to_insert = []
+            
+            # Template 1: Classic Elegant
+            template1 = {
+                "channel_id": channel_id,
+                "template_id": f"template_classic_elegant_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "💎 Classic Elegant - สไตล์คลาสสิกหรูหรา",
+                "template_text": "",
+                "template_flex": new_templates.get("classic_elegant"),
+                "template_type": "flex",
+                "preview_image": "https://via.placeholder.com/400x600/1E40AF/FFFFFF?text=Classic+Elegant",
+                "description": "เทมเพลตสไตล์คลาสสิกหรูหรา - แสดงรายละเอียดครบถ้วน ดีไซน์สวยงาม เหมาะสำหรับธุรกิจที่ต้องการความน่าเชื่อถือ",
+                "is_default": False,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "usage_count": 0
+            }
+            templates_to_insert.append(template1)
+            
+            # Template 2: Elegant Premium
+            template2 = {
+                "channel_id": channel_id,
+                "template_id": f"template_elegant_premium_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "✨ Elegant Premium - หรูหราโดดเด่น",
+                "template_text": "",
+                "template_flex": new_templates.get("elegant_premium"),
+                "template_type": "flex",
+                "preview_image": "https://via.placeholder.com/400x600/10B981/FFFFFF?text=Elegant+Premium",
+                "description": "เทมเพลตหรูหราโดดเด่น - ดีไซน์สวยงาม เน้นความหรูหรา เหมาะสำหรับแบรนด์พรีเมียม",
+                "is_default": False,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "usage_count": 0
+            }
+            templates_to_insert.append(template2)
+            
+            # Template 3: Professional Business
+            template3 = {
+                "channel_id": channel_id,
+                "template_id": f"template_professional_business_{int(datetime.utcnow().timestamp() * 1000)}",
+                "template_name": "💼 Professional Business - มืออาชีพ",
+                "template_text": "",
+                "template_flex": new_templates.get("professional_business"),
+                "template_type": "flex",
+                "preview_image": "https://via.placeholder.com/400x600/059669/FFFFFF?text=Professional+Business",
+                "description": "เทมเพลตมืออาชีพ - ดีไซน์เรียบร้อย มีรายละเอียดครบถ้วน เหมาะสำหรับธุรกิจที่ต้องการความน่าเชื่อถือสูง",
+                "is_default": False,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "usage_count": 0
+            }
+            templates_to_insert.append(template3)
+            
+            # Insert all templates
+            if templates_to_insert:
+                self.collection.insert_many(templates_to_insert)
+                print(f"✅ Created {len(templates_to_insert)} new templates for channel {channel_id}")
+                return True
+            else:
+                print(f"⚠️ No templates to insert for channel {channel_id}")
+                return False
+        except Exception as e:
+            print(f"❌ Error creating new templates: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def init_default_templates(self, channel_id: str, force: bool = False) -> bool:
         """Initialize default premium templates for new channel"""
         try:

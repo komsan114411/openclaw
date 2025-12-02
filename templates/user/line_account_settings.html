@@ -142,10 +142,13 @@
         border-radius: 12px;
         padding: 16px;
         margin-bottom: 12px;
-        min-height: 120px;
+        min-height: 180px;
+        max-height: 250px;
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
+        position: relative;
     }
     
     .template-card-info {
@@ -163,7 +166,12 @@
         font-size: 12px;
         color: #64748B;
         margin-bottom: 8px;
-        line-height: 1.4;
+        line-height: 1.5;
+        min-height: 36px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
     
     .template-card-type {
@@ -887,53 +895,87 @@
         
         // Try to extract key information from flex message
         let previewHTML = '';
-        
-        // Look for body content
-        if (flexContent.body && flexContent.body.contents) {
-            flexContent.body.contents.forEach(item => {
-                if (item.type === 'text') {
-                    const text = item.text || '';
-                    const size = item.size || 'md';
-                    const weight = item.weight || 'normal';
-                    const color = item.color || '#1E293B';
-                    
-                    previewHTML += `
-                        <div style="font-size: ${size === 'xl' ? '18px' : size === 'lg' ? '16px' : '14px'}; 
-                                    font-weight: ${weight}; 
-                                    color: ${color}; 
-                                    margin-bottom: 4px;">
-                            ${text}
-                        </div>
-                    `;
-                } else if (item.type === 'box' && item.contents) {
-                    item.contents.forEach(subItem => {
-                        if (subItem.type === 'text') {
-                            previewHTML += `
-                                <div style="font-size: 12px; color: #64748B; margin-bottom: 2px;">
-                                    ${subItem.text || ''}
-                                </div>
-                            `;
-                        }
-                    });
-                }
-            });
-        }
+        let headerText = '';
+        let amountText = '';
+        let senderInfo = '';
+        let receiverInfo = '';
+        let referenceText = '';
         
         // Look for header
         if (flexContent.header && flexContent.header.contents) {
-            flexContent.header.contents.forEach(item => {
-                if (item.type === 'text') {
-                    previewHTML = `
-                        <div style="font-size: 16px; font-weight: bold; color: #1E293B; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">
-                            ${item.text || ''}
-                        </div>
-                    ` + previewHTML;
-                }
-            });
+            const extractText = (contents) => {
+                let text = '';
+                contents.forEach(item => {
+                    if (item.type === 'text') {
+                        text += (item.text || '') + ' ';
+                    } else if (item.type === 'box' && item.contents) {
+                        text += extractText(item.contents);
+                    }
+                });
+                return text.trim();
+            };
+            headerText = extractText(flexContent.header.contents);
+        }
+        
+        // Look for body content
+        if (flexContent.body && flexContent.body.contents) {
+            const extractBodyInfo = (contents) => {
+                contents.forEach(item => {
+                    if (item.type === 'text') {
+                        const text = item.text || '';
+                        if (text.includes('{{amount}}') || text.includes('฿') || /[\d,]+/.test(text)) {
+                            amountText = text.replace(/\{\{[^}]+\}\}/g, '฿1,500.00');
+                        } else if (text.includes('{{sender_name}}') || text.includes('ผู้โอน')) {
+                            senderInfo = text.replace(/\{\{[^}]+\}\}/g, 'นาย ตัวอย่าง');
+                        } else if (text.includes('{{receiver_name}}') || text.includes('ผู้รับ')) {
+                            receiverInfo = text.replace(/\{\{[^}]+\}\}/g, 'บริษัท ตัวอย่าง');
+                        } else if (text.includes('{{reference}}') || text.includes('Ref')) {
+                            referenceText = text.replace(/\{\{[^}]+\}\}/g, 'REF123456');
+                        }
+                    } else if (item.type === 'box' && item.contents) {
+                        extractBodyInfo(item.contents);
+                    }
+                });
+            };
+            extractBodyInfo(flexContent.body.contents);
+        }
+        
+        // Build preview HTML
+        if (headerText) {
+            previewHTML += `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; border-radius: 8px 8px 0 0; margin-bottom: 8px;">
+                    <div style="font-size: 14px; font-weight: bold;">${headerText.replace(/\{\{[^}]+\}\}/g, '').substring(0, 30)}</div>
+                </div>
+            `;
+        }
+        
+        if (amountText) {
+            previewHTML += `
+                <div style="text-align: center; padding: 12px; background: #F0FDF4; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #22C55E;">${amountText}</div>
+                </div>
+            `;
+        }
+        
+        if (senderInfo || receiverInfo) {
+            previewHTML += `
+                <div style="padding: 8px; background: #F8FAFC; border-radius: 6px; margin-bottom: 4px;">
+                    ${senderInfo ? `<div style="font-size: 11px; color: #64748B;">จาก: ${senderInfo.substring(0, 20)}</div>` : ''}
+                    ${receiverInfo ? `<div style="font-size: 11px; color: #64748B; margin-top: 4px;">ไปยัง: ${receiverInfo.substring(0, 20)}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        if (referenceText) {
+            previewHTML += `
+                <div style="font-size: 10px; color: #94A3B8; text-align: center; margin-top: 8px;">
+                    ${referenceText.substring(0, 25)}
+                </div>
+            `;
         }
         
         if (!previewHTML) {
-            previewHTML = '<div style="color: #94A3B8; font-size: 12px;">Flex Message Template</div>';
+            previewHTML = '<div style="color: #94A3B8; font-size: 12px; text-align: center; padding: 20px;">Flex Message Template<br><small>ดูตัวอย่างได้เมื่อเลือกเทมเพลต</small></div>';
         }
         
         return previewHTML;
