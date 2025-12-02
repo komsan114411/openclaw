@@ -379,16 +379,33 @@ def register_saas_routes(app):
                         }
                     )
             else:
-                # Test Thunder API
+                # Test Thunder API - ดึงข้อมูลโควต้าตาม documentation
                 from services.slip_checker import test_thunder_api_connection
                 result = test_thunder_api_connection(api_key)
                 
-                # Convert result to match expected format
+                # Convert result to match expected format พร้อมข้อมูลโควต้า
                 if result.get("status") == "success":
+                    # ดึงข้อมูลโควต้าจาก Thunder API
+                    remaining_quota = result.get("remaining_quota", result.get("balance", 0))
+                    used_quota = result.get("used_quota", 0)
+                    max_quota = result.get("max_quota", 0)
+                    application = result.get("application", "Thunder API")
+                    expires_at = result.get("expires_at_display", result.get("expires_at", ""))
+                    current_credit = result.get("current_credit", 0)
+                    
                     return JSONResponse(content={
                         "success": True,
                         "status": "success",
-                        "message": result.get("message", "เชื่อมต่อ Thunder API สำเร็จ")
+                        "message": f"เชื่อมต่อ Thunder API สำเร็จ",
+                        # ข้อมูลโควต้าตาม Thunder API
+                        "application": application,
+                        "remaining_quota": remaining_quota,
+                        "used_quota": used_quota,
+                        "max_quota": max_quota,
+                        "current_credit": current_credit,
+                        "expires_at": expires_at,
+                        # Legacy field
+                        "balance": remaining_quota
                     })
                 else:
                     return JSONResponse(

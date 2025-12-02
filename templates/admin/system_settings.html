@@ -791,11 +791,34 @@
             const result = await response.json();
             
             if (result.status === 'success' || result.success) {
+                // แสดงข้อมูลโควต้าถ้ามี (สำหรับ Thunder API)
+                let quotaInfo = '';
+                if (result.remaining_quota !== undefined || result.max_quota !== undefined) {
+                    const remaining = result.remaining_quota || 0;
+                    const used = result.used_quota || 0;
+                    const max = result.max_quota || 0;
+                    const expires = result.expires_at || '-';
+                    const app = result.application || 'Thunder API';
+                    
+                    quotaInfo = `
+                        <hr style="margin: 0.75rem 0; border-color: rgba(255,255,255,0.2);">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 0.9rem;">
+                            <div><strong>แอปพลิเคชัน:</strong> ${app}</div>
+                            <div><strong>หมดอายุ:</strong> ${expires}</div>
+                            <div><strong>โควต้าคงเหลือ:</strong> <span style="color: ${remaining <= 100 ? '#dc3545' : '#28a745'}; font-weight: bold;">${remaining.toLocaleString()}</span></div>
+                            <div><strong>โควต้าทั้งหมด:</strong> ${max.toLocaleString()}</div>
+                            <div><strong>ใช้ไปแล้ว:</strong> ${used.toLocaleString()}</div>
+                            <div><strong>เหลือ:</strong> ${remaining.toLocaleString()} / ${max.toLocaleString()}</div>
+                        </div>
+                    `;
+                }
+                
                 resultDiv.innerHTML = `
                     <div class="alert alert-success">
                         <i class="bi bi-check-circle"></i> 
                         <strong>เชื่อมต่อสำเร็จ!</strong><br>
                         ${result.message || 'API Key ใช้งานได้'}
+                        ${quotaInfo}
                     </div>
                 `;
             } else {

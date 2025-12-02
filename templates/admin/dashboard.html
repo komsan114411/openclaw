@@ -231,6 +231,60 @@
 {% endblock %}
 
 {% block content %}
+<!-- Thunder API Status Card -->
+<div id="thunderApiStatusCard" class="mb-4" style="display: none;">
+    <div class="card" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #0f3460; border-radius: 12px; overflow: hidden;">
+        <div class="card-body" style="padding: 1.25rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-bolt" style="font-size: 24px; color: white;"></i>
+                    </div>
+                    <div>
+                        <h5 style="margin: 0; color: #f59e0b; font-weight: 600;">
+                            <span id="thunderAppName">Thunder API</span>
+                            <span id="thunderStatusBadge" class="badge" style="margin-left: 0.5rem; font-size: 0.7rem;"></span>
+                        </h5>
+                        <p style="margin: 0; color: #94a3b8; font-size: 0.85rem;" id="thunderStatusText">กำลังตรวจสอบ...</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                    <!-- โควต้าคงเหลือ -->
+                    <div style="text-align: center; min-width: 100px;">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;" id="thunderRemainingQuota">-</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">คงเหลือ</div>
+                    </div>
+                    <!-- ใช้ไปแล้ว -->
+                    <div style="text-align: center; min-width: 100px;">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;" id="thunderUsedQuota">-</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">ใช้ไปแล้ว</div>
+                    </div>
+                    <!-- โควต้าทั้งหมด -->
+                    <div style="text-align: center; min-width: 100px;">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #3b82f6;" id="thunderMaxQuota">-</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">ทั้งหมด</div>
+                    </div>
+                    <!-- วันหมดอายุ -->
+                    <div style="text-align: center; min-width: 120px;">
+                        <div style="font-size: 1rem; font-weight: 600; color: #e879f9;" id="thunderExpiresAt">-</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">หมดอายุ</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Progress Bar -->
+            <div style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span style="font-size: 0.75rem; color: #64748b;">การใช้งานโควต้า</span>
+                    <span style="font-size: 0.75rem; color: #64748b;" id="thunderQuotaPercent">0%</span>
+                </div>
+                <div style="height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden;">
+                    <div id="thunderQuotaProgress" style="height: 100%; background: linear-gradient(90deg, #10b981, #059669); width: 0%; transition: width 0.5s ease;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- API Status Alert (for Admin) -->
 <div id="apiStatusAlert" class="mb-4" style="display: none;"></div>
 
@@ -350,6 +404,93 @@
         return !!dismissed[warningKey];
     }
     
+    // Update Thunder API Status Card
+    function updateThunderStatusCard(thunderData) {
+        const card = document.getElementById('thunderApiStatusCard');
+        if (!card) return;
+        
+        if (!thunderData || !thunderData.configured) {
+            card.style.display = 'none';
+            return;
+        }
+        
+        card.style.display = 'block';
+        
+        const statusBadge = document.getElementById('thunderStatusBadge');
+        const statusText = document.getElementById('thunderStatusText');
+        const appName = document.getElementById('thunderAppName');
+        const remainingQuota = document.getElementById('thunderRemainingQuota');
+        const usedQuota = document.getElementById('thunderUsedQuota');
+        const maxQuota = document.getElementById('thunderMaxQuota');
+        const expiresAt = document.getElementById('thunderExpiresAt');
+        const quotaPercent = document.getElementById('thunderQuotaPercent');
+        const quotaProgress = document.getElementById('thunderQuotaProgress');
+        
+        if (thunderData.status === 'success') {
+            // แสดงข้อมูลโควต้า
+            const remaining = thunderData.remaining_quota || thunderData.balance || 0;
+            const used = thunderData.used_quota || 0;
+            const max = thunderData.max_quota || 0;
+            const app = thunderData.application || 'Thunder API';
+            const expires = thunderData.expires_at_display || thunderData.expires_at || '-';
+            
+            appName.textContent = app;
+            remainingQuota.textContent = remaining.toLocaleString();
+            usedQuota.textContent = used.toLocaleString();
+            maxQuota.textContent = max.toLocaleString();
+            expiresAt.textContent = expires;
+            
+            // Calculate percentage
+            const percent = max > 0 ? Math.round((used / max) * 100) : 0;
+            quotaPercent.textContent = `${percent}%`;
+            quotaProgress.style.width = `${percent}%`;
+            
+            // Set progress bar color based on usage
+            if (percent >= 90) {
+                quotaProgress.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+            } else if (percent >= 70) {
+                quotaProgress.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)';
+            } else {
+                quotaProgress.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+            }
+            
+            // Set status badge
+            if (remaining <= 0) {
+                statusBadge.textContent = 'โควต้าหมด';
+                statusBadge.style.background = '#ef4444';
+                statusBadge.style.color = 'white';
+                remainingQuota.style.color = '#ef4444';
+            } else if (remaining <= 100) {
+                statusBadge.textContent = 'เหลือน้อย';
+                statusBadge.style.background = '#f59e0b';
+                statusBadge.style.color = 'white';
+                remainingQuota.style.color = '#f59e0b';
+            } else {
+                statusBadge.textContent = 'พร้อมใช้งาน';
+                statusBadge.style.background = '#10b981';
+                statusBadge.style.color = 'white';
+                remainingQuota.style.color = '#10b981';
+            }
+            
+            statusText.textContent = `เชื่อมต่อสำเร็จ • โควต้าคงเหลือ ${remaining.toLocaleString()} รายการ`;
+            statusText.style.color = '#94a3b8';
+        } else {
+            // แสดง error
+            statusBadge.textContent = 'ไม่เชื่อมต่อ';
+            statusBadge.style.background = '#ef4444';
+            statusBadge.style.color = 'white';
+            statusText.textContent = thunderData.message || 'ไม่สามารถเชื่อมต่อได้';
+            statusText.style.color = '#ef4444';
+            
+            remainingQuota.textContent = '-';
+            usedQuota.textContent = '-';
+            maxQuota.textContent = '-';
+            expiresAt.textContent = '-';
+            quotaPercent.textContent = '-';
+            quotaProgress.style.width = '0%';
+        }
+    }
+    
     // Check API status and show warnings
     async function checkApiStatus() {
         try {
@@ -357,11 +498,16 @@
             if (!response.ok) return;
             
             const data = await response.json();
+            console.log('API Status Response:', data); // Debug log
+            
             if (!data.success || !data.api_status) return;
             
             const status = data.api_status;
             const alertDiv = document.getElementById('apiStatusAlert');
             let warnings = [];
+            
+            // Update Thunder Status Card
+            updateThunderStatusCard(status.thunder);
             
             // Check Thunder API
             if (status.thunder.configured) {
