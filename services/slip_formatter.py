@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Dict, Any, Union
 from datetime import datetime
 import pytz, re
@@ -253,7 +254,6 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
         db: MongoDB database instance (required for bank logo lookup)
     """
     try:
-        import json
         import copy
         
         # Validate inputs
@@ -496,7 +496,6 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
         
         # Apply iterative sanitization to ensure deeply nested structures are cleaned efficiently
         # Continue sanitizing until no changes are detected (max 5 iterations)
-        import json as json_module
         previous = None
         iterations = 0
         max_iterations = 5
@@ -506,7 +505,7 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
             
             # Check if anything changed
             try:
-                current_json = json_module.dumps(rendered_flex, sort_keys=True)
+                current_json = json.dumps(rendered_flex, sort_keys=True)
                 if previous == current_json:
                     logger.info(f"✅ Sanitization converged after {iterations + 1} iteration(s)")
                     break

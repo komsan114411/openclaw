@@ -8,6 +8,8 @@ This script tests the sanitize_flex_message function to ensure:
 3. Deeply nested structures are properly sanitized
 """
 
+from __future__ import annotations
+
 import sys
 import json
 import re

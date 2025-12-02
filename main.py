@@ -3008,8 +3008,6 @@ def sanitize_flex_message_iterative(obj: Any, max_iterations: int = 5) -> Any:
     Returns:
         Sanitized flex message object
     """
-    import json
-    
     previous = None
     current = obj
     iterations = 0
@@ -3099,7 +3097,6 @@ def validate_flex_message_structure(flex_message: Dict[str, Any]) -> tuple[bool,
 def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
     """Render flex message template with result data"""
     try:
-        import json
         import copy
         from services.slip_formatter import format_currency, format_thai_datetime, mask_account_formatted, get_bank_logo
         
