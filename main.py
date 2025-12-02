@@ -2272,9 +2272,12 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
             except Exception as reply_error:
                 logger.error(f"❌ Both push and reply failed for processing message: {reply_error}")
         
-        # Get API settings
-        slip_api_key = settings.get("slip_api_key")
-        slip_api_provider = settings.get("slip_api_provider", "thunder")
+        # Get API settings - ใช้ API key จาก system_settings (แอดมินกลาง) เป็นหลัก
+        # ถ้าไม่มีใน system_settings จะ fallback ไปใช้จาก account settings
+        slip_api_key = system_settings.get("slip_api_key") or settings.get("slip_api_key")
+        slip_api_provider = system_settings.get("slip_api_provider") or settings.get("slip_api_provider", "thunder")
+        
+        logger.info(f"🔑 API Key source: {'system_settings' if system_settings.get('slip_api_key') else 'account_settings'}")
         
         if not slip_api_key:
             # Rollback quota if no API key
