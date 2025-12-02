@@ -504,7 +504,22 @@ def verify_slip_with_thunder(
             pass
 
 def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
-    """ทดสอบการเชื่อมต่อ Thunder API ตาม documentation: https://document.thunder.in.th/documents/start"""
+    """
+    ทดสอบการเชื่อมต่อ Thunder API ตาม documentation: https://document.thunder.in.th/documents/me
+    
+    Response Structure จาก Thunder API /v1/me:
+    {
+        "status": 200,
+        "data": {
+            "application": "Thunder Developer",
+            "usedQuota": 16,
+            "maxQuota": 35000,
+            "remainingQuota": 34984,
+            "expiredAt": "2024-02-22T18:47:34+07:00",
+            "currentCredit": 1000
+        }
+    }
+    """
     if not api_token:
         return {"status": "error", "message": "API Token is required"}
     logger.info("🧪 Testing Thunder API connection...")
@@ -517,7 +532,7 @@ def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
     try:
         session = create_requests_session()
         
-        # ใช้ v1/me endpoint ตาม Thunder API documentation เพื่อตรวจสอบ API key และดึงข้อมูล balance/expiresAt
+        # ใช้ v1/me endpoint ตาม Thunder API documentation
         endpoint = "https://api.thunder.in.th/v1/me"
         logger.info(f"🔍 Testing Thunder API endpoint: {endpoint}")
         
@@ -526,37 +541,57 @@ def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
         
         if resp.status_code == 200:
             try:
-                data = resp.json()
-                balance = data.get("balance", 0)
-                expires_at = data.get("expiresAt", "")
+                response_data = resp.json()
+                logger.info(f"📄 Raw response: {response_data}")
+                
+                # ดึงข้อมูลจาก data object ตาม Thunder API Documentation
+                # Response: { "status": 200, "data": { ... } }
+                data_obj = response_data.get("data", {})
+                
+                # ดึงข้อมูลโควต้าตาม Thunder API structure
+                application = data_obj.get("application", "")
+                used_quota = data_obj.get("usedQuota", 0)
+                max_quota = data_obj.get("maxQuota", 0)
+                remaining_quota = data_obj.get("remainingQuota", 0)
+                expired_at = data_obj.get("expiredAt", "")  # Thunder ใช้ expiredAt (ไม่ใช่ expiresAt)
+                current_credit = data_obj.get("currentCredit", 0)
                 
                 # แปลงวันหมดอายุเป็นรูปแบบไทย
                 expires_display = "ไม่ระบุ"
-                if expires_at:
+                if expired_at:
                     try:
                         import pytz
                         from datetime import datetime
-                        dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                        # Handle timezone format from Thunder API
+                        dt = datetime.fromisoformat(expired_at.replace('Z', '+00:00'))
                         thai_tz = pytz.timezone('Asia/Bangkok')
                         thai_dt = dt.astimezone(thai_tz)
                         expires_display = thai_dt.strftime("%d/%m/%Y %H:%M")
                     except Exception as e:
                         logger.warning(f"Error parsing expiry date: {e}")
-                        expires_display = expires_at
+                        expires_display = expired_at
                 
-                logger.info(f"✅ Account info: balance={balance}, expires_at={expires_display}")
+                logger.info(f"✅ Account info: application={application}, remaining_quota={remaining_quota}, max_quota={max_quota}, expires_at={expires_display}")
                 session.close()
                 
                 return {
                     "status": "success",
                     "message": "Thunder API connection successful",
                     "response_code": resp.status_code,
-                    "balance": balance,
-                    "expires_at": expires_at,
+                    # ข้อมูลโควต้าตาม Thunder API
+                    "application": application,
+                    "used_quota": used_quota,
+                    "max_quota": max_quota,
+                    "remaining_quota": remaining_quota,
+                    "current_credit": current_credit,
+                    # Legacy field names for backward compatibility
+                    "balance": remaining_quota,  # ใช้ remaining_quota แทน balance
+                    "expires_at": expired_at,
                     "expires_at_display": expires_display
                 }
             except ValueError as e:
                 logger.error(f"❌ Cannot parse JSON response: {e}")
+                logger.error(f"📄 Raw response text: {resp.text[:500]}")
                 session.close()
                 return {
                     "status": "error",
@@ -566,8 +601,14 @@ def test_thunder_api_connection(api_token: str) -> Dict[str, Any]:
             session.close()
             return {"status": "error", "message": "Invalid API Token (Unauthorized)"}
         elif resp.status_code == 403:
+            # ตรวจสอบ error message จาก Thunder API
+            try:
+                error_data = resp.json()
+                error_msg = error_data.get("message", "access_denied")
+            except:
+                error_msg = "access_denied"
             session.close()
-            return {"status": "error", "message": "Access denied or quota exceeded"}
+            return {"status": "error", "message": f"Access denied: {error_msg}"}
         else:
             error_text = resp.text[:200] if resp.text else "No error message"
             session.close()

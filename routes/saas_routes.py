@@ -420,7 +420,7 @@ def register_saas_routes(app):
                 "kbank": {"configured": False, "status": "not_configured", "message": "ยังไม่ได้ตั้งค่า"}
             }
             
-            # Check Thunder API
+            # Check Thunder API - ตาม documentation: https://document.thunder.in.th/documents/me
             slip_api_key = settings.get("slip_api_key", "").strip()
             if slip_api_key:
                 try:
@@ -428,14 +428,27 @@ def register_saas_routes(app):
                     result = test_thunder_api_connection(slip_api_key)
                     
                     if result.get("status") == "success":
-                        # Only include balance if it's a valid number from API response
-                        balance = result.get("balance")
+                        # ดึงข้อมูลโควต้าตาม Thunder API structure
+                        remaining_quota = result.get("remaining_quota", result.get("balance", 0))
+                        used_quota = result.get("used_quota", 0)
+                        max_quota = result.get("max_quota", 0)
+                        current_credit = result.get("current_credit", 0)
+                        application = result.get("application", "")
+                        
                         status_info["thunder"] = {
                             "configured": True,
                             "status": "success",
                             "message": result.get("message", "เชื่อมต่อสำเร็จ"),
-                            "balance": balance if isinstance(balance, (int, float)) else None,
-                            "expires_at": result.get("expires_at", "")
+                            # ข้อมูลโควต้าตาม Thunder API
+                            "application": application,
+                            "used_quota": used_quota,
+                            "max_quota": max_quota,
+                            "remaining_quota": remaining_quota,
+                            "current_credit": current_credit,
+                            # Legacy fields for backward compatibility
+                            "balance": remaining_quota if isinstance(remaining_quota, (int, float)) else None,
+                            "expires_at": result.get("expires_at", ""),
+                            "expires_at_display": result.get("expires_at_display", "")
                         }
                     else:
                         status_info["thunder"] = {
@@ -443,6 +456,7 @@ def register_saas_routes(app):
                             "status": "error",
                             "message": result.get("message", "ไม่สามารถเชื่อมต่อได้"),
                             "balance": None,
+                            "remaining_quota": None,
                             "expires_at": ""
                         }
                 except Exception as e:
@@ -452,6 +466,7 @@ def register_saas_routes(app):
                         "status": "error",
                         "message": f"เกิดข้อผิดพลาด: {str(e)}",
                         "balance": None,
+                        "remaining_quota": None,
                         "expires_at": ""
                     }
             

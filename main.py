@@ -4313,7 +4313,7 @@ async def test_slip_api(request: Request, account_id: str):
         
         # Test API connection
         if api_provider == "thunder":
-            # Test Thunder API
+            # Test Thunder API - ตาม documentation: https://document.thunder.in.th/documents/me
             test_url = "https://api.thunder.in.th/v1/me"
             headers = {"Authorization": f"Bearer {api_key}"}
             
@@ -4322,30 +4322,47 @@ async def test_slip_api(request: Request, account_id: str):
                     response = await client.get(test_url, headers=headers, timeout=10.0)
                     
                     if response.status_code == 200:
-                        data = response.json()
-                        # ดึงข้อมูลยอดเหลือและวันหมดอายุ
-                        balance = data.get("balance", 0)
-                        expires_at = data.get("expiresAt", "")
+                        response_data = response.json()
+                        logger.info(f"📄 Thunder API /v1/me response: {response_data}")
+                        
+                        # ดึงข้อมูลจาก data object ตาม Thunder API Documentation
+                        # Response: { "status": 200, "data": { application, usedQuota, maxQuota, remainingQuota, expiredAt, currentCredit } }
+                        data_obj = response_data.get("data", {})
+                        
+                        # ดึงข้อมูลโควต้าตาม Thunder API structure
+                        application = data_obj.get("application", "")
+                        used_quota = data_obj.get("usedQuota", 0)
+                        max_quota = data_obj.get("maxQuota", 0)
+                        remaining_quota = data_obj.get("remainingQuota", 0)
+                        expired_at = data_obj.get("expiredAt", "")  # Thunder ใช้ expiredAt
+                        current_credit = data_obj.get("currentCredit", 0)
                         
                         # แปลงวันหมดอายุเป็นรูปแบบไทย
                         expires_display = "ไม่ระบุ"
-                        if expires_at:
+                        if expired_at:
                             try:
                                 import pytz
                                 from datetime import datetime
-                                dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                                dt = datetime.fromisoformat(expired_at.replace('Z', '+00:00'))
                                 thai_tz = pytz.timezone('Asia/Bangkok')
                                 thai_dt = dt.astimezone(thai_tz)
                                 expires_display = thai_dt.strftime("%d/%m/%Y %H:%M")
                             except Exception as e:
                                 logger.warning(f"Error parsing expiry date: {e}")
-                                expires_display = expires_at
+                                expires_display = expired_at
                         
                         return JSONResponse(content={
                             "success": True,
                             "message": "เชื่อมต่อ Thunder API สำเร็จ",
                             "provider": "thunder",
-                            "balance": balance,
+                            # ข้อมูลโควต้าตาม Thunder API
+                            "application": application,
+                            "used_quota": used_quota,
+                            "max_quota": max_quota,
+                            "remaining_quota": remaining_quota,
+                            "current_credit": current_credit,
+                            # Legacy fields for backward compatibility
+                            "balance": remaining_quota,
                             "expires_at": expires_display
                         })
                     elif response.status_code == 401:
@@ -4354,6 +4371,20 @@ async def test_slip_api(request: Request, account_id: str):
                             content={
                                 "success": False,
                                 "message": "API Key ไม่ถูกต้อง กรุณาตรวจสอบ API Key อีกครั้ง"
+                            }
+                        )
+                    elif response.status_code == 403:
+                        # Handle access denied from Thunder API
+                        try:
+                            error_data = response.json()
+                            error_msg = error_data.get("message", "access_denied")
+                        except:
+                            error_msg = "access_denied"
+                        return JSONResponse(
+                            status_code=400,
+                            content={
+                                "success": False,
+                                "message": f"การเข้าถึงถูกปฏิเสธ: {error_msg}"
                             }
                         )
                     else:

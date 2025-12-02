@@ -384,19 +384,29 @@
                         });
                     }
                 } else if (status.thunder.status === 'success') {
-                    // Only warn if balance is explicitly 0 or negative AND we got a valid response
-                    const balance = status.thunder.balance;
-                    // Must be a valid number response from a successful API call
-                    const hasValidBalance = balance !== null && balance !== undefined && typeof balance === 'number';
+                    // ใช้ข้อมูลโควต้าตาม Thunder API structure
+                    // remaining_quota = โควต้าคงเหลือ, used_quota = ใช้ไปแล้ว, max_quota = โควต้าทั้งหมด
+                    const remainingQuota = status.thunder.remaining_quota || status.thunder.balance || 0;
+                    const usedQuota = status.thunder.used_quota || 0;
+                    const maxQuota = status.thunder.max_quota || 0;
+                    const hasValidQuota = remainingQuota !== null && remainingQuota !== undefined && typeof remainingQuota === 'number';
                     
-                    if (hasValidBalance && balance <= 0) {
+                    if (hasValidQuota && remainingQuota <= 0) {
+                        warnings.push({
+                            type: 'danger',
+                            key: 'thunder_quota_zero',
+                            message: `⚠️ Thunder API: โควต้าหมดแล้ว (ใช้ไป: ${usedQuota}/${maxQuota}) - ระบบตรวจสลิปจะไม่สามารถทำงานได้จนกว่าจะเติมโควต้า`
+                        });
+                    } else if (hasValidQuota && remainingQuota <= 100 && remainingQuota > 0) {
+                        // แจ้งเตือนเมื่อโควต้าเหลือน้อยกว่า 100
                         warnings.push({
                             type: 'warning',
-                            key: 'thunder_quota_zero',
-                            message: `⚠️ Thunder API: โควต้าหมดแล้ว (คงเหลือ: ${balance}) - ระบบตรวจสลิปจะไม่สามารถทำงานได้จนกว่าจะเติมโควต้า`
+                            key: 'thunder_quota_low',
+                            message: `⚠️ Thunder API: โควต้าเหลือน้อย (คงเหลือ: ${remainingQuota}/${maxQuota})`
                         });
                     }
-                    // Don't show positive balance - it's not necessary
+                    // Log quota info for debugging
+                    console.log(`Thunder API Quota: ${remainingQuota}/${maxQuota} (used: ${usedQuota})`);
                     
                     // Check expiry date - only if we have a valid date
                     if (status.thunder.expires_at) {
@@ -409,7 +419,7 @@
                                     warnings.push({
                                         type: 'warning',
                                         key: 'thunder_expiring_soon',
-                                        message: `⚠️ Thunder API: หมดอายุในอีก ${daysLeft} วัน`
+                                        message: `⚠️ Thunder API: หมดอายุในอีก ${daysLeft} วัน (${status.thunder.expires_at_display || status.thunder.expires_at})`
                                     });
                                 } else if (daysLeft < 0) {
                                     warnings.push({
