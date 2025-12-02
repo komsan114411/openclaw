@@ -32,7 +32,8 @@ def sanitize_flex_message(obj: Any) -> Any:
     VALID_TEXT_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
     # Valid image sizes
     VALID_IMAGE_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
-    # Valid bubble sizes
+    # Valid bubble sizes according to LINE Flex Message API documentation
+    # nano: 50px, micro: 100px, kilo: 200px, mega: 250px, giga: 300px
     VALID_BUBBLE_SIZES = {'nano', 'micro', 'kilo', 'mega', 'giga'}
     # Components that CANNOT have 'size' property
     INVALID_SIZE_COMPONENTS = {'box', 'separator', 'spacer', 'button', 'filler'}
@@ -233,7 +234,8 @@ def test_convert_pixel_to_keyword():
         
         result = sanitize_flex_message(test_message)
         
-        assert result["size"] == expected_keyword, f"❌ '{pixel_value}' should convert to '{expected_keyword}', got '{result['size']}'"
+        result_size = result.get("size")
+        assert result_size == expected_keyword, f"❌ '{pixel_value}' should convert to '{expected_keyword}', got '{result_size}'"
         print(f"  ✓ {pixel_value} → {expected_keyword}")
     
     print("✅ Test passed: All pixel values converted correctly")

@@ -2877,14 +2877,19 @@ def sanitize_flex_message(obj: Any) -> Any:
     - Removes 'size' property from invalid components (box, separator, spacer, button, filler)
     - Recursively processes all nested objects and arrays
     - IMPORTANT: Sanitizes nested structures FIRST, then validates size property
+    
+    Note: Multiple passes may be needed for deeply nested structures because:
+    - Templates can have 3+ levels of nesting (bubble -> body -> box -> contents -> box -> text)
+    - Each pass can only sanitize one level at a time
+    - We continue until no more changes are detected
     """
     # Valid text sizes for LINE Flex Message
     VALID_TEXT_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
     # Valid image sizes
     VALID_IMAGE_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
-    # Valid bubble sizes
+    # Valid bubble sizes (nano, micro, kilo, mega, giga - as per LINE API documentation)
     VALID_BUBBLE_SIZES = {'nano', 'micro', 'kilo', 'mega', 'giga'}
-    # Components that CANNOT have 'size' property
+    # Components that CANNOT have 'size' property (as per LINE API specification)
     INVALID_SIZE_COMPONENTS = {'box', 'separator', 'spacer', 'button', 'filler'}
     
     # Map pixel values to valid sizes
@@ -2989,6 +2994,48 @@ def sanitize_flex_message(obj: Any) -> Any:
     else:
         # Return primitive values as-is
         return obj
+
+def sanitize_flex_message_iterative(obj: Any, max_iterations: int = 5) -> Any:
+    """
+    Apply sanitize_flex_message iteratively until no more changes are detected
+    or max_iterations is reached. This is more efficient than blindly running
+    multiple passes.
+    
+    Args:
+        obj: The flex message object to sanitize
+        max_iterations: Maximum number of iterations (default: 5, enough for very deep nesting)
+    
+    Returns:
+        Sanitized flex message object
+    """
+    import json
+    
+    previous = None
+    current = obj
+    iterations = 0
+    
+    while iterations < max_iterations:
+        # Sanitize
+        current = sanitize_flex_message(current)
+        
+        # Check if anything changed by comparing JSON strings
+        try:
+            current_json = json.dumps(current, sort_keys=True)
+            if previous == current_json:
+                # No changes detected, we're done
+                logger.info(f"✅ Sanitization converged after {iterations + 1} iteration(s)")
+                break
+            previous = current_json
+        except (TypeError, ValueError):
+            # If we can't serialize to JSON, just do max iterations
+            pass
+        
+        iterations += 1
+    
+    if iterations >= max_iterations:
+        logger.warning(f"⚠️ Sanitization stopped after {max_iterations} iterations (max reached)")
+    
+    return current
 
 def validate_flex_message_structure(flex_message: Dict[str, Any]) -> tuple[bool, list[str]]:
     """
@@ -3591,18 +3638,13 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
         }]
     
     # Sanitize all flex messages before returning
-    # Sanitize multiple times to ensure deeply nested structures are cleaned
+    # Use iterative sanitization to ensure deeply nested structures are cleaned efficiently
     sanitized_messages = []
     for msg in messages:
         if msg.get("type") == "flex" and msg.get("contents"):
-            # Sanitize multiple times to catch all nested invalid properties
-            logger.info(f"🧹 Sanitizing flex message...")
-            sanitized_contents = sanitize_flex_message(msg["contents"])
-            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Second pass
-            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Third pass for deeply nested
-            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Fourth pass to be extra safe
-            msg["contents"] = sanitized_contents
-            logger.info(f"✅ Flex message sanitized successfully")
+            # Apply iterative sanitization (will continue until no changes or max iterations)
+            logger.info(f"🧹 Sanitizing flex message iteratively...")
+            msg["contents"] = sanitize_flex_message_iterative(msg["contents"])
         sanitized_messages.append(msg)
     messages = sanitized_messages
     
@@ -3663,9 +3705,9 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
                     for issue in issues:
                         logger.error(f"   - {issue}")
                     
-                    # Try to sanitize one more time as emergency fix
+                    # Try to sanitize one more time as emergency fix using iterative approach
                     logger.info(f"🔧 Attempting emergency sanitization...")
-                    msg["contents"] = sanitize_flex_message(msg["contents"])
+                    msg["contents"] = sanitize_flex_message_iterative(msg["contents"])
                     
                     # Re-validate after emergency sanitization
                     is_valid_after, issues_after = validate_flex_message_structure(msg)

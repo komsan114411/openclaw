@@ -494,10 +494,32 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
                 return [quick_sanitize(item) for item in obj]
             return obj
         
-        # Apply quick sanitization multiple times to ensure deeply nested structures are cleaned
-        rendered_flex = quick_sanitize(rendered_flex)
-        rendered_flex = quick_sanitize(rendered_flex)  # Second pass
-        rendered_flex = quick_sanitize(rendered_flex)  # Third pass for deeply nested
+        # Apply iterative sanitization to ensure deeply nested structures are cleaned efficiently
+        # Continue sanitizing until no changes are detected (max 5 iterations)
+        import json as json_module
+        previous = None
+        iterations = 0
+        max_iterations = 5
+        
+        while iterations < max_iterations:
+            rendered_flex = quick_sanitize(rendered_flex)
+            
+            # Check if anything changed
+            try:
+                current_json = json_module.dumps(rendered_flex, sort_keys=True)
+                if previous == current_json:
+                    logger.info(f"✅ Sanitization converged after {iterations + 1} iteration(s)")
+                    break
+                previous = current_json
+            except (TypeError, ValueError):
+                # If we can't serialize, just do max iterations
+                pass
+            
+            iterations += 1
+        
+        if iterations >= max_iterations:
+            logger.warning(f"⚠️ Sanitization stopped after {max_iterations} iterations (max reached)")
+        
         logger.info(f"✅ Flex template rendered and sanitized successfully")
         return {"type": "flex", "altText": f"ยืนยันการชำระเงิน {amount_display}", "contents": rendered_flex}
     except Exception as e:
