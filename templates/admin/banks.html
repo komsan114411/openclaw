@@ -425,10 +425,13 @@ function editBank(bankId) {
         logoImg.style.display = 'block';
         noLogoPlaceholder.style.display = 'none';
         removeBtn.style.display = 'inline-block';
+        logoImg.dataset.shouldRemove = 'false';
     } else {
+        logoImg.src = '';
         logoImg.style.display = 'none';
         noLogoPlaceholder.style.display = 'block';
         removeBtn.style.display = 'none';
+        logoImg.dataset.shouldRemove = 'false';
     }
     
     // Clear file input
@@ -461,9 +464,19 @@ function editBank(bankId) {
 
 async function saveBankChanges() {
     const bankId = document.getElementById('editBankId').value;
-    const name = document.getElementById('editBankName').value;
+    const name = document.getElementById('editBankName').value.trim();
+    const abbreviation = document.getElementById('editBankAbbr').value.trim();
+    const bankCode = document.getElementById('editBankCode').value.trim();
     const isActive = document.getElementById('editBankActive').checked;
     const logoFile = document.getElementById('editBankLogo').files[0];
+    const removeLogoBtn = document.getElementById('removeLogo');
+    const currentLogoImg = document.getElementById('currentLogoImg');
+    
+    // Validation
+    if (!name) {
+        showToast('❌ ข้อมูลไม่ครบ', 'กรุณากรอกชื่อธนาคาร', 'danger');
+        return;
+    }
     
     // Show loading
     const saveBtn = event.target;
@@ -475,15 +488,36 @@ async function saveBankChanges() {
         // Prepare data
         const data = {
             name: name,
-            abbreviation: document.getElementById('editBankAbbr').value.trim() || bank.code,
+            abbreviation: abbreviation || bankCode,
             is_active: isActive
         };
         
-        // Convert logo to base64 if provided
-        if (logoFile) {
-            const base64 = await fileToBase64(logoFile);
-            data.logo_base64 = base64.split(',')[1]; // Remove data:image/...;base64, prefix
+        // Check if logo should be removed
+        const shouldRemoveLogo = currentLogoImg && currentLogoImg.dataset.shouldRemove === 'true';
+        
+        if (shouldRemoveLogo) {
+            // Logo was removed
+            data.logo_base64 = null;
+            console.log('🗑️ Logo will be removed');
+        } else if (logoFile) {
+            // Convert logo to base64 if provided
+            try {
+                const base64 = await fileToBase64(logoFile);
+                // Remove data:image/...;base64, prefix if exists
+                if (base64.includes(',')) {
+                    data.logo_base64 = base64.split(',')[1];
+                } else {
+                    data.logo_base64 = base64;
+                }
+                console.log('✅ Logo converted to base64, length:', data.logo_base64 ? data.logo_base64.length : 0);
+            } catch (error) {
+                console.error('Error converting logo to base64:', error);
+                throw new Error('ไม่สามารถแปลงรูปภาพเป็น base64 ได้');
+            }
         }
+        // If no logoFile and logo exists, keep existing logo (don't send logo_base64)
+        
+        console.log('📤 Sending update request:', { ...data, logo_base64: data.logo_base64 ? `[${data.logo_base64.length} chars]` : 'null' });
         
         // Send update request
         const response = await fetch(`/admin/api/banks/${bankId}`, {
@@ -494,7 +528,13 @@ async function saveBankChanges() {
             body: JSON.stringify(data)
         });
         
-        if (!response.ok) throw new Error('Failed to update bank');
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.detail || result.message || 'Failed to update bank');
+        }
+        
+        console.log('✅ Bank updated successfully:', result);
         
         // Close modal
         closeBankModal();
@@ -503,10 +543,11 @@ async function saveBankChanges() {
         await loadBanks();
         
         // Show success toast
-        showToast('✅ บันทึกสำเร็จ!', 'ข้อมูลธนาคารถูกบันทึกเรียบร้อยแล้ว', 'success');
+        showToast('✅ บันทึกสำเร็จ!', 'ข้อมูลธนาคารและโลโก้ถูกบันทึกเรียบร้อยแล้ว', 'success');
     } catch (error) {
-        console.error('Error saving bank:', error);
-        showToast('❌ เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง', 'danger');
+        console.error('❌ Error saving bank:', error);
+        const errorMessage = error.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง';
+        showToast('❌ เกิดข้อผิดพลาด', errorMessage, 'danger');
     } finally {
         // Restore button state
         saveBtn.innerHTML = originalText;
@@ -660,11 +701,16 @@ function removeLogo() {
     const removeBtn = document.getElementById('removeLogo');
     const fileInput = document.getElementById('editBankLogo');
     
+    // Clear logo
     logoImg.src = '';
     logoImg.style.display = 'none';
     noLogoPlaceholder.style.display = 'block';
     removeBtn.style.display = 'none';
     fileInput.value = '';
+    
+    // Mark that logo should be removed
+    logoImg.dataset.shouldRemove = 'true';
+    console.log('🗑️ Logo marked for removal');
 }
 
 // Create Bank Functions
@@ -802,9 +848,22 @@ async function saveNewBank() {
         
         // Convert logo to base64 if provided
         if (logoFile) {
-            const base64 = await fileToBase64(logoFile);
-            data.logo_base64 = base64.split(',')[1]; // Remove data:image/...;base64, prefix
+            try {
+                const base64 = await fileToBase64(logoFile);
+                // Remove data:image/...;base64, prefix if exists
+                if (base64.includes(',')) {
+                    data.logo_base64 = base64.split(',')[1];
+                } else {
+                    data.logo_base64 = base64;
+                }
+                console.log('✅ Logo converted to base64, length:', data.logo_base64 ? data.logo_base64.length : 0);
+            } catch (error) {
+                console.error('Error converting logo to base64:', error);
+                throw new Error('ไม่สามารถแปลงรูปภาพเป็น base64 ได้');
+            }
         }
+        
+        console.log('📤 Sending create request:', { ...data, logo_base64: data.logo_base64 ? `[${data.logo_base64.length} chars]` : 'null' });
         
         // Send create request
         const response = await fetch('/admin/api/banks', {
@@ -818,8 +877,10 @@ async function saveNewBank() {
         const result = await response.json();
         
         if (!response.ok) {
-            throw new Error(result.detail || 'Failed to create bank');
+            throw new Error(result.detail || result.message || 'Failed to create bank');
         }
+        
+        console.log('✅ Bank created successfully:', result);
         
         // Close modal
         closeCreateBankModal();
@@ -830,8 +891,9 @@ async function saveNewBank() {
         // Show success toast
         showToast('✅ บันทึกสำเร็จ!', `เพิ่มธนาคาร "${name}" เรียบร้อยแล้ว`, 'success');
     } catch (error) {
-        console.error('Error creating bank:', error);
-        showToast('❌ เกิดข้อผิดพลาด', error.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง', 'danger');
+        console.error('❌ Error creating bank:', error);
+        const errorMessage = error.message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง';
+        showToast('❌ เกิดข้อผิดพลาด', errorMessage, 'danger');
     } finally {
         // Restore button state
         saveBtn.innerHTML = originalText;

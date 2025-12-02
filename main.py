@@ -811,6 +811,18 @@ async def create_bank_api(request: Request):
         if existing_bank:
             raise HTTPException(status_code=400, detail=f"รหัสธนาคาร {code} มีอยู่แล้ว")
         
+        # Validate logo_base64 if provided
+        if logo_base64:
+            # Check if it's valid base64
+            try:
+                import base64 as b64
+                # Try to decode to verify it's valid base64
+                b64.b64decode(logo_base64, validate=True)
+                logger.info(f"✅ Valid base64 logo provided for bank {code} (length: {len(logo_base64)})")
+            except Exception as e:
+                logger.warning(f"⚠️ Invalid base64 logo for bank {code}: {e}")
+                # Still allow it, but log warning
+        
         # Create bank
         bank = app.state.bank_model.create_bank(
             code=code,
@@ -820,7 +832,7 @@ async def create_bank_api(request: Request):
             is_active=is_active
         )
         
-        logger.info(f"✅ Created new bank: {code} - {name}")
+        logger.info(f"✅ Created new bank: {code} - {name} (logo: {'yes' if logo_base64 else 'no'})")
         
         return {
             "success": True,
@@ -856,13 +868,21 @@ async def update_bank_api(request: Request, bank_id: str):
         if 'is_active' in data:
             update_data['is_active'] = data['is_active']
         if 'logo_base64' in data:
-            update_data['logo_base64'] = data['logo_base64']
+            # Handle logo update or removal
+            if data['logo_base64'] is None:
+                # Remove logo
+                update_data['logo_base64'] = None
+                logger.info(f"🗑️ Removing logo for bank: {bank_id}")
+            elif data['logo_base64']:
+                # Update logo
+                update_data['logo_base64'] = data['logo_base64']
+                logger.info(f"🖼️ Updating logo for bank: {bank_id} (length: {len(data['logo_base64'])})")
         
         # Update bank
         success = app.state.bank_model.update_bank(bank_id, update_data)
         
         if success:
-            logger.info(f"✅ Updated bank: {bank_id}")
+            logger.info(f"✅ Updated bank: {bank_id} - {update_data.get('name', 'N/A')}")
             return {"success": True, "message": "อัปเดตธนาคารสำเร็จ"}
         else:
             raise HTTPException(status_code=500, detail="Failed to update bank")
