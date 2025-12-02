@@ -1054,15 +1054,19 @@ def register_saas_routes(app):
 
     @app.get("/api/user/subscriptions")
     async def get_user_subscriptions(request: Request):
-        '''Get subscription history'''
+        '''Get subscription history (all statuses: active, expired, cancelled)'''
         user = app.state.auth.get_current_user(request)
         if not user:
             raise HTTPException(status_code=401, detail="Authentication required")
         
         try:
-            subscriptions = app.state.subscription_model.get_user_subscriptions(user["user_id"])
+            # Get all subscriptions (not just active)
+            subscriptions = app.state.subscription_model.get_user_subscriptions(user["user_id"], limit=100)
             
-            # Enrich with package details for UI
+            # Get all payments for this user (pending, verified, rejected, cancelled)
+            payments = app.state.payment_model.get_user_payments(user["user_id"], limit=100)
+            
+            # Enrich subscriptions with package details
             for sub in subscriptions:
                 package = app.state.package_model.get_package_by_id(sub.get("package_id"))
                 if package:
@@ -1075,9 +1079,83 @@ def register_saas_routes(app):
                 # Add is_active boolean for UI compatibility
                 sub["is_active"] = sub["status"] == "active"
             
-            return {"success": True, "subscriptions": subscriptions}
+            # Enrich payments with package details and subscription info
+            enriched_payments = []
+            for payment in payments:
+                package = app.state.package_model.get_package_by_id(payment.get("package_id"))
+                if package:
+                    payment["package_name"] = package["name"]
+                    payment["package_price"] = package["price"]
+                else:
+                    payment["package_name"] = "Unknown Package"
+                    payment["package_price"] = 0
+                
+                # Map payment status to display status
+                status_map = {
+                    "pending": "รอตรวจสอบ",
+                    "verified": "สำเร็จ",
+                    "rejected": "ยกเลิก",
+                    "failed": "ยกเลิก",
+                    "cancelled": "ยกเลิก"
+                }
+                payment["status_display"] = status_map.get(payment.get("status", "pending"), payment.get("status", "pending"))
+                
+                enriched_payments.append(payment)
+            
+            # Combine subscriptions and payments into a unified history
+            # Format: subscriptions are actual subscriptions, payments are pending/processing
+            history = []
+            
+            # Add subscriptions
+            for sub in subscriptions:
+                history.append({
+                    "type": "subscription",
+                    "id": sub.get("_id"),
+                    "date": sub.get("start_date"),
+                    "package_name": sub.get("package_name"),
+                    "price": sub.get("price"),
+                    "end_date": sub.get("end_date"),
+                    "status": "active" if sub.get("is_active") else "expired",
+                    "status_display": "สำเร็จ" if sub.get("is_active") else "หมดอายุ",
+                    "slips_quota": sub.get("slips_quota", 0),
+                    "slips_used": sub.get("slips_used", 0)
+                })
+            
+            # Add payments (pending/verified/rejected)
+            for payment in enriched_payments:
+                # Only add payments that don't have a corresponding subscription
+                payment_id = payment.get("_id")
+                has_subscription = any(
+                    str(p.get("payment_id")) == payment_id 
+                    for p in subscriptions 
+                    if p.get("payment_id")
+                )
+                
+                if not has_subscription:
+                    history.append({
+                        "type": "payment",
+                        "id": payment.get("_id"),
+                        "date": payment.get("created_at"),
+                        "package_name": payment.get("package_name"),
+                        "price": payment.get("amount") or payment.get("package_price", 0),
+                        "end_date": None,
+                        "status": payment.get("status", "pending"),
+                        "status_display": payment.get("status_display", "รอตรวจสอบ"),
+                        "slips_quota": 0,
+                        "slips_used": 0
+                    })
+            
+            # Sort by date (newest first)
+            history.sort(key=lambda x: x.get("date") or datetime.min, reverse=True)
+            
+            return {
+                "success": True, 
+                "subscriptions": subscriptions,
+                "payments": enriched_payments,
+                "history": history  # Combined history for display
+            }
         except Exception as e:
-            logger.error(f"Error fetching subscriptions: {e}")
+            logger.error(f"Error fetching subscriptions: {e}", exc_info=True)
             return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
     @app.post("/api/admin/users/{user_id}/grant-package")

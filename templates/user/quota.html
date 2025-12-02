@@ -58,6 +58,7 @@
                         <th>ราคา</th>
                         <th>วันหมดอายุ</th>
                         <th>สถานะ</th>
+                        <th>ประเภท</th>
                     </tr>
                 </thead>
                 <tbody id="historyTableBody">
@@ -141,7 +142,9 @@
             const data = await response.json();
 
             if (data.success) {
-                renderHistory(data.subscriptions || []);
+                // Use combined history if available, otherwise fallback to subscriptions
+                const history = data.history || data.subscriptions || [];
+                renderHistory(history);
             } else {
                 showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
@@ -151,27 +154,55 @@
         }
     }
 
-    function renderHistory(subs) {
+    function renderHistory(history) {
         const tbody = document.getElementById('historyTableBody');
         tbody.innerHTML = '';
 
-        if (subs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">ยังไม่มีประวัติการสมัคร</td></tr>';
+        if (history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">ยังไม่มีประวัติการสมัคร</td></tr>';
             return;
         }
 
-        subs.forEach(sub => {
-            const startDate = new Date(sub.start_date).toLocaleDateString('th-TH');
-            const endDate = new Date(sub.end_date).toLocaleDateString('th-TH');
-            const status = sub.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Expired</span>';
+        history.forEach(item => {
+            const date = new Date(item.date || item.start_date || item.created_at).toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const endDate = item.end_date ? new Date(item.end_date).toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }) : '-';
+            
+            // Status badge based on status_display
+            let statusBadge = '';
+            const statusDisplay = item.status_display || item.status || 'unknown';
+            if (statusDisplay === 'สำเร็จ' || statusDisplay === 'active') {
+                statusBadge = '<span class="badge bg-success">สำเร็จ</span>';
+            } else if (statusDisplay === 'รอตรวจสอบ' || statusDisplay === 'pending') {
+                statusBadge = '<span class="badge bg-warning text-dark">รอตรวจสอบ</span>';
+            } else if (statusDisplay === 'ยกเลิก' || statusDisplay === 'rejected' || statusDisplay === 'cancelled' || statusDisplay === 'failed') {
+                statusBadge = '<span class="badge bg-danger">ยกเลิก</span>';
+            } else if (statusDisplay === 'หมดอายุ' || statusDisplay === 'expired') {
+                statusBadge = '<span class="badge bg-secondary">หมดอายุ</span>';
+            } else {
+                statusBadge = `<span class="badge bg-secondary">${statusDisplay}</span>`;
+            }
+            
+            // Type badge
+            const typeBadge = item.type === 'subscription' 
+                ? '<span class="badge bg-info">สมาชิก</span>' 
+                : '<span class="badge bg-primary">การชำระเงิน</span>';
 
             const row = `
             <tr>
-                <td>${startDate}</td>
-                <td>${sub.package_name || 'N/A'}</td>
-                <td>฿${(sub.price || 0).toLocaleString()}</td>
+                <td>${date}</td>
+                <td>${item.package_name || 'N/A'}</td>
+                <td>฿${(item.price || 0).toLocaleString()}</td>
                 <td>${endDate}</td>
-                <td>${status}</td>
+                <td>${statusBadge}</td>
+                <td>${typeBadge}</td>
             </tr>
         `;
             tbody.innerHTML += row;

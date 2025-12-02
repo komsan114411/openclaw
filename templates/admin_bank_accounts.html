@@ -490,8 +490,34 @@
         }
 
         function closeModal() {
-            document.getElementById('accountModal').classList.remove('show');
+            const modal = document.getElementById('accountModal');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
+            // Cleanup
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            // Remove any backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(b => b.remove());
         }
+        
+        // Close modal on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('accountModal');
+            if (modal && e.target === modal) {
+                closeModal();
+            }
+        });
 
         async function editAccount(accountId) {
             // Load account data and show modal

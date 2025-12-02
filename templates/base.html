@@ -349,16 +349,53 @@
     </style>
 
     <script>
-        // Simple cleanup for any stuck backdrops on load
-        document.addEventListener('DOMContentLoaded', function () {
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            if (backdrops.length > 0) {
-                backdrops.forEach(b => b.remove());
-            }
-            document.body.classList.remove('modal-open');
+        // CRITICAL FIX: Comprehensive cleanup for stuck overlays/modals
+        function cleanupOverlays() {
+            // Remove all modal backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop, .backdrop, [class*="backdrop"], [class*="overlay"]');
+            backdrops.forEach(b => {
+                b.remove();
+            });
+            
+            // Remove body classes that lock the page
+            document.body.classList.remove('modal-open', 'overflow-hidden', 'no-scroll');
+            
+            // Reset body styles
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
-        });
+            document.body.style.position = '';
+            
+            // Close any open modals
+            const modals = document.querySelectorAll('.modal.show, .modal[style*="display"]');
+            modals.forEach(modal => {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            });
+            
+            // Remove any fixed/absolute positioned overlays
+            const overlays = document.querySelectorAll('[style*="position: fixed"], [style*="position: absolute"]');
+            overlays.forEach(overlay => {
+                const zIndex = window.getComputedStyle(overlay).zIndex;
+                if (zIndex && parseInt(zIndex) > 1000) {
+                    const display = window.getComputedStyle(overlay).display;
+                    if (display === 'block' || display === 'flex') {
+                        overlay.style.display = 'none';
+                    }
+                }
+            });
+        }
+        
+        // Run cleanup on page load
+        document.addEventListener('DOMContentLoaded', cleanupOverlays);
+        
+        // Run cleanup on page show (when navigating back)
+        window.addEventListener('pageshow', cleanupOverlays);
+        
+        // Run cleanup periodically (every 2 seconds) to catch any stuck overlays
+        setInterval(cleanupOverlays, 2000);
+        
+        // Run cleanup before page unload
+        window.addEventListener('beforeunload', cleanupOverlays);
     </script>
 
     {% block extra_js %}{% endblock %}
