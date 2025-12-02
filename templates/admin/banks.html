@@ -365,14 +365,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadBanks() {
     try {
+        console.log('📥 Loading banks...');
         const response = await fetch('/admin/api/banks');
-        if (!response.ok) throw new Error('Failed to load banks');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to load banks: ${response.status} - ${errorText}`);
+        }
         
         banks = await response.json();
+        console.log(`✅ Loaded ${banks.length} banks`);
+        
+        // Log logo status for debugging
+        banks.forEach(bank => {
+            const hasLogo = bank.logo_base64 && typeof bank.logo_base64 === 'string' && bank.logo_base64.trim().length > 0;
+            if (hasLogo) {
+                console.log(`  ✓ Bank ${bank.code} (${bank.name}) has logo (length: ${bank.logo_base64.length})`);
+            } else {
+                console.log(`  ✗ Bank ${bank.code} (${bank.name}) has no logo`);
+            }
+        });
+        
         renderBanksTable();
     } catch (error) {
-        console.error('Error loading banks:', error);
-        showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'danger');
+        console.error('❌ Error loading banks:', error);
+        showMessage('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message, 'danger');
     }
 }
 

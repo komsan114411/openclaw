@@ -104,12 +104,19 @@ class BankModel:
         if not bank:
             return None
         
+        # Get logo_base64 - handle None and empty string
+        logo_base64 = bank.get("logo_base64")
+        if logo_base64 is not None and not isinstance(logo_base64, str):
+            logo_base64 = None
+        elif isinstance(logo_base64, str) and not logo_base64.strip():
+            logo_base64 = None
+        
         return {
             "id": str(bank["_id"]),
             "code": bank.get("code"),
             "name": bank.get("name"),
             "abbreviation": bank.get("abbreviation", bank.get("code")),
-            "logo_base64": bank.get("logo_base64"),
+            "logo_base64": logo_base64,  # Will be None if empty or invalid
             "is_active": bank.get("is_active", True),
             "created_at": bank.get("created_at").isoformat() if bank.get("created_at") else None,
             "updated_at": bank.get("updated_at").isoformat() if bank.get("updated_at") else None

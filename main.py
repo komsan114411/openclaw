@@ -1005,23 +1005,32 @@ async def get_bank_logo_api(bank_code: str):
     try:
         bank = app.state.bank_model.get_bank_by_code(bank_code)
         if not bank:
-            raise HTTPException(status_code=404, detail=f"Bank with code {bank_code} not found")
+            logger.warning(f"⚠️ Bank with code {bank_code} not found")
+            # Return default logo instead of 404
+            from services.slip_formatter import DEFAULT_LOGO
+            return {"logo_base64": DEFAULT_LOGO, "has_logo": False}
         
         logo_base64 = bank.get("logo_base64")
-        if not logo_base64:
-            # Return default logo instead of 404
+        
+        # Validate logo_base64
+        if not logo_base64 or not isinstance(logo_base64, str) or not logo_base64.strip():
+            logger.info(f"ℹ️ No logo for bank {bank_code}, returning default")
             from services.slip_formatter import DEFAULT_LOGO
             return {"logo_base64": DEFAULT_LOGO, "has_logo": False}
         
         # Return as data URI if not already
         if logo_base64.startswith('data:'):
+            logger.info(f"✅ Returning logo for bank {bank_code} (data URI format)")
             return {"logo_base64": logo_base64, "has_logo": True}
         else:
+            logger.info(f"✅ Returning logo for bank {bank_code} (base64 format, length: {len(logo_base64)})")
             return {"logo_base64": f"data:image/png;base64,{logo_base64}", "has_logo": True}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"❌ Error getting bank logo: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         # Log to system_errors for admin dashboard
         try:
             app.state.db.system_errors.insert_one({
@@ -1032,7 +1041,12 @@ async def get_bank_logo_api(bank_code: str):
             })
         except:
             pass
-        raise HTTPException(status_code=500, detail="Error retrieving bank logo")
+        # Return default logo instead of error
+        try:
+            from services.slip_formatter import DEFAULT_LOGO
+            return {"logo_base64": DEFAULT_LOGO, "has_logo": False, "error": str(e)}
+        except:
+            raise HTTPException(status_code=500, detail="Error retrieving bank logo")
 
 @app.get("/settings/realtime-chat", response_class=HTMLResponse)
 async def realtime_chat_page(request: Request):
