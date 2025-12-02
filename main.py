@@ -3312,35 +3312,73 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
     """Prepare messages for slip result (shared by reply and push)"""
     messages = []
     
+    # 🔍 ENHANCED LOGGING: Track template selection process
+    logger.info(
+        f"📥 _prepare_slip_messages called: "
+        f"status={result.get('status')}, "
+        f"channel_id={channel_id}, "
+        f"slip_template_id={slip_template_id}"
+    )
+    
     # Get template (prefer selected template over default)
     template = None
     if slip_template_id:
         try:
             from bson import ObjectId
+            logger.info(f"🔍 Attempting to get template by ID: {slip_template_id}")
             template = app.state.slip_template_model.get_template_by_id(slip_template_id)
             if template:
-                logger.info(f"🎯 Using selected template: {template.get('template_name')}")
+                logger.info(
+                    f"🎯 Using selected template '{template.get('template_name')}': "
+                    f"type={template.get('template_type')}, "
+                    f"has_flex={bool(template.get('template_flex'))}, "
+                    f"has_text={bool(template.get('template_text'))}"
+                )
+            else:
+                logger.warning(f"⚠️ Template with ID {slip_template_id} not found in database!")
         except Exception as e:
-            logger.warning(f"⚠️ Could not get selected template: {e}")
+            logger.error(f"❌ Error getting selected template: {e}", exc_info=True)
+    else:
+        logger.info(f"ℹ️ No slip_template_id provided, will try default template")
     
     # Fallback to default template
     if not template and channel_id:
         try:
+            logger.info(f"🔍 Attempting to get default template for channel: {channel_id}")
             template = app.state.slip_template_model.get_default_template(channel_id)
             if template:
-                logger.info(f"📋 Using default template: {template.get('template_name')}")
+                logger.info(
+                    f"📋 Using default template '{template.get('template_name')}': "
+                    f"type={template.get('template_type')}, "
+                    f"has_flex={bool(template.get('template_flex'))}, "
+                    f"has_text={bool(template.get('template_text'))}"
+                )
+            else:
+                logger.warning(f"⚠️ No default template found for channel {channel_id}")
         except Exception as e:
-            logger.warning(f"⚠️ Could not get default template: {e}")
+            logger.error(f"❌ Error getting default template: {e}", exc_info=True)
+    
+    if not template:
+        logger.warning(f"⚠️ No template found! Will use fallback flex message")
     
     if result.get("status") in ["success", "duplicate"]:
+        logger.info(f"✅ Processing success/duplicate result with status: {result.get('status')}")
+        
         # Use template if available
         if template:
             template_type = template.get("template_type", "flex")
+            logger.info(f"📝 Template found! Type: {template_type}")
             
             if template_type == "text":
+                logger.info(f"📄 Using TEXT template: {template.get('template_name')}")
                 # Use text template
                 template_text = template.get("template_text", "")
+                if not template_text:
+                    logger.error(f"❌ TEXT template has no template_text content!")
+                    
+                logger.info(f"   - template_text length: {len(template_text) if template_text else 0} chars")
                 rendered_text = render_slip_template(template_text, result)
+                logger.info(f"   - rendered_text length: {len(rendered_text)} chars")
                 
                 # Add duplicate warning prefix if needed
                 if result.get("status") == "duplicate":
@@ -3351,11 +3389,20 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
                     else:
                         warning_text = "⚠️ คำเตือน: สลิปนี้เคยถูกตรวจสอบแล้ว\n\n"
                     rendered_text = warning_text + rendered_text
+                    logger.info(f"   - added duplicate warning")
                 
                 messages = [{"type": "text", "text": rendered_text}]
+                logger.info(f"✅ Created text message: {len(messages)} message(s)")
             else:
+                logger.info(f"🎨 Using FLEX template: {template.get('template_name')}")
                 # Use flex message template
                 template_flex = template.get("template_flex")
+                
+                if not template_flex:
+                    logger.error(f"❌ FLEX template has no template_flex data!")
+                else:
+                    logger.info(f"   - template_flex keys: {list(template_flex.keys()) if isinstance(template_flex, dict) else 'not a dict'}")
+                    
                 if template_flex:
                     # ✅ FIX: Use render_flex_template_with_data from slip_formatter.py
                     # This properly passes the db parameter for bank logo lookup
@@ -3371,20 +3418,26 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
                     if flex_message:
                         messages = [flex_message]
                         logger.info(f"✅ Flex template rendered successfully with bank logos")
+                        logger.info(f"   - message type: {flex_message.get('type')}")
+                        logger.info(f"   - message keys: {list(flex_message.keys())}")
                     else:
                         logger.warning(f"⚠️ render_flex_template_with_data returned None, using fallback")
                         # Fallback to default flex message
                         flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
                         messages = [flex_message]
+                        logger.info(f"⚠️ Using fallback flex message")
                 else:
                     logger.warning(f"⚠️ Template has no flex data, using fallback")
                     # Fallback to default flex message
                     flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
                     messages = [flex_message]
+                    logger.info(f"⚠️ Using fallback flex message (no template_flex)")
         else:
+            logger.warning(f"⚠️ No template available, using default fallback")
             # Fallback to default flex message
             flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
             messages = [flex_message]
+            logger.info(f"⚠️ Using fallback flex message (no template)")
             
         # Increment template usage count
         if template:
@@ -3476,7 +3529,10 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
         sanitized_messages.append(msg)
     messages = sanitized_messages
     
-    logger.info(f"💬 Prepared {len(messages)} message(s)")
+    logger.info(f"💬 Prepared {len(messages)} message(s) for delivery")
+    for i, msg in enumerate(messages):
+        logger.info(f"   Message {i+1}: type={msg.get('type')}, altText={msg.get('altText', 'N/A')[:50]}")
+    
     return messages
 
 async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: str, channel_id: str = None, slip_template_id: str = None):
