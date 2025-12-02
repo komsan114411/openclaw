@@ -2822,11 +2822,17 @@ def render_slip_template(template_text: str, result: Dict[str, Any]) -> str:
 def sanitize_flex_message(obj: Any) -> Any:
     """
     Sanitize Flex Message to fix invalid properties before sending to LINE API
-    - Fixes invalid 'size' values (e.g., '68px' -> 'md')
+    - Fixes invalid 'size' values (e.g., '68px' -> 'md') for 'text' components
+    - Validates 'size' property for 'image' and 'bubble' components
+    - Removes 'size' property from invalid components (box, etc.)
     - Recursively processes all nested objects and arrays
     """
-    # Valid sizes for LINE Flex Message
-    VALID_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+    # Valid text sizes for LINE Flex Message
+    VALID_TEXT_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+    # Valid image sizes
+    VALID_IMAGE_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
+    # Valid bubble sizes
+    VALID_BUBBLE_SIZES = {'nano', 'micro', 'kilo', 'mega', 'giga'}
     
     # Map pixel values to valid sizes
     def convert_pixel_size(pixel_size: str) -> str:
@@ -2835,7 +2841,7 @@ def sanitize_flex_message(obj: Any) -> Any:
             return pixel_size
             
         # Already valid size
-        if pixel_size.lower() in VALID_SIZES:
+        if pixel_size.lower() in VALID_TEXT_SIZES:
             return pixel_size
             
         # Extract number from pixel value (e.g., '68px' -> 68)
@@ -2871,10 +2877,38 @@ def sanitize_flex_message(obj: Any) -> Any:
     
     if isinstance(obj, dict):
         result = {}
+        component_type = obj.get('type', '')
+        
         for key, value in obj.items():
-            if key == 'size' and isinstance(value, str):
-                # Fix invalid size values
-                result[key] = convert_pixel_size(value)
+            if key == 'size':
+                # 'size' property validation based on component type
+                if component_type == 'text' and isinstance(value, str):
+                    # Fix invalid size values for text components
+                    result[key] = convert_pixel_size(value)
+                elif component_type == 'image' and isinstance(value, str):
+                    # Validate image size (must be one of valid image sizes)
+                    if value.lower() in VALID_IMAGE_SIZES:
+                        result[key] = value
+                    else:
+                        # Convert or use default
+                        result[key] = convert_pixel_size(value)
+                elif component_type == 'bubble' and isinstance(value, str):
+                    # Validate bubble size (must be one of valid bubble sizes)
+                    if value.lower() in VALID_BUBBLE_SIZES:
+                        result[key] = value
+                    else:
+                        # Use default if invalid
+                        logger.warning(f"⚠️ Invalid bubble size: {value}, using 'mega' as default")
+                        result[key] = 'mega'
+                elif component_type in ['box', 'separator', 'spacer', 'button', 'filler']:
+                    # 'size' is NOT valid for these components - remove it
+                    logger.warning(f"⚠️ Removing invalid 'size' property from {component_type} component")
+                    continue  # Don't add to result
+                else:
+                    # For unknown component types or non-string values, keep as-is but log warning
+                    if component_type:
+                        logger.warning(f"⚠️ Unknown component type '{component_type}' with 'size' property: {value}")
+                    result[key] = value
             else:
                 # Recursively process nested objects
                 result[key] = sanitize_flex_message(value)
@@ -3298,19 +3332,53 @@ async def send_slip_result(user_id: str, result: Dict[str, Any], access_token: s
             logger.info(f"📡 LINE API response status: {response.status_code}")
             
             if response.status_code != 200:
-                logger.error(f"❌ LINE API error: {response.text}")
+                error_text = response.text[:500] if response.text else "No error message"
+                logger.error(f"❌ LINE API error: {error_text}")
                 logger.error(f"📊 Request data: {data}")
+                
+                # Try fallback to simple text message if flex message failed
+                if messages and messages[0].get("type") == "flex":
+                    logger.warning("⚠️ Flex message failed, trying fallback text message")
+                    try:
+                        # Create simple text fallback
+                        status = result.get("status", "unknown")
+                        amount = "N/A"
+                        if result.get("data") and isinstance(result["data"], dict):
+                            amount_obj = result["data"].get("amount", {})
+                            if isinstance(amount_obj, dict):
+                                amount = amount_obj.get("amount", "N/A")
+                            else:
+                                amount = amount_obj
+                        
+                        if status == "success":
+                            fallback_text = f"✅ ตรวจสอบสลิปสำเร็จ\n💰 จำนวน: {amount} บาท"
+                        elif status == "duplicate":
+                            fallback_text = f"⚠️ สลิปนี้เคยถูกตรวจสอบแล้ว\n💰 จำนวน: {amount} บาท"
+                        else:
+                            fallback_text = result.get("message", "เกิดข้อผิดพลาดในการตรวจสอบสลิป")
+                        
+                        fallback_data = {
+                            "to": user_id,
+                            "messages": [{"type": "text", "text": fallback_text}]
+                        }
+                        
+                        fallback_response = await client.post(url, headers=headers, json=fallback_data)
+                        if fallback_response.status_code == 200:
+                            logger.info("✅ Sent fallback text message successfully")
+                            return
+                        else:
+                            logger.error(f"❌ Fallback text message also failed: {fallback_response.text}")
+                    except Exception as fallback_error:
+                        logger.error(f"❌ Error sending fallback message: {fallback_error}")
+                
+                raise Exception(f"LINE API error: {response.status_code} - {error_text}")
             else:
                 logger.info("✅ Slip result sent successfully")
                 logger.info(f"📊 Response: {response.text}")
                 
     except Exception as e:
-        logger.error(f"❌ Error sending slip result: {e}")
-        logger.error(f"📊 User ID: {user_id}")
-        logger.error(f"📊 Result: {result}")
-        logger.error(f"📊 Template ID: {slip_template_id}")
-        import traceback
-        logger.error(f"📊 Traceback: {traceback.format_exc()}")
+        logger.error(f"❌ Error sending slip result: {e}", exc_info=True)
+        raise
 
 
 # ==================== Slip Template Routes ====================
