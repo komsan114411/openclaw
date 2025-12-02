@@ -58,17 +58,22 @@ def get_bank_logo(bank_code: str = None, bank_name: str = None, db=None) -> str:
             if bank_code:
                 try:
                     bank = banks_collection.find_one({"code": bank_code, "is_active": True})
-                    if bank and bank.get("logo_base64"):
+                    if bank:
+                        logger.info(f"🔍 Found bank in database: {bank.get('name')} (code: {bank_code})")
                         logo_base64 = bank.get("logo_base64")
                         # Validate logo_base64
                         if logo_base64 and isinstance(logo_base64, str) and logo_base64.strip():
                             # ถ้ามี base64 ให้ return เป็น data URI
                             if logo_base64.startswith('data:'):
-                                logger.info(f"✅ Found logo for bank {bank_code} (data URI format)")
+                                logger.info(f"✅ Found logo for bank {bank_code} (data URI format, length: {len(logo_base64)})")
                                 return logo_base64
                             else:
                                 logger.info(f"✅ Found logo for bank {bank_code} (base64 format, length: {len(logo_base64)})")
                                 return f"data:image/png;base64,{logo_base64}"
+                        else:
+                            logger.warning(f"⚠️ Bank {bank_code} found but logo_base64 is empty or invalid")
+                    else:
+                        logger.warning(f"⚠️ Bank code {bank_code} not found in database")
                 except Exception as query_error:
                     error_info = f"Query error for bank_code {bank_code}: {str(query_error)}"
                     logger.warning(f"⚠️ {error_info}")
@@ -111,6 +116,7 @@ def get_bank_logo(bank_code: str = None, bank_name: str = None, db=None) -> str:
     
     # Fallback to hardcoded logos
     if bank_code and bank_code in BANK_LOGOS:
+        logger.info(f"📦 Using hardcoded logo for bank code {bank_code}")
         return BANK_LOGOS[bank_code]
     if bank_name:
         bn = bank_name.upper()
@@ -307,8 +313,20 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
             receiver_bank = receiver.get("bank", {}).get("short", "") or receiver.get("bank", {}).get("name", "")
         
         # Get bank logos (pass db parameter for database lookup)
+        logger.info(f"🏛️ Getting bank logos for sender '{sender_bank}' (code: {sender_bank_code}) and receiver '{receiver_bank}' (code: {receiver_bank_code})")
         sender_bank_logo = get_bank_logo(sender_bank_code, sender_bank, db=db)
         receiver_bank_logo = get_bank_logo(receiver_bank_code, receiver_bank, db=db)
+        
+        # ✅ Validate that we got logos
+        if sender_bank_logo:
+            logger.info(f"✅ Sender bank logo retrieved: {sender_bank_logo[:80]}...")
+        else:
+            logger.error(f"❌ Sender bank logo is None!")
+            
+        if receiver_bank_logo:
+            logger.info(f"✅ Receiver bank logo retrieved: {receiver_bank_logo[:80]}...")
+        else:
+            logger.error(f"❌ Receiver bank logo is None!")
         
         # Get verified time
         import pytz
@@ -412,7 +430,29 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
                 body_contents.insert(1, duplicate_warning)
                 logger.info(f"⚠️ Added duplicate warning to flex message")
         
-        logger.info(f"✅ Flex template rendered successfully")
+        # ✅ FINAL STEP: Remove invalid 'size' from non-text/image components before returning
+        # LINE API rejects flex messages with 'size' on box/separator/etc
+        def quick_sanitize(obj):
+            """Quick sanitize to remove 'size' from invalid components"""
+            if isinstance(obj, dict):
+                cleaned = {}
+                comp_type = obj.get('type', '')
+                for key, value in obj.items():
+                    if key == 'size':
+                        # Only keep size for text, image, bubble components
+                        if comp_type in ['text', 'image', 'bubble']:
+                            cleaned[key] = value
+                        # Remove size for all other types (box, separator, spacer, etc)
+                    else:
+                        cleaned[key] = quick_sanitize(value)
+                return cleaned
+            elif isinstance(obj, list):
+                return [quick_sanitize(item) for item in obj]
+            return obj
+        
+        # Apply quick sanitization
+        rendered_flex = quick_sanitize(rendered_flex)
+        logger.info(f"✅ Flex template rendered and sanitized successfully")
         return {"type": "flex", "altText": f"ยืนยันการชำระเงิน {amount_display}", "contents": rendered_flex}
     except Exception as e:
         logger.error(f"❌ Error rendering flex template: {e}", exc_info=True)
