@@ -124,7 +124,7 @@
                     {
                       "type": "image",
                       "url": "{{sender_bank_logo}}",
-                      "size": "72px",
+                      "size": "lg",
                       "aspectRatio": "1:1",
                       "aspectMode": "cover"
                     }
@@ -217,7 +217,7 @@
                     {
                       "type": "image",
                       "url": "{{receiver_bank_logo}}",
-                      "size": "72px",
+                      "size": "lg",
                       "aspectRatio": "1:1",
                       "aspectMode": "cover"
                     }
@@ -466,7 +466,7 @@
                     {
                       "type": "image",
                       "url": "{{sender_bank_logo}}",
-                      "size": "80px",
+                      "size": "xl",
                       "aspectRatio": "1:1",
                       "aspectMode": "cover"
                     }
@@ -560,7 +560,7 @@
                     {
                       "type": "image",
                       "url": "{{receiver_bank_logo}}",
-                      "size": "80px",
+                      "size": "xl",
                       "aspectRatio": "1:1",
                       "aspectMode": "cover"
                     }
@@ -846,7 +846,7 @@
                     {
                       "type": "image",
                       "url": "{{sender_bank_logo}}",
-                      "size": "68px",
+                      "size": "md",
                       "aspectRatio": "1:1",
                       "aspectMode": "cover"
                     }
@@ -940,7 +940,7 @@
                     {
                       "type": "image",
                       "url": "{{receiver_bank_logo}}",
-                      "size": "68px",
+                      "size": "md",
                       "aspectRatio": "1:1",
                       "aspectMode": "cover"
                     }

@@ -109,7 +109,7 @@
                 {
                   "type": "image",
                   "url": "{{sender_bank_logo}}",
-                  "size": "64px",
+                  "size": "md",
                   "aspectRatio": "1:1",
                   "aspectMode": "cover"
                 }
@@ -195,7 +195,7 @@
                 {
                   "type": "image",
                   "url": "{{receiver_bank_logo}}",
-                  "size": "64px",
+                  "size": "md",
                   "aspectRatio": "1:1",
                   "aspectMode": "cover"
                 }

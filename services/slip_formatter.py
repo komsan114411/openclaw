@@ -623,7 +623,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
                         "type": "box",
                         "layout": "horizontal",
                         "contents": [
-                            {"type": "image", "url": s_logo, "size": "48px", "aspectRatio": "1:1", "flex": 0},
+                            {"type": "image", "url": s_logo, "size": "sm", "aspectRatio": "1:1", "flex": 0},
                             {
                                 "type": "box",
                                 "layout": "vertical",
@@ -643,7 +643,7 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
                         "type": "box",
                         "layout": "horizontal",
                         "contents": [
-                            {"type": "image", "url": r_logo, "size": "48px", "aspectRatio": "1:1", "flex": 0},
+                            {"type": "image", "url": r_logo, "size": "sm", "aspectRatio": "1:1", "flex": 0},
                             {
                                 "type": "box",
                                 "layout": "vertical",
