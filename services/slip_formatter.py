@@ -243,6 +243,17 @@ def render_flex_template_with_data(flex_template: Dict[str, Any], result: Dict[s
         import json
         import copy
         
+        # Validate inputs
+        if not flex_template:
+            logger.error(f"❌ flex_template is None or empty")
+            return None
+        
+        if not result:
+            logger.error(f"❌ result is None or empty")
+            return None
+        
+        logger.info(f"🎨 Rendering flex template with data (db={'provided' if db else 'NOT PROVIDED'})")
+        
         data = result.get("data", {}) or {}
         
         # Extract amount
@@ -421,15 +432,21 @@ def create_beautiful_slip_flex_message(result: Dict[str, Any], template_id: str 
         if template_id and db is not None:
             try:
                 from bson import ObjectId
+                logger.info(f"🔍 Looking for template ID: {template_id}")
                 template = db.slip_templates.find_one({"_id": ObjectId(template_id)})
                 if template and template.get("template_flex"):
                     logger.info(f"🎯 Using custom template: {template.get('template_name')}")
                     rendered = render_flex_template_with_data(template["template_flex"], result, db=db)
                     if rendered:
+                        logger.info(f"✅ Template rendered successfully: {template.get('template_name')}")
                         return rendered
-                    logger.warning(f"⚠️ Template rendering failed, using default")
+                    logger.warning(f"⚠️ Template rendering failed, using default template")
+                elif template:
+                    logger.warning(f"⚠️ Template {template_id} found but has no flex data, using default")
+                else:
+                    logger.warning(f"⚠️ Template {template_id} not found in database, using default")
             except Exception as e:
-                logger.warning(f"⚠️ Could not use custom template: {e}")
+                logger.error(f"❌ Error loading template {template_id}: {e}")
                 import traceback
                 traceback.print_exc()
         

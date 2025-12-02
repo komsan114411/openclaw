@@ -3307,10 +3307,27 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
                 # Use flex message template
                 template_flex = template.get("template_flex")
                 if template_flex:
-                    # Render flex template with data
-                    flex_message = render_flex_template(template_flex, result)
-                    messages = [{"type": "flex", "altText": "ตรวจสอบสลิป", "contents": flex_message}]
+                    # ✅ FIX: Use render_flex_template_with_data from slip_formatter.py
+                    # This properly passes the db parameter for bank logo lookup
+                    from services.slip_formatter import render_flex_template_with_data
+                    
+                    logger.info(f"🎨 Rendering flex template with selected template")
+                    flex_message = render_flex_template_with_data(
+                        flex_template=template_flex,
+                        result=result,
+                        db=app.state.db  # ✅ Pass db parameter for bank logo lookup
+                    )
+                    
+                    if flex_message:
+                        messages = [flex_message]
+                        logger.info(f"✅ Flex template rendered successfully with bank logos")
+                    else:
+                        logger.warning(f"⚠️ render_flex_template_with_data returned None, using fallback")
+                        # Fallback to default flex message
+                        flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
+                        messages = [flex_message]
                 else:
+                    logger.warning(f"⚠️ Template has no flex data, using fallback")
                     # Fallback to default flex message
                     flex_message = create_beautiful_slip_flex_message(result, slip_template_id, app.state.db)
                     messages = [flex_message]
