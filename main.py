@@ -2611,15 +2611,34 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         
         # Send result with template using reply token (if still valid) or push message
         slip_template_id = settings.get("slip_template_id")
+        
+        # ✅ CRITICAL: Add logging and fallback for template selection
+        if slip_template_id:
+            logger.info(f"🎭 Template ID from account settings: {slip_template_id}")
+        else:
+            logger.warning(f"⚠️ No slip_template_id in account settings, will try to get default template")
+            # Try to get default template from database
+            try:
+                default_template = app.state.slip_template_model.get_default_template(account.get("channel_id"))
+                if default_template:
+                    slip_template_id = str(default_template["_id"])
+                    logger.info(f"🎭 Using default template from database: {slip_template_id}")
+                else:
+                    logger.warning(f"⚠️ No default template found for channel {account.get('channel_id')}")
+            except Exception as template_error:
+                logger.error(f"❌ Error getting default template: {template_error}")
+        
         # Try to use reply token first (if not consumed by processing message), fallback to push if needed
         if reply_token:
             try:
+                logger.info(f"📤 Sending slip result via reply token (template_id: {slip_template_id})")
                 await send_slip_result_reply(reply_token, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
                 logger.info("✅ Sent result using reply token")
             except Exception as reply_error:
                 logger.warning(f"⚠️ Failed to send via reply token (may have expired or been consumed): {reply_error}")
                 # Fallback to push message
                 try:
+                    logger.info(f"📤 Retrying with push message (template_id: {slip_template_id})")
                     await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
                     logger.info("✅ Sent result using push message (fallback)")
                 except Exception as push_error:
@@ -2627,6 +2646,7 @@ async def handle_image_message(message_id: str, reply_token: str, user_id: str, 
         else:
             # Reply token was consumed, use push message
             try:
+                logger.info(f"📤 Sending slip result via push message (template_id: {slip_template_id})")
                 await send_slip_result(user_id, result, account["channel_access_token"], account.get("channel_id"), slip_template_id)
                 logger.info("✅ Sent result using push message (reply_token was consumed)")
             except Exception as push_error:
