@@ -344,29 +344,59 @@ async function loadQuotaInfo() {
         
         const data = await response.json();
         if (data.success) {
-            const quota = data.quota;
+            const quota = data.quota || {};
             const totalSlips = quota.total_slips || 0;
             const usedSlips = quota.total_used || 0;
-            const remainingSlips = quota.remaining_slips || quota.available_slips || 0;
+            const remainingSlips = quota.remaining_slips || 0;
+            const reservedSlips = quota.total_reserved || 0;
+            const daysRemaining = quota.days_remaining || 0;
+            const expiryDate = quota.expiry_date;
             const warningThreshold = 10; // Default warning threshold
             
-            // Update quota card
-            document.getElementById('quotaRemaining').textContent = remainingSlips.toLocaleString();
+            console.log('Quota details:', { totalSlips, usedSlips, remainingSlips, reservedSlips, daysRemaining, status: quota.status });
+            
+            // Update quota card with detailed info
+            document.getElementById('quotaRemaining').innerHTML = `
+                <div>${remainingSlips.toLocaleString()}</div>
+                <small style="font-size: 0.7em; opacity: 0.8;">คงเหลือ</small>
+            `;
             document.getElementById('quotaUsed').textContent = usedSlips.toLocaleString();
             document.getElementById('quotaTotal').textContent = totalSlips.toLocaleString();
             
-            // Update progress bar
+            // Update progress bar (show used percentage)
             const progressPercent = totalSlips > 0 ? Math.min((usedSlips / totalSlips) * 100, 100) : 0;
             const progressBar = document.getElementById('quotaProgress');
             progressBar.style.width = progressPercent + '%';
+            progressBar.setAttribute('title', `ใช้ไปแล้ว: ${usedSlips.toLocaleString()} สลิป${reservedSlips > 0 ? `, จองไว้: ${reservedSlips.toLocaleString()} สลิป` : ''}`);
             
             // Change color based on usage
-            if (progressPercent >= 90) {
+            const quotaCard = document.getElementById('quotaCard');
+            quotaCard.classList.remove('red', 'orange', 'green');
+            if (remainingSlips === 0 || progressPercent >= 100) {
                 progressBar.style.background = '#ef4444';
-                document.getElementById('quotaCard').classList.add('red');
-            } else if (progressPercent >= 70) {
+                quotaCard.classList.add('red');
+            } else if (remainingSlips <= 10 || progressPercent >= 90) {
                 progressBar.style.background = '#f59e0b';
-                document.getElementById('quotaCard').classList.add('orange');
+                quotaCard.classList.add('orange');
+            } else {
+                progressBar.style.background = '#8b5cf6';
+                quotaCard.classList.add('green');
+            }
+            
+            // Show days remaining info
+            if (daysRemaining > 0 && expiryDate) {
+                const expDate = new Date(expiryDate).toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const quotaChange = document.querySelector('#quotaCard .stat-card-change');
+                if (quotaChange) {
+                    quotaChange.innerHTML = `
+                        <div>${usedSlips.toLocaleString()} / ${totalSlips.toLocaleString()} สลิป</div>
+                        <small style="font-size: 0.85em; opacity: 0.8;">เหลืออีก ${daysRemaining} วัน (หมดอายุ: ${expDate})</small>
+                    `;
+                }
             }
             
             // Show warning if low quota
@@ -382,6 +412,17 @@ async function loadQuotaInfo() {
                     warningText.textContent = `⚠️ โควต้าสลิปเหลือเพียง ${remainingSlips} สลิป กรุณาอัพเกรดแพ็คเกจ`;
                 }
                 warningAlert.style.display = 'block';
+            } else {
+                document.getElementById('quotaWarningAlert').style.display = 'none';
+            }
+            
+            // Show status message
+            if (quota.status === 'no_active_subscription') {
+                document.getElementById('quotaRemaining').innerHTML = '<div>0</div><small>ไม่มีแพ็คเกจ</small>';
+                quotaCard.classList.add('red');
+            } else if (quota.status === 'expired') {
+                document.getElementById('quotaRemaining').innerHTML = '<div>0</div><small>หมดอายุ</small>';
+                quotaCard.classList.add('red');
             }
         }
     } catch (error) {

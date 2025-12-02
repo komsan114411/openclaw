@@ -66,18 +66,35 @@ class SubscriptionModel:
     
     def get_active_subscriptions(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all active subscriptions for a user"""
-        subscriptions = list(self.collection.find({
-            "user_id": user_id,
-            "status": "active",
-            "end_date": {"$gt": datetime.now()}
-        }).sort("end_date", -1))
-        
-        for sub in subscriptions:
-            sub["_id"] = str(sub["_id"])
-            # Migrate old subscriptions to new format
-            sub = self._migrate_subscription(sub)
+        try:
+            now = datetime.now()
+            subscriptions = list(self.collection.find({
+                "user_id": user_id,
+                "status": "active",
+                "end_date": {"$gt": now}
+            }).sort("end_date", -1))
             
-        return subscriptions
+            # If no active subscriptions found, check if there are any subscriptions at all
+            if not subscriptions:
+                # Check for subscriptions that might be expired but not marked as expired
+                all_subs = list(self.collection.find({
+                    "user_id": user_id,
+                    "status": "active"
+                }).sort("end_date", -1))
+                
+                # Filter out truly expired ones
+                subscriptions = [sub for sub in all_subs if sub.get("end_date") and sub["end_date"] > now]
+            
+            for sub in subscriptions:
+                sub["_id"] = str(sub["_id"])
+                # Migrate old subscriptions to new format
+                sub = self._migrate_subscription(sub)
+                
+            logger.info(f"✅ Found {len(subscriptions)} active subscriptions for user {user_id}")
+            return subscriptions
+        except Exception as e:
+            logger.error(f"❌ Error getting active subscriptions: {e}", exc_info=True)
+            return []
     
     def get_subscription_by_id(self, subscription_id: str) -> Optional[Dict[str, Any]]:
         """Get subscription by ID"""

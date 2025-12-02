@@ -24,12 +24,12 @@
 </div>
 
 <!-- Subscribe Modal -->
-<div class="modal fade" id="subscribeModal" tabindex="-1">
+<div class="modal fade" id="subscribeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">ชำระเงิน</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" onclick="closeSubscribeModal()"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="selectedPackageId">
@@ -127,10 +127,36 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        subscribeModal = new bootstrap.Modal(document.getElementById('subscribeModal'));
+        const modalElement = document.getElementById('subscribeModal');
+        subscribeModal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: false
+        });
+        
+        // Prevent modal from closing on backdrop click
+        modalElement.addEventListener('hide.bs.modal', function (event) {
+            // Only allow closing if explicitly requested
+            if (!event.target.dataset.allowClose) {
+                event.preventDefault();
+                return false;
+            }
+        });
+        
         loadPackages();
         loadBankAccounts();
     });
+    
+    function closeSubscribeModal() {
+        const modalElement = document.getElementById('subscribeModal');
+        modalElement.dataset.allowClose = 'true';
+        if (subscribeModal) {
+            subscribeModal.hide();
+        }
+        // Reset after a short delay
+        setTimeout(() => {
+            modalElement.dataset.allowClose = '';
+        }, 100);
+    }
 
     async function loadPackages() {
         try {
@@ -373,7 +399,7 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    subscribeModal.hide();
+                    closeSubscribeModal();
                     if (result.needs_review) {
                         // Payment needs manual review
                         showAlert('รับข้อมูลการชำระเงินแล้ว รอการตรวจสอบจากผู้ดูแลระบบ', 'warning');
@@ -430,7 +456,7 @@
             const result = await response.json();
 
             if (result.success) {
-                subscribeModal.hide();
+                closeSubscribeModal();
                 showAlert('แจ้งชำระเงินเรียบร้อย กรุณารอการตรวจสอบ', 'success');
                 setTimeout(() => {
                     window.location.href = '/user/dashboard';

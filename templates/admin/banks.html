@@ -45,12 +45,12 @@
 </div>
 
 <!-- Edit Bank Modal -->
-<div class="modal fade" id="editBankModal" tabindex="-1">
+<div class="modal fade" id="editBankModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">แก้ไขธนาคาร</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" onclick="closeBankModal()"></button>
             </div>
             <div class="modal-body">
                 <form id="editBankForm">
@@ -100,7 +100,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-secondary" onclick="closeBankModal()">ยกเลิก</button>
                 <button type="button" class="btn btn-primary" onclick="saveBankChanges()">บันทึก</button>
             </div>
         </div>
@@ -320,7 +320,27 @@ function editBank(bankId) {
     document.getElementById('editBankLogo').value = '';
     
     // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('editBankModal'));
+    const modalElement = document.getElementById('editBankModal');
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: 'static',
+        keyboard: false
+    });
+    
+    // Prevent modal from closing on backdrop click
+    modalElement.addEventListener('hide.bs.modal', function (event) {
+        if (!event.target.dataset.allowClose) {
+            event.preventDefault();
+            return false;
+        }
+    });
+    
+    function closeBankModal() {
+        modalElement.dataset.allowClose = 'true';
+        modal.hide();
+        setTimeout(() => {
+            modalElement.dataset.allowClose = '';
+        }, 100);
+    }
     modal.show();
 }
 
@@ -361,7 +381,7 @@ async function saveBankChanges() {
         if (!response.ok) throw new Error('Failed to update bank');
         
         // Close modal
-        bootstrap.Modal.getInstance(document.getElementById('editBankModal')).hide();
+        closeBankModal();
         
         // Reload banks
         await loadBanks();

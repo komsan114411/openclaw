@@ -104,17 +104,48 @@
 
             if (data.success) {
                 const q = data.quota || {};
+                
+                console.log('Quota data:', q); // Debug log
 
-                // Slip Quota
+                // Slip Quota - ใช้ remaining_slips สำหรับแสดงผล
                 const remaining = q.remaining_slips || 0;
                 const total = q.total_slips || 0;
-                document.getElementById('slipQuota').innerText = `${remaining.toLocaleString()} / ${total.toLocaleString()}`;
+                const used = q.total_used || 0;
+                const reserved = q.total_reserved || 0;
+                const available = q.available_slips || 0;
+                
+                // แสดงข้อมูลที่ชัดเจน
+                document.getElementById('slipQuota').innerHTML = `
+                    <div class="mb-1">${remaining.toLocaleString()} / ${total.toLocaleString()}</div>
+                    <small class="text-muted">คงเหลือ / ทั้งหมด</small>
+                `;
+                
+                // แสดงรายละเอียดเพิ่มเติม
+                const slipDetails = document.getElementById('slipProgress');
+                slipDetails.setAttribute('title', `ใช้ไปแล้ว: ${used.toLocaleString()} สลิป${reserved > 0 ? `, จองไว้: ${reserved.toLocaleString()} สลิป` : ''}`);
+                
                 const slipPercent = total > 0 ? (remaining / total) * 100 : 0;
-                document.getElementById('slipProgress').style.width = `${slipPercent}%`;
+                slipDetails.style.width = `${slipPercent}%`;
+                
+                // เปลี่ยนสี progress bar ตามสถานะ
+                if (remaining === 0) {
+                    slipDetails.classList.remove('bg-primary');
+                    slipDetails.classList.add('bg-danger');
+                } else if (remaining < total * 0.2) {
+                    slipDetails.classList.remove('bg-primary');
+                    slipDetails.classList.add('bg-warning');
+                } else {
+                    slipDetails.classList.remove('bg-danger', 'bg-warning');
+                    slipDetails.classList.add('bg-primary');
+                }
 
                 // Days Remaining
                 const daysRemaining = q.days_remaining || 0;
-                document.getElementById('daysRemaining').innerText = `${daysRemaining} วัน`;
+                document.getElementById('daysRemaining').innerHTML = `
+                    <div class="mb-1">${daysRemaining}</div>
+                    <small class="text-muted">วัน</small>
+                `;
+                
                 if (q.expiry_date) {
                     const expDate = new Date(q.expiry_date).toLocaleDateString('th-TH', {
                         year: 'numeric', month: 'long', day: 'numeric'
@@ -123,7 +154,37 @@
                 } else {
                     document.getElementById('expireDate').innerText = 'ไม่มีวันหมดอายุ';
                 }
-                document.getElementById('daysProgress').style.width = '100%';
+                
+                // Days progress bar
+                const daysProgress = document.getElementById('daysProgress');
+                if (q.expiry_date) {
+                    const totalDays = Math.ceil((new Date(q.expiry_date) - new Date(q.start_date || Date.now())) / (1000 * 60 * 60 * 24));
+                    const daysPercent = totalDays > 0 ? (daysRemaining / totalDays) * 100 : 100;
+                    daysProgress.style.width = `${Math.max(0, daysPercent)}%`;
+                    
+                    // เปลี่ยนสีตามสถานะ
+                    if (daysRemaining <= 0) {
+                        daysProgress.classList.remove('bg-success');
+                        daysProgress.classList.add('bg-danger');
+                    } else if (daysRemaining <= 7) {
+                        daysProgress.classList.remove('bg-success');
+                        daysProgress.classList.add('bg-warning');
+                    } else {
+                        daysProgress.classList.remove('bg-danger', 'bg-warning');
+                        daysProgress.classList.add('bg-success');
+                    }
+                } else {
+                    daysProgress.style.width = '100%';
+                }
+                
+                // แสดงสถานะ
+                if (q.status === 'no_active_subscription') {
+                    showAlert('คุณยังไม่มีแพ็คเกจที่ใช้งานอยู่', 'warning');
+                } else if (q.status === 'quota_exceeded') {
+                    showAlert('โควต้าสลิปหมดแล้ว กรุณาอัปเกรดแพ็คเกจ', 'danger');
+                } else if (q.status === 'expired') {
+                    showAlert('แพ็คเกจหมดอายุแล้ว กรุณาต่ออายุ', 'warning');
+                }
             } else {
                 showAlert('เกิดข้อผิดพลาด: ' + (data.message || 'ไม่สามารถโหลดข้อมูลได้'), 'danger');
             }
