@@ -2824,8 +2824,9 @@ def sanitize_flex_message(obj: Any) -> Any:
     Sanitize Flex Message to fix invalid properties before sending to LINE API
     - Fixes invalid 'size' values (e.g., '68px' -> 'md') for 'text' components
     - Validates 'size' property for 'image' and 'bubble' components
-    - Removes 'size' property from invalid components (box, etc.)
+    - Removes 'size' property from invalid components (box, separator, etc.)
     - Recursively processes all nested objects and arrays
+    - IMPORTANT: Sanitizes nested structures FIRST, then validates size property
     """
     # Valid text sizes for LINE Flex Message
     VALID_TEXT_SIZES = {'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', '3xl', '4xl', '5xl', 'full'}
@@ -2876,43 +2877,47 @@ def sanitize_flex_message(obj: Any) -> Any:
         return pixel_size
     
     if isinstance(obj, dict):
-        result = {}
-        component_type = obj.get('type', '')
-        
+        # First, recursively sanitize all nested structures (including 'size' in nested objects)
+        sanitized_obj = {}
         for key, value in obj.items():
-            if key == 'size':
-                # 'size' property validation based on component type
-                if component_type == 'text' and isinstance(value, str):
-                    # Fix invalid size values for text components
-                    result[key] = convert_pixel_size(value)
-                elif component_type == 'image' and isinstance(value, str):
-                    # Validate image size (must be one of valid image sizes)
-                    if value.lower() in VALID_IMAGE_SIZES:
-                        result[key] = value
-                    else:
-                        # Convert or use default
-                        result[key] = convert_pixel_size(value)
-                elif component_type == 'bubble' and isinstance(value, str):
-                    # Validate bubble size (must be one of valid bubble sizes)
-                    if value.lower() in VALID_BUBBLE_SIZES:
-                        result[key] = value
-                    else:
-                        # Use default if invalid
-                        logger.warning(f"⚠️ Invalid bubble size: {value}, using 'mega' as default")
-                        result[key] = 'mega'
-                elif component_type in ['box', 'separator', 'spacer', 'button', 'filler']:
-                    # 'size' is NOT valid for these components - remove it
-                    logger.warning(f"⚠️ Removing invalid 'size' property from {component_type} component")
-                    continue  # Don't add to result
+            if key != 'size':  # Process everything except 'size' first
+                sanitized_obj[key] = sanitize_flex_message(value)
+        
+        # Now check and handle 'size' property based on component type
+        # IMPORTANT: Only text, image, and bubble components can have 'size' property
+        if 'size' in obj:
+            component_type = sanitized_obj.get('type', '')
+            size_value = obj['size']
+            
+            # Only allow 'size' for specific component types
+            if component_type == 'text' and isinstance(size_value, str):
+                # Fix invalid size values for text components
+                sanitized_obj['size'] = convert_pixel_size(size_value)
+            elif component_type == 'image' and isinstance(size_value, str):
+                # Validate image size
+                if size_value.lower() in VALID_IMAGE_SIZES:
+                    sanitized_obj['size'] = size_value
                 else:
-                    # For unknown component types or non-string values, keep as-is but log warning
-                    if component_type:
-                        logger.warning(f"⚠️ Unknown component type '{component_type}' with 'size' property: {value}")
-                    result[key] = value
+                    # Convert or use default
+                    sanitized_obj['size'] = convert_pixel_size(size_value)
+            elif component_type == 'bubble' and isinstance(size_value, str):
+                # Validate bubble size
+                if size_value.lower() in VALID_BUBBLE_SIZES:
+                    sanitized_obj['size'] = size_value
+                else:
+                    # Use default if invalid
+                    logger.warning(f"⚠️ Invalid bubble size: {size_value}, using 'mega' as default")
+                    sanitized_obj['size'] = 'mega'
             else:
-                # Recursively process nested objects
-                result[key] = sanitize_flex_message(value)
-        return result
+                # For ALL other component types (box, separator, spacer, button, filler, or unknown)
+                # 'size' is NOT valid - remove it
+                if component_type:
+                    logger.warning(f"⚠️ Removing invalid 'size' property from {component_type} component")
+                else:
+                    logger.warning(f"⚠️ Removing 'size' property from component without type (likely nested structure)")
+                # Don't add 'size' to sanitized_obj - it's invalid for this component type
+        
+        return sanitized_obj
     elif isinstance(obj, list):
         # Process each item in the list
         return [sanitize_flex_message(item) for item in obj]
@@ -3026,6 +3031,9 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
         # Deep copy template to avoid modifying original
         flex_copy = copy.deepcopy(flex_template)
         
+        # Sanitize template FIRST to remove any invalid properties before rendering
+        flex_copy = sanitize_flex_message(flex_copy)
+        
         # Convert to JSON string, replace, and convert back
         flex_json = json.dumps(flex_copy)
         for key, value in replacement_data.items():
@@ -3124,6 +3132,9 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
                         if isinstance(body, dict) and "contents" in body:
                             body_contents = body["contents"]
             
+            # Sanitize warning block before adding
+            duplicate_warning_block = sanitize_flex_message(duplicate_warning_block)
+            
             # Add warning block if body_contents found
             if body_contents and isinstance(body_contents, list):
                 body_contents.insert(0, duplicate_warning_block)
@@ -3131,7 +3142,10 @@ def render_flex_template(flex_template: Dict[str, Any], result: Dict[str, Any]) 
             else:
                 logger.warning("⚠️ Could not find body.contents to add duplicate warning block - template structure may be different")
         
-        # Sanitize flex message to fix invalid properties (e.g., '68px' -> 'md')
+        # Sanitize flex message AGAIN after all modifications to ensure everything is clean
+        # This is important because template might have invalid properties and we added warning block
+        rendered_flex = sanitize_flex_message(rendered_flex)
+        # Sanitize one more time to catch any nested issues
         rendered_flex = sanitize_flex_message(rendered_flex)
         
         logger.info(f"✅ Flex template rendered successfully")
@@ -3383,10 +3397,15 @@ def _prepare_slip_messages(result: Dict[str, Any], channel_id: str = None, slip_
         }]
     
     # Sanitize all flex messages before returning
+    # Sanitize multiple times to ensure deeply nested structures are cleaned
     sanitized_messages = []
     for msg in messages:
         if msg.get("type") == "flex" and msg.get("contents"):
-            msg["contents"] = sanitize_flex_message(msg["contents"])
+            # Sanitize multiple times to catch all nested invalid properties
+            sanitized_contents = sanitize_flex_message(msg["contents"])
+            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Second pass
+            sanitized_contents = sanitize_flex_message(sanitized_contents)  # Third pass for deeply nested
+            msg["contents"] = sanitized_contents
         sanitized_messages.append(msg)
     messages = sanitized_messages
     
