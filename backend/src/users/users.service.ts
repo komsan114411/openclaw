@@ -1,15 +1,19 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument, UserRole } from '../database/schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Session, SessionDocument } from '../database/schemas/session.schema';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
+    private redisService: RedisService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
@@ -85,6 +89,9 @@ export class UsersService {
     user.blockedBy = adminId;
     user.blockedReason = reason || '';
     await user.save();
+
+    // Invalidate all sessions for this user (force logout)
+    await this.invalidateUserSessions(id);
   }
 
   async unblockUser(id: string): Promise<void> {
@@ -95,6 +102,22 @@ export class UsersService {
     user.blockedBy = undefined as any;
     user.blockedReason = undefined as any;
     await user.save();
+  }
+
+  /**
+   * Invalidate all sessions for a user (force logout everywhere)
+   */
+  private async invalidateUserSessions(userId: string): Promise<number> {
+    const sessions = await this.sessionModel.find({ userId });
+    
+    // Delete from Redis first
+    for (const session of sessions) {
+      await this.redisService.deleteSession(session.sessionId);
+    }
+    
+    // Then delete from database
+    const result = await this.sessionModel.deleteMany({ userId });
+    return result.deletedCount;
   }
 
   async addLineAccountToUser(userId: string, lineAccountId: string): Promise<void> {

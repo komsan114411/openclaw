@@ -144,8 +144,9 @@ export class PaymentsController {
       return { success: false, message: 'Payment not found' };
     }
 
-    // Check ownership for non-admin
-    if (user.role !== UserRole.ADMIN && payment.userId !== user.userId) {
+    // Check ownership for non-admin (handle both ObjectId and string)
+    const paymentUserId = payment.userId?.toString() || payment.userId;
+    if (user.role !== UserRole.ADMIN && paymentUserId !== user.userId) {
       return { success: false, message: 'Access denied' };
     }
 

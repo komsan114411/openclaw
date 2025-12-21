@@ -241,4 +241,31 @@ export class AuthService {
       return null;
     }
   }
+
+  /**
+   * Cleanup expired sessions from database
+   * Should be called periodically (e.g., via cron job or scheduled task)
+   */
+  async cleanupExpiredSessions(): Promise<number> {
+    const result = await this.sessionModel.deleteMany({
+      expiresAt: { $lt: new Date() },
+    });
+    return result.deletedCount;
+  }
+
+  /**
+   * Invalidate all sessions for a user (e.g., after password change or block)
+   */
+  async invalidateUserSessions(userId: string): Promise<number> {
+    const sessions = await this.sessionModel.find({ userId });
+    
+    // Delete from Redis first
+    for (const session of sessions) {
+      await this.redisService.deleteSession(session.sessionId);
+    }
+    
+    // Then delete from database
+    const result = await this.sessionModel.deleteMany({ userId });
+    return result.deletedCount;
+  }
 }

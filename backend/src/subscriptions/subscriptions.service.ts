@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Subscription, SubscriptionDocument, SubscriptionStatus } from '../database/schemas/subscription.schema';
 import { PackagesService } from '../packages/packages.service';
+
+// Maximum quota per subscription to prevent overflow
+const MAX_QUOTA_PER_SUBSCRIPTION = 10_000_000;
 
 export interface QuotaInfo {
   hasQuota: boolean;
@@ -15,6 +18,8 @@ export interface QuotaInfo {
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly logger = new Logger(SubscriptionsService.name);
+
   constructor(
     @InjectModel(Subscription.name) private subscriptionModel: Model<SubscriptionDocument>,
     @Inject(forwardRef(() => PackagesService))
@@ -50,33 +55,50 @@ export class SubscriptionsService {
     return subscription.save();
   }
 
+  /**
+   * Add quota to existing subscription or create new one
+   * Uses atomic operation to prevent race conditions
+   */
   async addQuotaToExisting(userId: string, packageId: string, paymentId?: string): Promise<boolean> {
     const pkg = await this.packagesService.findById(packageId);
     if (!pkg) {
       throw new NotFoundException('Package not found');
     }
 
-    // Find active subscription
-    const activeSub = await this.subscriptionModel.findOne({
-      userId,
-      status: SubscriptionStatus.ACTIVE,
-      endDate: { $gt: new Date() },
-    });
+    // Validate package quota
+    if (!pkg.slipQuota || pkg.slipQuota <= 0) {
+      throw new BadRequestException('Invalid package quota');
+    }
 
-    if (activeSub) {
-      // Add quota to existing subscription
-      activeSub.slipsQuota += pkg.slipQuota;
-      // Extend end date
-      const newEndDate = new Date(activeSub.endDate);
-      newEndDate.setDate(newEndDate.getDate() + pkg.durationDays);
-      activeSub.endDate = newEndDate;
-      await activeSub.save();
-      return true;
-    } else {
-      // Create new subscription
-      await this.createSubscription(userId, packageId, paymentId);
+    // Find active subscription and update atomically
+    const newEndDate = new Date();
+    newEndDate.setDate(newEndDate.getDate() + pkg.durationDays);
+
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        userId,
+        status: SubscriptionStatus.ACTIVE,
+        endDate: { $gt: new Date() },
+        // Prevent overflow - ensure new quota won't exceed maximum
+        slipsQuota: { $lte: MAX_QUOTA_PER_SUBSCRIPTION - pkg.slipQuota },
+      },
+      {
+        $inc: { slipsQuota: pkg.slipQuota },
+        // Extend end date: use $max to ensure we always extend, not shorten
+        $max: { endDate: newEndDate },
+      },
+      { new: true },
+    );
+
+    if (result) {
+      this.logger.log(`Added ${pkg.slipQuota} quota to existing subscription for user ${userId}`);
       return true;
     }
+
+    // No active subscription found or would overflow - create new one
+    await this.createSubscription(userId, packageId, paymentId);
+    this.logger.log(`Created new subscription with ${pkg.slipQuota} quota for user ${userId}`);
+    return true;
   }
 
   async checkQuota(userId: string): Promise<QuotaInfo> {
@@ -112,61 +134,144 @@ export class SubscriptionsService {
     };
   }
 
+  /**
+   * Use quota directly (atomic operation to prevent race conditions)
+   */
   async useQuota(userId: string, amount = 1): Promise<boolean> {
-    const activeSubscription = await this.subscriptionModel.findOne({
-      userId,
-      status: SubscriptionStatus.ACTIVE,
-      endDate: { $gt: new Date() },
-      $expr: { $lt: [{ $add: ['$slipsUsed', '$slipsReserved'] }, '$slipsQuota'] },
-    });
+    if (amount <= 0) return false;
 
-    if (!activeSubscription) {
+    // Use findOneAndUpdate for atomic operation to prevent race conditions
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        userId,
+        status: SubscriptionStatus.ACTIVE,
+        endDate: { $gt: new Date() },
+        // Check that used + reserved + amount <= quota
+        $expr: { $lte: [{ $add: ['$slipsUsed', '$slipsReserved', amount] }, '$slipsQuota'] },
+      },
+      {
+        $inc: { slipsUsed: amount },
+      },
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.warn(`useQuota failed for user ${userId}: no available quota`);
       return false;
     }
 
-    activeSubscription.slipsUsed += amount;
-    await activeSubscription.save();
     return true;
   }
 
+  /**
+   * Reserve quota (atomic operation to prevent race conditions)
+   * Returns subscription ID if successful, null otherwise
+   */
   async reserveQuota(userId: string, amount = 1): Promise<string | null> {
-    const activeSubscription = await this.subscriptionModel.findOne({
-      userId,
-      status: SubscriptionStatus.ACTIVE,
-      endDate: { $gt: new Date() },
-      $expr: { $lt: [{ $add: ['$slipsUsed', '$slipsReserved'] }, '$slipsQuota'] },
-    });
+    if (amount <= 0) return null;
 
-    if (!activeSubscription) {
+    // Use findOneAndUpdate for atomic operation to prevent race conditions
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        userId,
+        status: SubscriptionStatus.ACTIVE,
+        endDate: { $gt: new Date() },
+        // Check that used + reserved + amount <= quota
+        $expr: { $lte: [{ $add: ['$slipsUsed', '$slipsReserved', amount] }, '$slipsQuota'] },
+      },
+      {
+        $inc: { slipsReserved: amount },
+      },
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.warn(`reserveQuota failed for user ${userId}: no available quota`);
       return null;
     }
 
-    activeSubscription.slipsReserved += amount;
-    await activeSubscription.save();
-    return activeSubscription._id.toString();
+    return result._id.toString();
   }
 
+  /**
+   * Confirm reservation (atomic operation)
+   * Decreases reserved count and increases used count
+   */
   async confirmReservation(subscriptionId: string, amount = 1): Promise<boolean> {
-    const subscription = await this.subscriptionModel.findById(subscriptionId);
-    if (!subscription || subscription.slipsReserved < amount) {
+    if (amount <= 0) return false;
+
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        _id: subscriptionId,
+        slipsReserved: { $gte: amount },
+      },
+      {
+        $inc: {
+          slipsReserved: -amount,
+          slipsUsed: amount,
+        },
+      },
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.warn(`confirmReservation failed for subscription ${subscriptionId}`);
       return false;
     }
 
-    subscription.slipsReserved -= amount;
-    subscription.slipsUsed += amount;
-    await subscription.save();
     return true;
   }
 
+  /**
+   * Rollback reservation (atomic operation)
+   * Decreases reserved count to release the quota
+   */
   async rollbackReservation(subscriptionId: string, amount = 1): Promise<boolean> {
-    const subscription = await this.subscriptionModel.findById(subscriptionId);
-    if (!subscription || subscription.slipsReserved < amount) {
+    if (amount <= 0) return false;
+
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        _id: subscriptionId,
+        slipsReserved: { $gte: amount },
+      },
+      {
+        $inc: { slipsReserved: -amount },
+      },
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.warn(`rollbackReservation failed for subscription ${subscriptionId}`);
       return false;
     }
 
-    subscription.slipsReserved -= amount;
-    await subscription.save();
     return true;
+  }
+
+  /**
+   * Cleanup stale reservations (reserved quotas that weren't confirmed/rolled back)
+   * This should be called periodically to prevent quota leaks
+   */
+  async cleanupStaleReservations(): Promise<number> {
+    // Reset slipsReserved to 0 for subscriptions with stale reservations
+    // This is a safety mechanism - normally reservations should be confirmed/rolled back
+    const result = await this.subscriptionModel.updateMany(
+      {
+        status: SubscriptionStatus.ACTIVE,
+        slipsReserved: { $gt: 0 },
+        // Only cleanup if the subscription was last updated more than 10 minutes ago
+        updatedAt: { $lt: new Date(Date.now() - 10 * 60 * 1000) },
+      },
+      {
+        $set: { slipsReserved: 0 },
+      },
+    );
+
+    if (result.modifiedCount > 0) {
+      this.logger.log(`Cleaned up stale reservations for ${result.modifiedCount} subscriptions`);
+    }
+
+    return result.modifiedCount;
   }
 
   async getUserSubscriptions(userId: string, limit = 10): Promise<SubscriptionDocument[]> {

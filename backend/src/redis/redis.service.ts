@@ -1,13 +1,60 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.constants';
 
 @Injectable()
-export class RedisService {
+export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private memoryCache: Map<string, { value: string; expiry?: number }> = new Map();
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  // Maximum memory cache size to prevent memory leaks
+  private readonly MAX_MEMORY_CACHE_SIZE = 10000;
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {}
+
+  onModuleInit() {
+    // Start periodic cleanup of expired memory cache entries
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredMemoryCache();
+    }, 60 * 1000); // Cleanup every minute
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+  }
+
+  /**
+   * Cleanup expired entries from memory cache
+   */
+  private cleanupExpiredMemoryCache(): void {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [key, data] of this.memoryCache.entries()) {
+      if (data.expiry && now > data.expiry) {
+        this.memoryCache.delete(key);
+        cleanedCount++;
+      }
+    }
+
+    // If cache is still too large, remove oldest entries
+    if (this.memoryCache.size > this.MAX_MEMORY_CACHE_SIZE) {
+      const entriesToRemove = this.memoryCache.size - this.MAX_MEMORY_CACHE_SIZE;
+      const keys = Array.from(this.memoryCache.keys()).slice(0, entriesToRemove);
+      for (const key of keys) {
+        this.memoryCache.delete(key);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      this.logger.debug(`Cleaned up ${cleanedCount} expired memory cache entries`);
+    }
+  }
 
   private isRedisAvailable(): boolean {
     return this.redis !== null && this.redis.status === 'ready';

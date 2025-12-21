@@ -124,55 +124,81 @@ export class LineWebhookController {
 
     let subscriptionId: string | null = null;
     let reservationId: string | null = null;
+    let replyTokenUsed = false;
+
+    // Helper to safely send message (handles reply token expiration)
+    const safeSendMessage = async (messages: any[], useReply = false) => {
+      try {
+        if (useReply && replyToken && !replyTokenUsed) {
+          await this.lineAccountsService.sendReply(replyToken, messages, accessToken);
+          replyTokenUsed = true;
+        } else {
+          await this.lineAccountsService.sendPush(lineUserId, messages, accessToken);
+        }
+      } catch (sendError) {
+        console.error('Failed to send LINE message:', sendError);
+      }
+    };
 
     try {
       // Prevent duplicate concurrent processing per message
       if (await this.redisService.exists(lockKey)) {
+        console.log(`Duplicate slip processing blocked: ${messageId}`);
         return;
       }
-      await this.redisService.set(lockKey, '1', 120);
+      await this.redisService.set(lockKey, '1', 300); // 5 minutes lock
 
-      // Send processing message
+      // Verify owner's subscription is still active
+      const ownerQuota = await this.subscriptionsService.checkQuota(ownerId);
+      if (ownerQuota.activeSubscriptions === 0) {
+        const quotaMsg = await this.slipVerificationService.formatQuotaExceededResponse();
+        await safeSendMessage([quotaMsg], true);
+        return;
+      }
+
+      // Send processing message if configured
       if (account.settings?.slipResponseMode === 'immediate' && account.settings?.slipImmediateMessage) {
-        await this.lineAccountsService.sendReply(
-          replyToken,
+        await safeSendMessage(
           [{ type: 'text', text: account.settings.slipImmediateMessage }],
-          accessToken,
+          true,
         );
       }
 
-      // Get image content
-      const imageData = await this.lineAccountsService.getMessageContent(
-        messageId,
-        accessToken,
-      );
+      // Get image content with retry
+      let imageData: Buffer;
+      try {
+        imageData = await this.lineAccountsService.getMessageContent(
+          messageId,
+          accessToken,
+        );
+      } catch (imageError) {
+        console.error('Failed to get image content:', imageError);
+        await safeSendMessage([{ type: 'text', text: 'ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง' }]);
+        return;
+      }
 
       // Phase 1: Pre-screen (validate) before reserving quota
       const validation = this.slipVerificationService.validateSlipImage(imageData);
       if (!validation.ok) {
-        await this.lineAccountsService.sendPush(
-          lineUserId,
-          [{ type: 'text', text: validation.message || 'รูปภาพไม่ถูกต้อง' }],
-          accessToken,
-        );
+        await safeSendMessage([{ type: 'text', text: validation.message || 'รูปภาพไม่ถูกต้อง' }]);
         return;
       }
 
-      // Phase 2: Reserve quota
-      const quota = await this.subscriptionsService.checkQuota(ownerId);
-      if (!quota.hasQuota) {
+      // Phase 2: Check and reserve quota (atomic operation)
+      if (!ownerQuota.hasQuota) {
         const quotaMsg = await this.slipVerificationService.formatQuotaExceededResponse();
-        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        await safeSendMessage([quotaMsg]);
         return;
       }
 
       subscriptionId = await this.subscriptionsService.reserveQuota(ownerId, 1);
       if (!subscriptionId) {
         const quotaMsg = await this.slipVerificationService.formatQuotaExceededResponse();
-        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        await safeSendMessage([quotaMsg]);
         return;
       }
 
+      // Create reservation record
       const reservation = await this.slipVerificationService.createReservation({
         ownerId,
         subscriptionId,
@@ -183,7 +209,7 @@ export class LineWebhookController {
       });
       reservationId = reservation._id.toString();
 
-      // Verify slip
+      // Phase 3: Verify slip
       const result = await this.slipVerificationService.verifySlip(
         imageData,
         accountId,
@@ -200,23 +226,23 @@ export class LineWebhookController {
         const refund = await this.slipVerificationService.shouldRefundDuplicate();
         if (refund) {
           await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
-          await this.slipVerificationService.rollbackReservation(reservationId, 'duplicate');
+          await this.slipVerificationService.rollbackReservation(reservationId, 'duplicate_refunded');
         } else {
           await this.subscriptionsService.confirmReservation(subscriptionId, 1);
           await this.slipVerificationService.confirmReservation(reservationId);
         }
       } else {
+        // Error or not_found - rollback
         await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
         await this.slipVerificationService.rollbackReservation(reservationId, result.status);
+        // Clear subscriptionId/reservationId to prevent double rollback in catch block
+        subscriptionId = null;
+        reservationId = null;
       }
 
       // Send result message
       const responseMessage = this.slipVerificationService.formatSlipResponse(result);
-      await this.lineAccountsService.sendPush(
-        lineUserId,
-        [responseMessage],
-        accessToken,
-      );
+      await safeSendMessage([responseMessage]);
 
       // Increment slip count
       if (result.status === 'success') {
@@ -230,17 +256,25 @@ export class LineWebhookController {
 
       // Best-effort rollback if we already reserved quota
       if (subscriptionId) {
-        await this.subscriptionsService.rollbackReservation(subscriptionId, 1).catch(() => undefined);
+        await this.subscriptionsService.rollbackReservation(subscriptionId, 1).catch((e) => {
+          console.error('Failed to rollback subscription quota:', e);
+        });
       }
       if (reservationId) {
-        await this.slipVerificationService.rollbackReservation(reservationId, 'exception').catch(() => undefined);
+        await this.slipVerificationService.rollbackReservation(reservationId, 'exception').catch((e) => {
+          console.error('Failed to rollback reservation:', e);
+        });
       }
 
-      await this.lineAccountsService.sendPush(
-        lineUserId,
-        [{ type: 'text', text: 'ขออภัย ไม่สามารถตรวจสอบสลิปได้ในขณะนี้' }],
-        accessToken,
-      );
+      try {
+        await this.lineAccountsService.sendPush(
+          lineUserId,
+          [{ type: 'text', text: 'ขออภัย ไม่สามารถตรวจสอบสลิปได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' }],
+          accessToken,
+        );
+      } catch (sendError) {
+        console.error('Failed to send error message:', sendError);
+      }
     } finally {
       await this.redisService.del(lockKey).catch(() => undefined);
     }

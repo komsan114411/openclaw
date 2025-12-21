@@ -11,7 +11,34 @@ export class PackagesService {
     @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
   ) {}
 
+  /**
+   * Validate package data
+   */
+  private validatePackageData(dto: CreatePackageDto | UpdatePackageDto): void {
+    if (dto.price !== undefined && dto.price < 0) {
+      throw new BadRequestException('Price cannot be negative');
+    }
+    if ((dto as any).priceUsdt !== undefined && (dto as any).priceUsdt < 0) {
+      throw new BadRequestException('USDT price cannot be negative');
+    }
+    if (dto.slipQuota !== undefined && dto.slipQuota <= 0) {
+      throw new BadRequestException('Slip quota must be greater than 0');
+    }
+    if (dto.slipQuota !== undefined && dto.slipQuota > 10000000) {
+      throw new BadRequestException('Slip quota cannot exceed 10,000,000');
+    }
+    if (dto.durationDays !== undefined && dto.durationDays <= 0) {
+      throw new BadRequestException('Duration must be greater than 0 days');
+    }
+    if (dto.durationDays !== undefined && dto.durationDays > 3650) {
+      throw new BadRequestException('Duration cannot exceed 10 years');
+    }
+  }
+
   async create(dto: CreatePackageDto): Promise<PackageDocument> {
+    // Validate input
+    this.validatePackageData(dto);
+
     const existing = await this.packageModel.findOne({ name: dto.name });
     if (existing) {
       throw new BadRequestException('Package name already exists');
@@ -35,9 +62,20 @@ export class PackagesService {
   }
 
   async update(id: string, dto: UpdatePackageDto): Promise<PackageDocument> {
+    // Validate input
+    this.validatePackageData(dto);
+
     const pkg = await this.packageModel.findById(id);
     if (!pkg) {
       throw new NotFoundException('Package not found');
+    }
+
+    // Check for duplicate name if name is being changed
+    if (dto.name && dto.name !== pkg.name) {
+      const existing = await this.packageModel.findOne({ name: dto.name, _id: { $ne: id } });
+      if (existing) {
+        throw new BadRequestException('Package name already exists');
+      }
     }
 
     Object.assign(pkg, dto);

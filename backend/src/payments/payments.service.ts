@@ -50,19 +50,33 @@ export class PaymentsService {
     return payment.save();
   }
 
+  /**
+   * Upsert slip payment - creates or updates payment with slip image
+   * Uses idempotent logic to prevent duplicate payments
+   */
   async upsertSlipPayment(
     userId: string,
     packageId: string,
     slipImageData: Buffer,
     paymentId?: string,
   ): Promise<PaymentDocument> {
+    // Validate slip data
+    if (!slipImageData || slipImageData.length === 0) {
+      throw new BadRequestException('Slip image data is required');
+    }
+    if (slipImageData.length > 10 * 1024 * 1024) {
+      throw new BadRequestException('Slip image too large (max 10MB)');
+    }
+
     // If user is re-uploading for an existing payment, update it (idempotent)
     if (paymentId) {
       const existing = await this.paymentModel.findById(paymentId);
       if (!existing) {
         throw new NotFoundException('Payment not found');
       }
-      if (existing.userId.toString() !== userId) {
+      // Compare userId properly (handle ObjectId)
+      const existingUserId = existing.userId?.toString() || existing.userId;
+      if (existingUserId !== userId) {
         throw new BadRequestException('Access denied');
       }
       if (existing.paymentType !== PaymentType.BANK_TRANSFER) {
@@ -71,7 +85,9 @@ export class PaymentsService {
       if (existing.status !== PaymentStatus.PENDING) {
         throw new BadRequestException('Payment is not pending');
       }
-      if (existing.packageId.toString() !== packageId) {
+      // Compare packageId properly (handle ObjectId)
+      const existingPackageId = existing.packageId?.toString() || existing.packageId;
+      if (existingPackageId !== packageId) {
         throw new BadRequestException('Package mismatch');
       }
 
@@ -130,6 +146,9 @@ export class PaymentsService {
     return created;
   }
 
+  /**
+   * Verify slip payment with atomic status check to prevent double processing
+   */
   async verifySlipPayment(
     paymentId: string,
     slipImageData: Buffer,
@@ -138,9 +157,19 @@ export class PaymentsService {
     message: string;
     verificationResult?: any;
   }> {
+    // First check payment exists and is still pending
     const payment = await this.paymentModel.findById(paymentId);
     if (!payment) {
       throw new NotFoundException('Payment not found');
+    }
+
+    // Skip if already verified - prevent double processing
+    if (payment.status === PaymentStatus.VERIFIED) {
+      return {
+        success: true,
+        message: 'การชำระเงินนี้ได้รับการอนุมัติแล้ว',
+        verificationResult: payment.verificationResult,
+      };
     }
 
     // Get system settings for bank accounts
@@ -163,7 +192,31 @@ export class PaymentsService {
     );
 
     if (result.status === 'success' && result.data) {
-      payment.transRef = result.data.transRef;
+      // Check for duplicate transRef in our database first
+      if (result.data.transRef) {
+        const existingWithRef = await this.paymentModel.findOne({
+          transRef: result.data.transRef,
+          _id: { $ne: paymentId },
+          status: PaymentStatus.VERIFIED,
+        });
+        if (existingWithRef) {
+          // This transRef was already used in another verified payment
+          await this.paymentModel.updateOne(
+            { _id: paymentId },
+            {
+              $set: {
+                verificationResult: { duplicate: true, existingPaymentId: existingWithRef._id },
+                adminNotes: 'สลิปซ้ำ: เลขอ้างอิงนี้เคยใช้ไปแล้ว',
+              },
+            },
+          );
+          return {
+            success: false,
+            message: 'สลิปนี้เคยถูกใช้แล้ว',
+          };
+        }
+      }
+
       // Check if receiver account matches configured bank accounts
       const receiverAccount = result.data.receiverAccountNumber;
       const matchedAccount = bankAccounts.find(
@@ -172,38 +225,91 @@ export class PaymentsService {
 
       const verified = !!matchedAccount;
 
-      payment.verificationResult = {
+      const verificationResult = {
         ...result.data,
         accountMatched: verified,
         matchedAccountName: matchedAccount?.accountName,
       };
 
       if (verified) {
-        payment.status = PaymentStatus.VERIFIED;
-        payment.verifiedAt = new Date();
-        payment.adminNotes = 'ระบบอนุมัติอัตโนมัติ: ตรวจสอบสลิปสำเร็จ';
-
-        // Add subscription
-        await this.subscriptionsService.addQuotaToExisting(
-          payment.userId.toString(),
-          payment.packageId.toString(),
-          paymentId,
+        // Use atomic update to prevent race condition
+        const updateResult = await this.paymentModel.findOneAndUpdate(
+          {
+            _id: paymentId,
+            status: PaymentStatus.PENDING, // Only update if still pending
+          },
+          {
+            $set: {
+              transRef: result.data.transRef,
+              verificationResult,
+              status: PaymentStatus.VERIFIED,
+              verifiedAt: new Date(),
+              adminNotes: 'ระบบอนุมัติอัตโนมัติ: ตรวจสอบสลิปสำเร็จ',
+            },
+          },
+          { new: true },
         );
+
+        if (updateResult) {
+          // Add subscription
+          try {
+            await this.subscriptionsService.addQuotaToExisting(
+              payment.userId.toString(),
+              payment.packageId.toString(),
+              paymentId,
+            );
+          } catch (subError) {
+            // Rollback payment status if subscription fails
+            await this.paymentModel.updateOne(
+              { _id: paymentId },
+              {
+                $set: {
+                  status: PaymentStatus.PENDING,
+                  adminNotes: 'ตรวจสอบสลิปสำเร็จ แต่เพิ่ม subscription ล้มเหลว - รอ admin อนุมัติ',
+                },
+              },
+            );
+            return {
+              success: false,
+              message: 'ตรวจสอบสลิปสำเร็จ แต่เกิดข้อผิดพลาดในการเพิ่มโควต้า รอตรวจสอบจากผู้ดูแลระบบ',
+              verificationResult,
+            };
+          }
+
+          return {
+            success: true,
+            message: 'ตรวจสอบสลิปสำเร็จ ระบบเติมแพ็คเกจให้อัตโนมัติ',
+            verificationResult,
+          };
+        }
       }
 
-      await payment.save();
+      // Not verified (account not matched) - just save verification result
+      await this.paymentModel.updateOne(
+        { _id: paymentId },
+        {
+          $set: {
+            transRef: result.data.transRef,
+            verificationResult,
+          },
+        },
+      );
 
       return {
-        success: verified,
-        message: verified
-          ? 'ตรวจสอบสลิปสำเร็จ ระบบเติมแพ็คเกจให้อัตโนมัติ'
-          : 'ข้อมูลบัญชีผู้รับไม่ตรง รอตรวจสอบจากผู้ดูแลระบบ',
-        verificationResult: payment.verificationResult,
+        success: false,
+        message: 'ข้อมูลบัญชีผู้รับไม่ตรง รอตรวจสอบจากผู้ดูแลระบบ',
+        verificationResult,
       };
     } else if (result.status === 'duplicate') {
-      payment.verificationResult = { duplicate: true };
-      payment.adminNotes = 'สลิปซ้ำ: รอตรวจสอบจากผู้ดูแลระบบ';
-      await payment.save();
+      await this.paymentModel.updateOne(
+        { _id: paymentId },
+        {
+          $set: {
+            verificationResult: { duplicate: true },
+            adminNotes: 'สลิปซ้ำ: รอตรวจสอบจากผู้ดูแลระบบ',
+          },
+        },
+      );
 
       return {
         success: false,
@@ -211,8 +317,15 @@ export class PaymentsService {
       };
     }
 
-    payment.verificationResult = { error: result.message };
-    await payment.save();
+    // Error case
+    await this.paymentModel.updateOne(
+      { _id: paymentId },
+      {
+        $set: {
+          verificationResult: { error: result.message },
+        },
+      },
+    );
 
     return {
       success: false,
@@ -220,28 +333,61 @@ export class PaymentsService {
     };
   }
 
+  /**
+   * Approve payment (atomic operation to prevent double approval)
+   * Uses findOneAndUpdate to ensure payment is only approved once
+   */
   async approvePayment(paymentId: string, adminId: string): Promise<boolean> {
-    const payment = await this.paymentModel.findById(paymentId);
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
-
-    if (payment.status === PaymentStatus.VERIFIED) {
-      throw new BadRequestException('Payment already approved');
-    }
-
-    payment.status = PaymentStatus.VERIFIED;
-    payment.adminId = adminId;
-    payment.verifiedAt = new Date();
-    payment.adminNotes = `อนุมัติโดย Admin: ${adminId}`;
-    await payment.save();
-
-    // Add subscription
-    await this.subscriptionsService.addQuotaToExisting(
-      payment.userId.toString(),
-      payment.packageId.toString(),
-      paymentId,
+    // Use atomic update to prevent double approval race condition
+    const payment = await this.paymentModel.findOneAndUpdate(
+      {
+        _id: paymentId,
+        status: PaymentStatus.PENDING, // Only approve if still pending
+      },
+      {
+        $set: {
+          status: PaymentStatus.VERIFIED,
+          adminId: adminId,
+          verifiedAt: new Date(),
+          adminNotes: `อนุมัติโดย Admin: ${adminId}`,
+        },
+      },
+      { new: true },
     );
+
+    if (!payment) {
+      // Check if payment exists but was already processed
+      const existingPayment = await this.paymentModel.findById(paymentId);
+      if (!existingPayment) {
+        throw new NotFoundException('Payment not found');
+      }
+      if (existingPayment.status === PaymentStatus.VERIFIED) {
+        throw new BadRequestException('Payment already approved');
+      }
+      throw new BadRequestException('Payment cannot be approved (status: ' + existingPayment.status + ')');
+    }
+
+    // Add subscription (this is safe even if called twice due to addQuotaToExisting logic)
+    try {
+      await this.subscriptionsService.addQuotaToExisting(
+        payment.userId.toString(),
+        payment.packageId.toString(),
+        paymentId,
+      );
+    } catch (error) {
+      // Rollback payment status if subscription fails
+      await this.paymentModel.updateOne(
+        { _id: paymentId },
+        {
+          $set: {
+            status: PaymentStatus.PENDING,
+            adminNotes: 'การเพิ่ม subscription ล้มเหลว - กรุณาลองอนุมัติใหม่',
+          },
+          $unset: { adminId: 1, verifiedAt: 1 },
+        },
+      );
+      throw new BadRequestException('Failed to add subscription: ' + (error as Error).message);
+    }
 
     await this.activityLogsService.log({
       actorUserId: adminId,
@@ -257,16 +403,39 @@ export class PaymentsService {
     return true;
   }
 
+  /**
+   * Reject payment (atomic operation to prevent race condition with approve)
+   */
   async rejectPayment(paymentId: string, adminId: string, notes?: string): Promise<boolean> {
-    const payment = await this.paymentModel.findById(paymentId);
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
+    // Use atomic update to prevent race condition
+    const payment = await this.paymentModel.findOneAndUpdate(
+      {
+        _id: paymentId,
+        status: PaymentStatus.PENDING, // Only reject if still pending
+      },
+      {
+        $set: {
+          status: PaymentStatus.REJECTED,
+          adminId: adminId,
+          adminNotes: notes || 'ปฏิเสธโดย Admin',
+        },
+      },
+      { new: true },
+    );
 
-    payment.status = PaymentStatus.REJECTED;
-    payment.adminId = adminId;
-    payment.adminNotes = notes || 'ปฏิเสธโดย Admin';
-    await payment.save();
+    if (!payment) {
+      const existingPayment = await this.paymentModel.findById(paymentId);
+      if (!existingPayment) {
+        throw new NotFoundException('Payment not found');
+      }
+      if (existingPayment.status === PaymentStatus.REJECTED) {
+        throw new BadRequestException('Payment already rejected');
+      }
+      if (existingPayment.status === PaymentStatus.VERIFIED) {
+        throw new BadRequestException('Cannot reject an approved payment');
+      }
+      throw new BadRequestException('Payment cannot be rejected (status: ' + existingPayment.status + ')');
+    }
 
     await this.activityLogsService.log({
       actorUserId: adminId,

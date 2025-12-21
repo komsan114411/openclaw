@@ -83,4 +83,17 @@ export class SubscriptionsController {
       expiredCount: count,
     };
   }
+
+  @Post('cleanup-reservations')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Cleanup stale quota reservations (Admin only)' })
+  async cleanupReservations() {
+    const count = await this.subscriptionsService.cleanupStaleReservations();
+    return {
+      success: true,
+      message: `Cleaned up ${count} stale reservations`,
+      cleanedCount: count,
+    };
+  }
 }

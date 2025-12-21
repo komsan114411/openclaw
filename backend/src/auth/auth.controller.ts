@@ -133,4 +133,25 @@ export class AuthController {
       user,
     };
   }
+
+  @Post('cleanup-sessions')
+  @UseGuards(SessionAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cleanup expired sessions (Admin only)' })
+  async cleanupSessions(@CurrentUser() user: AuthUser) {
+    // Only allow admin
+    if (user.role !== 'admin') {
+      return {
+        success: false,
+        message: 'Admin access required',
+      };
+    }
+
+    const deletedCount = await this.authService.cleanupExpiredSessions();
+    return {
+      success: true,
+      message: `Cleaned up ${deletedCount} expired sessions`,
+      deletedCount,
+    };
+  }
 }
