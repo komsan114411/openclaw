@@ -9,6 +9,7 @@ import { Payment, PaymentSchema } from './schemas/payment.schema';
 import { SystemSettings, SystemSettingsSchema } from './schemas/system-settings.schema';
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { SlipHistory, SlipHistorySchema } from './schemas/slip-history.schema';
+import { QuotaReservation, QuotaReservationSchema } from './schemas/quota-reservation.schema';
 
 @Global()
 @Module({
@@ -23,6 +24,7 @@ import { SlipHistory, SlipHistorySchema } from './schemas/slip-history.schema';
       { name: SystemSettings.name, schema: SystemSettingsSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
       { name: SlipHistory.name, schema: SlipHistorySchema },
+      { name: QuotaReservation.name, schema: QuotaReservationSchema },
     ]),
   ],
   exports: [MongooseModule],

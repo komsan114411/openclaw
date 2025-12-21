@@ -4,6 +4,11 @@ import { Model } from 'mongoose';
 import axios from 'axios';
 import * as FormData from 'form-data';
 import { SlipHistory, SlipHistoryDocument, SlipStatus } from '../database/schemas/slip-history.schema';
+import {
+  QuotaReservation,
+  QuotaReservationDocument,
+  QuotaReservationStatus,
+} from '../database/schemas/quota-reservation.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -31,15 +36,118 @@ export class SlipVerificationService {
 
   constructor(
     @InjectModel(SlipHistory.name) private slipHistoryModel: Model<SlipHistoryDocument>,
+    @InjectModel(QuotaReservation.name)
+    private quotaReservationModel: Model<QuotaReservationDocument>,
     private systemSettingsService: SystemSettingsService,
     private redisService: RedisService,
   ) {}
+
+  validateSlipImage(imageData: Buffer): { ok: boolean; message?: string } {
+    if (!imageData || imageData.length === 0) {
+      return { ok: false, message: 'ไม่พบข้อมูลรูปภาพ' };
+    }
+
+    // Basic size limit (LINE content can be large; keep conservative)
+    const maxBytes = 10 * 1024 * 1024; // 10 MB
+    if (imageData.length > maxBytes) {
+      return { ok: false, message: 'ไฟล์รูปภาพมีขนาดใหญ่เกินไป กรุณาส่งรูปที่เล็กลง' };
+    }
+
+    // Simple magic-number check: JPEG / PNG
+    const isJpeg = imageData.length > 3 && imageData[0] === 0xff && imageData[1] === 0xd8 && imageData[2] === 0xff;
+    const isPng =
+      imageData.length > 8 &&
+      imageData[0] === 0x89 &&
+      imageData[1] === 0x50 &&
+      imageData[2] === 0x4e &&
+      imageData[3] === 0x47 &&
+      imageData[4] === 0x0d &&
+      imageData[5] === 0x0a &&
+      imageData[6] === 0x1a &&
+      imageData[7] === 0x0a;
+
+    if (!isJpeg && !isPng) {
+      return { ok: false, message: 'ไฟล์ที่ส่งมาไม่ใช่รูปภาพที่รองรับ (รองรับ JPG/PNG)' };
+    }
+
+    return { ok: true };
+  }
+
+  async createReservation(params: {
+    ownerId: string;
+    subscriptionId: string;
+    lineAccountId: string;
+    lineUserId: string;
+    messageId?: string;
+    amount?: number;
+  }): Promise<QuotaReservationDocument> {
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    return this.quotaReservationModel.create({
+      ownerId: params.ownerId,
+      subscriptionId: params.subscriptionId,
+      lineAccountId: params.lineAccountId,
+      lineUserId: params.lineUserId,
+      messageId: params.messageId,
+      amount: params.amount ?? 1,
+      status: QuotaReservationStatus.RESERVED,
+      expiresAt,
+    });
+  }
+
+  async confirmReservation(reservationId: string): Promise<void> {
+    await this.quotaReservationModel.updateOne(
+      { _id: reservationId },
+      { status: QuotaReservationStatus.CONFIRMED, confirmedAt: new Date() },
+    );
+  }
+
+  async rollbackReservation(reservationId: string, reason?: string): Promise<void> {
+    await this.quotaReservationModel.updateOne(
+      { _id: reservationId },
+      { status: QuotaReservationStatus.ROLLED_BACK, rolledBackAt: new Date(), reason },
+    );
+  }
+
+  async formatQuotaExceededResponse(): Promise<any> {
+    const settings = await this.systemSettingsService.getSettings();
+    const responseType = settings?.quotaExceededResponseType || 'text';
+    const message =
+      settings?.quotaExceededMessage ||
+      '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ';
+
+    if (responseType === 'flex') {
+      return {
+        type: 'flex',
+        altText: 'โควต้าหมด',
+        contents: {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              { type: 'text', text: '⚠️ โควต้าหมด', weight: 'bold', size: 'lg', color: '#FF8800' },
+              { type: 'separator', margin: 'md' },
+              { type: 'text', text: message, margin: 'md', wrap: true },
+            ],
+          },
+        },
+      };
+    }
+
+    return { type: 'text', text: message };
+  }
+
+  async shouldRefundDuplicate(): Promise<boolean> {
+    const settings = await this.systemSettingsService.getSettings();
+    return settings?.duplicateRefundEnabled ?? true;
+  }
 
   async verifySlip(
     imageData: Buffer,
     lineAccountId: string,
     lineUserId: string,
     messageId?: string,
+    meta?: { ownerId?: string; subscriptionId?: string; reservationId?: string },
   ): Promise<SlipVerificationResult> {
     const settings = await this.systemSettingsService.getSettings();
     const apiKey = settings?.slipApiKey;
@@ -55,7 +163,7 @@ export class SlipVerificationService {
       const result = await this.verifyWithThunderAPI(imageData, apiKey);
 
       // Save to history
-      await this.saveSlipHistory(lineAccountId, lineUserId, messageId, result);
+      await this.saveSlipHistory(lineAccountId, lineUserId, messageId, result, meta);
 
       return result;
     } catch (error) {
@@ -200,8 +308,12 @@ export class SlipVerificationService {
     lineUserId: string,
     messageId: string | undefined,
     result: SlipVerificationResult,
+    meta?: { ownerId?: string; subscriptionId?: string; reservationId?: string },
   ): Promise<void> {
     await this.slipHistoryModel.create({
+      ownerId: meta?.ownerId,
+      subscriptionId: meta?.subscriptionId,
+      reservationId: meta?.reservationId,
       lineAccountId,
       lineUserId,
       messageId,

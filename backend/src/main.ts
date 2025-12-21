@@ -10,6 +10,8 @@ async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
+      // Required for LINE signature verification (use req.rawBody)
+      rawBody: true,
     });
     
     // Enable CORS

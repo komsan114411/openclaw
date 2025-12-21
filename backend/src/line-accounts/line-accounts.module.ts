@@ -7,6 +7,7 @@ import { LineAccount, LineAccountSchema } from '../database/schemas/line-account
 import { ChatMessage, ChatMessageSchema } from '../database/schemas/chat-message.schema';
 import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
 import { ChatbotModule } from '../chatbot/chatbot.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ChatbotModule } from '../chatbot/chatbot.module';
     ]),
     SlipVerificationModule,
     ChatbotModule,
+    SubscriptionsModule,
   ],
   providers: [LineAccountsService],
   controllers: [LineAccountsController, LineWebhookController],

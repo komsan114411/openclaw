@@ -6,13 +6,16 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import * as crypto from 'crypto';
 import { LineAccountsService } from './line-accounts.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
+import { RedisService } from '../redis/redis.service';
 
 @ApiTags('LINE Webhook')
 @Controller('webhook/line')
@@ -21,6 +24,8 @@ export class LineWebhookController {
     private lineAccountsService: LineAccountsService,
     private slipVerificationService: SlipVerificationService,
     private chatbotService: ChatbotService,
+    private subscriptionsService: SubscriptionsService,
+    private redisService: RedisService,
   ) {}
 
   @Post(':channelId')
@@ -29,6 +34,7 @@ export class LineWebhookController {
   async handleWebhook(
     @Param('channelId') channelId: string,
     @Headers('x-line-signature') signature: string,
+    @Req() req: any,
     @Body() body: any,
   ) {
     try {
@@ -40,12 +46,14 @@ export class LineWebhookController {
       }
 
       // Verify signature
+      const rawBody: Buffer | undefined = req?.rawBody;
+      const payloadToSign = rawBody && rawBody.length > 0 ? rawBody : Buffer.from(JSON.stringify(body));
       const expectedSignature = crypto
         .createHmac('sha256', account.channelSecret)
-        .update(JSON.stringify(body))
+        .update(payloadToSign)
         .digest('base64');
 
-      if (signature !== expectedSignature) {
+      if (!this.timingSafeEqualBase64(signature, expectedSignature)) {
         console.error('Invalid LINE signature');
         return { success: false };
       }
@@ -77,7 +85,7 @@ export class LineWebhookController {
     await this.lineAccountsService.incrementStatistics(accountId, 'totalMessages');
 
     // Check if bot is enabled
-    if (!account.settings?.enableBot) return;
+    if (!account.settings?.webhookEnabled || !account.settings?.enableBot) return;
 
     // Handle different message types
     if (message.type === 'image') {
@@ -109,8 +117,21 @@ export class LineWebhookController {
     const { source, replyToken, message } = event;
     const lineUserId = source.userId;
     const accessToken = account.accessToken;
+    const accountId = account._id.toString();
+    const ownerId = account.ownerId;
+    const messageId = message.id;
+    const lockKey = `slip:processing:${accountId}:${messageId}`;
+
+    let subscriptionId: string | null = null;
+    let reservationId: string | null = null;
 
     try {
+      // Prevent duplicate concurrent processing per message
+      if (await this.redisService.exists(lockKey)) {
+        return;
+      }
+      await this.redisService.set(lockKey, '1', 120);
+
       // Send processing message
       if (account.settings?.slipResponseMode === 'immediate' && account.settings?.slipImmediateMessage) {
         await this.lineAccountsService.sendReply(
@@ -122,17 +143,72 @@ export class LineWebhookController {
 
       // Get image content
       const imageData = await this.lineAccountsService.getMessageContent(
-        message.id,
+        messageId,
         accessToken,
       );
+
+      // Phase 1: Pre-screen (validate) before reserving quota
+      const validation = this.slipVerificationService.validateSlipImage(imageData);
+      if (!validation.ok) {
+        await this.lineAccountsService.sendPush(
+          lineUserId,
+          [{ type: 'text', text: validation.message || 'รูปภาพไม่ถูกต้อง' }],
+          accessToken,
+        );
+        return;
+      }
+
+      // Phase 2: Reserve quota
+      const quota = await this.subscriptionsService.checkQuota(ownerId);
+      if (!quota.hasQuota) {
+        const quotaMsg = await this.slipVerificationService.formatQuotaExceededResponse();
+        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        return;
+      }
+
+      subscriptionId = await this.subscriptionsService.reserveQuota(ownerId, 1);
+      if (!subscriptionId) {
+        const quotaMsg = await this.slipVerificationService.formatQuotaExceededResponse();
+        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        return;
+      }
+
+      const reservation = await this.slipVerificationService.createReservation({
+        ownerId,
+        subscriptionId,
+        lineAccountId: accountId,
+        lineUserId,
+        messageId,
+        amount: 1,
+      });
+      reservationId = reservation._id.toString();
 
       // Verify slip
       const result = await this.slipVerificationService.verifySlip(
         imageData,
-        account._id.toString(),
+        accountId,
         lineUserId,
-        message.id,
+        messageId,
+        { ownerId, subscriptionId, reservationId },
       );
+
+      // Phase 4: Finalize quota (commit or rollback)
+      if (result.status === 'success') {
+        await this.subscriptionsService.confirmReservation(subscriptionId, 1);
+        await this.slipVerificationService.confirmReservation(reservationId);
+      } else if (result.status === 'duplicate') {
+        const refund = await this.slipVerificationService.shouldRefundDuplicate();
+        if (refund) {
+          await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
+          await this.slipVerificationService.rollbackReservation(reservationId, 'duplicate');
+        } else {
+          await this.subscriptionsService.confirmReservation(subscriptionId, 1);
+          await this.slipVerificationService.confirmReservation(reservationId);
+        }
+      } else {
+        await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
+        await this.slipVerificationService.rollbackReservation(reservationId, result.status);
+      }
 
       // Send result message
       const responseMessage = this.slipVerificationService.formatSlipResponse(result);
@@ -145,17 +221,28 @@ export class LineWebhookController {
       // Increment slip count
       if (result.status === 'success') {
         await this.lineAccountsService.incrementStatistics(
-          account._id.toString(),
+          accountId,
           'totalSlipsVerified',
         );
       }
     } catch (error) {
       console.error('Slip verification error:', error);
+
+      // Best-effort rollback if we already reserved quota
+      if (subscriptionId) {
+        await this.subscriptionsService.rollbackReservation(subscriptionId, 1).catch(() => undefined);
+      }
+      if (reservationId) {
+        await this.slipVerificationService.rollbackReservation(reservationId, 'exception').catch(() => undefined);
+      }
+
       await this.lineAccountsService.sendPush(
         lineUserId,
         [{ type: 'text', text: 'ขออภัย ไม่สามารถตรวจสอบสลิปได้ในขณะนี้' }],
         accessToken,
       );
+    } finally {
+      await this.redisService.del(lockKey).catch(() => undefined);
     }
   }
 
@@ -170,6 +257,7 @@ export class LineWebhookController {
       const response = await this.chatbotService.getResponse(
         message.text,
         lineUserId,
+        accountId,
         account.settings?.aiSystemPrompt,
       );
 
@@ -199,6 +287,18 @@ export class LineWebhookController {
         [{ type: 'text', text: fallbackMessage }],
         accessToken,
       );
+    }
+  }
+
+  private timingSafeEqualBase64(a: string, b: string): boolean {
+    try {
+      if (!a || !b) return false;
+      const aBuf = Buffer.from(a, 'base64');
+      const bBuf = Buffer.from(b, 'base64');
+      if (aBuf.length !== bBuf.length) return false;
+      return crypto.timingSafeEqual(aBuf, bBuf);
+    } catch {
+      return false;
     }
   }
 }

@@ -31,6 +31,7 @@ export class ChatbotService {
   async getResponse(
     message: string,
     userId: string,
+    lineAccountId: string,
     systemPrompt?: string,
   ): Promise<string> {
     try {
@@ -46,7 +47,7 @@ export class ChatbotService {
         'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย';
 
       // Get chat history from Redis
-      const historyKey = `chat:${userId}`;
+      const historyKey = `chat:${lineAccountId}:${userId}`;
       const history = (await this.redisService.getJson<any[]>(historyKey)) || [];
 
       // Build messages
@@ -113,7 +114,13 @@ export class ChatbotService {
     }
   }
 
-  async clearHistory(userId: string): Promise<void> {
+  async clearHistory(userId: string, lineAccountId?: string): Promise<void> {
+    if (lineAccountId) {
+      await this.redisService.del(`chat:${lineAccountId}:${userId}`);
+      return;
+    }
+
+    // Backward-compatible: clear legacy key
     await this.redisService.del(`chat:${userId}`);
   }
 }

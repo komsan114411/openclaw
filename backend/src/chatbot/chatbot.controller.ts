@@ -5,6 +5,7 @@ import {
   UseGuards,
   Delete,
   Param,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChatbotService } from './chatbot.service';
@@ -24,10 +25,11 @@ export class ChatbotController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Test chatbot (Admin only)' })
-  async testChat(@Body() body: { message: string; systemPrompt?: string }) {
+  async testChat(@Body() body: { message: string; systemPrompt?: string; lineAccountId?: string }) {
     const response = await this.chatbotService.getResponse(
       body.message,
       'test-user',
+      body.lineAccountId || 'test-line-account',
       body.systemPrompt,
     );
     return {
@@ -49,8 +51,11 @@ export class ChatbotController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Clear chat history (Admin only)' })
-  async clearHistory(@Param('userId') userId: string) {
-    await this.chatbotService.clearHistory(userId);
+  async clearHistory(
+    @Param('userId') userId: string,
+    @Query('lineAccountId') lineAccountId?: string,
+  ) {
+    await this.chatbotService.clearHistory(userId, lineAccountId);
     return {
       success: true,
       message: 'Chat history cleared',

@@ -12,6 +12,15 @@ export enum SlipStatus {
 
 @Schema({ timestamps: true, collection: 'slip_history' })
 export class SlipHistory {
+  @Prop()
+  ownerId?: string;
+
+  @Prop()
+  subscriptionId?: string;
+
+  @Prop()
+  reservationId?: string;
+
   @Prop({ required: true })
   lineAccountId: string;
 
