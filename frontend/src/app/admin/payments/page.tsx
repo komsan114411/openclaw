@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { paymentsApi } from '@/lib/api';
 import { Payment } from '@/types';
@@ -24,11 +24,7 @@ export default function AdminPaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<ExtendedPayment | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  useEffect(() => {
-    fetchPayments();
-  }, [filter]);
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await paymentsApi.getAll(filter || undefined);
@@ -39,7 +35,11 @@ export default function AdminPaymentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const handleApprove = async (id: string) => {
     if (!confirm('ต้องการอนุมัติการชำระเงินนี้หรือไม่?')) return;
