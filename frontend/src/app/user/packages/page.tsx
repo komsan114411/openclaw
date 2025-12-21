@@ -59,7 +59,10 @@ export default function UserPackagesPage() {
           return;
         }
         
-        const response = await paymentsApi.submitSlip(selectedPackage._id, slipFile);
+        const response = await paymentsApi.submitSlip({
+          packageId: selectedPackage._id,
+          slipFile,
+        });
         if (response.data.success) {
           toast.success('ตรวจสอบสลิปสำเร็จ! ระบบเติมแพ็คเกจให้อัตโนมัติ');
         } else {

@@ -100,10 +100,11 @@ export const paymentsApi = {
   getById: (id: string) => api.get(`/payments/${id}`),
   create: (data: { packageId: string; paymentType: string; amount: number }) =>
     api.post('/payments', data),
-  submitSlip: (packageId: string, slipFile: File) => {
+  submitSlip: (params: { packageId: string; slipFile: File; paymentId?: string }) => {
     const formData = new FormData();
-    formData.append('packageId', packageId);
-    formData.append('slip', slipFile);
+    formData.append('packageId', params.packageId);
+    if (params.paymentId) formData.append('paymentId', params.paymentId);
+    formData.append('slip', params.slipFile);
     return api.post('/payments/slip', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

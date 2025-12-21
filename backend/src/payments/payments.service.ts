@@ -46,6 +46,55 @@ export class PaymentsService {
     return payment.save();
   }
 
+  async upsertSlipPayment(
+    userId: string,
+    packageId: string,
+    slipImageData: Buffer,
+    paymentId?: string,
+  ): Promise<PaymentDocument> {
+    // If user is re-uploading for an existing payment, update it (idempotent)
+    if (paymentId) {
+      const existing = await this.paymentModel.findById(paymentId);
+      if (!existing) {
+        throw new NotFoundException('Payment not found');
+      }
+      if (existing.userId.toString() !== userId) {
+        throw new BadRequestException('Access denied');
+      }
+      if (existing.paymentType !== PaymentType.BANK_TRANSFER) {
+        throw new BadRequestException('Invalid payment type');
+      }
+      if (existing.status !== PaymentStatus.PENDING) {
+        throw new BadRequestException('Payment is not pending');
+      }
+      if (existing.packageId.toString() !== packageId) {
+        throw new BadRequestException('Package mismatch');
+      }
+
+      existing.slipImageData = slipImageData;
+      await existing.save();
+      return existing;
+    }
+
+    // Otherwise, reuse latest pending payment for same user+package to prevent duplicates
+    const pending = await this.paymentModel
+      .findOne({
+        userId,
+        packageId,
+        paymentType: PaymentType.BANK_TRANSFER,
+        status: PaymentStatus.PENDING,
+      })
+      .sort({ createdAt: -1 });
+
+    if (pending) {
+      pending.slipImageData = slipImageData;
+      await pending.save();
+      return pending;
+    }
+
+    return this.createPayment(userId, packageId, PaymentType.BANK_TRANSFER, slipImageData);
+  }
+
   async verifySlipPayment(
     paymentId: string,
     slipImageData: Buffer,
@@ -79,6 +128,7 @@ export class PaymentsService {
     );
 
     if (result.status === 'success' && result.data) {
+      payment.transRef = result.data.transRef;
       // Check if receiver account matches configured bank accounts
       const receiverAccount = result.data.receiverAccountNumber;
       const matchedAccount = bankAccounts.find(

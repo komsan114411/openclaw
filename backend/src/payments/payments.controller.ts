@@ -54,17 +54,25 @@ export class PaymentsController {
   async submitSlipPayment(
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { packageId: string },
+    @Body() body: { packageId: string; paymentId?: string },
   ) {
     if (!file) {
       return { success: false, message: 'กรุณาอัปโหลดรูปสลิป' };
     }
 
-    const payment = await this.paymentsService.createPayment(
+    // Basic file validation
+    const maxBytes = 10 * 1024 * 1024; // 10MB
+    const size = file.size ?? file.buffer?.length ?? 0;
+    if (!file.mimetype?.startsWith('image/') || size <= 0 || size > maxBytes) {
+      return { success: false, message: 'ไฟล์สลิปไม่ถูกต้อง (รองรับรูปภาพและต้องไม่เกิน 10MB)' };
+    }
+
+    // If paymentId is provided, update the existing payment (no new row)
+    const payment = await this.paymentsService.upsertSlipPayment(
       user.userId,
       body.packageId,
-      PaymentType.BANK_TRANSFER,
       file.buffer,
+      body.paymentId,
     );
 
     const result = await this.paymentsService.verifySlipPayment(

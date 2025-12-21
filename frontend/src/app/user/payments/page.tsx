@@ -43,7 +43,11 @@ export default function UserPaymentsPage() {
 
     setIsUploading(true);
     try {
-      const response = await paymentsApi.submitSlip(selectedPayment.packageId, slipFile);
+      const response = await paymentsApi.submitSlip({
+        packageId: selectedPayment.packageId,
+        paymentId: selectedPayment._id,
+        slipFile,
+      });
       if (response.data.success) {
         toast.success('อัปโหลดสลิปสำเร็จ รอการตรวจสอบ');
       } else {
