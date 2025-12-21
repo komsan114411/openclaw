@@ -1,4 +1,4 @@
-# Build stage for Frontend
+# Build stage for Frontend (static export)
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
@@ -21,7 +21,7 @@ RUN npm ci
 COPY backend/ ./
 RUN npm run build
 
-# Production stage
+# Production stage - Single container
 FROM node:20-alpine AS production
 
 WORKDIR /app
@@ -31,24 +31,15 @@ COPY --from=backend-builder /app/backend/dist ./dist
 COPY --from=backend-builder /app/backend/node_modules ./node_modules
 COPY --from=backend-builder /app/backend/package*.json ./
 
-# Copy frontend static export
-COPY --from=frontend-builder /app/frontend/.next/standalone ./frontend
-COPY --from=frontend-builder /app/frontend/.next/static ./frontend/.next/static
-COPY --from=frontend-builder /app/frontend/public ./frontend/public
-
-# Install concurrently
-RUN npm install -g concurrently
-
-# Copy start script
-COPY start.sh ./
-RUN chmod +x start.sh
+# Copy frontend static files to public directory
+COPY --from=frontend-builder /app/frontend/out ./public
 
 ENV NODE_ENV=production
 ENV PORT=4000
 
-EXPOSE 4000 3000
+EXPOSE 4000
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
 
-CMD ["./start.sh"]
+CMD ["node", "dist/main.js"]
