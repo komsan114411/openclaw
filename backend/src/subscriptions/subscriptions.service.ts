@@ -177,6 +177,34 @@ export class SubscriptionsService {
       .exec();
   }
 
+  async getActiveSubscription(userId: string): Promise<{
+    packageName: string;
+    quota: number;
+    remainingQuota: number;
+    startDate: Date;
+    expiresAt: Date;
+  } | null> {
+    const subscription = await this.subscriptionModel.findOne({
+      userId,
+      status: SubscriptionStatus.ACTIVE,
+      endDate: { $gt: new Date() },
+    });
+
+    if (!subscription) {
+      return null;
+    }
+
+    const pkg = await this.packagesService.findById(subscription.packageId);
+    
+    return {
+      packageName: pkg?.name || 'Standard',
+      quota: subscription.slipsQuota,
+      remainingQuota: subscription.slipsQuota - subscription.slipsUsed - subscription.slipsReserved,
+      startDate: subscription.startDate,
+      expiresAt: subscription.endDate,
+    };
+  }
+
   async expireSubscriptions(): Promise<number> {
     const result = await this.subscriptionModel.updateMany(
       {

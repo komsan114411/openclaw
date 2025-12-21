@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { RedisService } from './redis.service';
@@ -11,16 +11,47 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       useFactory: (configService: ConfigService) => {
+        const logger = new Logger('RedisModule');
         const redisUrl = configService.get<string>('REDIS_URL');
-        if (redisUrl) {
-          return new Redis(redisUrl);
+        
+        let redis: Redis;
+        try {
+          if (redisUrl) {
+            redis = new Redis(redisUrl, {
+              maxRetriesPerRequest: 3,
+              retryDelayOnFailover: 100,
+              lazyConnect: true,
+            });
+          } else {
+            redis = new Redis({
+              host: configService.get<string>('REDIS_HOST', 'localhost'),
+              port: configService.get<number>('REDIS_PORT', 6379),
+              password: configService.get<string>('REDIS_PASSWORD'),
+              db: configService.get<number>('REDIS_DB', 0),
+              maxRetriesPerRequest: 3,
+              retryDelayOnFailover: 100,
+              lazyConnect: true,
+            });
+          }
+
+          redis.on('connect', () => {
+            logger.log('✅ Redis connected successfully');
+          });
+
+          redis.on('error', (err) => {
+            logger.warn(`⚠️ Redis connection error: ${err.message}`);
+          });
+
+          // Try to connect but don't fail if Redis is unavailable
+          redis.connect().catch((err) => {
+            logger.warn(`⚠️ Redis not available, using fallback: ${err.message}`);
+          });
+
+          return redis;
+        } catch (error) {
+          logger.warn('⚠️ Redis initialization failed, using null client');
+          return null;
         }
-        return new Redis({
-          host: configService.get<string>('REDIS_HOST', 'localhost'),
-          port: configService.get<number>('REDIS_PORT', 6379),
-          password: configService.get<string>('REDIS_PASSWORD'),
-          db: configService.get<number>('REDIS_DB', 0),
-        });
       },
       inject: [ConfigService],
     },

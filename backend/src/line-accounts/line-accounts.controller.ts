@@ -56,6 +56,16 @@ export class LineAccountsController {
     };
   }
 
+  @Get('my')
+  @ApiOperation({ summary: 'Get my LINE accounts' })
+  async findMyAccounts(@CurrentUser() user: AuthUser) {
+    const accounts = await this.lineAccountsService.findByOwner(user.userId);
+    return {
+      success: true,
+      accounts,
+    };
+  }
+
   @Get('statistics')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

@@ -22,6 +22,16 @@ import { UserRole } from '../database/schemas/user.schema';
 export class SubscriptionsController {
   constructor(private subscriptionsService: SubscriptionsService) {}
 
+  @Get('my')
+  @ApiOperation({ summary: 'Get current user subscription' })
+  async getMySubscription(@CurrentUser() user: AuthUser) {
+    const subscription = await this.subscriptionsService.getActiveSubscription(user.userId);
+    return {
+      success: true,
+      subscription,
+    };
+  }
+
   @Get('quota')
   @ApiOperation({ summary: 'Get current user quota' })
   async getQuota(@CurrentUser() user: AuthUser) {

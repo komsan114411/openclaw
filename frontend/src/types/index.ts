@@ -16,34 +16,35 @@ export interface LineAccount {
   accountName: string;
   channelId: string;
   channelSecret: string;
-  channelAccessToken: string;
+  accessToken: string;
   ownerId: string;
   description?: string;
-  settings: LineAccountSettings;
+  settings?: LineAccountSettings;
   isActive: boolean;
-  statistics: {
+  statistics?: {
     totalMessages: number;
     totalUsers: number;
     totalSlipsVerified: number;
+    totalAiResponses: number;
   };
   createdAt: string;
   updatedAt: string;
 }
 
 export interface LineAccountSettings {
-  botEnabled: boolean;
-  aiEnabled: boolean;
-  aiResponseMode: string;
-  aiImmediateMessage: string;
-  aiSystemPrompt: string;
-  aiTemperature: number;
-  aiFallbackMessage: string;
-  slipVerificationEnabled: boolean;
-  slipResponseMode: string;
-  slipImmediateMessage: string;
+  enableBot?: boolean;
+  enableAi?: boolean;
+  enableSlipVerification?: boolean;
+  aiResponseMode?: string;
+  aiImmediateMessage?: string;
+  aiSystemPrompt?: string;
+  aiTemperature?: number;
+  aiFallbackMessage?: string;
+  slipResponseMode?: string;
+  slipImmediateMessage?: string;
   slipTemplateId?: string;
-  autoReplyEnabled: boolean;
-  webhookEnabled: boolean;
+  autoReplyEnabled?: boolean;
+  webhookEnabled?: boolean;
 }
 
 export interface Package {
@@ -61,16 +62,20 @@ export interface Package {
 }
 
 export interface Subscription {
-  _id: string;
-  userId: string;
-  packageId: string;
+  _id?: string;
+  userId?: string;
+  packageId?: string;
+  packageName?: string;
   paymentId?: string;
-  startDate: string;
-  endDate: string;
-  slipsQuota: number;
-  slipsUsed: number;
-  slipsReserved: number;
-  status: 'active' | 'expired' | 'cancelled';
+  startDate?: string;
+  endDate?: string;
+  expiresAt?: string;
+  quota?: number;
+  remainingQuota?: number;
+  slipsQuota?: number;
+  slipsUsed?: number;
+  slipsReserved?: number;
+  status?: 'active' | 'expired' | 'cancelled';
 }
 
 export interface Payment {

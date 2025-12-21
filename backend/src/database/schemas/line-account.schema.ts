@@ -6,10 +6,13 @@ export type LineAccountDocument = LineAccount & Document;
 @Schema({ _id: false })
 export class LineAccountSettings {
   @Prop({ default: true })
-  botEnabled: boolean;
+  enableBot: boolean;
 
   @Prop({ default: false })
-  aiEnabled: boolean;
+  enableAi: boolean;
+
+  @Prop({ default: true })
+  enableSlipVerification: boolean;
 
   @Prop({ default: 'immediate' })
   aiResponseMode: string;
@@ -28,9 +31,6 @@ export class LineAccountSettings {
 
   @Prop({ default: 'ขอบคุณสำหรับข้อความของคุณ' })
   aiFallbackMessage: string;
-
-  @Prop({ default: true })
-  slipVerificationEnabled: boolean;
 
   @Prop({ default: 'immediate' })
   slipResponseMode: string;
@@ -58,6 +58,9 @@ export class LineAccountStatistics {
 
   @Prop({ default: 0 })
   totalSlipsVerified: number;
+
+  @Prop({ default: 0 })
+  totalAiResponses: number;
 }
 
 @Schema({ timestamps: true, collection: 'line_accounts' })
@@ -72,7 +75,7 @@ export class LineAccount {
   channelSecret: string;
 
   @Prop({ required: true })
-  channelAccessToken: string;
+  accessToken: string;
 
   @Prop({ required: true })
   ownerId: string;

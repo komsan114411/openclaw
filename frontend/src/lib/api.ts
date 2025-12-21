@@ -59,6 +59,7 @@ export const usersApi = {
 // LINE Accounts API
 export const lineAccountsApi = {
   getAll: () => api.get('/line-accounts'),
+  getMyAccounts: () => api.get('/line-accounts/my'),
   getById: (id: string) => api.get(`/line-accounts/${id}`),
   create: (data: any) => api.post('/line-accounts', data),
   update: (id: string, data: any) => api.put(`/line-accounts/${id}`, data),
@@ -83,6 +84,7 @@ export const packagesApi = {
 
 // Subscriptions API
 export const subscriptionsApi = {
+  getMy: () => api.get('/subscriptions/my'),
   getQuota: () => api.get('/subscriptions/quota'),
   getAll: () => api.get('/subscriptions'),
   grant: (userId: string, packageId: string) =>
@@ -94,6 +96,8 @@ export const paymentsApi = {
   getAll: (status?: string) => api.get('/payments', { params: { status } }),
   getMy: () => api.get('/payments/my'),
   getById: (id: string) => api.get(`/payments/${id}`),
+  create: (data: { packageId: string; paymentType: string; amount: number }) =>
+    api.post('/payments', data),
   submitSlip: (packageId: string, slipFile: File) => {
     const formData = new FormData();
     formData.append('packageId', packageId);

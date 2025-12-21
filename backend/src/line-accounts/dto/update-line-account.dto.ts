@@ -15,7 +15,7 @@ export class UpdateLineAccountDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  channelAccessToken?: string;
+  accessToken?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -20,7 +20,7 @@ export class CreateLineAccountDto {
   @ApiProperty({ example: 'channel-access-token-xxx' })
   @IsString()
   @IsNotEmpty()
-  channelAccessToken: string;
+  accessToken: string;
 
   @ApiPropertyOptional({ example: 'My business LINE account' })
   @IsOptional()

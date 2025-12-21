@@ -1,31 +1,83 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.module';
 
 @Injectable()
 export class RedisService {
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+  private readonly logger = new Logger(RedisService.name);
+  private memoryCache: Map<string, { value: string; expiry?: number }> = new Map();
+
+  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {}
+
+  private isRedisAvailable(): boolean {
+    return this.redis !== null && this.redis.status === 'ready';
+  }
 
   // Basic operations
   async get(key: string): Promise<string | null> {
-    return this.redis.get(key);
+    if (this.isRedisAvailable()) {
+      try {
+        return await this.redis!.get(key);
+      } catch (error) {
+        this.logger.warn(`Redis get failed, using memory cache: ${error}`);
+      }
+    }
+    
+    // Fallback to memory cache
+    const cached = this.memoryCache.get(key);
+    if (cached) {
+      if (cached.expiry && Date.now() > cached.expiry) {
+        this.memoryCache.delete(key);
+        return null;
+      }
+      return cached.value;
+    }
+    return null;
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-    if (ttlSeconds) {
-      await this.redis.setex(key, ttlSeconds, value);
-    } else {
-      await this.redis.set(key, value);
+    if (this.isRedisAvailable()) {
+      try {
+        if (ttlSeconds) {
+          await this.redis!.setex(key, ttlSeconds, value);
+        } else {
+          await this.redis!.set(key, value);
+        }
+        return;
+      } catch (error) {
+        this.logger.warn(`Redis set failed, using memory cache: ${error}`);
+      }
     }
+    
+    // Fallback to memory cache
+    this.memoryCache.set(key, {
+      value,
+      expiry: ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined,
+    });
   }
 
   async del(key: string): Promise<void> {
-    await this.redis.del(key);
+    if (this.isRedisAvailable()) {
+      try {
+        await this.redis!.del(key);
+        return;
+      } catch (error) {
+        this.logger.warn(`Redis del failed: ${error}`);
+      }
+    }
+    this.memoryCache.delete(key);
   }
 
   async exists(key: string): Promise<boolean> {
-    const result = await this.redis.exists(key);
-    return result === 1;
+    if (this.isRedisAvailable()) {
+      try {
+        const result = await this.redis!.exists(key);
+        return result === 1;
+      } catch (error) {
+        this.logger.warn(`Redis exists failed: ${error}`);
+      }
+    }
+    return this.memoryCache.has(key);
   }
 
   // JSON operations
@@ -83,29 +135,54 @@ export class RedisService {
 
   // Rate limiting
   async rateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
-    const current = await this.redis.incr(`ratelimit:${key}`);
-    if (current === 1) {
-      await this.redis.expire(`ratelimit:${key}`, windowSeconds);
+    if (this.isRedisAvailable()) {
+      try {
+        const current = await this.redis!.incr(`ratelimit:${key}`);
+        if (current === 1) {
+          await this.redis!.expire(`ratelimit:${key}`, windowSeconds);
+        }
+        return current <= limit;
+      } catch (error) {
+        this.logger.warn(`Redis rateLimit failed: ${error}`);
+      }
     }
-    return current <= limit;
+    // Without Redis, allow all requests (no rate limiting)
+    return true;
   }
 
   // Pub/Sub
   async publish(channel: string, message: any): Promise<void> {
-    await this.redis.publish(channel, JSON.stringify(message));
+    if (this.isRedisAvailable()) {
+      try {
+        await this.redis!.publish(channel, JSON.stringify(message));
+      } catch (error) {
+        this.logger.warn(`Redis publish failed: ${error}`);
+      }
+    }
   }
 
   subscribe(channel: string, callback: (message: any) => void): void {
-    const subscriber = this.redis.duplicate();
-    subscriber.subscribe(channel);
-    subscriber.on('message', (ch, msg) => {
-      if (ch === channel) {
-        try {
-          callback(JSON.parse(msg));
-        } catch {
-          callback(msg);
-        }
+    if (this.isRedisAvailable()) {
+      try {
+        const subscriber = this.redis!.duplicate();
+        subscriber.subscribe(channel);
+        subscriber.on('message', (ch, msg) => {
+          if (ch === channel) {
+            try {
+              callback(JSON.parse(msg));
+            } catch {
+              callback(msg);
+            }
+          }
+        });
+      } catch (error) {
+        this.logger.warn(`Redis subscribe failed: ${error}`);
       }
-    });
+    }
+  }
+
+  // Check if Redis is connected
+  isConnected(): boolean {
+    return this.isRedisAvailable();
   }
 }

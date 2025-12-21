@@ -77,12 +77,12 @@ export class LineWebhookController {
     await this.lineAccountsService.incrementStatistics(accountId, 'totalMessages');
 
     // Check if bot is enabled
-    if (!account.settings?.botEnabled) return;
+    if (!account.settings?.enableBot) return;
 
     // Handle different message types
     if (message.type === 'image') {
       // Handle image - slip verification
-      if (account.settings?.slipVerificationEnabled) {
+      if (account.settings?.enableSlipVerification) {
         await this.handleSlipVerification(account, event);
       }
     } else if (message.type === 'text') {
@@ -99,7 +99,7 @@ export class LineWebhookController {
       );
 
       // Handle AI response if enabled
-      if (account.settings?.aiEnabled) {
+      if (account.settings?.enableAi) {
         await this.handleAIResponse(account, event);
       }
     }
@@ -108,7 +108,7 @@ export class LineWebhookController {
   private async handleSlipVerification(account: any, event: any): Promise<void> {
     const { source, replyToken, message } = event;
     const lineUserId = source.userId;
-    const accessToken = account.channelAccessToken;
+    const accessToken = account.accessToken;
 
     try {
       // Send processing message
@@ -162,7 +162,7 @@ export class LineWebhookController {
   private async handleAIResponse(account: any, event: any): Promise<void> {
     const { source, message } = event;
     const lineUserId = source.userId;
-    const accessToken = account.channelAccessToken;
+    const accessToken = account.accessToken;
     const accountId = account._id.toString();
 
     try {
@@ -188,6 +188,9 @@ export class LineWebhookController {
         [{ type: 'text', text: response }],
         accessToken,
       );
+
+      // Increment AI response count
+      await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
     } catch (error) {
       console.error('AI response error:', error);
       const fallbackMessage = account.settings?.aiFallbackMessage || 'ขอบคุณสำหรับข้อความของคุณ';

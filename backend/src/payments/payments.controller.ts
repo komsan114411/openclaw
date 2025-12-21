@@ -27,6 +27,26 @@ import { PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
 export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}
 
+  @Post()
+  @ApiOperation({ summary: 'Create payment record' })
+  async createPayment(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { packageId: string; paymentType: string; amount: number },
+  ) {
+    const paymentType = body.paymentType === 'usdt' ? PaymentType.USDT : PaymentType.BANK_TRANSFER;
+    const payment = await this.paymentsService.createPayment(
+      user.userId,
+      body.packageId,
+      paymentType,
+    );
+
+    return {
+      success: true,
+      message: 'สร้างรายการชำระเงินสำเร็จ',
+      paymentId: payment._id.toString(),
+    };
+  }
+
   @Post('slip')
   @UseInterceptors(FileInterceptor('slip'))
   @ApiConsumes('multipart/form-data')
