@@ -13,6 +13,7 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { RedisModule } from './redis/redis.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { DatabaseModule } from './database/database.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { DatabaseModule } from './database/database.module';
     // Feature modules
     DatabaseModule,
     RedisModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     LineAccountsModule,
