@@ -26,10 +26,20 @@ import { HealthModule } from './health/health.module';
     // Database
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-        dbName: configService.get<string>('MONGODB_DATABASE', 'lineoa_system'),
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const uri = configService.get<string>('MONGODB_URI');
+        if (!uri) {
+          console.warn('⚠️ MONGODB_URI not set, using default connection');
+        }
+        return {
+          uri: uri || 'mongodb://localhost:27017/lineoa_system',
+          dbName: configService.get<string>('MONGODB_DATABASE', 'lineoa_system'),
+          retryAttempts: 3,
+          retryDelay: 1000,
+          serverSelectionTimeoutMS: 5000,
+          connectTimeoutMS: 10000,
+        };
+      },
       inject: [ConfigService],
     }),
     
