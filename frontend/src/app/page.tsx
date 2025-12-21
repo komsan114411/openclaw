@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/auth';
 
 export default function Home() {
   const router = useRouter();
-  const { user, isLoading, checkAuth } = useAuthStore();
+  const { isLoading, checkAuth } = useAuthStore();
 
   useEffect(() => {
     let cancelled = false;
