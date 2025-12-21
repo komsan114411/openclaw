@@ -74,7 +74,7 @@ export class PaymentsService {
     const result = await this.slipVerificationService.verifySlip(
       slipImageData,
       'payment',
-      payment.userId,
+      payment.userId.toString(),
       paymentId,
     );
 
@@ -100,8 +100,8 @@ export class PaymentsService {
 
         // Add subscription
         await this.subscriptionsService.addQuotaToExisting(
-          payment.userId,
-          payment.packageId,
+          payment.userId.toString(),
+          payment.packageId.toString(),
           paymentId,
         );
       }
@@ -153,8 +153,8 @@ export class PaymentsService {
 
     // Add subscription
     await this.subscriptionsService.addQuotaToExisting(
-      payment.userId,
-      payment.packageId,
+      payment.userId.toString(),
+      payment.packageId.toString(),
       paymentId,
     );
 
