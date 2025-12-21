@@ -5,10 +5,10 @@ export type SessionDocument = Session & Document;
 
 @Schema({ timestamps: true, collection: 'sessions' })
 export class Session {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   sessionId: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   userId: string;
 
   @Prop({ required: true })
@@ -28,5 +28,3 @@ export const SessionSchema = SchemaFactory.createForClass(Session);
 
 // TTL index for automatic session expiration
 SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-SessionSchema.index({ sessionId: 1 }, { unique: true });
-SessionSchema.index({ userId: 1 });

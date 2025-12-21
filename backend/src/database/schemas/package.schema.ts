@@ -5,7 +5,7 @@ export type PackageDocument = Package & Document;
 
 @Schema({ timestamps: true, collection: 'packages' })
 export class Package {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   name: string;
 
   @Prop({ required: true })
@@ -29,14 +29,11 @@ export class Package {
   @Prop({ default: false })
   isFreeStarter: boolean;
 
-  @Prop({ default: true })
+  @Prop({ default: true, index: true })
   isActive: boolean;
 
-  @Prop({ default: 0 })
+  @Prop({ default: 0, index: true })
   sortOrder: number;
 }
 
 export const PackageSchema = SchemaFactory.createForClass(Package);
-
-PackageSchema.index({ name: 1 }, { unique: true });
-PackageSchema.index({ isActive: 1, sortOrder: 1 });

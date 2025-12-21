@@ -10,7 +10,7 @@ export enum UserRole {
 
 @Schema({ timestamps: true, collection: 'users' })
 export class User {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   username: string;
 
   @Prop({ required: true })
@@ -19,7 +19,7 @@ export class User {
   @Prop({ type: String, enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
-  @Prop({ sparse: true })
+  @Prop({ sparse: true, index: true })
   email: string;
 
   @Prop()
@@ -45,7 +45,3 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-// Indexes
-UserSchema.index({ username: 1 }, { unique: true });
-UserSchema.index({ email: 1 }, { sparse: true });
