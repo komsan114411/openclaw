@@ -127,9 +127,15 @@ export class RedisService {
   }
 
   async invalidateCachePattern(pattern: string): Promise<void> {
-    const keys = await this.redis.keys(`cache:${pattern}`);
-    if (keys.length > 0) {
-      await this.redis.del(...keys);
+    if (this.isRedisAvailable()) {
+      try {
+        const keys = await this.redis!.keys(`cache:${pattern}`);
+        if (keys.length > 0) {
+          await this.redis!.del(...keys);
+        }
+      } catch (error) {
+        this.logger.warn(`Redis invalidateCachePattern failed: ${error}`);
+      }
     }
   }
 

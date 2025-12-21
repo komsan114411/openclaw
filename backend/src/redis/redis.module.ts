@@ -19,8 +19,11 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
           if (redisUrl) {
             redis = new Redis(redisUrl, {
               maxRetriesPerRequest: 3,
-              retryDelayOnFailover: 100,
               lazyConnect: true,
+              retryStrategy: (times) => {
+                if (times > 3) return null;
+                return Math.min(times * 100, 3000);
+              },
             });
           } else {
             redis = new Redis({
@@ -29,8 +32,11 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
               password: configService.get<string>('REDIS_PASSWORD'),
               db: configService.get<number>('REDIS_DB', 0),
               maxRetriesPerRequest: 3,
-              retryDelayOnFailover: 100,
               lazyConnect: true,
+              retryStrategy: (times) => {
+                if (times > 3) return null;
+                return Math.min(times * 100, 3000);
+              },
             });
           }
 
