@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -10,7 +10,11 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { User, UserSchema } from '../database/schemas/user.schema';
 import { Session, SessionSchema } from '../database/schemas/session.schema';
 import { UsersModule } from '../users/users.module';
+import { SessionAuthGuard } from './guards/session-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
+@Global()
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -29,8 +33,8 @@ import { UsersModule } from '../users/users.module';
     ]),
     UsersModule,
   ],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
+  providers: [AuthService, JwtStrategy, LocalStrategy, SessionAuthGuard, RolesGuard, JwtAuthGuard],
   controllers: [AuthController],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, JwtModule, SessionAuthGuard, RolesGuard, JwtAuthGuard],
 })
 export class AuthModule {}
