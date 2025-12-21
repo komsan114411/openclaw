@@ -14,10 +14,12 @@ async function bootstrap() {
       rawBody: true,
     });
     
-    // Enable CORS
+    // Enable CORS (must not use "*" with credentials)
     app.enableCors({
-      origin: '*',
+      origin: true, // reflect request origin
       credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     });
     
     // Cookie parser

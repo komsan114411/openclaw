@@ -9,6 +9,7 @@ import { Session, SessionDocument } from '../database/schemas/session.schema';
 import { RedisService } from '../redis/redis.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { RegisterDto } from './dto/register.dto';
 
 export interface JwtPayload {
   sub: string;
@@ -120,6 +121,31 @@ export class AuthService {
         forcePasswordChange: user.forcePasswordChange,
       },
     };
+  }
+
+  async register(registerDto: RegisterDto): Promise<{
+    accessToken: string;
+    sessionId: string;
+    user: AuthUser;
+  }> {
+    const existing = await this.userModel.findOne({ username: registerDto.username });
+    if (existing) {
+      throw new BadRequestException('Username already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const created = await this.userModel.create({
+      username: registerDto.username,
+      password: hashedPassword,
+      role: UserRole.USER,
+      email: registerDto.email,
+      fullName: registerDto.fullName,
+      forcePasswordChange: false,
+      isActive: true,
+    });
+
+    // Auto-login after registration
+    return this.login({ username: created.username, password: registerDto.password });
   }
 
   async logout(sessionId: string): Promise<void> {

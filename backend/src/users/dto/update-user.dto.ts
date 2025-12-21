@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsString, IsOptional, IsEnum, IsBoolean, IsEmail } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../../database/schemas/user.schema';
@@ -10,11 +11,13 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: 'john@example.com' })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEmail()
   email?: string;
 
   @ApiPropertyOptional({ example: 'John Doe' })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
   fullName?: string;
 

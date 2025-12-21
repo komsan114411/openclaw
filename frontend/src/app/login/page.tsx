@@ -147,6 +147,12 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-500">
+            <p className="mb-2">
+              ยังไม่มีบัญชี?{' '}
+              <a href="/register" className="text-primary-700 hover:underline">
+                สมัครสมาชิก
+              </a>
+            </p>
             <p>บัญชีผู้ดูแลระบบเริ่มต้น:</p>
             <p className="font-mono mt-1">admin / admin123</p>
           </div>

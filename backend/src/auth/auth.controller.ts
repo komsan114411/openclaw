@@ -14,6 +14,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -39,13 +40,38 @@ export class AuthController {
     res.cookie('session_id', result.sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      // Allow cookie in production deployments where frontend/backend may be on different origins
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
     return {
       success: true,
       message: 'Login successful',
+      accessToken: result.accessToken,
+      user: result.user,
+    };
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'User registration' })
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(registerDto);
+
+    res.cookie('session_id', result.sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    return {
+      success: true,
+      message: 'Registration successful',
       accessToken: result.accessToken,
       user: result.user,
     };
