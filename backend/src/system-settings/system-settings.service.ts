@@ -24,6 +24,7 @@ export class SystemSettingsService {
       if (!exists) {
         await this.settingsModel.create({
           settingsId: 'main',
+          publicBaseUrl: '',
           slipApiProvider: 'thunder',
           aiModel: 'gpt-3.5-turbo',
           usdtEnabled: true,
@@ -67,6 +68,19 @@ export class SystemSettingsService {
     updatedBy: string,
   ): Promise<boolean> {
     try {
+      // Normalize publicBaseUrl to avoid trailing slashes and invalid values
+      if (typeof (updates as any).publicBaseUrl === 'string') {
+        const trimmed = (updates as any).publicBaseUrl.trim();
+        if (trimmed === '') {
+          (updates as any).publicBaseUrl = '';
+        } else if (!/^https?:\/\//i.test(trimmed)) {
+          // Reject non-http(s) schemes for safety
+          throw new Error('publicBaseUrl must start with http:// or https://');
+        } else {
+          (updates as any).publicBaseUrl = trimmed.replace(/\/+$/, '');
+        }
+      }
+
       const result = await this.settingsModel.updateOne(
         { settingsId: 'main' },
         {

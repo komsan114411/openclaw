@@ -23,6 +23,10 @@ export class SystemSettings {
   @Prop({ default: 'main' })
   settingsId: string;
 
+  // Public URL Settings
+  @Prop()
+  publicBaseUrl: string;
+
   // Slip API Settings
   @Prop()
   slipApiKey: string;

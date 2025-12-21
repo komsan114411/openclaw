@@ -33,6 +33,7 @@ export class SystemSettingsController {
     // Hide sensitive data
     const safeSettings: any = {};
     if (settings) {
+      safeSettings.publicBaseUrl = settings.publicBaseUrl || '';
       safeSettings.slipApiKeyPreview = settings.slipApiKey
         ? settings.slipApiKey.substring(0, 10) + '...'
         : '';
@@ -128,6 +129,7 @@ export class SystemSettingsController {
     
     return {
       success: true,
+      publicBaseUrl: settings?.publicBaseUrl || '',
       bankAccounts: settings?.paymentBankAccounts || [],
       usdtWallet: {
         enabled: settings?.usdtEnabled ?? true,

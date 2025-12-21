@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [aiApiKey, setAiApiKey] = useState('');
   const [testingSlip, setTestingSlip] = useState(false);
   const [testingAi, setTestingAi] = useState(false);
+  const [publicBaseUrl, setPublicBaseUrl] = useState('');
   
   // Bank account form
   const [showBankModal, setShowBankModal] = useState(false);
@@ -37,6 +38,7 @@ export default function SettingsPage() {
       const response = await systemSettingsApi.get();
       const data = response.data.settings || {};
       setSettings(data);
+      setPublicBaseUrl(data.publicBaseUrl || '');
       setUsdtSettings({
         usdtEnabled: data.usdtEnabled ?? true,
         usdtNetwork: data.usdtNetwork || 'TRC20',
@@ -46,6 +48,20 @@ export default function SettingsPage() {
       console.error('Error fetching settings:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSavePublicBaseUrl = async () => {
+    try {
+      const response = await systemSettingsApi.update({ publicBaseUrl });
+      if (response.data.success) {
+        toast.success('บันทึก URL เว็บสำเร็จ');
+        fetchSettings();
+      } else {
+        toast.error(response.data.message || 'บันทึกไม่สำเร็จ');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     }
   };
 
@@ -193,6 +209,29 @@ export default function SettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">ตั้งค่าระบบ</h1>
           <p className="text-gray-500">ตั้งค่า API และบัญชีธนาคาร</p>
+        </div>
+
+        {/* Public URL Settings */}
+        <div className="card">
+          <h2 className="font-semibold text-gray-900 mb-4">URL ของเว็บ (สำหรับ Webhook)</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Base URL (เช่น https://your-domain.com)</label>
+              <input
+                type="text"
+                value={publicBaseUrl}
+                onChange={(e) => setPublicBaseUrl(e.target.value)}
+                className="input font-mono"
+                placeholder="https://example.com"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                ระบบจะใช้ค่านี้เพื่อแสดง Webhook URL ให้เอาไปตั้งค่าใน LINE Developers
+              </p>
+            </div>
+            <button onClick={handleSavePublicBaseUrl} className="btn btn-primary">
+              บันทึก URL เว็บ
+            </button>
+          </div>
         </div>
 
         {/* Slip API Settings */}

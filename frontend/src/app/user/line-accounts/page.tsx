@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi } from '@/lib/api';
+import { lineAccountsApi, systemSettingsApi } from '@/lib/api';
 import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 
 export default function UserLineAccountsPage() {
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editAccount, setEditAccount] = useState<LineAccount | null>(null);
@@ -32,7 +33,26 @@ export default function UserLineAccountsPage() {
 
   useEffect(() => {
     fetchAccounts();
+    fetchPublicBaseUrl();
   }, []);
+
+  const fetchPublicBaseUrl = async () => {
+    try {
+      const res = await systemSettingsApi.getPaymentInfo().catch(() => ({ data: {} }));
+      setPublicBaseUrl(res.data.publicBaseUrl || '');
+    } catch {
+      setPublicBaseUrl('');
+    }
+  };
+
+  const getWebhookUrl = (channelId: string) => {
+    const base =
+      publicBaseUrl ||
+      (typeof window !== 'undefined' ? window.location.origin : '') ||
+      '';
+    const normalized = base.replace(/\/+$/, '');
+    return `${normalized}/api/webhook/line/${channelId}`;
+  };
 
   const fetchAccounts = async () => {
     try {
@@ -135,7 +155,12 @@ export default function UserLineAccountsPage() {
   };
 
   const copyWebhookUrl = (accountId: string) => {
-    const webhookUrl = `${process.env.NEXT_PUBLIC_API_URL || window.location.origin}/api/line-webhook/${accountId}`;
+    const account = accounts.find((a) => a._id === accountId);
+    const webhookUrl = account ? getWebhookUrl(account.channelId) : '';
+    if (!webhookUrl) {
+      toast.error('ไม่พบข้อมูล Webhook URL');
+      return;
+    }
     navigator.clipboard.writeText(webhookUrl);
     toast.success('คัดลอก Webhook URL แล้ว');
   };
@@ -205,7 +230,7 @@ export default function UserLineAccountsPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-700">Webhook URL</p>
                       <p className="text-xs text-gray-500 font-mono truncate max-w-md">
-                        {`${process.env.NEXT_PUBLIC_API_URL || ''}/api/line-webhook/${account._id}`}
+                        {getWebhookUrl(account.channelId)}
                       </p>
                     </div>
                     <button

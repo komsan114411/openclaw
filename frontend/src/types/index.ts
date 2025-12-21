@@ -115,6 +115,7 @@ export interface ChatMessage {
 export interface SystemSettings {
   slipApiKeyPreview: string;
   aiApiKeyPreview: string;
+  publicBaseUrl?: string;
   slipApiProvider: string;
   aiModel: string;
   bankAccounts: BankAccount[];
