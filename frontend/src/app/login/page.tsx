@@ -40,7 +40,9 @@ export default function LoginPage() {
     if (success) {
       toast.success('เข้าสู่ระบบสำเร็จ');
     } else {
-      toast.error(error || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      // Read the latest error from the store (avoid stale closure value).
+      const latestError = useAuthStore.getState().error;
+      toast.error(latestError || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
     }
   };
 

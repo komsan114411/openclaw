@@ -22,7 +22,9 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isLoading: true,
+  // Only set true while performing auth-related requests (login/checkAuth).
+  // Default must be false to avoid UI showing "loading" on first paint.
+  isLoading: false,
   error: null,
 
   login: async (username: string, password: string) => {
@@ -50,7 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (error) {
       // Ignore logout errors
     }
-    set({ user: null });
+    set({ user: null, isLoading: false, error: null });
   },
 
   checkAuth: async () => {

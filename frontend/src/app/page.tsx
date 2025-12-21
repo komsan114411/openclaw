@@ -9,16 +9,26 @@ export default function Home() {
   const { user, isLoading, checkAuth } = useAuthStore();
 
   useEffect(() => {
-    checkAuth().then(() => {
-      if (!user) {
+    let cancelled = false;
+    (async () => {
+      await checkAuth();
+      if (cancelled) return;
+
+      // Use the latest store state to avoid effect loops & stale values.
+      const { user: currentUser } = useAuthStore.getState();
+      if (!currentUser) {
         router.push('/login');
-      } else if (user.role === 'admin') {
+      } else if (currentUser.role === 'admin') {
         router.push('/admin/dashboard');
       } else {
         router.push('/user/dashboard');
       }
-    });
-  }, [user, router, checkAuth]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, checkAuth]);
 
   if (isLoading) {
     return (
