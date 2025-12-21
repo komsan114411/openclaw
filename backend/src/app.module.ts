@@ -16,6 +16,7 @@ import { RedisModule } from './redis/redis.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { HealthModule } from './health/health.module';
     PaymentsModule,
     SystemSettingsModule,
     WebsocketModule,
+    ActivityLogsModule,
   ],
 })
 export class AppModule {}

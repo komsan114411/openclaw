@@ -31,6 +31,18 @@ export class User {
   @Prop({ default: true })
   isActive: boolean;
 
+  @Prop({ default: false })
+  isBlocked: boolean;
+
+  @Prop()
+  blockedAt: Date;
+
+  @Prop()
+  blockedBy: string;
+
+  @Prop()
+  blockedReason: string;
+
   @Prop()
   lastLogin: Date;
 

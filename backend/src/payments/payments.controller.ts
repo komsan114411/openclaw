@@ -8,6 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -55,6 +56,7 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { packageId: string; paymentId?: string },
+    @Req() req: any,
   ) {
     if (!file) {
       return { success: false, message: 'กรุณาอัปโหลดรูปสลิป' };

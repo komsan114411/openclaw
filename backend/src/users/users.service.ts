@@ -77,6 +77,26 @@ export class UsersService {
     await user.save();
   }
 
+  async blockUser(id: string, adminId: string, reason?: string): Promise<void> {
+    const user = await this.userModel.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+    user.isBlocked = true;
+    user.blockedAt = new Date();
+    user.blockedBy = adminId;
+    user.blockedReason = reason || '';
+    await user.save();
+  }
+
+  async unblockUser(id: string): Promise<void> {
+    const user = await this.userModel.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+    user.isBlocked = false;
+    user.blockedAt = undefined as any;
+    user.blockedBy = undefined as any;
+    user.blockedReason = undefined as any;
+    await user.save();
+  }
+
   async addLineAccountToUser(userId: string, lineAccountId: string): Promise<void> {
     await this.userModel.updateOne(
       { _id: userId },

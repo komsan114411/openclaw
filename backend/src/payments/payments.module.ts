@@ -7,6 +7,7 @@ import { PackagesModule } from '../packages/packages.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
+import { ActivityLogsModule } from '../activity-logs/activity-logs.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SlipVerificationModule } from '../slip-verification/slip-verification.m
     forwardRef(() => SubscriptionsModule),
     forwardRef(() => SystemSettingsModule),
     forwardRef(() => SlipVerificationModule),
+    forwardRef(() => ActivityLogsModule),
   ],
   providers: [PaymentsService],
   controllers: [PaymentsController],

@@ -101,6 +101,22 @@ export default function UsersPage() {
     }
   };
 
+  const handleBlockToggle = async (user: User) => {
+    try {
+      if (user.isBlocked) {
+        const res = await usersApi.unblock(user._id);
+        if (res.data.success) toast.success('ปลดบล็อกผู้ใช้แล้ว');
+      } else {
+        const reason = prompt('เหตุผลในการบล็อก (ไม่บังคับ)') || '';
+        const res = await usersApi.block(user._id, reason);
+        if (res.data.success) toast.success('บล็อกผู้ใช้แล้ว');
+      }
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    }
+  };
+
   const handleGrantPackage = async () => {
     if (!selectedUser || !selectedPackageId) {
       toast.error('กรุณาเลือกแพ็คเกจ');
@@ -198,9 +214,20 @@ export default function UsersPage() {
                       <span className={`px-2 py-1 text-xs rounded-full ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {user.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}
                       </span>
+                      {user.isBlocked && (
+                        <span className="ml-2 px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
+                          ถูกบล็อก
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => handleBlockToggle(user)}
+                          className="text-orange-600 hover:text-orange-800 text-sm"
+                        >
+                          {user.isBlocked ? 'ปลดบล็อก' : 'บล็อก'}
+                        </button>
                         <button
                           onClick={() => openGrantModal(user)}
                           className="text-green-600 hover:text-green-800 text-sm"

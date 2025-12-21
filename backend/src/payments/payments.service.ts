@@ -6,6 +6,8 @@ import { PackagesService } from '../packages/packages.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
+import { ActivityLogsService } from '../activity-logs/activity-logs.service';
+import { ActivityActorRole } from '../database/schemas/activity-log.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -19,6 +21,8 @@ export class PaymentsService {
     private systemSettingsService: SystemSettingsService,
     @Inject(forwardRef(() => SlipVerificationService))
     private slipVerificationService: SlipVerificationService,
+    @Inject(forwardRef(() => ActivityLogsService))
+    private activityLogsService: ActivityLogsService,
   ) {}
 
   async createPayment(
@@ -73,6 +77,16 @@ export class PaymentsService {
 
       existing.slipImageData = slipImageData;
       await existing.save();
+      await this.activityLogsService.log({
+        actorUserId: userId,
+        actorRole: ActivityActorRole.USER,
+        subjectUserId: userId,
+        action: 'payment.slip.upload',
+        entityType: 'payment',
+        entityId: existing._id.toString(),
+        message: 'อัปโหลดสลิปใหม่ (อัปเดตรายการเดิม)',
+        metadata: { packageId },
+      });
       return existing;
     }
 
@@ -89,10 +103,31 @@ export class PaymentsService {
     if (pending) {
       pending.slipImageData = slipImageData;
       await pending.save();
+      await this.activityLogsService.log({
+        actorUserId: userId,
+        actorRole: ActivityActorRole.USER,
+        subjectUserId: userId,
+        action: 'payment.slip.upload',
+        entityType: 'payment',
+        entityId: pending._id.toString(),
+        message: 'อัปโหลดสลิป (ใช้รายการ pending เดิม)',
+        metadata: { packageId },
+      });
       return pending;
     }
 
-    return this.createPayment(userId, packageId, PaymentType.BANK_TRANSFER, slipImageData);
+    const created = await this.createPayment(userId, packageId, PaymentType.BANK_TRANSFER, slipImageData);
+    await this.activityLogsService.log({
+      actorUserId: userId,
+      actorRole: ActivityActorRole.USER,
+      subjectUserId: userId,
+      action: 'payment.create',
+      entityType: 'payment',
+      entityId: created._id.toString(),
+      message: 'สร้างรายการชำระเงิน (แนบสลิป)',
+      metadata: { packageId },
+    });
+    return created;
   }
 
   async verifySlipPayment(
@@ -208,6 +243,17 @@ export class PaymentsService {
       paymentId,
     );
 
+    await this.activityLogsService.log({
+      actorUserId: adminId,
+      actorRole: ActivityActorRole.ADMIN,
+      subjectUserId: payment.userId.toString(),
+      action: 'payment.approve',
+      entityType: 'payment',
+      entityId: paymentId,
+      message: 'อนุมัติการชำระเงิน',
+      metadata: { packageId: payment.packageId.toString() },
+    });
+
     return true;
   }
 
@@ -221,6 +267,17 @@ export class PaymentsService {
     payment.adminId = adminId;
     payment.adminNotes = notes || 'ปฏิเสธโดย Admin';
     await payment.save();
+
+    await this.activityLogsService.log({
+      actorUserId: adminId,
+      actorRole: ActivityActorRole.ADMIN,
+      subjectUserId: payment.userId.toString(),
+      action: 'payment.reject',
+      entityType: 'payment',
+      entityId: paymentId,
+      message: 'ปฏิเสธการชำระเงิน',
+      metadata: { notes: notes || '' },
+    });
 
     return true;
   }
