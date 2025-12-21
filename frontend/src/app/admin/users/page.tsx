@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { usersApi } from '@/lib/api';
-import { User } from '@/types';
+import { usersApi, packagesApi, subscriptionsApi } from '@/lib/api';
+import { User, Package } from '@/types';
 import toast from 'react-hot-toast';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showGrantModal, setShowGrantModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -18,17 +23,27 @@ export default function UsersPage() {
     role: 'user',
     forcePasswordChange: true,
   });
+  const [editFormData, setEditFormData] = useState({
+    email: '',
+    fullName: '',
+    role: 'user',
+    isActive: true,
+  });
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     try {
-      const response = await usersApi.getAll();
-      setUsers(response.data.users || []);
+      const [usersRes, packagesRes] = await Promise.all([
+        usersApi.getAll(),
+        packagesApi.getAll(true),
+      ]);
+      setUsers(usersRes.data.users || []);
+      setPackages(packagesRes.data.packages || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +64,24 @@ export default function UsersPage() {
           role: 'user',
           forcePasswordChange: true,
         });
-        fetchUsers();
+        fetchData();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    }
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    
+    try {
+      const response = await usersApi.update(selectedUser._id, editFormData);
+      if (response.data.success) {
+        toast.success('อัปเดตผู้ใช้สำเร็จ');
+        setShowEditModal(false);
+        setSelectedUser(null);
+        fetchData();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
@@ -62,11 +94,47 @@ export default function UsersPage() {
       const response = await usersApi.delete(id);
       if (response.data.success) {
         toast.success('ลบผู้ใช้สำเร็จ');
-        fetchUsers();
+        fetchData();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     }
+  };
+
+  const handleGrantPackage = async () => {
+    if (!selectedUser || !selectedPackageId) {
+      toast.error('กรุณาเลือกแพ็คเกจ');
+      return;
+    }
+    
+    try {
+      const response = await subscriptionsApi.grant(selectedUser._id, selectedPackageId);
+      if (response.data.success) {
+        toast.success('ให้แพ็คเกจสำเร็จ');
+        setShowGrantModal(false);
+        setSelectedUser(null);
+        setSelectedPackageId('');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    }
+  };
+
+  const openEditModal = (user: User) => {
+    setSelectedUser(user);
+    setEditFormData({
+      email: user.email || '',
+      fullName: user.fullName || '',
+      role: user.role,
+      isActive: user.isActive,
+    });
+    setShowEditModal(true);
+  };
+
+  const openGrantModal = (user: User) => {
+    setSelectedUser(user);
+    setSelectedPackageId('');
+    setShowGrantModal(true);
   };
 
   return (
@@ -132,12 +200,26 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleDeleteUser(user._id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        ลบ
-                      </button>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => openGrantModal(user)}
+                          className="text-green-600 hover:text-green-800 text-sm"
+                        >
+                          ให้แพ็คเกจ
+                        </button>
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          แก้ไข
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user._id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          ลบ
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -221,6 +303,100 @@ export default function UsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">แก้ไขผู้ใช้: {selectedUser.username}</h2>
+            <form onSubmit={handleEditUser} className="space-y-4">
+              <div>
+                <label className="label">อีเมล</label>
+                <input
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">ชื่อ-นามสกุล</label>
+                <input
+                  type="text"
+                  value={editFormData.fullName}
+                  onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">บทบาท</label>
+                <select
+                  value={editFormData.role}
+                  onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                  className="input"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={editFormData.isActive}
+                  onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <label className="text-sm text-gray-700">เปิดใช้งาน</label>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary flex-1">
+                  ยกเลิก
+                </button>
+                <button type="submit" className="btn btn-primary flex-1">
+                  บันทึก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Grant Package Modal */}
+      {showGrantModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">ให้แพ็คเกจ: {selectedUser.username}</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="label">เลือกแพ็คเกจ</label>
+                <select
+                  value={selectedPackageId}
+                  onChange={(e) => setSelectedPackageId(e.target.value)}
+                  className="input"
+                >
+                  <option value="">-- เลือกแพ็คเกจ --</option>
+                  {packages.filter(p => p.isActive).map((pkg) => (
+                    <option key={pkg._id} value={pkg._id}>
+                      {pkg.name} - {pkg.slipQuota.toLocaleString()} สลิป ({pkg.durationDays} วัน)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-sm text-gray-500">
+                การให้แพ็คเกจจะเพิ่มโควต้าให้ผู้ใช้โดยไม่ต้องชำระเงิน
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setShowGrantModal(false)} className="btn btn-secondary flex-1">
+                  ยกเลิก
+                </button>
+                <button onClick={handleGrantPackage} className="btn btn-primary flex-1">
+                  ให้แพ็คเกจ
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

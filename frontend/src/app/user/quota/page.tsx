@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { subscriptionsApi, lineAccountsApi } from '@/lib/api';
 import { Subscription, LineAccount } from '@/types';
@@ -133,9 +134,9 @@ export default function UserQuotaPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               <p className="text-gray-500 mb-4">ยังไม่มี Subscription</p>
-              <a href="/user/packages" className="btn btn-primary">
+              <Link href="/user/packages" className="btn btn-primary">
                 ดูแพ็คเกจ
-              </a>
+              </Link>
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { packagesApi, paymentsApi, subscriptionsApi } from '@/lib/api';
+import { packagesApi, paymentsApi, subscriptionsApi, systemSettingsApi } from '@/lib/api';
 import { Package, Subscription } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,10 @@ export default function UserPackagesPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'bank' | 'usdt'>('bank');
+  const [paymentInfo, setPaymentInfo] = useState<any>(null);
+  const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [transactionHash, setTransactionHash] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -20,12 +24,14 @@ export default function UserPackagesPage() {
 
   const fetchData = async () => {
     try {
-      const [packagesRes, subRes] = await Promise.all([
+      const [packagesRes, subRes, paymentInfoRes] = await Promise.all([
         packagesApi.getAll(),
         subscriptionsApi.getMy(),
+        systemSettingsApi.getPaymentInfo().catch(() => ({ data: {} })),
       ]);
       setPackages(packagesRes.data.packages || []);
       setSubscription(subRes.data.subscription);
+      setPaymentInfo(paymentInfoRes.data || {});
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -35,22 +41,50 @@ export default function UserPackagesPage() {
 
   const handleSelectPackage = (pkg: Package) => {
     setSelectedPackage(pkg);
+    setPaymentMethod('bank');
+    setSlipFile(null);
+    setTransactionHash('');
     setShowPaymentModal(true);
   };
 
   const handlePayment = async () => {
     if (!selectedPackage) return;
+    
+    setIsProcessing(true);
     try {
-      const response = await paymentsApi.create({
-        packageId: selectedPackage._id,
-        paymentType: paymentMethod,
-        amount: paymentMethod === 'usdt' ? selectedPackage.priceUsdt || 0 : selectedPackage.price,
-      });
-      toast.success('สร้างรายการชำระเงินสำเร็จ กรุณาชำระเงินและอัปโหลดสลิป');
+      if (paymentMethod === 'bank') {
+        if (!slipFile) {
+          toast.error('กรุณาอัปโหลดสลิปการโอนเงิน');
+          setIsProcessing(false);
+          return;
+        }
+        
+        const response = await paymentsApi.submitSlip(selectedPackage._id, slipFile);
+        if (response.data.success) {
+          toast.success('ตรวจสอบสลิปสำเร็จ! ระบบเติมแพ็คเกจให้อัตโนมัติ');
+        } else {
+          toast.success(response.data.message || 'อัปโหลดสลิปสำเร็จ รอการตรวจสอบจากผู้ดูแลระบบ');
+        }
+      } else {
+        if (!transactionHash) {
+          toast.error('กรุณากรอก Transaction Hash');
+          setIsProcessing(false);
+          return;
+        }
+        
+        await paymentsApi.submitUsdt(selectedPackage._id, transactionHash);
+        toast.success('รับข้อมูลการชำระเงินแล้ว รอการตรวจสอบ');
+      }
+      
       setShowPaymentModal(false);
       setSelectedPackage(null);
+      setSlipFile(null);
+      setTransactionHash('');
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -155,8 +189,8 @@ export default function UserPackagesPage() {
 
       {/* Payment Modal */}
       {showPaymentModal && selectedPackage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4">ชำระเงิน</h2>
             
             <div className="mb-4 p-4 bg-gray-50 rounded-lg">
@@ -165,6 +199,9 @@ export default function UserPackagesPage() {
                 {paymentMethod === 'usdt'
                   ? `$${selectedPackage.priceUsdt || 0} USDT`
                   : `฿${selectedPackage.price.toLocaleString()}`}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                โควต้า: {selectedPackage.slipQuota.toLocaleString()} สลิป | {selectedPackage.durationDays} วัน
               </p>
             </div>
 
@@ -179,23 +216,93 @@ export default function UserPackagesPage() {
                   <span className="text-2xl">🏦</span>
                   <p className="text-sm font-medium mt-1">โอนเงิน</p>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('usdt')}
-                  className={`p-3 border rounded-lg text-center ${paymentMethod === 'usdt' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}
-                >
-                  <span className="text-2xl">💰</span>
-                  <p className="text-sm font-medium mt-1">USDT</p>
-                </button>
+                {paymentInfo?.usdtWallet?.enabled && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('usdt')}
+                    className={`p-3 border rounded-lg text-center ${paymentMethod === 'usdt' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}
+                  >
+                    <span className="text-2xl">💰</span>
+                    <p className="text-sm font-medium mt-1">USDT</p>
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* Bank Transfer Info */}
+            {paymentMethod === 'bank' && (
+              <div className="mb-4 space-y-4">
+                {paymentInfo?.bankAccounts?.length > 0 && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="font-medium text-blue-900 mb-2">โอนเงินไปยังบัญชี:</p>
+                    {paymentInfo.bankAccounts.map((account: any, index: number) => (
+                      <div key={index} className="text-sm text-blue-800">
+                        <p className="font-medium">{account.bankName}</p>
+                        <p>เลขบัญชี: {account.accountNumber}</p>
+                        <p>ชื่อบัญชี: {account.accountName}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div>
+                  <label className="label">อัปโหลดสลิปการโอนเงิน *</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
+                    className="input"
+                  />
+                  {slipFile && (
+                    <p className="text-sm text-green-600 mt-1">เลือกไฟล์: {slipFile.name}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* USDT Info */}
+            {paymentMethod === 'usdt' && (
+              <div className="mb-4 space-y-4">
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="font-medium text-yellow-900 mb-2">โอน USDT ไปยัง:</p>
+                  <p className="text-sm text-yellow-800">Network: {paymentInfo?.usdtWallet?.network || 'TRC20'}</p>
+                  <p className="text-sm text-yellow-800 font-mono break-all">
+                    {paymentInfo?.usdtWallet?.address || 'ยังไม่ได้ตั้งค่า'}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="label">Transaction Hash *</label>
+                  <input
+                    type="text"
+                    value={transactionHash}
+                    onChange={(e) => setTransactionHash(e.target.value)}
+                    className="input font-mono text-sm"
+                    placeholder="0x..."
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3">
-              <button onClick={() => setShowPaymentModal(false)} className="btn btn-secondary flex-1">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedPackage(null);
+                  setSlipFile(null);
+                  setTransactionHash('');
+                }}
+                className="btn btn-secondary flex-1"
+                disabled={isProcessing}
+              >
                 ยกเลิก
               </button>
-              <button onClick={handlePayment} className="btn btn-primary flex-1">
-                ดำเนินการชำระเงิน
+              <button
+                onClick={handlePayment}
+                className="btn btn-primary flex-1"
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'กำลังดำเนินการ...' : 'ยืนยันการชำระเงิน'}
               </button>
             </div>
           </div>

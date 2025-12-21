@@ -10,13 +10,24 @@ export default function UserLineAccountsPage() {
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editAccount, setEditAccount] = useState<LineAccount | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<LineAccount | null>(null);
   const [formData, setFormData] = useState({
     accountName: '',
     channelId: '',
     channelSecret: '',
     accessToken: '',
     description: '',
+  });
+  const [settingsData, setSettingsData] = useState({
+    enableBot: false,
+    enableAi: false,
+    enableSlipVerification: false,
+    aiSystemPrompt: '',
+    aiTemperature: 0.7,
+    aiFallbackMessage: 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+    slipImmediateMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
   });
 
   useEffect(() => {
@@ -97,6 +108,38 @@ export default function UserLineAccountsPage() {
     }
   };
 
+  const openSettingsModal = (account: LineAccount) => {
+    setSelectedAccount(account);
+    setSettingsData({
+      enableBot: account.settings?.enableBot ?? false,
+      enableAi: account.settings?.enableAi ?? false,
+      enableSlipVerification: account.settings?.enableSlipVerification ?? false,
+      aiSystemPrompt: account.settings?.aiSystemPrompt || '',
+      aiTemperature: account.settings?.aiTemperature ?? 0.7,
+      aiFallbackMessage: account.settings?.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+      slipImmediateMessage: account.settings?.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
+    });
+    setShowSettingsModal(true);
+  };
+
+  const handleSaveSettings = async () => {
+    if (!selectedAccount) return;
+    try {
+      await lineAccountsApi.updateSettings(selectedAccount._id, settingsData);
+      toast.success('บันทึกการตั้งค่าสำเร็จ');
+      setShowSettingsModal(false);
+      fetchAccounts();
+    } catch (error) {
+      toast.error('ไม่สามารถบันทึกได้');
+    }
+  };
+
+  const copyWebhookUrl = (accountId: string) => {
+    const webhookUrl = `${process.env.NEXT_PUBLIC_API_URL || window.location.origin}/api/line-webhook/${accountId}`;
+    navigator.clipboard.writeText(webhookUrl);
+    toast.success('คัดลอก Webhook URL แล้ว');
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -146,14 +189,30 @@ export default function UserLineAccountsPage() {
                     <div>
                       <h3 className="font-semibold text-lg text-gray-900">{account.accountName}</h3>
                       <p className="text-sm text-gray-500">Channel ID: {account.channelId}</p>
+                      {account.description && (
+                        <p className="text-sm text-gray-400">{account.description}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(account)} className="btn btn-secondary text-sm">
-                      แก้ไข
-                    </button>
-                    <button onClick={() => handleDelete(account._id)} className="text-red-600 hover:text-red-800 px-3">
-                      ลบ
+                  <span className={`px-2 py-1 text-xs rounded-full ${account.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {account.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}
+                  </span>
+                </div>
+
+                {/* Webhook URL */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Webhook URL</p>
+                      <p className="text-xs text-gray-500 font-mono truncate max-w-md">
+                        {`${process.env.NEXT_PUBLIC_API_URL || ''}/api/line-webhook/${account._id}`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copyWebhookUrl(account._id)}
+                      className="btn btn-secondary text-sm"
+                    >
+                      คัดลอก
                     </button>
                   </div>
                 </div>
@@ -174,7 +233,15 @@ export default function UserLineAccountsPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="font-medium text-gray-700">การตั้งค่า</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-700">การตั้งค่าเร็ว</h4>
+                    <button
+                      onClick={() => openSettingsModal(account)}
+                      className="text-primary-600 hover:text-primary-800 text-sm"
+                    >
+                      ตั้งค่าเพิ่มเติม
+                    </button>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-700">เปิดใช้งานบอท</p>
@@ -212,6 +279,15 @@ export default function UserLineAccountsPage() {
                     </button>
                   </div>
                 </div>
+
+                <div className="flex gap-2 pt-4 mt-4 border-t border-gray-100">
+                  <button onClick={() => handleEdit(account)} className="btn btn-secondary flex-1 text-sm">
+                    แก้ไขข้อมูล
+                  </button>
+                  <button onClick={() => handleDelete(account._id)} className="text-red-600 hover:text-red-800 px-3">
+                    ลบ
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -220,7 +296,7 @@ export default function UserLineAccountsPage() {
 
       {/* Add/Edit Account Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               {editAccount ? 'แก้ไขบัญชี LINE OA' : 'เพิ่มบัญชี LINE OA'}
@@ -289,6 +365,115 @@ export default function UserLineAccountsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && selectedAccount && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              ตั้งค่า: {selectedAccount.accountName}
+            </h2>
+            <div className="space-y-6">
+              {/* Bot Settings */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3">การตั้งค่าบอท</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">เปิดใช้งานบอท</span>
+                    <button
+                      onClick={() => setSettingsData({ ...settingsData, enableBot: !settingsData.enableBot })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settingsData.enableBot ? 'bg-primary-600' : 'bg-gray-200'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settingsData.enableBot ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Settings */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3">การตั้งค่า AI</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">เปิดใช้งาน AI</span>
+                    <button
+                      onClick={() => setSettingsData({ ...settingsData, enableAi: !settingsData.enableAi })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settingsData.enableAi ? 'bg-primary-600' : 'bg-gray-200'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settingsData.enableAi ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="label">System Prompt</label>
+                    <textarea
+                      value={settingsData.aiSystemPrompt}
+                      onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
+                      className="input"
+                      rows={3}
+                      placeholder="คุณเป็นผู้ช่วยที่เป็นมิตร..."
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Temperature ({settingsData.aiTemperature})</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={settingsData.aiTemperature}
+                      onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">ข้อความ Fallback</label>
+                    <input
+                      type="text"
+                      value={settingsData.aiFallbackMessage}
+                      onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Slip Settings */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3">การตั้งค่าตรวจสลิป</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">เปิดใช้งานตรวจสลิป</span>
+                    <button
+                      onClick={() => setSettingsData({ ...settingsData, enableSlipVerification: !settingsData.enableSlipVerification })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settingsData.enableSlipVerification ? 'bg-primary-600' : 'bg-gray-200'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settingsData.enableSlipVerification ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="label">ข้อความระหว่างตรวจสอบ</label>
+                    <input
+                      type="text"
+                      value={settingsData.slipImmediateMessage}
+                      onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })}
+                      className="input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setShowSettingsModal(false)} className="btn btn-secondary flex-1">
+                  ยกเลิก
+                </button>
+                <button onClick={handleSaveSettings} className="btn btn-primary flex-1">
+                  บันทึก
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

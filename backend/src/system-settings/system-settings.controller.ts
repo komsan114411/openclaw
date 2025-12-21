@@ -20,12 +20,12 @@ import { UserRole } from '../database/schemas/user.schema';
 @ApiTags('System Settings')
 @ApiBearerAuth()
 @Controller('system-settings')
-@UseGuards(SessionAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
 export class SystemSettingsController {
   constructor(private settingsService: SystemSettingsService) {}
 
   @Get()
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get system settings (Admin only)' })
   async getSettings() {
     const settings = await this.settingsService.getSettings();
@@ -64,6 +64,8 @@ export class SystemSettingsController {
   }
 
   @Put()
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update system settings (Admin only)' })
   async updateSettings(
     @Body() updates: any,
@@ -77,6 +79,8 @@ export class SystemSettingsController {
   }
 
   @Post('bank-accounts')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Add bank account (Admin only)' })
   async addBankAccount(
     @Body() account: { bankName: string; accountNumber: string; accountName: string },
@@ -90,6 +94,8 @@ export class SystemSettingsController {
   }
 
   @Delete('bank-accounts/:index')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Remove bank account (Admin only)' })
   async removeBankAccount(
     @Param('index') index: number,
@@ -103,6 +109,8 @@ export class SystemSettingsController {
   }
 
   @Get('api-status')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get API status (Admin only)' })
   async getApiStatus() {
     const status = await this.settingsService.getApiStatus();
@@ -113,7 +121,8 @@ export class SystemSettingsController {
   }
 
   @Get('payment-info')
-  @ApiOperation({ summary: 'Get payment information (for users)' })
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Get payment information (for authenticated users)' })
   async getPaymentInfo() {
     const settings = await this.settingsService.getSettings();
     

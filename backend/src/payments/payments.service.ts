@@ -175,21 +175,62 @@ export class PaymentsService {
     return true;
   }
 
-  async findAll(status?: PaymentStatus): Promise<PaymentDocument[]> {
+  async findAll(status?: PaymentStatus): Promise<any[]> {
     const query = status ? { status } : {};
-    return this.paymentModel.find(query).sort({ createdAt: -1 }).exec();
+    const payments = await this.paymentModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .populate('userId', 'username email fullName')
+      .populate('packageId', 'name price slipQuota durationDays')
+      .lean()
+      .exec();
+
+    // Transform to include user and package as nested objects
+    return payments.map((payment: any) => ({
+      ...payment,
+      user: payment.userId ? {
+        username: payment.userId.username,
+        email: payment.userId.email,
+        fullName: payment.userId.fullName,
+      } : null,
+      package: payment.packageId ? {
+        name: payment.packageId.name,
+        price: payment.packageId.price,
+        slipQuota: payment.packageId.slipQuota,
+        durationDays: payment.packageId.durationDays,
+      } : null,
+      userId: payment.userId?._id || payment.userId,
+      packageId: payment.packageId?._id || payment.packageId,
+    }));
   }
 
   async findById(id: string): Promise<PaymentDocument | null> {
-    return this.paymentModel.findById(id).exec();
+    return this.paymentModel
+      .findById(id)
+      .populate('userId', 'username email fullName')
+      .populate('packageId', 'name price slipQuota durationDays')
+      .exec();
   }
 
-  async findByUser(userId: string, limit = 20): Promise<PaymentDocument[]> {
-    return this.paymentModel
+  async findByUser(userId: string, limit = 20): Promise<any[]> {
+    const payments = await this.paymentModel
       .find({ userId })
       .sort({ createdAt: -1 })
       .limit(limit)
+      .populate('packageId', 'name price slipQuota durationDays')
+      .lean()
       .exec();
+
+    return payments.map((payment: any) => ({
+      ...payment,
+      package: payment.packageId ? {
+        name: payment.packageId.name,
+        price: payment.packageId.price,
+        slipQuota: payment.packageId.slipQuota,
+        durationDays: payment.packageId.durationDays,
+      } : null,
+      packageId: payment.packageId?._id || payment.packageId,
+    }));
   }
 
   async checkDuplicateSlip(transRef: string): Promise<{
