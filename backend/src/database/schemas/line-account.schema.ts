@@ -65,10 +65,10 @@ export class LineAccountStatistics {
 
 @Schema({ timestamps: true, collection: 'line_accounts' })
 export class LineAccount {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   accountName: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   channelId: string;
 
   @Prop({ required: true })
@@ -77,7 +77,7 @@ export class LineAccount {
   @Prop({ required: true })
   accessToken: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   ownerId: string;
 
   @Prop()
@@ -97,7 +97,3 @@ export class LineAccount {
 }
 
 export const LineAccountSchema = SchemaFactory.createForClass(LineAccount);
-
-LineAccountSchema.index({ accountName: 1 }, { unique: true });
-LineAccountSchema.index({ channelId: 1 }, { unique: true });
-LineAccountSchema.index({ ownerId: 1 });
