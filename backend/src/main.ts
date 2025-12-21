@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
+import { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -20,6 +21,14 @@ async function bootstrap() {
     
     // Cookie parser
     app.use(cookieParser());
+
+    // Root redirect to API docs (before global prefix)
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path === '/' || req.path === '') {
+        return res.redirect('/api/docs');
+      }
+      next();
+    });
     
     // Global validation pipe
     app.setGlobalPrefix('api');
