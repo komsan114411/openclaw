@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
 interface ChatUser {
@@ -23,10 +23,10 @@ interface ChatMessage {
   sentBy?: string;
 }
 
-export default function ChatHistoryPage() {
-  const params = useParams();
+function ChatContent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const accountId = params.id as string;
+  const accountId = searchParams.get('accountId') || '';
 
   const [users, setUsers] = useState<ChatUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
@@ -38,6 +38,10 @@ export default function ChatHistoryPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchUsers = useCallback(async () => {
+    if (!accountId) {
+      setLoading(false);
+      return;
+    }
     try {
       const response = await api.get(`/api/chat-messages/${accountId}/users`);
       if (response.data.success) {
@@ -51,6 +55,7 @@ export default function ChatHistoryPage() {
   }, [accountId]);
 
   const fetchMessages = useCallback(async (userId: string) => {
+    if (!accountId) return;
     try {
       const response = await api.get(`/api/chat-messages/${accountId}/${userId}`);
       if (response.data.success) {
@@ -81,7 +86,7 @@ export default function ChatHistoryPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedUser || sending) return;
+    if (!newMessage.trim() || !selectedUser || sending || !accountId) return;
 
     setSending(true);
     try {
@@ -92,7 +97,6 @@ export default function ChatHistoryPage() {
 
       if (response.data.success) {
         setNewMessage('');
-        // Refresh messages
         await fetchMessages(selectedUser.lineUserId);
       } else {
         setError(response.data.error || 'Failed to send message');
@@ -113,6 +117,22 @@ export default function ChatHistoryPage() {
       month: '2-digit',
     });
   };
+
+  if (!accountId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">ไม่พบ Account ID</p>
+          <button
+            onClick={() => router.push('/user/line-accounts')}
+            className="text-green-500 hover:underline"
+          >
+            กลับไปหน้า LINE Accounts
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -296,5 +316,17 @@ export default function ChatHistoryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ChatHistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }

@@ -343,7 +343,19 @@ export default function UserLineAccountsPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4 mt-4 border-t border-gray-100">
+                <div className="flex flex-wrap gap-2 pt-4 mt-4 border-t border-gray-100">
+                  <a
+                    href={`/user/chat?accountId=${account._id}`}
+                    className="btn btn-secondary text-sm"
+                  >
+                    💬 แชท
+                  </a>
+                  <a
+                    href={`/user/templates?accountId=${account._id}`}
+                    className="btn btn-secondary text-sm"
+                  >
+                    📝 Templates
+                  </a>
                   <button onClick={() => handleEdit(account)} className="btn btn-secondary flex-1 text-sm">
                     แก้ไขข้อมูล
                   </button>
