@@ -6,7 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { usersApi, lineAccountsApi, paymentsApi, packagesApi, thunderApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import { Card, StatCard } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Loading';
@@ -147,19 +147,13 @@ export default function AdminDashboard() {
     return 'bg-green-500';
   };
 
-  const getDaysRemainingColor = (days: number) => {
-    if (days <= 7) return 'text-red-600';
-    if (days <= 30) return 'text-yellow-600';
-    return 'text-green-600';
-  };
-
   const statCards = [
     {
       title: 'ผู้ใช้ทั้งหมด',
       value: stats?.totalUsers || 0,
       subValue: `${stats?.activeUsers || 0} ใช้งาน`,
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
@@ -171,7 +165,7 @@ export default function AdminDashboard() {
       value: stats?.totalLineAccounts || 0,
       subValue: `${(stats?.totalMessages || 0).toLocaleString()} ข้อความ`,
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       ),
@@ -183,7 +177,7 @@ export default function AdminDashboard() {
       value: (stats?.totalSlipsVerified || 0).toLocaleString(),
       subValue: 'ทั้งหมด',
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
@@ -195,7 +189,7 @@ export default function AdminDashboard() {
       value: stats?.pendingPayments || 0,
       subValue: 'รายการชำระเงิน',
       icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
@@ -206,187 +200,34 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 animate-fade-in">
-        <div className="page-header">
+      <div className="space-y-8 animate-fade-in max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="page-title">Dashboard</h1>
-            <p className="page-subtitle">ภาพรวมระบบ LINE OA Management</p>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-500">ภาพรวมระบบ LINE OA Management</p>
           </div>
           <Button
             variant="secondary"
+            size="sm"
             onClick={() => { fetchStats(); fetchThunderQuota(); }}
             leftIcon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             }
           >
-            รีเฟรช
+            รีเฟรชข้อมูล
           </Button>
         </div>
 
-        {/* Thunder API Quota Card */}
-        <Card className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 text-white overflow-hidden shadow-xl">
-          {/* Header */}
-          <div className="flex items-start justify-between border-b border-white/10 pb-4 mb-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">Thunder API Quota</h2>
-                <p className="text-white/70 text-sm">ระบบตรวจสอบสลิปโอนเงิน</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20 border border-white/20"
-              onClick={fetchThunderQuota}
-              disabled={isLoadingQuota}
-            >
-              {isLoadingQuota ? <Spinner size="sm" /> : '🔄 รีเฟรช'}
-            </Button>
-          </div>
-
-          {isLoadingQuota ? (
-            <div className="flex items-center justify-center py-12">
-              <Spinner size="lg" color="white" />
-            </div>
-          ) : thunderQuota?.success && thunderQuota.data ? (
-            <div className="space-y-5">
-              {/* Application Info - Full width header */}
-              <div className="p-4 bg-white/10 rounded-xl border border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-white/60 text-xs mb-0.5">🏢 แอปพลิเคชัน</p>
-                    <p className="font-bold text-xl">{thunderQuota.data.application || 'Thunder API'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quota Progress Bar */}
-              <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-white/90">📊 การใช้งานโควต้า</span>
-                  <span className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full">
-                    {thunderQuota.data.usedQuota.toLocaleString()} / {thunderQuota.data.maxQuota.toLocaleString()} ครั้ง
-                  </span>
-                </div>
-                <div className="h-5 bg-white/20 rounded-full overflow-hidden shadow-inner">
-                  <div
-                    className={`h-full ${getQuotaColor(thunderQuota.data.usagePercentage)} transition-all duration-500 rounded-full`}
-                    style={{ width: `${Math.max(Math.min(thunderQuota.data.usagePercentage, 100), 2)}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-sm text-white/70">
-                    ✅ ใช้ไปแล้ว <span className="font-semibold text-white">{thunderQuota.data.usagePercentage.toFixed(2)}%</span>
-                  </span>
-                  <span className="text-sm font-semibold text-green-300">
-                    🎯 เหลือ {thunderQuota.data.remainingQuota.toLocaleString()} ครั้ง
-                  </span>
-                </div>
-              </div>
-
-              {/* Stats Grid - 2 rows */}
-              <div className="grid grid-cols-3 gap-3">
-                {/* Credit */}
-                <div className="bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 rounded-xl p-4 border border-emerald-400/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">💰</span>
-                    <p className="text-white/70 text-xs font-medium">เครดิตคงเหลือ</p>
-                  </div>
-                  <p className="font-bold text-2xl text-emerald-300">{thunderQuota.data.currentCredit.toLocaleString()}</p>
-                </div>
-                
-                {/* Expiry Date */}
-                <div className="bg-gradient-to-br from-blue-500/30 to-blue-600/20 rounded-xl p-4 border border-blue-400/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">📅</span>
-                    <p className="text-white/70 text-xs font-medium">วันหมดอายุ</p>
-                  </div>
-                  <p className="font-bold text-lg text-blue-200">{formatDate(thunderQuota.data.expiredAt)}</p>
-                </div>
-                
-                {/* Days Remaining */}
-                <div className={`rounded-xl p-4 border ${
-                  thunderQuota.data.daysRemaining <= 7 
-                    ? 'bg-gradient-to-br from-red-500/30 to-red-600/20 border-red-400/20' 
-                    : thunderQuota.data.daysRemaining <= 30 
-                    ? 'bg-gradient-to-br from-yellow-500/30 to-yellow-600/20 border-yellow-400/20'
-                    : 'bg-gradient-to-br from-green-500/30 to-green-600/20 border-green-400/20'
-                }`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">⏳</span>
-                    <p className="text-white/70 text-xs font-medium">เหลืออีก</p>
-                  </div>
-                  <p className={`font-bold text-2xl ${
-                    thunderQuota.data.daysRemaining <= 7 
-                      ? 'text-red-300' 
-                      : thunderQuota.data.daysRemaining <= 30 
-                      ? 'text-yellow-300' 
-                      : 'text-green-300'
-                  }`}>
-                    {thunderQuota.data.daysRemaining} <span className="text-base font-normal">วัน</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Warnings */}
-              {(thunderQuota.data.isExpired || thunderQuota.data.isLowQuota || thunderQuota.data.daysRemaining <= 7) && (
-                <div className="space-y-2 pt-2">
-                  {thunderQuota.data.isExpired && (
-                    <div className="flex items-center gap-3 p-3 bg-red-500/40 rounded-xl border border-red-400/30">
-                      <span className="text-xl">🚨</span>
-                      <span className="text-sm font-medium">API Token หมดอายุแล้ว กรุณาต่ออายุ</span>
-                    </div>
-                  )}
-                  {thunderQuota.data.isLowQuota && !thunderQuota.data.isExpired && (
-                    <div className="flex items-center gap-3 p-3 bg-yellow-500/40 rounded-xl border border-yellow-400/30">
-                      <span className="text-xl">⚠️</span>
-                      <span className="text-sm font-medium">โควต้าเหลือน้อยกว่า 10% กรุณาซื้อเพิ่ม</span>
-                    </div>
-                  )}
-                  {thunderQuota.data.daysRemaining <= 7 && !thunderQuota.data.isExpired && (
-                    <div className="flex items-center gap-3 p-3 bg-orange-500/40 rounded-xl border border-orange-400/30">
-                      <span className="text-xl">⏰</span>
-                      <span className="text-sm font-medium">API จะหมดอายุในอีก {thunderQuota.data.daysRemaining} วัน</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="p-5 bg-red-500/30 rounded-xl border border-red-400/30">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-red-500/30 rounded-xl">
-                  <svg className="w-8 h-8 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-bold text-lg">ไม่สามารถดึงข้อมูลโควต้าได้</p>
-                  <p className="text-sm text-white/80 mt-1">{thunderQuota?.error || 'กรุณาตั้งค่า Slip API Key ในหน้าตั้งค่าระบบ'}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        {/* Stats Grid */}
+        {/* 1. Key Stats Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} className="animate-pulse">
-                <div className="h-20 bg-gray-200 rounded"></div>
+                <div className="h-24 bg-gray-100 rounded-lg"></div>
               </Card>
             ))}
           </div>
@@ -394,15 +235,15 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {statCards.map((card, index) => (
               <Link key={index} href={card.link}>
-                <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl ${card.color} text-white`}>
-                      {card.icon}
-                    </div>
+                <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer border-l-4" style={{borderLeftColor: card.color.replace('bg-', 'text-')}}>
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-500 text-sm">{card.title}</p>
-                      <p className="text-2xl font-bold text-gray-900">{card.value}</p>
-                      <p className="text-xs text-gray-400">{card.subValue}</p>
+                      <p className="text-gray-500 text-sm font-medium">{card.title}</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{card.value}</p>
+                      <p className="text-xs text-gray-400 mt-1">{card.subValue}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${card.color} text-white shadow-md transform rotate-3`}>
+                      {card.icon}
                     </div>
                   </div>
                 </Card>
@@ -411,234 +252,231 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Pending Payments Alert */}
-        {stats?.pendingPayments && stats.pendingPayments > 0 && (
-          <Card className="bg-red-50 border-red-200">
-            <div className="flex items-center justify-between">
+        {/* 2. Main Content Grid: Thunder Quota + Recent Payments */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Thunder API Quota - Takes up 2 columns */}
+          <div className="lg:col-span-2">
+            <Card className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 text-white overflow-hidden shadow-xl h-full relative">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 p-32 bg-purple-600 rounded-full mix-blend-overlay filter blur-3xl opacity-20 -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 p-32 bg-indigo-600 rounded-full mix-blend-overlay filter blur-3xl opacity-20 -ml-16 -mb-16"></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/10 rounded-lg backdrop-blur-md">
+                      <svg className="w-6 h-6 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold">Thunder API Quota</h2>
+                      <p className="text-indigo-200 text-xs">ระบบตรวจสอบสลิป</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/10"
+                    onClick={fetchThunderQuota}
+                    disabled={isLoadingQuota}
+                  >
+                    {isLoadingQuota ? <Spinner size="sm" color="white" /> : '🔄'}
+                  </Button>
+                </div>
+
+                {isLoadingQuota ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Spinner size="lg" color="white" />
+                  </div>
+                ) : thunderQuota?.success && thunderQuota.data ? (
+                  <div className="space-y-6">
+                    {/* Usage Bar */}
+                    <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm border border-white/5">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="text-indigo-200 text-sm">การใช้งานเดือนนี้</span>
+                        <div className="text-right">
+                          <span className="text-2xl font-bold text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
+                          <span className="text-indigo-300 text-sm"> / {thunderQuota.data.maxQuota.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${getQuotaColor(thunderQuota.data.usagePercentage)} transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]`}
+                          style={{ width: `${Math.max(Math.min(thunderQuota.data.usagePercentage, 100), 2)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-2 text-xs text-indigo-300">
+                        <span>ใช้ไป {thunderQuota.data.usagePercentage.toFixed(1)}%</span>
+                        <span>เหลือ {thunderQuota.data.remainingQuota.toLocaleString()} ครั้ง</span>
+                      </div>
+                    </div>
+
+                    {/* Mini Stats Row */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white/5 rounded-lg p-3 border border-white/5">
+                        <p className="text-indigo-300 text-xs mb-1">เครดิตคงเหลือ</p>
+                        <p className="text-xl font-bold text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3 border border-white/5">
+                        <p className="text-indigo-300 text-xs mb-1">วันหมดอายุ</p>
+                        <p className="text-lg font-bold text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3 border border-white/5">
+                        <p className="text-indigo-300 text-xs mb-1">สิทธิ์ใช้งาน</p>
+                        <p className={`text-xl font-bold ${thunderQuota.data.daysRemaining <= 7 ? 'text-orange-400' : 'text-blue-300'}`}>
+                          {thunderQuota.data.daysRemaining} วัน
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Warnings */}
+                    {(thunderQuota.data.isExpired || thunderQuota.data.isLowQuota) && (
+                      <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 flex items-center gap-3">
+                        <span className="text-xl">⚠️</span>
+                        <span className="text-sm text-red-200">
+                          {thunderQuota.data.isExpired ? 'API Token หมดอายุแล้ว กรุณาต่ออายุ' : 'โควต้าใกล้หมดแล้ว กรุณาเติมเครดิต'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-indigo-300 bg-white/5 rounded-xl border border-white/5">
+                    <p>ไม่สามารถโหลดข้อมูลได้</p>
+                    <p className="text-xs mt-2 opacity-50">{thunderQuota?.error || 'กรุณาตรวจสอบการตั้งค่า API Key'}</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Pending Payments - Takes up 1 column */}
+          <div className="lg:col-span-1 flex flex-col h-full">
+            <Card className="flex-1 flex flex-col h-full">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                  รอตรวจสอบ
+                </h2>
+                <Link href="/admin/payments" className="text-primary-600 hover:text-primary-700 text-xs font-medium">
+                  ดูทั้งหมด
+                </Link>
+              </div>
+              
+              <div className="flex-1 overflow-auto -mx-2 px-2">
+                {recentPayments.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentPayments.map((payment) => (
+                      <div key={payment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-primary-200 transition-colors">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">฿{payment.amount?.toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">{new Date(payment.createdAt).toLocaleDateString('th-TH')}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium">รออนุมัติ</span>
+                          <p className="text-[10px] text-gray-400 mt-1">{payment.paymentType === 'bank_transfer' ? 'โอนเงิน' : 'USDT'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 py-8">
+                    <svg className="w-12 h-12 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm">ไม่มีรายการรอตรวจสอบ</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* 3. Bottom Row: Quick Actions & Maintenance */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          {/* Action Links */}
+          <Link href="/admin/users" className="group">
+            <Card className="h-full hover:shadow-md transition-all border-none bg-blue-50/50 hover:bg-blue-50">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-200 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-red-800">มีรายการชำระเงินรอตรวจสอบ</p>
-                  <p className="text-sm text-red-600">{stats.pendingPayments} รายการรอการอนุมัติ</p>
+                  <h3 className="font-semibold text-gray-900">จัดการผู้ใช้</h3>
+                  <p className="text-xs text-gray-500">จัดการ Users & Packages</p>
                 </div>
               </div>
-              <Link href="/admin/payments">
-                <Button variant="primary" size="sm">ตรวจสอบเลย</Button>
-              </Link>
-            </div>
-          </Card>
-        )}
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link href="/admin/users">
-            <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
-                  จัดการผู้ใช้งาน
-                </h3>
-              </div>
-              <p className="text-gray-500 text-sm">เพิ่ม แก้ไข ลบผู้ใช้งาน และให้แพ็คเกจ</p>
-            </Card>
-          </Link>
-          
-          <Link href="/admin/payments">
-            <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-green-100 text-green-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
-                  ตรวจสอบการชำระเงิน
-                </h3>
-              </div>
-              <p className="text-gray-500 text-sm">
-                {stats?.pendingPayments ? `มี ${stats.pendingPayments} รายการรอตรวจสอบ` : 'ไม่มีรายการรอตรวจสอบ'}
-              </p>
-            </Card>
-          </Link>
-          
-          <Link href="/admin/packages">
-            <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
-                  จัดการแพ็คเกจ
-                </h3>
-              </div>
-              <p className="text-gray-500 text-sm">สร้างและจัดการแพ็คเกจ ({stats?.totalPackages || 0} แพ็คเกจ)</p>
-            </Card>
-          </Link>
-          
-          <Link href="/admin/line-accounts">
-            <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-yellow-100 text-yellow-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
-                  บัญชี LINE OA
-                </h3>
-              </div>
-              <p className="text-gray-500 text-sm">ดูบัญชี LINE ทั้งหมดในระบบ</p>
-            </Card>
-          </Link>
-          
-          <Link href="/admin/settings">
-            <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-gray-100 text-gray-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
-                  ตั้งค่าระบบ
-                </h3>
-              </div>
-              <p className="text-gray-500 text-sm">ตั้งค่า API, บัญชีธนาคาร, USDT</p>
             </Card>
           </Link>
 
-          <Link href="/admin/history">
-            <Card className="hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-600">
+          <Link href="/admin/line-accounts" className="group">
+            <Card className="h-full hover:shadow-md transition-all border-none bg-green-50/50 hover:bg-green-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-green-100 text-green-600 rounded-lg group-hover:bg-green-200 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary-600">
-                  ประวัติระบบ
-                </h3>
+                <div>
+                  <h3 className="font-semibold text-gray-900">LINE OA</h3>
+                  <p className="text-xs text-gray-500">บัญชีที่เชื่อมต่อ</p>
+                </div>
               </div>
-              <p className="text-gray-500 text-sm">ดูประวัติกิจกรรมทั้งหมดในระบบ</p>
             </Card>
           </Link>
+
+          <Link href="/admin/settings" className="group">
+            <Card className="h-full hover:shadow-md transition-all border-none bg-gray-50/50 hover:bg-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gray-200 text-gray-600 rounded-lg group-hover:bg-gray-300 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">ตั้งค่าระบบ</h3>
+                  <p className="text-xs text-gray-500">API & Payment</p>
+                </div>
+              </div>
+            </Card>
+          </Link>
+
+          {/* Maintenance Card - Compact */}
+          <div className="group relative">
+            <Card className="h-full border-none bg-orange-50/50 hover:bg-orange-50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-orange-100 text-orange-600 rounded-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Clear Data</h3>
+                    <p className="text-xs text-gray-500">ล้างข้อมูลขยะ</p>
+                  </div>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="text-orange-600 hover:bg-orange-100"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!isRunningMaintenance) runCleanupSessions();
+                  }}
+                  disabled={!!isRunningMaintenance}
+                >
+                  {isRunningMaintenance === 'sessions' ? <Spinner size="sm" /> : 'Run'}
+                </Button>
+              </div>
+            </Card>
+          </div>
         </div>
-
-        {/* Recent Pending Payments */}
-        {recentPayments.length > 0 && (
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">รายการชำระเงินล่าสุด</h2>
-              <Link href="/admin/payments" className="text-primary-600 hover:text-primary-800 text-sm">
-                ดูทั้งหมด →
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">วันที่</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">จำนวน</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ประเภท</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {recentPayments.map((payment) => (
-                    <tr key={payment._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {new Date(payment.createdAt).toLocaleDateString('th-TH')}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium">
-                        ฿{payment.amount?.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {payment.paymentType === 'bank_transfer' ? 'โอนเงิน' : 'USDT'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="warning">รอตรวจสอบ</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        )}
-
-        {/* System Maintenance */}
-        <Card>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="font-semibold text-gray-900">การบำรุงรักษาระบบ</h2>
-              <p className="text-sm text-gray-500">เครื่องมือสำหรับดูแลรักษาระบบ</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <h3 className="font-medium text-gray-900 mb-2">ล้าง Session หมดอายุ</h3>
-              <p className="text-sm text-gray-500 mb-3">ลบ session ที่หมดอายุแล้วออกจากระบบ</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                fullWidth
-                onClick={runCleanupSessions}
-                isLoading={isRunningMaintenance === 'sessions'}
-                loadingText="กำลังทำงาน..."
-              >
-                เริ่มล้าง
-              </Button>
-            </div>
-
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <h3 className="font-medium text-gray-900 mb-2">ล้าง Quota ค้าง</h3>
-              <p className="text-sm text-gray-500 mb-3">ลบ quota reservation ที่ค้างอยู่</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                fullWidth
-                onClick={runCleanupReservations}
-                isLoading={isRunningMaintenance === 'reservations'}
-                loadingText="กำลังทำงาน..."
-              >
-                เริ่มล้าง
-              </Button>
-            </div>
-
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <h3 className="font-medium text-gray-900 mb-2">อัปเดต Subscription</h3>
-              <p className="text-sm text-gray-500 mb-3">อัปเดตสถานะ subscription ที่หมดอายุ</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                fullWidth
-                onClick={runExpireSubscriptions}
-                isLoading={isRunningMaintenance === 'expire'}
-                loadingText="กำลังทำงาน..."
-              >
-                เริ่มอัปเดต
-              </Button>
-            </div>
-          </div>
-        </Card>
       </div>
     </DashboardLayout>
   );
