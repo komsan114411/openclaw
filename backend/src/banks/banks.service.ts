@@ -160,11 +160,18 @@ export class BanksService {
       if (response.data?.data) {
         for (const bankData of response.data.data) {
           try {
-            const existing = await this.bankModel.findOne({ code: bankData.code });
+            // Normalize bank code to uppercase
+            const bankCode = (bankData.code || '').toUpperCase();
+            if (!bankCode) {
+              errors.push('Skipped bank with empty code');
+              continue;
+            }
+
+            const existing = await this.bankModel.findOne({ code: bankCode });
             if (existing) {
               // Update existing
               await this.bankModel.updateOne(
-                { code: bankData.code },
+                { code: bankCode },
                 {
                   name: bankData.name?.th || bankData.name,
                   nameTh: bankData.name?.th,
@@ -177,7 +184,7 @@ export class BanksService {
             } else {
               // Create new
               await this.bankModel.create({
-                code: bankData.code,
+                code: bankCode,
                 name: bankData.name?.th || bankData.name,
                 nameTh: bankData.name?.th,
                 nameEn: bankData.name?.en,
@@ -223,10 +230,17 @@ export class BanksService {
       if (response.data?.data) {
         for (const bankData of response.data.data) {
           try {
-            const existing = await this.bankModel.findOne({ code: bankData.code });
+            // Normalize bank code to uppercase
+            const bankCode = (bankData.code || '').toUpperCase();
+            if (!bankCode) {
+              errors.push('Skipped bank with empty code');
+              continue;
+            }
+
+            const existing = await this.bankModel.findOne({ code: bankCode });
             if (existing) {
               await this.bankModel.updateOne(
-                { code: bankData.code },
+                { code: bankCode },
                 {
                   name: bankData.name?.th || bankData.name,
                   nameTh: bankData.name?.th,
@@ -240,7 +254,7 @@ export class BanksService {
               updated++;
             } else {
               await this.bankModel.create({
-                code: bankData.code,
+                code: bankCode,
                 name: bankData.name?.th || bankData.name,
                 nameTh: bankData.name?.th,
                 nameEn: bankData.name?.en,
