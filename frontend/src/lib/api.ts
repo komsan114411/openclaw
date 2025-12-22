@@ -158,6 +158,46 @@ export const chatbotApi = {
     api.post('/chatbot/test', { message, systemPrompt }),
 };
 
+// Chat Messages API
+export const chatMessagesApi = {
+  getUsers: (accountId: string) =>
+    api.get(`/api/chat-messages/${accountId}/users`),
+  getMessages: (accountId: string, userId: string, limit?: number, before?: string) =>
+    api.get(`/api/chat-messages/${accountId}/${userId}`, { params: { limit, before } }),
+  sendMessage: (accountId: string, userId: string, message: string) =>
+    api.post(`/api/chat-messages/${accountId}/${userId}/send`, { message }),
+  markAsRead: (accountId: string, userId: string) =>
+    api.post(`/api/chat-messages/${accountId}/${userId}/read`),
+  getUnreadCount: (accountId: string) =>
+    api.get(`/api/chat-messages/${accountId}/unread-count`),
+  deleteChatHistory: (accountId: string, userId: string) =>
+    api.delete(`/api/chat-messages/${accountId}/${userId}`),
+  getImage: (accountId: string, messageId: string) =>
+    `/api/chat-messages/${accountId}/image/${messageId}`,
+  getUserProfile: (accountId: string, userId: string) =>
+    api.get(`/api/chat-messages/${accountId}/profile/${userId}`),
+};
+
+// Slip Templates API
+export const slipTemplatesApi = {
+  getAll: (accountId: string) =>
+    api.get(`/api/user/line-accounts/${accountId}/slip-templates`),
+  getList: (accountId: string) =>
+    api.get(`/api/user/line-accounts/${accountId}/slip-templates-list`),
+  create: (accountId: string, data: any) =>
+    api.post(`/api/user/line-accounts/${accountId}/slip-templates`, data),
+  update: (accountId: string, templateId: string, data: any) =>
+    api.put(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}`, data),
+  delete: (accountId: string, templateId: string) =>
+    api.delete(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}`),
+  setDefault: (accountId: string, templateId: string) =>
+    api.put(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}/default`),
+  preview: (accountId: string, templateId: string) =>
+    api.get(`/api/user/line-accounts/${accountId}/slip-templates/${templateId}/preview`),
+  initDefaults: (accountId: string) =>
+    api.post(`/api/user/line-accounts/${accountId}/slip-templates/init-defaults`),
+};
+
 // Thunder API (Slip Verification Service)
 export const thunderApi = {
   getQuota: (customToken?: string) =>
