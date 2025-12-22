@@ -120,6 +120,65 @@ export class BanksService {
   }
 
   /**
+   * Validate and normalize bank code
+   * @returns normalized bank code or null if invalid
+   */
+  private validateAndNormalizeBankCode(code: any): string | null {
+    if (!code || typeof code !== 'string') {
+      return null;
+    }
+    const normalized = code.toUpperCase().trim();
+    return normalized || null;
+  }
+
+  /**
+   * Process bank data from Thunder API
+   */
+  private async processBankData(
+    bankData: any,
+    errors: string[],
+  ): Promise<{ imported: boolean; updated: boolean }> {
+    try {
+      const bankCode = this.validateAndNormalizeBankCode(bankData.code);
+      if (!bankCode) {
+        errors.push('Skipped bank with empty code');
+        return { imported: false, updated: false };
+      }
+
+      const bankInfo = {
+        name: bankData.name?.th || bankData.name,
+        nameTh: bankData.name?.th,
+        nameEn: bankData.name?.en,
+        shortName: bankData.short,
+        color: bankData.color,
+        logoUrl: bankData.logo,
+      };
+
+      const existing = await this.bankModel.findOne({ code: bankCode });
+      if (existing) {
+        await this.bankModel.updateOne(
+          { code: bankCode },
+          { ...bankInfo, isActive: true },
+        );
+        return { imported: false, updated: true };
+      } else {
+        await this.bankModel.create({
+          code: bankCode,
+          ...bankInfo,
+        });
+        return { imported: true, updated: false };
+      }
+    } catch (err: any) {
+      const bankCode = bankData.code || 'unknown';
+      // Log detailed error for debugging
+      this.logger.error(`Failed to process bank ${bankCode}:`, err);
+      // Add generic error message to response
+      errors.push(`Failed to process bank ${bankCode}`);
+      return { imported: false, updated: false };
+    }
+  }
+
+  /**
    * Initialize default banks
    */
   async initDefaultBanks(): Promise<{ created: number; skipped: number }> {
@@ -159,36 +218,9 @@ export class BanksService {
 
       if (response.data?.data) {
         for (const bankData of response.data.data) {
-          try {
-            const existing = await this.bankModel.findOne({ code: bankData.code });
-            if (existing) {
-              // Update existing
-              await this.bankModel.updateOne(
-                { code: bankData.code },
-                {
-                  name: bankData.name?.th || bankData.name,
-                  nameTh: bankData.name?.th,
-                  nameEn: bankData.name?.en,
-                  shortName: bankData.short,
-                  color: bankData.color,
-                  logoUrl: bankData.logo,
-                },
-              );
-            } else {
-              // Create new
-              await this.bankModel.create({
-                code: bankData.code,
-                name: bankData.name?.th || bankData.name,
-                nameTh: bankData.name?.th,
-                nameEn: bankData.name?.en,
-                shortName: bankData.short,
-                color: bankData.color,
-                logoUrl: bankData.logo,
-              });
-              imported++;
-            }
-          } catch (err: any) {
-            errors.push(`Failed to import ${bankData.code}: ${err.message}`);
+          const result = await this.processBankData(bankData, errors);
+          if (result.imported) {
+            imported++;
           }
         }
       }
@@ -222,36 +254,11 @@ export class BanksService {
 
       if (response.data?.data) {
         for (const bankData of response.data.data) {
-          try {
-            const existing = await this.bankModel.findOne({ code: bankData.code });
-            if (existing) {
-              await this.bankModel.updateOne(
-                { code: bankData.code },
-                {
-                  name: bankData.name?.th || bankData.name,
-                  nameTh: bankData.name?.th,
-                  nameEn: bankData.name?.en,
-                  shortName: bankData.short,
-                  color: bankData.color,
-                  logoUrl: bankData.logo,
-                  isActive: true,
-                },
-              );
-              updated++;
-            } else {
-              await this.bankModel.create({
-                code: bankData.code,
-                name: bankData.name?.th || bankData.name,
-                nameTh: bankData.name?.th,
-                nameEn: bankData.name?.en,
-                shortName: bankData.short,
-                color: bankData.color,
-                logoUrl: bankData.logo,
-              });
-              imported++;
-            }
-          } catch (err: any) {
-            errors.push(`Failed to import ${bankData.code}: ${err.message}`);
+          const result = await this.processBankData(bankData, errors);
+          if (result.imported) {
+            imported++;
+          } else if (result.updated) {
+            updated++;
           }
         }
       }
