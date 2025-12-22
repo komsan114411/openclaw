@@ -37,9 +37,9 @@ export default function UserLineAccountsPage() {
     customDuplicateSlipMessage: '',
     customSlipErrorMessage: '',
     customSlipSuccessMessage: '',
-    sendMessageWhenBotDisabled: null as boolean | null,
-    sendMessageWhenSlipDisabled: null as boolean | null,
-    sendMessageWhenAiDisabled: null as boolean | null,
+    sendMessageWhenBotDisabled: 'default' as string,
+    sendMessageWhenSlipDisabled: 'default' as string,
+    sendMessageWhenAiDisabled: 'default' as string,
   });
 
   useEffect(() => {
@@ -142,6 +142,11 @@ export default function UserLineAccountsPage() {
   const openSettingsModal = (account: LineAccount) => {
     setSelectedAccount(account);
     const s = account.settings || {};
+    // Convert boolean/null to string for frontend select
+    const boolToString = (val: boolean | null | undefined): string => {
+      if (val === null || val === undefined) return 'default';
+      return val ? 'true' : 'false';
+    };
     setSettingsData({
       enableBot: s.enableBot ?? false,
       enableAi: s.enableAi ?? false,
@@ -157,9 +162,9 @@ export default function UserLineAccountsPage() {
       customDuplicateSlipMessage: (s as any).customDuplicateSlipMessage || '',
       customSlipErrorMessage: (s as any).customSlipErrorMessage || '',
       customSlipSuccessMessage: (s as any).customSlipSuccessMessage || '',
-      sendMessageWhenBotDisabled: (s as any).sendMessageWhenBotDisabled ?? null,
-      sendMessageWhenSlipDisabled: (s as any).sendMessageWhenSlipDisabled ?? null,
-      sendMessageWhenAiDisabled: (s as any).sendMessageWhenAiDisabled ?? null,
+      sendMessageWhenBotDisabled: boolToString((s as any).sendMessageWhenBotDisabled),
+      sendMessageWhenSlipDisabled: boolToString((s as any).sendMessageWhenSlipDisabled),
+      sendMessageWhenAiDisabled: boolToString((s as any).sendMessageWhenAiDisabled),
     });
     setShowSettingsModal(true);
   };
@@ -167,7 +172,18 @@ export default function UserLineAccountsPage() {
   const handleSaveSettings = async () => {
     if (!selectedAccount) return;
     try {
-      await lineAccountsApi.updateSettings(selectedAccount._id, settingsData);
+      // Convert string values back to boolean/null for backend
+      const stringToBool = (val: string): boolean | null => {
+        if (val === 'default') return null;
+        return val === 'true';
+      };
+      const dataToSave = {
+        ...settingsData,
+        sendMessageWhenBotDisabled: stringToBool(settingsData.sendMessageWhenBotDisabled),
+        sendMessageWhenSlipDisabled: stringToBool(settingsData.sendMessageWhenSlipDisabled),
+        sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
+      };
+      await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
       toast.success('บันทึกการตั้งค่าสำเร็จ');
       setShowSettingsModal(false);
       fetchAccounts();
@@ -567,10 +583,10 @@ export default function UserLineAccountsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-700">แจ้งเมื่อบอทปิด</span>
                       <select
-                        value={settingsData.sendMessageWhenBotDisabled === null ? 'default' : String(settingsData.sendMessageWhenBotDisabled)}
+                        value={settingsData.sendMessageWhenBotDisabled}
                         onChange={(e) => setSettingsData({ 
                           ...settingsData, 
-                          sendMessageWhenBotDisabled: e.target.value === 'default' ? null : e.target.value === 'true'
+                          sendMessageWhenBotDisabled: e.target.value
                         })}
                         className="input w-36 text-sm"
                       >
@@ -591,10 +607,10 @@ export default function UserLineAccountsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-700">แจ้งเมื่อตรวจสลิปปิด</span>
                       <select
-                        value={settingsData.sendMessageWhenSlipDisabled === null ? 'default' : String(settingsData.sendMessageWhenSlipDisabled)}
+                        value={settingsData.sendMessageWhenSlipDisabled}
                         onChange={(e) => setSettingsData({ 
                           ...settingsData, 
-                          sendMessageWhenSlipDisabled: e.target.value === 'default' ? null : e.target.value === 'true'
+                          sendMessageWhenSlipDisabled: e.target.value
                         })}
                         className="input w-36 text-sm"
                       >
@@ -615,10 +631,10 @@ export default function UserLineAccountsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-700">แจ้งเมื่อ AI ปิด</span>
                       <select
-                        value={settingsData.sendMessageWhenAiDisabled === null ? 'default' : String(settingsData.sendMessageWhenAiDisabled)}
+                        value={settingsData.sendMessageWhenAiDisabled}
                         onChange={(e) => setSettingsData({ 
                           ...settingsData, 
-                          sendMessageWhenAiDisabled: e.target.value === 'default' ? null : e.target.value === 'true'
+                          sendMessageWhenAiDisabled: e.target.value
                         })}
                         className="input w-36 text-sm"
                       >

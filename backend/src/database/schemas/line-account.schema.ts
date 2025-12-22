@@ -69,15 +69,25 @@ export class LineAccountSettings {
   @Prop()
   customSlipSuccessMessage: string;
 
-  // Whether to send message when feature is disabled
-  @Prop({ default: null })
-  sendMessageWhenBotDisabled: boolean | null; // null = use system setting
+  // Whether to send message when feature is disabled (null = use system setting)
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenBotDisabled: boolean;
 
-  @Prop({ default: null })
-  sendMessageWhenSlipDisabled: boolean | null; // null = use system setting
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenSlipDisabled: boolean;
 
-  @Prop({ default: null })
-  sendMessageWhenAiDisabled: boolean | null; // null = use system setting
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenAiDisabled: boolean;
+
+  // Slip Template Settings
+  @Prop({ type: Object })
+  slipSuccessTemplate: Record<string, any>; // Flex message template for success
+
+  @Prop({ type: Object })
+  slipDuplicateTemplate: Record<string, any>; // Flex message template for duplicate
+
+  @Prop({ type: Object })
+  slipErrorTemplate: Record<string, any>; // Flex message template for error
 }
 
 @Schema({ _id: false })
