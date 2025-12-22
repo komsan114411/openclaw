@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import axios from 'axios';
+import { Model, Types } from 'mongoose';
+import axios, { AxiosError } from 'axios';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { ChatMessage, ChatMessageDocument, MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { CreateLineAccountDto } from './dto/create-line-account.dto';
@@ -10,11 +10,20 @@ import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class LineAccountsService {
+  private readonly logger = new Logger(LineAccountsService.name);
+
   constructor(
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     private redisService: RedisService,
   ) {}
+
+  /**
+   * Validate ObjectId format
+   */
+  private isValidObjectId(id: string): boolean {
+    return Types.ObjectId.isValid(id);
+  }
 
   async create(ownerId: string, dto: CreateLineAccountDto): Promise<LineAccountDocument> {
     // Check if channel ID already exists
@@ -104,6 +113,11 @@ export class LineAccountsService {
 
   // LINE API Methods
   async sendReply(replyToken: string, messages: any[], accessToken: string): Promise<void> {
+    if (!replyToken || !messages || messages.length === 0) {
+      this.logger.warn('Invalid sendReply parameters');
+      return;
+    }
+
     try {
       await axios.post(
         'https://api.line.me/v2/bot/message/reply',
@@ -113,15 +127,27 @@ export class LineAccountsService {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
+          timeout: 10000,
         },
       );
     } catch (error) {
-      console.error('Error sending LINE reply:', error);
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 400) {
+        // Reply token expired or invalid - this is normal for delayed responses
+        this.logger.debug('Reply token expired, message not sent');
+        return;
+      }
+      this.logger.error('Error sending LINE reply:', axiosError.message);
       throw error;
     }
   }
 
   async sendPush(userId: string, messages: any[], accessToken: string): Promise<void> {
+    if (!userId || !messages || messages.length === 0) {
+      this.logger.warn('Invalid sendPush parameters');
+      return;
+    }
+
     try {
       await axios.post(
         'https://api.line.me/v2/bot/message/push',
@@ -131,23 +157,69 @@ export class LineAccountsService {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
+          timeout: 10000,
         },
       );
     } catch (error) {
-      console.error('Error sending LINE push message:', error);
+      const axiosError = error as AxiosError;
+      this.logger.error(`Error sending LINE push message: ${axiosError.message}`);
       throw error;
     }
   }
 
   async getMessageContent(messageId: string, accessToken: string): Promise<Buffer> {
-    const response = await axios.get(
-      `https://api-data.line.me/v2/bot/message/${messageId}/content`,
-      {
+    if (!messageId || !accessToken) {
+      throw new BadRequestException('Invalid messageId or accessToken');
+    }
+
+    try {
+      const response = await axios.get(
+        `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          responseType: 'arraybuffer',
+          timeout: 30000,
+        },
+      );
+      return Buffer.from(response.data);
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      this.logger.error(`Error getting message content: ${axiosError.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Test LINE channel connection
+   */
+  async testConnection(accessToken: string): Promise<{ success: boolean; message: string; botInfo?: any }> {
+    try {
+      const response = await axios.get('https://api.line.me/v2/bot/info', {
         headers: { Authorization: `Bearer ${accessToken}` },
-        responseType: 'arraybuffer',
-      },
-    );
-    return Buffer.from(response.data);
+        timeout: 10000,
+      });
+
+      return {
+        success: true,
+        message: 'เชื่อมต่อ LINE API สำเร็จ',
+        botInfo: response.data,
+      };
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      const status = axiosError.response?.status;
+
+      if (status === 401 || status === 403) {
+        return {
+          success: false,
+          message: 'Access Token ไม่ถูกต้องหรือหมดอายุ',
+        };
+      }
+
+      return {
+        success: false,
+        message: `ไม่สามารถเชื่อมต่อ LINE API: ${axiosError.message}`,
+      };
+    }
   }
 
   // Chat history

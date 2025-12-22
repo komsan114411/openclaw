@@ -181,6 +181,21 @@ export class SlipVerificationService {
   ): Promise<SlipVerificationResult> {
     const endpoint = 'https://api.thunder.in.th/v1/verify';
 
+    // Validate inputs
+    if (!imageData || imageData.length === 0) {
+      return {
+        status: 'error',
+        message: 'ไม่พบข้อมูลรูปภาพ',
+      };
+    }
+
+    if (!apiKey || apiKey.trim().length === 0) {
+      return {
+        status: 'error',
+        message: 'ยังไม่ได้ตั้งค่า API Key',
+      };
+    }
+
     const formData = new FormData();
     formData.append('file', imageData, {
       filename: 'slip.jpg',
@@ -195,6 +210,7 @@ export class SlipVerificationService {
           Authorization: `Bearer ${apiKey}`,
         },
         timeout: 60000,
+        maxContentLength: 15 * 1024 * 1024, // 15MB max
       });
 
       const data = response.data;
@@ -236,23 +252,52 @@ export class SlipVerificationService {
         };
       }
     } catch (error: any) {
+      // Handle timeout
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        this.logger.error('Thunder API timeout');
+        return {
+          status: 'error',
+          message: 'การตรวจสอบสลิปใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง',
+        };
+      }
+
+      // Handle network errors
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        this.logger.error('Thunder API connection error:', error.code);
+        return {
+          status: 'error',
+          message: 'ไม่สามารถเชื่อมต่อระบบตรวจสอบสลิปได้ กรุณาลองใหม่อีกครั้ง',
+        };
+      }
+
       if (error.response) {
         const status = error.response.status;
         const data = error.response.data;
 
         if (status === 400) {
-          if (data.message === 'duplicate_slip') {
+          const message = data.message || '';
+          if (message === 'duplicate_slip' || message.includes('duplicate')) {
             return {
               status: 'duplicate',
               message: 'สลิปนี้เคยถูกตรวจสอบแล้ว',
             };
-          } else if (data.message === 'invalid_payload') {
+          } else if (message === 'invalid_payload' || message.includes('invalid')) {
             return {
               status: 'error',
               message: 'ไม่สามารถอ่านข้อมูลจากสลิปได้ กรุณาถ่ายรูปให้ชัดเจน',
             };
+          } else if (message.includes('qr') || message.includes('QR')) {
+            return {
+              status: 'error',
+              message: 'ไม่พบ QR Code ในสลิป กรุณาถ่ายรูปให้ครบทั้งใบ',
+            };
           }
+          return {
+            status: 'error',
+            message: message || 'รูปแบบสลิปไม่ถูกต้อง',
+          };
         } else if (status === 401 || status === 403) {
+          this.logger.error('Thunder API authentication error');
           return {
             status: 'error',
             message: 'API Key ไม่ถูกต้องหรือหมดอายุ',
@@ -262,9 +307,22 @@ export class SlipVerificationService {
             status: 'not_found',
             message: 'ไม่พบข้อมูลสลิปในระบบธนาคาร',
           };
+        } else if (status === 429) {
+          this.logger.error('Thunder API rate limited');
+          return {
+            status: 'error',
+            message: 'ระบบตรวจสอบสลิปมีผู้ใช้มากเกินไป กรุณาลองใหม่อีกครั้ง',
+          };
+        } else if (status >= 500) {
+          this.logger.error(`Thunder API server error: ${status}`);
+          return {
+            status: 'error',
+            message: 'ระบบตรวจสอบสลิปขัดข้อง กรุณาลองใหม่อีกครั้ง',
+          };
         }
       }
 
+      this.logger.error('Unexpected Thunder API error:', error);
       throw error;
     }
   }
