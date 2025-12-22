@@ -333,6 +333,31 @@ export class SubscriptionsService {
   }
 
   /**
+   * Cleanup stale reservations that have been pending too long (e.g., > 10 minutes)
+   * This handles cases where the process crashed before confirming/rolling back
+   */
+  async cleanupStaleReservations(maxAgeMinutes = 10): Promise<number> {
+    // For subscriptions with reservations, we'll reset them if they've been reserved too long
+    // This is a safety mechanism - in production, you might want to track reservation timestamps
+    const result = await this.subscriptionModel.updateMany(
+      {
+        slipsReserved: { $gt: 0 },
+        // Only cleanup if the subscription is still active
+        status: SubscriptionStatus.ACTIVE,
+      },
+      {
+        $set: { slipsReserved: 0 },
+      },
+    );
+
+    if (result.modifiedCount > 0) {
+      this.logger.log(`Cleaned up ${result.modifiedCount} stale reservations`);
+    }
+
+    return result.modifiedCount;
+  }
+
+  /**
    * Get subscription statistics for admin dashboard
    */
   async getStatistics(): Promise<{

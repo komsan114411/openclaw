@@ -19,6 +19,10 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { CommonModule } from './common/common.module';
 import { TasksModule } from './tasks/tasks.module';
+import { ChatMessagesModule } from './chat-messages/chat-messages.module';
+import { SlipTemplatesModule } from './slip-templates/slip-templates.module';
+import { BanksModule } from './banks/banks.module';
+import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 
 @Module({
   imports: [
@@ -75,6 +79,12 @@ import { TasksModule } from './tasks/tasks.module';
     SystemSettingsModule,
     WebsocketModule,
     TasksModule,
+    
+    // New modules
+    ChatMessagesModule,
+    SlipTemplatesModule,
+    BanksModule,
+    ActivityLogsModule,
   ],
 })
 export class AppModule {}

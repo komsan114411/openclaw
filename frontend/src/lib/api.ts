@@ -35,6 +35,7 @@ api.interceptors.response.use(
 );
 
 export default api;
+export { api };
 
 // Auth API
 export const authApi = {

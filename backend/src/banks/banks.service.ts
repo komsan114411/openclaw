@@ -1,0 +1,260 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import axios from 'axios';
+import { Bank, BankDocument } from '../database/schemas/bank.schema';
+
+// Default Thai banks data
+const DEFAULT_BANKS = [
+  { code: 'KBANK', name: 'ธนาคารกสิกรไทย', shortName: 'กสิกร', color: '#138f2d' },
+  { code: 'SCB', name: 'ธนาคารไทยพาณิชย์', shortName: 'ไทยพาณิชย์', color: '#4e2e7f' },
+  { code: 'KTB', name: 'ธนาคารกรุงไทย', shortName: 'กรุงไทย', color: '#1ba5e0' },
+  { code: 'BBL', name: 'ธนาคารกรุงเทพ', shortName: 'กรุงเทพ', color: '#1e4598' },
+  { code: 'BAY', name: 'ธนาคารกรุงศรีอยุธยา', shortName: 'กรุงศรี', color: '#fec43b' },
+  { code: 'TMB', name: 'ธนาคารทหารไทยธนชาต', shortName: 'TTB', color: '#1279be' },
+  { code: 'GSB', name: 'ธนาคารออมสิน', shortName: 'ออมสิน', color: '#eb198d' },
+  { code: 'BAAC', name: 'ธนาคารเพื่อการเกษตรและสหกรณ์', shortName: 'ธ.ก.ส.', color: '#4b9b1d' },
+  { code: 'TBANK', name: 'ธนาคารธนชาต', shortName: 'ธนชาต', color: '#fc4f1f' },
+  { code: 'CIMB', name: 'ธนาคารซีไอเอ็มบี', shortName: 'CIMB', color: '#7e2f36' },
+  { code: 'UOB', name: 'ธนาคารยูโอบี', shortName: 'UOB', color: '#0b3979' },
+  { code: 'LHBANK', name: 'ธนาคารแลนด์แอนด์เฮ้าส์', shortName: 'LH Bank', color: '#6d6e71' },
+  { code: 'KKP', name: 'ธนาคารเกียรตินาคินภัทร', shortName: 'KKP', color: '#199cc5' },
+  { code: 'ICBC', name: 'ธนาคารไอซีบีซี', shortName: 'ICBC', color: '#c50f1c' },
+  { code: 'TISCO', name: 'ธนาคารทิสโก้', shortName: 'TISCO', color: '#12549f' },
+  { code: 'PROMPTPAY', name: 'พร้อมเพย์', shortName: 'PromptPay', color: '#1e4e8c' },
+  { code: 'TRUEMONEY', name: 'ทรูมันนี่', shortName: 'TrueMoney', color: '#ff6600' },
+];
+
+@Injectable()
+export class BanksService {
+  private readonly logger = new Logger(BanksService.name);
+
+  constructor(
+    @InjectModel(Bank.name) private bankModel: Model<BankDocument>,
+  ) {}
+
+  /**
+   * Get all banks
+   */
+  async getAll(): Promise<BankDocument[]> {
+    return this.bankModel
+      .find({ isActive: true })
+      .sort({ sortOrder: 1, name: 1 })
+      .exec();
+  }
+
+  /**
+   * Get bank by code
+   */
+  async getByCode(code: string): Promise<BankDocument | null> {
+    return this.bankModel.findOne({ code: code.toUpperCase() });
+  }
+
+  /**
+   * Get bank by ID
+   */
+  async getById(id: string): Promise<BankDocument> {
+    const bank = await this.bankModel.findById(id);
+    if (!bank) {
+      throw new NotFoundException('Bank not found');
+    }
+    return bank;
+  }
+
+  /**
+   * Create bank
+   */
+  async create(data: {
+    code: string;
+    name: string;
+    nameTh?: string;
+    nameEn?: string;
+    shortName?: string;
+    color?: string;
+    logoUrl?: string;
+  }): Promise<BankDocument> {
+    return this.bankModel.create({
+      ...data,
+      code: data.code.toUpperCase(),
+    });
+  }
+
+  /**
+   * Update bank
+   */
+  async update(
+    id: string,
+    data: Partial<{
+      name: string;
+      nameTh?: string;
+      nameEn?: string;
+      shortName?: string;
+      color?: string;
+      logoUrl?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    }>,
+  ): Promise<BankDocument> {
+    const bank = await this.bankModel.findByIdAndUpdate(id, data, { new: true });
+    if (!bank) {
+      throw new NotFoundException('Bank not found');
+    }
+    return bank;
+  }
+
+  /**
+   * Delete bank
+   */
+  async delete(id: string): Promise<void> {
+    const result = await this.bankModel.findByIdAndDelete(id);
+    if (!result) {
+      throw new NotFoundException('Bank not found');
+    }
+  }
+
+  /**
+   * Initialize default banks
+   */
+  async initDefaultBanks(): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+
+    for (const bank of DEFAULT_BANKS) {
+      const existing = await this.bankModel.findOne({ code: bank.code });
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      await this.bankModel.create({
+        ...bank,
+        nameTh: bank.name,
+        sortOrder: DEFAULT_BANKS.indexOf(bank),
+      });
+      created++;
+    }
+
+    return { created, skipped };
+  }
+
+  /**
+   * Import banks from Thunder API
+   */
+  async importFromThunderApi(apiKey: string): Promise<{ imported: number; errors: string[] }> {
+    const errors: string[] = [];
+    let imported = 0;
+
+    try {
+      const response = await axios.get('https://api.thunder.in.th/v1/banks', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        timeout: 30000,
+      });
+
+      if (response.data?.data) {
+        for (const bankData of response.data.data) {
+          try {
+            const existing = await this.bankModel.findOne({ code: bankData.code });
+            if (existing) {
+              // Update existing
+              await this.bankModel.updateOne(
+                { code: bankData.code },
+                {
+                  name: bankData.name?.th || bankData.name,
+                  nameTh: bankData.name?.th,
+                  nameEn: bankData.name?.en,
+                  shortName: bankData.short,
+                  color: bankData.color,
+                  logoUrl: bankData.logo,
+                },
+              );
+            } else {
+              // Create new
+              await this.bankModel.create({
+                code: bankData.code,
+                name: bankData.name?.th || bankData.name,
+                nameTh: bankData.name?.th,
+                nameEn: bankData.name?.en,
+                shortName: bankData.short,
+                color: bankData.color,
+                logoUrl: bankData.logo,
+              });
+              imported++;
+            }
+          } catch (err: any) {
+            errors.push(`Failed to import ${bankData.code}: ${err.message}`);
+          }
+        }
+      }
+    } catch (error: any) {
+      errors.push(`API Error: ${error.message}`);
+    }
+
+    return { imported, errors };
+  }
+
+  /**
+   * Get bank logo
+   */
+  async getBankLogo(code: string): Promise<{ contentType: string; data: Buffer } | null> {
+    const bank = await this.bankModel.findOne({ code: code.toUpperCase() });
+
+    if (!bank) {
+      return null;
+    }
+
+    // If we have base64 logo stored
+    if (bank.logoBase64) {
+      const matches = bank.logoBase64.match(/^data:(.+);base64,(.+)$/);
+      if (matches) {
+        return {
+          contentType: matches[1],
+          data: Buffer.from(matches[2], 'base64'),
+        };
+      }
+    }
+
+    // If we have logo URL, fetch it
+    if (bank.logoUrl) {
+      try {
+        const response = await axios.get(bank.logoUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000,
+        });
+
+        const contentType = response.headers['content-type'] || 'image/png';
+        const data = Buffer.from(response.data);
+
+        // Cache the logo
+        const base64 = `data:${contentType};base64,${data.toString('base64')}`;
+        await this.bankModel.updateOne({ _id: bank._id }, { logoBase64: base64 });
+
+        return { contentType, data };
+      } catch (error) {
+        this.logger.error(`Failed to fetch bank logo for ${code}:`, error);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Search banks
+   */
+  async search(query: string): Promise<BankDocument[]> {
+    const regex = new RegExp(query, 'i');
+    return this.bankModel
+      .find({
+        isActive: true,
+        $or: [
+          { code: regex },
+          { name: regex },
+          { nameTh: regex },
+          { nameEn: regex },
+          { shortName: regex },
+        ],
+      })
+      .sort({ sortOrder: 1 })
+      .limit(20)
+      .exec();
+  }
+}
