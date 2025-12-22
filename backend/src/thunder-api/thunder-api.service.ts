@@ -100,14 +100,26 @@ export class ThunderApiService {
     }
 
     try {
+      this.logger.log(`Fetching Thunder API quota with token source: ${tokenSource}`);
+      
       const response = await this.apiClient.get<ThunderApiResponse>('/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.data.status === 200 && response.data.data) {
-        const data = response.data.data;
+      this.logger.log(`Thunder API response status: ${response.status}, body status: ${response.data?.status}`);
+
+      // Check HTTP status first (axios returns 200 for successful requests)
+      // Then check the API response body status
+      const httpSuccess = response.status === 200;
+      const apiStatus = response.data?.status;
+      const apiData = response.data?.data;
+
+      // Handle successful response - check both HTTP 200 and API status 200
+      // API status could be number or string depending on server response
+      if (httpSuccess && (apiStatus === 200 || String(apiStatus) === '200') && apiData) {
+        const data = apiData;
         const expiredAt = new Date(data.expiredAt);
         const now = new Date();
         const daysRemaining = Math.ceil((expiredAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -133,13 +145,50 @@ export class ThunderApiService {
         };
       }
 
+      // If HTTP is 200 but API returns data directly (without wrapper)
+      // Try to parse the response.data directly as quota info
+      if (httpSuccess && response.data && typeof response.data === 'object') {
+        const directData = response.data as any;
+        if (directData.application !== undefined && directData.remainingQuota !== undefined) {
+          const expiredAt = new Date(directData.expiredAt);
+          const now = new Date();
+          const daysRemaining = Math.ceil((expiredAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          const usagePercentage = (directData.usedQuota / directData.maxQuota) * 100;
+          const isExpired = expiredAt < now;
+          const isLowQuota = directData.remainingQuota < (directData.maxQuota * 0.1);
+
+          return {
+            success: true,
+            data: {
+              application: directData.application,
+              usedQuota: directData.usedQuota,
+              maxQuota: directData.maxQuota,
+              remainingQuota: directData.remainingQuota,
+              usagePercentage: Math.round(usagePercentage * 100) / 100,
+              expiredAt,
+              daysRemaining: Math.max(0, daysRemaining),
+              currentCredit: directData.currentCredit,
+              isExpired,
+              isLowQuota,
+            },
+            tokenSource,
+          };
+        }
+      }
+
+      this.logger.warn(`Unexpected Thunder API response structure: ${JSON.stringify(response.data)}`);
       return {
         success: false,
-        error: response.data.message || 'ไม่สามารถดึงข้อมูลโควต้าได้',
+        error: response.data?.message || 'ไม่สามารถดึงข้อมูลโควต้าได้ - รูปแบบข้อมูลไม่ถูกต้อง',
         tokenSource,
       };
     } catch (error: any) {
       this.logger.error(`Failed to get Thunder API quota: ${error.message}`);
+      
+      // Log more details for debugging
+      if (error.response) {
+        this.logger.error(`Thunder API error response: status=${error.response.status}, data=${JSON.stringify(error.response.data)}`);
+      }
 
       if (error.response) {
         const status = error.response.status;
@@ -171,6 +220,23 @@ export class ThunderApiService {
               tokenSource,
             };
         }
+      }
+
+      // Handle network errors
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        return {
+          success: false,
+          error: 'การเชื่อมต่อ Thunder API หมดเวลา กรุณาลองใหม่อีกครั้ง',
+          tokenSource,
+        };
+      }
+
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        return {
+          success: false,
+          error: 'ไม่สามารถเชื่อมต่อ Thunder API ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+          tokenSource,
+        };
       }
 
       return {
