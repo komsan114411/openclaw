@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -16,6 +17,8 @@ import { RedisModule } from './redis/redis.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { CommonModule } from './common/common.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { HealthModule } from './health/health.module';
       isGlobal: true,
       envFilePath: ['.env', '../.env'],
     }),
+    
+    // Schedule module for cron jobs
+    ScheduleModule.forRoot(),
     
     // Serve static files (Frontend)
     ServeStaticModule.forRoot({
@@ -51,6 +57,9 @@ import { HealthModule } from './health/health.module';
       inject: [ConfigService],
     }),
     
+    // Common module (guards, utilities)
+    CommonModule,
+    
     // Feature modules
     DatabaseModule,
     RedisModule,
@@ -65,6 +74,7 @@ import { HealthModule } from './health/health.module';
     PaymentsModule,
     SystemSettingsModule,
     WebsocketModule,
+    TasksModule,
   ],
 })
 export class AppModule {}
