@@ -340,7 +340,7 @@ export default function AdminDashboard() {
                 </svg>
                 <div>
                   <p className="font-medium">ไม่สามารถดึงข้อมูลโควต้าได้</p>
-                  <p className="text-sm text-white/80">{thunderQuota?.error || 'กรุณาตั้งค่า THUNDER_API_TOKEN ใน environment variables'}</p>
+                  <p className="text-sm text-white/80">{thunderQuota?.error || 'กรุณาตั้งค่า Slip API Key ในหน้าตั้งค่าระบบ'}</p>
                 </div>
               </div>
             </div>
