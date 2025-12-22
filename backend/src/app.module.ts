@@ -23,6 +23,7 @@ import { ChatMessagesModule } from './chat-messages/chat-messages.module';
 import { SlipTemplatesModule } from './slip-templates/slip-templates.module';
 import { BanksModule } from './banks/banks.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
+import { ThunderApiModule } from './thunder-api/thunder-api.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { ActivityLogsModule } from './activity-logs/activity-logs.module';
     SlipTemplatesModule,
     BanksModule,
     ActivityLogsModule,
+    ThunderApiModule,
   ],
 })
 export class AppModule {}

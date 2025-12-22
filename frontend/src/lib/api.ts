@@ -157,3 +157,11 @@ export const chatbotApi = {
   test: (message: string, systemPrompt?: string) =>
     api.post('/chatbot/test', { message, systemPrompt }),
 };
+
+// Thunder API (Slip Verification Service)
+export const thunderApi = {
+  getQuota: (customToken?: string) =>
+    api.get('/thunder/quota', { params: customToken ? { token: customToken } : {} }),
+  checkHealth: (customToken?: string) =>
+    api.get('/thunder/health', { params: customToken ? { token: customToken } : {} }),
+};

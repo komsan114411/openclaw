@@ -9,6 +9,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
+  badge?: string;
 }
 
 const adminNavItems: NavItem[] = [
@@ -58,6 +59,15 @@ const adminNavItems: NavItem[] = [
     ),
   },
   {
+    name: 'ธนาคาร',
+    href: '/admin/banks',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
     name: 'ตั้งค่าระบบ',
     href: '/admin/settings',
     icon: (
@@ -94,6 +104,25 @@ const userNavItems: NavItem[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'แชท',
+    href: '/user/chat',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+      </svg>
+    ),
+    badge: 'ใหม่',
+  },
+  {
+    name: 'Templates',
+    href: '/user/templates',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
       </svg>
     ),
   },
@@ -142,7 +171,7 @@ export default function Sidebar() {
   const navItems = user?.role === 'admin' ? adminNavItems : userNavItems;
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-secondary-800 to-secondary-900 text-white w-64">
+    <div className="flex flex-col h-full bg-gradient-to-b from-secondary-800 to-secondary-900 text-white w-64 min-h-screen">
       {/* Logo */}
       <div className="p-6">
         <h1 className="text-xl font-bold flex items-center gap-2">
@@ -154,20 +183,25 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={clsx(
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
-              pathname === item.href
+              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative',
+              pathname === item.href || pathname.startsWith(item.href + '/')
                 ? 'bg-primary-600 text-white'
                 : 'text-secondary-300 hover:bg-secondary-700 hover:text-white'
             )}
           >
             {item.icon}
             <span>{item.name}</span>
+            {item.badge && (
+              <span className="absolute right-3 px-2 py-0.5 text-xs font-medium bg-green-500 text-white rounded-full animate-pulse">
+                {item.badge}
+              </span>
+            )}
           </Link>
         ))}
       </nav>
