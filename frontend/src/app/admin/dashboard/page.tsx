@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { usersApi, lineAccountsApi, paymentsApi, packagesApi } from '@/lib/api';
+import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 interface Stats {
   totalUsers: number;
@@ -19,36 +21,77 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [isRunningMaintenance, setIsRunningMaintenance] = useState<string | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const [usersRes, lineAccountsRes, paymentsRes, packagesRes] = await Promise.all([
+        usersApi.getStatistics(),
+        lineAccountsApi.getStatistics(),
+        paymentsApi.getAll('pending'),
+        packagesApi.getAll(true),
+      ]);
+
+      setStats({
+        totalUsers: usersRes.data.statistics?.totalUsers || 0,
+        activeUsers: usersRes.data.statistics?.activeUsers || 0,
+        totalLineAccounts: lineAccountsRes.data.statistics?.totalAccounts || 0,
+        totalMessages: lineAccountsRes.data.statistics?.totalMessages || 0,
+        totalSlipsVerified: lineAccountsRes.data.statistics?.totalSlipsVerified || 0,
+        pendingPayments: paymentsRes.data.payments?.length || 0,
+        totalPackages: packagesRes.data.packages?.length || 0,
+      });
+      setRecentPayments(paymentsRes.data.payments?.slice(0, 5) || []);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [usersRes, lineAccountsRes, paymentsRes, packagesRes] = await Promise.all([
-          usersApi.getStatistics(),
-          lineAccountsApi.getStatistics(),
-          paymentsApi.getAll('pending'),
-          packagesApi.getAll(true),
-        ]);
-
-        setStats({
-          totalUsers: usersRes.data.statistics?.totalUsers || 0,
-          activeUsers: usersRes.data.statistics?.activeUsers || 0,
-          totalLineAccounts: lineAccountsRes.data.statistics?.totalAccounts || 0,
-          totalMessages: lineAccountsRes.data.statistics?.totalMessages || 0,
-          totalSlipsVerified: lineAccountsRes.data.statistics?.totalSlipsVerified || 0,
-          pendingPayments: paymentsRes.data.payments?.length || 0,
-          totalPackages: packagesRes.data.packages?.length || 0,
-        });
-        setRecentPayments(paymentsRes.data.payments?.slice(0, 5) || []);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchStats();
-  }, []);
+  }, [fetchStats]);
+
+  // System Maintenance Functions
+  const runCleanupSessions = async () => {
+    if (isRunningMaintenance) return;
+    setIsRunningMaintenance('sessions');
+    try {
+      const res = await api.post('/auth/cleanup-sessions');
+      toast.success(`ลบ session หมดอายุแล้ว ${res.data.deletedCount || 0} รายการ`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsRunningMaintenance(null);
+    }
+  };
+
+  const runCleanupReservations = async () => {
+    if (isRunningMaintenance) return;
+    setIsRunningMaintenance('reservations');
+    try {
+      const res = await api.post('/subscriptions/cleanup-reservations');
+      toast.success(`ลบ quota reservation ค้างแล้ว ${res.data.cleanedCount || 0} รายการ`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsRunningMaintenance(null);
+    }
+  };
+
+  const runExpireSubscriptions = async () => {
+    if (isRunningMaintenance) return;
+    setIsRunningMaintenance('expire');
+    try {
+      const res = await api.post('/subscriptions/expire');
+      toast.success(`อัปเดตสถานะ subscription หมดอายุแล้ว ${res.data.expiredCount || 0} รายการ`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsRunningMaintenance(null);
+    }
+  };
 
   const statCards = [
     {
@@ -275,6 +318,84 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* System Maintenance */}
+        <div className="card">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">การบำรุงรักษาระบบ</h2>
+              <p className="text-sm text-gray-500">เครื่องมือสำหรับดูแลรักษาระบบ</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-medium text-gray-900 mb-2">ล้าง Session หมดอายุ</h3>
+              <p className="text-sm text-gray-500 mb-3">ลบ session ที่หมดอายุแล้วออกจากระบบ</p>
+              <button
+                onClick={runCleanupSessions}
+                disabled={isRunningMaintenance === 'sessions'}
+                className="btn btn-secondary text-sm w-full"
+              >
+                {isRunningMaintenance === 'sessions' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    กำลังทำงาน...
+                  </span>
+                ) : 'เริ่มล้าง'}
+              </button>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-medium text-gray-900 mb-2">ล้าง Quota ค้าง</h3>
+              <p className="text-sm text-gray-500 mb-3">ลบ quota reservation ที่ค้างอยู่</p>
+              <button
+                onClick={runCleanupReservations}
+                disabled={isRunningMaintenance === 'reservations'}
+                className="btn btn-secondary text-sm w-full"
+              >
+                {isRunningMaintenance === 'reservations' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    กำลังทำงาน...
+                  </span>
+                ) : 'เริ่มล้าง'}
+              </button>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-medium text-gray-900 mb-2">อัปเดต Subscription</h3>
+              <p className="text-sm text-gray-500 mb-3">อัปเดตสถานะ subscription ที่หมดอายุ</p>
+              <button
+                onClick={runExpireSubscriptions}
+                disabled={isRunningMaintenance === 'expire'}
+                className="btn btn-secondary text-sm w-full"
+              >
+                {isRunningMaintenance === 'expire' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    กำลังทำงาน...
+                  </span>
+                ) : 'เริ่มอัปเดต'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

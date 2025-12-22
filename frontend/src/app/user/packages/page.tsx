@@ -220,37 +220,71 @@ export default function UserPackagesPage() {
               ยังไม่มีแพ็คเกจ
             </div>
           ) : (
-            packages.map((pkg) => (
-              <div key={pkg._id} className="card hover:shadow-lg transition-shadow">
-                <div className="mb-4">
-                  <h3 className="font-semibold text-lg text-gray-900">{pkg.name}</h3>
-                  <p className="text-sm text-gray-500">{pkg.description || '-'}</p>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-3xl font-bold text-primary-600">฿{pkg.price.toLocaleString()}</p>
-                  {pkg.priceUsdt && pkg.priceUsdt > 0 && (
-                    <p className="text-sm text-gray-500">${pkg.priceUsdt} USDT</p>
-                  )}
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">โควต้าสลิป</span>
-                    <span className="font-medium">{pkg.slipQuota.toLocaleString()} สลิป</span>
+            packages.map((pkg, index) => (
+              <div 
+                key={pkg._id} 
+                className={`card hover:shadow-lg transition-all relative ${
+                  index === 1 ? 'border-2 border-primary-500 scale-[1.02]' : ''
+                }`}
+              >
+                {/* Popular Badge */}
+                {index === 1 && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="px-4 py-1 bg-primary-500 text-white text-xs font-bold rounded-full shadow">
+                      ยอดนิยม
+                    </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">ระยะเวลา</span>
-                    <span className="font-medium">{pkg.durationDays} วัน</span>
+                )}
+
+                <div className="mb-4 mt-2">
+                  <h3 className="font-bold text-xl text-gray-900">{pkg.name}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{pkg.description || 'แพ็คเกจตรวจสอบสลิป'}</p>
+                </div>
+
+                <div className="mb-6">
+                  <div className="flex items-end gap-1">
+                    <span className="text-4xl font-bold text-primary-600">฿{pkg.price.toLocaleString()}</span>
+                    <span className="text-gray-500 text-sm mb-1">/{pkg.durationDays} วัน</span>
+                  </div>
+                  {pkg.priceUsdt && pkg.priceUsdt > 0 && (
+                    <p className="text-sm text-gray-500 mt-1">หรือ ${pkg.priceUsdt} USDT</p>
+                  )}
+                  <div className="mt-2 text-sm text-primary-600 font-medium">
+                    ≈ ฿{(pkg.price / pkg.slipQuota).toFixed(2)}/สลิป
+                  </div>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg">
+                    <div className="p-2 bg-primary-100 rounded-lg">
+                      <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-primary-700">{pkg.slipQuota.toLocaleString()} สลิป</p>
+                      <p className="text-xs text-primary-600">โควต้าตรวจสอบ</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-700">{pkg.durationDays} วัน</p>
+                      <p className="text-xs text-gray-500">อายุการใช้งาน</p>
+                    </div>
                   </div>
                 </div>
 
                 {pkg.features && pkg.features.length > 0 && (
-                  <ul className="space-y-1 mb-4">
+                  <ul className="space-y-2 mb-6">
                     {pkg.features.map((feature, i) => (
                       <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
-                        <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>{feature}</span>
                       </li>
@@ -260,8 +294,11 @@ export default function UserPackagesPage() {
 
                 <button
                   onClick={() => handleSelectPackage(pkg)}
-                  className="btn btn-primary w-full"
+                  className={`btn w-full ${index === 1 ? 'btn-primary' : 'btn-secondary hover:bg-primary-600 hover:text-white'}`}
                 >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
                   เลือกแพ็คเกจนี้
                 </button>
               </div>
@@ -339,8 +376,8 @@ export default function UserPackagesPage() {
                 {paymentInfo?.bankAccounts?.length > 0 ? (
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="font-medium text-blue-900 mb-2">โอนเงินไปยังบัญชี:</p>
-                    {paymentInfo.bankAccounts.map((account: any, index: number) => (
-                      <div key={index} className="text-sm text-blue-800 mb-2 last:mb-0">
+                    {paymentInfo.bankAccounts.map((account: any, idx: number) => (
+                      <div key={idx} className="text-sm text-blue-800 mb-2 last:mb-0">
                         <p className="font-medium">{account.bankName}</p>
                         <p>เลขบัญชี: <span className="font-mono">{account.accountNumber}</span></p>
                         <p>ชื่อบัญชี: {account.accountName}</p>

@@ -46,6 +46,48 @@ export class LineAccountSettings {
 
   @Prop({ default: true })
   webhookEnabled: boolean;
+
+  // Custom Messages (per account) - if empty, use system settings
+  @Prop()
+  customQuotaExceededMessage: string;
+
+  @Prop()
+  customBotDisabledMessage: string;
+
+  @Prop()
+  customSlipDisabledMessage: string;
+
+  @Prop()
+  customAiDisabledMessage: string;
+
+  @Prop()
+  customDuplicateSlipMessage: string;
+
+  @Prop()
+  customSlipErrorMessage: string;
+
+  @Prop()
+  customSlipSuccessMessage: string;
+
+  // Whether to send message when feature is disabled (null = use system setting)
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenBotDisabled: boolean;
+
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenSlipDisabled: boolean;
+
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenAiDisabled: boolean;
+
+  // Slip Template Settings
+  @Prop({ type: Object })
+  slipSuccessTemplate: Record<string, any>; // Flex message template for success
+
+  @Prop({ type: Object })
+  slipDuplicateTemplate: Record<string, any>; // Flex message template for duplicate
+
+  @Prop({ type: Object })
+  slipErrorTemplate: Record<string, any>; // Flex message template for error
 }
 
 @Schema({ _id: false })

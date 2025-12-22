@@ -7,6 +7,9 @@ import {
   Body,
   Param,
   UseGuards,
+  Inject,
+  forwardRef,
+  Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SystemSettingsService } from './system-settings.service';
@@ -16,12 +19,20 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
+import { HealthService } from '../health/health.service';
+import { TasksService } from '../tasks/tasks.service';
 
 @ApiTags('System Settings')
 @ApiBearerAuth()
 @Controller('system-settings')
 export class SystemSettingsController {
-  constructor(private settingsService: SystemSettingsService) {}
+  constructor(
+    private settingsService: SystemSettingsService,
+    @Optional() @Inject(forwardRef(() => HealthService))
+    private healthService?: HealthService,
+    @Optional() @Inject(forwardRef(() => TasksService))
+    private tasksService?: TasksService,
+  ) {}
 
   @Get()
   @UseGuards(SessionAuthGuard, RolesGuard)
@@ -137,6 +148,110 @@ export class SystemSettingsController {
         network: settings?.usdtNetwork || 'TRC20',
         qrImage: settings?.usdtQrImage || '',
         disabledMessage: settings?.usdtDisabledMessage || '',
+      },
+    };
+  }
+
+  @Get('message-settings')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get all message settings (Admin only)' })
+  async getMessageSettings() {
+    const settings = await this.settingsService.getSettings();
+    
+    return {
+      success: true,
+      messageSettings: {
+        quotaExceededMessage: settings?.quotaExceededMessage || '',
+        quotaExceededResponseType: settings?.quotaExceededResponseType || 'text',
+        quotaWarningEnabled: settings?.quotaWarningEnabled ?? true,
+        quotaWarningThreshold: settings?.quotaWarningThreshold || 10,
+        quotaLowWarningMessage: settings?.quotaLowWarningMessage || '',
+        botDisabledSendMessage: settings?.botDisabledSendMessage ?? false,
+        botDisabledMessage: settings?.botDisabledMessage || '',
+        slipDisabledSendMessage: settings?.slipDisabledSendMessage ?? false,
+        slipDisabledMessage: settings?.slipDisabledMessage || '',
+        aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
+        aiDisabledMessage: settings?.aiDisabledMessage || '',
+        duplicateRefundEnabled: settings?.duplicateRefundEnabled ?? true,
+        duplicateSlipMessage: settings?.duplicateSlipMessage || '',
+        slipErrorMessage: settings?.slipErrorMessage || '',
+        imageDownloadErrorMessage: settings?.imageDownloadErrorMessage || '',
+        invalidImageMessage: settings?.invalidImageMessage || '',
+        slipProcessingMessage: settings?.slipProcessingMessage || '',
+        showSlipProcessingMessage: settings?.showSlipProcessingMessage ?? true,
+        maxRetryAttempts: settings?.maxRetryAttempts || 3,
+        retryDelayMs: settings?.retryDelayMs || 1000,
+      },
+    };
+  }
+
+  @Put('message-settings')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update message settings (Admin only)' })
+  async updateMessageSettings(
+    @Body() updates: any,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(updates, user.userId);
+    return {
+      success,
+      message: success ? 'บันทึกการตั้งค่าข้อความสำเร็จ' : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
+
+  @Get('system-health')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get system health status (Admin only)' })
+  async getSystemHealth() {
+    if (!this.healthService) {
+      return {
+        success: false,
+        message: 'Health service not available',
+      };
+    }
+
+    const health = await this.healthService.checkHealth(true);
+    return {
+      success: true,
+      health,
+    };
+  }
+
+  @Post('run-cleanup')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Run system cleanup tasks (Admin only)' })
+  async runCleanup() {
+    if (!this.tasksService) {
+      return {
+        success: false,
+        message: 'Tasks service not available',
+      };
+    }
+
+    const results = await this.tasksService.runCleanupNow();
+    return {
+      success: true,
+      message: 'Cleanup completed',
+      results,
+    };
+  }
+
+  @Get('contact-info')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Get contact information' })
+  async getContactInfo() {
+    const settings = await this.settingsService.getSettings();
+    
+    return {
+      success: true,
+      contact: {
+        url: settings?.contactAdminUrl || '',
+        line: settings?.contactAdminLine || '',
+        email: settings?.contactAdminEmail || '',
       },
     };
   }
