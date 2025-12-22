@@ -123,9 +123,12 @@ export class BanksService {
    * Validate and normalize bank code
    * @returns normalized bank code or null if invalid
    */
-  private validateAndNormalizeBankCode(code: string): string | null {
-    const normalized = (code || '').toUpperCase().trim();
-    return normalized ? normalized : null;
+  private validateAndNormalizeBankCode(code: any): string | null {
+    if (!code || typeof code !== 'string') {
+      return null;
+    }
+    const normalized = code.toUpperCase().trim();
+    return normalized || null;
   }
 
   /**
@@ -166,7 +169,11 @@ export class BanksService {
         return { imported: true, updated: false };
       }
     } catch (err: any) {
-      errors.push(`Failed to process ${bankData.code || 'unknown'}: ${err.message}`);
+      const bankCode = bankData.code || 'unknown';
+      // Log detailed error for debugging
+      this.logger.error(`Failed to process bank ${bankCode}:`, err);
+      // Add generic error message to response
+      errors.push(`Failed to process bank ${bankCode}`);
       return { imported: false, updated: false };
     }
   }
