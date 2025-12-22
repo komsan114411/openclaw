@@ -236,14 +236,29 @@ export default function SettingsPage() {
 
         {/* Slip API Settings */}
         <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">Thunder API (ตรวจสอบสลิป)</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="label">API Key ปัจจุบัน</label>
-              <p className="text-gray-600 font-mono">
-                {settings?.slipApiKeyPreview || 'ยังไม่ได้ตั้งค่า'}
-              </p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-100">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">Thunder API (ตรวจสอบสลิป)</h2>
+                <p className="text-sm text-gray-500">API สำหรับตรวจสอบสลิปโอนเงิน</p>
+              </div>
             </div>
+            <span className={`px-3 py-1 text-xs rounded-full font-medium ${settings?.slipApiKeyPreview ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {settings?.slipApiKeyPreview ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ได้ตั้งค่า'}
+            </span>
+          </div>
+          <div className="space-y-4">
+            {settings?.slipApiKeyPreview && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <label className="text-xs text-gray-500">API Key ปัจจุบัน</label>
+                <p className="text-gray-800 font-mono text-sm">{settings.slipApiKeyPreview}</p>
+              </div>
+            )}
             <div>
               <label className="label">API Key ใหม่</label>
               <input
@@ -253,13 +268,30 @@ export default function SettingsPage() {
                 className="input"
                 placeholder="กรอก Thunder API Key"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                ขอ API Key ได้ที่{' '}
+                <a href="https://thunder.in.th" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  thunder.in.th
+                </a>
+              </p>
             </div>
             <div className="flex gap-3">
               <button onClick={handleSaveSlipApi} className="btn btn-primary">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 บันทึก
               </button>
               <button onClick={handleTestSlipApi} disabled={testingSlip} className="btn btn-secondary">
-                {testingSlip ? 'กำลังทดสอบ...' : 'ทดสอบการเชื่อมต่อ'}
+                {testingSlip ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    กำลังทดสอบ...
+                  </span>
+                ) : 'ทดสอบการเชื่อมต่อ'}
               </button>
             </div>
           </div>
@@ -267,17 +299,34 @@ export default function SettingsPage() {
 
         {/* AI API Settings */}
         <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">OpenAI API (AI Chatbot)</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="label">API Key ปัจจุบัน</label>
-              <p className="text-gray-600 font-mono">
-                {settings?.aiApiKeyPreview || 'ยังไม่ได้ตั้งค่า'}
-              </p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900">OpenAI API (AI Chatbot)</h2>
+                <p className="text-sm text-gray-500">API สำหรับระบบตอบแชทอัตโนมัติ</p>
+              </div>
             </div>
-            <div>
-              <label className="label">AI Model</label>
-              <p className="text-gray-600">{settings?.aiModel || 'gpt-3.5-turbo'}</p>
+            <span className={`px-3 py-1 text-xs rounded-full font-medium ${settings?.aiApiKeyPreview ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {settings?.aiApiKeyPreview ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ได้ตั้งค่า'}
+            </span>
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {settings?.aiApiKeyPreview && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <label className="text-xs text-gray-500">API Key ปัจจุบัน</label>
+                  <p className="text-gray-800 font-mono text-sm">{settings.aiApiKeyPreview}</p>
+                </div>
+              )}
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <label className="text-xs text-blue-600">AI Model</label>
+                <p className="text-blue-800 font-medium">{settings?.aiModel || 'gpt-3.5-turbo'}</p>
+              </div>
             </div>
             <div>
               <label className="label">API Key ใหม่</label>
@@ -286,15 +335,32 @@ export default function SettingsPage() {
                 value={aiApiKey}
                 onChange={(e) => setAiApiKey(e.target.value)}
                 className="input"
-                placeholder="กรอก OpenAI API Key"
+                placeholder="กรอก OpenAI API Key (sk-...)"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                ขอ API Key ได้ที่{' '}
+                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  platform.openai.com
+                </a>
+              </p>
             </div>
             <div className="flex gap-3">
               <button onClick={handleSaveAiApi} className="btn btn-primary">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 บันทึก
               </button>
               <button onClick={handleTestAiApi} disabled={testingAi} className="btn btn-secondary">
-                {testingAi ? 'กำลังทดสอบ...' : 'ทดสอบการเชื่อมต่อ'}
+                {testingAi ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    กำลังทดสอบ...
+                  </span>
+                ) : 'ทดสอบการเชื่อมต่อ'}
               </button>
             </div>
           </div>
