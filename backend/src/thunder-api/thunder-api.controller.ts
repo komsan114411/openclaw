@@ -1,12 +1,12 @@
 import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { ThunderApiService, QuotaInfo } from './thunder-api.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 
-@Controller('api/thunder')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('thunder')
+@UseGuards(SessionAuthGuard, RolesGuard)
 export class ThunderApiController {
   constructor(private readonly thunderApiService: ThunderApiService) {}
 
