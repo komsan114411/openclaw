@@ -46,6 +46,38 @@ export class LineAccountSettings {
 
   @Prop({ default: true })
   webhookEnabled: boolean;
+
+  // Custom Messages (per account) - if empty, use system settings
+  @Prop()
+  customQuotaExceededMessage: string;
+
+  @Prop()
+  customBotDisabledMessage: string;
+
+  @Prop()
+  customSlipDisabledMessage: string;
+
+  @Prop()
+  customAiDisabledMessage: string;
+
+  @Prop()
+  customDuplicateSlipMessage: string;
+
+  @Prop()
+  customSlipErrorMessage: string;
+
+  @Prop()
+  customSlipSuccessMessage: string;
+
+  // Whether to send message when feature is disabled
+  @Prop({ default: null })
+  sendMessageWhenBotDisabled: boolean | null; // null = use system setting
+
+  @Prop({ default: null })
+  sendMessageWhenSlipDisabled: boolean | null; // null = use system setting
+
+  @Prop({ default: null })
+  sendMessageWhenAiDisabled: boolean | null; // null = use system setting
 }
 
 @Schema({ _id: false })

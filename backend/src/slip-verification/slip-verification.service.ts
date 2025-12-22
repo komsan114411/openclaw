@@ -386,6 +386,78 @@ export class SlipVerificationService {
     }
   }
 
+  /**
+   * Format slip response with configurable success message
+   */
+  async formatSlipResponseWithConfig(result: SlipVerificationResult, context?: { account?: any }): Promise<any> {
+    if (result.status === 'success' && result.data) {
+      // Check for custom success message
+      const customSuccessMessage = context?.account?.settings?.customSlipSuccessMessage;
+      
+      // Build contents array
+      const contents: any[] = [
+        {
+          type: 'text',
+          text: customSuccessMessage || '✅ ตรวจสอบสลิปสำเร็จ',
+          weight: 'bold',
+          size: 'lg',
+          color: '#00C851',
+        },
+        {
+          type: 'separator',
+          margin: 'md',
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          margin: 'md',
+          spacing: 'sm',
+          contents: [
+            this.createInfoRow('จำนวนเงิน', result.data.amountFormatted),
+            this.createInfoRow('วันที่', result.data.date),
+            this.createInfoRow('เวลา', result.data.time),
+            this.createInfoRow('ผู้โอน', result.data.senderName),
+            this.createInfoRow('ธนาคารผู้โอน', result.data.senderBank),
+            this.createInfoRow('ผู้รับ', result.data.receiverName),
+            this.createInfoRow('ธนาคารผู้รับ', result.data.receiverBank),
+            this.createInfoRow('เลขอ้างอิง', result.data.transRef),
+          ],
+        },
+      ];
+
+      return {
+        type: 'flex',
+        altText: 'ผลการตรวจสอบสลิป',
+        contents: {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents,
+          },
+        },
+      };
+    } else if (result.status === 'duplicate') {
+      // Duplicate message handled separately in webhook controller
+      const settings = await this.systemSettingsService.getSettings();
+      const duplicateMessage = context?.account?.settings?.customDuplicateSlipMessage ||
+        settings?.duplicateSlipMessage || '⚠️ สลิปนี้เคยถูกใช้แล้ว';
+      return {
+        type: 'text',
+        text: duplicateMessage,
+      };
+    } else {
+      // Error message
+      const settings = await this.systemSettingsService.getSettings();
+      const errorMessage = context?.account?.settings?.customSlipErrorMessage ||
+        settings?.slipErrorMessage || result.message;
+      return {
+        type: 'text',
+        text: `❌ ${errorMessage}`,
+      };
+    }
+  }
+
   private createInfoRow(label: string, value: string): any {
     return {
       type: 'box',
