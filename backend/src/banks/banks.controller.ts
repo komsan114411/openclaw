@@ -22,7 +22,7 @@ import { BanksService } from './banks.service';
 
 @Controller('api')
 export class BanksController {
-  constructor(private readonly banksService: BanksService) {}
+  constructor(private readonly banksService: BanksService) { }
 
   /**
    * Get all banks (public)
@@ -117,14 +117,18 @@ export class BanksController {
   }
 
   /**
-   * Admin: Delete bank
+   * Admin: Sync banks from Thunder API using system API key
    */
-  @Delete('admin/banks/:id')
+  @Post('admin/banks/sync-from-thunder')
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async deleteBank(@Param('id') id: string) {
-    await this.banksService.delete(id);
-    return { success: true, message: 'Bank deleted' };
+  async syncFromThunder() {
+    const result = await this.banksService.syncFromThunderUsingSystemKey();
+    return {
+      success: result.errors.length === 0,
+      message: `Synced ${result.imported} banks, updated ${result.updated}`,
+      ...result,
+    };
   }
 
   /**

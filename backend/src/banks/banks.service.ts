@@ -1,8 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios from 'axios';
 import { Bank, BankDocument } from '../database/schemas/bank.schema';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 // Default Thai banks data
 const DEFAULT_BANKS = [
@@ -31,7 +32,8 @@ export class BanksService {
 
   constructor(
     @InjectModel(Bank.name) private bankModel: Model<BankDocument>,
-  ) {}
+    private systemSettingsService: SystemSettingsService,
+  ) { }
 
   /**
    * Get all banks
@@ -103,13 +105,18 @@ export class BanksService {
   }
 
   /**
-   * Delete bank
+   * Deactivate bank (soft delete) - banks cannot be hard deleted
    */
-  async delete(id: string): Promise<void> {
-    const result = await this.bankModel.findByIdAndDelete(id);
-    if (!result) {
+  async deactivate(id: string): Promise<BankDocument> {
+    const bank = await this.bankModel.findByIdAndUpdate(
+      id,
+      { isActive: false },
+      { new: true }
+    );
+    if (!bank) {
       throw new NotFoundException('Bank not found');
     }
+    return bank;
   }
 
   /**
@@ -191,6 +198,74 @@ export class BanksService {
 
     return { imported, errors };
   }
+
+  /**
+   * Sync banks from Thunder API using system API key
+   */
+  async syncFromThunderUsingSystemKey(): Promise<{ imported: number; updated: number; errors: string[] }> {
+    const settings = await this.systemSettingsService.getSettings();
+    const apiKey = settings?.slipApiKey;
+
+    if (!apiKey) {
+      throw new BadRequestException('Slip API Key ยังไม่ได้ตั้งค่า กรุณาตั้งค่าใน System Settings');
+    }
+
+    const errors: string[] = [];
+    let imported = 0;
+    let updated = 0;
+
+    try {
+      const response = await axios.get('https://api.thunder.in.th/v1/banks', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        timeout: 30000,
+      });
+
+      if (response.data?.data) {
+        for (const bankData of response.data.data) {
+          try {
+            const existing = await this.bankModel.findOne({ code: bankData.code });
+            if (existing) {
+              await this.bankModel.updateOne(
+                { code: bankData.code },
+                {
+                  name: bankData.name?.th || bankData.name,
+                  nameTh: bankData.name?.th,
+                  nameEn: bankData.name?.en,
+                  shortName: bankData.short,
+                  color: bankData.color,
+                  logoUrl: bankData.logo,
+                  isActive: true,
+                },
+              );
+              updated++;
+            } else {
+              await this.bankModel.create({
+                code: bankData.code,
+                name: bankData.name?.th || bankData.name,
+                nameTh: bankData.name?.th,
+                nameEn: bankData.name?.en,
+                shortName: bankData.short,
+                color: bankData.color,
+                logoUrl: bankData.logo,
+              });
+              imported++;
+            }
+          } catch (err: any) {
+            errors.push(`Failed to import ${bankData.code}: ${err.message}`);
+          }
+        }
+      }
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new BadRequestException('API Key ไม่ถูกต้อง กรุณาตรวจสอบ Slip API Key');
+      }
+      errors.push(`API Error: ${error.message}`);
+    }
+
+    this.logger.log(`Thunder sync completed: ${imported} imported, ${updated} updated, ${errors.length} errors`);
+    return { imported, updated, errors };
+  }
+
 
   /**
    * Get bank logo

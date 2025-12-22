@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Modal, ConfirmModal } from '@/components/ui/Modal';
+import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
 import { Input } from '@/components/ui/Input';
 
@@ -33,10 +33,8 @@ export default function BanksManagementPage() {
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [bankToDelete, setBankToDelete] = useState<Bank | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // ป้องกันการกดซ้ำ
   const processingIdsRef = useRef<Set<string>>(new Set());
@@ -75,33 +73,21 @@ export default function BanksManagementPage() {
     }
   };
 
-  const handleDeleteClick = (bank: Bank) => {
-    setBankToDelete(bank);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDelete = async () => {
-    if (!bankToDelete) return;
-
-    // ป้องกันการกดซ้ำ
-    if (processingIdsRef.current.has(bankToDelete._id)) {
-      toast.error('กำลังดำเนินการอยู่');
-      return;
-    }
-
-    processingIdsRef.current.add(bankToDelete._id);
-    setIsDeleting(true);
-
+  const handleSyncFromThunder = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
     try {
-      await api.delete(`/api/admin/banks/${bankToDelete._id}`);
-      toast.success('ลบธนาคารสำเร็จ', { icon: '🗑️' });
-      setShowDeleteConfirm(false);
-      await fetchBanks();
+      const response = await api.post('/api/admin/banks/sync-from-thunder');
+      if (response.data.success) {
+        await fetchBanks();
+        toast.success(response.data.message || 'ซิงค์ธนาคารจาก Thunder API สำเร็จ', { icon: '⚡' });
+      } else {
+        toast.error(response.data.message || 'เกิดข้อผิดพลาด');
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถลบธนาคารได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถซิงค์ธนาคารได้');
     } finally {
-      setIsDeleting(false);
-      processingIdsRef.current.delete(bankToDelete._id);
+      setIsSyncing(false);
     }
   };
 
@@ -161,9 +147,17 @@ export default function BanksManagementPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">จัดการธนาคาร</h1>
-            <p className="page-subtitle">จัดการรายชื่อธนาคารในระบบ</p>
+            <p className="page-subtitle">จัดการรายชื่อธนาคารในระบบ (ไม่สามารถลบธนาคารได้ ใช้การปิดใช้งานแทน)</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="secondary"
+              onClick={handleSyncFromThunder}
+              isLoading={isSyncing}
+              loadingText="กำลังซิงค์..."
+            >
+              ⚡ ซิงค์จาก Thunder API
+            </Button>
             <Button variant="secondary" onClick={handleInitDefaults}>
               นำเข้าธนาคารเริ่มต้น
             </Button>
@@ -197,7 +191,7 @@ export default function BanksManagementPage() {
                 </svg>
               }
               title="ยังไม่มีธนาคาร"
-              description="เริ่มต้นด้วยการนำเข้าธนาคารเริ่มต้นหรือเพิ่มธนาคารใหม่"
+              description="เริ่มต้นด้วยการซิงค์จาก Thunder API หรือนำเข้าธนาคารเริ่มต้น"
             />
           ) : (
             <div className="overflow-x-auto">
@@ -208,6 +202,7 @@ export default function BanksManagementPage() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">รหัส</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">ชื่อธนาคาร</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">ชื่อย่อ</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">สี</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">สถานะ</th>
                     <th className="text-right py-3 px-4 font-medium text-gray-600">จัดการ</th>
                   </tr>
@@ -235,6 +230,15 @@ export default function BanksManagementPage() {
                       <td className="py-3 px-4">{bank.name}</td>
                       <td className="py-3 px-4 text-gray-500">{bank.shortName || '-'}</td>
                       <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-6 h-6 rounded border border-gray-200"
+                            style={{ backgroundColor: bank.color || '#6b7280' }}
+                          />
+                          <span className="text-xs text-gray-500 font-mono">{bank.color || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
                         <Badge variant={bank.isActive ? 'success' : 'secondary'}>
                           {bank.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                         </Badge>
@@ -254,13 +258,6 @@ export default function BanksManagementPage() {
                             onClick={() => handleToggleActive(bank)}
                           >
                             {bank.isActive ? 'ปิด' : 'เปิด'}
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleDeleteClick(bank)}
-                          >
-                            ลบ
                           </Button>
                         </div>
                       </td>
@@ -296,17 +293,6 @@ export default function BanksManagementPage() {
           }}
         />
       )}
-
-      {/* Delete Confirm Modal */}
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDelete}
-        title="ยืนยันการลบธนาคาร"
-        message={`คุณต้องการลบธนาคาร "${bankToDelete?.name}" หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
-        confirmText="ลบธนาคาร"
-        isLoading={isDeleting}
-      />
     </DashboardLayout>
   );
 }
