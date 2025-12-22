@@ -226,106 +226,136 @@ export default function AdminDashboard() {
         </div>
 
         {/* Thunder API Quota Card */}
-        <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white overflow-hidden">
-          <div className="flex items-start justify-between">
+        <Card className="bg-gradient-to-br from-indigo-600 via-purple-600 to-purple-700 text-white overflow-hidden shadow-xl">
+          {/* Header */}
+          <div className="flex items-start justify-between border-b border-white/10 pb-4 mb-4">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-xl">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
               <div>
                 <h2 className="text-xl font-bold">Thunder API Quota</h2>
-                <p className="text-white/80 text-sm">ระบบตรวจสอบสลิปโอนเงิน</p>
+                <p className="text-white/70 text-sm">ระบบตรวจสอบสลิปโอนเงิน</p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-white/20"
+              className="text-white hover:bg-white/20 border border-white/20"
               onClick={fetchThunderQuota}
               disabled={isLoadingQuota}
             >
-              {isLoadingQuota ? <Spinner size="sm" /> : 'รีเฟรช'}
+              {isLoadingQuota ? <Spinner size="sm" /> : '🔄 รีเฟรช'}
             </Button>
           </div>
 
           {isLoadingQuota ? (
-            <div className="mt-6 flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-12">
               <Spinner size="lg" color="white" />
             </div>
           ) : thunderQuota?.success && thunderQuota.data ? (
-            <div className="mt-6 space-y-6">
+            <div className="space-y-5">
+              {/* Application Info */}
+              <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white/60 text-xs">แอปพลิเคชัน</p>
+                  <p className="font-semibold text-lg">{thunderQuota.data.application || 'Thunder API'}</p>
+                </div>
+              </div>
+
               {/* Quota Progress Bar */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-white/80">การใช้งานโควต้า</span>
-                  <span className="text-sm font-medium">
+              <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-white/90">📊 การใช้งานโควต้า</span>
+                  <span className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full">
                     {thunderQuota.data.usedQuota.toLocaleString()} / {thunderQuota.data.maxQuota.toLocaleString()} ครั้ง
                   </span>
                 </div>
-                <div className="h-4 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-5 bg-white/20 rounded-full overflow-hidden shadow-inner">
                   <div
-                    className={`h-full ${getQuotaColor(thunderQuota.data.usagePercentage)} transition-all duration-500`}
-                    style={{ width: `${Math.min(thunderQuota.data.usagePercentage, 100)}%` }}
+                    className={`h-full ${getQuotaColor(thunderQuota.data.usagePercentage)} transition-all duration-500 rounded-full`}
+                    style={{ width: `${Math.max(Math.min(thunderQuota.data.usagePercentage, 100), 2)}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm text-white/80">
-                    ใช้ไปแล้ว {thunderQuota.data.usagePercentage.toFixed(1)}%
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-sm text-white/70">
+                    ✅ ใช้ไปแล้ว <span className="font-semibold text-white">{thunderQuota.data.usagePercentage.toFixed(2)}%</span>
                   </span>
-                  <span className="text-sm font-medium">
-                    เหลือ {thunderQuota.data.remainingQuota.toLocaleString()} ครั้ง
+                  <span className="text-sm font-semibold text-green-300">
+                    🎯 เหลือ {thunderQuota.data.remainingQuota.toLocaleString()} ครั้ง
                   </span>
                 </div>
               </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white/10 rounded-xl p-4">
-                  <p className="text-white/60 text-xs mb-1">แอปพลิเคชัน</p>
-                  <p className="font-semibold truncate">{thunderQuota.data.application}</p>
+              {/* Stats Grid - 2 rows */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Credit */}
+                <div className="bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 rounded-xl p-4 border border-emerald-400/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">💰</span>
+                    <p className="text-white/70 text-xs font-medium">เครดิตคงเหลือ</p>
+                  </div>
+                  <p className="font-bold text-2xl text-emerald-300">{thunderQuota.data.currentCredit.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/10 rounded-xl p-4">
-                  <p className="text-white/60 text-xs mb-1">เครดิตคงเหลือ</p>
-                  <p className="font-semibold">{thunderQuota.data.currentCredit.toLocaleString()}</p>
+                
+                {/* Expiry Date */}
+                <div className="bg-gradient-to-br from-blue-500/30 to-blue-600/20 rounded-xl p-4 border border-blue-400/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">📅</span>
+                    <p className="text-white/70 text-xs font-medium">วันหมดอายุ</p>
+                  </div>
+                  <p className="font-bold text-lg text-blue-200">{formatDate(thunderQuota.data.expiredAt)}</p>
                 </div>
-                <div className="bg-white/10 rounded-xl p-4">
-                  <p className="text-white/60 text-xs mb-1">วันหมดอายุ</p>
-                  <p className="font-semibold text-sm">{formatDate(thunderQuota.data.expiredAt)}</p>
-                </div>
-                <div className="bg-white/10 rounded-xl p-4">
-                  <p className="text-white/60 text-xs mb-1">เหลืออีก</p>
-                  <p className={`font-bold text-lg ${thunderQuota.data.daysRemaining <= 7 ? 'text-red-300' : thunderQuota.data.daysRemaining <= 30 ? 'text-yellow-300' : 'text-green-300'}`}>
-                    {thunderQuota.data.daysRemaining} วัน
+                
+                {/* Days Remaining */}
+                <div className={`rounded-xl p-4 border ${
+                  thunderQuota.data.daysRemaining <= 7 
+                    ? 'bg-gradient-to-br from-red-500/30 to-red-600/20 border-red-400/20' 
+                    : thunderQuota.data.daysRemaining <= 30 
+                    ? 'bg-gradient-to-br from-yellow-500/30 to-yellow-600/20 border-yellow-400/20'
+                    : 'bg-gradient-to-br from-green-500/30 to-green-600/20 border-green-400/20'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">⏳</span>
+                    <p className="text-white/70 text-xs font-medium">เหลืออีก</p>
+                  </div>
+                  <p className={`font-bold text-2xl ${
+                    thunderQuota.data.daysRemaining <= 7 
+                      ? 'text-red-300' 
+                      : thunderQuota.data.daysRemaining <= 30 
+                      ? 'text-yellow-300' 
+                      : 'text-green-300'
+                  }`}>
+                    {thunderQuota.data.daysRemaining} <span className="text-base font-normal">วัน</span>
                   </p>
                 </div>
               </div>
 
               {/* Warnings */}
               {(thunderQuota.data.isExpired || thunderQuota.data.isLowQuota || thunderQuota.data.daysRemaining <= 7) && (
-                <div className="space-y-2">
+                <div className="space-y-2 pt-2">
                   {thunderQuota.data.isExpired && (
-                    <div className="flex items-center gap-2 p-3 bg-red-500/30 rounded-lg">
-                      <svg className="w-5 h-5 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                    <div className="flex items-center gap-3 p-3 bg-red-500/40 rounded-xl border border-red-400/30">
+                      <span className="text-xl">🚨</span>
                       <span className="text-sm font-medium">API Token หมดอายุแล้ว กรุณาต่ออายุ</span>
                     </div>
                   )}
                   {thunderQuota.data.isLowQuota && !thunderQuota.data.isExpired && (
-                    <div className="flex items-center gap-2 p-3 bg-yellow-500/30 rounded-lg">
-                      <svg className="w-5 h-5 text-yellow-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                    <div className="flex items-center gap-3 p-3 bg-yellow-500/40 rounded-xl border border-yellow-400/30">
+                      <span className="text-xl">⚠️</span>
                       <span className="text-sm font-medium">โควต้าเหลือน้อยกว่า 10% กรุณาซื้อเพิ่ม</span>
                     </div>
                   )}
                   {thunderQuota.data.daysRemaining <= 7 && !thunderQuota.data.isExpired && (
-                    <div className="flex items-center gap-2 p-3 bg-orange-500/30 rounded-lg">
-                      <svg className="w-5 h-5 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                    <div className="flex items-center gap-3 p-3 bg-orange-500/40 rounded-xl border border-orange-400/30">
+                      <span className="text-xl">⏰</span>
                       <span className="text-sm font-medium">API จะหมดอายุในอีก {thunderQuota.data.daysRemaining} วัน</span>
                     </div>
                   )}
@@ -333,14 +363,16 @@ export default function AdminDashboard() {
               )}
             </div>
           ) : (
-            <div className="mt-6 p-4 bg-red-500/30 rounded-xl">
-              <div className="flex items-center gap-3">
-                <svg className="w-6 h-6 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <div className="p-5 bg-red-500/30 rounded-xl border border-red-400/30">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-red-500/30 rounded-xl">
+                  <svg className="w-8 h-8 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
                 <div>
-                  <p className="font-medium">ไม่สามารถดึงข้อมูลโควต้าได้</p>
-                  <p className="text-sm text-white/80">{thunderQuota?.error || 'กรุณาตั้งค่า Slip API Key ในหน้าตั้งค่าระบบ'}</p>
+                  <p className="font-bold text-lg">ไม่สามารถดึงข้อมูลโควต้าได้</p>
+                  <p className="text-sm text-white/80 mt-1">{thunderQuota?.error || 'กรุณาตั้งค่า Slip API Key ในหน้าตั้งค่าระบบ'}</p>
                 </div>
               </div>
             </div>
