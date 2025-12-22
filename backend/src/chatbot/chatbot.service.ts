@@ -7,25 +7,44 @@ import { RedisService } from '../redis/redis.service';
 export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
   private openai: OpenAI | null = null;
+  private cachedApiKey: string | null = null;
 
   constructor(
     private systemSettingsService: SystemSettingsService,
     private redisService: RedisService,
   ) {}
 
+  /**
+   * Get OpenAI client, recreating if API key has changed
+   */
   private async getOpenAIClient(): Promise<OpenAI | null> {
     const settings = await this.systemSettingsService.getSettings();
     const apiKey = settings?.aiApiKey;
 
     if (!apiKey) {
+      // Clear cached client if API key is removed
+      this.openai = null;
+      this.cachedApiKey = null;
       return null;
     }
 
-    if (!this.openai) {
+    // Recreate client if API key has changed
+    if (!this.openai || this.cachedApiKey !== apiKey) {
+      this.logger.log('Creating new OpenAI client (API key changed or first initialization)');
       this.openai = new OpenAI({ apiKey });
+      this.cachedApiKey = apiKey;
     }
 
     return this.openai;
+  }
+
+  /**
+   * Invalidate cached OpenAI client - call this when settings change
+   */
+  invalidateClient(): void {
+    this.openai = null;
+    this.cachedApiKey = null;
+    this.logger.log('OpenAI client cache invalidated');
   }
 
   async getResponse(

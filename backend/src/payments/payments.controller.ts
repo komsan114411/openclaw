@@ -8,6 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -55,6 +56,7 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
     @Body() body: { packageId: string; paymentId?: string },
+    @Req() req: any,
   ) {
     if (!file) {
       return { success: false, message: 'กรุณาอัปโหลดรูปสลิป' };
@@ -142,8 +144,9 @@ export class PaymentsController {
       return { success: false, message: 'Payment not found' };
     }
 
-    // Check ownership for non-admin
-    if (user.role !== UserRole.ADMIN && payment.userId !== user.userId) {
+    // Check ownership for non-admin (handle both ObjectId and string)
+    const paymentUserId = payment.userId?.toString() || payment.userId;
+    if (user.role !== UserRole.ADMIN && paymentUserId !== user.userId) {
       return { success: false, message: 'Access denied' };
     }
 

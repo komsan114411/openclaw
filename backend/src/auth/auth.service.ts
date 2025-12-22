@@ -59,7 +59,7 @@ export class AuthService {
   }
 
   async validateUser(username: string, password: string): Promise<UserDocument | null> {
-    const user = await this.userModel.findOne({ username, isActive: true });
+    const user = await this.userModel.findOne({ username, isActive: true, isBlocked: { $ne: true } });
     if (!user) return null;
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -157,6 +157,12 @@ export class AuthService {
     // Try Redis first
     const cached = await this.redisService.getSession(sessionId);
     if (cached) {
+      // Ensure user still active/not blocked even if session cached
+      const userDoc = await this.userModel.findById(cached.userId);
+      if (!userDoc || !userDoc.isActive || userDoc.isBlocked) {
+        return null;
+      }
+
       // Update last activity in background
       this.sessionModel.updateOne(
         { sessionId },
@@ -167,7 +173,9 @@ export class AuthService {
         userId: cached.userId,
         username: cached.username,
         role: cached.role,
-        forcePasswordChange: false,
+        forcePasswordChange: userDoc.forcePasswordChange,
+        email: userDoc.email,
+        fullName: userDoc.fullName,
       };
     }
 
@@ -192,7 +200,7 @@ export class AuthService {
 
     // Get full user info
     const user = await this.userModel.findById(session.userId);
-    if (!user) return null;
+    if (!user || !user.isActive || user.isBlocked) return null;
 
     return {
       userId: session.userId,
@@ -232,5 +240,32 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Cleanup expired sessions from database
+   * Should be called periodically (e.g., via cron job or scheduled task)
+   */
+  async cleanupExpiredSessions(): Promise<number> {
+    const result = await this.sessionModel.deleteMany({
+      expiresAt: { $lt: new Date() },
+    });
+    return result.deletedCount;
+  }
+
+  /**
+   * Invalidate all sessions for a user (e.g., after password change or block)
+   */
+  async invalidateUserSessions(userId: string): Promise<number> {
+    const sessions = await this.sessionModel.find({ userId });
+    
+    // Delete from Redis first
+    for (const session of sessions) {
+      await this.redisService.deleteSession(session.sessionId);
+    }
+    
+    // Then delete from database
+    const result = await this.sessionModel.deleteMany({ userId });
+    return result.deletedCount;
   }
 }

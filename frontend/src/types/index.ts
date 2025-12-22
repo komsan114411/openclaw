@@ -5,10 +5,27 @@ export interface User {
   email?: string;
   fullName?: string;
   isActive: boolean;
+  isBlocked?: boolean;
+  blockedAt?: string;
+  blockedBy?: string;
+  blockedReason?: string;
   forcePasswordChange: boolean;
   createdAt: string;
   updatedAt: string;
   lastLogin?: string;
+}
+
+export interface ActivityLog {
+  _id: string;
+  actorUserId?: string;
+  actorRole: 'admin' | 'user' | 'system';
+  subjectUserId?: string;
+  action: string;
+  entityType?: string;
+  entityId?: string;
+  message?: string;
+  metadata?: any;
+  createdAt: string;
 }
 
 export interface LineAccount {

@@ -10,6 +10,7 @@ import { SystemSettings, SystemSettingsSchema } from './schemas/system-settings.
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { SlipHistory, SlipHistorySchema } from './schemas/slip-history.schema';
 import { QuotaReservation, QuotaReservationSchema } from './schemas/quota-reservation.schema';
+import { ActivityLog, ActivityLogSchema } from './schemas/activity-log.schema';
 
 @Global()
 @Module({
@@ -25,6 +26,7 @@ import { QuotaReservation, QuotaReservationSchema } from './schemas/quota-reserv
       { name: ChatMessage.name, schema: ChatMessageSchema },
       { name: SlipHistory.name, schema: SlipHistorySchema },
       { name: QuotaReservation.name, schema: QuotaReservationSchema },
+      { name: ActivityLog.name, schema: ActivityLogSchema },
     ]),
   ],
   exports: [MongooseModule],

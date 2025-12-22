@@ -55,7 +55,21 @@ export const usersApi = {
   create: (data: any) => api.post('/users', data),
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
   delete: (id: string) => api.delete(`/users/${id}`),
+  block: (id: string, reason?: string) => api.post(`/users/${id}/block`, { reason }),
+  unblock: (id: string) => api.post(`/users/${id}/unblock`),
   getStatistics: () => api.get('/users/statistics'),
+};
+
+export const activityLogsApi = {
+  getAll: (params?: {
+    limit?: number;
+    actorUserId?: string;
+    subjectUserId?: string;
+    action?: string;
+    entityType?: string;
+    entityId?: string;
+  }) => api.get('/activity-logs', { params }),
+  getMy: (limit?: number) => api.get('/activity-logs/my', { params: { limit } }),
 };
 
 // LINE Accounts API
