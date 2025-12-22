@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { packagesApi, paymentsApi, subscriptionsApi, systemSettingsApi } from '@/lib/api';
 import { Package, Subscription } from '@/types';
 import toast from 'react-hot-toast';
+import { Button } from '@/components/ui/Button';
+import { Modal, ConfirmModal } from '@/components/ui/Modal';
+import { Card, StatCard, EmptyState } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { PageLoading, LoadingCard, Spinner } from '@/components/ui/Loading';
+import { Input } from '@/components/ui/Input';
 
 export default function UserPackagesPage() {
   const [packages, setPackages] = useState<Package[]>([]);
@@ -19,6 +25,11 @@ export default function UserPackagesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slipPreview, setSlipPreview] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  
+  // ป้องกันการกดซ้ำ
+  const isSubmittingRef = useRef(false);
+  const lastSubmitTimeRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     setError(null);
@@ -61,8 +72,9 @@ export default function UserPackagesPage() {
     }
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WEBP, GIF) เท่านั้น');
       e.target.value = '';
       return;
     }
@@ -85,65 +97,102 @@ export default function UserPackagesPage() {
     reader.readAsDataURL(file);
   };
 
-  const handlePayment = async () => {
-    if (!selectedPackage) return;
-    
-    // Validate inputs
-    if (paymentMethod === 'bank' && !slipFile) {
-      toast.error('กรุณาอัปโหลดสลิปการโอนเงิน');
-      return;
+  const validatePayment = (): boolean => {
+    if (!selectedPackage) {
+      toast.error('กรุณาเลือกแพ็คเกจ');
+      return false;
     }
-    
-    if (paymentMethod === 'usdt') {
-      if (!transactionHash) {
-        toast.error('กรุณากรอก Transaction Hash');
-        return;
-      }
-      // Basic transaction hash validation
-      if (transactionHash.length < 10) {
-        toast.error('Transaction Hash ไม่ถูกต้อง');
-        return;
+
+    if (paymentMethod === 'bank') {
+      if (!slipFile) {
+        toast.error('กรุณาอัปโหลดสลิปการโอนเงิน');
+        return false;
       }
     }
 
+    if (paymentMethod === 'usdt') {
+      if (!transactionHash.trim()) {
+        toast.error('กรุณากรอก Transaction Hash');
+        return false;
+      }
+      // Basic transaction hash validation (at least 10 chars, alphanumeric)
+      if (transactionHash.length < 10 || !/^[a-zA-Z0-9]+$/.test(transactionHash)) {
+        toast.error('Transaction Hash ไม่ถูกต้อง');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleConfirmPayment = () => {
+    if (!validatePayment()) return;
+    setShowConfirmModal(true);
+  };
+
+  const handlePayment = async () => {
+    // ป้องกันการกดซ้ำ
+    const now = Date.now();
+    if (isSubmittingRef.current || now - lastSubmitTimeRef.current < 3000) {
+      toast.error('กรุณารอสักครู่ก่อนทำรายการใหม่');
+      return;
+    }
+
+    if (!selectedPackage) return;
+
+    isSubmittingRef.current = true;
+    lastSubmitTimeRef.current = now;
     setIsProcessing(true);
+    setShowConfirmModal(false);
+
     try {
       if (paymentMethod === 'bank') {
         const response = await paymentsApi.submitSlip({
           packageId: selectedPackage._id,
           slipFile: slipFile!,
         });
-        
+
         if (response.data.success) {
-          toast.success('ตรวจสอบสลิปสำเร็จ! ระบบเติมแพ็คเกจให้อัตโนมัติ');
-          closeModal();
-          fetchData();
+          toast.success('ตรวจสอบสลิปสำเร็จ! ระบบเติมแพ็คเกจให้อัตโนมัติ', {
+            duration: 5000,
+            icon: '🎉',
+          });
         } else {
-          // Payment created but needs manual review
-          toast.success(response.data.message || 'อัปโหลดสลิปสำเร็จ รอการตรวจสอบจากผู้ดูแลระบบ');
-          closeModal();
-          fetchData();
+          toast.success(response.data.message || 'อัปโหลดสลิปสำเร็จ รอการตรวจสอบจากผู้ดูแลระบบ', {
+            duration: 5000,
+          });
         }
+        closeModal();
+        fetchData();
       } else {
         await paymentsApi.submitUsdt(selectedPackage._id, transactionHash);
-        toast.success('รับข้อมูลการชำระเงินแล้ว รอการตรวจสอบ');
+        toast.success('รับข้อมูลการชำระเงินแล้ว รอการตรวจสอบ', {
+          duration: 5000,
+        });
         closeModal();
         fetchData();
       }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
-      toast.error(message);
-      
-      // If it's a rate limit error, show more specific message
-      if (error.response?.status === 429) {
-        toast.error('คำขอมากเกินไป กรุณารอสักครู่แล้วลองใหม่');
+      const status = error.response?.status;
+      const message = error.response?.data?.message;
+
+      if (status === 429) {
+        toast.error('คำขอมากเกินไป กรุณารอ 1 นาทีแล้วลองใหม่', { duration: 6000 });
+      } else if (status === 400 && message?.includes('duplicate')) {
+        toast.error('สลิปนี้ถูกใช้ไปแล้ว กรุณาใช้สลิปใหม่', { duration: 6000 });
+      } else if (status === 400 && message?.includes('already')) {
+        toast.error('มีรายการชำระเงินที่รอดำเนินการอยู่แล้ว', { duration: 6000 });
+      } else {
+        toast.error(message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
       }
     } finally {
       setIsProcessing(false);
+      isSubmittingRef.current = false;
     }
   };
 
   const closeModal = () => {
+    if (isProcessing) return; // ป้องกันการปิด modal ขณะกำลังประมวลผล
     setShowPaymentModal(false);
     setSelectedPackage(null);
     setSlipFile(null);
@@ -156,117 +205,181 @@ export default function UserPackagesPage() {
     fetchData();
   };
 
+  // คำนวณเปอร์เซ็นต์โควต้าที่เหลือ
+  const quotaPercentage = subscription
+    ? Math.round(((subscription.remainingQuota ?? 0) / (subscription.quota ?? 1)) * 100)
+    : 0;
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <PageLoading message="กำลังโหลดแพ็คเกจ..." />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">แพ็คเกจ</h1>
-          <p className="text-gray-500">เลือกแพ็คเกจที่เหมาะกับคุณ</p>
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">แพ็คเกจ</h1>
+            <p className="page-subtitle">เลือกแพ็คเกจที่เหมาะกับธุรกิจของคุณ</p>
+          </div>
         </div>
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between animate-slide-up">
             <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-red-700">{error}</span>
+              <div className="p-2 bg-red-100 rounded-lg">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-red-700 font-medium">{error}</span>
             </div>
-            <button onClick={handleRetry} className="text-red-600 hover:text-red-800 font-medium">
+            <Button variant="ghost" size="sm" onClick={handleRetry}>
               ลองใหม่
-            </button>
+            </Button>
           </div>
         )}
 
         {/* Current Subscription */}
         {subscription && (
-          <div className="card bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-primary-100 text-sm">แพ็คเกจปัจจุบัน</p>
-                <h3 className="text-xl font-bold">{subscription.packageName || 'Standard'}</h3>
+          <Card className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white border-0 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            
+            <div className="relative">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">แพ็คเกจปัจจุบัน</p>
+                  <h3 className="text-2xl font-bold mt-1">{subscription.packageName || 'Standard'}</h3>
+                  <Badge variant="success" size="sm" className="mt-2 bg-white/20 border-white/30 text-white">
+                    ใช้งานอยู่
+                  </Badge>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-green-100 text-sm font-medium">โควต้าคงเหลือ</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {subscription.remainingQuota?.toLocaleString() || 0}
+                    <span className="text-lg text-green-200"> / {subscription.quota?.toLocaleString() || 0}</span>
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-primary-100 text-sm">โควต้าคงเหลือ</p>
-                <p className="text-2xl font-bold">
-                  {subscription.remainingQuota?.toLocaleString() || 0} / {subscription.quota?.toLocaleString() || 0}
-                </p>
+
+              {/* Progress Bar */}
+              <div className="mt-6">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-green-100">การใช้งาน</span>
+                  <span className="font-medium">{quotaPercentage}% คงเหลือ</span>
+                </div>
+                <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      quotaPercentage > 50 ? 'bg-white' : quotaPercentage > 20 ? 'bg-yellow-300' : 'bg-red-400'
+                    }`}
+                    style={{ width: `${quotaPercentage}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-white/20 flex flex-col sm:flex-row justify-between gap-2 text-sm">
+                <div>
+                  <span className="text-green-100">หมดอายุ: </span>
+                  <span className="font-medium">
+                    {subscription.expiresAt
+                      ? new Date(subscription.expiresAt).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })
+                      : '-'}
+                  </span>
+                </div>
+                {quotaPercentage < 20 && (
+                  <span className="text-yellow-200 font-medium flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    โควต้าใกล้หมด
+                  </span>
+                )}
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-primary-400">
-              <div className="flex justify-between text-sm">
-                <span className="text-primary-100">หมดอายุ</span>
-                <span className="font-medium">
-                  {subscription.expiresAt
-                    ? new Date(subscription.expiresAt).toLocaleDateString('th-TH')
-                    : '-'}
-                </span>
-              </div>
-            </div>
-          </div>
+          </Card>
         )}
 
         {/* Packages Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            [1, 2, 3].map((i) => (
-              <div key={i} className="card animate-pulse">
-                <div className="h-48 bg-gray-200 rounded"></div>
-              </div>
-            ))
-          ) : packages.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-500">
-              ยังไม่มีแพ็คเกจ
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {packages.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon={
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                }
+                title="ยังไม่มีแพ็คเกจ"
+                description="กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มแพ็คเกจ"
+              />
             </div>
           ) : (
             packages.map((pkg, index) => (
-              <div 
-                key={pkg._id} 
-                className={`card hover:shadow-lg transition-all relative ${
-                  index === 1 ? 'border-2 border-primary-500 scale-[1.02]' : ''
+              <Card
+                key={pkg._id}
+                hover
+                className={`relative transition-all duration-300 ${
+                  index === 1 ? 'ring-2 ring-green-500 ring-offset-2 scale-[1.02]' : ''
                 }`}
               >
                 {/* Popular Badge */}
                 {index === 1 && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="px-4 py-1 bg-primary-500 text-white text-xs font-bold rounded-full shadow">
-                      ยอดนิยม
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                    <span className="px-4 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-lg shadow-green-500/30">
+                      ⭐ ยอดนิยม
                     </span>
                   </div>
                 )}
 
                 <div className="mb-4 mt-2">
                   <h3 className="font-bold text-xl text-gray-900">{pkg.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{pkg.description || 'แพ็คเกจตรวจสอบสลิป'}</p>
+                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                    {pkg.description || 'แพ็คเกจตรวจสอบสลิป'}
+                  </p>
                 </div>
 
                 <div className="mb-6">
-                  <div className="flex items-end gap-1">
-                    <span className="text-4xl font-bold text-primary-600">฿{pkg.price.toLocaleString()}</span>
-                    <span className="text-gray-500 text-sm mb-1">/{pkg.durationDays} วัน</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold text-gradient">฿{pkg.price.toLocaleString()}</span>
+                    <span className="text-gray-500 text-sm">/{pkg.durationDays} วัน</span>
                   </div>
                   {pkg.priceUsdt && pkg.priceUsdt > 0 && (
                     <p className="text-sm text-gray-500 mt-1">หรือ ${pkg.priceUsdt} USDT</p>
                   )}
-                  <div className="mt-2 text-sm text-primary-600 font-medium">
-                    ≈ ฿{(pkg.price / pkg.slipQuota).toFixed(2)}/สลิป
+                  <div className="mt-2">
+                    <Badge variant="info" size="sm">
+                      ≈ ฿{(pkg.price / pkg.slipQuota).toFixed(2)}/สลิป
+                    </Badge>
                   </div>
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg">
-                    <div className="p-2 bg-primary-100 rounded-lg">
-                      <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
                     <div>
-                      <p className="font-bold text-primary-700">{pkg.slipQuota.toLocaleString()} สลิป</p>
-                      <p className="text-xs text-primary-600">โควต้าตรวจสอบ</p>
+                      <p className="font-bold text-green-700">{pkg.slipQuota.toLocaleString()} สลิป</p>
+                      <p className="text-xs text-green-600">โควต้าตรวจสอบ</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                     <div className="p-2 bg-gray-100 rounded-lg">
                       <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -274,205 +387,238 @@ export default function UserPackagesPage() {
                     </div>
                     <div>
                       <p className="font-bold text-gray-700">{pkg.durationDays} วัน</p>
-                      <p className="text-xs text-gray-500">อายุการใช้งาน</p>
+                      <p className="text-xs text-gray-500">ระยะเวลาใช้งาน</p>
                     </div>
                   </div>
                 </div>
 
-                {pkg.features && pkg.features.length > 0 && (
-                  <ul className="space-y-2 mb-6">
-                    {pkg.features.map((feature, i) => (
-                      <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {/* Features */}
+                <div className="space-y-2 mb-6">
+                  {['ตรวจสอบสลิปอัตโนมัติ', 'รองรับทุกธนาคาร', 'แจ้งเตือนผ่าน LINE', 'รายงานสรุป'].map((feature) => (
+                    <div key={feature} className="flex items-center gap-2 text-sm text-gray-600">
+                      <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {feature}
+                    </div>
+                  ))}
+                </div>
 
-                <button
+                <Button
+                  variant={index === 1 ? 'primary' : 'secondary'}
+                  fullWidth
                   onClick={() => handleSelectPackage(pkg)}
-                  className={`btn w-full ${index === 1 ? 'btn-primary' : 'btn-secondary hover:bg-primary-600 hover:text-white'}`}
+                  disabled={isProcessing}
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
                   เลือกแพ็คเกจนี้
-                </button>
-              </div>
+                </Button>
+              </Card>
             ))
           )}
         </div>
       </div>
 
       {/* Payment Modal */}
-      {showPaymentModal && selectedPackage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">ชำระเงิน</h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600"
-                disabled={isProcessing}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-900">{selectedPackage.name}</h3>
-              <p className="text-2xl font-bold text-primary-600 mt-2">
-                {paymentMethod === 'usdt'
-                  ? `$${selectedPackage.priceUsdt || 0} USDT`
-                  : `฿${selectedPackage.price.toLocaleString()}`}
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                โควต้า: {selectedPackage.slipQuota.toLocaleString()} สลิป | {selectedPackage.durationDays} วัน
-              </p>
+      <Modal
+        isOpen={showPaymentModal}
+        onClose={closeModal}
+        title={`ซื้อแพ็คเกจ ${selectedPackage?.name || ''}`}
+        size="lg"
+      >
+        {selectedPackage && (
+          <div className="space-y-6">
+            {/* Package Summary */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedPackage.name}</p>
+                  <p className="text-sm text-gray-500">{selectedPackage.slipQuota.toLocaleString()} สลิป / {selectedPackage.durationDays} วัน</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-green-600">฿{selectedPackage.price.toLocaleString()}</p>
+                  {selectedPackage.priceUsdt && selectedPackage.priceUsdt > 0 && (
+                    <p className="text-sm text-gray-500">${selectedPackage.priceUsdt} USDT</p>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="mb-4">
-              <label className="label">วิธีชำระเงิน</label>
+            {/* Payment Method Selection */}
+            <div>
+              <label className="label">วิธีการชำระเงิน</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('bank')}
-                  disabled={isProcessing}
-                  className={`p-3 border rounded-lg text-center transition-colors ${
-                    paymentMethod === 'bank' 
-                      ? 'border-primary-500 bg-primary-50' 
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    paymentMethod === 'bank'
+                      ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  }`}
                 >
-                  <span className="text-2xl">🏦</span>
-                  <p className="text-sm font-medium mt-1">โอนเงิน</p>
+                  <div className="text-2xl mb-2">🏦</div>
+                  <p className="font-medium text-gray-900">โอนเงิน</p>
+                  <p className="text-xs text-gray-500">ธนาคาร</p>
                 </button>
-                {paymentInfo?.usdtWallet?.enabled && (
+                {selectedPackage.priceUsdt && selectedPackage.priceUsdt > 0 && (
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('usdt')}
-                    disabled={isProcessing}
-                    className={`p-3 border rounded-lg text-center transition-colors ${
-                      paymentMethod === 'usdt' 
-                        ? 'border-primary-500 bg-primary-50' 
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'usdt'
+                        ? 'border-green-500 bg-green-50'
                         : 'border-gray-200 hover:border-gray-300'
-                    } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    }`}
                   >
-                    <span className="text-2xl">💰</span>
-                    <p className="text-sm font-medium mt-1">USDT</p>
+                    <div className="text-2xl mb-2">💵</div>
+                    <p className="font-medium text-gray-900">USDT</p>
+                    <p className="text-xs text-gray-500">Crypto</p>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Bank Transfer Info */}
+            {/* Bank Transfer */}
             {paymentMethod === 'bank' && (
-              <div className="mb-4 space-y-4">
-                {paymentInfo?.bankAccounts?.length > 0 ? (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="font-medium text-blue-900 mb-2">โอนเงินไปยังบัญชี:</p>
-                    {paymentInfo.bankAccounts.map((account: any, idx: number) => (
-                      <div key={idx} className="text-sm text-blue-800 mb-2 last:mb-0">
-                        <p className="font-medium">{account.bankName}</p>
-                        <p>เลขบัญชี: <span className="font-mono">{account.accountNumber}</span></p>
-                        <p>ชื่อบัญชี: {account.accountName}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-yellow-800 text-sm">ยังไม่ได้ตั้งค่าบัญชีธนาคาร กรุณาติดต่อผู้ดูแลระบบ</p>
-                  </div>
-                )}
-                
-                <div>
-                  <label className="label">อัปโหลดสลิปการโอนเงิน *</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    disabled={isProcessing}
-                    className="input"
-                  />
-                  {slipPreview && (
-                    <div className="mt-2">
-                      <img 
-                        src={slipPreview} 
-                        alt="Slip preview" 
-                        className="max-h-40 rounded-lg border"
-                      />
-                      <p className="text-sm text-green-600 mt-1">เลือกไฟล์: {slipFile?.name}</p>
+              <div className="space-y-4">
+                {/* Bank Info */}
+                {paymentInfo?.bankName && (
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <p className="text-sm font-medium text-blue-800 mb-2">ข้อมูลการโอนเงิน</p>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-blue-600">ธนาคาร:</span> {paymentInfo.bankName}</p>
+                      <p><span className="text-blue-600">เลขบัญชี:</span> {paymentInfo.bankAccountNumber}</p>
+                      <p><span className="text-blue-600">ชื่อบัญชี:</span> {paymentInfo.bankAccountName}</p>
+                      <p className="font-bold text-blue-900 mt-2">
+                        ยอดโอน: ฿{selectedPackage.price.toLocaleString()}
+                      </p>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* USDT Info */}
-            {paymentMethod === 'usdt' && (
-              <div className="mb-4 space-y-4">
-                {paymentInfo?.usdtWallet?.address ? (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="font-medium text-yellow-900 mb-2">โอน USDT ไปยัง:</p>
-                    <p className="text-sm text-yellow-800">Network: {paymentInfo?.usdtWallet?.network || 'TRC20'}</p>
-                    <p className="text-sm text-yellow-800 font-mono break-all mt-1">
-                      {paymentInfo?.usdtWallet?.address}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-yellow-800 text-sm">ยังไม่ได้ตั้งค่า USDT Wallet กรุณาติดต่อผู้ดูแลระบบ</p>
                   </div>
                 )}
-                
+
+                {/* Slip Upload */}
                 <div>
-                  <label className="label">Transaction Hash *</label>
-                  <input
-                    type="text"
-                    value={transactionHash}
-                    onChange={(e) => setTransactionHash(e.target.value.trim())}
-                    disabled={isProcessing}
-                    className="input font-mono text-sm"
-                    placeholder="0x..."
-                  />
+                  <label className="label">อัปโหลดสลิปการโอนเงิน</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="slip-upload"
+                      disabled={isProcessing}
+                    />
+                    <label
+                      htmlFor="slip-upload"
+                      className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                        slipPreview
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                      } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {slipPreview ? (
+                        <div className="relative w-full h-full p-2">
+                          <img
+                            src={slipPreview}
+                            alt="Slip preview"
+                            className="w-full h-full object-contain rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setSlipFile(null);
+                              setSlipPreview(null);
+                            }}
+                            className="absolute top-4 right-4 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <svg className="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-sm text-gray-600">คลิกเพื่ออัปโหลดสลิป</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP (สูงสุด 10MB)</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-3">
-              <button
+            {/* USDT */}
+            {paymentMethod === 'usdt' && (
+              <div className="space-y-4">
+                {paymentInfo?.usdtAddress && (
+                  <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
+                    <p className="text-sm font-medium text-yellow-800 mb-2">ข้อมูลการชำระเงิน USDT</p>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-yellow-600">Network:</span> {paymentInfo.usdtNetwork || 'TRC20'}</p>
+                      <p className="break-all"><span className="text-yellow-600">Address:</span> {paymentInfo.usdtAddress}</p>
+                      <p className="font-bold text-yellow-900 mt-2">
+                        ยอดโอน: ${selectedPackage.priceUsdt} USDT
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <Input
+                  label="Transaction Hash"
+                  placeholder="กรอก Transaction Hash"
+                  value={transactionHash}
+                  onChange={(e) => setTransactionHash(e.target.value)}
+                  disabled={isProcessing}
+                />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                variant="secondary"
+                fullWidth
                 onClick={closeModal}
-                className="btn btn-secondary flex-1"
                 disabled={isProcessing}
               >
                 ยกเลิก
-              </button>
-              <button
-                onClick={handlePayment}
-                className="btn btn-primary flex-1"
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleConfirmPayment}
+                isLoading={isProcessing}
+                loadingText="กำลังดำเนินการ..."
                 disabled={isProcessing || (paymentMethod === 'bank' && !slipFile) || (paymentMethod === 'usdt' && !transactionHash)}
               >
-                {isProcessing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    กำลังดำเนินการ...
-                  </span>
-                ) : (
-                  'ยืนยันการชำระเงิน'
-                )}
-              </button>
+                ยืนยันการชำระเงิน
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handlePayment}
+        title="ยืนยันการชำระเงิน"
+        message={`คุณต้องการซื้อแพ็คเกจ "${selectedPackage?.name}" ในราคา ${
+          paymentMethod === 'bank'
+            ? `฿${selectedPackage?.price.toLocaleString()}`
+            : `$${selectedPackage?.priceUsdt} USDT`
+        } หรือไม่?`}
+        confirmText="ยืนยัน"
+        cancelText="ยกเลิก"
+        type="warning"
+        isLoading={isProcessing}
+      />
     </DashboardLayout>
   );
 }

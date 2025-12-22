@@ -103,10 +103,15 @@ export interface Payment {
   paymentType: 'bank_transfer' | 'usdt';
   status: 'pending' | 'verified' | 'rejected' | 'failed' | 'cancelled';
   transRef?: string;
+  slipImageUrl?: string;
+  transactionHash?: string;
   verificationResult?: any;
   adminNotes?: string;
+  notes?: string;
+  rejectionReason?: string;
   createdAt: string;
   verifiedAt?: string;
+  rejectedAt?: string;
 }
 
 export interface QuotaInfo {
