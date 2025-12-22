@@ -21,6 +21,7 @@ interface Bank {
   shortName?: string;
   color?: string;
   logoUrl?: string;
+  logoBase64?: string;
   isActive: boolean;
   sortOrder: number;
 }
@@ -119,30 +120,37 @@ export default function BanksManagementPage() {
       });
       toast.success(
         bank.isActive ? 'ปิดใช้งานธนาคารสำเร็จ' : 'เปิดใช้งานธนาคารสำเร็จ',
-        { icon: bank.isActive ? '🔒' : '🔓' }
+        { icon: bank.isActive ? '🔴' : '🟢' }
       );
       await fetchBanks();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถอัปเดตสถานะได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถเปลี่ยนสถานะได้');
     } finally {
       processingIdsRef.current.delete(bank._id);
     }
   };
 
-  const filteredBanks = banks.filter(bank =>
-    bank.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bank.name.includes(searchQuery) ||
-    bank.nameEn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bank.shortName?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredBanks = banks.filter(
+    (bank) =>
+      bank.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bank.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (bank.shortName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   );
 
-  const activeCount = banks.filter(b => b.isActive).length;
-  const inactiveCount = banks.filter(b => !b.isActive).length;
+  const getBankLogo = (bank: Bank) => {
+    if (bank.logoBase64) {
+      return bank.logoBase64;
+    }
+    if (bank.logoUrl) {
+      return bank.logoUrl;
+    }
+    return null;
+  };
 
   if (loading) {
     return (
       <DashboardLayout requiredRole="admin">
-        <PageLoading message="กำลังโหลดข้อมูลธนาคาร..." />
+        <PageLoading />
       </DashboardLayout>
     );
   }
@@ -150,171 +158,109 @@ export default function BanksManagementPage() {
   return (
     <DashboardLayout requiredRole="admin">
       <div className="space-y-6 animate-fade-in">
-        {/* Header */}
         <div className="page-header">
           <div>
             <h1 className="page-title">จัดการธนาคาร</h1>
             <p className="page-subtitle">จัดการรายชื่อธนาคารในระบบ</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2">
-              <Badge variant="success">{activeCount} เปิดใช้งาน</Badge>
-              <Badge variant="secondary">{inactiveCount} ปิดใช้งาน</Badge>
-            </div>
-            {banks.length === 0 && (
-              <Button variant="secondary" onClick={handleInitDefaults}>
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                นำเข้าธนาคารเริ่มต้น
-              </Button>
-            )}
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={handleInitDefaults}>
+              นำเข้าธนาคารเริ่มต้น
+            </Button>
             <Button onClick={() => setShowCreateModal(true)}>
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              เพิ่มธนาคาร
+              + เพิ่มธนาคาร
             </Button>
           </div>
         </div>
 
         {/* Search */}
         <Card>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex items-center gap-4">
             <div className="flex-1">
               <Input
                 placeholder="ค้นหาธนาคาร..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon={
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                }
               />
             </div>
+            <Badge variant="secondary">{filteredBanks.length} ธนาคาร</Badge>
           </div>
         </Card>
 
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between animate-slide-up">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-red-700 font-medium">{error}</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setError('')}>
-              ปิด
-            </Button>
-          </div>
-        )}
-
         {/* Banks Table */}
-        {filteredBanks.length === 0 ? (
-          <Card className="py-12">
+        <Card>
+          {filteredBanks.length === 0 ? (
             <EmptyState
               icon={
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               }
-              title={searchQuery ? 'ไม่พบธนาคารที่ค้นหา' : 'ยังไม่มีข้อมูลธนาคาร'}
-              description={searchQuery ? 'ลองค้นหาด้วยคำอื่น' : 'นำเข้าธนาคารเริ่มต้นหรือเพิ่มธนาคารใหม่'}
-              action={
-                !searchQuery && (
-                  <div className="flex gap-3">
-                    <Button variant="secondary" onClick={handleInitDefaults}>
-                      นำเข้าธนาคารเริ่มต้น
-                    </Button>
-                    <Button onClick={() => setShowCreateModal(true)}>
-                      เพิ่มธนาคาร
-                    </Button>
-                  </div>
-                )
-              }
+              title="ยังไม่มีธนาคาร"
+              description="เริ่มต้นด้วยการนำเข้าธนาคารเริ่มต้นหรือเพิ่มธนาคารใหม่"
             />
-          </Card>
-        ) : (
-          <Card className="overflow-hidden p-0">
+          ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full">
+              <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">โลโก้</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">รหัส</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ชื่อธนาคาร</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ชื่อย่อ</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">สี</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">สถานะ</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">จัดการ</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">โลโก้</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">รหัส</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">ชื่อธนาคาร</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">ชื่อย่อ</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">สถานะ</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-600">จัดการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {filteredBanks.map((bank) => (
-                    <tr key={bank._id} className={`hover:bg-gray-50 transition-colors ${!bank.isActive ? 'bg-gray-50 opacity-60' : ''}`}>
-                      <td className="px-6 py-4">
+                    <tr key={bank._id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4">
                         <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm"
-                          style={{ backgroundColor: bank.color || '#666' }}
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                          style={{ backgroundColor: bank.color || '#6b7280' }}
                         >
-                          {bank.shortName?.charAt(0) || bank.code.charAt(0)}
+                          {getBankLogo(bank) ? (
+                            <img
+                              src={getBankLogo(bank)!}
+                              alt={bank.name}
+                              className="w-8 h-8 object-contain"
+                            />
+                          ) : (
+                            bank.shortName?.substring(0, 2) || bank.code.substring(0, 2)
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <Badge variant="secondary" size="sm">{bank.code}</Badge>
+                      <td className="py-3 px-4 font-mono text-sm">{bank.code}</td>
+                      <td className="py-3 px-4">{bank.name}</td>
+                      <td className="py-3 px-4 text-gray-500">{bank.shortName || '-'}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={bank.isActive ? 'success' : 'secondary'}>
+                          {bank.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                        </Badge>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-gray-900">{bank.name}</p>
-                        {bank.nameEn && (
-                          <p className="text-sm text-gray-500">{bank.nameEn}</p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {bank.shortName || '-'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-6 h-6 rounded-lg shadow-inner"
-                            style={{ backgroundColor: bank.color || '#666' }}
-                          />
-                          <span className="text-xs font-mono text-gray-500">{bank.color}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Button
-                          variant={bank.isActive ? 'success' : 'secondary'}
-                          size="sm"
-                          onClick={() => handleToggleActive(bank)}
-                          disabled={processingIdsRef.current.has(bank._id)}
-                        >
-                          {bank.isActive ? '✓ เปิดใช้งาน' : 'ปิดใช้งาน'}
-                        </Button>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-end">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setEditingBank(bank)}
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
+                            แก้ไข
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant={bank.isActive ? 'secondary' : 'primary'}
+                            size="sm"
+                            onClick={() => handleToggleActive(bank)}
+                          >
+                            {bank.isActive ? 'ปิด' : 'เปิด'}
+                          </Button>
+                          <Button
+                            variant="danger"
                             size="sm"
                             onClick={() => handleDeleteClick(bank)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            ลบ
                           </Button>
                         </div>
                       </td>
@@ -323,20 +269,28 @@ export default function BanksManagementPage() {
                 </tbody>
               </table>
             </div>
-          </Card>
-        )}
+          )}
+        </Card>
       </div>
 
-      {/* Create/Edit Modal */}
-      {(showCreateModal || editingBank) && (
+      {/* Create Modal */}
+      {showCreateModal && (
         <BankModal
-          bank={editingBank}
-          onClose={() => {
-            setShowCreateModal(false);
-            setEditingBank(null);
-          }}
+          bank={null}
+          onClose={() => setShowCreateModal(false)}
           onSave={() => {
             setShowCreateModal(false);
+            fetchBanks();
+          }}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editingBank && (
+        <BankModal
+          bank={editingBank}
+          onClose={() => setEditingBank(null)}
+          onSave={() => {
             setEditingBank(null);
             fetchBanks();
           }}
@@ -348,11 +302,9 @@ export default function BanksManagementPage() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
-        title="ลบธนาคาร"
+        title="ยืนยันการลบธนาคาร"
         message={`คุณต้องการลบธนาคาร "${bankToDelete?.name}" หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
-        confirmText="ลบ"
-        cancelText="ยกเลิก"
-        type="danger"
+        confirmText="ลบธนาคาร"
         isLoading={isDeleting}
       />
     </DashboardLayout>
@@ -373,11 +325,16 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
     nameEn: bank?.nameEn || '',
     shortName: bank?.shortName || '',
     color: bank?.color || '#1a73e8',
-    logoUrl: bank?.logoUrl || '',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(
+    bank?.logoBase64 || bank?.logoUrl || null
+  );
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const lastSubmitTimeRef = useRef<number>(0);
 
@@ -396,6 +353,39 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      toast.error('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+      return;
+    }
+
+    setLogoFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -418,13 +408,28 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
     setError('');
 
     try {
+      let bankId = bank?._id;
+
       if (bank) {
+        // Update existing bank
         await api.put(`/api/admin/banks/${bank._id}`, formData);
-        toast.success('อัปเดตธนาคารสำเร็จ', { icon: '✅' });
       } else {
-        await api.post('/api/admin/banks', formData);
-        toast.success('เพิ่มธนาคารสำเร็จ', { icon: '🏦' });
+        // Create new bank
+        const response = await api.post('/api/admin/banks', formData);
+        bankId = response.data.bank._id;
       }
+
+      // Upload logo if selected
+      if (logoFile && bankId) {
+        setUploadingLogo(true);
+        const logoFormData = new FormData();
+        logoFormData.append('logo', logoFile);
+        await api.post(`/api/admin/banks/${bankId}/logo`, logoFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
+      toast.success(bank ? 'อัปเดตธนาคารสำเร็จ' : 'เพิ่มธนาคารสำเร็จ', { icon: '✅' });
       onSave();
     } catch (err: any) {
       const message = err.response?.data?.message || 'เกิดข้อผิดพลาด';
@@ -432,6 +437,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
       toast.error(message);
     } finally {
       setSaving(false);
+      setUploadingLogo(false);
     }
   };
 
@@ -505,13 +511,81 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
           </div>
         </div>
 
-        <Input
-          label="URL โลโก้ (ไม่บังคับ)"
-          placeholder="https://example.com/logo.png"
-          value={formData.logoUrl}
-          onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-          disabled={saving}
-        />
+        {/* Logo Upload */}
+        <div>
+          <label className="label">โลโก้ธนาคาร</label>
+          <div className="space-y-3">
+            {logoPreview ? (
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-16 h-16 rounded-xl flex items-center justify-center border-2 border-gray-200"
+                  style={{ backgroundColor: formData.color || '#f3f4f6' }}
+                >
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-12 h-12 object-contain"
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-600">
+                    {logoFile ? logoFile.name : 'โลโก้ปัจจุบัน'}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveLogo}
+                    disabled={saving}
+                    className="text-red-600 hover:text-red-700 mt-1"
+                  >
+                    ลบโลโก้
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <svg
+                  className="w-10 h-10 mx-auto text-gray-400 mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <p className="text-sm text-gray-600">คลิกเพื่ออัพโหลดรูปโลโก้</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF ขนาดไม่เกิน 2MB</p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+              disabled={saving}
+            />
+            {!logoPreview && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={saving}
+              >
+                เลือกไฟล์
+              </Button>
+            )}
+          </div>
+        </div>
 
         <div className="flex gap-3 pt-4 border-t">
           <Button
@@ -526,8 +600,8 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
           <Button
             type="submit"
             fullWidth
-            isLoading={saving}
-            loadingText="กำลังบันทึก..."
+            isLoading={saving || uploadingLogo}
+            loadingText={uploadingLogo ? 'กำลังอัพโหลดโลโก้...' : 'กำลังบันทึก...'}
           >
             {bank ? 'บันทึกการแก้ไข' : 'เพิ่มธนาคาร'}
           </Button>

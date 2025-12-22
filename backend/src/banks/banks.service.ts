@@ -238,6 +238,23 @@ export class BanksService {
   }
 
   /**
+   * Upload bank logo
+   */
+  async uploadLogo(id: string, buffer: Buffer, mimeType: string): Promise<BankDocument> {
+    const bank = await this.bankModel.findById(id);
+    if (!bank) {
+      throw new NotFoundException('Bank not found');
+    }
+
+    const base64 = `data:${mimeType};base64,${buffer.toString('base64')}`;
+    bank.logoBase64 = base64;
+    bank.logoUrl = ''; // Clear URL when uploading file
+    await bank.save();
+
+    return bank;
+  }
+
+  /**
    * Search banks
    */
   async search(query: string): Promise<BankDocument[]> {

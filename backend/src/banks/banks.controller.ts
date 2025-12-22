@@ -9,7 +9,10 @@ import {
   Query,
   Res,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -122,6 +125,32 @@ export class BanksController {
   async deleteBank(@Param('id') id: string) {
     await this.banksService.delete(id);
     return { success: true, message: 'Bank deleted' };
+  }
+
+  /**
+   * Admin: Upload bank logo
+   */
+  @Post('admin/banks/:id/logo')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('logo'))
+  async uploadBankLogo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      return { success: false, message: 'กรุณาอัปโหลดรูปโลโก้' };
+    }
+
+    // Validate file
+    const maxBytes = 2 * 1024 * 1024; // 2MB
+    const size = file.size ?? file.buffer?.length ?? 0;
+    if (!file.mimetype?.startsWith('image/') || size <= 0 || size > maxBytes) {
+      return { success: false, message: 'ไฟล์ไม่ถูกต้อง (รองรับรูปภาพและต้องไม่เกิน 2MB)' };
+    }
+
+    const bank = await this.banksService.uploadLogo(id, file.buffer, file.mimetype);
+    return { success: true, bank };
   }
 
   /**
