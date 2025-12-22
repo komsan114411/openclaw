@@ -8,7 +8,7 @@ import {
 } from '../database/schemas/slip-template.schema';
 
 export interface CreateTemplateDto {
-  lineAccountId: string;
+  lineAccountId?: string;
   ownerId?: string;
   name: string;
   description?: string;
@@ -26,6 +26,8 @@ export interface CreateTemplateDto {
   showTime?: boolean;
   showTransRef?: boolean;
   showBankLogo?: boolean;
+  isGlobal?: boolean;
+  isSystemTemplate?: boolean;
 }
 
 export interface SlipData {
@@ -57,7 +59,7 @@ export class SlipTemplatesService {
     const variables = this.extractVariables(dto.flexTemplate, dto.textTemplate);
 
     const template = await this.slipTemplateModel.create({
-      lineAccountId: new Types.ObjectId(dto.lineAccountId),
+      lineAccountId: dto.lineAccountId ? new Types.ObjectId(dto.lineAccountId) : undefined,
       ownerId: dto.ownerId ? new Types.ObjectId(dto.ownerId) : undefined,
       name: dto.name,
       description: dto.description,
@@ -76,17 +78,71 @@ export class SlipTemplatesService {
       showTime: dto.showTime ?? true,
       showTransRef: dto.showTransRef ?? true,
       showBankLogo: dto.showBankLogo ?? false,
+      isGlobal: dto.isGlobal ?? false,
+      isSystemTemplate: dto.isSystemTemplate ?? false,
     });
 
     return template;
   }
 
   /**
-   * Get all templates for a LINE account
+   * Create a global template (Admin only)
+   */
+  async createGlobalTemplate(dto: Omit<CreateTemplateDto, 'lineAccountId'>): Promise<SlipTemplateDocument> {
+    return this.create({
+      ...dto,
+      isGlobal: true,
+      isSystemTemplate: true,
+    });
+  }
+
+  /**
+   * Get all global templates
+   */
+  async getGlobalTemplates(): Promise<SlipTemplateDocument[]> {
+    return this.slipTemplateModel
+      .find({ isGlobal: true, isActive: true })
+      .sort({ type: 1, isDefault: -1, createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Get all global templates (for admin management)
+   */
+  async getAllGlobalTemplates(): Promise<SlipTemplateDocument[]> {
+    return this.slipTemplateModel
+      .find({ isGlobal: true })
+      .sort({ type: 1, isDefault: -1, createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Get all templates for a LINE account (includes global templates)
    */
   async getByLineAccount(lineAccountId: string): Promise<SlipTemplateDocument[]> {
+    // Get account-specific templates and global templates
     return this.slipTemplateModel
-      .find({ lineAccountId: new Types.ObjectId(lineAccountId), isActive: true })
+      .find({
+        isActive: true,
+        $or: [
+          { lineAccountId: new Types.ObjectId(lineAccountId) },
+          { isGlobal: true },
+        ],
+      })
+      .sort({ isGlobal: 1, type: 1, isDefault: -1, createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Get only account-specific templates (no global)
+   */
+  async getAccountTemplates(lineAccountId: string): Promise<SlipTemplateDocument[]> {
+    return this.slipTemplateModel
+      .find({ 
+        lineAccountId: new Types.ObjectId(lineAccountId), 
+        isActive: true,
+        isGlobal: { $ne: true },
+      })
       .sort({ type: 1, isDefault: -1, createdAt: -1 })
       .exec();
   }
@@ -157,7 +213,7 @@ export class SlipTemplatesService {
   }
 
   /**
-   * Set template as default
+   * Set template as default (for account-specific templates)
    */
   async setAsDefault(templateId: string): Promise<SlipTemplateDocument> {
     const template = await this.slipTemplateModel.findById(templateId);
@@ -165,10 +221,41 @@ export class SlipTemplatesService {
       throw new NotFoundException('Template not found');
     }
 
-    // Unset other defaults of same type
+    // Unset other defaults of same type for this account
     await this.slipTemplateModel.updateMany(
       {
         lineAccountId: template.lineAccountId,
+        type: template.type,
+        isGlobal: { $ne: true },
+        _id: { $ne: templateId },
+      },
+      { isDefault: false },
+    );
+
+    // Set this as default
+    template.isDefault = true;
+    await template.save();
+
+    return template;
+  }
+
+  /**
+   * Set global template as default for its type
+   */
+  async setGlobalDefault(templateId: string): Promise<SlipTemplateDocument> {
+    const template = await this.slipTemplateModel.findById(templateId);
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    if (!template.isGlobal) {
+      throw new BadRequestException('Template is not a global template');
+    }
+
+    // Unset other global defaults of same type
+    await this.slipTemplateModel.updateMany(
+      {
+        isGlobal: true,
         type: template.type,
         _id: { $ne: templateId },
       },
@@ -264,6 +351,68 @@ export class SlipTemplatesService {
         ...def,
       });
     }
+  }
+
+  /**
+   * Create default global templates (Admin only)
+   */
+  async createDefaultGlobalTemplates(ownerId?: string): Promise<void> {
+    // Check if global templates already exist
+    const existingGlobal = await this.slipTemplateModel.findOne({ isGlobal: true });
+    if (existingGlobal) {
+      this.logger.log('Global templates already exist, skipping creation');
+      return;
+    }
+
+    const defaults = [
+      {
+        name: '✅ สลิปถูกต้อง (Global)',
+        description: 'Template มาตรฐานสำหรับสลิปที่ตรวจสอบสำเร็จ',
+        type: TemplateType.SUCCESS,
+        isDefault: true,
+        headerText: '✅ ตรวจสอบสลิปสำเร็จ',
+        footerText: 'ขอบคุณที่ใช้บริการ',
+        primaryColor: '#00C851',
+      },
+      {
+        name: '⚠️ สลิปซ้ำ (Global)',
+        description: 'Template มาตรฐานสำหรับสลิปที่ถูกใช้แล้ว',
+        type: TemplateType.DUPLICATE,
+        isDefault: true,
+        headerText: '⚠️ พบสลิปซ้ำ',
+        footerText: 'สลิปนี้ถูกใช้ไปแล้ว กรุณาใช้สลิปใหม่',
+        primaryColor: '#FF8800',
+      },
+      {
+        name: '❌ ตรวจสอบไม่สำเร็จ (Global)',
+        description: 'Template มาตรฐานสำหรับสลิปที่ตรวจสอบไม่ผ่าน',
+        type: TemplateType.ERROR,
+        isDefault: true,
+        headerText: '❌ ตรวจสอบไม่สำเร็จ',
+        footerText: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแล',
+        primaryColor: '#FF4444',
+      },
+      {
+        name: '🔍 ไม่พบข้อมูล (Global)',
+        description: 'Template มาตรฐานสำหรับไม่พบข้อมูลสลิป',
+        type: TemplateType.NOT_FOUND,
+        isDefault: true,
+        headerText: '🔍 ไม่พบข้อมูลสลิป',
+        footerText: 'กรุณาตรวจสอบสลิปและลองใหม่อีกครั้ง',
+        primaryColor: '#999999',
+      },
+    ];
+
+    for (const def of defaults) {
+      await this.slipTemplateModel.create({
+        ownerId: ownerId ? new Types.ObjectId(ownerId) : undefined,
+        isGlobal: true,
+        isSystemTemplate: true,
+        ...def,
+      });
+    }
+
+    this.logger.log('Default global templates created successfully');
   }
 
   private extractVariables(

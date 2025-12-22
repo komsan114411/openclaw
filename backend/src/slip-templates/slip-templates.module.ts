@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SlipTemplatesController } from './slip-templates.controller';
+import { SlipTemplatesController, AdminSlipTemplatesController } from './slip-templates.controller';
 import { SlipTemplatesService } from './slip-templates.service';
 import { SlipTemplate, SlipTemplateSchema } from '../database/schemas/slip-template.schema';
 import { AuthModule } from '../auth/auth.module';
@@ -12,7 +12,7 @@ import { AuthModule } from '../auth/auth.module';
     ]),
     AuthModule,
   ],
-  controllers: [SlipTemplatesController],
+  controllers: [SlipTemplatesController, AdminSlipTemplatesController],
   providers: [SlipTemplatesService],
   exports: [SlipTemplatesService],
 })

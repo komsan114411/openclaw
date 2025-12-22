@@ -1,17 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api, lineAccountsApi } from '@/lib/api';
-import { LineAccount } from '@/types';
+import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { Input, Select, Textarea, Switch } from '@/components/ui/Input';
-import { Spinner, PageLoading } from '@/components/ui/Loading';
+import { PageLoading } from '@/components/ui/Loading';
 
 interface SlipTemplate {
   _id: string;
@@ -20,6 +18,8 @@ interface SlipTemplate {
   type: 'success' | 'duplicate' | 'error' | 'not_found';
   isDefault: boolean;
   isActive: boolean;
+  isGlobal: boolean;
+  isSystemTemplate: boolean;
   primaryColor?: string;
   headerText?: string;
   footerText?: string;
@@ -33,10 +33,10 @@ interface SlipTemplate {
 }
 
 const TYPE_OPTIONS = [
-  { value: 'success', label: 'สำเร็จ', color: 'bg-green-100 text-green-800' },
-  { value: 'duplicate', label: 'สลิปซ้ำ', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'error', label: 'ผิดพลาด', color: 'bg-red-100 text-red-800' },
-  { value: 'not_found', label: 'ไม่พบ', color: 'bg-gray-100 text-gray-800' },
+  { value: 'success', label: '✅ สำเร็จ', color: 'bg-green-100 text-green-800', icon: '✅' },
+  { value: 'duplicate', label: '⚠️ สลิปซ้ำ', color: 'bg-yellow-100 text-yellow-800', icon: '⚠️' },
+  { value: 'error', label: '❌ ผิดพลาด', color: 'bg-red-100 text-red-800', icon: '❌' },
+  { value: 'not_found', label: '🔍 ไม่พบ', color: 'bg-gray-100 text-gray-800', icon: '🔍' },
 ];
 
 const DEFAULT_FORM_DATA = {
@@ -54,13 +54,7 @@ const DEFAULT_FORM_DATA = {
   showTransRef: true,
 };
 
-function AdminTemplatesContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const accountId = searchParams.get('accountId') || '';
-
-  const [accounts, setAccounts] = useState<LineAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState(accountId);
+export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -70,48 +64,25 @@ function AdminTemplatesContent() {
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch all LINE accounts
-  const fetchAccounts = useCallback(async () => {
-    try {
-      const response = await lineAccountsApi.getAll();
-      setAccounts(response.data.accounts || []);
-    } catch (err) {
-      console.error('Failed to load accounts:', err);
-    }
-  }, []);
-
-  // Fetch templates for selected account
+  // Fetch global templates
   const fetchTemplates = useCallback(async () => {
-    if (!selectedAccountId) {
-      setTemplates([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
-      const response = await api.get(`/line-accounts/${selectedAccountId}/slip-templates`);
+      const response = await api.get('/slip-templates/global');
       if (response.data.success) {
         setTemplates(response.data.templates || []);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้');
+      console.error('Failed to load templates:', err);
+      toast.error('ไม่สามารถโหลด Templates ได้');
     } finally {
       setLoading(false);
     }
-  }, [selectedAccountId]);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
+  }, []);
 
   useEffect(() => {
     fetchTemplates();
-  }, [selectedAccountId, fetchTemplates]);
-
-  const handleSelectAccount = (id: string) => {
-    setSelectedAccountId(id);
-    router.push(`/admin/templates?accountId=${id}`, { scroll: false });
-  };
+  }, [fetchTemplates]);
 
   const openCreateModal = () => {
     setFormData(DEFAULT_FORM_DATA);
@@ -145,7 +116,7 @@ function AdminTemplatesContent() {
 
     setIsProcessing(true);
     try {
-      await api.post(`/line-accounts/${selectedAccountId}/slip-templates`, formData);
+      await api.post('/slip-templates/global', formData);
       toast.success('สร้าง Template สำเร็จ');
       setShowCreateModal(false);
       fetchTemplates();
@@ -164,7 +135,7 @@ function AdminTemplatesContent() {
 
     setIsProcessing(true);
     try {
-      await api.put(`/line-accounts/${selectedAccountId}/slip-templates/${selectedTemplate._id}`, formData);
+      await api.put(`/slip-templates/global/${selectedTemplate._id}`, formData);
       toast.success('อัปเดต Template สำเร็จ');
       setShowEditModal(false);
       fetchTemplates();
@@ -180,7 +151,7 @@ function AdminTemplatesContent() {
 
     setIsProcessing(true);
     try {
-      await api.delete(`/line-accounts/${selectedAccountId}/slip-templates/${selectedTemplate._id}`);
+      await api.delete(`/slip-templates/global/${selectedTemplate._id}`);
       toast.success('ลบ Template สำเร็จ');
       setShowDeleteConfirm(false);
       setSelectedTemplate(null);
@@ -194,7 +165,7 @@ function AdminTemplatesContent() {
 
   const handleSetDefault = async (templateId: string) => {
     try {
-      await api.put(`/line-accounts/${selectedAccountId}/slip-templates/${templateId}/default`);
+      await api.put(`/slip-templates/global/${templateId}/default`);
       toast.success('ตั้งเป็น Default สำเร็จ');
       fetchTemplates();
     } catch (err: any) {
@@ -205,7 +176,7 @@ function AdminTemplatesContent() {
   const handleInitDefaults = async () => {
     setIsProcessing(true);
     try {
-      await api.post(`/line-accounts/${selectedAccountId}/slip-templates/init-defaults`);
+      await api.post('/slip-templates/global/init-defaults');
       toast.success('สร้าง Template เริ่มต้นสำเร็จ');
       fetchTemplates();
     } catch (err: any) {
@@ -219,7 +190,14 @@ function AdminTemplatesContent() {
     return TYPE_OPTIONS.find(t => t.value === type) || TYPE_OPTIONS[0];
   };
 
-  const selectedAccount = accounts.find(a => a._id === selectedAccountId);
+  // Group templates by type
+  const templatesByType = templates.reduce((acc, template) => {
+    if (!acc[template.type]) {
+      acc[template.type] = [];
+    }
+    acc[template.type].push(template);
+    return acc;
+  }, {} as Record<string, SlipTemplate[]>);
 
   const TemplateFormModal = ({ isOpen, onClose, onSubmit, title, submitText }: {
     isOpen: boolean;
@@ -299,55 +277,57 @@ function AdminTemplatesContent() {
             <Switch
               checked={formData.showAmount}
               onChange={(checked) => setFormData({ ...formData, showAmount: checked })}
-              label="จำนวนเงิน"
+              label="💰 จำนวนเงิน"
             />
             <Switch
               checked={formData.showSender}
               onChange={(checked) => setFormData({ ...formData, showSender: checked })}
-              label="ผู้โอน"
+              label="👤 ผู้โอน"
             />
             <Switch
               checked={formData.showReceiver}
               onChange={(checked) => setFormData({ ...formData, showReceiver: checked })}
-              label="ผู้รับ"
+              label="🏦 ผู้รับ"
             />
             <Switch
               checked={formData.showDate}
               onChange={(checked) => setFormData({ ...formData, showDate: checked })}
-              label="วันที่"
+              label="📅 วันที่"
             />
             <Switch
               checked={formData.showTime}
               onChange={(checked) => setFormData({ ...formData, showTime: checked })}
-              label="เวลา"
+              label="🕐 เวลา"
             />
             <Switch
               checked={formData.showTransRef}
               onChange={(checked) => setFormData({ ...formData, showTransRef: checked })}
-              label="เลขอ้างอิง"
+              label="🔢 เลขอ้างอิง"
             />
           </div>
         </div>
 
         {/* Preview */}
         <div className="border-t pt-4">
-          <p className="text-sm font-medium text-gray-700 mb-3">ตัวอย่าง</p>
-          <div className="border rounded-lg overflow-hidden">
+          <p className="text-sm font-medium text-gray-700 mb-3">👁️ ตัวอย่าง</p>
+          <div className="border rounded-xl overflow-hidden shadow-sm">
             <div className="h-2" style={{ backgroundColor: formData.primaryColor }} />
             <div className="p-4 bg-gray-50">
               {formData.headerText && (
-                <p className="font-semibold mb-2">{formData.headerText}</p>
+                <p className="font-semibold mb-3 text-lg" style={{ color: formData.primaryColor }}>
+                  {formData.headerText}
+                </p>
               )}
-              <div className="space-y-1 text-sm text-gray-600">
-                {formData.showAmount && <p>💰 จำนวนเงิน: 1,000.00 บาท</p>}
-                {formData.showSender && <p>👤 ผู้โอน: นาย ทดสอบ</p>}
-                {formData.showReceiver && <p>🏦 ผู้รับ: บริษัท ABC</p>}
-                {formData.showDate && <p>📅 วันที่: 23/12/2025</p>}
-                {formData.showTime && <p>🕐 เวลา: 14:30:00</p>}
-                {formData.showTransRef && <p>🔢 เลขอ้างอิง: 123456789</p>}
+              <div className="space-y-2 text-sm text-gray-600">
+                {formData.showAmount && <p>💰 จำนวนเงิน: <span className="font-medium text-gray-900">1,000.00 บาท</span></p>}
+                {formData.showSender && <p>👤 ผู้โอน: <span className="font-medium text-gray-900">นาย ทดสอบ</span></p>}
+                {formData.showReceiver && <p>🏦 ผู้รับ: <span className="font-medium text-gray-900">บริษัท ABC</span></p>}
+                {formData.showDate && <p>📅 วันที่: <span className="font-medium text-gray-900">23/12/2025</span></p>}
+                {formData.showTime && <p>🕐 เวลา: <span className="font-medium text-gray-900">14:30:00</span></p>}
+                {formData.showTransRef && <p>🔢 เลขอ้างอิง: <span className="font-medium text-gray-900">123456789</span></p>}
               </div>
               {formData.footerText && (
-                <p className="text-sm text-gray-500 mt-2 pt-2 border-t">{formData.footerText}</p>
+                <p className="text-sm text-gray-500 mt-3 pt-3 border-t">{formData.footerText}</p>
               )}
             </div>
           </div>
@@ -371,58 +351,53 @@ function AdminTemplatesContent() {
         {/* Header */}
         <div className="page-header">
           <div>
-            <h1 className="page-title">จัดการ Templates</h1>
-            <p className="page-subtitle">จัดการรูปแบบการตอบกลับสลิปสำหรับแต่ละบัญชี LINE</p>
+            <h1 className="page-title">🎨 จัดการ Templates (ส่วนกลาง)</h1>
+            <p className="page-subtitle">สร้าง Template กลางสำหรับให้ผู้ใช้ทุกคนเลือกใช้</p>
           </div>
           <div className="flex items-center gap-3">
-            <Select
-              value={selectedAccountId}
-              onChange={(e) => handleSelectAccount(e.target.value)}
-              className="w-64"
-            >
-              <option value="">-- เลือกบัญชี LINE --</option>
-              {accounts.map((account) => (
-                <option key={account._id} value={account._id}>
-                  {account.accountName}
-                </option>
-              ))}
-            </Select>
-            {selectedAccountId && (
-              <Button variant="primary" onClick={openCreateModal}>
-                + สร้าง Template
-              </Button>
-            )}
+            <Button variant="primary" onClick={openCreateModal}>
+              + สร้าง Template ใหม่
+            </Button>
           </div>
         </div>
 
-        {!selectedAccountId ? (
-          <Card className="p-12">
-            <EmptyState
-              icon={
-                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              }
-              title="เลือกบัญชี LINE"
-              description="กรุณาเลือกบัญชี LINE เพื่อจัดการ Templates"
-            />
-          </Card>
-        ) : loading ? (
+        {/* Info Card */}
+        <Card className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-xl">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold">Templates ส่วนกลาง</h2>
+              <p className="text-white/80 text-sm">
+                สร้าง Template ที่นี่เพื่อให้ผู้ใช้ทุกคนสามารถเลือกใช้ได้ โดยไม่ต้องสร้างเอง
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold">{templates.length}</p>
+              <p className="text-white/70 text-sm">Templates</p>
+            </div>
+          </div>
+        </Card>
+
+        {loading ? (
           <PageLoading message="กำลังโหลด Templates..." />
         ) : templates.length === 0 ? (
           <Card className="p-12">
             <EmptyState
               icon={
-                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               }
-              title="ยังไม่มี Template"
-              description="สร้าง Template เพื่อกำหนดรูปแบบการตอบกลับสลิป"
+              title="ยังไม่มี Template ส่วนกลาง"
+              description="สร้าง Template เพื่อให้ผู้ใช้ทุกคนสามารถเลือกใช้ได้"
               action={
-                <div className="flex gap-3">
+                <div className="flex gap-3 justify-center">
                   <Button variant="secondary" onClick={handleInitDefaults} isLoading={isProcessing}>
-                    สร้าง Template เริ่มต้น
+                    🚀 สร้าง Template เริ่มต้น
                   </Button>
                   <Button variant="primary" onClick={openCreateModal}>
                     + สร้าง Template ใหม่
@@ -433,117 +408,112 @@ function AdminTemplatesContent() {
           </Card>
         ) : (
           <>
-            {/* Account Info */}
-            {selectedAccount && (
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold">{selectedAccount.accountName}</h2>
-                      <p className="text-white/80 text-sm">{templates.length} Templates</p>
-                    </div>
+            {/* Templates by Type */}
+            {TYPE_OPTIONS.map((typeOption) => {
+              const typeTemplates = templatesByType[typeOption.value] || [];
+              if (typeTemplates.length === 0) return null;
+
+              return (
+                <div key={typeOption.value}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">{typeOption.icon}</span>
+                    <h2 className="text-lg font-semibold text-gray-900">{typeOption.label}</h2>
+                    <Badge className={typeOption.color}>{typeTemplates.length}</Badge>
                   </div>
-                  <Button
-                    variant="ghost"
-                    className="text-white hover:bg-white/20"
-                    onClick={handleInitDefaults}
-                    disabled={isProcessing}
-                  >
-                    + เพิ่ม Template เริ่มต้น
-                  </Button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    {typeTemplates.map((template) => (
+                      <Card key={template._id} className="overflow-hidden p-0 hover:shadow-lg transition-shadow">
+                        <div className="h-2" style={{ backgroundColor: template.primaryColor || '#00C851' }} />
+                        <div className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                              {template.description && (
+                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+                              )}
+                            </div>
+                            {template.isDefault && (
+                              <Badge variant="success" size="sm">✓ Default</Badge>
+                            )}
+                          </div>
+
+                          {template.headerText && (
+                            <div className="p-2 bg-gray-50 rounded-lg mb-3">
+                              <p className="text-sm font-medium" style={{ color: template.primaryColor }}>
+                                {template.headerText}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {template.showAmount && (
+                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">💰 เงิน</span>
+                            )}
+                            {template.showSender && (
+                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">👤 ผู้โอน</span>
+                            )}
+                            {template.showReceiver && (
+                              <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">🏦 ผู้รับ</span>
+                            )}
+                            {template.showDate && (
+                              <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">📅</span>
+                            )}
+                            {template.showTime && (
+                              <span className="text-xs bg-pink-50 text-pink-700 px-2 py-0.5 rounded">🕐</span>
+                            )}
+                            {template.showTransRef && (
+                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">🔢</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-3 border-t">
+                            <div>
+                              {!template.isDefault && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleSetDefault(template._id)}
+                                >
+                                  ตั้งเป็น Default
+                                </Button>
+                              )}
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditModal(template)}
+                              >
+                                ✏️ แก้ไข
+                              </Button>
+                              {!template.isDefault && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => {
+                                    setSelectedTemplate(template);
+                                    setShowDeleteConfirm(true);
+                                  }}
+                                >
+                                  🗑️
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              </Card>
-            )}
+              );
+            })}
 
-            {/* Templates Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {templates.map((template) => {
-                const typeInfo = getTypeInfo(template.type);
-                return (
-                  <Card key={template._id} className="overflow-hidden p-0">
-                    <div className="h-2" style={{ backgroundColor: template.primaryColor || '#00C851' }} />
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{template.name}</h3>
-                          {template.description && (
-                            <p className="text-sm text-gray-500 mt-1">{template.description}</p>
-                          )}
-                        </div>
-                        <Badge className={typeInfo.color}>{typeInfo.label}</Badge>
-                      </div>
-
-                      {template.headerText && (
-                        <p className="text-sm text-gray-600 mb-2">Header: {template.headerText}</p>
-                      )}
-
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {template.showAmount && (
-                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">จำนวนเงิน</span>
-                        )}
-                        {template.showSender && (
-                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">ผู้โอน</span>
-                        )}
-                        {template.showReceiver && (
-                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">ผู้รับ</span>
-                        )}
-                        {template.showDate && (
-                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">วันที่</span>
-                        )}
-                        {template.showTime && (
-                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">เวลา</span>
-                        )}
-                        {template.showTransRef && (
-                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">เลขอ้างอิง</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <div>
-                          {template.isDefault ? (
-                            <Badge variant="success" size="sm">✓ Default</Badge>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSetDefault(template._id)}
-                            >
-                              ตั้งเป็น Default
-                            </Button>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(template)}
-                          >
-                            แก้ไข
-                          </Button>
-                          {!template.isDefault && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => {
-                                setSelectedTemplate(template);
-                                setShowDeleteConfirm(true);
-                              }}
-                            >
-                              ลบ
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+            {/* Add more button */}
+            <div className="flex justify-center pt-4">
+              <Button variant="secondary" onClick={openCreateModal}>
+                + เพิ่ม Template ใหม่
+              </Button>
             </div>
           </>
         )}
@@ -554,7 +524,7 @@ function AdminTemplatesContent() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
-        title="สร้าง Template ใหม่"
+        title="🎨 สร้าง Template ใหม่"
         submitText="สร้าง Template"
       />
 
@@ -563,7 +533,7 @@ function AdminTemplatesContent() {
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         onSubmit={handleUpdate}
-        title="แก้ไข Template"
+        title="✏️ แก้ไข Template"
         submitText="บันทึก"
       />
 
@@ -572,25 +542,13 @@ function AdminTemplatesContent() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
-        title="ยืนยันการลบ Template"
-        message={`คุณต้องการลบ Template "${selectedTemplate?.name}" หรือไม่?`}
+        title="🗑️ ยืนยันการลบ Template"
+        message={`คุณต้องการลบ Template "${selectedTemplate?.name}" หรือไม่? การลบนี้จะมีผลกับผู้ใช้ทุกคนที่ใช้ Template นี้`}
         confirmText="ลบ"
         cancelText="ยกเลิก"
         type="danger"
         isLoading={isProcessing}
       />
     </DashboardLayout>
-  );
-}
-
-export default function AdminTemplatesPage() {
-  return (
-    <Suspense fallback={
-      <DashboardLayout requiredRole="admin">
-        <PageLoading message="กำลังโหลด..." />
-      </DashboardLayout>
-    }>
-      <AdminTemplatesContent />
-    </Suspense>
   );
 }

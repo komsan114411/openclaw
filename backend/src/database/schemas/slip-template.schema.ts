@@ -12,11 +12,20 @@ export enum TemplateType {
 
 @Schema({ timestamps: true, collection: 'slip_templates' })
 export class SlipTemplate {
-  @Prop({ type: Types.ObjectId, ref: 'LineAccount', required: true, index: true })
-  lineAccountId: Types.ObjectId;
+  // For global templates (admin-created), lineAccountId is null
+  @Prop({ type: Types.ObjectId, ref: 'LineAccount', index: true })
+  lineAccountId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   ownerId?: Types.ObjectId;
+
+  // Global template flag - admin creates these for all users to use
+  @Prop({ default: false })
+  isGlobal: boolean;
+
+  // Created by admin flag
+  @Prop({ default: false })
+  isSystemTemplate: boolean;
 
   @Prop({ required: true })
   name: string;
@@ -88,3 +97,5 @@ export const SlipTemplateSchema = SchemaFactory.createForClass(SlipTemplate);
 // Indexes
 SlipTemplateSchema.index({ lineAccountId: 1, type: 1 });
 SlipTemplateSchema.index({ lineAccountId: 1, isDefault: 1 });
+SlipTemplateSchema.index({ isGlobal: 1, isActive: 1 });
+SlipTemplateSchema.index({ isSystemTemplate: 1 });
