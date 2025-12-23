@@ -36,11 +36,21 @@ export class BanksService {
   ) { }
 
   /**
-   * Get all banks
+   * Get all banks (active only)
    */
   async getAll(): Promise<BankDocument[]> {
     return this.bankModel
       .find({ isActive: true })
+      .sort({ sortOrder: 1, name: 1 })
+      .exec();
+  }
+
+  /**
+   * Get all banks for admin (including inactive)
+   */
+  async getAllForAdmin(): Promise<BankDocument[]> {
+    return this.bankModel
+      .find({})
       .sort({ sortOrder: 1, name: 1 })
       .exec();
   }

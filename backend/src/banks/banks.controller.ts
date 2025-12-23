@@ -59,13 +59,13 @@ export class BanksController {
   }
 
   /**
-   * Admin: Get all banks
+   * Admin: Get all banks (including inactive)
    */
   @Get('admin/banks')
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async getAdminBanks() {
-    const banks = await this.banksService.getAll();
+    const banks = await this.banksService.getAllForAdmin();
     return { success: true, banks };
   }
 
