@@ -125,12 +125,12 @@ export default function AdminLineAccountsPage() {
         ...formData,
         ownerId: formData.ownerId || undefined,
       });
-      toast.success('Provisioned successfully');
+      toast.success('เพิ่มบัญชีสำเร็จ');
       setShowAddModal(false);
       setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' });
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to establish node');
+      toast.error(error.response?.data?.message || 'ไม่สามารถเพิ่มบัญชีได้');
     } finally {
       setIsProcessing(false);
     }
@@ -141,11 +141,11 @@ export default function AdminLineAccountsPage() {
     setIsProcessing(true);
     try {
       await lineAccountsApi.update(selectedAccount._id, formData);
-      toast.success('Account configuration updated');
+      toast.success('อัปเดตบัญชีสำเร็จ');
       setShowEditModal(false);
       fetchData();
     } catch (error: any) {
-      toast.error('Failed to apply changes');
+      toast.error('ไม่สามารถบันทึกได้');
     } finally {
       setIsProcessing(false);
     }
@@ -208,11 +208,11 @@ export default function AdminLineAccountsPage() {
         sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
       };
       await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
-      toast.success('Neuro-logic parameters synchronized');
+      toast.success('บันทึกการตั้งค่าสำเร็จ');
       setShowSettingsModal(false);
       fetchData();
     } catch (error) {
-      toast.error('Sync failed');
+      toast.error('เกิดข้อผิดพลาด');
     } finally {
       setIsProcessing(false);
     }
@@ -223,12 +223,12 @@ export default function AdminLineAccountsPage() {
     setIsProcessing(true);
     try {
       await lineAccountsApi.delete(selectedAccount._id);
-      toast.success('Account purged from registry');
+      toast.success('ลบบัญชีสำเร็จ');
       setShowDeleteConfirm(false);
       setShowDetailModal(false);
       fetchData();
     } catch (error: any) {
-      toast.error('Deletion operation failed');
+      toast.error('ไม่สามารถลบได้');
     } finally {
       setIsProcessing(false);
     }
@@ -243,11 +243,11 @@ export default function AdminLineAccountsPage() {
 
     try {
       await lineAccountsApi.update(account._id, { isActive: !account.isActive });
-      toast.success(account.isActive ? 'Node offline' : 'Node online');
+      toast.success(account.isActive ? 'ปิดบัญชีแล้ว' : 'เปิดบัญชีแล้ว');
       setShowDisableConfirm(false);
       fetchData();
     } catch (error) {
-      toast.error('State transition failed');
+      toast.error('เกิดข้อผิดพลาด');
     }
   };
 
@@ -255,7 +255,7 @@ export default function AdminLineAccountsPage() {
     const webhookUrl = getWebhookUrl(channelId);
     if (!webhookUrl) return;
     navigator.clipboard.writeText(webhookUrl);
-    toast.success('Webhook URL sequence copied');
+    toast.success('คัดลอก Webhook URL แล้ว');
   };
 
   const filteredAccounts = accounts.filter(acc =>
@@ -275,28 +275,28 @@ export default function AdminLineAccountsPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">LINE Integration Matrix</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">Multi-Node</Badge>
+              <h1 className="text-3xl font-bold text-slate-900">จัดการบัญชี LINE OA</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-bold text-[10px]">ผู้ดูแลระบบ</Badge>
             </div>
-            <p className="text-slate-500 font-medium text-lg">Manage organizational LINE Official Accounts, AI relay nodes, and webhook gateways.</p>
+            <p className="text-slate-500">จัดการบัญชี LINE Official Account, ตั้งค่าบอท และ Webhook</p>
           </div>
           <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}>
-            + Provision New Node
+            + เพิ่มบัญชีใหม่
           </Button>
         </div>
 
         {/* Global Network Analytics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard title="Established Nodes" value={accounts.length} icon="📡" color="indigo" variant="glass" />
-          <StatCard title="Active Transmissions" value={accounts.filter(a => a.isActive).length} icon="🟢" color="emerald" variant="glass" />
-          <StatCard title="Total Data Flux" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" />
-          <StatCard title="Verified Assets" value={totalSlips.toLocaleString()} icon="📜" color="amber" variant="glass" />
+          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📡" color="indigo" variant="glass" />
+          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="🟢" color="emerald" variant="glass" />
+          <StatCard title="ข้อความทั้งหมด" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" />
+          <StatCard title="สลิปที่ตรวจ" value={totalSlips.toLocaleString()} icon="📜" color="amber" variant="glass" />
         </div>
 
         {/* Search & Filter Interface */}
         <Card className="p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-3xl">
           <Input
-            placeholder="Search Node Registry by Profile or Signature..."
+            placeholder="ค้นหาบัญชี..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-transparent border-none shadow-none text-lg font-medium placeholder:text-slate-300"
@@ -309,19 +309,19 @@ export default function AdminLineAccountsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Node Profile</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Governance</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Protocol Stats</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Signal Features</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Operational State</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Logic Control</th>
+                  <th className="px-8 py-6 text-xs font-bold text-slate-500">บัญชี</th>
+                  <th className="px-8 py-6 text-xs font-bold text-slate-500">เจ้าของ</th>
+                  <th className="px-8 py-6 text-xs font-bold text-slate-500">สถิติ</th>
+                  <th className="px-8 py-6 text-xs font-bold text-slate-500">ฟีเจอร์</th>
+                  <th className="px-8 py-6 text-xs font-bold text-slate-500">สถานะ</th>
+                  <th className="px-8 py-6 text-xs font-bold text-slate-500 text-right">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
                   <tr>
                     <td colSpan={6} className="px-10 py-32">
-                      <PageLoading transparent message="Scanning network synchronization..." />
+                      <PageLoading transparent message="กำลังโหลดข้อมูล..." />
                     </td>
                   </tr>
                 ) : filteredAccounts.length === 0 ? (
@@ -329,7 +329,7 @@ export default function AdminLineAccountsPage() {
                     <td colSpan={6} className="px-10 py-32 text-center">
                       <div className="flex flex-col items-center gap-6 opacity-30">
                         <div className="text-7xl">🕳️</div>
-                        <p className="text-sm font-black uppercase tracking-[0.4em]">Registry is Void</p>
+                        <p className="text-sm font-bold">ไม่พบบัญชี</p>
                       </div>
                     </td>
                   </tr>
@@ -353,33 +353,33 @@ export default function AdminLineAccountsPage() {
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <p className="font-extrabold text-slate-700 uppercase tracking-tight text-sm mb-1">{account.owner?.username || 'SYSTEM_MASTER'}</p>
-                        <p className="text-[10px] font-bold text-slate-400 lowercase italic">{account.owner?.email || 'root@core.net'}</p>
+                        <p className="font-bold text-slate-700 text-sm mb-1">{account.owner?.username || 'ระบบ'}</p>
+                        <p className="text-xs text-slate-400">{account.owner?.email || '-'}</p>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-slate-900">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Flux</span>
+                            <span className="text-sm font-bold text-slate-900">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
+                            <span className="text-xs text-slate-400">ข้อความ</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-slate-900">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assets</span>
+                            <span className="text-sm font-bold text-slate-900">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
+                            <span className="text-xs text-slate-400">สลิป</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex flex-wrap gap-2 max-w-[150px]">
-                          {account.settings?.enableBot && <Badge variant="emerald" className="rounded-lg text-[9px] px-1.5 py-0 font-black">BOT</Badge>}
-                          {account.settings?.enableSlipVerification && <Badge variant="indigo" className="rounded-lg text-[9px] px-1.5 py-0 font-black">SLIP</Badge>}
-                          {account.settings?.enableAi && <Badge variant="purple" className="rounded-lg text-[9px] px-1.5 py-0 font-black">AI</Badge>}
+                          {account.settings?.enableBot && <Badge variant="emerald" className="rounded-lg text-[9px] px-1.5 py-0 font-bold">บอท</Badge>}
+                          {account.settings?.enableSlipVerification && <Badge variant="indigo" className="rounded-lg text-[9px] px-1.5 py-0 font-bold">สลิป</Badge>}
+                          {account.settings?.enableAi && <Badge variant="purple" className="rounded-lg text-[9px] px-1.5 py-0 font-bold">AI</Badge>}
                         </div>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-2.5">
                           <div className={cn("w-3 h-3 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
                           <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-600" : "text-slate-400")}>
-                            {account.isActive ? 'established' : 'decoupled'}
+                            {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                           </span>
                         </div>
                       </td>
@@ -402,63 +402,63 @@ export default function AdminLineAccountsPage() {
       </div>
 
       {/* Provision Node Modal */}
-      <Modal isOpen={showAddModal} onClose={() => !isProcessing && setShowAddModal(false)} title="Provision New Integration Node" size="lg">
+      <Modal isOpen={showAddModal} onClose={() => !isProcessing && setShowAddModal(false)} title="เพิ่มบัญชี LINE OA" size="lg">
         <div className="space-y-6 pt-2">
           <div className="p-5 bg-slate-900 text-white rounded-[2rem] shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10 text-3xl font-black italic uppercase">DOWNLINK</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-emerald-400">Security Clearance Required</p>
+            <div className="absolute top-0 right-0 p-4 opacity-10 text-3xl font-bold">LINE</div>
+            <p className="text-sm font-bold mb-4 text-emerald-400">ข้อมูลช่องทาง LINE</p>
             <div className="space-y-4">
-              <Input variant="glass" label="Logical Address (Account Name)" placeholder="Main Service Node" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+              <Input variant="glass" label="ชื่อบัญชี" placeholder="เช่น บัญชีหลัก" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="bg-white/5 border-white/10 text-white" />
               <div className="grid grid-cols-2 gap-4">
-                <Input variant="glass" label="Channel Reference" placeholder="1234..." value={formData.channelId} onChange={(e) => setFormData({ ...formData, channelId: e.target.value })} className="bg-white/5 border-white/10 text-white" />
-                <Input variant="glass" type="password" label="Cryptographic Secret" placeholder="••••••••" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                <Input variant="glass" label="Channel ID" placeholder="1234567890" value={formData.channelId} onChange={(e) => setFormData({ ...formData, channelId: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                <Input variant="glass" type="password" label="Channel Secret" placeholder="••••••••" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} className="bg-white/5 border-white/10 text-white" />
               </div>
-              <Input variant="glass" type="password" label="Encrypted Access Token" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+              <Input variant="glass" type="password" label="Access Token" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} className="bg-white/5 border-white/10 text-white" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-            <Select label="Governance Authority (Owner)" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
-              <option value="">SYSTEM MASTER (Admin Only)</option>
+            <Select label="เจ้าของบัญชี" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
+              <option value="">ผู้ดูแลระบบ</option>
               {users.filter(u => u.role === 'user').map((user) => (
                 <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
               ))}
             </Select>
-            <Input label="Metadata Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+            <Input label="คำอธิบาย" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
           </div>
 
           <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowAddModal(false)} disabled={isProcessing}>Abort</Button>
-            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium h-14 rounded-2xl" onClick={handleAddAccount} isLoading={isProcessing}>Execute Provisioning</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => setShowAddModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] font-bold h-12 rounded-xl" onClick={handleAddAccount} isLoading={isProcessing}>เพิ่มบัญชี</Button>
           </div>
         </div>
       </Modal>
 
       {/* Identity Overhaul Modal */}
-      <Modal isOpen={showEditModal} onClose={() => !isProcessing && setShowEditModal(false)} title={`Reconfigure Node: ${selectedAccount?.accountName}`} size="lg">
+      <Modal isOpen={showEditModal} onClose={() => !isProcessing && setShowEditModal(false)} title={`แก้ไขบัญชี: ${selectedAccount?.accountName}`} size="lg">
         <div className="space-y-6 pt-2">
-          <Input label="Revised Name" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} />
+          <Input label="ชื่อบัญชี" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} />
           <div className="grid grid-cols-2 gap-6">
-            <Input label="Channel Secret (Hidden)" type="password" placeholder="Leave empty to retain existing secret" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} />
-            <Input label="Access Token (Hidden)" type="password" placeholder="Leave empty to retain existing token" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} />
+            <Input label="Channel Secret" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} />
+            <Input label="Access Token" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} />
           </div>
-          <Select label="Reassign Governance" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
-            <option value="">SYSTEM MASTER</option>
+          <Select label="เจ้าของบัญชี" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
+            <option value="">ผู้ดูแลระบบ</option>
             {users.filter(u => u.role === 'user').map((user) => (
               <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
             ))}
           </Select>
-          <Textarea label="Node Metadata" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
+          <Textarea label="คำอธิบาย" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
 
           <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)} disabled={isProcessing}>Cancel</Button>
-            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/10 shadow-lg h-14 rounded-2xl" onClick={handleEditAccount} isLoading={isProcessing}>Propagate Changes</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => setShowEditModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] font-bold h-12 rounded-xl" onClick={handleEditAccount} isLoading={isProcessing}>บันทึก</Button>
           </div>
         </div>
       </Modal>
 
       {/* Logic Config Modal */}
-      <Modal isOpen={showSettingsModal} onClose={() => !isProcessing && setShowSettingsModal(false)} title={`Logic Configuration Matrix: ${selectedAccount?.accountName}`} size="xl">
+      <Modal isOpen={showSettingsModal} onClose={() => !isProcessing && setShowSettingsModal(false)} title={`ตั้งค่า: ${selectedAccount?.accountName}`} size="xl">
         <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
 
           {/* feature switches */}
@@ -466,21 +466,21 @@ export default function AdminLineAccountsPage() {
             <Card className="p-6 bg-emerald-50/50 border-emerald-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
               <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl">🤖</div>
               <div className="space-y-1">
-                <p className="font-black uppercase tracking-widest text-[10px]">Relay Bot</p>
+                <p className="font-bold text-xs">บอท</p>
                 <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
               </div>
             </Card>
             <Card className="p-6 bg-indigo-50/50 border-indigo-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
               <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl">📜</div>
               <div className="space-y-1">
-                <p className="font-black uppercase tracking-widest text-[10px]">Extraction</p>
+                <p className="font-bold text-xs">ตรวจสลิป</p>
                 <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
               </div>
             </Card>
             <Card className="p-6 bg-purple-50/50 border-purple-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
               <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl">🧠</div>
               <div className="space-y-1">
-                <p className="font-black uppercase tracking-widest text-[10px]">Cognitive AI</p>
+                <p className="font-bold text-xs">AI</p>
                 <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
               </div>
             </Card>
@@ -490,12 +490,12 @@ export default function AdminLineAccountsPage() {
           <AnimatePresence>
             {settingsData.enableAi && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6 p-8 bg-slate-900 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 opacity-5 text-5xl font-black italic">NEURO CORE</div>
-                <h3 className="text-xl font-black uppercase tracking-tighter mb-4 text-purple-400">Cognitive Parameters</h3>
-                <Textarea variant="glass" label="AI Behavioral System Prompt" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="Define the AI's persona and logic bounds..." rows={5} className="bg-white/5 border-white/10 text-white" />
+                <div className="absolute top-0 right-0 p-6 opacity-5 text-5xl font-bold">AI</div>
+                <h3 className="text-lg font-bold mb-4 text-purple-400">การตั้งค่า AI</h3>
+                <Textarea variant="glass" label="System Prompt" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบุคลิกภาพของ AI..." rows={5} className="bg-white/5 border-white/10 text-white" />
                 <div className="grid grid-cols-2 gap-6">
-                  <Input variant="glass" type="number" step="0.1" min="0" max="1" label="Entropy Level (Temperature)" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white" />
-                  <Input variant="glass" label="Link Failure Message" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                  <Input variant="glass" type="number" step="0.1" min="0" max="1" label="Temperature" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white" />
+                  <Input variant="glass" label="ข้อความเมื่อเกิดข้อผิดพลาด" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white" />
                 </div>
               </motion.div>
             )}
@@ -503,72 +503,72 @@ export default function AdminLineAccountsPage() {
 
           {/* Protocol Message Overrides */}
           <div className="space-y-6">
-            <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4">Downlink Message Overrides</h3>
+            <h3 className="text-sm font-bold text-slate-500 px-4">ข้อความที่กำหนดเอง (ว่าง = ใช้ค่าระบบ)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="Extraction Latency Notice" value={settingsData.slipImmediateMessage} onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })} />
-              <Input label="Resource Depletion Notice" value={settingsData.customQuotaExceededMessage} onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })} />
-              <Input label="Offline Relay Notice" value={settingsData.customBotDisabledMessage} onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })} />
-              <Input label="Duplicate Vector Notice" value={settingsData.customDuplicateSlipMessage} onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })} />
+              <Input label="ข้อความกำลังตรวจสลิป" value={settingsData.slipImmediateMessage} onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })} />
+              <Input label="ข้อความโควต้าหมด" value={settingsData.customQuotaExceededMessage} onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })} />
+              <Input label="ข้อความบอทปิด" value={settingsData.customBotDisabledMessage} onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })} />
+              <Input label="ข้อความสลิปซ้ำ" value={settingsData.customDuplicateSlipMessage} onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })} />
             </div>
           </div>
 
           <div className="flex gap-4 pt-10 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowSettingsModal(false)} disabled={isProcessing}>Discard</Button>
-            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase h-14 rounded-2xl shadow-emerald-500/20 shadow-premium" onClick={handleSaveSettings} isLoading={isProcessing}>Synchronize Logic</Button>
+            <Button variant="ghost" className="flex-1" onClick={() => setShowSettingsModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] font-bold h-12 rounded-xl" onClick={handleSaveSettings} isLoading={isProcessing}>บันทึก</Button>
           </div>
         </div>
       </Modal>
 
       {/* Node Analysis Detail Modal */}
-      <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={`Matrix Diagnostics: ${selectedAccount?.accountName}`} size="xl">
+      <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={`รายละเอียดบัญชี: ${selectedAccount?.accountName}`} size="xl">
         {selectedAccount && (
           <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
             <div className="grid grid-cols-2 gap-8">
               <div className="space-y-6">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Signal Parameters</p>
-                <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 space-y-4">
-                  <div><p className="text-[10px] font-black text-slate-300 uppercase mb-1">Downlink ID</p><p className="font-mono text-xs font-black text-slate-900 break-all">{selectedAccount.channelId}</p></div>
-                  <div><p className="text-[10px] font-black text-slate-300 uppercase mb-1">Security Hash (Secret)</p><p className="font-mono text-xs font-black text-slate-400">••••••••••••••••••••••••</p></div>
-                  <div><p className="text-[10px] font-black text-slate-300 uppercase mb-1">Account Description</p><p className="text-sm font-medium text-slate-600">{selectedAccount.description || 'N/A'}</p></div>
+                <p className="text-xs font-bold text-slate-500 px-1">ข้อมูลบัญชี</p>
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                  <div><p className="text-xs text-slate-400 mb-1">Channel ID</p><p className="font-mono text-sm font-bold text-slate-900 break-all">{selectedAccount.channelId}</p></div>
+                  <div><p className="text-xs text-slate-400 mb-1">Channel Secret</p><p className="font-mono text-sm text-slate-400">••••••••••••</p></div>
+                  <div><p className="text-xs text-slate-400 mb-1">คำอธิบาย</p><p className="text-sm text-slate-600">{selectedAccount.description || '-'}</p></div>
                 </div>
               </div>
               <div className="space-y-6">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Webhook Endpoint</p>
-                <div className="p-8 h-full bg-slate-900 text-white rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
-                  <p className="text-[10px] font-mono font-black text-emerald-400 lowercase mb-4 leading-relaxed break-all opacity-80">{getWebhookUrl(selectedAccount.channelId)}</p>
-                  <Button variant="primary" className="bg-white text-slate-900 h-10 px-4 text-[10px] font-black uppercase rounded-xl hover:bg-emerald-400 group" onClick={() => copyWebhookUrl(selectedAccount.channelId)}>
-                    Copy Link Sequence <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
+                <p className="text-xs font-bold text-slate-500 px-1">Webhook URL</p>
+                <div className="p-6 h-full bg-slate-900 text-white rounded-2xl shadow-lg flex flex-col justify-between">
+                  <p className="text-xs font-mono text-emerald-400 mb-4 leading-relaxed break-all opacity-80">{getWebhookUrl(selectedAccount.channelId)}</p>
+                  <Button variant="primary" className="bg-white text-slate-900 h-10 px-4 text-xs font-bold rounded-xl hover:bg-emerald-400" onClick={() => copyWebhookUrl(selectedAccount.channelId)}>
+                    คัดลอก URL
                   </Button>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-6">
-              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center shadow-premium-sm transition-transform hover:-translate-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Flux Volume</p>
-                <p className="text-4xl font-black text-slate-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
+              <div className="p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+                <p className="text-xs text-slate-400 mb-2">ข้อความ</p>
+                <p className="text-3xl font-bold text-slate-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
               </div>
-              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center shadow-premium-sm transition-transform hover:-translate-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Asset Extraction</p>
-                <p className="text-4xl font-black text-emerald-600">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+              <div className="p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+                <p className="text-xs text-slate-400 mb-2">สลิปที่ตรวจ</p>
+                <p className="text-3xl font-bold text-emerald-600">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
               </div>
-              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center shadow-premium-sm transition-transform hover:-translate-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Error Clusters</p>
-                <p className="text-4xl font-black text-rose-500">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
+              <div className="p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+                <p className="text-xs text-slate-400 mb-2">ข้อผิดพลาด</p>
+                <p className="text-3xl font-bold text-rose-500">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
               </div>
             </div>
 
-            <div className="flex gap-4 pt-10 border-t border-slate-100">
-              <Button variant="ghost" className="flex-1 font-bold text-slate-400" onClick={() => setShowDetailModal(false)}>Close Interface</Button>
-              <Button variant="secondary" className="flex-1 font-black uppercase" onClick={() => openEditModal(selectedAccount)}>Edit Identity</Button>
-              <Button variant="danger" className="flex-1 font-black uppercase" onClick={() => setShowDeleteConfirm(true)}>Purge Node</Button>
+            <div className="flex gap-4 pt-8 border-t border-slate-100">
+              <Button variant="ghost" className="flex-1" onClick={() => setShowDetailModal(false)}>ปิด</Button>
+              <Button variant="secondary" className="flex-1 font-bold" onClick={() => openEditModal(selectedAccount)}>แก้ไข</Button>
+              <Button variant="danger" className="flex-1 font-bold" onClick={() => setShowDeleteConfirm(true)}>ลบ</Button>
             </div>
           </div>
         )}
       </Modal>
 
-      <ConfirmModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDelete} title="Purge Node Integrity" message="Warning: This operation will permanently decouple the LINE node from the central matrix. All synchronized settings will be lost. This is a level-5 destructive action." confirmText="Purge Registry" type="danger" isLoading={isProcessing} />
-      <ConfirmModal isOpen={showDisableConfirm} onClose={() => setShowDisableConfirm(false)} onConfirm={() => selectedAccount && handleToggleActive(selectedAccount)} title="Decouple Node Downlink" message="Confirm decoupling the selected node from the active signal relay. Transmission will cease until a new link is established." confirmText="Execute Decoupling" type="warning" isLoading={isProcessing} />
+      <ConfirmModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDelete} title="ยืนยันการลบ" message="คุณแน่ใจหรือว่าต้องการลบบัญชีนี้? การกระทำนี้ไม่สามารถย้อนกลับได้" confirmText="ลบบัญชี" type="danger" isLoading={isProcessing} />
+      <ConfirmModal isOpen={showDisableConfirm} onClose={() => setShowDisableConfirm(false)} onConfirm={() => selectedAccount && handleToggleActive(selectedAccount)} title="ยืนยันการปิด" message="คุณแน่ใจหรือว่าต้องการปิดการใช้งานบัญชีนี้? Webhook จะหยุดรับข้อความจาก LINE" confirmText="ปิดบัญชี" type="warning" isLoading={isProcessing} />
 
     </DashboardLayout>
   );
