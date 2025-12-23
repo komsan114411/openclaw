@@ -255,11 +255,19 @@ export default function AdminTemplatesPage() {
       const response = await banksApi.getAll();
       const allBanks = response.data.banks || [];
       setBanks(allBanks);
+      // If this page was opened from Banks page, prefer that bank for preview
+      const requestedBankId =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('bankId') || ''
+          : '';
+      if (requestedBankId && allBanks.some((b: Bank) => b._id === requestedBankId)) {
+        setPreviewBankId(requestedBankId);
+        return;
+      }
+
       // Auto-select first active bank for preview
       const firstActiveBank = allBanks.find((b: Bank) => b.isActive);
-      if (firstActiveBank) {
-        setPreviewBankId(firstActiveBank._id);
-      }
+      if (firstActiveBank) setPreviewBankId(firstActiveBank._id);
     } catch (err) {
       console.error('Failed to load banks:', err);
     }

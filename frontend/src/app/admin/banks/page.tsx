@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -26,7 +27,35 @@ interface Bank {
   sortOrder: number;
 }
 
+function BankLogo({ bank }: { bank: Bank }) {
+  const [failed, setFailed] = useState(false);
+  const logo = failed ? null : (bank.logoBase64 || bank.logoUrl || null);
+  const initials = (bank.shortName || bank.code || bank.name || '').toString().slice(0, 2).toUpperCase();
+  const bg = bank.color ? `${bank.color}12` : undefined;
+
+  return (
+    <div
+      className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm"
+      style={bg ? { backgroundColor: bg } : undefined}
+    >
+      {logo ? (
+        <img
+          src={logo}
+          alt={bank.name}
+          className="w-12 h-12 md:w-16 md:h-16 object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-slate-50">
+          <span className="text-slate-400 font-black text-xl md:text-2xl">{initials || '🏦'}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BanksManagementPage() {
+  const router = useRouter();
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -125,8 +154,6 @@ export default function BanksManagementPage() {
     active: banks.filter(b => b.isActive).length,
     inactive: banks.filter(b => !b.isActive).length
   };
-
-  const getBankLogo = (bank: Bank) => bank.logoBase64 || bank.logoUrl || null;
 
   if (loading) {
     return (
@@ -253,26 +280,22 @@ export default function BanksManagementPage() {
                 >
                   <div className="p-4 flex flex-col items-center">
                     {/* Bank Logo */}
-                    <div
-                      className={cn(
-                        "w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 overflow-hidden border-2 border-white bg-slate-50",
-                        !getBankLogo(bank) && "bg-slate-100"
-                      )}
-                    >
-                      {getBankLogo(bank) ? (
-                        <img
-                          src={getBankLogo(bank)!}
-                          alt={bank.name}
-                          className="w-12 h-12 md:w-16 md:h-16 object-contain"
-                        />
-                      ) : (
-                        <span className="text-slate-400 font-black text-xl md:text-2xl">{bank.shortName?.substring(0, 2) || bank.code.substring(0, 2)}</span>
-                      )}
+                    <div className="transition-transform duration-300 group-hover:scale-110">
+                      <BankLogo bank={bank} />
                     </div>
 
                     {/* Bank Name & Status */}
-                    <h3 className="mt-3 text-sm md:text-base font-bold text-slate-900 truncate w-full px-1">{bank.shortName || bank.code}</h3>
-                    <p className="text-[10px] md:text-xs text-slate-400 truncate w-full px-1">{bank.name}</p>
+                    <h3 className="mt-3 text-sm md:text-base font-bold text-slate-900 truncate w-full px-1">
+                      {bank.shortName || bank.code}
+                    </h3>
+                    <p className="text-[10px] md:text-xs text-slate-400 truncate w-full px-1">
+                      {bank.nameTh || bank.name}
+                    </p>
+                    <div className="mt-1 flex items-center justify-center gap-1.5">
+                      <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full tracking-widest">
+                        {bank.code}
+                      </span>
+                    </div>
 
                     {/* Status Badge */}
                     <div className="mt-2">
@@ -306,6 +329,16 @@ export default function BanksManagementPage() {
                         {bank.isActive ? 'ปิด' : 'เปิด'}
                       </Button>
                     </div>
+
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      fullWidth
+                      className="mt-2 text-[11px] font-bold text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                      onClick={() => router.push(`/admin/templates?bankId=${bank._id}`)}
+                    >
+                      👁️ ดูตัวอย่างในเทมเพลตสลิป
+                    </Button>
                   </div>
                 </Card>
               ))}
