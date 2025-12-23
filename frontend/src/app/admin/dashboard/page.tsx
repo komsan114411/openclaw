@@ -123,7 +123,7 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Dashboard</h1>
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">ศูนย์ควบคุม</h1>
             <p className="text-slate-500 font-medium text-lg">ยินดีต้อนรับกลับ, ผู้ดูแลระบบ 👋</p>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -220,8 +220,8 @@ export default function AdminDashboard() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-white tracking-tight uppercase">Thunder API Quota</h2>
-                      <p className="text-slate-400 font-bold text-sm tracking-widest uppercase opacity-75">Cloud Verification Service</p>
+                      <h2 className="text-2xl font-black text-white tracking-tight uppercase">โควต้า Thunder API</h2>
+                      <p className="text-slate-400 font-bold text-sm tracking-widest uppercase opacity-75">บริการตรวจสลิป</p>
                     </div>
                   </div>
                   <IconButton
@@ -238,7 +238,7 @@ export default function AdminDashboard() {
                 {isLoadingQuota ? (
                   <div className="flex-1 flex flex-col items-center justify-center py-20">
                     <Spinner size="xl" color="white" />
-                    <p className="mt-4 text-slate-400 font-medium animate-pulse">Syncing with remote servers...</p>
+                    <p className="mt-4 text-slate-400 font-medium animate-pulse">กำลังเชื่อมต่อเซิร์ฟเวอร์...</p>
                   </div>
                 ) : thunderQuota?.success && thunderQuota.data ? (
                   <div className="space-y-10 flex-1 flex flex-col justify-between">
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-end">
                         <div className="space-y-1">
-                          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Monthly Credit Usage</p>
+                          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">การใช้งานประจำเดือน</p>
                           <div className="flex items-baseline gap-2">
                             <span className="text-5xl font-black text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
                             <span className="text-slate-500 font-bold text-xl">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
@@ -281,20 +281,20 @@ export default function AdminDashboard() {
                     {/* Meta Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                       <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 space-y-2">
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Available Credit</p>
+                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">เครดิตคงเหลือ</p>
                         <p className="text-3xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
                       </div>
                       <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 space-y-2">
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Expiration Date</p>
+                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
                         <p className="text-2xl font-black text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
                       </div>
                       <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 space-y-2">
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Validity Period</p>
+                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ระยะเวลาที่เหลือ</p>
                         <p className={cn(
                           "text-3xl font-black",
                           thunderQuota.data.daysRemaining <= 7 ? "text-rose-400" : "text-blue-400"
                         )}>
-                          {thunderQuota.data.daysRemaining} <span className="text-lg">Days</span>
+                          {thunderQuota.data.daysRemaining} <span className="text-lg">วัน</span>
                         </p>
                       </div>
                     </div>
@@ -308,9 +308,9 @@ export default function AdminDashboard() {
                           </svg>
                         </div>
                         <div>
-                          <p className="text-lg font-black text-white leading-none mb-1">Attention Required!</p>
+                          <p className="text-lg font-black text-white leading-none mb-1">ต้องการความสนใจ!</p>
                           <p className="text-slate-400 text-sm font-medium">
-                            {thunderQuota.data.isExpired ? 'API configuration has expired. System stability may be compromised.' : 'Current quota is running critically low. Please top up credit immediately.'}
+                            {thunderQuota.data.isExpired ? 'การกำหนดค่า API หมดอายุแล้ว ระบบอาจไม่เสถียร' : 'โควต้าปัจจุบันใกล้หมด กรุณาเติมเครดิตทันที'}
                           </p>
                         </div>
                       </div>
@@ -321,11 +321,11 @@ export default function AdminDashboard() {
                     <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mb-6">
                       <span className="text-4xl">🔌</span>
                     </div>
-                    <p className="text-xl font-bold text-white mb-2">Service Connection Failed</p>
+                    <p className="text-xl font-bold text-white mb-2">เชื่อมต่อบริการไม่สำเร็จ</p>
                     <p className="text-slate-500 font-medium text-center px-10 max-w-md">
-                      {thunderQuota?.error || 'Unable to establish connection with Thunder API. Please verify your system credentials in settings.'}
+                      {thunderQuota?.error || 'ไม่สามารถเชื่อมต่อกับ Thunder API ได้ กรุณาตรวจสอบการตั้งค่าระบบ'}
                     </p>
-                    <Button variant="ghost" className="mt-6 text-emerald-400" onClick={fetchThunderQuota}>Try Again</Button>
+                    <Button variant="ghost" className="mt-6 text-emerald-400" onClick={fetchThunderQuota}>ลองอีกครั้ง</Button>
                   </div>
                 )}
               </div>
@@ -337,12 +337,12 @@ export default function AdminDashboard() {
             <Card className="h-full flex flex-col p-8 border-slate-100">
               <div className="flex items-center justify-between mb-8">
                 <div className="space-y-1">
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Recent Activity</h2>
-                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest leading-none">Pending Approvals</p>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">กิจกรรมล่าสุด</h2>
+                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest leading-none">รอการอนุมัติ</p>
                 </div>
                 <Link href="/admin/payments">
                   <Button variant="ghost" size="sm" className="text-emerald-600 font-bold hover:bg-emerald-50">
-                    View All
+                    ดูทั้งหมด
                   </Button>
                 </Link>
               </div>
@@ -358,7 +358,7 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <p className="text-lg font-black text-slate-900 leading-none mb-1">฿{payment.amount?.toLocaleString()}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{payment.paymentType === 'bank_transfer' ? 'Bank Transfer' : 'USDT / Crypto'}</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{payment.paymentType === 'bank_transfer' ? 'โอนธนาคาร' : 'USDT / คริปโต'}</p>
                           </div>
                         </div>
                         <StatusBadge status="pending" className="px-3" />
@@ -382,7 +382,7 @@ export default function AdminDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                       </svg>
                     </div>
-                    <p className="font-bold text-slate-500 uppercase tracking-widest text-xs">No pending items</p>
+                    <p className="font-bold text-slate-500 uppercase tracking-widest text-xs">ไม่มีรายการรอดำเนินการ</p>
                   </div>
                 )}
               </div>
@@ -394,21 +394,21 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ActionTile
             title="จัดการผู้ใช้"
-            desc="Users & Permissions"
+            desc="ผู้ใช้ & สิทธิ์"
             href="/admin/users"
             icon="👥"
             color="blue"
           />
           <ActionTile
             title="บัญชี LINE"
-            desc="Account Connectivity"
+            desc="เชื่อมต่อบัญชี"
             href="/admin/line-accounts"
             icon="🟢"
             color="emerald"
           />
           <ActionTile
             title="ธนาคาร"
-            desc="Bank & Image Sync"
+            desc="ธนาคาร & รูปภาพ"
             href="/admin/banks"
             icon="🏦"
             color="indigo"
@@ -421,8 +421,8 @@ export default function AdminDashboard() {
                   🗑️
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 leading-tight">System Purge</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Clear Expired Sessions</p>
+                  <h3 className="font-black text-slate-900 leading-tight">ล้างระบบ</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ลบ Session หมดอายุ</p>
                 </div>
               </div>
               <Button
@@ -432,7 +432,7 @@ export default function AdminDashboard() {
                 onClick={runCleanupSessions}
                 isLoading={isRunningMaintenance === 'sessions'}
               >
-                Run
+                ดำเนินการ
               </Button>
             </Card>
           </div>

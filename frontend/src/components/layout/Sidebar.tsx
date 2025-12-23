@@ -16,7 +16,7 @@ interface NavItem {
 const adminNavItems: NavItem[] = [
   {
     group: 'management',
-    name: 'Command Center',
+    name: 'ศูนย์ควบคุม',
     href: '/admin/dashboard',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,7 +26,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'management',
-    name: 'Personnel Matrix',
+    name: 'จัดการผู้ใช้',
     href: '/admin/users',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +36,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'management',
-    name: 'Integration Matrix',
+    name: 'บัญชี LINE',
     href: '/admin/line-accounts',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,7 +46,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'management',
-    name: 'Signal Relay',
+    name: 'แชท',
     href: '/admin/chat',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'system',
-    name: 'Design Templates',
+    name: 'เทมเพลตสลิป',
     href: '/admin/templates',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +66,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'system',
-    name: 'Financial Nodes',
+    name: 'ธนาคาร',
     href: '/admin/banks',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +76,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'system',
-    name: 'Resource Packages',
+    name: 'แพ็คเกจ',
     href: '/admin/packages',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,7 +86,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'system',
-    name: 'System Parameters',
+    name: 'ตั้งค่าระบบ',
     href: '/admin/settings',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +97,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'system',
-    name: 'Response Protocols',
+    name: 'ข้อความตอบกลับ',
     href: '/admin/system-responses',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'logs',
-    name: 'Fiscal Stream',
+    name: 'การชำระเงิน',
     href: '/admin/payments',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +117,7 @@ const adminNavItems: NavItem[] = [
   },
   {
     group: 'logs',
-    name: 'Audit Ledger',
+    name: 'ประวัติระบบ',
     href: '/admin/history',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +130,7 @@ const adminNavItems: NavItem[] = [
 const userNavItems: NavItem[] = [
   {
     group: 'management',
-    name: 'Dashboard',
+    name: 'แดชบอร์ด',
     href: '/user/dashboard',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,7 +161,7 @@ const userNavItems: NavItem[] = [
   },
   {
     group: 'system',
-    name: 'Templates',
+    name: 'เทมเพลตสลิป',
     href: '/user/templates',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
