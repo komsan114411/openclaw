@@ -431,13 +431,65 @@ export default function AdminTemplatesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     {typeTemplates.map((template) => (
                       <Card key={template._id} className="overflow-hidden p-0 hover:shadow-lg transition-shadow">
-                        <div className="h-2" style={{ backgroundColor: template.primaryColor || '#00C851' }} />
-                        <div className="p-4">
-                          <div className="flex items-start justify-between mb-3">
+                        {/* Mini Preview */}
+                        <div className="p-3" style={{ backgroundColor: '#f8f9fa' }}>
+                          <div className="bg-white rounded-xl p-3 shadow-sm border" style={{ maxWidth: '220px', margin: '0 auto' }}>
+                            {/* Header */}
+                            <div 
+                              className="flex items-center gap-2 p-2 rounded-lg mb-2"
+                              style={{ backgroundColor: `${template.primaryColor}15` }}
+                            >
+                              <div 
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                                style={{ backgroundColor: template.primaryColor || '#00C851' }}
+                              >✓</div>
+                              <span className="text-xs font-semibold" style={{ color: template.primaryColor }}>
+                                {template.headerText || 'สลิปถูกต้อง'}
+                              </span>
+                            </div>
+                            {/* Amount */}
+                            {template.showAmount && (
+                              <div className="text-center mb-2">
+                                <span className="text-lg font-bold" style={{ color: template.primaryColor }}>฿2,000</span>
+                                <div className="text-[10px] text-gray-400">23 ธ.ค. 68, 13:36 น.</div>
+                              </div>
+                            )}
+                            {/* Sender/Receiver */}
+                            <div className="space-y-1">
+                              {template.showSender && (
+                                <div className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-lg">
+                                  <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-[10px]">🏦</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-[9px] text-gray-400">ผู้โอน</div>
+                                    <div className="text-[10px] font-medium truncate">นาย ตัวอย่าง</div>
+                                  </div>
+                                </div>
+                              )}
+                              {template.showReceiver && (
+                                <div className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-lg">
+                                  <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-[10px]">🏦</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-[9px] text-gray-400">ผู้รับ</div>
+                                    <div className="text-[10px] font-medium truncate">นาย ผู้รับ</div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {/* Footer */}
+                            {template.footerText && (
+                              <div className="mt-2 p-1.5 bg-gray-100 rounded text-center">
+                                <span className="text-[8px] text-gray-500">{template.footerText}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-4 border-t">
+                          <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                              <h3 className="font-semibold text-gray-900 text-sm">{template.name}</h3>
                               {template.description && (
-                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+                                <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{template.description}</p>
                               )}
                             </div>
                             {template.isDefault && (
@@ -445,32 +497,27 @@ export default function AdminTemplatesPage() {
                             )}
                           </div>
 
-                          {template.headerText && (
-                            <div className="p-2 bg-gray-50 rounded-lg mb-3">
-                              <p className="text-sm font-medium" style={{ color: template.primaryColor }}>
-                                {template.headerText}
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="flex flex-wrap gap-1 mb-3">
+                          <div className="flex flex-wrap gap-1 mb-2">
                             {template.showAmount && (
-                              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">💰 เงิน</span>
+                              <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">💰</span>
                             )}
                             {template.showSender && (
-                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded">👤 ผู้โอน</span>
+                              <span className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded">👤</span>
                             )}
                             {template.showReceiver && (
-                              <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">🏦 ผู้รับ</span>
+                              <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">🏦</span>
                             )}
                             {template.showDate && (
-                              <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">📅</span>
+                              <span className="text-[10px] bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">📅</span>
                             )}
                             {template.showTime && (
-                              <span className="text-xs bg-pink-50 text-pink-700 px-2 py-0.5 rounded">🕐</span>
+                              <span className="text-[10px] bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded">🕐</span>
                             )}
                             {template.showTransRef && (
-                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">🔢</span>
+                              <span className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">🔢</span>
+                            )}
+                            {template.showBankLogo && (
+                              <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">🖼️</span>
                             )}
                           </div>
 
