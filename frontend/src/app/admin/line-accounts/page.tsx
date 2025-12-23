@@ -289,7 +289,7 @@ export default function AdminLineAccountsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard title="Established Nodes" value={accounts.length} icon="📡" color="indigo" variant="glass" />
           <StatCard title="Active Transmissions" value={accounts.filter(a => a.isActive).length} icon="🟢" color="emerald" variant="glass" />
-          <StatCard title="Total Data Flux" value={totalMessages.toLocaleString()} icon="💬" color="purple" variant="glass" />
+          <StatCard title="Total Data Flux" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" />
           <StatCard title="Verified Assets" value={totalSlips.toLocaleString()} icon="📜" color="amber" variant="glass" />
         </div>
 
