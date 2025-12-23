@@ -368,31 +368,148 @@ export default function AdminTemplatesPage() {
           </div>
         )}
 
-        {/* Preview */}
+        {/* Preview - Normal Slip */}
         <div className="border-t pt-4">
-          <p className="text-sm font-medium text-gray-700 mb-3">👁️ ตัวอย่าง</p>
-          <div className="border rounded-xl overflow-hidden shadow-sm">
-            <div className="h-2" style={{ backgroundColor: formData.primaryColor }} />
-            <div className="p-4 bg-gray-50">
-              {formData.headerText && (
-                <p className="font-semibold mb-3 text-lg" style={{ color: formData.primaryColor }}>
-                  {formData.headerText}
-                </p>
-              )}
-              <div className="space-y-2 text-sm text-gray-600">
-                {formData.showAmount && <p>💰 จำนวนเงิน: <span className="font-medium text-gray-900">1,000.00 บาท</span></p>}
-                {formData.showSender && <p>👤 ผู้โอน: <span className="font-medium text-gray-900">นาย ทดสอบ</span></p>}
-                {formData.showReceiver && <p>🏦 ผู้รับ: <span className="font-medium text-gray-900">บริษัท ABC</span></p>}
-                {formData.showDate && <p>📅 วันที่: <span className="font-medium text-gray-900">23/12/2025</span></p>}
-                {formData.showTime && <p>🕐 เวลา: <span className="font-medium text-gray-900">14:30:00</span></p>}
-                {formData.showTransRef && <p>🔢 เลขอ้างอิง: <span className="font-medium text-gray-900">123456789</span></p>}
+          <p className="text-sm font-medium text-gray-700 mb-3">👁️ ตัวอย่าง (สลิปปกติ)</p>
+          <div className="border rounded-xl overflow-hidden shadow-sm" style={{ maxWidth: '320px' }}>
+            {/* Header */}
+            <div className="p-3" style={{ backgroundColor: '#E8F5E9' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: formData.primaryColor }}>✓</div>
+                <span className="font-bold" style={{ color: formData.primaryColor }}>{formData.headerText || 'สลิปถูกต้อง'}</span>
+                <div className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-white text-xs" style={{ backgroundColor: formData.primaryColor }}>✓</div>
               </div>
-              {formData.footerText && (
-                <p className="text-sm text-gray-500 mt-3 pt-3 border-t">{formData.footerText}</p>
+            </div>
+            <div className="p-4 bg-white">
+              {/* Amount */}
+              {formData.showAmount && (
+                <div className="text-center mb-4">
+                  <p className="text-2xl font-bold" style={{ color: formData.primaryColor }}>฿1,000.00</p>
+                  {(formData.showDate || formData.showTime) && (
+                    <p className="text-xs text-gray-400 mt-1">23 ธ.ค. 68, 14:30 น.</p>
+                  )}
+                </div>
+              )}
+              {/* Sender */}
+              {formData.showSender && (
+                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg mb-2">
+                  {formData.showBankLogo && <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center text-xs">🏦</div>}
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400">ผู้โอน</p>
+                    <p className="text-sm font-medium">นาย ทดสอบ ใจดี</p>
+                    <p className="text-xs text-gray-400">xxx-x-x1234-x</p>
+                  </div>
+                </div>
+              )}
+              {/* Receiver */}
+              {formData.showReceiver && (
+                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg mb-2">
+                  {formData.showBankLogo && <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center text-xs">🏦</div>}
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400">ผู้รับ</p>
+                    <p className="text-sm font-medium">บริษัท ABC จำกัด</p>
+                    <p className="text-xs text-gray-400">xxx-x-x5678-x</p>
+                  </div>
+                </div>
+              )}
+              {/* Trans Ref */}
+              {formData.showTransRef && (
+                <div className="flex justify-between p-2 bg-gray-100 rounded-lg mb-2">
+                  <span className="text-xs text-gray-500">เลขอ้างอิง:</span>
+                  <span className="text-xs text-gray-700">123456789</span>
+                </div>
+              )}
+              {/* Footer */}
+              {(formData.footerText || formData.footerLink) && (
+                <div className="mt-3 p-2 bg-gray-100 rounded-lg text-center">
+                  {formData.footerText && <p className="text-xs text-gray-500">{formData.footerText}</p>}
+                  {formData.footerLink && formData.footerLinkText && (
+                    <p className="text-xs text-blue-600 mt-1">{formData.footerLinkText}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* Preview - Duplicate Slip */}
+        {formData.type === 'duplicate' && (
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium text-gray-700 mb-3">⚠️ ตัวอย่าง (สลิปซ้ำ)</p>
+            <div className="border rounded-xl overflow-hidden shadow-sm" style={{ maxWidth: '320px' }}>
+              {/* Header - Orange for duplicate */}
+              <div className="p-3" style={{ backgroundColor: '#FFF3E0' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-orange-600 text-sm font-bold" style={{ backgroundColor: '#FFE0B2' }}>⚠️</div>
+                  <span className="font-bold text-orange-600">{formData.headerText || 'สลิปนี้ถูกใช้งานไปแล้ว'}</span>
+                  <div className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-white text-xs bg-orange-500">!</div>
+                </div>
+              </div>
+              <div className="p-4 bg-white">
+                {/* Amount */}
+                {formData.showAmount && (
+                  <div className="text-center mb-4">
+                    <p className="text-2xl font-bold text-orange-600">฿120</p>
+                    {(formData.showDate || formData.showTime) && (
+                      <p className="text-xs text-gray-400 mt-1">23 ธ.ค. 68, 08:07 น.</p>
+                    )}
+                  </div>
+                )}
+                {/* Sender */}
+                {formData.showSender && (
+                  <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg mb-2">
+                    {formData.showBankLogo && <div className="w-8 h-8 bg-pink-100 rounded flex items-center justify-center text-xs">🏦</div>}
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-400">จาก</p>
+                      <p className="text-sm font-medium">Mrs. Ramphueng B</p>
+                      <p className="text-xs text-gray-400">xxx-x-x8826-x</p>
+                    </div>
+                  </div>
+                )}
+                {/* Receiver */}
+                {formData.showReceiver && (
+                  <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg mb-2">
+                    {formData.showBankLogo && <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center text-xs">🏦</div>}
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-400">ไปยัง</p>
+                      <p className="text-sm font-medium">นาย พิชณุ เครือวัลย์</p>
+                      <p className="text-xs text-gray-400">xxx-x-x5537-xxx</p>
+                    </div>
+                  </div>
+                )}
+                {/* Date/Time with delay */}
+                {(formData.showDate || formData.showTime) && (
+                  <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg mb-2">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-400">เมื่อ</p>
+                      <p className="text-sm font-medium">23 ธ.ค. 68 08:07</p>
+                    </div>
+                    {formData.showDelayWarning && (
+                      <span className="text-xs text-orange-600 font-medium">2 นาทีที่แล้ว</span>
+                    )}
+                  </div>
+                )}
+                {/* Warning Box */}
+                <div className="p-3 bg-orange-500 rounded-lg text-center mb-2">
+                  <p className="text-sm text-white font-bold">⚠️ สลิปนี้ถูกใช้งานไปแล้ว</p>
+                  {formData.showDelayWarning && (
+                    <p className="text-xs text-orange-100 mt-1">ตรวจสอบช้า 2 นาที</p>
+                  )}
+                  <p className="text-xs text-orange-100 mt-1">บันทึกเมื่อ 23 ธ.ค. 68 08:07</p>
+                </div>
+                {/* Footer */}
+                {(formData.footerText || formData.footerLink) && (
+                  <div className="mt-3 p-2 bg-gray-100 rounded-lg text-center">
+                    {formData.footerText && <p className="text-xs text-gray-500">{formData.footerText}</p>}
+                    {formData.footerLink && formData.footerLinkText && (
+                      <p className="text-xs text-blue-600 mt-1">{formData.footerLinkText}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-3 pt-4 border-t">
           <Button variant="secondary" fullWidth onClick={onClose} disabled={isProcessing}>
