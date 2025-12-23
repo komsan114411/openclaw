@@ -49,7 +49,7 @@ export class BanksController {
     const logo = await this.banksService.getBankLogo(code);
 
     if (!logo) {
-      res.status(404).json({ success: false, error: 'Bank logo not found' });
+      res.status(404).json({ success: false, error: 'ไม่พบโลโก้ธนาคาร' });
       return;
     }
 
@@ -125,7 +125,7 @@ export class BanksController {
     const result = await this.banksService.syncFromThunderUsingSystemKey();
     return {
       success: result.errors.length === 0,
-      message: `Synced ${result.imported} banks, updated ${result.updated}`,
+      message: `ซิงค์แล้ว ${result.imported} ธนาคาร, อัปเดต ${result.updated} รายการ`,
       ...result,
     };
   }
@@ -166,7 +166,7 @@ export class BanksController {
     const result = await this.banksService.initDefaultBanks();
     return {
       success: true,
-      message: `Created ${result.created} banks, skipped ${result.skipped} existing`,
+      message: `สร้าง ${result.created} ธนาคาร, ข้าม ${result.skipped} รายการที่มีอยู่แล้ว`,
       ...result,
     };
   }
@@ -181,7 +181,7 @@ export class BanksController {
     const result = await this.banksService.importFromThunderApi(body.apiKey);
     return {
       success: result.errors.length === 0,
-      message: `Imported ${result.imported} banks`,
+      message: `นำเข้า ${result.imported} ธนาคาร`,
       ...result,
     };
   }

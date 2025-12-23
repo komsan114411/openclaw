@@ -25,7 +25,7 @@ import { UserRole } from '../database/schemas/user.schema';
 @Controller('line-accounts')
 @UseGuards(SessionAuthGuard)
 export class LineAccountsController {
-  constructor(private lineAccountsService: LineAccountsService) {}
+  constructor(private lineAccountsService: LineAccountsService) { }
 
   @Post()
   @ApiOperation({ summary: 'Create LINE account' })
@@ -36,7 +36,7 @@ export class LineAccountsController {
     const account = await this.lineAccountsService.create(user.userId, dto);
     return {
       success: true,
-      message: 'LINE account created successfully',
+      message: 'สร้างบัญชี LINE สำเร็จ',
       account,
     };
   }
@@ -86,12 +86,12 @@ export class LineAccountsController {
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      return { success: false, message: 'ไม่พบบัญชี LINE' };
     }
 
     // Check ownership for non-admin
     if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+      return { success: false, message: 'ไม่มีสิทธิ์เข้าถึง' };
     }
 
     return {
@@ -120,7 +120,7 @@ export class LineAccountsController {
     const updated = await this.lineAccountsService.update(id, dto);
     return {
       success: true,
-      message: 'Account updated successfully',
+      message: 'อัปเดตบัญชีสำเร็จ',
       account: updated,
     };
   }
@@ -144,7 +144,7 @@ export class LineAccountsController {
     await this.lineAccountsService.updateSettings(id, settings);
     return {
       success: true,
-      message: 'Settings updated successfully',
+      message: 'อัปเดตการตั้งค่าสำเร็จ',
     };
   }
 
@@ -166,7 +166,7 @@ export class LineAccountsController {
     await this.lineAccountsService.delete(id);
     return {
       success: true,
-      message: 'Account deleted successfully',
+      message: 'ลบบัญชีสำเร็จ',
     };
   }
 
