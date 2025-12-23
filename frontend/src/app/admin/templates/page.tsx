@@ -29,6 +29,7 @@ interface SlipTemplate {
   showDate: boolean;
   showTime: boolean;
   showTransRef: boolean;
+  showBankLogo: boolean;
   createdAt: string;
 }
 
@@ -52,6 +53,7 @@ const DEFAULT_FORM_DATA = {
   showDate: true,
   showTime: true,
   showTransRef: true,
+  showBankLogo: false,
 };
 
 export default function AdminTemplatesPage() {
@@ -104,6 +106,7 @@ export default function AdminTemplatesPage() {
       showDate: template.showDate,
       showTime: template.showTime,
       showTransRef: template.showTransRef,
+      showBankLogo: template.showBankLogo,
     });
     setShowEditModal(true);
   };
@@ -303,6 +306,11 @@ export default function AdminTemplatesPage() {
               checked={formData.showTransRef}
               onChange={(checked) => setFormData({ ...formData, showTransRef: checked })}
               label="🔢 เลขอ้างอิง"
+            />
+            <Switch
+              checked={formData.showBankLogo}
+              onChange={(checked) => setFormData({ ...formData, showBankLogo: checked })}
+              label="🏦 โลโก้ธนาคาร"
             />
           </div>
         </div>

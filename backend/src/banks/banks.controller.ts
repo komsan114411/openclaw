@@ -19,7 +19,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { BanksService } from './banks.service';
 
-@Controller('api')
+@Controller()
 export class BanksController {
   constructor(private readonly banksService: BanksService) { }
 

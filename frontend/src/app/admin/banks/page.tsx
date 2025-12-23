@@ -41,7 +41,7 @@ export default function BanksManagementPage() {
 
   const fetchBanks = useCallback(async () => {
     try {
-      const response = await api.get('/api/admin/banks');
+      const response = await api.get('/admin/banks');
       if (response.data.success) {
         setBanks(response.data.banks);
       }
@@ -60,7 +60,7 @@ export default function BanksManagementPage() {
   const handleInitDefaults = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/api/admin/banks/init-defaults');
+      const response = await api.post('/admin/banks/init-defaults');
       if (response.data.success) {
         await fetchBanks();
         toast.success(response.data.message || 'นำเข้าธนาคารเริ่มต้นสำเร็จ', { icon: '🏦' });
@@ -77,7 +77,7 @@ export default function BanksManagementPage() {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      const response = await api.post('/api/admin/banks/sync-from-thunder');
+      const response = await api.post('/admin/banks/sync-from-thunder');
       if (response.data.success) {
         await fetchBanks();
         toast.success(response.data.message || 'ซิงค์ธนาคารจาก Thunder API สำเร็จ', { icon: '⚡' });
@@ -101,7 +101,7 @@ export default function BanksManagementPage() {
     processingIdsRef.current.add(bank._id);
 
     try {
-      await api.put(`/api/admin/banks/${bank._id}`, {
+      await api.put(`/admin/banks/${bank._id}`, {
         isActive: !bank.isActive,
       });
       toast.success(
@@ -398,10 +398,10 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
 
       if (bank) {
         // Update existing bank
-        await api.put(`/api/admin/banks/${bank._id}`, formData);
+        await api.put(`/admin/banks/${bank._id}`, formData);
       } else {
         // Create new bank
-        const response = await api.post('/api/admin/banks', formData);
+        const response = await api.post('/admin/banks', formData);
         bankId = response.data.bank._id;
       }
 
@@ -410,7 +410,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
         setUploadingLogo(true);
         const logoFormData = new FormData();
         logoFormData.append('logo', logoFile);
-        await api.post(`/api/admin/banks/${bankId}/logo`, logoFormData, {
+        await api.post(`/admin/banks/${bankId}/logo`, logoFormData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       }
