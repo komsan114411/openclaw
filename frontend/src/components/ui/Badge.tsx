@@ -94,7 +94,7 @@ export function Badge({
 
 // Status Badge with predefined statuses
 interface StatusBadgeProps {
-  status: 'active' | 'inactive' | 'pending' | 'approved' | 'rejected' | 'expired' | 'success' | 'error' | 'syncing';
+  status: 'active' | 'inactive' | 'pending' | 'approved' | 'rejected' | 'expired' | 'success' | 'error' | 'syncing' | 'verified' | 'failed' | 'cancelled';
   className?: string;
 }
 
@@ -108,6 +108,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
     rejected: { label: 'Rejected', variant: 'error' as const, dot: true, pulse: false },
     expired: { label: 'Expired', variant: 'error' as const, dot: true, pulse: false },
     failed: { label: 'Failed', variant: 'error' as const, dot: true, pulse: false },
+    cancelled: { label: 'Cancelled', variant: 'default' as const, dot: true, pulse: false },
     success: { label: 'Success', variant: 'success' as const, dot: true, pulse: false },
     error: { label: 'Error', variant: 'error' as const, dot: true, pulse: false },
     syncing: { label: 'Syncing', variant: 'info' as const, dot: true, pulse: true },
