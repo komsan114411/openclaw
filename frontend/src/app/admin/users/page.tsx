@@ -1,20 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { usersApi, packagesApi, subscriptionsApi } from '@/lib/api';
 import { User, Package } from '@/types';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, StatCard } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button, IconButton } from '@/components/ui/Button';
+import { Modal, ConfirmModal } from '@/components/ui/Modal';
+import { Input, Select, Switch } from '@/components/ui/Input';
+import { PageLoading } from '@/components/ui/Loading';
+import { cn } from '@/lib/utils';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showGrantModal, setShowGrantModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -23,6 +34,7 @@ export default function UsersPage() {
     role: 'user',
     forcePasswordChange: true,
   });
+
   const [editFormData, setEditFormData] = useState({
     email: '',
     fullName: '',
@@ -30,11 +42,8 @@ export default function UsersPage() {
     isActive: true,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [usersRes, packagesRes] = await Promise.all([
         usersApi.getAll(),
@@ -44,18 +53,28 @@ export default function UsersPage() {
       setPackages(packagesRes.data.packages || []);
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleCreateUser = async () => {
+    if (!formData.username || !formData.password) {
+      toast.error('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+      return;
+    }
+
+    setIsProcessing(true);
     try {
       const response = await usersApi.create(formData);
       if (response.data.success) {
-        toast.success('สร้างผู้ใช้สำเร็จ');
-        setShowModal(false);
+        toast.success('สร้างบัญชีผู้ใช้สำเร็จ');
+        setShowCreateModal(false);
         setFormData({
           username: '',
           password: '',
@@ -67,37 +86,47 @@ export default function UsersPage() {
         fetchData();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleEditUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditUser = async () => {
     if (!selectedUser) return;
-    
+
+    setIsProcessing(true);
     try {
       const response = await usersApi.update(selectedUser._id, editFormData);
       if (response.data.success) {
-        toast.success('อัปเดตผู้ใช้สำเร็จ');
+        toast.success('อัปเดตข้อมูลสำเร็จ');
         setShowEditModal(false);
         setSelectedUser(null);
         fetchData();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'ไม่สามารถอัปเดตข้อมูลได้');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm('ต้องการลบผู้ใช้นี้หรือไม่?')) return;
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    setIsProcessing(true);
     try {
-      const response = await usersApi.delete(id);
+      const response = await usersApi.delete(selectedUser._id);
       if (response.data.success) {
         toast.success('ลบผู้ใช้สำเร็จ');
+        setShowDeleteConfirm(false);
+        setSelectedUser(null);
         fetchData();
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'ไม่สามารถลบผู้ใช้ได้');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -105,15 +134,14 @@ export default function UsersPage() {
     try {
       if (user.isBlocked) {
         const res = await usersApi.unblock(user._id);
-        if (res.data.success) toast.success('ปลดบล็อกผู้ใช้แล้ว');
+        if (res.data.success) toast.success('Authorized status restored');
       } else {
-        const reason = prompt('เหตุผลในการบล็อก (ไม่บังคับ)') || '';
-        const res = await usersApi.block(user._id, reason);
-        if (res.data.success) toast.success('บล็อกผู้ใช้แล้ว');
+        const res = await usersApi.block(user._id, 'Administrative suspension');
+        if (res.data.success) toast.success('User access revoked');
       }
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'Operation failed');
     }
   };
 
@@ -122,17 +150,21 @@ export default function UsersPage() {
       toast.error('กรุณาเลือกแพ็คเกจ');
       return;
     }
-    
+
+    setIsProcessing(true);
     try {
       const response = await subscriptionsApi.grant(selectedUser._id, selectedPackageId);
       if (response.data.success) {
-        toast.success('ให้แพ็คเกจสำเร็จ');
+        toast.success('ให้สิทธิแพ็คเกจสำเร็จ');
         setShowGrantModal(false);
         setSelectedUser(null);
         setSelectedPackageId('');
+        fetchData();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -155,278 +187,323 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">จัดการผู้ใช้งาน</h1>
-            <p className="text-gray-500">เพิ่ม แก้ไข หรือลบผู้ใช้งาน</p>
+      <div className="space-y-12 animate-fade max-w-[1600px] mx-auto pb-12">
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none">Personnel Directory</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">Master Auth</Badge>
+            </div>
+            <p className="text-slate-500 font-medium text-lg">Manage organizational hierarchy, access permissions, and account lifecycle.</p>
           </div>
-          <button onClick={() => setShowModal(true)} className="btn btn-primary">
-            + เพิ่มผู้ใช้
-          </button>
+          <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={() => setShowCreateModal(true)}>
+            + Provision User
+          </Button>
         </div>
 
-        <div className="card overflow-hidden p-0">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผู้ใช้</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">อีเมล</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">บทบาท</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">สถานะ</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-                  </td>
+        {/* Aggregated Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard title="Global Users" value={users.length} icon="👥" color="indigo" variant="glass" />
+          <StatCard title="Active Admins" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="purple" variant="glass" />
+          <StatCard title="Revenue Nodes" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
+          <StatCard title="Suspended" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
+        </div>
+
+        {/* User Registry Table */}
+        <Card className="overflow-hidden p-0 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Identity & Alias</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Communication</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Protocol Role</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Account Status</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Operational Logic</th>
                 </tr>
-              ) : users.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    ไม่พบข้อมูล
-                  </td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold">
-                          {user.username[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{user.username}</p>
-                          <p className="text-sm text-gray-500">{user.fullName || '-'}</p>
-                        </div>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-24">
+                      <PageLoading transparent message="Scanning directory..." />
                     </td>
-                    <td className="px-6 py-4 text-gray-500">{user.email || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {user.role === 'admin' ? 'Admin' : 'User'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {user.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}
-                      </span>
-                      {user.isBlocked && (
-                        <span className="ml-2 px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
-                          ถูกบล็อก
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => handleBlockToggle(user)}
-                          className="text-orange-600 hover:text-orange-800 text-sm"
-                        >
-                          {user.isBlocked ? 'ปลดบล็อก' : 'บล็อก'}
-                        </button>
-                        <button
-                          onClick={() => openGrantModal(user)}
-                          className="text-green-600 hover:text-green-800 text-sm"
-                        >
-                          ให้แพ็คเกจ
-                        </button>
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          แก้ไข
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user._id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          ลบ
-                        </button>
+                  </tr>
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-24 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl opacity-50">👤</div>
+                        <p className="text-slate-400 font-black uppercase tracking-widest text-sm">Directory is currently void</p>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  users.map((user) => (
+                    <motion.tr
+                      key={user._id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="group hover:bg-slate-50/80 transition-all duration-300"
+                    >
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-5">
+                          <div className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner",
+                            user.role === 'admin' ? "bg-purple-100 text-purple-600" : "bg-emerald-100 text-emerald-600"
+                          )}>
+                            {user.username[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-extrabold text-slate-900 leading-none mb-1 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{user.username}</p>
+                            <p className="text-xs text-slate-400 font-bold tracking-widest truncate max-w-[150px]">{user.fullName || 'UNREGISTERED ALIAS'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 font-mono text-xs font-black text-slate-500 lowercase opacity-70">
+                        {user.email || 'NO_COMMS_LINK'}
+                      </td>
+                      <td className="px-8 py-6">
+                        <Badge
+                          variant={user.role === 'admin' ? 'indigo' : 'slate'}
+                          size="sm"
+                          className="font-black uppercase tracking-[0.2em]"
+                        >
+                          {user.role}
+                        </Badge>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("w-2 h-2 rounded-full shadow-sm", user.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
+                            <span className={cn("text-[10px] font-black uppercase tracking-widest", user.isActive ? "text-emerald-600" : "text-slate-400")}>
+                              {user.isActive ? 'operational' : 'deactivated'}
+                            </span>
+                          </div>
+                          {user.isBlocked && (
+                            <Badge variant="rose" className="w-fit text-[9px] font-black uppercase tracking-widest py-0">Suspended</Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          <IconButton
+                            variant="glass"
+                            size="sm"
+                            className={cn("rounded-xl transition-all", user.isBlocked ? "text-emerald-500 bg-emerald-500/5" : "text-amber-500 bg-amber-500/5")}
+                            onClick={() => handleBlockToggle(user)}
+                            title={user.isBlocked ? 'Restore Access' : 'Revoke Access'}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                          </IconButton>
+                          <IconButton
+                            variant="glass"
+                            size="sm"
+                            className="rounded-xl text-emerald-500 bg-emerald-500/5"
+                            onClick={() => openGrantModal(user)}
+                            title="Grant Subscription"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          </IconButton>
+                          <IconButton
+                            variant="glass"
+                            size="sm"
+                            className="rounded-xl text-blue-500 bg-blue-500/5"
+                            onClick={() => openEditModal(user)}
+                            title="Edit Profile"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </IconButton>
+                          <IconButton
+                            variant="glass"
+                            size="sm"
+                            className="rounded-xl text-rose-500 bg-rose-500/5 hover:bg-rose-500 hover:text-white"
+                            onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
+                            title="Terminate Account"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </IconButton>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
 
-      {/* Create User Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">เพิ่มผู้ใช้ใหม่</h2>
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="label">ชื่อผู้ใช้ *</label>
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">รหัสผ่าน *</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="input"
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div>
-                <label className="label">อีเมล</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">ชื่อ-นามสกุล</label>
-                <input
-                  type="text"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">บทบาท</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="input"
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.forcePasswordChange}
-                  onChange={(e) => setFormData({ ...formData, forcePasswordChange: e.target.checked })}
-                  className="rounded"
-                />
-                <label className="text-sm text-gray-700">บังคับเปลี่ยนรหัสผ่านครั้งแรก</label>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary flex-1">
-                  ยกเลิก
-                </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  สร้างผู้ใช้
-                </button>
-              </div>
-            </form>
+      {/* Provision User Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => !isProcessing && setShowCreateModal(false)}
+        title="Provision Digital Identity"
+        size="md"
+      >
+        <div className="space-y-6 pt-2">
+          <div className="grid grid-cols-2 gap-6">
+            <Input
+              label="Primary Handle"
+              placeholder="username"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            />
+            <Input
+              type="password"
+              label="Auth Security Key"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            />
           </div>
-        </div>
-      )}
 
-      {/* Edit User Modal */}
-      {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">แก้ไขผู้ใช้: {selectedUser.username}</h2>
-            <form onSubmit={handleEditUser} className="space-y-4">
-              <div>
-                <label className="label">อีเมล</label>
-                <input
-                  type="email"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">ชื่อ-นามสกุล</label>
-                <input
-                  type="text"
-                  value={editFormData.fullName}
-                  onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label className="label">บทบาท</label>
-                <select
-                  value={editFormData.role}
-                  onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                  className="input"
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={editFormData.isActive}
-                  onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
-                  className="rounded"
-                />
-                <label className="text-sm text-gray-700">เปิดใช้งาน</label>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary flex-1">
-                  ยกเลิก
-                </button>
-                <button type="submit" className="btn btn-primary flex-1">
-                  บันทึก
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <Input
+            label="Contact Node (Email)"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            placeholder="node@network.com"
+          />
 
-      {/* Grant Package Modal */}
-      {showGrantModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">ให้แพ็คเกจ: {selectedUser.username}</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="label">เลือกแพ็คเกจ</label>
-                <select
-                  value={selectedPackageId}
-                  onChange={(e) => setSelectedPackageId(e.target.value)}
-                  className="input"
-                >
-                  <option value="">-- เลือกแพ็คเกจ --</option>
-                  {packages.filter(p => p.isActive).map((pkg) => (
-                    <option key={pkg._id} value={pkg._id}>
-                      {pkg.name} - {pkg.slipQuota.toLocaleString()} สลิป ({pkg.durationDays} วัน)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <p className="text-sm text-gray-500">
-                การให้แพ็คเกจจะเพิ่มโควต้าให้ผู้ใช้โดยไม่ต้องชำระเงิน
-              </p>
-              <div className="flex gap-3 pt-4">
-                <button onClick={() => setShowGrantModal(false)} className="btn btn-secondary flex-1">
-                  ยกเลิก
-                </button>
-                <button onClick={handleGrantPackage} className="btn btn-primary flex-1">
-                  ให้แพ็คเกจ
-                </button>
-              </div>
+          <Input
+            label="Legal Alias (Full Name)"
+            value={formData.fullName}
+            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+            placeholder="John Doe"
+          />
+
+          <div className="grid grid-cols-2 gap-6 items-end">
+            <Select
+              label="Hierarchy Status"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            >
+              <option value="user">Operational User</option>
+              <option value="admin">System Administrator</option>
+            </Select>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Force Reset</span>
+              <Switch
+                checked={formData.forcePasswordChange}
+                onChange={(checked) => setFormData({ ...formData, forcePasswordChange: checked })}
+              />
             </div>
           </div>
+
+          <div className="flex gap-4 pt-8 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>Abort</Button>
+            <Button
+              variant="primary"
+              className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium"
+              onClick={handleCreateUser}
+              isLoading={isProcessing}
+            >
+              Confirm Provisioning
+            </Button>
+          </div>
         </div>
-      )}
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => !isProcessing && setShowEditModal(false)}
+        title={`Edit Profile: ${selectedUser?.username}`}
+        size="md"
+      >
+        <div className="space-y-6 pt-2">
+          <Input
+            label="Contact Node"
+            value={editFormData.email}
+            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+          />
+          <Input
+            label="Alias Identity"
+            value={editFormData.fullName}
+            onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-6 items-end">
+            <Select
+              label="Revise Level"
+              value={editFormData.role}
+              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+            >
+              <option value="user">Standard User</option>
+              <option value="admin">System Admin</option>
+            </Select>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Operational</span>
+              <Switch
+                checked={editFormData.isActive}
+                onChange={(checked) => setEditFormData({ ...editFormData, isActive: checked })}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-8 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)} disabled={isProcessing}>Cancel</Button>
+            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase" onClick={handleEditUser} isLoading={isProcessing}>Apply Changes</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Subscription Grant Modal */}
+      <Modal
+        isOpen={showGrantModal}
+        onClose={() => !isProcessing && setShowGrantModal(false)}
+        title={`Elevate Assets: ${selectedUser?.username}`}
+        size="md"
+      >
+        <div className="space-y-8 pt-2">
+          <div className="p-6 bg-slate-900 text-white rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl font-black italic">ASSET GRANT</div>
+            <Select
+              label="Selected Asset Package"
+              variant="glass"
+              value={selectedPackageId}
+              onChange={(e) => setSelectedPackageId(e.target.value)}
+              className="bg-white/10 border-white/10 text-white"
+            >
+              <option value="">Select Package Blueprint</option>
+              {packages.filter(p => p.isActive).map((pkg) => (
+                <option key={pkg._id} value={pkg._id} className="text-slate-900">
+                  {pkg.name} • {pkg.slipQuota.toLocaleString()} Units
+                </option>
+              ))}
+            </Select>
+            <p className="mt-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+              Warning: This action will unilaterally grant resource allocation to the target node without billing verification.
+            </p>
+          </div>
+
+          <div className="flex gap-4">
+            <Button variant="ghost" className="flex-1 text-slate-400 font-bold" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>Abort</Button>
+            <Button
+              variant="primary"
+              className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/20 shadow-premium"
+              onClick={handleGrantPackage}
+              isLoading={isProcessing}
+            >
+              Confirm Allocation
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Security Deletion Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteUser}
+        title="Account Termination Imminent"
+        message={`Warning: You are about to permanently purge the digital identity of "${selectedUser?.username}". All associated metadata, permissions, and logs will be archived or delisted. This operation is non-reversible.`}
+        confirmText="Terminate Account"
+        cancelText="Abort Operation"
+        type="danger"
+        isLoading={isProcessing}
+      />
     </DashboardLayout>
   );
 }
