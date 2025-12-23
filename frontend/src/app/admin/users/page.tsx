@@ -134,14 +134,14 @@ export default function UsersPage() {
     try {
       if (user.isBlocked) {
         const res = await usersApi.unblock(user._id);
-        if (res.data.success) toast.success('Authorized status restored');
+        if (res.data.success) toast.success('ปลดบล็อคสำเร็จ');
       } else {
-        const res = await usersApi.block(user._id, 'Administrative suspension');
-        if (res.data.success) toast.success('User access revoked');
+        const res = await usersApi.block(user._id, 'ระงับโดยผู้ดูแล');
+        if (res.data.success) toast.success('บล็อคผู้ใช้สำเร็จ');
       }
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Operation failed');
+      toast.error(error.response?.data?.message || 'การดำเนินการล้มเหลว');
     }
   };
 
@@ -193,22 +193,22 @@ export default function UsersPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none">Personnel Directory</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">Master Auth</Badge>
+              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none">จัดการผู้ใช้</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">ผู้ดูแล</Badge>
             </div>
-            <p className="text-slate-500 font-medium text-lg">Manage organizational hierarchy, access permissions, and account lifecycle.</p>
+            <p className="text-slate-500 font-medium text-lg">จัดการผู้ใช้, สิทธิ์การเข้าถึง และการจัดการบัญชี</p>
           </div>
           <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={() => setShowCreateModal(true)}>
-            + Provision User
+            + สร้างผู้ใช้
           </Button>
         </div>
 
         {/* Aggregated Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard title="Global Users" value={users.length} icon="👥" color="indigo" variant="glass" />
-          <StatCard title="Active Admins" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
-          <StatCard title="Revenue Nodes" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
-          <StatCard title="Suspended" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
+          <StatCard title="ผู้ใช้ทั้งหมด" value={users.length} icon="👥" color="indigo" variant="glass" />
+          <StatCard title="ผู้ดูแลระบบ" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
+          <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
+          <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
         </div>
 
         {/* User Registry Table */}
@@ -217,18 +217,18 @@ export default function UsersPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Identity & Alias</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Communication</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Protocol Role</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Account Status</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Operational Logic</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ชื่อผู้ใช้</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">อีเมล</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">บทบาท</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">สถานะ</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-24">
-                      <PageLoading transparent message="Scanning directory..." />
+                      <PageLoading transparent message="กำลังโหลดข้อมูล..." />
                     </td>
                   </tr>
                 ) : users.length === 0 ? (
@@ -236,7 +236,7 @@ export default function UsersPage() {
                     <td colSpan={5} className="px-8 py-24 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl opacity-50">👤</div>
-                        <p className="text-slate-400 font-black uppercase tracking-widest text-sm">Directory is currently void</p>
+                        <p className="text-slate-400 font-black uppercase tracking-widest text-sm">ไม่มีข้อมูลผู้ใช้</p>
                       </div>
                     </td>
                   </tr>
