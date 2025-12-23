@@ -11,6 +11,8 @@ import {
 } from '../database/schemas/quota-reservation.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { RedisService } from '../redis/redis.service';
+import { SystemResponseTemplatesService } from '../system-response-templates/system-response-templates.service';
+import { SystemResponseType } from '../database/schemas/system-response-template.schema';
 
 export interface SlipVerificationResult {
   status: 'success' | 'duplicate' | 'error' | 'not_found';
@@ -40,6 +42,7 @@ export class SlipVerificationService {
     private quotaReservationModel: Model<QuotaReservationDocument>,
     private systemSettingsService: SystemSettingsService,
     private redisService: RedisService,
+    private systemResponseTemplatesService: SystemResponseTemplatesService,
   ) {}
 
   validateSlipImage(imageData: Buffer): { ok: boolean; message?: string } {
@@ -109,32 +112,45 @@ export class SlipVerificationService {
   }
 
   async formatQuotaExceededResponse(): Promise<any> {
-    const settings = await this.systemSettingsService.getSettings();
-    const responseType = settings?.quotaExceededResponseType || 'text';
-    const message =
-      settings?.quotaExceededMessage ||
-      '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ';
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.QUOTA_EXCEEDED
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+  }
 
-    if (responseType === 'flex') {
-      return {
-        type: 'flex',
-        altText: 'โควต้าหมด',
-        contents: {
-          type: 'bubble',
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            contents: [
-              { type: 'text', text: '⚠️ โควต้าหมด', weight: 'bold', size: 'lg', color: '#FF8800' },
-              { type: 'separator', margin: 'md' },
-              { type: 'text', text: message, margin: 'md', wrap: true },
-            ],
-          },
-        },
-      };
-    }
+  async formatNoSlipFoundResponse(): Promise<any> {
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.NO_SLIP_FOUND
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+  }
 
-    return { type: 'text', text: message };
+  async formatQrUnclearResponse(): Promise<any> {
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.QR_UNCLEAR
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+  }
+
+  async formatInvalidImageResponse(): Promise<any> {
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.INVALID_IMAGE
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+  }
+
+  async formatGeneralErrorResponse(): Promise<any> {
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.GENERAL_ERROR
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+  }
+
+  async formatImageDownloadErrorResponse(): Promise<any> {
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.IMAGE_DOWNLOAD_ERROR
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
   }
 
   async shouldRefundDuplicate(): Promise<boolean> {

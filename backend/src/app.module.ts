@@ -24,6 +24,7 @@ import { SlipTemplatesModule } from './slip-templates/slip-templates.module';
 import { BanksModule } from './banks/banks.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 import { ThunderApiModule } from './thunder-api/thunder-api.module';
+import { SystemResponseTemplatesModule } from './system-response-templates/system-response-templates.module';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { ThunderApiModule } from './thunder-api/thunder-api.module';
     BanksModule,
     ActivityLogsModule,
     ThunderApiModule,
+    SystemResponseTemplatesModule,
   ],
 })
 export class AppModule {}

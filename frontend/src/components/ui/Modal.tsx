@@ -1,27 +1,38 @@
 'use client';
 
 import { useEffect, useCallback, ReactNode } from 'react';
+import { IconButton, Button } from './Button';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  subtitle?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
+  footer?: ReactNode;
 }
 
 export function Modal({
   isOpen,
   onClose,
   title,
+  subtitle,
   children,
   size = 'md',
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  footer,
 }: ModalProps) {
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -49,45 +60,62 @@ export function Modal({
   const sizeClasses = {
     sm: 'max-w-sm',
     md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-    full: 'max-w-4xl',
+    lg: 'max-w-xl',
+    xl: 'max-w-2xl',
+    '2xl': 'max-w-4xl',
+    full: 'max-w-[95vw]',
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-all duration-500 animate-fade"
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
 
       {/* Modal Container */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl transform transition-all animate-scale-in`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          {(title || showCloseButton) && (
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
-              {showCloseButton && (
-                <button
-                  onClick={onClose}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+      <div
+        className={cn(
+          'relative w-full overflow-hidden bg-white rounded-[2rem] shadow-2xl transition-all animate-scale-in',
+          sizeClasses[size],
+          'flex flex-col max-h-[90vh]'
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        {(title || showCloseButton) && (
+          <div className="flex items-center justify-between px-8 py-6 border-b border-slate-50 bg-white sticky top-0 z-10">
+            <div className="space-y-1">
+              {title && <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{title}</h3>}
+              {subtitle && <p className="text-sm font-medium text-slate-500">{subtitle}</p>}
             </div>
-          )}
+            {showCloseButton && (
+              <IconButton
+                onClick={onClose}
+                variant="ghost"
+                size="md"
+                className="hover:rotate-90 transition-transform duration-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </IconButton>
+            )}
+          </div>
+        )}
 
-          {/* Content */}
-          <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
+        {/* Content */}
+        <div className="flex-1 px-8 py-8 overflow-y-auto no-scrollbar scroll-smooth">
+          {children}
         </div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -117,77 +145,82 @@ export function ConfirmModal({
   type = 'info',
   isLoading = false,
 }: ConfirmModalProps) {
-  const colors = {
+  const typeConfigs = {
     danger: {
-      icon: 'text-red-500 bg-red-100',
-      button: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+      color: 'rose' as const,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      buttonVariant: 'danger' as const
     },
     warning: {
-      icon: 'text-yellow-500 bg-yellow-100',
-      button: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
+      color: 'amber' as const,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      buttonVariant: 'warning' as const
     },
     info: {
-      icon: 'text-blue-500 bg-blue-100',
-      button: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
+      color: 'blue' as const,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      buttonVariant: 'primary' as const
     },
     success: {
-      icon: 'text-green-500 bg-green-100',
-      button: 'bg-green-600 hover:bg-green-700 focus:ring-green-500',
+      color: 'emerald' as const,
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      buttonVariant: 'success' as const
     },
   };
 
-  const icons = {
-    danger: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-      </svg>
-    ),
-    warning: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    info: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    success: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-  };
+  const config = typeConfigs[type];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="sm" showCloseButton={false}>
-      <div className="text-center">
-        <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${colors[type].icon}`}>
-          {icons[type]}
+      <div className="flex flex-col items-center text-center">
+        <div className={cn(
+          'w-20 h-20 rounded-3xl flex items-center justify-center mb-6 animate-bounce-slow',
+          type === 'danger' ? 'bg-rose-50 text-rose-500' :
+            type === 'warning' ? 'bg-amber-50 text-amber-500' :
+              type === 'success' ? 'bg-emerald-50 text-emerald-500' :
+                'bg-blue-50 text-blue-500'
+        )}>
+          {config.icon}
         </div>
-        <h3 className="mt-4 text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="mt-2 text-sm text-gray-500">{message}</p>
-        <div className="mt-6 flex gap-3">
-          <button
+        <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">{title}</h3>
+        <p className="mt-3 text-slate-500 font-medium leading-relaxed">{message}</p>
+
+        <div className="mt-10 flex flex-col w-full gap-3">
+          <Button
+            onClick={onConfirm}
+            isLoading={isLoading}
+            variant={config.buttonVariant}
+            size="lg"
+            fullWidth
+          >
+            {confirmText}
+          </Button>
+          <Button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            variant="ghost"
+            size="lg"
+            fullWidth
+            className="text-slate-400 font-bold hover:text-slate-600"
           >
             {cancelText}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className={`flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${colors[type].button}`}
-          >
-            {isLoading && (
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            )}
-            {confirmText}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>

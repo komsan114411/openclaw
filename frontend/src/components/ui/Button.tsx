@@ -2,16 +2,24 @@
 
 import { ButtonHTMLAttributes, ReactNode, useState, useCallback } from 'react';
 import { Spinner } from './Loading';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/**
+ * Utility to merge tailwind classes safely
+ */
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'ghost' | 'outline';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   loadingText?: string;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   fullWidth?: boolean;
-  // ป้องกันการกดซ้ำ
   preventDoubleClick?: boolean;
   debounceMs?: number;
 }
@@ -36,7 +44,6 @@ export function Button({
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
-      // Don't prevent double click for submit buttons - let the form handle it
       if (preventDoubleClick && isDebouncing && props.type !== 'submit') {
         e.preventDefault();
         return;
@@ -52,49 +59,48 @@ export function Button({
     [onClick, preventDoubleClick, isDebouncing, debounceMs, props.type]
   );
 
-  const baseClasses =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
-
   const variantClasses = {
-    primary:
-      'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 focus:ring-green-500 shadow-lg shadow-green-500/30 hover:shadow-green-500/40',
-    secondary:
-      'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 border border-gray-200',
-    danger:
-      'bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 focus:ring-red-500 shadow-lg shadow-red-500/30',
-    success:
-      'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 focus:ring-emerald-500 shadow-lg shadow-emerald-500/30',
-    warning:
-      'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700 focus:ring-yellow-500 shadow-lg shadow-yellow-500/30',
-    ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-500',
+    primary: 'btn-primary hover-glow',
+    secondary: 'btn-secondary',
+    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 hover-glow',
+    danger: 'btn-danger shadow-lg shadow-rose-500/20',
+    warning: 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20',
+    ghost: 'btn-ghost',
+    outline: 'bg-transparent border-2 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 bg-white/50 backdrop-blur-sm',
   };
 
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm gap-1.5',
-    md: 'px-4 py-2.5 text-sm gap-2',
-    lg: 'px-6 py-3 text-base gap-2.5',
+    xs: 'px-2 py-1 text-xs gap-1 rounded-lg',
+    sm: 'px-3 py-1.5 text-sm gap-1.5 rounded-xl',
+    md: 'px-5 py-2.5 text-sm font-semibold gap-2 rounded-xl',
+    lg: 'px-8 py-4 text-base font-bold gap-3 rounded-2xl',
   };
 
-  // Don't disable submit buttons due to debouncing - form handles submission
   const isDisabled = disabled || isLoading || (isDebouncing && props.type !== 'submit');
 
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      className={cn(
+        'btn',
+        variantClasses[variant],
+        sizeClasses[size],
+        fullWidth && 'w-full',
+        className
+      )}
       disabled={isDisabled}
       onClick={handleClick}
       {...props}
     >
       {isLoading ? (
-        <>
-          <Spinner size="sm" color={variant === 'secondary' || variant === 'ghost' ? 'gray' : 'white'} />
-          {loadingText || children}
-        </>
+        <div className="flex items-center justify-center gap-2">
+          <Spinner size="sm" color="currentColor" />
+          <span>{loadingText || children}</span>
+        </div>
       ) : (
         <>
-          {leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
-          {children}
-          {rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
+          {leftIcon && <span className="flex-shrink-0 opacity-80 group-hover:scale-110 transition-transform">{leftIcon}</span>}
+          <span className="relative z-10">{children}</span>
+          {rightIcon && <span className="flex-shrink-0 opacity-80 group-hover:scale-110 transition-transform">{rightIcon}</span>}
         </>
       )}
     </button>
@@ -103,7 +109,7 @@ export function Button({
 
 // Icon Button
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'glass' | 'outline' | 'success';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   preventDoubleClick?: boolean;
@@ -139,30 +145,35 @@ export function IconButton({
     [onClick, preventDoubleClick, isDebouncing]
   );
 
-  const baseClasses =
-    'inline-flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
-
   const variantClasses = {
-    primary: 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-500',
-    secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500',
-    danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500',
-    ghost: 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:ring-gray-500',
+    primary: 'btn-primary shadow-lg shadow-emerald-500/20',
+    secondary: 'btn-secondary',
+    danger: 'btn-danger shadow-lg shadow-rose-500/20',
+    ghost: 'btn-ghost',
+    glass: 'glass-dark hover:bg-white/10 border-white/5 text-white',
+    outline: 'bg-white/50 border-2 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 backdrop-blur-md shadow-sm',
+    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20',
   };
 
   const sizeClasses = {
-    sm: 'p-1.5',
-    md: 'p-2',
-    lg: 'p-3',
+    sm: 'p-1.5 rounded-lg',
+    md: 'p-2.5 rounded-xl',
+    lg: 'p-4 rounded-2xl',
   };
 
   return (
     <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={cn(
+        'btn p-0 aspect-square',
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
       disabled={disabled || isLoading || isDebouncing}
       onClick={handleClick}
       {...props}
     >
-      {isLoading ? <Spinner size="sm" color={variant === 'ghost' ? 'gray' : 'white'} /> : children}
+      {isLoading ? <Spinner size="sm" color="currentColor" /> : children}
     </button>
   );
 }

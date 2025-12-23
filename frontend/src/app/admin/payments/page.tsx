@@ -6,11 +6,13 @@ import { paymentsApi } from '@/lib/api';
 import { Payment } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, StatCard, EmptyState } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { Button, IconButton } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
-import { PageLoading, Spinner } from '@/components/ui/Loading';
-import { Input, TextArea } from '@/components/ui/Input';
+import { PageLoading } from '@/components/ui/Loading';
+import { Input, TextArea, Select } from '@/components/ui/Input';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ExtendedPayment extends Payment {
   user?: {
@@ -35,7 +37,6 @@ export default function AdminPaymentsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ป้องกันการกดซ้ำ
   const processingIdsRef = useRef<Set<string>>(new Set());
   const lastActionTimeRef = useRef<number>(0);
 
@@ -45,7 +46,6 @@ export default function AdminPaymentsPage() {
       const response = await paymentsApi.getAll(filter || undefined);
       setPayments(response.data.payments || []);
     } catch (error: any) {
-      console.error('Error fetching payments:', error);
       setError('ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
       toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
@@ -60,12 +60,10 @@ export default function AdminPaymentsPage() {
 
   const canPerformAction = (paymentId: string): boolean => {
     const now = Date.now();
-    // ป้องกันการกดซ้ำภายใน 2 วินาที
     if (now - lastActionTimeRef.current < 2000) {
       toast.error('กรุณารอสักครู่ก่อนทำรายการใหม่');
       return false;
     }
-    // ป้องกันการประมวลผลซ้ำสำหรับ payment เดียวกัน
     if (processingIdsRef.current.has(paymentId)) {
       toast.error('รายการนี้กำลังดำเนินการอยู่');
       return false;
@@ -81,27 +79,18 @@ export default function AdminPaymentsPage() {
 
   const handleApprove = async () => {
     if (!selectedPayment || !canPerformAction(selectedPayment._id)) return;
-
     processingIdsRef.current.add(selectedPayment._id);
     lastActionTimeRef.current = Date.now();
     setIsProcessing(true);
 
     try {
       await paymentsApi.approve(selectedPayment._id);
-      toast.success('อนุมัติการชำระเงินสำเร็จ', {
-        duration: 4000,
-        icon: '✅',
-      });
+      toast.success('อนุมัติการชำระเงินสำเร็จ');
       setShowConfirmApprove(false);
       setShowDetailModal(false);
       fetchPayments();
     } catch (error: any) {
-      const message = error.response?.data?.message;
-      if (message?.includes('already')) {
-        toast.error('รายการนี้ถูกดำเนินการไปแล้ว');
-      } else {
-        toast.error(message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
-      }
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
     } finally {
       setIsProcessing(false);
       processingIdsRef.current.delete(selectedPayment._id);
@@ -117,36 +106,22 @@ export default function AdminPaymentsPage() {
 
   const handleReject = async () => {
     if (!selectedPayment || !canPerformAction(selectedPayment._id)) return;
-
     processingIdsRef.current.add(selectedPayment._id);
     lastActionTimeRef.current = Date.now();
     setIsProcessing(true);
 
     try {
       await paymentsApi.reject(selectedPayment._id, rejectReason || undefined);
-      toast.success('ปฏิเสธการชำระเงินสำเร็จ', {
-        duration: 4000,
-        icon: '❌',
-      });
+      toast.success('ปฏิเสธการชำระเงินสำเร็จ');
       setShowRejectModal(false);
       setShowDetailModal(false);
       fetchPayments();
     } catch (error: any) {
-      const message = error.response?.data?.message;
-      if (message?.includes('already')) {
-        toast.error('รายการนี้ถูกดำเนินการไปแล้ว');
-      } else {
-        toast.error(message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
-      }
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
     } finally {
       setIsProcessing(false);
       processingIdsRef.current.delete(selectedPayment._id);
     }
-  };
-
-  const handleRetry = () => {
-    setIsLoading(true);
-    fetchPayments();
   };
 
   const openDetailModal = (payment: ExtendedPayment) => {
@@ -162,397 +137,324 @@ export default function AdminPaymentsPage() {
   if (isLoading) {
     return (
       <DashboardLayout requiredRole="admin">
-        <PageLoading message="กำลังโหลดข้อมูลการชำระเงิน..." />
+        <PageLoading />
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 animate-fade-in">
-        {/* Header */}
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">การชำระเงิน</h1>
-            <p className="page-subtitle">ตรวจสอบและอนุมัติการชำระเงิน</p>
+      <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
+
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="space-y-1">
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Financial Transactions</h1>
+            <p className="text-slate-500 font-medium text-lg">ตรวจสอบและจัดการรายการชำระเงินจากลูกค้า</p>
           </div>
-          <div className="flex items-center gap-4">
-            {pendingCount > 0 && (
-              <Badge variant="error" size="md" className="animate-pulse">
-                {pendingCount} รอตรวจสอบ
-              </Badge>
-            )}
-            <select
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="input w-auto"
+              className="min-w-[180px] bg-white/50 backdrop-blur-md"
             >
               <option value="">ทั้งหมด</option>
               <option value="pending">รอตรวจสอบ</option>
               <option value="verified">อนุมัติแล้ว</option>
               <option value="rejected">ปฏิเสธ</option>
-            </select>
+            </Select>
+            <IconButton
+              variant="outline"
+              onClick={fetchPayments}
+              className="bg-white/50 backdrop-blur-md"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </IconButton>
           </div>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between animate-slide-up">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-red-700 font-medium">{error}</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleRetry}>
-              ลองใหม่
-            </Button>
-          </div>
-        )}
-
         {/* Stats Grid */}
-        <div className="grid-stats">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="รอตรวจสอบ"
-            value={pendingCount.toString()}
-            color="yellow"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            value={pendingCount}
+            icon="⏳"
+            color="amber"
+            variant="glass"
           />
           <StatCard
             title="อนุมัติแล้ว"
-            value={verifiedCount.toString()}
-            color="green"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            value={verifiedCount}
+            icon="✅"
+            color="emerald"
+            variant="glass"
           />
           <StatCard
             title="ปฏิเสธ"
-            value={rejectedCount.toString()}
-            color="red"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            value={rejectedCount}
+            icon="❌"
+            color="rose"
+            variant="glass"
           />
           <StatCard
-            title="ยอดรวม (อนุมัติ)"
+            title="รายได้รวม"
             value={`฿${totalVerifiedAmount.toLocaleString()}`}
+            icon="💰"
             color="blue"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            variant="glass"
           />
         </div>
 
-        {/* Payments Table */}
-        <Card className="overflow-hidden p-0">
+        {/* Payments Table/List */}
+        <Card className="overflow-hidden p-0 border-none shadow-premium-sm bg-white/60 backdrop-blur-xl rounded-[2.5rem]">
           <div className="overflow-x-auto">
-            <table className="min-w-full">
+            <table className="min-w-full border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">วันที่</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ผู้ใช้</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">แพ็คเกจ</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ประเภท</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">จำนวนเงิน</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">สถานะ</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">จัดการ</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Transaction Date</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User Account</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Selected Package</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Amount</th>
+                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
+                  <th className="px-8 py-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12">
-                      <EmptyState
-                        icon={
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        }
-                        title="ไม่พบข้อมูลการชำระเงิน"
-                        description="ยังไม่มีรายการชำระเงินในหมวดหมู่นี้"
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  payments.map((payment) => (
-                    <tr key={payment._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">
-                          {new Date(payment.createdAt).toLocaleDateString('th-TH', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(payment.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
-                            {payment.user?.username?.charAt(0).toUpperCase() || 'U'}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{payment.user?.username || '-'}</p>
-                            <p className="text-xs text-gray-500">{payment.user?.email || '-'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{payment.package?.name || '-'}</p>
-                        <p className="text-xs text-gray-500">{payment.package?.slipQuota?.toLocaleString() || '-'} สลิป</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge variant={payment.paymentType === 'usdt' ? 'info' : 'success'} size="sm">
-                          {payment.paymentType === 'usdt' ? '💵 USDT' : '🏦 โอนเงิน'}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-bold text-gray-900">฿{payment.amount.toLocaleString()}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge
-                          variant={
-                            payment.status === 'pending' ? 'warning' :
-                            payment.status === 'verified' ? 'success' :
-                            payment.status === 'rejected' ? 'error' : 'secondary'
-                          }
-                        >
-                          {payment.status === 'pending' ? '⏳ รอตรวจสอบ' :
-                           payment.status === 'verified' ? '✅ อนุมัติแล้ว' :
-                           payment.status === 'rejected' ? '❌ ปฏิเสธ' :
-                           payment.status === 'failed' ? '⚠️ ล้มเหลว' : payment.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDetailModal(payment)}
-                          >
-                            ดูรายละเอียด
-                          </Button>
-                          {payment.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="success"
-                                size="sm"
-                                onClick={() => handleApproveClick(payment)}
-                                disabled={processingIdsRef.current.has(payment._id)}
-                              >
-                                อนุมัติ
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => handleRejectClick(payment)}
-                                disabled={processingIdsRef.current.has(payment._id)}
-                              >
-                                ปฏิเสธ
-                              </Button>
-                            </>
-                          )}
-                        </div>
+              <tbody className="divide-y divide-slate-100/50">
+                <AnimatePresence mode="popLayout">
+                  {payments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-8 py-20 text-center">
+                        <EmptyState
+                          icon="💸"
+                          title="No transactions found"
+                          description="รายการชำระเงินจะแสดงที่นี่เมื่อลูกค้าเริ่มทำรายการสั่งซื้อ"
+                        />
                       </td>
                     </tr>
-                  ))
-                )}
+                  ) : (
+                    payments.map((payment) => (
+                      <motion.tr
+                        key={payment._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                        onClick={() => openDetailModal(payment)}
+                      >
+                        <td className="px-8 py-6">
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-slate-900">
+                              {new Date(payment.createdAt).toLocaleDateString('th-TH', {
+                                day: 'numeric', month: 'short', year: 'numeric',
+                              })}
+                            </p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                              {new Date(payment.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black shadow-sm group-hover:scale-110 transition-transform">
+                              {payment.user?.username?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900 leading-tight">{payment.user?.username || '-'}</p>
+                              <p className="text-xs text-slate-400 font-medium leading-tight">{payment.user?.email || '-'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-slate-900 leading-tight uppercase tracking-tight">{payment.package?.name || '-'}</p>
+                            <Badge variant="indigo" size="xs" className="font-black">{payment.package?.slipQuota?.toLocaleString() || '-'} SLIPS</Badge>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="space-y-0.5">
+                            <p className="text-lg font-black text-slate-900 leading-tight">฿{payment.amount.toLocaleString()}</p>
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                              {payment.paymentType === 'usdt' ? 'USDT' : 'BANK TRANSFER'}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <StatusBadge status={payment.status === 'verified' ? 'approved' : payment.status as any} />
+                        </td>
+                        <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2 justify-end">
+                            {payment.status === 'pending' ? (
+                              <>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleApproveClick(payment)}
+                                  className="h-9 px-4 rounded-xl shadow-emerald-200/50"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRejectClick(payment)}
+                                  className="h-9 px-4 rounded-xl text-rose-500 border-rose-100 hover:bg-rose-50"
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            ) : (
+                              <IconButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDetailModal(payment)}
+                                className="text-slate-400 hover:text-slate-900"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </IconButton>
+                            )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    )
+                    ))}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
         </Card>
       </div>
 
-      {/* Payment Detail Modal */}
+      {/* Detail Modal */}
       <Modal
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
-        title="รายละเอียดการชำระเงิน"
+        title="Transaction Intelligence"
         size="lg"
       >
         {selectedPayment && (
-          <div className="space-y-6">
-            {/* Status Badge */}
-            <div className="flex justify-center">
-              <Badge
-                variant={
-                  selectedPayment.status === 'pending' ? 'warning' :
-                  selectedPayment.status === 'verified' ? 'success' :
-                  selectedPayment.status === 'rejected' ? 'error' : 'secondary'
-                }
-                size="lg"
-              >
-                {selectedPayment.status === 'pending' ? '⏳ รอตรวจสอบ' :
-                 selectedPayment.status === 'verified' ? '✅ อนุมัติแล้ว' :
-                 selectedPayment.status === 'rejected' ? '❌ ปฏิเสธ' : selectedPayment.status}
-              </Badge>
+          <div className="space-y-10 p-2">
+
+            {/* Payment Summary Header */}
+            <div className="flex items-center justify-between p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Amount to Verify</p>
+                <p className="text-4xl font-black text-slate-900 tracking-tight">฿{selectedPayment.amount.toLocaleString()}</p>
+                <div className="flex gap-2 mt-3">
+                  <Badge variant="indigo" size="xs" className="font-black uppercase tracking-widest">{selectedPayment.paymentType}</Badge>
+                  <StatusBadge status={selectedPayment.status === 'verified' ? 'approved' : selectedPayment.status as any} />
+                </div>
+              </div>
+              {selectedPayment.slipImageUrl && (
+                <div className="relative group cursor-zoom-in">
+                  <img src={selectedPayment.slipImageUrl} className="w-20 h-28 object-cover rounded-2xl shadow-lg rotate-3 group-hover:rotate-0 transition-transform" />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">วันที่</p>
-                <p className="font-semibold text-gray-900">
-                  {new Date(selectedPayment.createdAt).toLocaleString('th-TH')}
+            <div className="grid grid-cols-2 gap-x-12 gap-y-8">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Account</p>
+                <p className="text-sm font-bold text-slate-900">{selectedPayment.user?.username || 'Unknown'}</p>
+                <p className="text-xs text-slate-400 font-medium">{selectedPayment.user?.email || 'No email provided'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purchase Target</p>
+                <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">{selectedPayment.package?.name || 'Manual Adjustment'}</p>
+                <p className="text-xs text-emerald-600 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} Slips Added</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference ID</p>
+                <p className="text-xs font-mono font-bold text-slate-600 truncate">{selectedPayment._id}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completion Date</p>
+                <p className="text-sm font-bold text-slate-900">
+                  {new Date(selectedPayment.createdAt).toLocaleDateString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">ประเภท</p>
-                <p className="font-semibold text-gray-900">
-                  {selectedPayment.paymentType === 'usdt' ? 'USDT' : 'โอนเงิน'}
-                </p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">ผู้ใช้</p>
-                <p className="font-semibold text-gray-900">{selectedPayment.user?.username || '-'}</p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">อีเมล</p>
-                <p className="font-semibold text-gray-900">{selectedPayment.user?.email || '-'}</p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">แพ็คเกจ</p>
-                <p className="font-semibold text-gray-900">{selectedPayment.package?.name || '-'}</p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">โควต้า</p>
-                <p className="font-semibold text-gray-900">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} สลิป</p>
-              </div>
             </div>
 
-            {/* Amount */}
-            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center">
-              <p className="text-sm text-green-600 mb-1">จำนวนเงิน</p>
-              <p className="text-3xl font-bold text-green-700">฿{selectedPayment.amount.toLocaleString()}</p>
-            </div>
-
-            {/* Slip Image */}
             {selectedPayment.slipImageUrl && (
-              <div>
-                <p className="text-sm text-gray-500 mb-2">หลักฐานการชำระเงิน</p>
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Digital Receipt Preview</p>
+                <div className="p-4 bg-slate-900 rounded-[2.5rem] shadow-2xl">
                   <img
                     src={selectedPayment.slipImageUrl}
                     alt="Payment slip"
-                    className="w-full max-h-96 object-contain bg-gray-100"
+                    className="w-full max-h-[500px] object-contain rounded-[2rem]"
+                    onClick={() => window.open(selectedPayment.slipImageUrl, '_blank')}
                   />
                 </div>
               </div>
             )}
 
-            {/* Transaction Hash */}
-            {selectedPayment.transactionHash && (
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">Transaction Hash</p>
-                <p className="font-mono text-sm text-gray-900 break-all">{selectedPayment.transactionHash}</p>
-              </div>
-            )}
-
-            {/* Notes */}
-            {selectedPayment.notes && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                <p className="text-sm text-yellow-600 mb-1">หมายเหตุ</p>
-                <p className="text-yellow-800">{selectedPayment.notes}</p>
-              </div>
-            )}
-
-            {/* Actions */}
             {selectedPayment.status === 'pending' && (
-              <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  variant="success"
-                  fullWidth
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    handleApproveClick(selectedPayment);
-                  }}
-                >
-                  ✅ อนุมัติ
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                <Button variant="primary" size="lg" className="h-16 font-black text-lg shadow-premium shadow-emerald-500/20" onClick={() => handleApproveClick(selectedPayment)}>
+                  Verify & Approve
                 </Button>
-                <Button
-                  variant="danger"
-                  fullWidth
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    handleRejectClick(selectedPayment);
-                  }}
-                >
-                  ❌ ปฏิเสธ
+                <Button variant="outline" size="lg" className="h-16 font-black text-lg text-rose-500 border-rose-100" onClick={() => handleRejectClick(selectedPayment)}>
+                  Decline Request
                 </Button>
               </div>
             )}
+
           </div>
         )}
       </Modal>
 
-      {/* Confirm Approve Modal */}
       <ConfirmModal
         isOpen={showConfirmApprove}
         onClose={() => setShowConfirmApprove(false)}
         onConfirm={handleApprove}
-        title="ยืนยันการอนุมัติ"
-        message={`คุณต้องการอนุมัติการชำระเงินของ "${selectedPayment?.user?.username}" จำนวน ฿${selectedPayment?.amount.toLocaleString()} สำหรับแพ็คเกจ "${selectedPayment?.package?.name}" หรือไม่?`}
-        confirmText="อนุมัติ"
-        cancelText="ยกเลิก"
+        title="Authorize Credit Injection"
+        message={`Confirming this will immediately add ${selectedPayment?.package?.slipQuota?.toLocaleString()} slips to "${selectedPayment?.user?.username}"'s account. This action is irreversible.`}
+        confirmText="Confirm Authorization"
         type="success"
         isLoading={isProcessing}
       />
 
-      {/* Reject Modal */}
       <Modal
         isOpen={showRejectModal}
         onClose={() => !isProcessing && setShowRejectModal(false)}
-        title="ปฏิเสธการชำระเงิน"
+        title="Transaction Denial"
+        size="md"
       >
-        <div className="space-y-4">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-sm text-red-600 mb-1">รายการที่จะปฏิเสธ</p>
-            <p className="font-semibold text-red-800">
-              {selectedPayment?.user?.username} - ฿{selectedPayment?.amount.toLocaleString()}
+        <div className="space-y-8 p-1">
+          <div className="p-6 bg-rose-50 rounded-[2rem] border border-rose-100">
+            <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Impacted Account</p>
+            <p className="text-xl font-black text-rose-900">
+              {selectedPayment?.user?.username} (฿{selectedPayment?.amount.toLocaleString()})
             </p>
           </div>
 
           <TextArea
-            label="เหตุผลในการปฏิเสธ (ไม่บังคับ)"
-            placeholder="ระบุเหตุผล เช่น สลิปไม่ชัด, ยอดเงินไม่ตรง..."
+            label="Denial Rationale"
+            placeholder="e.g. Image resolution insufficient, Transaction ID mismatch..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            rows={3}
+            rows={4}
             disabled={isProcessing}
+            className="font-medium"
           />
 
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => setShowRejectModal(false)}
-              disabled={isProcessing}
-            >
-              ยกเลิก
+          <div className="flex gap-4 pt-4 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 h-14 font-bold text-slate-500" onClick={() => setShowRejectModal(false)} disabled={isProcessing}>
+              Cancel
             </Button>
-            <Button
-              variant="danger"
-              fullWidth
-              onClick={handleReject}
-              isLoading={isProcessing}
-              loadingText="กำลังดำเนินการ..."
-            >
-              ปฏิเสธการชำระเงิน
+            <Button variant="danger" className="flex-[2] h-14 font-black text-lg shadow-premium shadow-rose-500/20" onClick={handleReject} isLoading={isProcessing}>
+              Reject Transaction
             </Button>
           </div>
         </div>
