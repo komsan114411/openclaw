@@ -410,9 +410,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
         setUploadingLogo(true);
         const logoFormData = new FormData();
         logoFormData.append('logo', logoFile);
-        await api.post(`/admin/banks/${bankId}/logo`, logoFormData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post(`/admin/banks/${bankId}/logo`, logoFormData);
       }
 
       toast.success(bank ? 'อัปเดตธนาคารสำเร็จ' : 'เพิ่มธนาคารสำเร็จ', { icon: '✅' });
