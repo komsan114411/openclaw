@@ -5,12 +5,14 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, usersApi, systemSettingsApi } from '@/lib/api';
 import { LineAccount, User } from '@/types';
 import toast from 'react-hot-toast';
-import { Card, StatCard, EmptyState } from '@/components/ui/Card';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, StatCard } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
+import { Button, IconButton } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { PageLoading, Spinner } from '@/components/ui/Loading';
 import { Input, Select, Textarea, Switch } from '@/components/ui/Input';
+import { cn } from '@/lib/utils';
 
 interface ExtendedLineAccount extends LineAccount {
   owner?: {
@@ -32,10 +34,8 @@ export default function AdminLineAccountsPage() {
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
 
-  // Form state for adding/editing LINE account
   const [formData, setFormData] = useState({
     accountName: '',
     channelId: '',
@@ -45,7 +45,6 @@ export default function AdminLineAccountsPage() {
     ownerId: '',
   });
 
-  // Settings form state
   const [settingsData, setSettingsData] = useState({
     enableBot: false,
     enableAi: false,
@@ -66,7 +65,6 @@ export default function AdminLineAccountsPage() {
     sendMessageWhenAiDisabled: 'default' as string,
   });
 
-  // ป้องกันการกดซ้ำ
   const processingIdsRef = useRef<Set<string>>(new Set());
 
   const fetchPublicBaseUrl = async () => {
@@ -79,24 +77,20 @@ export default function AdminLineAccountsPage() {
   };
 
   const getWebhookUrl = (channelId: string) => {
-    const base =
-      publicBaseUrl ||
-      (typeof window !== 'undefined' ? window.location.origin : '') ||
-      '';
+    const base = publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '') || '';
     const normalized = base.replace(/\/+$/, '');
     return `${normalized}/api/webhook/line/${channelId}`;
   };
 
   const fetchData = useCallback(async () => {
-    setError(null);
+    setIsLoading(true);
     try {
       const [accountsRes, usersRes] = await Promise.all([
         lineAccountsApi.getAll(),
         usersApi.getAll(),
       ]);
-      
+
       const usersMap = new Map(usersRes.data.users?.map((u: User) => [u._id, u]) || []);
-      
       const accountsWithOwner = (accountsRes.data.accounts || []).map((acc: LineAccount) => ({
         ...acc,
         owner: usersMap.get(acc.ownerId) ? {
@@ -104,12 +98,10 @@ export default function AdminLineAccountsPage() {
           email: (usersMap.get(acc.ownerId) as User).email,
         } : undefined,
       }));
-      
+
       setAccounts(accountsWithOwner);
       setUsers(usersRes.data.users || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
       toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setIsLoading(false);
@@ -121,41 +113,9 @@ export default function AdminLineAccountsPage() {
     fetchPublicBaseUrl();
   }, [fetchData]);
 
-  const canPerformAction = (accountId: string): boolean => {
-    if (processingIdsRef.current.has(accountId)) {
-      toast.error('รายการนี้กำลังดำเนินการอยู่');
-      return false;
-    }
-    return true;
-  };
-
-  const resetForm = () => {
-    setFormData({
-      accountName: '',
-      channelId: '',
-      channelSecret: '',
-      accessToken: '',
-      description: '',
-      ownerId: '',
-    });
-  };
-
   const handleAddAccount = async () => {
-    // Validation
-    if (!formData.accountName.trim()) {
-      toast.error('กรุณากรอกชื่อบัญชี');
-      return;
-    }
-    if (!formData.channelId.trim()) {
-      toast.error('กรุณากรอก Channel ID');
-      return;
-    }
-    if (!formData.channelSecret.trim()) {
-      toast.error('กรุณากรอก Channel Secret');
-      return;
-    }
-    if (!formData.accessToken.trim()) {
-      toast.error('กรุณากรอก Access Token');
+    if (!formData.accountName || !formData.channelId || !formData.channelSecret || !formData.accessToken) {
+      toast.error('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
       return;
     }
 
@@ -165,16 +125,12 @@ export default function AdminLineAccountsPage() {
         ...formData,
         ownerId: formData.ownerId || undefined,
       });
-      toast.success('เพิ่มบัญชี LINE สำเร็จ', {
-        duration: 4000,
-        icon: '✅',
-      });
+      toast.success('Provisioned successfully');
       setShowAddModal(false);
-      resetForm();
+      setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' });
       fetchData();
     } catch (error: any) {
-      const message = error.response?.data?.message || 'ไม่สามารถเพิ่มบัญชีได้';
-      toast.error(message);
+      toast.error(error.response?.data?.message || 'Failed to establish node');
     } finally {
       setIsProcessing(false);
     }
@@ -182,26 +138,14 @@ export default function AdminLineAccountsPage() {
 
   const handleEditAccount = async () => {
     if (!selectedAccount) return;
-
-    // Validation
-    if (!formData.accountName.trim()) {
-      toast.error('กรุณากรอกชื่อบัญชี');
-      return;
-    }
-
     setIsProcessing(true);
     try {
       await lineAccountsApi.update(selectedAccount._id, formData);
-      toast.success('อัปเดตบัญชีสำเร็จ', {
-        duration: 4000,
-        icon: '✅',
-      });
+      toast.success('Account configuration updated');
       setShowEditModal(false);
-      resetForm();
       fetchData();
     } catch (error: any) {
-      const message = error.response?.data?.message || 'ไม่สามารถอัปเดตบัญชีได้';
-      toast.error(message);
+      toast.error('Failed to apply changes');
     } finally {
       setIsProcessing(false);
     }
@@ -223,7 +167,6 @@ export default function AdminLineAccountsPage() {
   const openSettingsModal = (account: ExtendedLineAccount) => {
     setSelectedAccount(account);
     const s = account.settings || {};
-    // Convert boolean/null to string for frontend select
     const boolToString = (val: boolean | null | undefined): string => {
       if (val === null || val === undefined) return 'default';
       return val ? 'true' : 'false';
@@ -254,7 +197,6 @@ export default function AdminLineAccountsPage() {
     if (!selectedAccount) return;
     setIsProcessing(true);
     try {
-      // Convert string values back to boolean/null for backend
       const stringToBool = (val: string): boolean | null => {
         if (val === 'default') return null;
         return val === 'true';
@@ -266,73 +208,54 @@ export default function AdminLineAccountsPage() {
         sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
       };
       await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
-      toast.success('บันทึกการตั้งค่าสำเร็จ', { icon: '✅' });
+      toast.success('Neuro-logic parameters synchronized');
       setShowSettingsModal(false);
       fetchData();
     } catch (error) {
-      toast.error('ไม่สามารถบันทึกได้');
+      toast.error('Sync failed');
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!selectedAccount || !canPerformAction(selectedAccount._id)) return;
-
-    processingIdsRef.current.add(selectedAccount._id);
+    if (!selectedAccount) return;
     setIsProcessing(true);
-
     try {
       await lineAccountsApi.delete(selectedAccount._id);
-      toast.success('ลบบัญชีสำเร็จ', {
-        duration: 4000,
-        icon: '🗑️',
-      });
+      toast.success('Account purged from registry');
       setShowDeleteConfirm(false);
       setShowDetailModal(false);
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'ไม่สามารถลบบัญชีได้');
+      toast.error('Deletion operation failed');
     } finally {
       setIsProcessing(false);
-      processingIdsRef.current.delete(selectedAccount._id);
     }
   };
 
-  const handleToggleActive = async (account: ExtendedLineAccount, skipConfirm = false) => {
-    if (!canPerformAction(account._id)) return;
-
-    // ถ้าจะปิดใช้งาน ให้แสดง confirm ก่อน
-    if (account.isActive && !skipConfirm) {
+  const handleToggleActive = async (account: ExtendedLineAccount) => {
+    if (account.isActive && !showDisableConfirm) {
       setSelectedAccount(account);
       setShowDisableConfirm(true);
       return;
     }
 
-    processingIdsRef.current.add(account._id);
-    
     try {
       await lineAccountsApi.update(account._id, { isActive: !account.isActive });
-      toast.success(account.isActive ? 'ปิดใช้งานบัญชีแล้ว' : 'เปิดใช้งานบัญชีแล้ว', {
-        icon: account.isActive ? '🔴' : '🟢',
-      });
+      toast.success(account.isActive ? 'Node offline' : 'Node online');
       setShowDisableConfirm(false);
       fetchData();
     } catch (error) {
-      toast.error('ไม่สามารถเปลี่ยนสถานะได้');
-    } finally {
-      processingIdsRef.current.delete(account._id);
+      toast.error('State transition failed');
     }
   };
 
   const copyWebhookUrl = (channelId: string) => {
     const webhookUrl = getWebhookUrl(channelId);
-    if (!webhookUrl) {
-      toast.error('ไม่พบข้อมูล Webhook URL');
-      return;
-    }
+    if (!webhookUrl) return;
     navigator.clipboard.writeText(webhookUrl);
-    toast.success('คัดลอก Webhook URL แล้ว');
+    toast.success('Webhook URL sequence copied');
   };
 
   const filteredAccounts = accounts.filter(acc =>
@@ -343,256 +266,133 @@ export default function AdminLineAccountsPage() {
 
   const totalMessages = accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0);
   const totalSlips = accounts.reduce((sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0), 0);
-  const activeAccounts = accounts.filter(acc => acc.isActive).length;
-
-  if (isLoading) {
-    return (
-      <DashboardLayout requiredRole="admin">
-        <PageLoading message="กำลังโหลดข้อมูลบัญชี LINE..." />
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 animate-fade-in">
-        {/* Header */}
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">บัญชี LINE ทั้งหมด</h1>
-            <p className="page-subtitle">ดูและจัดการบัญชี LINE OA ในระบบ</p>
+      <div className="space-y-12 animate-fade max-w-[1700px] mx-auto pb-12">
+
+        {/* Superior Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">LINE Integration Matrix</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">Multi-Node</Badge>
+            </div>
+            <p className="text-slate-500 font-medium text-lg">Manage organizational LINE Official Accounts, AI relay nodes, and webhook gateways.</p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => {
-              resetForm();
-              setShowAddModal(true);
-            }}
-            leftIcon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            }
-          >
-            เพิ่มบัญชี LINE
+          <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}>
+            + Provision New Node
           </Button>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between animate-slide-up">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-red-700 font-medium">{error}</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => { setIsLoading(true); fetchData(); }}>
-              ลองใหม่
-            </Button>
-          </div>
-        )}
-
-        {/* Stats Grid */}
-        <div className="grid-stats">
-          <StatCard
-            title="บัญชีทั้งหมด"
-            value={accounts.length.toString()}
-            color="blue"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            }
-          />
-          <StatCard
-            title="ใช้งานอยู่"
-            value={activeAccounts.toString()}
-            color="green"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
-          <StatCard
-            title="ข้อความทั้งหมด"
-            value={totalMessages.toLocaleString()}
-            color="purple"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            }
-          />
-          <StatCard
-            title="สลิปที่ตรวจสอบ"
-            value={totalSlips.toLocaleString()}
-            color="yellow"
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            }
-          />
+        {/* Global Network Analytics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard title="Established Nodes" value={accounts.length} icon="📡" color="indigo" variant="glass" />
+          <StatCard title="Active Transmissions" value={accounts.filter(a => a.isActive).length} icon="🟢" color="emerald" variant="glass" />
+          <StatCard title="Total Data Flux" value={totalMessages.toLocaleString()} icon="💬" color="purple" variant="glass" />
+          <StatCard title="Verified Assets" value={totalSlips.toLocaleString()} icon="📜" color="amber" variant="glass" />
         </div>
 
-        {/* Search */}
-        <Card className="p-4">
+        {/* Search & Filter Interface */}
+        <Card className="p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-3xl">
           <Input
-            placeholder="ค้นหาบัญชี LINE..."
+            placeholder="Search Node Registry by Profile or Signature..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            }
+            className="bg-transparent border-none shadow-none text-lg font-medium placeholder:text-slate-300"
           />
         </Card>
 
-        {/* Accounts Table */}
-        <Card className="overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
+        {/* Integration Registry Table */}
+        <Card className="overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
+          <div className="overflow-x-auto overflow-y-visible">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ชื่อบัญชี</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">เจ้าของ</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Channel ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">สถิติ</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ฟีเจอร์</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">สถานะ</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">จัดการ</th>
+                <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Node Profile</th>
+                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Governance</th>
+                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Protocol Stats</th>
+                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Signal Features</th>
+                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Operational State</th>
+                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Logic Control</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredAccounts.length === 0 ? (
+              <tbody className="divide-y divide-slate-50">
+                {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12">
-                      <EmptyState
-                        icon={
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                        }
-                        title={searchTerm ? 'ไม่พบบัญชีที่ค้นหา' : 'ยังไม่มีบัญชี LINE'}
-                        description={searchTerm ? 'ลองค้นหาด้วยคำอื่น' : 'เพิ่มบัญชี LINE เพื่อเริ่มต้นใช้งาน'}
-                        action={
-                          !searchTerm && (
-                            <Button variant="primary" onClick={() => setShowAddModal(true)}>
-                              เพิ่มบัญชี LINE
-                            </Button>
-                          )
-                        }
-                      />
+                    <td colSpan={6} className="px-10 py-32">
+                      <PageLoading transparent message="Scanning network synchronization..." />
+                    </td>
+                  </tr>
+                ) : filteredAccounts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-10 py-32 text-center">
+                      <div className="flex flex-col items-center gap-6 opacity-30">
+                        <div className="text-7xl">🕳️</div>
+                        <p className="text-sm font-black uppercase tracking-[0.4em]">Registry is Void</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filteredAccounts.map((account) => (
-                    <tr key={account._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
+                    <motion.tr
+                      key={account._id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="group hover:bg-slate-50/80 transition-all duration-300"
+                    >
+                      <td className="px-10 py-8">
+                        <div className="flex items-center gap-6">
+                          <div className="w-16 h-16 rounded-3xl bg-slate-900 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{account.accountName}</p>
-                            <p className="text-sm text-gray-500">{account.description || '-'}</p>
+                            <p className="font-black text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg mb-0.5">{account.accountName}</p>
+                            <p className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg w-fit">ID: {account.channelId}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-gray-900">{account.owner?.username || 'Admin'}</p>
-                        <p className="text-sm text-gray-500">{account.owner?.email || '-'}</p>
+                      <td className="px-10 py-8">
+                        <p className="font-extrabold text-slate-700 uppercase tracking-tight text-sm mb-1">{account.owner?.username || 'SYSTEM_MASTER'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 lowercase italic">{account.owner?.email || 'root@core.net'}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        <code className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">{account.channelId}</code>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm space-y-1">
-                          <p className="flex items-center gap-1">
-                            <span className="text-gray-500">💬</span>
-                            <span className="font-medium">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
-                            <span className="text-gray-400">ข้อความ</span>
-                          </p>
-                          <p className="flex items-center gap-1">
-                            <span className="text-gray-500">🧾</span>
-                            <span className="font-medium">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
-                            <span className="text-gray-400">สลิป</span>
-                          </p>
+                      <td className="px-10 py-8">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-900">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Flux</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-900">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assets</span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {account.settings?.enableBot && (
-                            <Badge variant="info" size="sm">🤖 บอท</Badge>
-                          )}
-                          {account.settings?.enableSlipVerification && (
-                            <Badge variant="success" size="sm">🧾 สลิป</Badge>
-                          )}
-                          {account.settings?.enableAi && (
-                            <Badge variant="secondary" size="sm">🧠 AI</Badge>
-                          )}
+                      <td className="px-10 py-8">
+                        <div className="flex flex-wrap gap-2 max-w-[150px]">
+                          {account.settings?.enableBot && <Badge variant="emerald" className="rounded-lg text-[9px] px-1.5 py-0 font-black">BOT</Badge>}
+                          {account.settings?.enableSlipVerification && <Badge variant="indigo" className="rounded-lg text-[9px] px-1.5 py-0 font-black">SLIP</Badge>}
+                          {account.settings?.enableAi && <Badge variant="purple" className="rounded-lg text-[9px] px-1.5 py-0 font-black">AI</Badge>}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <Badge variant={account.isActive ? 'success' : 'secondary'}>
-                          {account.isActive ? '🟢 ใช้งาน' : '🔴 ปิด'}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedAccount(account);
-                              setShowDetailModal(true);
-                            }}
-                          >
-                            ดู
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => openSettingsModal(account)}
-                          >
-                            ตั้งค่า
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditModal(account)}
-                          >
-                            แก้ไข
-                          </Button>
-                          <Button
-                            variant={account.isActive ? 'warning' : 'success'}
-                            size="sm"
-                            onClick={() => handleToggleActive(account)}
-                            disabled={processingIdsRef.current.has(account._id)}
-                          >
-                            {account.isActive ? 'ปิด' : 'เปิด'}
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedAccount(account);
-                              setShowDeleteConfirm(true);
-                            }}
-                            disabled={processingIdsRef.current.has(account._id)}
-                          >
-                            ลบ
-                          </Button>
+                      <td className="px-10 py-8">
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn("w-3 h-3 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
+                          <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-600" : "text-slate-400")}>
+                            {account.isActive ? 'established' : 'decoupled'}
+                          </span>
                         </div>
                       </td>
-                    </tr>
+                      <td className="px-10 py-8 text-right">
+                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          <IconButton variant="glass" size="sm" className="rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="View Matrix"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-emerald-500" onClick={() => openSettingsModal(account)} title="Logic Config"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-blue-500" onClick={() => openEditModal(account)} title="Identity Overhaul"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
+                          <IconButton variant="glass" size="sm" className={cn("rounded-xl", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'Decouple Node' : 'Initialize Link'}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.122a5 5 0 010-7.072m7.072 0a5 5 0 010 7.072M13 12a1 1 0 11-2 0 1 1 0 012 0z" /></svg></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="Purge Node"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
+                        </div>
+                      </td>
+                    </motion.tr>
                   ))
                 )}
               </tbody>
@@ -601,503 +401,175 @@ export default function AdminLineAccountsPage() {
         </Card>
       </div>
 
-      {/* Add Account Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => !isProcessing && setShowAddModal(false)}
-        title="เพิ่มบัญชี LINE OA"
-        size="lg"
-      >
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <p className="text-sm text-blue-700">
-              <strong>💡 วิธีรับข้อมูล:</strong> ไปที่ LINE Developers Console → เลือก Channel → ดูข้อมูล Channel ID, Channel Secret และ Access Token
-            </p>
-          </div>
-
-          <Input
-            label="ชื่อบัญชี *"
-            placeholder="เช่น ร้านค้า ABC"
-            value={formData.accountName}
-            onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-            disabled={isProcessing}
-          />
-
-          <Input
-            label="Channel ID *"
-            placeholder="เช่น 1234567890"
-            value={formData.channelId}
-            onChange={(e) => setFormData({ ...formData, channelId: e.target.value })}
-            disabled={isProcessing}
-          />
-
-          <Input
-            label="Channel Secret *"
-            placeholder="Channel Secret จาก LINE Developers"
-            value={formData.channelSecret}
-            onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })}
-            type="password"
-            disabled={isProcessing}
-          />
-
-          <Input
-            label="Access Token *"
-            placeholder="Channel Access Token จาก LINE Developers"
-            value={formData.accessToken}
-            onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
-            type="password"
-            disabled={isProcessing}
-          />
-
-          <Textarea
-            label="คำอธิบาย"
-            placeholder="คำอธิบายเพิ่มเติม (ไม่บังคับ)"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            rows={2}
-            disabled={isProcessing}
-          />
-
-          <Select
-            label="เจ้าของบัญชี"
-            value={formData.ownerId}
-            onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}
-            disabled={isProcessing}
-          >
-            <option value="">-- Admin (ไม่ระบุเจ้าของ) --</option>
-            {users.filter(u => u.role === 'user').map((user) => (
-              <option key={user._id} value={user._id}>
-                {user.username} ({user.email})
-              </option>
-            ))}
-          </Select>
-
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => setShowAddModal(false)}
-              disabled={isProcessing}
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handleAddAccount}
-              isLoading={isProcessing}
-              loadingText="กำลังเพิ่ม..."
-            >
-              เพิ่มบัญชี
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Edit Account Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => !isProcessing && setShowEditModal(false)}
-        title="แก้ไขบัญชี LINE OA"
-        size="lg"
-      >
-        <div className="space-y-4">
-          <Input
-            label="ชื่อบัญชี *"
-            placeholder="เช่น ร้านค้า ABC"
-            value={formData.accountName}
-            onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-            disabled={isProcessing}
-          />
-
-          <Input
-            label="Channel ID"
-            value={formData.channelId}
-            disabled
-            hint="Channel ID ไม่สามารถแก้ไขได้"
-          />
-
-          <Input
-            label="Channel Secret"
-            placeholder="Channel Secret จาก LINE Developers"
-            value={formData.channelSecret}
-            onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })}
-            type="password"
-            disabled={isProcessing}
-            hint="ปล่อยว่างถ้าไม่ต้องการเปลี่ยน"
-          />
-
-          <Input
-            label="Access Token"
-            placeholder="Channel Access Token จาก LINE Developers"
-            value={formData.accessToken}
-            onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
-            type="password"
-            disabled={isProcessing}
-            hint="ปล่อยว่างถ้าไม่ต้องการเปลี่ยน"
-          />
-
-          <Textarea
-            label="คำอธิบาย"
-            placeholder="คำอธิบายเพิ่มเติม (ไม่บังคับ)"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            rows={2}
-            disabled={isProcessing}
-          />
-
-          <Select
-            label="เจ้าของบัญชี"
-            value={formData.ownerId}
-            onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}
-            disabled={isProcessing}
-          >
-            <option value="">-- Admin (ไม่ระบุเจ้าของ) --</option>
-            {users.filter(u => u.role === 'user').map((user) => (
-              <option key={user._id} value={user._id}>
-                {user.username} ({user.email})
-              </option>
-            ))}
-          </Select>
-
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => setShowEditModal(false)}
-              disabled={isProcessing}
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handleEditAccount}
-              isLoading={isProcessing}
-              loadingText="กำลังบันทึก..."
-            >
-              บันทึก
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Settings Modal */}
-      <Modal
-        isOpen={showSettingsModal}
-        onClose={() => !isProcessing && setShowSettingsModal(false)}
-        title={`ตั้งค่าบัญชี: ${selectedAccount?.accountName}`}
-        size="xl"
-      >
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-          {/* Basic Settings */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900 border-b pb-2">ฟีเจอร์หลัก</h3>
-            
-            <Switch
-              checked={settingsData.enableBot}
-              onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })}
-              label="🤖 เปิดใช้งานบอท"
-              description="เปิดให้บอทตอบกลับข้อความอัตโนมัติ"
-            />
-
-            <Switch
-              checked={settingsData.enableSlipVerification}
-              onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })}
-              label="🧾 เปิดใช้งานตรวจสอบสลิป"
-              description="เปิดให้ระบบตรวจสอบสลิปโอนเงินอัตโนมัติ"
-            />
-
-            <Switch
-              checked={settingsData.enableAi}
-              onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })}
-              label="🧠 เปิดใช้งาน AI ตอบกลับ"
-              description="เปิดให้ AI ตอบกลับข้อความที่ไม่ใช่สลิป"
-            />
-          </div>
-
-          {/* AI Settings */}
-          {settingsData.enableAi && (
+      {/* Provision Node Modal */}
+      <Modal isOpen={showAddModal} onClose={() => !isProcessing && setShowAddModal(false)} title="Provision New Integration Node" size="lg">
+        <div className="space-y-6 pt-2">
+          <div className="p-5 bg-slate-900 text-white rounded-[2rem] shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 text-3xl font-black italic uppercase">DOWNLINK</div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-emerald-400">Security Clearance Required</p>
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900 border-b pb-2">ตั้งค่า AI</h3>
-              
-              <Textarea
-                label="System Prompt"
-                placeholder="คำสั่งสำหรับ AI เช่น คุณเป็นผู้ช่วยร้านค้า..."
-                value={settingsData.aiSystemPrompt}
-                onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
-                rows={4}
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Temperature: {settingsData.aiTemperature}
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={settingsData.aiTemperature}
-                  onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })}
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  ค่าต่ำ = ตอบแม่นยำ, ค่าสูง = ตอบหลากหลาย
-                </p>
+              <Input variant="glass" label="Logical Address (Account Name)" placeholder="Main Service Node" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+              <div className="grid grid-cols-2 gap-4">
+                <Input variant="glass" label="Channel Reference" placeholder="1234..." value={formData.channelId} onChange={(e) => setFormData({ ...formData, channelId: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                <Input variant="glass" type="password" label="Cryptographic Secret" placeholder="••••••••" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} className="bg-white/5 border-white/10 text-white" />
               </div>
-
-              <Input
-                label="ข้อความเมื่อ AI ไม่สามารถตอบได้"
-                value={settingsData.aiFallbackMessage}
-                onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
-              />
+              <Input variant="glass" type="password" label="Encrypted Access Token" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} className="bg-white/5 border-white/10 text-white" />
             </div>
-          )}
-
-          {/* Slip Settings */}
-          {settingsData.enableSlipVerification && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900 border-b pb-2">ตั้งค่าตรวจสอบสลิป</h3>
-              
-              <Input
-                label="ข้อความขณะตรวจสอบสลิป"
-                value={settingsData.slipImmediateMessage}
-                onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })}
-              />
-
-              <Input
-                label="ข้อความเมื่อตรวจสอบสำเร็จ (กำหนดเอง)"
-                placeholder="ปล่อยว่างเพื่อใช้ค่าเริ่มต้น"
-                value={settingsData.customSlipSuccessMessage}
-                onChange={(e) => setSettingsData({ ...settingsData, customSlipSuccessMessage: e.target.value })}
-              />
-
-              <Input
-                label="ข้อความเมื่อเกิดข้อผิดพลาด (กำหนดเอง)"
-                placeholder="ปล่อยว่างเพื่อใช้ค่าเริ่มต้น"
-                value={settingsData.customSlipErrorMessage}
-                onChange={(e) => setSettingsData({ ...settingsData, customSlipErrorMessage: e.target.value })}
-              />
-
-              <Input
-                label="ข้อความเมื่อสลิปซ้ำ (กำหนดเอง)"
-                placeholder="ปล่อยว่างเพื่อใช้ค่าเริ่มต้น"
-                value={settingsData.customDuplicateSlipMessage}
-                onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })}
-              />
-            </div>
-          )}
-
-          {/* Custom Messages */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900 border-b pb-2">ข้อความกำหนดเอง</h3>
-            
-            <Input
-              label="ข้อความเมื่อโควต้าหมด (กำหนดเอง)"
-              placeholder="ปล่อยว่างเพื่อใช้ค่าเริ่มต้น"
-              value={settingsData.customQuotaExceededMessage}
-              onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="ส่งข้อความเมื่อบอทปิด"
-                value={settingsData.sendMessageWhenBotDisabled}
-                onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenBotDisabled: e.target.value })}
-              >
-                <option value="default">ใช้ค่าเริ่มต้นของระบบ</option>
-                <option value="true">ส่งข้อความ</option>
-                <option value="false">ไม่ส่งข้อความ</option>
-              </Select>
-
-              <Select
-                label="ส่งข้อความเมื่อสลิปปิด"
-                value={settingsData.sendMessageWhenSlipDisabled}
-                onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenSlipDisabled: e.target.value })}
-              >
-                <option value="default">ใช้ค่าเริ่มต้นของระบบ</option>
-                <option value="true">ส่งข้อความ</option>
-                <option value="false">ไม่ส่งข้อความ</option>
-              </Select>
-            </div>
-
-            <Input
-              label="ข้อความเมื่อบอทปิด (กำหนดเอง)"
-              placeholder="ปล่อยว่างเพื่อใช้ค่าเริ่มต้น"
-              value={settingsData.customBotDisabledMessage}
-              onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })}
-            />
-
-            <Input
-              label="ข้อความเมื่อสลิปปิด (กำหนดเอง)"
-              placeholder="ปล่อยว่างเพื่อใช้ค่าเริ่มต้น"
-              value={settingsData.customSlipDisabledMessage}
-              onChange={(e) => setSettingsData({ ...settingsData, customSlipDisabledMessage: e.target.value })}
-            />
           </div>
 
-          <div className="flex gap-3 pt-4 border-t sticky bottom-0 bg-white">
-            <Button
-              variant="secondary"
-              fullWidth
-              onClick={() => setShowSettingsModal(false)}
-              disabled={isProcessing}
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handleSaveSettings}
-              isLoading={isProcessing}
-              loadingText="กำลังบันทึก..."
-            >
-              บันทึกการตั้งค่า
-            </Button>
+          <div className="grid grid-cols-2 gap-6">
+            <Select label="Governance Authority (Owner)" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
+              <option value="">SYSTEM MASTER (Admin Only)</option>
+              {users.filter(u => u.role === 'user').map((user) => (
+                <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
+              ))}
+            </Select>
+            <Input label="Metadata Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+          </div>
+
+          <div className="flex gap-4 pt-8 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowAddModal(false)} disabled={isProcessing}>Abort</Button>
+            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium h-14 rounded-2xl" onClick={handleAddAccount} isLoading={isProcessing}>Execute Provisioning</Button>
           </div>
         </div>
       </Modal>
 
-      {/* Detail Modal */}
-      <Modal
-        isOpen={showDetailModal}
-        onClose={() => setShowDetailModal(false)}
-        title="รายละเอียดบัญชี LINE"
-        size="lg"
-      >
-        {selectedAccount && (
+      {/* Identity Overhaul Modal */}
+      <Modal isOpen={showEditModal} onClose={() => !isProcessing && setShowEditModal(false)} title={`Reconfigure Node: ${selectedAccount?.accountName}`} size="lg">
+        <div className="space-y-6 pt-2">
+          <Input label="Revised Name" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} />
+          <div className="grid grid-cols-2 gap-6">
+            <Input label="Channel Secret (Hidden)" type="password" placeholder="Leave empty to retain existing secret" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} />
+            <Input label="Access Token (Hidden)" type="password" placeholder="Leave empty to retain existing token" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} />
+          </div>
+          <Select label="Reassign Governance" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
+            <option value="">SYSTEM MASTER</option>
+            {users.filter(u => u.role === 'user').map((user) => (
+              <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
+            ))}
+          </Select>
+          <Textarea label="Node Metadata" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
+
+          <div className="flex gap-4 pt-8 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)} disabled={isProcessing}>Cancel</Button>
+            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/10 shadow-lg h-14 rounded-2xl" onClick={handleEditAccount} isLoading={isProcessing}>Propagate Changes</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Logic Config Modal */}
+      <Modal isOpen={showSettingsModal} onClose={() => !isProcessing && setShowSettingsModal(false)} title={`Logic Configuration Matrix: ${selectedAccount?.accountName}`} size="xl">
+        <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
+
+          {/* feature switches */}
+          <div className="grid grid-cols-3 gap-6">
+            <Card className="p-6 bg-emerald-50/50 border-emerald-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl">🤖</div>
+              <div className="space-y-1">
+                <p className="font-black uppercase tracking-widest text-[10px]">Relay Bot</p>
+                <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
+              </div>
+            </Card>
+            <Card className="p-6 bg-indigo-50/50 border-indigo-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl">📜</div>
+              <div className="space-y-1">
+                <p className="font-black uppercase tracking-widest text-[10px]">Extraction</p>
+                <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
+              </div>
+            </Card>
+            <Card className="p-6 bg-purple-50/50 border-purple-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl">🧠</div>
+              <div className="space-y-1">
+                <p className="font-black uppercase tracking-widest text-[10px]">Cognitive AI</p>
+                <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
+              </div>
+            </Card>
+          </div>
+
+          {/* AI Neuro Parameters */}
+          <AnimatePresence>
+            {settingsData.enableAi && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6 p-8 bg-slate-900 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-5 text-5xl font-black italic">NEURO CORE</div>
+                <h3 className="text-xl font-black uppercase tracking-tighter mb-4 text-purple-400">Cognitive Parameters</h3>
+                <Textarea variant="glass" label="AI Behavioral System Prompt" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="Define the AI's persona and logic bounds..." rows={5} className="bg-white/5 border-white/10 text-white" />
+                <div className="grid grid-cols-2 gap-6">
+                  <Input variant="glass" type="number" step="0.1" min="0" max="1" label="Entropy Level (Temperature)" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white" />
+                  <Input variant="glass" label="Link Failure Message" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Protocol Message Overrides */}
           <div className="space-y-6">
-            {/* Account Info */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+            <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4">Downlink Message Overrides</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input label="Extraction Latency Notice" value={settingsData.slipImmediateMessage} onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })} />
+              <Input label="Resource Depletion Notice" value={settingsData.customQuotaExceededMessage} onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })} />
+              <Input label="Offline Relay Notice" value={settingsData.customBotDisabledMessage} onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })} />
+              <Input label="Duplicate Vector Notice" value={settingsData.customDuplicateSlipMessage} onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-10 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowSettingsModal(false)} disabled={isProcessing}>Discard</Button>
+            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase h-14 rounded-2xl shadow-emerald-500/20 shadow-premium" onClick={handleSaveSettings} isLoading={isProcessing}>Synchronize Logic</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Node Analysis Detail Modal */}
+      <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={`Matrix Diagnostics: ${selectedAccount?.accountName}`} size="xl">
+        {selectedAccount && (
+          <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Signal Parameters</p>
+                <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 space-y-4">
+                  <div><p className="text-[10px] font-black text-slate-300 uppercase mb-1">Downlink ID</p><p className="font-mono text-xs font-black text-slate-900 break-all">{selectedAccount.channelId}</p></div>
+                  <div><p className="text-[10px] font-black text-slate-300 uppercase mb-1">Security Hash (Secret)</p><p className="font-mono text-xs font-black text-slate-400">••••••••••••••••••••••••</p></div>
+                  <div><p className="text-[10px] font-black text-slate-300 uppercase mb-1">Account Description</p><p className="text-sm font-medium text-slate-600">{selectedAccount.description || 'N/A'}</p></div>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">{selectedAccount.accountName}</h3>
-                <p className="text-gray-500">{selectedAccount.description || 'ไม่มีคำอธิบาย'}</p>
-                <Badge variant={selectedAccount.isActive ? 'success' : 'secondary'} className="mt-2">
-                  {selectedAccount.isActive ? '🟢 ใช้งานอยู่' : '🔴 ปิดใช้งาน'}
-                </Badge>
+              <div className="space-y-6">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Webhook Endpoint</p>
+                <div className="p-8 h-full bg-slate-900 text-white rounded-[2.5rem] shadow-2xl flex flex-col justify-between">
+                  <p className="text-[10px] font-mono font-black text-emerald-400 lowercase mb-4 leading-relaxed break-all opacity-80">{getWebhookUrl(selectedAccount.channelId)}</p>
+                  <Button variant="primary" className="bg-white text-slate-900 h-10 px-4 text-[10px] font-black uppercase rounded-xl hover:bg-emerald-400 group" onClick={() => copyWebhookUrl(selectedAccount.channelId)}>
+                    Copy Link Sequence <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">Channel ID</p>
-                <code className="font-mono text-gray-900">{selectedAccount.channelId}</code>
+            <div className="grid grid-cols-3 gap-6">
+              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center shadow-premium-sm transition-transform hover:-translate-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Flux Volume</p>
+                <p className="text-4xl font-black text-slate-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">เจ้าของ</p>
-                <p className="font-semibold text-gray-900">{selectedAccount.owner?.username || 'Admin'}</p>
+              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center shadow-premium-sm transition-transform hover:-translate-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Asset Extraction</p>
+                <p className="text-4xl font-black text-emerald-600">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">ข้อความทั้งหมด</p>
-                <p className="font-semibold text-gray-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 mb-1">สลิปที่ตรวจสอบ</p>
-                <p className="font-semibold text-gray-900">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+              <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] text-center shadow-premium-sm transition-transform hover:-translate-y-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Error Clusters</p>
+                <p className="text-4xl font-black text-rose-500">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
               </div>
             </div>
 
-            {/* Features */}
-            <div>
-              <p className="text-sm text-gray-500 mb-2">ฟีเจอร์ที่เปิดใช้งาน</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant={selectedAccount.settings?.enableBot ? 'info' : 'secondary'}>
-                  {selectedAccount.settings?.enableBot ? '✅' : '❌'} บอทตอบกลับ
-                </Badge>
-                <Badge variant={selectedAccount.settings?.enableSlipVerification ? 'success' : 'secondary'}>
-                  {selectedAccount.settings?.enableSlipVerification ? '✅' : '❌'} ตรวจสอบสลิป
-                </Badge>
-                <Badge variant={selectedAccount.settings?.enableAi ? 'info' : 'secondary'}>
-                  {selectedAccount.settings?.enableAi ? '✅' : '❌'} AI ตอบกลับ
-                </Badge>
-              </div>
-            </div>
-
-            {/* Webhook URL */}
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-              <p className="text-sm text-yellow-600 mb-2">🔗 Webhook URL (ใช้ตั้งค่าใน LINE Developers)</p>
-              <div className="flex items-center gap-2">
-                <code className="text-sm text-yellow-800 break-all flex-1">
-                  {getWebhookUrl(selectedAccount.channelId)}
-                </code>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => copyWebhookUrl(selectedAccount.channelId)}
-                >
-                  คัดลอก
-                </Button>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t">
-              <Button
-                variant="secondary"
-                fullWidth
-                onClick={() => {
-                  setShowDetailModal(false);
-                  openSettingsModal(selectedAccount);
-                }}
-              >
-                ⚙️ ตั้งค่า
-              </Button>
-              <Button
-                variant={selectedAccount.isActive ? 'warning' : 'success'}
-                fullWidth
-                onClick={() => {
-                  handleToggleActive(selectedAccount);
-                }}
-              >
-                {selectedAccount.isActive ? '🔴 ปิดใช้งาน' : '🟢 เปิดใช้งาน'}
-              </Button>
-              <Button
-                variant="danger"
-                fullWidth
-                onClick={() => {
-                  setShowDetailModal(false);
-                  setShowDeleteConfirm(true);
-                }}
-              >
-                🗑️ ลบบัญชี
-              </Button>
+            <div className="flex gap-4 pt-10 border-t border-slate-100">
+              <Button variant="ghost" className="flex-1 font-bold text-slate-400" onClick={() => setShowDetailModal(false)}>Close Interface</Button>
+              <Button variant="secondary" className="flex-1 font-black uppercase" onClick={() => openEditModal(selectedAccount)}>Edit Identity</Button>
+              <Button variant="danger" className="flex-1 font-black uppercase" onClick={() => setShowDeleteConfirm(true)}>Purge Node</Button>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Delete Confirm Modal */}
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDelete}
-        title="⚠️ ยืนยันการลบบัญชี"
-        message={`คุณต้องการลบบัญชี "${selectedAccount?.accountName}" หรือไม่?\n\n⚠️ คำเตือน: การลบจะไม่สามารถกู้คืนได้ และข้อมูลทั้งหมดจะถูกลบออกจากระบบ รวมถึง:\n• ประวัติการแชท\n• ประวัติการตรวจสอบสลิป\n• การตั้งค่าทั้งหมด`}
-        confirmText="ยืนยันลบบัญชี"
-        cancelText="ยกเลิก"
-        type="danger"
-        isLoading={isProcessing}
-      />
+      <ConfirmModal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDelete} title="Purge Node Integrity" message="Warning: This operation will permanently decouple the LINE node from the central matrix. All synchronized settings will be lost. This is a level-5 destructive action." confirmText="Purge Registry" type="danger" isLoading={isProcessing} />
+      <ConfirmModal isOpen={showDisableConfirm} onClose={() => setShowDisableConfirm(false)} onConfirm={() => selectedAccount && handleToggleActive(selectedAccount)} title="Decouple Node Downlink" message="Confirm decoupling the selected node from the active signal relay. Transmission will cease until a new link is established." confirmText="Execute Decoupling" type="warning" isLoading={isProcessing} />
 
-      {/* Disable Confirm Modal */}
-      <ConfirmModal
-        isOpen={showDisableConfirm}
-        onClose={() => setShowDisableConfirm(false)}
-        onConfirm={() => selectedAccount && handleToggleActive(selectedAccount, true)}
-        title="⚠️ ยืนยันการปิดใช้งาน"
-        message={`คุณต้องการปิดใช้งานบัญชี "${selectedAccount?.accountName}" หรือไม่?\n\nเมื่อปิดใช้งาน:\n• บอทจะหยุดตอบกลับข้อความ\n• ระบบตรวจสอบสลิปจะหยุดทำงาน\n• ผู้ใช้จะไม่ได้รับการตอบกลับใดๆ`}
-        confirmText="ปิดใช้งาน"
-        cancelText="ยกเลิก"
-        type="warning"
-        isLoading={isProcessing}
-      />
     </DashboardLayout>
   );
 }
