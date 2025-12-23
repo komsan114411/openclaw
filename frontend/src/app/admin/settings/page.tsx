@@ -1,20 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { systemSettingsApi, slipApi, chatbotApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, StatCard } from '@/components/ui/Card';
+import { Button, IconButton } from '@/components/ui/Button';
+import { Input, TextArea, Select, Switch } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { PageLoading } from '@/components/ui/Loading';
+import { Modal } from '@/components/ui/Modal';
+import { cn } from '@/lib/utils';
+
+type TabType = 'infrastructure' | 'communication' | 'financials';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('infrastructure');
+
+  // Form States
   const [slipApiKey, setSlipApiKey] = useState('');
   const [aiApiKey, setAiApiKey] = useState('');
+  const [publicBaseUrl, setPublicBaseUrl] = useState('');
   const [testingSlip, setTestingSlip] = useState(false);
   const [testingAi, setTestingAi] = useState(false);
-  const [publicBaseUrl, setPublicBaseUrl] = useState('');
-  const [activeTab, setActiveTab] = useState<'api' | 'messages' | 'payment'>('api');
-  
+  const [isSaving, setIsSaving] = useState<string | null>(null);
+
   // Bank account form
   const [showBankModal, setShowBankModal] = useState(false);
   const [bankForm, setBankForm] = useState({
@@ -30,10 +43,10 @@ export default function SettingsPage() {
     usdtWalletAddress: '',
   });
 
-  // Configurable Messages
+  // Communication Settings
   const [messageSettings, setMessageSettings] = useState({
     quotaExceededMessage: '',
-    quotaExceededResponseType: 'text',
+    quotaExceededResponseType: 'text' as 'text' | 'flex',
     quotaWarningEnabled: true,
     quotaWarningThreshold: 10,
     quotaLowWarningMessage: '',
@@ -54,11 +67,7 @@ export default function SettingsPage() {
     retryDelayMs: 1000,
   });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const response = await systemSettingsApi.get();
       const data = response.data.settings || {};
@@ -93,98 +102,60 @@ export default function SettingsPage() {
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
+      toast.error('ไม่สามารถโหลดข้อมูลการตั้งค่าได้');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleSavePublicBaseUrl = async () => {
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const handleUpdate = async (section: string, payload: any) => {
+    setIsSaving(section);
     try {
-      const response = await systemSettingsApi.update({ publicBaseUrl });
+      const response = await systemSettingsApi.update(payload);
       if (response.data.success) {
-        toast.success('บันทึก URL เว็บสำเร็จ');
-        fetchSettings();
+        toast.success('บันทึกการตั้งค่าสำเร็จ');
+        await fetchSettings();
       } else {
         toast.error(response.data.message || 'บันทึกไม่สำเร็จ');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
-    }
-  };
-
-  const handleSaveSlipApi = async () => {
-    if (!slipApiKey) {
-      toast.error('กรุณากรอก API Key');
-      return;
-    }
-
-    try {
-      const response = await systemSettingsApi.update({ slipApiKey });
-      if (response.data.success) {
-        toast.success('บันทึก API Key สำเร็จ');
-        setSlipApiKey('');
-        fetchSettings();
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
-    }
-  };
-
-  const handleSaveAiApi = async () => {
-    if (!aiApiKey) {
-      toast.error('กรุณากรอก API Key');
-      return;
-    }
-
-    try {
-      const response = await systemSettingsApi.update({ aiApiKey });
-      if (response.data.success) {
-        toast.success('บันทึก API Key สำเร็จ');
-        setAiApiKey('');
-        fetchSettings();
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการบันทึก');
+    } finally {
+      setIsSaving(null);
     }
   };
 
   const handleTestSlipApi = async () => {
-    if (!slipApiKey && !settings?.slipApiKeyPreview) {
-      toast.error('กรุณากรอก API Key ก่อน');
-      return;
-    }
-
     setTestingSlip(true);
     try {
       const response = await slipApi.testConnection(slipApiKey || 'use-saved');
       if (response.data.success) {
-        toast.success(`เชื่อมต่อสำเร็จ! โควต้าเหลือ: ${response.data.remainingQuota || 'N/A'}`);
+        toast.success(`เชื่อมต่อสำเร็จ! โควต้าคงเหลือ: ${response.data.remainingQuota?.toLocaleString() || 'N/A'}`);
       } else {
-        toast.error(response.data.message || 'เชื่อมต่อไม่สำเร็จ');
+        toast.error(response.data.message || 'เชื่อมต่อกับ Thunder API ไม่สำเร็จ');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
     } finally {
       setTestingSlip(false);
     }
   };
 
   const handleTestAiApi = async () => {
-    if (!aiApiKey && !settings?.aiApiKeyPreview) {
-      toast.error('กรุณากรอก API Key ก่อน');
-      return;
-    }
-
     setTestingAi(true);
     try {
       const response = await chatbotApi.testConnection(aiApiKey || 'use-saved');
       if (response.data.success) {
-        toast.success('เชื่อมต่อ AI สำเร็จ!');
+        toast.success('เชื่อมต่อกับ OpenAI สำเร็จ!');
       } else {
-        toast.error(response.data.message || 'เชื่อมต่อไม่สำเร็จ');
+        toast.error(response.data.message || 'เชื่อมต่อกับ AI API ไม่สำเร็จ');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
     } finally {
       setTestingAi(false);
     }
@@ -192,10 +163,11 @@ export default function SettingsPage() {
 
   const handleAddBankAccount = async () => {
     if (!bankForm.bankName || !bankForm.accountNumber || !bankForm.accountName) {
-      toast.error('กรุณากรอกข้อมูลให้ครบ');
+      toast.error('กรุณากรอกข้อมูลบัญชีให้ครบถ้วน');
       return;
     }
 
+    setIsSaving('bank_add');
     try {
       const response = await systemSettingsApi.addBankAccount(bankForm);
       if (response.data.success) {
@@ -203,704 +175,614 @@ export default function SettingsPage() {
         setShowBankModal(false);
         setBankForm({ bankName: '', accountNumber: '', accountName: '' });
         fetchSettings();
-      } else {
-        toast.error(response.data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsSaving(null);
     }
   };
 
   const handleRemoveBankAccount = async (index: number) => {
-    if (!confirm('ต้องการลบบัญชีนี้?')) return;
-    
     try {
       const response = await systemSettingsApi.removeBankAccount(index);
       if (response.data.success) {
-        toast.success('ลบบัญชีสำเร็จ');
+        toast.success('ลบบัญชีธนาคารแล้ว');
         fetchSettings();
       }
     } catch (error) {
-      toast.error('เกิดข้อผิดพลาด');
-    }
-  };
-
-  const handleSaveUsdtSettings = async () => {
-    try {
-      const response = await systemSettingsApi.update(usdtSettings);
-      if (response.data.success) {
-        toast.success('บันทึกการตั้งค่า USDT สำเร็จ');
-        fetchSettings();
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
-    }
-  };
-
-  const handleSaveMessageSettings = async () => {
-    try {
-      const response = await systemSettingsApi.update(messageSettings);
-      if (response.data.success) {
-        toast.success('บันทึกการตั้งค่าข้อความสำเร็จ');
-        fetchSettings();
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error('เกิดข้อผิดพลาดในการลบ');
     }
   };
 
   if (isLoading) {
     return (
       <DashboardLayout requiredRole="admin">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="card">
-            <div className="h-40 bg-gray-200 rounded"></div>
-          </div>
-        </div>
+        <PageLoading />
       </DashboardLayout>
     );
   }
 
+  const tabs = [
+    { id: 'infrastructure', name: 'Core Infrastructure', icon: '⚡' },
+    { id: 'communication', name: 'Communication Strategy', icon: '💬' },
+    { id: 'financials', name: 'Financial Infrastructure', icon: '💳' },
+  ] as const;
+
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">ตั้งค่าระบบ</h1>
-          <p className="text-gray-500">ตั้งค่า API, ข้อความ และการชำระเงิน</p>
+      <div className="space-y-12 animate-fade max-w-[1400px] mx-auto pb-12">
+
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="space-y-1">
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">System Infrastructure</h1>
+            <p className="text-slate-500 font-medium text-lg">Manage mission-critical APIs, communication protocols, and financial gateways.</p>
+          </div>
+          <Badge variant="emerald" className="px-4 py-2 font-black text-sm uppercase tracking-widest shadow-emerald-100 shadow-lg">
+            Production Environment
+          </Badge>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+        {/* Tab Switcher */}
+        <div className="flex p-1.5 bg-slate-100/50 backdrop-blur-md rounded-[2rem] w-fit border border-slate-200/50">
+          {tabs.map((tab) => (
             <button
-              onClick={() => setActiveTab('api')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'api'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              🔑 API & URL
-            </button>
-            <button
-              onClick={() => setActiveTab('messages')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'messages'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              💬 ข้อความตอบกลับ
-            </button>
-            <button
-              onClick={() => setActiveTab('payment')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'payment'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              💳 การชำระเงิน
-            </button>
-          </nav>
-        </div>
-
-        {/* API & URL Tab */}
-        {activeTab === 'api' && (
-          <>
-        {/* Public URL Settings */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">URL ของเว็บ (สำหรับ Webhook)</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="label">Base URL (เช่น https://your-domain.com)</label>
-              <input
-                type="text"
-                value={publicBaseUrl}
-                onChange={(e) => setPublicBaseUrl(e.target.value)}
-                className="input font-mono"
-                placeholder="https://example.com"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                ระบบจะใช้ค่านี้เพื่อแสดง Webhook URL ให้เอาไปตั้งค่าใน LINE Developers
-              </p>
-            </div>
-            <button onClick={handleSavePublicBaseUrl} className="btn btn-primary">
-              บันทึก URL เว็บ
-            </button>
-          </div>
-        </div>
-
-        {/* Slip API Settings */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-100">
-                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="font-semibold text-gray-900">Thunder API (ตรวจสอบสลิป)</h2>
-                <p className="text-sm text-gray-500">API สำหรับตรวจสอบสลิปโอนเงิน</p>
-              </div>
-            </div>
-            <span className={`px-3 py-1 text-xs rounded-full font-medium ${settings?.slipApiKeyPreview ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {settings?.slipApiKeyPreview ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ได้ตั้งค่า'}
-            </span>
-          </div>
-          <div className="space-y-4">
-            {settings?.slipApiKeyPreview && (
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <label className="text-xs text-gray-500">API Key ปัจจุบัน</label>
-                <p className="text-gray-800 font-mono text-sm">{settings.slipApiKeyPreview}</p>
-              </div>
-            )}
-            <div>
-              <label className="label">API Key ใหม่</label>
-              <input
-                type="password"
-                value={slipApiKey}
-                onChange={(e) => setSlipApiKey(e.target.value)}
-                className="input"
-                placeholder="กรอก Thunder API Key"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                ขอ API Key ได้ที่{' '}
-                <a href="https://thunder.in.th" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                  thunder.in.th
-                </a>
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={handleSaveSlipApi} className="btn btn-primary">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                บันทึก
-              </button>
-              <button onClick={handleTestSlipApi} disabled={testingSlip} className="btn btn-secondary">
-                {testingSlip ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    กำลังทดสอบ...
-                  </span>
-                ) : 'ทดสอบการเชื่อมต่อ'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* AI API Settings */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="font-semibold text-gray-900">OpenAI API (AI Chatbot)</h2>
-                <p className="text-sm text-gray-500">API สำหรับระบบตอบแชทอัตโนมัติ</p>
-              </div>
-            </div>
-            <span className={`px-3 py-1 text-xs rounded-full font-medium ${settings?.aiApiKeyPreview ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {settings?.aiApiKeyPreview ? '✓ ตั้งค่าแล้ว' : '✗ ยังไม่ได้ตั้งค่า'}
-            </span>
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {settings?.aiApiKeyPreview && (
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <label className="text-xs text-gray-500">API Key ปัจจุบัน</label>
-                  <p className="text-gray-800 font-mono text-sm">{settings.aiApiKeyPreview}</p>
-                </div>
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as TabType)}
+              className={cn(
+                "relative px-8 py-3.5 rounded-3xl text-sm font-black transition-all duration-500 flex items-center gap-3",
+                activeTab === tab.id
+                  ? "text-slate-900"
+                  : "text-slate-400 hover:text-slate-600"
               )}
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <label className="text-xs text-blue-600">AI Model</label>
-                <p className="text-blue-800 font-medium">{settings?.aiModel || 'gpt-3.5-turbo'}</p>
-              </div>
-            </div>
-            <div>
-              <label className="label">API Key ใหม่</label>
-              <input
-                type="password"
-                value={aiApiKey}
-                onChange={(e) => setAiApiKey(e.target.value)}
-                className="input"
-                placeholder="กรอก OpenAI API Key (sk-...)"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                ขอ API Key ได้ที่{' '}
-                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                  platform.openai.com
-                </a>
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={handleSaveAiApi} className="btn btn-primary">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                บันทึก
-              </button>
-              <button onClick={handleTestAiApi} disabled={testingAi} className="btn btn-secondary">
-                {testingAi ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    กำลังทดสอบ...
-                  </span>
-                ) : 'ทดสอบการเชื่อมต่อ'}
-              </button>
-            </div>
-          </div>
+            >
+              {activeTab === tab.id && (
+                <motion.div
+                  layoutId="activeTabSlot"
+                  className="absolute inset-0 bg-white rounded-3xl shadow-premium-sm"
+                  transition={{ type: "spring", bounce: 0.25, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10">{tab.icon}</span>
+              <span className="relative z-10 uppercase tracking-widest">{tab.name}</span>
+            </button>
+          ))}
         </div>
-          </>
-        )}
 
-        {/* Messages Tab */}
-        {activeTab === 'messages' && (
-          <>
-            {/* Quota Messages */}
-            <div className="card">
-              <h2 className="font-semibold text-gray-900 mb-4">📊 ข้อความเกี่ยวกับโควต้า</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="label">ข้อความเมื่อโควต้าหมด</label>
-                  <textarea
-                    value={messageSettings.quotaExceededMessage}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededMessage: e.target.value })}
-                    className="input"
-                    rows={2}
-                    placeholder="⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว"
-                  />
-                </div>
-                <div>
-                  <label className="label">รูปแบบการตอบกลับโควต้าหมด</label>
-                  <select
-                    value={messageSettings.quotaExceededResponseType}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value })}
-                    className="input"
-                  >
-                    <option value="text">ข้อความธรรมดา</option>
-                    <option value="flex">Flex Message</option>
-                  </select>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-700">แจ้งเตือนเมื่อโควต้าใกล้หมด</p>
-                    <p className="text-sm text-gray-500">ส่งข้อความเตือนเมื่อโควต้าเหลือน้อย</p>
-                  </div>
-                  <button
-                    onClick={() => setMessageSettings({ ...messageSettings, quotaWarningEnabled: !messageSettings.quotaWarningEnabled })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${messageSettings.quotaWarningEnabled ? 'bg-primary-600' : 'bg-gray-200'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${messageSettings.quotaWarningEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                {messageSettings.quotaWarningEnabled && (
-                  <>
+        <div className="grid grid-cols-1 gap-10">
+          <AnimatePresence mode="wait">
+            {activeTab === 'infrastructure' && (
+              <motion.div
+                key="infrastructure"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
+              >
+                {/* Webhook Configuration */}
+                <Card className="p-10 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
+                  <div className="flex items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner">🌐</div>
                     <div>
-                      <label className="label">เตือนเมื่อโควต้าเหลือน้อยกว่า (สลิป)</label>
-                      <input
-                        type="number"
-                        value={messageSettings.quotaWarningThreshold}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaWarningThreshold: parseInt(e.target.value) || 10 })}
-                        className="input w-32"
-                        min={1}
-                        max={100}
+                      <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">External Interface</h2>
+                      <p className="text-slate-400 font-medium text-sm">Configure the public access points for webhook integrations.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+                    <div className="md:col-span-3">
+                      <Input
+                        label="Public Base URL"
+                        placeholder="https://api.yourdomain.com"
+                        value={publicBaseUrl}
+                        onChange={(e) => setPublicBaseUrl(e.target.value)}
+                        className="font-mono text-emerald-600 font-bold"
+                        hint="ใช้สำหรับสร้าง Webhook URL เพื่อรับข้อมูลจาก LINE API"
                       />
                     </div>
-                    <div>
-                      <label className="label">ข้อความเตือนโควต้าใกล้หมด</label>
-                      <input
-                        type="text"
-                        value={messageSettings.quotaLowWarningMessage}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaLowWarningMessage: e.target.value })}
-                        className="input"
-                        placeholder="⚠️ โควต้าเหลือน้อยกว่า {threshold} สลิป"
+                    <div className="flex items-end">
+                      <Button
+                        fullWidth
+                        size="lg"
+                        className="rounded-2xl h-14 font-black uppercase tracking-widest"
+                        onClick={() => handleUpdate('base_url', { publicBaseUrl })}
+                        isLoading={isSaving === 'base_url'}
+                      >
+                        Update Endpoint
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Thunder API */}
+                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-5">
+                        <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">⚡</div>
+                        <div>
+                          <h2 className="text-lg font-extrabold text-slate-900 uppercase tracking-tighter">Thunder Verification</h2>
+                          <p className="text-slate-400 font-medium text-xs">Slip verification engine</p>
+                        </div>
+                      </div>
+                      <Badge variant={settings?.slipApiKeyPreview ? "emerald" : "rose"} size="sm" className="font-black uppercase tracking-widest">
+                        {settings?.slipApiKeyPreview ? "Configured" : "Inactive"}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-6">
+                      <Input
+                        type="password"
+                        label="New API Access Key"
+                        placeholder="••••••••••••••••"
+                        value={slipApiKey}
+                        onChange={(e) => setSlipApiKey(e.target.value)}
                       />
-                      <p className="text-xs text-gray-500 mt-1">ใช้ {'{threshold}'} แทนจำนวนที่ตั้งไว้, {'{remaining}'} แทนจำนวนที่เหลือ</p>
+                      <div className="flex gap-4">
+                        <Button
+                          variant="primary"
+                          className="flex-1 rounded-2xl h-12 font-bold"
+                          onClick={() => handleUpdate('slip_api', { slipApiKey })}
+                          isLoading={isSaving === 'slip_api'}
+                        >
+                          Commit Key
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 rounded-2xl h-12 font-bold"
+                          onClick={handleTestSlipApi}
+                          isLoading={testingSlip}
+                        >
+                          Diagnostic Test
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium text-center italic">
+                        Access dashboard at <a href="https://thunder.in.th" target="_blank" className="text-indigo-500 font-black hover:underline">thunder.in.th</a>
+                      </p>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
+                  </Card>
 
-            {/* Feature Disabled Messages */}
-            <div className="card">
-              <h2 className="font-semibold text-gray-900 mb-4">🔴 ข้อความเมื่อฟีเจอร์ปิดใช้งาน</h2>
-              <div className="space-y-6">
-                {/* Bot Disabled */}
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="font-medium text-gray-700">ส่งข้อความเมื่อบอทปิด</p>
-                      <p className="text-sm text-gray-500">แจ้งผู้ใช้เมื่อบอทถูกปิดใช้งาน</p>
+                  {/* OpenAI API */}
+                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-5">
+                        <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">🤖</div>
+                        <div>
+                          <h2 className="text-lg font-extrabold text-slate-900 uppercase tracking-tighter">Cognitive Services</h2>
+                          <p className="text-slate-400 font-medium text-xs">OpenAI Large Language Models</p>
+                        </div>
+                      </div>
+                      <Badge variant={settings?.aiApiKeyPreview ? "emerald" : "rose"} size="sm" className="font-black uppercase tracking-widest">
+                        {settings?.aiApiKeyPreview ? "Connected" : "Not Linked"}
+                      </Badge>
                     </div>
-                    <button
-                      onClick={() => setMessageSettings({ ...messageSettings, botDisabledSendMessage: !messageSettings.botDisabledSendMessage })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${messageSettings.botDisabledSendMessage ? 'bg-primary-600' : 'bg-gray-200'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${messageSettings.botDisabledSendMessage ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  {messageSettings.botDisabledSendMessage && (
-                    <input
-                      type="text"
-                      value={messageSettings.botDisabledMessage}
-                      onChange={(e) => setMessageSettings({ ...messageSettings, botDisabledMessage: e.target.value })}
-                      className="input"
-                      placeholder="🔴 ระบบบอทปิดให้บริการชั่วคราว"
-                    />
-                  )}
-                </div>
 
-                {/* Slip Disabled */}
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="font-medium text-gray-700">ส่งข้อความเมื่อตรวจสลิปปิด</p>
-                      <p className="text-sm text-gray-500">แจ้งผู้ใช้เมื่อระบบตรวจสลิปถูกปิด</p>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 gap-4">
+                        <Input
+                          type="password"
+                          label="OpenAI Private Key"
+                          placeholder="sk-••••••••••••••••"
+                          value={aiApiKey}
+                          onChange={(e) => setAiApiKey(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex gap-4">
+                        <Button
+                          variant="primary"
+                          className="flex-1 rounded-2xl h-12 font-bold"
+                          onClick={() => handleUpdate('ai_api', { aiApiKey })}
+                          isLoading={isSaving === 'ai_api'}
+                        >
+                          Synchronize
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 rounded-2xl h-12 font-bold"
+                          onClick={handleTestAiApi}
+                          isLoading={testingAi}
+                        >
+                          Verify Logic
+                        </Button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setMessageSettings({ ...messageSettings, slipDisabledSendMessage: !messageSettings.slipDisabledSendMessage })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${messageSettings.slipDisabledSendMessage ? 'bg-primary-600' : 'bg-gray-200'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${messageSettings.slipDisabledSendMessage ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  {messageSettings.slipDisabledSendMessage && (
-                    <input
-                      type="text"
-                      value={messageSettings.slipDisabledMessage}
-                      onChange={(e) => setMessageSettings({ ...messageSettings, slipDisabledMessage: e.target.value })}
-                      className="input"
-                      placeholder="🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว"
-                    />
-                  )}
+                  </Card>
                 </div>
+              </motion.div>
+            )}
 
-                {/* AI Disabled */}
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="font-medium text-gray-700">ส่งข้อความเมื่อ AI ปิด</p>
-                      <p className="text-sm text-gray-500">แจ้งผู้ใช้เมื่อ AI ถูกปิดใช้งาน</p>
-                    </div>
-                    <button
-                      onClick={() => setMessageSettings({ ...messageSettings, aiDisabledSendMessage: !messageSettings.aiDisabledSendMessage })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${messageSettings.aiDisabledSendMessage ? 'bg-primary-600' : 'bg-gray-200'}`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${messageSettings.aiDisabledSendMessage ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  {messageSettings.aiDisabledSendMessage && (
-                    <input
-                      type="text"
-                      value={messageSettings.aiDisabledMessage}
-                      onChange={(e) => setMessageSettings({ ...messageSettings, aiDisabledMessage: e.target.value })}
-                      className="input"
-                      placeholder="🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Slip Verification Messages */}
-            <div className="card">
-              <h2 className="font-semibold text-gray-900 mb-4">📋 ข้อความตรวจสอบสลิป</h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-700">แสดงข้อความกำลังตรวจสอบ</p>
-                    <p className="text-sm text-gray-500">ส่งข้อความทันทีเมื่อได้รับสลิป</p>
-                  </div>
-                  <button
-                    onClick={() => setMessageSettings({ ...messageSettings, showSlipProcessingMessage: !messageSettings.showSlipProcessingMessage })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${messageSettings.showSlipProcessingMessage ? 'bg-primary-600' : 'bg-gray-200'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${messageSettings.showSlipProcessingMessage ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                <div>
-                  <label className="label">ข้อความกำลังตรวจสอบ</label>
-                  <input
-                    type="text"
-                    value={messageSettings.slipProcessingMessage}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, slipProcessingMessage: e.target.value })}
-                    className="input"
-                    placeholder="กำลังตรวจสอบสลิป กรุณารอสักครู่..."
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-700">คืนโควต้าเมื่อสลิปซ้ำ</p>
-                    <p className="text-sm text-gray-500">ไม่ตัดโควต้าเมื่อตรวจพบสลิปซ้ำ</p>
-                  </div>
-                  <button
-                    onClick={() => setMessageSettings({ ...messageSettings, duplicateRefundEnabled: !messageSettings.duplicateRefundEnabled })}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${messageSettings.duplicateRefundEnabled ? 'bg-primary-600' : 'bg-gray-200'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${messageSettings.duplicateRefundEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                <div>
-                  <label className="label">ข้อความสลิปซ้ำ</label>
-                  <input
-                    type="text"
-                    value={messageSettings.duplicateSlipMessage}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, duplicateSlipMessage: e.target.value })}
-                    className="input"
-                    placeholder="⚠️ สลิปนี้เคยถูกใช้แล้ว"
-                  />
-                </div>
-                <div>
-                  <label className="label">ข้อความเมื่อเกิดข้อผิดพลาด</label>
-                  <input
-                    type="text"
-                    value={messageSettings.slipErrorMessage}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, slipErrorMessage: e.target.value })}
-                    className="input"
-                    placeholder="❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป"
-                  />
-                </div>
-                <div>
-                  <label className="label">ข้อความดาวน์โหลดรูปไม่ได้</label>
-                  <input
-                    type="text"
-                    value={messageSettings.imageDownloadErrorMessage}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, imageDownloadErrorMessage: e.target.value })}
-                    className="input"
-                    placeholder="❌ ไม่สามารถดาวน์โหลดรูปภาพได้"
-                  />
-                </div>
-                <div>
-                  <label className="label">ข้อความรูปภาพไม่ถูกต้อง</label>
-                  <input
-                    type="text"
-                    value={messageSettings.invalidImageMessage}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, invalidImageMessage: e.target.value })}
-                    className="input"
-                    placeholder="❌ รูปภาพไม่ถูกต้องหรือไม่ใช่รูปสลิป"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* System Settings */}
-            <div className="card">
-              <h2 className="font-semibold text-gray-900 mb-4">⚙️ การตั้งค่าระบบ</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">จำนวนครั้งที่ลองใหม่เมื่อเกิดข้อผิดพลาด</label>
-                  <input
-                    type="number"
-                    value={messageSettings.maxRetryAttempts}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, maxRetryAttempts: parseInt(e.target.value) || 3 })}
-                    className="input w-32"
-                    min={1}
-                    max={10}
-                  />
-                </div>
-                <div>
-                  <label className="label">หน่วงเวลาก่อนลองใหม่ (มิลลิวินาที)</label>
-                  <input
-                    type="number"
-                    value={messageSettings.retryDelayMs}
-                    onChange={(e) => setMessageSettings({ ...messageSettings, retryDelayMs: parseInt(e.target.value) || 1000 })}
-                    className="input w-32"
-                    min={100}
-                    max={10000}
-                    step={100}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button onClick={handleSaveMessageSettings} className="btn btn-primary">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                บันทึกการตั้งค่าข้อความ
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Payment Tab */}
-        {activeTab === 'payment' && (
-          <>
-        {/* Bank Accounts */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">บัญชีธนาคารสำหรับรับชำระเงิน</h2>
-            <button onClick={() => setShowBankModal(true)} className="btn btn-primary text-sm">
-              + เพิ่มบัญชี
-            </button>
-          </div>
-          
-          {settings?.bankAccounts?.length > 0 ? (
-            <div className="space-y-3">
-              {settings.bankAccounts.map((account: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">{account.bankName}</p>
-                    <p className="text-sm text-gray-500">
-                      {account.accountNumber} - {account.accountName}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveBankAccount(index)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    ลบ
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500">ยังไม่มีบัญชีธนาคาร</p>
-          )}
-        </div>
-
-        {/* USDT Settings */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">การชำระเงินด้วย USDT</h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-700">เปิดใช้งาน USDT</p>
-                <p className="text-sm text-gray-500">อนุญาตให้ชำระเงินด้วย USDT</p>
-              </div>
-              <button
-                onClick={() => setUsdtSettings({ ...usdtSettings, usdtEnabled: !usdtSettings.usdtEnabled })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${usdtSettings.usdtEnabled ? 'bg-primary-600' : 'bg-gray-200'}`}
+            {activeTab === 'communication' && (
+              <motion.div
+                key="communication"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${usdtSettings.usdtEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            
-            <div>
-              <label className="label">Network</label>
-              <select
-                value={usdtSettings.usdtNetwork}
-                onChange={(e) => setUsdtSettings({ ...usdtSettings, usdtNetwork: e.target.value })}
-                className="input"
-              >
-                <option value="TRC20">TRC20 (Tron)</option>
-                <option value="ERC20">ERC20 (Ethereum)</option>
-                <option value="BEP20">BEP20 (BSC)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="label">Wallet Address</label>
-              <input
-                type="text"
-                value={usdtSettings.usdtWalletAddress}
-                onChange={(e) => setUsdtSettings({ ...usdtSettings, usdtWalletAddress: e.target.value })}
-                className="input font-mono"
-                placeholder="กรอก Wallet Address"
-              />
-            </div>
-            
-            <button onClick={handleSaveUsdtSettings} className="btn btn-primary">
-              บันทึกการตั้งค่า USDT
-            </button>
-          </div>
-        </div>
+                {/* Communication Policy Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                  <StatCard title="Auto-Retries" value={messageSettings.maxRetryAttempts} icon="🔄" color="blue" variant="glass" />
+                  <StatCard title="Retry Delay" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="slate" variant="glass" />
+                  <StatCard title="Quota Alert" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
+                </div>
 
-        {/* Contact Settings */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">ข้อมูลติดต่อ</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label">LINE ID</label>
-              <p className="text-gray-600">{settings?.contactAdminLine || '-'}</p>
-            </div>
-            <div>
-              <label className="label">Email</label>
-              <p className="text-gray-600">{settings?.contactAdminEmail || '-'}</p>
-            </div>
-          </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Quota & Operational Messages */}
+                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] space-y-8">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Resource Thresholds</h3>
+                      <p className="text-slate-400 text-sm font-medium">Messages sent when resources or quotas are impacted.</p>
+                    </div>
+
+                    <div className="space-y-6">
+                      <TextArea
+                        label="Quota Depleted Message"
+                        value={messageSettings.quotaExceededMessage}
+                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededMessage: e.target.value })}
+                        rows={2}
+                      />
+                      <Select
+                        label="Depletion Response Protocol"
+                        value={messageSettings.quotaExceededResponseType}
+                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value as any })}
+                      >
+                        <option value="text">Standard Plaintext</option>
+                        <option value="flex">Rich Flex Interface</option>
+                      </Select>
+
+                      <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-800">Critical Resource Alert</p>
+                          <p className="text-xs text-slate-400">Trigger warnings before exhaustion.</p>
+                        </div>
+                        <Switch
+                          checked={messageSettings.quotaWarningEnabled}
+                          onChange={() => setMessageSettings({ ...messageSettings, quotaWarningEnabled: !messageSettings.quotaWarningEnabled })}
+                        />
+                      </div>
+
+                      {messageSettings.quotaWarningEnabled && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="space-y-6 pt-2"
+                        >
+                          <Input
+                            type="number"
+                            label="Warning Threshold (Transaction Unit)"
+                            value={messageSettings.quotaWarningThreshold}
+                            onChange={(e) => setMessageSettings({ ...messageSettings, quotaWarningThreshold: parseInt(e.target.value) || 10 })}
+                          />
+                          <TextArea
+                            label="Warning Template"
+                            value={messageSettings.quotaLowWarningMessage}
+                            onChange={(e) => setMessageSettings({ ...messageSettings, quotaLowWarningMessage: e.target.value })}
+                            hint="Use {threshold} or {remaining} as variables."
+                          />
+                        </motion.div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Slip Verification Logic */}
+                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] space-y-8">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Audit Responses</h3>
+                      <p className="text-slate-400 text-sm font-medium">Real-time feedback during transaction auditing.</p>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="p-6 bg-emerald-50/30 rounded-3xl border border-emerald-100/50 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-800">Initialization Feedback</p>
+                          <p className="text-xs text-slate-400 italic">"กำลังตรวจสอบสลิป..."</p>
+                        </div>
+                        <Switch
+                          checked={messageSettings.showSlipProcessingMessage}
+                          onChange={() => setMessageSettings({ ...messageSettings, showSlipProcessingMessage: !messageSettings.showSlipProcessingMessage })}
+                        />
+                      </div>
+
+                      <Input
+                        label="Audit In-Progress"
+                        value={messageSettings.slipProcessingMessage}
+                        onChange={(e) => setMessageSettings({ ...messageSettings, slipProcessingMessage: e.target.value })}
+                        disabled={!messageSettings.showSlipProcessingMessage}
+                      />
+
+                      <div className="grid grid-cols-1 gap-6 pt-4 border-t border-slate-100/50">
+                        <TextArea
+                          label="Redundancy Detected (Duplicate Slip)"
+                          value={messageSettings.duplicateSlipMessage}
+                          onChange={(e) => setMessageSettings({ ...messageSettings, duplicateSlipMessage: e.target.value })}
+                          rows={2}
+                        />
+                        <div className="flex items-center justify-between px-2">
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Refund internal quota on redundancy?</p>
+                          <Switch
+                            checked={messageSettings.duplicateRefundEnabled}
+                            onChange={() => setMessageSettings({ ...messageSettings, duplicateRefundEnabled: !messageSettings.duplicateRefundEnabled })}
+                          />
+                        </div>
+                      </div>
+
+                      <TextArea
+                        label="General Audit Failure"
+                        value={messageSettings.slipErrorMessage}
+                        onChange={(e) => setMessageSettings({ ...messageSettings, slipErrorMessage: e.target.value })}
+                        rows={2}
+                      />
+                    </div>
+                  </Card>
+
+                  {/* Operational Status (Switches) */}
+                  <Card className="lg:col-span-2 p-10 bg-slate-900 text-white border-none shadow-2xl rounded-[3rem]">
+                    <div className="flex items-center gap-6 mb-10">
+                      <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">⚡</div>
+                      <div>
+                        <h2 className="text-2xl font-black uppercase tracking-tight">Protocol Resilience</h2>
+                        <p className="text-slate-400 font-medium text-sm">Fine-tune system retry logic and safety margins.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                      <div className="md:col-span-2 space-y-8">
+                        <div className="p-6 bg-white/5 rounded-3xl space-y-4">
+                          <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">Retry Architecture</p>
+                          <div className="grid grid-cols-2 gap-6">
+                            <Input
+                              type="number"
+                              label="Max Attempts"
+                              value={messageSettings.maxRetryAttempts}
+                              onChange={(e) => setMessageSettings({ ...messageSettings, maxRetryAttempts: parseInt(e.target.value) || 3 })}
+                              className="bg-white/5 border-white/10 text-white"
+                            />
+                            <Input
+                              type="number"
+                              label="Delay (ms)"
+                              value={messageSettings.retryDelayMs}
+                              onChange={(e) => setMessageSettings({ ...messageSettings, retryDelayMs: parseInt(e.target.value) || 1000 })}
+                              className="bg-white/5 border-white/10 text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-2 flex flex-col justify-between pt-2">
+                        <div className="space-y-4">
+                          <p className="text-xs font-black text-rose-400 uppercase tracking-[0.2em]">Automatic Notification Policies</p>
+                          <div className="space-y-3">
+                            {[
+                              { label: "Bot Outage Notification", key: "botDisabledSendMessage", msg: "botDisabledMessage" },
+                              { label: "Verification Outage Alert", key: "slipDisabledSendMessage", msg: "slipDisabledMessage" },
+                              { label: "AI Services Interruption", key: "aiDisabledSendMessage", msg: "aiDisabledMessage" }
+                            ].map((item) => (
+                              <div key={item.key} className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-bold">{item.label}</span>
+                                  <Switch
+                                    checked={(messageSettings as any)[item.key]}
+                                    onChange={() => setMessageSettings({ ...messageSettings, [item.key]: !(messageSettings as any)[item.key] })}
+                                  />
+                                </div>
+                                {(messageSettings as any)[item.key] && (
+                                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    <input
+                                      className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
+                                      value={(messageSettings as any)[item.msg]}
+                                      onChange={(e) => setMessageSettings({ ...messageSettings, [item.msg]: e.target.value })}
+                                    />
+                                  </motion.div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-12 pt-8 border-t border-white/5 flex justify-end">
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        className="px-10 h-16 rounded-2xl shadow-emerald-500/10 font-black tracking-widest uppercase"
+                        onClick={() => handleUpdate('messages', messageSettings)}
+                        isLoading={isSaving === 'messages'}
+                      >
+                        Store Deployment Config
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'financials' && (
+              <motion.div
+                key="financials"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-10"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  {/* Bank Gateways */}
+                  <Card className="p-10 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-10">
+                      <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl">🏦</div>
+                        <div>
+                          <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Settlement Banks</h2>
+                          <p className="text-slate-400 font-medium text-sm">Traditional fiat entry points.</p>
+                        </div>
+                      </div>
+                      <IconButton
+                        variant="primary"
+                        size="lg"
+                        className="rounded-2xl shadow-emerald-200 shadow-lg"
+                        onClick={() => setShowBankModal(true)}
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                      </IconButton>
+                    </div>
+
+                    <div className="flex-1 space-y-4">
+                      {settings?.bankAccounts?.length > 0 ? (
+                        settings.bankAccounts.map((account: any, index: number) => (
+                          <div key={index} className="group p-6 bg-slate-50/50 hover:bg-white rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
+                            <div className="flex items-center gap-5">
+                              <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-500 font-black text-xs uppercase">
+                                {account.bankName.slice(0, 2)}
+                              </div>
+                              <div>
+                                <p className="font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">{account.bankName}</p>
+                                <p className="text-xs text-slate-400 font-bold tracking-widest">{account.accountNumber} • {account.accountName}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveBankAccount(index)}
+                              className="p-2 text-rose-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2.5rem]">
+                          <p className="text-slate-300 font-black uppercase tracking-widest">No Bank Gateways Configured</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Digital Asset Gateways (USDT) */}
+                  <Card className="p-10 bg-slate-900 text-white border-none shadow-2xl rounded-[3rem]">
+                    <div className="flex items-center justify-between mb-10">
+                      <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-emerald-400/20 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-emerald-400/10">💎</div>
+                        <div>
+                          <h2 className="text-2xl font-black uppercase tracking-tight">USDT Liquidity</h2>
+                          <p className="text-slate-400 font-medium text-sm">Crypto settlement infrastructure.</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={usdtSettings.usdtEnabled}
+                        onChange={() => setUsdtSettings({ ...usdtSettings, usdtEnabled: !usdtSettings.usdtEnabled })}
+                      />
+                    </div>
+
+                    <div className="space-y-8">
+                      <Select
+                        label="Blockchain Protocol"
+                        value={usdtSettings.usdtNetwork}
+                        onChange={(e) => setUsdtSettings({ ...usdtSettings, usdtNetwork: e.target.value })}
+                        className="bg-white/5 border-white/10 text-white"
+                      >
+                        <option value="TRC20">TRC20 (Tron)</option>
+                        <option value="ERC20">ERC20 (Ethereum)</option>
+                        <option value="BEP20">BEP20 (BSC)</option>
+                      </Select>
+
+                      <Input
+                        label="Public Wallet Key"
+                        variant="glass"
+                        value={usdtSettings.usdtWalletAddress}
+                        onChange={(e) => setUsdtSettings({ ...usdtSettings, usdtWalletAddress: e.target.value })}
+                        className="bg-white/5 border-white/10 text-white font-mono"
+                        placeholder="T..."
+                      />
+
+                      <div className="pt-10 border-t border-white/5">
+                        <Button
+                          fullWidth
+                          variant="primary"
+                          size="lg"
+                          className="h-16 rounded-2xl font-black tracking-widest uppercase"
+                          onClick={() => handleUpdate('usdt', usdtSettings)}
+                          isLoading={isSaving === 'usdt'}
+                        >
+                          Configure Crypto Node
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* System Contacts */}
+                <Card className="p-8 bg-slate-50 border-none rounded-[2.5rem]">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Internal Support Metadata</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-1">
+                      <p className="text-sm font-black text-slate-900">ADMIN LINE ACCESS</p>
+                      <p className="text-2xl font-black text-indigo-500">@{settings?.contactAdminLine || 'Not Defined'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-black text-slate-900">PRIMARY CONTACT CHANNEL</p>
+                      <p className="text-2xl font-black text-slate-500 font-mono italic">{settings?.contactAdminEmail || 'Not Defined'}</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-          </>
-        )}
       </div>
 
-      {/* Add Bank Account Modal */}
-      {showBankModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">เพิ่มบัญชีธนาคาร</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="label">ชื่อธนาคาร</label>
-                <select
-                  value={bankForm.bankName}
-                  onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
-                  className="input"
-                >
-                  <option value="">เลือกธนาคาร</option>
-                  <option value="กสิกรไทย">ธนาคารกสิกรไทย</option>
-                  <option value="กรุงเทพ">ธนาคารกรุงเทพ</option>
-                  <option value="กรุงไทย">ธนาคารกรุงไทย</option>
-                  <option value="ไทยพาณิชย์">ธนาคารไทยพาณิชย์</option>
-                  <option value="กรุงศรี">ธนาคารกรุงศรีอยุธยา</option>
-                  <option value="ทหารไทยธนชาต">ธนาคารทหารไทยธนชาต</option>
-                  <option value="ออมสิน">ธนาคารออมสิน</option>
-                  <option value="ธ.ก.ส.">ธนาคาร ธ.ก.ส.</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">เลขบัญชี</label>
-                <input
-                  type="text"
-                  value={bankForm.accountNumber}
-                  onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
-                  className="input"
-                  placeholder="xxx-x-xxxxx-x"
-                />
-              </div>
-              <div>
-                <label className="label">ชื่อบัญชี</label>
-                <input
-                  type="text"
-                  value={bankForm.accountName}
-                  onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })}
-                  className="input"
-                  placeholder="ชื่อ-นามสกุล"
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowBankModal(false);
-                    setBankForm({ bankName: '', accountNumber: '', accountName: '' });
-                  }}
-                  className="btn btn-secondary flex-1"
-                >
-                  ยกเลิก
-                </button>
-                <button onClick={handleAddBankAccount} className="btn btn-primary flex-1">
-                  เพิ่มบัญชี
-                </button>
-              </div>
-            </div>
+      <Modal
+        isOpen={showBankModal}
+        onClose={() => !isSaving && setShowBankModal(false)}
+        title="Deploy New Bank Gateway"
+        size="md"
+      >
+        <div className="space-y-8 p-1">
+          <div className="space-y-6">
+            <Select
+              label="Institution Name"
+              value={bankForm.bankName}
+              onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+            >
+              <option value="">เลือกธนาคาร</option>
+              <option value="กสิกรไทย">ธนาคารกสิกรไทย</option>
+              <option value="กรุงเทพ">ธนาคารกรุงเทพ</option>
+              <option value="กรุงไทย">ธนาคารกรุงไทย</option>
+              <option value="ไทยพาณิชย์">ธนาคารไทยพาณิชย์</option>
+              <option value="กรุงศรี">ธนาคารกรุงศรีอยุธยา</option>
+              <option value="ทหารไทยธนชาต">ธนาคารทหารไทยธนชาต</option>
+              <option value="ออมสิน">ธนาคารออมสิน</option>
+              <option value="ธ.ก.ส.">ธนาคาร ธ.ก.ส.</option>
+            </Select>
+
+            <Input
+              label="Account Serial"
+              placeholder="xxx-x-xxxxx-x"
+              value={bankForm.accountNumber}
+              onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+            />
+
+            <Input
+              label="Legal Holder Name"
+              placeholder="ชื่อ-นามสกุล"
+              value={bankForm.accountName}
+              onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })}
+            />
+          </div>
+
+          <div className="flex gap-4 pt-6 border-t border-slate-100">
+            <Button variant="ghost" className="flex-1 h-14 font-bold text-slate-400" onClick={() => setShowBankModal(false)} disabled={isSaving !== null}>
+              Abort
+            </Button>
+            <Button
+              variant="primary"
+              className="flex-[2] h-14 font-black shadow-emerald-500/20 shadow-premium"
+              onClick={handleAddBankAccount}
+              isLoading={isSaving === 'bank_add'}
+            >
+              Provision Gateway
+            </Button>
           </div>
         </div>
-      )}
+      </Modal>
     </DashboardLayout>
   );
 }
