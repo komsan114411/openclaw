@@ -35,12 +35,18 @@ export interface SlipData {
   amountFormatted?: string;
   senderName?: string;
   senderBank?: string;
+  senderBankCode?: string;
+  senderAccount?: string;
   receiverName?: string;
   receiverBank?: string;
+  receiverBankCode?: string;
+  receiverAccount?: string;
   receiverAccountNumber?: string;
   date?: string;
   time?: string;
   transRef?: string;
+  senderBankLogoUrl?: string;
+  receiverBankLogoUrl?: string;
 }
 
 @Injectable()
@@ -455,65 +461,155 @@ export class SlipTemplatesService {
   }
 
   private generateDefaultFlexMessage(template: SlipTemplateDocument, data: SlipData): any {
+    const primaryColor = template.primaryColor || '#00C851';
     const contents: any[] = [];
 
-    // Header
+    // Header with success icon
     contents.push({
-      type: 'text',
-      text: template.headerText || '✅ ตรวจสอบสลิปสำเร็จ',
-      weight: 'bold',
-      size: 'lg',
-      color: template.primaryColor || '#00C851',
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '✓',
+              color: '#FFFFFF',
+              size: 'lg',
+              weight: 'bold',
+              align: 'center',
+            },
+          ],
+          width: '30px',
+          height: '30px',
+          backgroundColor: primaryColor,
+          cornerRadius: '15px',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        {
+          type: 'text',
+          text: template.headerText || 'สลิปถูกต้อง',
+          weight: 'bold',
+          size: 'lg',
+          color: primaryColor,
+          margin: 'md',
+          flex: 1,
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '✓',
+              color: '#FFFFFF',
+              size: 'xs',
+              align: 'center',
+            },
+          ],
+          width: '20px',
+          height: '20px',
+          backgroundColor: primaryColor,
+          cornerRadius: '10px',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+      ],
+      backgroundColor: '#E8F5E9',
+      paddingAll: '12px',
+      cornerRadius: '12px',
     });
 
-    contents.push({ type: 'separator', margin: 'md' });
-
-    // Info rows
-    const infoBox: any = {
-      type: 'box',
-      layout: 'vertical',
-      margin: 'md',
-      spacing: 'sm',
-      contents: [],
-    };
-
+    // Amount display (big and prominent)
     if (template.showAmount && data.amountFormatted) {
-      infoBox.contents.push(this.createInfoRow('จำนวนเงิน', data.amountFormatted));
-    }
-    if (template.showDate && data.date) {
-      infoBox.contents.push(this.createInfoRow('วันที่', data.date));
-    }
-    if (template.showTime && data.time) {
-      infoBox.contents.push(this.createInfoRow('เวลา', data.time));
-    }
-    if (template.showSender && data.senderName) {
-      infoBox.contents.push(this.createInfoRow('ผู้โอน', data.senderName));
-      if (data.senderBank) {
-        infoBox.contents.push(this.createInfoRow('ธนาคารผู้โอน', data.senderBank));
-      }
-    }
-    if (template.showReceiver && data.receiverName) {
-      infoBox.contents.push(this.createInfoRow('ผู้รับ', data.receiverName));
-      if (data.receiverBank) {
-        infoBox.contents.push(this.createInfoRow('ธนาคารผู้รับ', data.receiverBank));
-      }
-    }
-    if (template.showTransRef && data.transRef) {
-      infoBox.contents.push(this.createInfoRow('เลขอ้างอิง', data.transRef));
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: `฿${data.amountFormatted}`,
+            size: 'xxl',
+            weight: 'bold',
+            color: primaryColor,
+            align: 'center',
+          },
+          {
+            type: 'text',
+            text: data.date && data.time ? `${data.date}, ${data.time}` : (data.date || ''),
+            size: 'xs',
+            color: '#888888',
+            align: 'center',
+            margin: 'sm',
+          },
+        ],
+        margin: 'lg',
+        paddingAll: '10px',
+      });
     }
 
-    contents.push(infoBox);
+    // Sender info with bank logo
+    if (template.showSender && data.senderName) {
+      contents.push(this.createBankInfoBox(
+        'ผู้โอน',
+        data.senderName,
+        data.senderAccount || '',
+        data.senderBank || '',
+        data.senderBankLogoUrl,
+        template.showBankLogo,
+      ));
+    }
+
+    // Receiver info with bank logo
+    if (template.showReceiver && data.receiverName) {
+      contents.push(this.createBankInfoBox(
+        'ผู้รับ',
+        data.receiverName,
+        data.receiverAccount || '',
+        data.receiverBank || '',
+        data.receiverBankLogoUrl,
+        template.showBankLogo,
+      ));
+    }
+
+    // Transaction reference
+    if (template.showTransRef && data.transRef) {
+      contents.push({
+        type: 'box',
+        layout: 'horizontal',
+        contents: [
+          { type: 'text', text: 'เลขอ้างอิง:', size: 'xs', color: '#888888', flex: 2 },
+          { type: 'text', text: data.transRef, size: 'xs', color: '#333333', flex: 4, align: 'end' },
+        ],
+        margin: 'md',
+        paddingAll: '8px',
+        backgroundColor: '#F5F5F5',
+        cornerRadius: '8px',
+      });
+    }
 
     // Footer
     if (template.footerText) {
-      contents.push({ type: 'separator', margin: 'md' });
       contents.push({
-        type: 'text',
-        text: template.footerText,
-        size: 'xs',
-        color: '#888888',
-        margin: 'md',
-        wrap: true,
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: template.footerText,
+            size: 'xxs',
+            color: '#888888',
+            wrap: true,
+            align: 'center',
+          },
+        ],
+        margin: 'lg',
+        paddingAll: '10px',
+        backgroundColor: '#F0F0F0',
+        cornerRadius: '8px',
       });
     }
 
@@ -523,7 +619,86 @@ export class SlipTemplatesService {
         type: 'box',
         layout: 'vertical',
         contents,
+        paddingAll: '16px',
+        backgroundColor: '#FFFFFF',
       },
+    };
+  }
+
+  private createBankInfoBox(
+    label: string,
+    name: string,
+    account: string,
+    bankName: string,
+    logoUrl?: string,
+    showLogo?: boolean,
+  ): any {
+    const contents: any[] = [];
+
+    // Bank logo or placeholder
+    if (showLogo && logoUrl) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'xxs',
+            aspectMode: 'cover',
+            aspectRatio: '1:1',
+          },
+        ],
+        width: '40px',
+        height: '40px',
+        cornerRadius: '8px',
+        backgroundColor: '#F5F5F5',
+        justifyContent: 'center',
+        alignItems: 'center',
+      });
+    } else {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: bankName ? bankName.substring(0, 2) : '🏦',
+            size: 'sm',
+            color: '#666666',
+            align: 'center',
+          },
+        ],
+        width: '40px',
+        height: '40px',
+        cornerRadius: '8px',
+        backgroundColor: '#E8F5E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+      });
+    }
+
+    // Info text
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'text', text: label, size: 'xxs', color: '#888888' },
+        { type: 'text', text: name, size: 'sm', color: '#333333', weight: 'bold' },
+        { type: 'text', text: account || bankName || '', size: 'xs', color: '#666666' },
+      ],
+      flex: 1,
+      margin: 'md',
+    });
+
+    return {
+      type: 'box',
+      layout: 'horizontal',
+      contents,
+      margin: 'md',
+      paddingAll: '12px',
+      backgroundColor: '#FAFAFA',
+      cornerRadius: '12px',
     };
   }
 
