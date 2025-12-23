@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -28,7 +27,6 @@ interface Bank {
 }
 
 export default function BanksManagementPage() {
-  const router = useRouter();
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,7 +35,6 @@ export default function BanksManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // ป้องกันการกดซ้ำ
   const processingIdsRef = useRef<Set<string>>(new Set());
 
   const fetchBanks = useCallback(async () => {
@@ -141,19 +138,19 @@ export default function BanksManagementPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
+      <div className="space-y-8 animate-fade max-w-[1600px] mx-auto pb-10">
 
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Bank Management</h1>
-            <p className="text-slate-500 font-medium text-lg">จัดการรายชื่อธนาคารและโลโก้ในระบบ</p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">จัดการธนาคาร</h1>
+            <p className="text-slate-500 font-medium">จัดการรายชื่อธนาคารและโลโก้ในระบบ</p>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
-              className="bg-white/50 backdrop-blur-sm border-slate-200"
+              className="bg-white/50 backdrop-blur-sm border-slate-200 flex-1 md:flex-none"
               onClick={handleSyncFromThunder}
               isLoading={isSyncing}
               leftIcon={
@@ -162,13 +159,13 @@ export default function BanksManagementPage() {
                 </svg>
               }
             >
-              Sync Thunder API
+              Sync Thunder
             </Button>
             <Button
               size="lg"
               variant="primary"
               onClick={() => setShowCreateModal(true)}
-              className="shadow-emerald-200/50"
+              className="shadow-emerald-200/50 flex-1 md:flex-none"
             >
               + เพิ่มธนาคาร
             </Button>
@@ -176,7 +173,7 @@ export default function BanksManagementPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-4 md:gap-6">
           <StatCard
             title="ธนาคารทั้งหมด"
             value={stats.total}
@@ -224,7 +221,7 @@ export default function BanksManagementPage() {
                 </Button>
                 <div className="h-8 w-px bg-slate-200 mx-2 hidden sm:block" />
                 <Badge variant="indigo" className="px-4 py-1.5 font-bold uppercase tracking-widest text-[10px]">
-                  {filteredBanks.length} Banks Found
+                  {filteredBanks.length} Banks
                 </Badge>
               </div>
             </div>
@@ -244,75 +241,69 @@ export default function BanksManagementPage() {
               action={searchQuery ? <Button variant="outline" onClick={() => setSearchQuery('')}>ล้างการค้นหา</Button> : null}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
               {filteredBanks.map((bank) => (
                 <Card
                   key={bank._id}
                   className={cn(
-                    "group relative overflow-hidden transition-all duration-300 hover:shadow-premium border-none",
-                    !bank.isActive && "opacity-75 grayscale-[0.5]"
+                    "group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-none bg-white text-center",
+                    !bank.isActive && "opacity-60 grayscale"
                   )}
                   padding="none"
                 >
-                  <div
-                    className="h-2 w-full absolute top-0 left-0"
-                    style={{ backgroundColor: bank.color || '#6b7280' }}
-                  />
-
-                  <div className="p-6 pt-8">
-                    <div className="flex items-start justify-between mb-6">
-                      <div
-                        className="w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 group-hover:-rotate-3 overflow-hidden border-2 border-slate-50"
-                        style={{ backgroundColor: bank.color || '#6b7280' }}
-                      >
-                        {getBankLogo(bank) ? (
-                          <img
-                            src={getBankLogo(bank)!}
-                            alt={bank.name}
-                            className="w-12 h-12 object-contain"
-                          />
-                        ) : (
-                          <span className="text-white font-black text-xl">{bank.shortName?.substring(0, 2) || bank.code.substring(0, 2)}</span>
-                        )}
-                      </div>
-                      <StatusBadge status={bank.isActive ? 'active' : 'inactive'} />
+                  <div className="p-4 flex flex-col items-center">
+                    {/* Bank Logo */}
+                    <div
+                      className={cn(
+                        "w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 overflow-hidden border-2 border-white bg-slate-50",
+                        !getBankLogo(bank) && "bg-slate-100"
+                      )}
+                    >
+                      {getBankLogo(bank) ? (
+                        <img
+                          src={getBankLogo(bank)!}
+                          alt={bank.name}
+                          className="w-12 h-12 md:w-16 md:h-16 object-contain"
+                        />
+                      ) : (
+                        <span className="text-slate-400 font-black text-xl md:text-2xl">{bank.shortName?.substring(0, 2) || bank.code.substring(0, 2)}</span>
+                      )}
                     </div>
 
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-bold text-slate-900 truncate tracking-tight">{bank.name}</h3>
-                      <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{bank.nameEn || bank.shortName || 'Unknown Bank'}</p>
-                    </div>
+                    {/* Bank Name & Status */}
+                    <h3 className="mt-3 text-sm md:text-base font-bold text-slate-900 truncate w-full px-1">{bank.shortName || bank.code}</h3>
+                    <p className="text-[10px] md:text-xs text-slate-400 truncate w-full px-1">{bank.name}</p>
 
-                    <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-100">
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1 text-center">Bank Code</p>
-                        <p className="text-sm font-black text-slate-700 font-mono text-center">{bank.code}</p>
-                      </div>
-                      <div className="border-l border-slate-100 pl-4 flex flex-col items-center">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1 text-center font-bold">Theme Color</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bank.color }} />
-                          <span className="text-xs font-black text-slate-700 font-mono uppercase">{bank.color}</span>
-                        </div>
+                    {/* Status Badge */}
+                    <div className="mt-2">
+                      <div className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase",
+                        bank.isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"
+                      )}>
+                        <div className={cn("w-1.5 h-1.5 rounded-full", bank.isActive ? "bg-emerald-500" : "bg-slate-300")} />
+                        {bank.isActive ? 'ใช้งาน' : 'ปิด'}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-6">
+                    {/* Actions */}
+                    <div className="grid grid-cols-2 gap-2 mt-4 w-full">
                       <Button
                         variant="ghost"
+                        size="xs"
                         fullWidth
                         onClick={() => setEditingBank(bank)}
-                        className="font-bold text-slate-600 hover:bg-slate-50"
+                        className="font-bold text-slate-500 hover:bg-slate-50"
                       >
                         แก้ไข
                       </Button>
                       <Button
                         variant={bank.isActive ? "outline" : "primary"}
+                        size="xs"
                         fullWidth
                         onClick={() => handleToggleActive(bank)}
                         className={cn("font-bold", bank.isActive ? "text-rose-500 border-rose-100 hover:bg-rose-50" : "")}
                       >
-                        {bank.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                        {bank.isActive ? 'ปิด' : 'เปิด'}
                       </Button>
                     </div>
                   </div>
@@ -362,7 +353,6 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
     nameTh: bank?.nameTh || '',
     nameEn: bank?.nameEn || '',
     shortName: bank?.shortName || '',
-    color: bank?.color || '#1a73e8',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(
@@ -465,126 +455,89 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
       isOpen={true}
       onClose={() => !saving && onClose()}
       title={bank ? 'แก้ไขธนาคาร' : 'เพิ่มธนาคาร'}
-      size="lg"
+      size="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-8 p-1">
+      <form onSubmit={handleSubmit} className="space-y-6 p-1">
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-5 py-4 rounded-[2rem] text-sm font-bold animate-in fade-in slide-in-from-top-2">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-5 py-4 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
             ⚠️ {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <Input
-              label="รหัสธนาคาร"
-              placeholder="KBANK, SCB, BBL"
-              value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-              error={formErrors.code}
-              required
-              disabled={saving || !!bank}
-              hint="ตัวพิมพ์ใหญ่และตัวเลขเท่านั้น"
-            />
-
-            <Input
-              label="ชื่อธนาคาร (ไทย)"
-              placeholder="ธนาคารกสิกรไทย"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              error={formErrors.name}
-              required
-              disabled={saving}
-            />
-
-            <Input
-              label="ชื่อธนาคาร (อังกฤษ)"
-              placeholder="Kasikorn Bank"
-              value={formData.nameEn}
-              onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
-              disabled={saving}
-            />
-
-            <Input
-              label="ชื่อย่อ"
-              placeholder="KBANK"
-              value={formData.shortName}
-              onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
-              disabled={saving}
-            />
-          </div>
-
-          <div className="space-y-8">
-            {/* Color Picker */}
-            <Card className="bg-slate-50 border-slate-100 p-6 flex flex-col items-center">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 block w-full text-center">Theme Identity Color</label>
-              <div className="relative group cursor-pointer h-24 w-24 rounded-[2rem] shadow-xl overflow-hidden border-4 border-white">
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="absolute inset-0 w-full h-full scale-150 cursor-pointer"
-                  disabled={saving}
-                />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/5 group-hover:bg-transparent transition-colors">
-                  <span className="text-2xl">🎨</span>
-                </div>
+        {/* Logo Upload */}
+        <div className="flex flex-col items-center">
+          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">โลโก้ธนาคาร</label>
+          <div
+            className={cn(
+              "relative group cursor-pointer rounded-3xl border-4 border-dashed transition-all duration-300 overflow-hidden w-32 h-32 flex flex-col items-center justify-center",
+              logoPreview ? "border-emerald-100 bg-emerald-50/20" : "border-slate-200 bg-slate-50 hover:border-emerald-300"
+            )}
+            onClick={() => !saving && fileInputRef.current?.click()}
+          >
+            {logoPreview ? (
+              <img src={logoPreview} alt="Preview" className="w-20 h-20 object-contain" />
+            ) : (
+              <div className="flex flex-col items-center p-4 text-center">
+                <span className="text-4xl mb-2">📸</span>
+                <p className="text-[9px] font-bold text-slate-400 uppercase">อัปโหลด</p>
               </div>
-              <p className="mt-4 font-black text-slate-700 font-mono text-lg uppercase tracking-wider">{formData.color}</p>
-            </Card>
-
-            {/* Logo Section */}
-            <div>
-              <label className="label">Bank Branding Logo</label>
-              <div
-                className={cn(
-                  "relative group cursor-pointer rounded-[2.5rem] border-4 border-dashed transition-all duration-300 overflow-hidden min-h-[160px] flex flex-col items-center justify-center group",
-                  logoPreview ? "border-emerald-100 bg-emerald-50/20" : "border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50"
-                )}
-                onClick={() => !saving && fileInputRef.current?.click()}
-              >
-                {logoPreview ? (
-                  <div className="flex flex-col items-center p-6 text-center">
-                    <div
-                      className="w-20 h-20 rounded-3xl flex items-center justify-center shadow-xl border-4 border-white mb-4 transition-transform group-hover:scale-110"
-                      style={{ backgroundColor: formData.color }}
-                    >
-                      <img src={logoPreview} alt="Preview" className="w-14 h-14 object-contain" />
-                    </div>
-                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Click to Change</p>
-                    <p className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{logoFile ? logoFile.name : 'Current Logo Active'}</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center p-8 text-center">
-                    <div className="w-16 h-16 rounded-[1.5rem] bg-white text-slate-300 flex items-center justify-center text-3xl mb-4 shadow-sm group-hover:text-emerald-400 transition-colors">
-                      📸
-                    </div>
-                    <p className="font-bold text-slate-500 text-sm tracking-tight mb-1">Upload Bank Logo</p>
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest leading-none">PNG, JPG (Max 2MB)</p>
-                  </div>
-                )}
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={saving} />
-              </div>
-
-              {logoPreview && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); handleRemoveLogo(); }}
-                  disabled={saving}
-                  className="mt-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-700 transition-colors block w-full text-center"
-                >
-                  Clear Logo Selection
-                </button>
-              )}
-            </div>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={saving} />
           </div>
+          {logoPreview && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleRemoveLogo(); }}
+              disabled={saving}
+              className="mt-2 text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
+            >
+              ลบรูปภาพ
+            </button>
+          )}
         </div>
 
-        <div className="flex gap-4 pt-6 border-t border-slate-100">
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="รหัสธนาคาร"
+            placeholder="KBANK, SCB"
+            value={formData.code}
+            onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+            error={formErrors.code}
+            required
+            disabled={saving || !!bank}
+          />
+          <Input
+            label="ชื่อย่อ"
+            placeholder="KBANK"
+            value={formData.shortName}
+            onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
+            disabled={saving}
+          />
+        </div>
+
+        <Input
+          label="ชื่อธนาคาร (ไทย)"
+          placeholder="ธนาคารกสิกรไทย"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          error={formErrors.name}
+          required
+          disabled={saving}
+        />
+
+        <Input
+          label="ชื่อธนาคาร (อังกฤษ)"
+          placeholder="Kasikorn Bank"
+          value={formData.nameEn}
+          onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
+          disabled={saving}
+        />
+
+        <div className="flex gap-4 pt-4 border-t border-slate-100">
           <Button
             type="button"
             variant="ghost"
-            className="flex-1 font-bold text-slate-500 h-14"
+            className="flex-1 font-bold text-slate-500 h-12"
             onClick={onClose}
             disabled={saving}
           >
@@ -592,10 +545,10 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
           </Button>
           <Button
             type="submit"
-            className="flex-[2] font-black text-lg h-14 shadow-premium shadow-emerald-500/10"
+            className="flex-[2] font-black h-12 shadow-premium shadow-emerald-500/10"
             isLoading={saving || uploadingLogo}
           >
-            {bank ? 'บันทึกการแก้ไข' : 'สร้างรายการธนาคาร'}
+            {bank ? 'บันทึก' : 'เพิ่มธนาคาร'}
           </Button>
         </div>
       </form>

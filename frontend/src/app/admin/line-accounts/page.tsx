@@ -13,6 +13,26 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { PageLoading, Spinner } from '@/components/ui/Loading';
 import { Input, Select, Textarea, Switch } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
+import {
+  Bot,
+  FileCheck,
+  MessageSquare,
+  Activity,
+  CreditCard,
+  Search,
+  Plus,
+  Settings,
+  Edit,
+  Trash2,
+  Copy,
+  User as UserIcon,
+  Shield,
+  Smartphone,
+  ExternalLink,
+  Power,
+  Eye,
+  MoreVertical
+} from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
   owner?: {
@@ -269,42 +289,48 @@ export default function AdminLineAccountsPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 animate-fade max-w-[1700px] mx-auto pb-12">
+      <div className="space-y-6 md:space-y-12 animate-fade max-w-[1700px] mx-auto pb-20">
 
         {/* Superior Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-slate-900">จัดการบัญชี LINE OA</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-bold text-[10px]">ผู้ดูแลระบบ</Badge>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">จัดการบัญชี LINE OA</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-bold text-[10px] hidden md:inline-flex">ผู้ดูแลระบบ</Badge>
             </div>
-            <p className="text-slate-500">จัดการบัญชี LINE Official Account, ตั้งค่าบอท และ Webhook</p>
+            <p className="text-sm md:text-base text-slate-500">จัดการบัญชี LINE Official Account, ตั้งค่าบอท และ Webhook</p>
           </div>
-          <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}>
-            + เพิ่มบัญชีใหม่
+          <Button
+            variant="primary"
+            className="w-full md:w-auto rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl"
+            onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
+            leftIcon={<Plus className="w-5 h-5" />}
+          >
+            เพิ่มบัญชีใหม่
           </Button>
         </div>
 
         {/* Global Network Analytics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📡" color="indigo" variant="glass" />
-          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="🟢" color="emerald" variant="glass" />
-          <StatCard title="ข้อความทั้งหมด" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" />
-          <StatCard title="สลิปที่ตรวจ" value={totalSlips.toLocaleString()} icon="📜" color="amber" variant="glass" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon={<Smartphone className="w-6 h-6" />} color="indigo" variant="glass" />
+          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon={<Activity className="w-6 h-6" />} color="emerald" variant="glass" />
+          <StatCard title="ข้อความ" value={totalMessages.toLocaleString()} icon={<MessageSquare className="w-6 h-6" />} color="violet" variant="glass" />
+          <StatCard title="สลิปที่ตรวจ" value={totalSlips.toLocaleString()} icon={<FileCheck className="w-6 h-6" />} color="amber" variant="glass" />
         </div>
 
         {/* Search & Filter Interface */}
-        <Card className="p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-3xl">
+        <Card className="p-2 md:p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-2xl md:rounded-3xl">
           <Input
             placeholder="ค้นหาบัญชี..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent border-none shadow-none text-lg font-medium placeholder:text-slate-300"
+            leftIcon={<Search className="w-5 h-5" />}
+            className="bg-transparent border-none shadow-none text-base md:text-lg font-medium placeholder:text-slate-300"
           />
         </Card>
 
-        {/* Integration Registry Table */}
-        <Card className="overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
+        {/* Desktop Table View */}
+        <Card className="hidden md:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
           <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -344,7 +370,7 @@ export default function AdminLineAccountsPage() {
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-6">
                           <div className="w-16 h-16 rounded-3xl bg-slate-900 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            <Smartphone className="w-8 h-8" />
                           </div>
                           <div>
                             <p className="font-black text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg mb-0.5">{account.accountName}</p>
@@ -385,11 +411,11 @@ export default function AdminLineAccountsPage() {
                       </td>
                       <td className="px-10 py-8 text-right">
                         <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                          <IconButton variant="glass" size="sm" className="rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="View Matrix"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-emerald-500" onClick={() => openSettingsModal(account)} title="Logic Config"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-blue-500" onClick={() => openEditModal(account)} title="Identity Overhaul"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
-                          <IconButton variant="glass" size="sm" className={cn("rounded-xl", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'Decouple Node' : 'Initialize Link'}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.122a5 5 0 010-7.072m7.072 0a5 5 0 010 7.072M13 12a1 1 0 11-2 0 1 1 0 012 0z" /></svg></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="Purge Node"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="View Details"><Eye className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-emerald-500" onClick={() => openSettingsModal(account)} title="Settings"><Settings className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-blue-500" onClick={() => openEditModal(account)} title="Edit"><Edit className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className={cn("rounded-xl", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'Disable' : 'Enable'}><Power className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="Delete"><Trash2 className="w-4 h-4" /></IconButton>
                         </div>
                       </td>
                     </motion.tr>
@@ -399,6 +425,61 @@ export default function AdminLineAccountsPage() {
             </table>
           </div>
         </Card>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden grid grid-cols-1 gap-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse bg-white/50" />)}
+            </div>
+          ) : filteredAccounts.length === 0 ? (
+            <div className="flex flex-col items-center gap-6 opacity-30 py-12">
+              <div className="text-5xl">🕳️</div>
+              <p className="text-sm font-bold">ไม่พบบัญชี</p>
+            </div>
+          ) : (
+            filteredAccounts.map((account) => (
+              <Card key={account._id} variant="glass" className="flex flex-col gap-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white">
+                      <Smartphone className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{account.accountName}</h3>
+                      <p className="text-xs font-mono text-slate-500">ID: {account.channelId}</p>
+                    </div>
+                  </div>
+                  <div className={cn("w-2 h-2 rounded-full", account.isActive ? "bg-emerald-500" : "bg-slate-300")} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <p className="text-slate-400 mb-1">เจ้าของ</p>
+                    <p className="font-bold text-slate-700 truncate">{account.owner?.username || 'ระบบ'}</p>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg">
+                    <p className="text-slate-400 mb-1">ข้อความ</p>
+                    <p className="font-bold text-slate-700">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {account.settings?.enableBot && <Badge variant="emerald" className="text-[10px]">บอท</Badge>}
+                  {account.settings?.enableSlipVerification && <Badge variant="indigo" className="text-[10px]">สลิป</Badge>}
+                  {account.settings?.enableAi && <Badge variant="purple" className="text-[10px]">AI</Badge>}
+                </div>
+
+                <div className="flex gap-2 border-t border-slate-100 pt-3 mt-1">
+                  <Button size="xs" variant="ghost" className="flex-1" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></Button>
+                  <Button size="xs" variant="ghost" className="flex-1" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></Button>
+                  <Button size="xs" variant="ghost" className="flex-1 text-rose-500" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></Button>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
       </div>
 
       {/* Provision Node Modal */}
@@ -406,7 +487,7 @@ export default function AdminLineAccountsPage() {
         <div className="space-y-6 pt-2">
           <div className="p-5 bg-slate-900 text-white rounded-[2rem] shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10 text-3xl font-bold">LINE</div>
-            <p className="text-sm font-bold mb-4 text-emerald-400">ข้อมูลช่องทาง LINE</p>
+            <p className="text-sm font-bold mb-4 text-emerald-400 flex items-center gap-2"><Smartphone className="w-4 h-4" /> ข้อมูลช่องทาง LINE</p>
             <div className="space-y-4">
               <Input variant="glass" label="ชื่อบัญชี" placeholder="เช่น บัญชีหลัก" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="bg-white/5 border-white/10 text-white" />
               <div className="grid grid-cols-2 gap-4">
@@ -417,7 +498,7 @@ export default function AdminLineAccountsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Select label="เจ้าของบัญชี" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
               <option value="">ผู้ดูแลระบบ</option>
               {users.filter(u => u.role === 'user').map((user) => (
@@ -438,7 +519,7 @@ export default function AdminLineAccountsPage() {
       <Modal isOpen={showEditModal} onClose={() => !isProcessing && setShowEditModal(false)} title={`แก้ไขบัญชี: ${selectedAccount?.accountName}`} size="lg">
         <div className="space-y-6 pt-2">
           <Input label="ชื่อบัญชี" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} />
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input label="Channel Secret" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} />
             <Input label="Access Token" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} />
           </div>
@@ -464,21 +545,21 @@ export default function AdminLineAccountsPage() {
           {/* feature switches */}
           <div className="grid grid-cols-3 gap-6">
             <Card className="p-6 bg-emerald-50/50 border-emerald-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl">🤖</div>
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl"><Bot className="w-6 h-6 text-emerald-600" /></div>
               <div className="space-y-1">
                 <p className="font-bold text-xs">บอท</p>
                 <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
               </div>
             </Card>
             <Card className="p-6 bg-indigo-50/50 border-indigo-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl">📜</div>
+              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl"><FileCheck className="w-6 h-6 text-indigo-600" /></div>
               <div className="space-y-1">
                 <p className="font-bold text-xs">ตรวจสลิป</p>
                 <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
               </div>
             </Card>
             <Card className="p-6 bg-purple-50/50 border-purple-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl">🧠</div>
+              <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl"><MessageSquare className="w-6 h-6 text-purple-600" /></div>
               <div className="space-y-1">
                 <p className="font-bold text-xs">AI</p>
                 <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
@@ -491,9 +572,9 @@ export default function AdminLineAccountsPage() {
             {settingsData.enableAi && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6 p-8 bg-slate-900 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-6 opacity-5 text-5xl font-bold">AI</div>
-                <h3 className="text-lg font-bold mb-4 text-purple-400">การตั้งค่า AI</h3>
+                <h3 className="text-lg font-bold mb-4 text-purple-400 flex items-center gap-2"><MessageSquare className="w-5 h-5" /> การตั้งค่า AI</h3>
                 <Textarea variant="glass" label="System Prompt" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบุคลิกภาพของ AI..." rows={5} className="bg-white/5 border-white/10 text-white" />
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input variant="glass" type="number" step="0.1" min="0" max="1" label="Temperature" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white" />
                   <Input variant="glass" label="ข้อความเมื่อเกิดข้อผิดพลาด" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white" />
                 </div>
@@ -523,7 +604,7 @@ export default function AdminLineAccountsPage() {
       <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={`รายละเอียดบัญชี: ${selectedAccount?.accountName}`} size="xl">
         {selectedAccount && (
           <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <p className="text-xs font-bold text-slate-500 px-1">ข้อมูลบัญชี</p>
                 <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
@@ -544,17 +625,17 @@ export default function AdminLineAccountsPage() {
             </div>
 
             <div className="grid grid-cols-3 gap-6">
-              <div className="p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+              <div className="p-4 md:p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
                 <p className="text-xs text-slate-400 mb-2">ข้อความ</p>
-                <p className="text-3xl font-bold text-slate-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
+                <p className="text-2xl md:text-3xl font-bold text-slate-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
               </div>
-              <div className="p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+              <div className="p-4 md:p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
                 <p className="text-xs text-slate-400 mb-2">สลิปที่ตรวจ</p>
-                <p className="text-3xl font-bold text-emerald-600">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+                <p className="text-2xl md:text-3xl font-bold text-emerald-600">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
               </div>
-              <div className="p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
+              <div className="p-4 md:p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
                 <p className="text-xs text-slate-400 mb-2">ข้อผิดพลาด</p>
-                <p className="text-3xl font-bold text-rose-500">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
+                <p className="text-2xl md:text-3xl font-bold text-rose-500">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
               </div>
             </div>
 

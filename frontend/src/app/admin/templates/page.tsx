@@ -84,17 +84,17 @@ const DEFAULT_FORM_DATA: FormData = {
   showDate: true,
   showTime: true,
   showTransRef: true,
-  showBankLogo: false,
+  showBankLogo: true,
   showDelayWarning: false,
   delayWarningMinutes: 5,
   bankId: '',
 };
 
-// Preview Component - OUTSIDE main component to prevent re-creation
-const SlipPreview = memo(({ config, banks }: { config: FormData; banks: Bank[] }) => {
+// Preview Component
+const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selectedBank: Bank | null }) => {
   const isDuplicate = config.type === 'duplicate';
   const mainColor = isDuplicate ? '#f59e0b' : config.primaryColor;
-  const selectedBank = banks.find(b => b._id === config.bankId);
+  const bankLogo = selectedBank?.logoBase64 || selectedBank?.logoUrl || null;
 
   return (
     <div className="bg-slate-900/5 backdrop-blur-3xl rounded-3xl p-4 border border-white max-w-[320px] w-full mx-auto shadow-xl">
@@ -127,10 +127,8 @@ const SlipPreview = memo(({ config, banks }: { config: FormData; banks: Bank[] }
             <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
               {config.showBankLogo && (
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner">
-                  {selectedBank?.logoUrl ? (
-                    <img src={selectedBank.logoUrl} alt="Bank" className="w-6 h-6 object-contain" />
-                  ) : selectedBank?.logoBase64 ? (
-                    <img src={selectedBank.logoBase64} alt="Bank" className="w-6 h-6 object-contain" />
+                  {bankLogo ? (
+                    <img src={bankLogo} alt="Bank" className="w-6 h-6 object-contain" />
                   ) : (
                     <span className="text-sm">🏦</span>
                   )}
@@ -195,6 +193,7 @@ export default function AdminTemplatesPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<SlipTemplate | null>(null);
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM_DATA);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [previewBankId, setPreviewBankId] = useState<string>(''); // For selecting bank for preview
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
@@ -214,7 +213,13 @@ export default function AdminTemplatesPage() {
   const fetchBanks = useCallback(async () => {
     try {
       const response = await banksApi.getAll();
-      setBanks(response.data.banks || []);
+      const allBanks = response.data.banks || [];
+      setBanks(allBanks);
+      // Auto-select first active bank for preview
+      const firstActiveBank = allBanks.find((b: Bank) => b.isActive);
+      if (firstActiveBank) {
+        setPreviewBankId(firstActiveBank._id);
+      }
     } catch (err) {
       console.error('Failed to load banks:', err);
     }
@@ -330,7 +335,6 @@ export default function AdminTemplatesPage() {
     }
   };
 
-  // Handle form field changes - use callback to prevent stale closure
   const updateFormField = useCallback((field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
@@ -342,7 +346,7 @@ export default function AdminTemplatesPage() {
   }, {} as Record<string, SlipTemplate[]>), [templates]);
 
   const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
-  const selectedBank = useMemo(() => banks.find(b => b._id === formData.bankId), [banks, formData.bankId]);
+  const selectedPreviewBank = useMemo(() => banks.find(b => b._id === previewBankId) || null, [banks, previewBankId]);
 
   const isModalOpen = showCreateModal || showEditModal;
   const modalTitle = showCreateModal ? 'สร้างเทมเพลตใหม่' : 'แก้ไขเทมเพลต';
@@ -372,6 +376,42 @@ export default function AdminTemplatesPage() {
             </Button>
           </div>
         </div>
+
+        {/* Bank Selector for Preview */}
+        <Card className="p-4 bg-slate-50/50 border-slate-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm mb-0.5">ตัวอย่างธนาคาร</h3>
+              <p className="text-xs text-slate-400">เลือกธนาคารเพื่อดูตัวอย่างโลโก้ในสลิป</p>
+            </div>
+            <div className="flex-1 overflow-x-auto">
+              <div className="flex items-center gap-2">
+                {activeBanks.slice(0, 10).map((bank) => {
+                  const logo = bank.logoBase64 || bank.logoUrl;
+                  return (
+                    <button
+                      key={bank._id}
+                      onClick={() => setPreviewBankId(bank._id)}
+                      className={cn(
+                        "flex-shrink-0 flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all min-w-[60px]",
+                        previewBankId === bank._id ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
+                      )}
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner">
+                        {logo ? (
+                          <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" />
+                        ) : (
+                          <span className="text-[10px] font-black text-slate-400">{bank.shortName?.substring(0, 2)}</span>
+                        )}
+                      </div>
+                      <span className="text-[8px] font-bold text-slate-600 truncate w-full text-center">{bank.shortName || bank.code}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -413,7 +453,7 @@ export default function AdminTemplatesPage() {
                       <Card key={template._id} className="p-0 overflow-hidden group hover:shadow-xl transition-all duration-300">
                         <div className="relative h-56 bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-6 overflow-hidden">
                           <div className="transform scale-[0.6] group-hover:scale-[0.65] transition-transform duration-500">
-                            <SlipPreview config={{ ...DEFAULT_FORM_DATA, ...template } as FormData} banks={banks} />
+                            <SlipPreview config={{ ...DEFAULT_FORM_DATA, ...template } as FormData} selectedBank={selectedPreviewBank} />
                           </div>
                           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
                             <Button variant="primary" size="sm" onClick={() => openEditModal(template)}>✏️ แก้ไข</Button>
@@ -468,7 +508,7 @@ export default function AdminTemplatesPage() {
         )}
       </div>
 
-      {/* Template Form Modal - inline JSX to avoid component recreation */}
+      {/* Template Form Modal */}
       <Modal isOpen={isModalOpen} onClose={closeModal} title={modalTitle} size="xl">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Settings Panel */}
@@ -498,59 +538,6 @@ export default function AdminTemplatesPage() {
                 placeholder="อธิบายการใช้งานเทมเพลตนี้..."
                 rows={2}
               />
-            </div>
-
-            {/* Bank Selection */}
-            <div className="bg-slate-50 rounded-2xl p-4">
-              <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-3">
-                <span>🏦</span> โลโก้ธนาคาร
-              </h3>
-              <div className="grid grid-cols-5 sm:grid-cols-7 gap-2 max-h-[150px] overflow-y-auto p-1">
-                <button
-                  type="button"
-                  onClick={() => updateFormField('bankId', '')}
-                  className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all",
-                    !formData.bankId ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
-                  )}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm">🏦</div>
-                  <span className="text-[8px] font-bold text-slate-600">ค่าเริ่มต้น</span>
-                </button>
-                {activeBanks.map((bank) => (
-                  <button
-                    key={bank._id}
-                    type="button"
-                    onClick={() => updateFormField('bankId', bank._id)}
-                    className={cn(
-                      "flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all",
-                      formData.bankId === bank._id ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
-                    )}
-                  >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner" style={{ backgroundColor: bank.color ? `${bank.color}15` : undefined }}>
-                      {bank.logoUrl ? (
-                        <img src={bank.logoUrl} alt={bank.shortName} className="w-6 h-6 object-contain" />
-                      ) : bank.logoBase64 ? (
-                        <img src={bank.logoBase64} alt={bank.shortName} className="w-6 h-6 object-contain" />
-                      ) : (
-                        <span className="text-[8px] font-black" style={{ color: bank.color }}>{bank.shortName?.substring(0, 3)}</span>
-                      )}
-                    </div>
-                    <span className="text-[8px] font-bold text-slate-600 truncate w-full text-center">{bank.shortName || bank.code}</span>
-                  </button>
-                ))}
-              </div>
-              {selectedBank && (
-                <div className="flex items-center gap-2 p-2 mt-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow">
-                    {selectedBank.logoUrl ? <img src={selectedBank.logoUrl} alt={selectedBank.name} className="w-6 h-6 object-contain" /> : <span>🏦</span>}
-                  </div>
-                  <div>
-                    <p className="font-bold text-emerald-800 text-sm">{selectedBank.name}</p>
-                    <p className="text-[10px] text-emerald-600">{selectedBank.nameTh || selectedBank.nameEn}</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Appearance */}
@@ -633,7 +620,7 @@ export default function AdminTemplatesPage() {
                 <h4 className="font-bold text-slate-700 text-sm">👁️ ตัวอย่างการแสดงผล</h4>
                 <p className="text-[10px] text-slate-400">ลูกค้าจะเห็นแบบนี้</p>
               </div>
-              <SlipPreview config={formData} banks={banks} />
+              <SlipPreview config={formData} selectedBank={selectedPreviewBank} />
               <div className="space-y-2 pt-4">
                 <Button variant="primary" fullWidth size="lg" className="rounded-xl font-bold shadow-lg shadow-emerald-500/20" onClick={modalSubmit} isLoading={isProcessing}>
                   {modalSubmitText}

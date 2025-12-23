@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import clsx from 'clsx';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavItem {
   name: string;
@@ -211,7 +212,12 @@ const userNavItems: NavItem[] = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
 
@@ -232,6 +238,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => window.innerWidth < 768 && onClose()}
               className={clsx(
                 'group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 relative overflow-hidden',
                 isActive
@@ -261,8 +268,8 @@ export default function Sidebar() {
     );
   };
 
-  return (
-    <div className="flex flex-col h-full bg-[#0F172A] text-white w-64 min-h-screen border-r border-white/5 relative overflow-hidden">
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-[#0F172A] text-white w-72 h-full border-r border-white/5 relative overflow-hidden shadow-2xl">
       {/* Background Glow */}
       <div className="absolute top-0 left-0 w-full h-64 bg-emerald-500/10 blur-[100px] pointer-events-none" />
 
@@ -316,5 +323,40 @@ export default function Sidebar() {
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block h-full sticky top-0">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 md:hidden"
+            />
+            {/* Sidebar */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 z-50 md:hidden"
+            >
+              {sidebarContent}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
