@@ -8,11 +8,12 @@ import {
   Query,
   Res,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { ChatMessagesService } from './chat-messages.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.service';
 
 @Controller('api/chat-messages')
 @UseGuards(SessionAuthGuard)
@@ -23,7 +24,8 @@ export class ChatMessagesController {
    * Get list of users who have chatted with a LINE account
    */
   @Get(':accountId/users')
-  async getChatUsers(@Param('accountId') accountId: string) {
+  async getChatUsers(@Param('accountId') accountId: string, @CurrentUser() user: AuthUser) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const users = await this.chatMessagesService.getChatUsers(accountId);
     return { success: true, users };
   }
@@ -37,7 +39,11 @@ export class ChatMessagesController {
     @Param('userId') userId: string,
     @Query('limit') limit?: string,
     @Query('before') before?: string,
+    @CurrentUser() user?: AuthUser,
   ) {
+    if (user) {
+      await this.chatMessagesService.ensureAccountAccess(accountId, user);
+    }
     const messages = await this.chatMessagesService.getChatHistory(
       accountId,
       userId,
@@ -59,13 +65,14 @@ export class ChatMessagesController {
     @Param('accountId') accountId: string,
     @Param('userId') userId: string,
     @Body() body: { message: string },
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const result = await this.chatMessagesService.sendMessageToUser(
       accountId,
       userId,
       body.message,
-      req.user?.username,
+      user?.username,
     );
 
     if (result.success) {
@@ -82,15 +89,16 @@ export class ChatMessagesController {
   async sendBroadcast(
     @Param('accountId') accountId: string,
     @Body() body: { userIds: string[]; message: string },
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const results = await Promise.all(
       body.userIds.map((userId) =>
         this.chatMessagesService.sendMessageToUser(
           accountId,
           userId,
           body.message,
-          req.user?.username,
+          user?.username,
         ),
       ),
     );
@@ -110,7 +118,9 @@ export class ChatMessagesController {
   async markAsRead(
     @Param('accountId') accountId: string,
     @Param('userId') userId: string,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     await this.chatMessagesService.markAsRead(accountId, userId);
     return { success: true };
   }
@@ -119,7 +129,8 @@ export class ChatMessagesController {
    * Get unread message count
    */
   @Get(':accountId/unread-count')
-  async getUnreadCount(@Param('accountId') accountId: string) {
+  async getUnreadCount(@Param('accountId') accountId: string, @CurrentUser() user: AuthUser) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const count = await this.chatMessagesService.getUnreadCount(accountId);
     return { success: true, count };
   }
@@ -131,7 +142,9 @@ export class ChatMessagesController {
   async deleteChatHistory(
     @Param('accountId') accountId: string,
     @Param('userId') userId: string,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     await this.chatMessagesService.deleteChatHistory(accountId, userId);
     return { success: true, message: 'Chat history deleted' };
   }
@@ -144,7 +157,9 @@ export class ChatMessagesController {
     @Param('accountId') accountId: string,
     @Param('messageId') messageId: string,
     @Res() res: Response,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const imageBuffer = await this.chatMessagesService.getLineImage(accountId, messageId);
 
     if (!imageBuffer) {
@@ -164,7 +179,9 @@ export class ChatMessagesController {
   async getLineUserProfile(
     @Param('accountId') accountId: string,
     @Param('userId') userId: string,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const profile = await this.chatMessagesService.getLineUserProfile(accountId, userId);
 
     if (!profile) {

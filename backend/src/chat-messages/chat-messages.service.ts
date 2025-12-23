@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, PipelineStage } from 'mongoose';
 import axios from 'axios';
@@ -9,6 +9,7 @@ import {
   MessageType,
 } from '../database/schemas/chat-message.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
+import { UserRole } from '../database/schemas/user.schema';
 
 export interface ChatUser {
   lineUserId: string;
@@ -33,6 +34,33 @@ export class ChatMessagesService {
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
   ) {}
+
+  /**
+   * Ensure the current user can access a LINE account (admin or owner).
+   * Chat endpoints are sensitive and must not allow cross-account access.
+   */
+  async ensureAccountAccess(
+    lineAccountId: string,
+    user: { userId: string; role: UserRole },
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(lineAccountId)) {
+      throw new BadRequestException('Invalid LINE account id');
+    }
+
+    const account = await this.lineAccountModel
+      .findById(lineAccountId)
+      .select({ ownerId: 1 })
+      .lean()
+      .exec();
+
+    if (!account) {
+      throw new NotFoundException('LINE Account not found');
+    }
+
+    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
+      throw new ForbiddenException('Access denied');
+    }
+  }
 
   /**
    * Save incoming message from LINE webhook

@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { chatMessagesApi } from '@/lib/api';
+import toast from 'react-hot-toast';
+import { Card, EmptyState } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button, IconButton } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { PageLoading, Spinner } from '@/components/ui/Loading';
+import { cn } from '@/lib/utils';
 
 interface ChatUser {
   lineUserId: string;
@@ -15,15 +23,15 @@ interface ChatUser {
 
 interface ChatMessage {
   _id: string;
+  messageId?: string;
   direction: 'in' | 'out';
   messageType: string;
   messageText?: string;
   createdAt: string;
-  lineUserName?: string;
   sentBy?: string;
 }
 
-function ChatContent() {
+function UserChatContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const accountId = searchParams.get('accountId') || '';
@@ -32,37 +40,47 @@ function ChatContent() {
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchUsers = useCallback(async () => {
     if (!accountId) {
-      setLoading(false);
+      setUsers([]);
+      setLoadingUsers(false);
       return;
     }
+    setLoadingUsers(true);
     try {
-      const response = await api.get(`/chat-messages/${accountId}/users`);
-      if (response.data.success) {
-        setUsers(response.data.users);
+      const res = await chatMessagesApi.getUsers(accountId);
+      if (res.data?.success) {
+        setUsers(res.data.users || []);
+      } else {
+        setUsers([]);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load chat users');
+      toast.error(err.response?.data?.message || 'ไม่สามารถโหลดรายชื่อผู้ใช้ได้');
     } finally {
-      setLoading(false);
+      setLoadingUsers(false);
     }
   }, [accountId]);
 
   const fetchMessages = useCallback(async (userId: string) => {
     if (!accountId) return;
+    setLoadingMessages(true);
     try {
-      const response = await api.get(`/chat-messages/${accountId}/${userId}`);
-      if (response.data.success) {
-        setMessages(response.data.messages);
+      const res = await chatMessagesApi.getMessages(accountId, userId);
+      if (res.data?.success) {
+        setMessages(res.data.messages || []);
+      } else {
+        setMessages([]);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load messages');
+      toast.error(err.response?.data?.message || 'ไม่สามารถโหลดข้อความได้');
+    } finally {
+      setLoadingMessages(false);
     }
   }, [accountId]);
 
@@ -73,36 +91,28 @@ function ChatContent() {
   useEffect(() => {
     if (selectedUser) {
       fetchMessages(selectedUser.lineUserId);
+    } else {
+      setMessages([]);
     }
   }, [selectedUser, fetchMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSelectUser = (user: ChatUser) => {
-    setSelectedUser(user);
-    setMessages([]);
-  };
+  }, [messages, loadingMessages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedUser || sending || !accountId) return;
-
+    if (!accountId || !selectedUser || !newMessage.trim() || sending) return;
     setSending(true);
     try {
-      const response = await api.post(
-        `/chat-messages/${accountId}/${selectedUser.lineUserId}/send`,
-        { message: newMessage }
-      );
-
-      if (response.data.success) {
+      const res = await chatMessagesApi.sendMessage(accountId, selectedUser.lineUserId, newMessage.trim());
+      if (res.data?.success) {
         setNewMessage('');
         await fetchMessages(selectedUser.lineUserId);
       } else {
-        setError(response.data.error || 'Failed to send message');
+        toast.error(res.data?.error || 'ไม่สามารถส่งข้อความได้');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send message');
+      toast.error(err.response?.data?.message || 'ไม่สามารถส่งข้อความได้');
     } finally {
       setSending(false);
     }
@@ -110,223 +120,280 @@ function ChatContent() {
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-    });
+    return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   };
+
+  const filteredUsers = users.filter((u) => {
+    const hay = `${u.lineUserName || ''} ${u.lineUserId}`.toLowerCase();
+    return hay.includes(searchTerm.toLowerCase());
+  });
 
   if (!accountId) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">ไม่พบ Account ID</p>
-          <button
-            onClick={() => router.push('/user/line-accounts')}
-            className="text-green-500 hover:underline"
-          >
-            กลับไปหน้า LINE Accounts
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-      </div>
+      <DashboardLayout>
+        <EmptyState
+          icon="💬"
+          title="ไม่พบ Account ID"
+          description="กรุณาเลือกบัญชี LINE จากหน้า LINE Accounts ก่อน"
+          action={
+            <Button variant="primary" onClick={() => router.push('/user/line-accounts')}>
+              ไปหน้า LINE Accounts
+            </Button>
+          }
+        />
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.back()}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                ← กลับ
-              </button>
-              <h1 className="text-xl font-bold">ประวัติการแชท</h1>
+    <DashboardLayout>
+      <div className="space-y-6 max-w-[1600px] mx-auto animate-fade">
+        {/* Header */}
+        <div className="page-header">
+          <div className="flex items-center gap-3">
+            <IconButton variant="outline" onClick={() => router.back()} aria-label="Back">
+              <span className="text-lg">←</span>
+            </IconButton>
+            <div>
+              <h1 className="page-title">แชท</h1>
+              <p className="page-subtitle">ตอบกลับลูกค้าจาก LINE OA ของคุณ</p>
             </div>
           </div>
+          <Button variant="outline" onClick={fetchUsers} isLoading={loadingUsers}>
+            รีเฟรชรายชื่อ
+          </Button>
         </div>
-      </div>
 
-      {error && (
-        <div className="max-w-7xl mx-auto px-4 mt-4">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
-            <button onClick={() => setError('')} className="float-right">&times;</button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg shadow overflow-hidden">
-          {/* User List */}
-          <div className="w-1/3 border-r overflow-y-auto">
-            <div className="p-4 border-b bg-gray-50">
-              <h2 className="font-semibold">รายชื่อผู้ใช้ ({users.length})</h2>
-            </div>
-            {users.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                ยังไม่มีการสนทนา
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[70vh]">
+          {/* Users */}
+          <Card className="lg:col-span-4 p-0 overflow-hidden" variant="glass">
+            <div className="p-6 border-b border-white/30 bg-white/30">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-black text-slate-500 uppercase tracking-widest">รายชื่อผู้ใช้</p>
+                <Badge variant="emerald" dot pulse>
+                  {users.length} คน
+                </Badge>
               </div>
-            ) : (
-              users.map((user) => (
-                <div
-                  key={user.lineUserId}
-                  onClick={() => handleSelectUser(user)}
-                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                    selectedUser?.lineUserId === user.lineUserId ? 'bg-green-50' : ''
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
-                      {user.lineUserPicture ? (
-                        <img
-                          src={user.lineUserPicture}
-                          alt={user.lineUserName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-gray-600 text-lg">
-                          {user.lineUserName?.charAt(0) || '?'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium truncate">{user.lineUserName}</p>
-                        {user.unreadCount > 0 && (
-                          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                            {user.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-500 truncate">
-                        {user.lastMessage || 'ไม่มีข้อความ'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+              <Input
+                placeholder="ค้นหา (ชื่อ/ID)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-white/60 border-white/40"
+              />
+            </div>
 
-          {/* Chat Area */}
-          <div className="flex-1 flex flex-col">
+            <div className="max-h-[70vh] overflow-y-auto no-scrollbar p-3 space-y-2">
+              {loadingUsers ? (
+                <div className="py-16 flex flex-col items-center gap-4">
+                  <Spinner size="lg" />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">กำลังโหลด...</p>
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="py-16 opacity-50">
+                  <EmptyState
+                    icon="🕳️"
+                    title="ไม่พบรายการสนทนา"
+                    description="เมื่อมีลูกค้าทักเข้ามา รายการจะปรากฏที่นี่"
+                    variant="glass"
+                  />
+                </div>
+              ) : (
+                filteredUsers.map((u) => {
+                  const isActive = selectedUser?.lineUserId === u.lineUserId;
+                  return (
+                    <button
+                      key={u.lineUserId}
+                      onClick={() => setSelectedUser(u)}
+                      className={cn(
+                        'w-full text-left p-4 rounded-2xl transition-all border',
+                        isActive
+                          ? 'bg-slate-900 text-white border-white/10 shadow-premium'
+                          : 'bg-white/60 hover:bg-white border-white/40'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className={cn(
+                            'w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center border',
+                            isActive ? 'bg-white/10 border-white/10' : 'bg-slate-50 border-slate-100'
+                          )}>
+                            {u.lineUserPicture ? (
+                              <img src={u.lineUserPicture} alt={u.lineUserName} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className={cn('font-black', isActive ? 'text-white/60' : 'text-slate-400')}>
+                                {(u.lineUserName || '?').charAt(0)}
+                              </span>
+                            )}
+                          </div>
+                          {u.unreadCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black rounded-lg px-2 py-0.5 border-2 border-white shadow-lg">
+                              {u.unreadCount > 9 ? '9+' : u.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn('font-black text-sm truncate', isActive ? 'text-white' : 'text-slate-900')}>
+                            {u.lineUserName || 'Unknown'}
+                          </p>
+                          <p className={cn('text-xs truncate', isActive ? 'text-white/60' : 'text-slate-500')}>
+                            {u.lastMessage || '—'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+
+          {/* Messages */}
+          <Card className="lg:col-span-8 p-0 overflow-hidden" variant="glass">
             {selectedUser ? (
               <>
-                {/* Chat Header */}
-                <div className="p-4 border-b bg-gray-50">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+                <div className="p-6 border-b border-white/30 bg-white/30 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900/5 border border-white/40 flex items-center justify-center overflow-hidden">
                       {selectedUser.lineUserPicture ? (
-                        <img
-                          src={selectedUser.lineUserPicture}
-                          alt={selectedUser.lineUserName}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-gray-600 text-lg">
-                          {selectedUser.lineUserName?.charAt(0) || '?'}
-                        </span>
+                        <span className="font-black text-slate-400">{(selectedUser.lineUserName || '?').slice(0, 2)}</span>
                       )}
                     </div>
-                    <div>
-                      <p className="font-medium">{selectedUser.lineUserName}</p>
-                      <p className="text-xs text-gray-500">{selectedUser.lineUserId}</p>
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 truncate">{selectedUser.lineUserName || 'Unknown'}</p>
+                      <p className="text-[10px] font-mono text-slate-400 truncate">ID: {selectedUser.lineUserId}</p>
                     </div>
                   </div>
+                  <IconButton
+                    variant="outline"
+                    onClick={() => fetchMessages(selectedUser.lineUserId)}
+                    isLoading={loadingMessages}
+                    aria-label="Refresh messages"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </IconButton>
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map((msg) => (
-                    <div
-                      key={msg._id}
-                      className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                          msg.direction === 'out'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-200 text-gray-800'
-                        }`}
-                      >
-                        {msg.messageType === 'image' ? (
-                          <div className="text-sm italic">[รูปภาพ]</div>
-                        ) : msg.messageType === 'sticker' ? (
-                          <div className="text-sm italic">[สติกเกอร์]</div>
-                        ) : (
-                          <p className="whitespace-pre-wrap">{msg.messageText}</p>
-                        )}
-                        <p
-                          className={`text-xs mt-1 ${
-                            msg.direction === 'out' ? 'text-green-100' : 'text-gray-500'
-                          }`}
-                        >
-                          {formatTime(msg.createdAt)}
-                          {msg.direction === 'out' && msg.sentBy && ` • ${msg.sentBy}`}
-                        </p>
-                      </div>
+                <div className="h-[55vh] overflow-y-auto no-scrollbar p-6 bg-slate-50/30">
+                  {loadingMessages ? (
+                    <div className="py-20 flex flex-col items-center gap-4">
+                      <Spinner size="lg" />
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">กำลังโหลดข้อความ...</p>
                     </div>
-                  ))}
-                  <div ref={messagesEndRef} />
+                  ) : messages.length === 0 ? (
+                    <div className="py-20 opacity-60">
+                      <EmptyState icon="🧊" title="ยังไม่มีข้อความ" description="เมื่อมีการสนทนา ข้อความจะแสดงที่นี่" variant="glass" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((msg) => {
+                        const isOut = msg.direction === 'out';
+                        const imageUrl =
+                          msg.messageType === 'image' && msg.messageId
+                            ? chatMessagesApi.getImage(accountId, msg.messageId)
+                            : null;
+
+                        return (
+                          <div key={msg._id} className={cn('flex', isOut ? 'justify-end' : 'justify-start')}>
+                            <div className={cn('max-w-[80%] space-y-1', isOut ? 'items-end' : 'items-start')}>
+                              <div className={cn(
+                                'p-4 rounded-3xl shadow-sm border',
+                                isOut
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-900 border-slate-100'
+                              )}>
+                                {msg.messageType === 'image' ? (
+                                  imageUrl ? (
+                                    <img
+                                      src={imageUrl}
+                                      alt="LINE image"
+                                      className="max-w-full rounded-2xl cursor-zoom-in"
+                                      onClick={() => window.open(imageUrl, '_blank')}
+                                    />
+                                  ) : (
+                                    <p className="text-sm italic opacity-70">[รูปภาพ]</p>
+                                  )
+                                ) : msg.messageType === 'sticker' ? (
+                                  <p className="text-sm italic opacity-70">[สติกเกอร์]</p>
+                                ) : (
+                                  <p className="text-[13px] font-medium whitespace-pre-wrap break-words">{msg.messageText}</p>
+                                )}
+
+                                <div className={cn(
+                                  'mt-2 text-[10px] font-bold uppercase tracking-widest opacity-50',
+                                  isOut ? 'text-white/60 text-right' : 'text-slate-400'
+                                )}>
+                                  {formatTime(msg.createdAt)}{isOut && msg.sentBy ? ` • ${msg.sentBy}` : ''}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
                 </div>
 
-                {/* Input */}
-                <div className="p-4 border-t bg-gray-50">
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
+                <div className="p-5 bg-white border-t border-slate-100">
+                  <div className="flex gap-3 items-end">
+                    <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="พิมพ์ข้อความ..."
-                      className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="พิมพ์ข้อความ... (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
+                      className="input flex-1 min-h-[48px] max-h-32 resize-none"
+                      rows={1}
                       disabled={sending}
                     />
-                    <button
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="h-12"
                       onClick={handleSendMessage}
+                      isLoading={sending}
                       disabled={sending || !newMessage.trim()}
-                      className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {sending ? 'กำลังส่ง...' : 'ส่ง'}
-                    </button>
+                      ส่ง
+                    </Button>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                เลือกผู้ใช้เพื่อดูประวัติการแชท
+              <div className="p-10">
+                <EmptyState
+                  icon="👈"
+                  title="เลือกผู้ใช้เพื่อเริ่มแชท"
+                  description="คลิกที่รายชื่อทางซ้ายเพื่อดูประวัติและตอบกลับ"
+                  variant="glass"
+                />
               </div>
             )}
-          </div>
+          </Card>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 
-export default function ChatHistoryPage() {
+export default function UserChatPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-      </div>
-    }>
-      <ChatContent />
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <PageLoading message="กำลังเปิดหน้าจอแชท..." />
+        </DashboardLayout>
+      }
+    >
+      <UserChatContent />
     </Suspense>
   );
 }

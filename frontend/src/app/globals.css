@@ -153,12 +153,94 @@
 @layer utilities {
   /* Premium Micro-Animations */
   .animate-in {
-    animation: slideInDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    /* lightweight replacement for tailwindcss-animate */
+    --ani-dur: 300ms;
+    animation-duration: var(--ani-dur);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
   }
   
   .animate-fade {
     animation: fadeIn 0.3s ease-out;
   }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* slow variants used in UI */
+  .animate-spin-slow {
+    animation: spin 1.5s linear infinite;
+  }
+
+  .animate-bounce-slow {
+    animation: bounceSlow 2s ease-in-out infinite;
+  }
+
+  /* Scrollbar helpers */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Shadows used across pages (were referenced but not defined in Tailwind config) */
+  .shadow-premium-sm {
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  .shadow-premium {
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.10);
+  }
+  .shadow-premium-lg {
+    box-shadow: 0 30px 90px rgba(15, 23, 42, 0.12);
+  }
+
+  /* Basic "enter" animations (compatible with existing class usage) */
+  .fade-in {
+    animation-name: fadeIn;
+  }
+  .slide-in-from-right-4,
+  .slide-in-from-top-1,
+  .slide-in-from-top-2 {
+    animation-name: slideIn;
+  }
+
+  .slide-in-from-right-4 {
+    --slide-x: 1rem;
+    --slide-y: 0rem;
+  }
+  .slide-in-from-top-1 {
+    --slide-x: 0rem;
+    --slide-y: -0.25rem;
+  }
+  .slide-in-from-top-2 {
+    --slide-x: 0rem;
+    --slide-y: -0.5rem;
+  }
+
+  .fade-in.slide-in-from-right-4,
+  .fade-in.slide-in-from-top-1,
+  .fade-in.slide-in-from-top-2 {
+    animation-name: fadeIn, slideIn;
+    animation-duration: var(--ani-dur), var(--ani-dur);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1), cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both, both;
+  }
+
+  /* Tie Tailwind's duration-* utilities to animation duration too */
+  .duration-300 { --ani-dur: 300ms; }
+  .duration-500 { --ani-dur: 500ms; }
+  .duration-700 { --ani-dur: 700ms; }
   
   .hover-glow:hover {
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
@@ -179,6 +261,47 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translate3d(var(--slide-x, 0), var(--slide-y, 0), 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes bounceSlow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* Ensure spin keyframes exist even if Tailwind changes */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
   
   /* Gradients */
   .bg-gradient-premium {
@@ -193,6 +316,20 @@
 /* Page Transitions */
 .page-enter {
   @apply animate-fade;
+}
+
+/* Common page scaffolding (used by user pages) */
+.page-header {
+  @apply flex flex-col md:flex-row md:items-end md:justify-between gap-4;
+}
+.page-title {
+  @apply text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight;
+}
+.page-subtitle {
+  @apply text-slate-500 font-medium mt-1;
+}
+.grid-stats {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
 }
 
 /* Sidebar Specifics */

@@ -187,8 +187,11 @@ export const chatMessagesApi = {
     api.get(`/chat-messages/${accountId}/unread-count`),
   deleteChatHistory: (accountId: string, userId: string) =>
     api.delete(`/chat-messages/${accountId}/${userId}`),
-  getImage: (accountId: string, messageId: string) =>
-    `/api/chat-messages/${accountId}/image/${messageId}`,
+  getImage: (accountId: string, messageId: string) => {
+    const base = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/+$/, '');
+    // base is expected to include "/api"
+    return `${base}/chat-messages/${accountId}/image/${messageId}`;
+  },
   getUserProfile: (accountId: string, userId: string) =>
     api.get(`/chat-messages/${accountId}/profile/${userId}`),
 };

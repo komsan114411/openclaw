@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api, lineAccountsApi } from '@/lib/api';
+import { api, lineAccountsApi, chatMessagesApi } from '@/lib/api';
 import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,10 +25,10 @@ interface ChatUser {
 
 interface ChatMessage {
   _id: string;
+  messageId?: string;
   direction: 'in' | 'out';
   messageType: string;
   messageText?: string;
-  imageUrl?: string;
   createdAt: string;
   lineUserName?: string;
   sentBy?: string;
@@ -370,7 +370,16 @@ function AdminChatContent() {
                               )}>
                                 {msg.messageType === 'image' ? (
                                   <div className="relative group/img overflow-hidden rounded-2xl">
-                                    <img src={msg.imageUrl} alt="Received image" className="max-w-full rounded-2xl cursor-pointer hover:scale-105 transition-transform duration-700" onClick={() => window.open(msg.imageUrl, '_blank')} />
+                                    {msg.messageId ? (
+                                      <img
+                                        src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
+                                        alt="Received image"
+                                        className="max-w-full rounded-2xl cursor-pointer hover:scale-105 transition-transform duration-700"
+                                        onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
+                                      />
+                                    ) : (
+                                      <div className="p-6 bg-slate-100 rounded-2xl text-slate-500 text-sm font-bold">[รูปภาพ]</div>
+                                    )}
                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white font-black text-xs uppercase italic">Expand Interface</div>
                                   </div>
                                 ) : (

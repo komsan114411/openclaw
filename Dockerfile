@@ -8,6 +8,7 @@ RUN npm ci
 
 COPY frontend/ ./
 ENV NEXT_PUBLIC_API_URL=/api
+ENV NEXT_OUTPUT=export
 RUN npm run build
 
 # Build stage for Backend

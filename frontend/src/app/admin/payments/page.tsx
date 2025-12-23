@@ -352,7 +352,11 @@ export default function AdminPaymentsPage() {
               </div>
               {selectedPayment.slipImageUrl && (
                 <div className="relative group cursor-zoom-in">
-                  <img src={selectedPayment.slipImageUrl} className="w-20 h-28 object-cover rounded-2xl shadow-lg rotate-3 group-hover:rotate-0 transition-transform" />
+                  <img
+                    src={selectedPayment.slipImageUrl}
+                    alt="Slip thumbnail"
+                    className="w-20 h-28 object-cover rounded-2xl shadow-lg rotate-3 group-hover:rotate-0 transition-transform"
+                  />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
