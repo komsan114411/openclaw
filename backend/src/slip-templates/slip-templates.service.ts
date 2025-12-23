@@ -40,11 +40,20 @@ export interface CreateTemplateDto {
   delayWarningMinutes?: number;
   isGlobal?: boolean;
   isSystemTemplate?: boolean;
+  // New enhanced fields
+  showSenderAccount?: boolean;
+  showReceiverAccount?: boolean;
+  showSenderNameEn?: boolean;
+  showReceiverNameEn?: boolean;
+  showLocalAmount?: boolean;
 }
 
 export interface SlipData {
   amount?: number;
   amountFormatted?: string;
+  localAmount?: number;
+  localAmountFormatted?: string;
+  localCurrency?: string;
   fee?: number;
   feeFormatted?: string;
   countryCode?: string;
@@ -52,22 +61,30 @@ export interface SlipData {
   ref2?: string;
   ref3?: string;
   payload?: string;
+  // Sender info
   senderName?: string;
+  senderNameEn?: string;
   senderBank?: string;
   senderBankCode?: string;
   senderBankId?: string;
   senderAccount?: string;
+  senderAccountType?: string;
+  // Receiver info
   receiverName?: string;
+  receiverNameEn?: string;
   receiverBank?: string;
   receiverBankCode?: string;
   receiverBankId?: string;
   receiverAccount?: string;
   receiverAccountNumber?: string;
+  receiverAccountType?: string;
   receiverProxyType?: string;
   receiverProxyAccount?: string;
+  // Date & Time
   date?: string;
   time?: string;
   transRef?: string;
+  // Bank logos
   senderBankLogoUrl?: string;
   receiverBankLogoUrl?: string;
   // For duplicate slip detection
@@ -128,6 +145,12 @@ export class SlipTemplatesService {
       delayWarningMinutes: dto.delayWarningMinutes ?? 5,
       isGlobal: dto.isGlobal ?? false,
       isSystemTemplate: dto.isSystemTemplate ?? false,
+      // New enhanced fields
+      showSenderAccount: dto.showSenderAccount ?? false,
+      showReceiverAccount: dto.showReceiverAccount ?? false,
+      showSenderNameEn: dto.showSenderNameEn ?? false,
+      showReceiverNameEn: dto.showReceiverNameEn ?? false,
+      showLocalAmount: dto.showLocalAmount ?? false,
     });
 
     return template;
@@ -358,29 +381,38 @@ export class SlipTemplatesService {
    */
   preview(template: SlipTemplateDocument): any {
     const sampleData: SlipData = {
-      amount: 1500,
-      amountFormatted: '฿1,500',
+      amount: 1000,
+      amountFormatted: '฿1,000.00',
+      localAmount: 0,
+      localAmountFormatted: '',
+      localCurrency: '',
       fee: 0,
       feeFormatted: '฿0',
       countryCode: 'TH',
-      ref1: 'REF1',
-      ref2: 'REF2',
-      ref3: 'REF3',
-      payload: '0000000000000000000000000000000000000000...',
-      senderName: 'นายทดสอบ ระบบ',
+      ref1: '',
+      ref2: '',
+      ref3: '',
+      payload: '00000000000000000000000000000000000000000000000000000000000',
+      senderName: 'นาย ธันเดอร์ มานะ',
+      senderNameEn: 'MR. THUNDER MANA',
       senderBank: 'กสิกรไทย',
       senderBankCode: 'KBANK',
       senderBankId: '001',
-      receiverName: 'บริษัท ทดสอบ จำกัด',
-      receiverBank: 'ไทยพาณิชย์',
-      receiverBankCode: 'SCB',
-      receiverBankId: '014',
-      receiverAccountNumber: '123-4-56789-0',
+      senderAccount: '1234xxxx5678',
+      senderAccountType: 'BANKAC',
+      receiverName: 'นาย ธันเดอร์ มานะ',
+      receiverNameEn: '',
+      receiverBank: 'ธนาคารออมสิน',
+      receiverBankCode: 'GSB',
+      receiverBankId: '030',
+      receiverAccount: '12xxxx3456',
+      receiverAccountNumber: '12xxxx3456',
+      receiverAccountType: 'BANKAC',
       receiverProxyType: 'EWALLETID',
       receiverProxyAccount: '123xxxxxxxx4567',
-      date: '22/12/2567',
-      time: '14:30:00',
-      transRef: 'TEST123456789',
+      date: '24 ธ.ค. 2568',
+      time: '09:41',
+      transRef: '68370160657749I376388B35',
     };
 
     return {
@@ -656,10 +688,17 @@ export class SlipTemplatesService {
 
     // Sender info with bank logo
     if (template.showSender && data.senderName) {
+      const senderAccountLines: string[] = [];
+      if ((template as any).showSenderAccount && data.senderAccount) {
+        senderAccountLines.push(data.senderAccount);
+      }
+      if ((template as any).showSenderNameEn && data.senderNameEn) {
+        senderAccountLines.push(data.senderNameEn);
+      }
       contents.push(this.createBankInfoBox(
         'ผู้โอน',
         data.senderName,
-        data.senderAccount || '',
+        senderAccountLines.join(' • ') || data.senderBank || '',
         data.senderBank || '',
         data.senderBankLogoUrl,
         template.showBankLogo,
@@ -668,16 +707,20 @@ export class SlipTemplatesService {
 
     // Receiver info with bank logo
     if (template.showReceiver && data.receiverName) {
-      const receiverAccountLine = [
-        data.receiverAccount || '',
-        template.showReceiverProxy && data.receiverProxyType && data.receiverProxyAccount
-          ? `${data.receiverProxyType}: ${data.receiverProxyAccount}`
-          : null,
-      ].filter(Boolean).join(' • ');
+      const receiverAccountLines: string[] = [];
+      if ((template as any).showReceiverAccount && data.receiverAccount) {
+        receiverAccountLines.push(data.receiverAccount);
+      }
+      if ((template as any).showReceiverNameEn && data.receiverNameEn) {
+        receiverAccountLines.push(data.receiverNameEn);
+      }
+      if (template.showReceiverProxy && data.receiverProxyType && data.receiverProxyAccount) {
+        receiverAccountLines.push(`${data.receiverProxyType}: ${data.receiverProxyAccount}`);
+      }
       contents.push(this.createBankInfoBox(
         'ผู้รับ',
         data.receiverName,
-        receiverAccountLine,
+        receiverAccountLines.join(' • ') || data.receiverBank || '',
         data.receiverBank || '',
         data.receiverBankLogoUrl,
         template.showBankLogo,
@@ -702,12 +745,15 @@ export class SlipTemplatesService {
 
     // Extended fields
     const extraRows: any[] = [];
+    if ((template as any).showLocalAmount && data.localAmountFormatted) {
+      extraRows.push(this.createInfoRow('จำนวนเงิน (สกุลท้องถิ่น)', `${data.localAmountFormatted} ${data.localCurrency || ''}`));
+    }
     if (template.showCountryCode) extraRows.push(this.createInfoRow('ประเทศ', data.countryCode || '-'));
     if (template.showFee) extraRows.push(this.createInfoRow('ค่าธรรมเนียม', data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-') ));
     if (template.showRefs) {
-      extraRows.push(this.createInfoRow('Ref1', data.ref1 || '-'));
-      extraRows.push(this.createInfoRow('Ref2', data.ref2 || '-'));
-      extraRows.push(this.createInfoRow('Ref3', data.ref3 || '-'));
+      if (data.ref1) extraRows.push(this.createInfoRow('Ref1', data.ref1));
+      if (data.ref2) extraRows.push(this.createInfoRow('Ref2', data.ref2));
+      if (data.ref3) extraRows.push(this.createInfoRow('Ref3', data.ref3));
     }
     if (template.showSenderBankId) extraRows.push(this.createInfoRow('ธนาคารผู้โอน (ID)', data.senderBankId || '-'));
     if (template.showReceiverBankId) extraRows.push(this.createInfoRow('ธนาคารผู้รับ (ID)', data.receiverBankId || '-'));
@@ -925,6 +971,9 @@ export class SlipTemplatesService {
     if (template.showAmount && data.amountFormatted) {
       lines.push(`💰 จำนวนเงิน: ${data.amountFormatted}`);
     }
+    if ((template as any).showLocalAmount && data.localAmountFormatted) {
+      lines.push(`💱 สกุลท้องถิ่น: ${data.localAmountFormatted} ${data.localCurrency || ''}`);
+    }
     if (template.showDate && data.date) {
       lines.push(`📅 วันที่: ${data.date}`);
     }
@@ -933,12 +982,24 @@ export class SlipTemplatesService {
     }
     if (template.showSender && data.senderName) {
       lines.push(`👤 ผู้โอน: ${data.senderName}`);
+      if ((template as any).showSenderNameEn && data.senderNameEn) {
+        lines.push(`   (${data.senderNameEn})`);
+      }
       if (data.senderBank) {
         lines.push(`🏦 ธนาคาร: ${data.senderBank}`);
+      }
+      if ((template as any).showSenderAccount && data.senderAccount) {
+        lines.push(`📝 เลขบัญชี: ${data.senderAccount}`);
       }
     }
     if (template.showReceiver && data.receiverName) {
       lines.push(`👤 ผู้รับ: ${data.receiverName}`);
+      if ((template as any).showReceiverNameEn && data.receiverNameEn) {
+        lines.push(`   (${data.receiverNameEn})`);
+      }
+      if ((template as any).showReceiverAccount && data.receiverAccount) {
+        lines.push(`📝 เลขบัญชี: ${data.receiverAccount}`);
+      }
       if (template.showReceiverProxy && data.receiverProxyType && data.receiverProxyAccount) {
         lines.push(`🔗 Proxy: ${data.receiverProxyType} ${data.receiverProxyAccount}`);
       }
@@ -954,9 +1015,9 @@ export class SlipTemplatesService {
       lines.push(`💸 ค่าธรรมเนียม: ${data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-')}`);
     }
     if (template.showRefs) {
-      lines.push(`Ref1: ${data.ref1 || '-'}`);
-      lines.push(`Ref2: ${data.ref2 || '-'}`);
-      lines.push(`Ref3: ${data.ref3 || '-'}`);
+      if (data.ref1) lines.push(`Ref1: ${data.ref1}`);
+      if (data.ref2) lines.push(`Ref2: ${data.ref2}`);
+      if (data.ref3) lines.push(`Ref3: ${data.ref3}`);
     }
     if (template.showSenderBankId) {
       lines.push(`ธนาคารผู้โอน (ID): ${data.senderBankId || '-'}`);

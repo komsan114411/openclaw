@@ -128,6 +128,22 @@ export class SlipTemplate {
   @Prop({ default: false })
   showReceiverProxy: boolean;
 
+  // New fields for enhanced slip display
+  @Prop({ default: false })
+  showSenderAccount: boolean; // Show sender account number
+
+  @Prop({ default: false })
+  showReceiverAccount: boolean; // Show receiver account number
+
+  @Prop({ default: false })
+  showSenderNameEn: boolean; // Show sender English name
+
+  @Prop({ default: false })
+  showReceiverNameEn: boolean; // Show receiver English name
+
+  @Prop({ default: false })
+  showLocalAmount: boolean; // Show local currency amount
+
   createdAt: Date;
   updatedAt: Date;
 }
