@@ -41,6 +41,11 @@ export class LineAccountSettings {
   @Prop()
   slipTemplateId: string;
 
+  // Template selection per result type (success/duplicate/error/not_found)
+  // Used by slip verification to pick the correct template automatically.
+  @Prop({ type: Object, default: () => ({}) })
+  slipTemplateIds: Record<string, string>;
+
   @Prop({ default: true })
   autoReplyEnabled: boolean;
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { paymentsApi, systemSettingsApi } from '@/lib/api';
-import { Payment } from '@/types';
+import { Payment, BankAccount } from '@/types';
 import toast from 'react-hot-toast';
 
 export default function UserPaymentsPage() {
@@ -99,13 +99,38 @@ export default function UserPaymentsPage() {
           <div className="card bg-blue-50 border border-blue-200">
             <h3 className="font-semibold text-blue-900 mb-3">ข้อมูลสำหรับชำระเงิน</h3>
             <div className="space-y-2">
-              {paymentInfo.bankAccounts.map((account: any, index: number) => (
-                <div key={index} className="p-3 bg-white rounded-lg">
-                  <p className="font-medium text-gray-900">{account.bankName}</p>
-                  <p className="text-gray-600">เลขบัญชี: {account.accountNumber}</p>
-                  <p className="text-gray-600">ชื่อบัญชี: {account.accountName}</p>
-                </div>
-              ))}
+              {(paymentInfo.bankAccounts as BankAccount[]).map((account, index: number) => {
+                const logo = account.bank?.logoBase64 || account.bank?.logoUrl || null;
+                const title =
+                  account.bank?.nameTh ||
+                  account.bank?.name ||
+                  account.bankName;
+                const subtitle =
+                  account.bank?.shortName ||
+                  account.bankCode ||
+                  '';
+
+                return (
+                  <div key={index} className="p-3 bg-white rounded-lg flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+                      {logo ? (
+                        <img src={logo} alt={subtitle || title} className="w-7 h-7 object-contain" />
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400">
+                          {(subtitle || title).slice(0, 2)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {title}{subtitle ? <span className="text-gray-400 font-normal"> • {subtitle}</span> : null}
+                      </p>
+                      <p className="text-gray-600">เลขบัญชี: {account.accountNumber}</p>
+                      <p className="text-gray-600">ชื่อบัญชี: {account.accountName}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

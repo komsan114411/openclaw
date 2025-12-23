@@ -13,6 +13,9 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { RedisService } from '../redis/redis.service';
 import { SystemResponseTemplatesService } from '../system-response-templates/system-response-templates.service';
 import { SystemResponseType } from '../database/schemas/system-response-template.schema';
+import { SlipTemplatesService } from '../slip-templates/slip-templates.service';
+import { TemplateType } from '../database/schemas/slip-template.schema';
+import { BanksService } from '../banks/banks.service';
 
 export interface SlipVerificationResult {
   status: 'success' | 'duplicate' | 'error' | 'not_found';
@@ -43,6 +46,8 @@ export class SlipVerificationService {
     private systemSettingsService: SystemSettingsService,
     private redisService: RedisService,
     private systemResponseTemplatesService: SystemResponseTemplatesService,
+    private slipTemplatesService: SlipTemplatesService,
+    private banksService: BanksService,
   ) {}
 
   validateSlipImage(imageData: Buffer): { ok: boolean; message?: string } {
@@ -249,13 +254,27 @@ export class SlipVerificationService {
             time: this.formatTime(slipData.date),
             senderName: senderAccount.name?.th || senderAccount.name?.en || '',
             senderBank: senderBank.short || senderBank.name || '',
-            senderBankCode: senderBank.id || senderBank.short || '',
+            // Prefer short code (e.g. KBANK) for mapping to our `banks.code`
+            senderBankCode: senderBank.short || senderBank.id || '',
+            senderBankId: senderBank.id || '',
+            senderBankName: senderBank.name || '',
             senderAccount: senderAccount.bank?.account || '',
             receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
             receiverBank: receiverBank.short || receiverBank.name || '',
-            receiverBankCode: receiverBank.id || receiverBank.short || '',
+            receiverBankCode: receiverBank.short || receiverBank.id || '',
+            receiverBankId: receiverBank.id || '',
+            receiverBankName: receiverBank.name || '',
             receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
             receiverAccountNumber: receiverAccount.bank?.account || '',
+            receiverProxyType: receiverAccount.proxy?.type || '',
+            receiverProxyAccount: receiverAccount.proxy?.account || '',
+            countryCode: slipData.countryCode || '',
+            fee: slipData.fee ?? 0,
+            feeFormatted: this.formatAmount(slipData.fee ?? 0),
+            ref1: slipData.ref1 || '',
+            ref2: slipData.ref2 || '',
+            ref3: slipData.ref3 || '',
+            payload: slipData.payload || '',
             rawData: slipData,
           },
         };
@@ -471,11 +490,66 @@ export class SlipVerificationService {
     const accountSettings = context?.account?.settings || {};
     const settings = await this.systemSettingsService.getSettings();
 
+    const toTemplateType = (status: SlipVerificationResult['status']): TemplateType => {
+      switch (status) {
+        case 'success':
+          return TemplateType.SUCCESS;
+        case 'duplicate':
+          return TemplateType.DUPLICATE;
+        case 'not_found':
+          return TemplateType.NOT_FOUND;
+        case 'error':
+        default:
+          return TemplateType.ERROR;
+      }
+    };
+
+    const buildSlipData = async (data: Record<string, any>): Promise<Record<string, any>> => {
+      const senderCode = (data.senderBankCode || data.senderBank || '').toString().toUpperCase();
+      const receiverCode = (data.receiverBankCode || data.receiverBank || '').toString().toUpperCase();
+
+      const senderBank = senderCode ? await this.banksService.getByCode(senderCode).catch(() => null) : null;
+      const receiverBank = receiverCode ? await this.banksService.getByCode(receiverCode).catch(() => null) : null;
+
+      return {
+        ...data,
+        senderBankLogoUrl: senderBank?.logoBase64 || senderBank?.logoUrl || '',
+        receiverBankLogoUrl: receiverBank?.logoBase64 || receiverBank?.logoUrl || '',
+      };
+    };
+
+    const tryUseSlipTemplate = async (
+      templateType: TemplateType,
+      data: Record<string, any>,
+    ): Promise<any | null> => {
+      const idsByType = (accountSettings.slipTemplateIds || {}) as Record<string, string>;
+      const selectedId = idsByType[templateType] || accountSettings.slipTemplateId || '';
+
+      const template =
+        (selectedId ? await this.slipTemplatesService.getById(selectedId).catch(() => null) : null) ||
+        (await this.slipTemplatesService.getGlobalDefaultTemplate(templateType).catch(() => null));
+
+      if (!template) return null;
+
+      const slipData = await buildSlipData(data);
+      const bubble = this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
+
+      return {
+        type: 'flex',
+        altText: 'ผลการตรวจสอบสลิป',
+        contents: bubble,
+      };
+    };
+
     if (result.status === 'success' && result.data) {
       // Check for custom template first
       if (accountSettings.slipSuccessTemplate && Object.keys(accountSettings.slipSuccessTemplate).length > 0) {
         return this.applyTemplateVariables(accountSettings.slipSuccessTemplate, result.data);
       }
+
+      // Prefer slip templates (selected per account or global default)
+      const templated = await tryUseSlipTemplate(TemplateType.SUCCESS, result.data);
+      if (templated) return templated;
 
       // Check for custom success message
       const customSuccessMessage = accountSettings.customSlipSuccessMessage;
@@ -527,6 +601,11 @@ export class SlipVerificationService {
         return this.applyTemplateVariables(accountSettings.slipDuplicateTemplate, result.data || {});
       }
 
+      if (result.data) {
+        const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, result.data);
+        if (templated) return templated;
+      }
+
       const duplicateMessage = accountSettings.customDuplicateSlipMessage ||
         settings?.duplicateSlipMessage || '⚠️ สลิปนี้เคยถูกใช้แล้ว';
       return {
@@ -538,6 +617,9 @@ export class SlipVerificationService {
       if (accountSettings.slipErrorTemplate && Object.keys(accountSettings.slipErrorTemplate).length > 0) {
         return this.applyTemplateVariables(accountSettings.slipErrorTemplate, { message: result.message });
       }
+
+      const templated = await tryUseSlipTemplate(toTemplateType(result.status), { message: result.message, ...(result.data || {}) });
+      if (templated) return templated;
 
       const errorMessage = accountSettings.customSlipErrorMessage ||
         settings?.slipErrorMessage || result.message;

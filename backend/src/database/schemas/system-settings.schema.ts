@@ -14,8 +14,9 @@ export class BankAccount {
   @Prop({ required: true })
   accountName: string;
 
+  // Reference to `banks.code` (e.g. KBANK, SCB) for showing logo/name consistently
   @Prop()
-  bankCode: string;
+  bankCode?: string;
 }
 
 @Schema({ timestamps: true, collection: 'system_settings' })

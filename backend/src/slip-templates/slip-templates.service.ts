@@ -17,6 +17,7 @@ export interface CreateTemplateDto {
   textTemplate?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  bankId?: string;
   headerText?: string;
   footerText?: string;
   footerLink?: string;
@@ -28,6 +29,13 @@ export interface CreateTemplateDto {
   showTime?: boolean;
   showTransRef?: boolean;
   showBankLogo?: boolean;
+  showCountryCode?: boolean;
+  showFee?: boolean;
+  showRefs?: boolean;
+  showPayload?: boolean;
+  showSenderBankId?: boolean;
+  showReceiverBankId?: boolean;
+  showReceiverProxy?: boolean;
   showDelayWarning?: boolean;
   delayWarningMinutes?: number;
   isGlobal?: boolean;
@@ -37,15 +45,26 @@ export interface CreateTemplateDto {
 export interface SlipData {
   amount?: number;
   amountFormatted?: string;
+  fee?: number;
+  feeFormatted?: string;
+  countryCode?: string;
+  ref1?: string;
+  ref2?: string;
+  ref3?: string;
+  payload?: string;
   senderName?: string;
   senderBank?: string;
   senderBankCode?: string;
+  senderBankId?: string;
   senderAccount?: string;
   receiverName?: string;
   receiverBank?: string;
   receiverBankCode?: string;
+  receiverBankId?: string;
   receiverAccount?: string;
   receiverAccountNumber?: string;
+  receiverProxyType?: string;
+  receiverProxyAccount?: string;
   date?: string;
   time?: string;
   transRef?: string;
@@ -56,6 +75,8 @@ export interface SlipData {
   originalDate?: string;
   delayMinutes?: number;
   duplicateMessage?: string;
+  // For error templates
+  message?: string;
 }
 
 @Injectable()
@@ -84,6 +105,7 @@ export class SlipTemplatesService {
       variables,
       primaryColor: dto.primaryColor || '#00C851',
       secondaryColor: dto.secondaryColor || '#333333',
+      bankId: dto.bankId ? new Types.ObjectId(dto.bankId) : undefined,
       headerText: dto.headerText,
       footerText: dto.footerText,
       footerLink: dto.footerLink,
@@ -94,7 +116,14 @@ export class SlipTemplatesService {
       showDate: dto.showDate ?? true,
       showTime: dto.showTime ?? true,
       showTransRef: dto.showTransRef ?? true,
-      showBankLogo: dto.showBankLogo ?? false,
+      showBankLogo: dto.showBankLogo ?? true,
+      showCountryCode: dto.showCountryCode ?? false,
+      showFee: dto.showFee ?? false,
+      showRefs: dto.showRefs ?? false,
+      showPayload: dto.showPayload ?? false,
+      showSenderBankId: dto.showSenderBankId ?? false,
+      showReceiverBankId: dto.showReceiverBankId ?? false,
+      showReceiverProxy: dto.showReceiverProxy ?? false,
       showDelayWarning: dto.showDelayWarning ?? false,
       delayWarningMinutes: dto.delayWarningMinutes ?? 5,
       isGlobal: dto.isGlobal ?? false,
@@ -186,6 +215,18 @@ export class SlipTemplatesService {
   ): Promise<SlipTemplateDocument | null> {
     return this.slipTemplateModel.findOne({
       lineAccountId: new Types.ObjectId(lineAccountId),
+      type,
+      isDefault: true,
+      isActive: true,
+    });
+  }
+
+  /**
+   * Get default global template for a type
+   */
+  async getGlobalDefaultTemplate(type: TemplateType): Promise<SlipTemplateDocument | null> {
+    return this.slipTemplateModel.findOne({
+      isGlobal: true,
       type,
       isDefault: true,
       isActive: true,
@@ -319,11 +360,24 @@ export class SlipTemplatesService {
     const sampleData: SlipData = {
       amount: 1500,
       amountFormatted: '฿1,500',
+      fee: 0,
+      feeFormatted: '฿0',
+      countryCode: 'TH',
+      ref1: 'REF1',
+      ref2: 'REF2',
+      ref3: 'REF3',
+      payload: '0000000000000000000000000000000000000000...',
       senderName: 'นายทดสอบ ระบบ',
       senderBank: 'กสิกรไทย',
+      senderBankCode: 'KBANK',
+      senderBankId: '001',
       receiverName: 'บริษัท ทดสอบ จำกัด',
       receiverBank: 'ไทยพาณิชย์',
+      receiverBankCode: 'SCB',
+      receiverBankId: '014',
       receiverAccountNumber: '123-4-56789-0',
+      receiverProxyType: 'EWALLETID',
+      receiverProxyAccount: '123xxxxxxxx4567',
       date: '22/12/2567',
       time: '14:30:00',
       transRef: 'TEST123456789',
@@ -548,23 +602,55 @@ export class SlipTemplatesService {
         contents: [
           {
             type: 'text',
-            text: `฿${data.amountFormatted}`,
+            text: data.amountFormatted,
             size: 'xxl',
             weight: 'bold',
             color: primaryColor,
             align: 'center',
           },
-          {
-            type: 'text',
-            text: data.date && data.time ? `${data.date}, ${data.time}` : (data.date || ''),
-            size: 'xs',
-            color: '#888888',
-            align: 'center',
-            margin: 'sm',
-          },
+          (template.showDate || template.showTime)
+            ? {
+                type: 'text',
+                text: [
+                  template.showDate ? (data.date || '-') : null,
+                  template.showTime ? (data.time || '-') : null,
+                ].filter(Boolean).join(' • '),
+                size: 'xs',
+                color: '#888888',
+                align: 'center',
+                margin: 'sm',
+              }
+            : { type: 'text', text: ' ', size: 'xxs', color: '#FFFFFF' },
         ],
         margin: 'lg',
         paddingAll: '10px',
+      });
+    }
+
+    // Date/time row (when amount is hidden)
+    if (!template.showAmount && (template.showDate || template.showTime)) {
+      contents.push({
+        type: 'box',
+        layout: 'horizontal',
+        contents: [
+          { type: 'text', text: 'วันที่/เวลา', size: 'xs', color: '#888888', flex: 2 },
+          {
+            type: 'text',
+            text: [
+              template.showDate ? (data.date || '-') : null,
+              template.showTime ? (data.time || '-') : null,
+            ].filter(Boolean).join(' • ') || '-',
+            size: 'xs',
+            color: '#333333',
+            flex: 4,
+            align: 'end',
+            wrap: true,
+          },
+        ],
+        margin: 'md',
+        paddingAll: '8px',
+        backgroundColor: '#F5F5F5',
+        cornerRadius: '8px',
       });
     }
 
@@ -582,10 +668,16 @@ export class SlipTemplatesService {
 
     // Receiver info with bank logo
     if (template.showReceiver && data.receiverName) {
+      const receiverAccountLine = [
+        data.receiverAccount || '',
+        template.showReceiverProxy && data.receiverProxyType && data.receiverProxyAccount
+          ? `${data.receiverProxyType}: ${data.receiverProxyAccount}`
+          : null,
+      ].filter(Boolean).join(' • ');
       contents.push(this.createBankInfoBox(
         'ผู้รับ',
         data.receiverName,
-        data.receiverAccount || '',
+        receiverAccountLine,
         data.receiverBank || '',
         data.receiverBankLogoUrl,
         template.showBankLogo,
@@ -605,6 +697,35 @@ export class SlipTemplatesService {
         paddingAll: '8px',
         backgroundColor: '#F5F5F5',
         cornerRadius: '8px',
+      });
+    }
+
+    // Extended fields
+    const extraRows: any[] = [];
+    if (template.showCountryCode) extraRows.push(this.createInfoRow('ประเทศ', data.countryCode || '-'));
+    if (template.showFee) extraRows.push(this.createInfoRow('ค่าธรรมเนียม', data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-') ));
+    if (template.showRefs) {
+      extraRows.push(this.createInfoRow('Ref1', data.ref1 || '-'));
+      extraRows.push(this.createInfoRow('Ref2', data.ref2 || '-'));
+      extraRows.push(this.createInfoRow('Ref3', data.ref3 || '-'));
+    }
+    if (template.showSenderBankId) extraRows.push(this.createInfoRow('ธนาคารผู้โอน (ID)', data.senderBankId || '-'));
+    if (template.showReceiverBankId) extraRows.push(this.createInfoRow('ธนาคารผู้รับ (ID)', data.receiverBankId || '-'));
+    if (template.showPayload) extraRows.push(this.createInfoRow('Payload', (data.payload || '').toString().slice(0, 32) + ((data.payload && data.payload.length > 32) ? '…' : '') || '-'));
+
+    if (extraRows.length > 0) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'text', text: 'รายละเอียดเพิ่มเติม', size: 'xs', weight: 'bold', color: '#666666' },
+          { type: 'separator', margin: 'sm' },
+          ...extraRows.map((r) => ({ ...r, margin: 'sm' })),
+        ],
+        margin: 'lg',
+        paddingAll: '12px',
+        backgroundColor: '#FAFAFA',
+        cornerRadius: '12px',
       });
     }
 
@@ -818,9 +939,34 @@ export class SlipTemplatesService {
     }
     if (template.showReceiver && data.receiverName) {
       lines.push(`👤 ผู้รับ: ${data.receiverName}`);
+      if (template.showReceiverProxy && data.receiverProxyType && data.receiverProxyAccount) {
+        lines.push(`🔗 Proxy: ${data.receiverProxyType} ${data.receiverProxyAccount}`);
+      }
     }
     if (template.showTransRef && data.transRef) {
       lines.push(`🔖 เลขอ้างอิง: ${data.transRef}`);
+    }
+
+    if (template.showCountryCode) {
+      lines.push(`🌍 ประเทศ: ${data.countryCode || '-'}`);
+    }
+    if (template.showFee) {
+      lines.push(`💸 ค่าธรรมเนียม: ${data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-')}`);
+    }
+    if (template.showRefs) {
+      lines.push(`Ref1: ${data.ref1 || '-'}`);
+      lines.push(`Ref2: ${data.ref2 || '-'}`);
+      lines.push(`Ref3: ${data.ref3 || '-'}`);
+    }
+    if (template.showSenderBankId) {
+      lines.push(`ธนาคารผู้โอน (ID): ${data.senderBankId || '-'}`);
+    }
+    if (template.showReceiverBankId) {
+      lines.push(`ธนาคารผู้รับ (ID): ${data.receiverBankId || '-'}`);
+    }
+    if (template.showPayload) {
+      const payload = (data.payload || '').toString();
+      lines.push(`Payload: ${payload.slice(0, 64)}${payload.length > 64 ? '…' : ''}`);
     }
 
     if (template.footerText) {

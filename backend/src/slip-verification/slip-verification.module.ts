@@ -6,6 +6,8 @@ import { SlipHistory, SlipHistorySchema } from '../database/schemas/slip-history
 import { QuotaReservation, QuotaReservationSchema } from '../database/schemas/quota-reservation.schema';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { SystemResponseTemplatesModule } from '../system-response-templates/system-response-templates.module';
+import { SlipTemplatesModule } from '../slip-templates/slip-templates.module';
+import { BanksModule } from '../banks/banks.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { SystemResponseTemplatesModule } from '../system-response-templates/syst
     ]),
     SystemSettingsModule,
     SystemResponseTemplatesModule,
+    SlipTemplatesModule,
+    BanksModule,
   ],
   providers: [SlipVerificationService],
   controllers: [SlipVerificationController],

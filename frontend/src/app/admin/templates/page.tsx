@@ -35,6 +35,13 @@ interface SlipTemplate {
   showTime: boolean;
   showTransRef: boolean;
   showBankLogo: boolean;
+  showCountryCode: boolean;
+  showFee: boolean;
+  showRefs: boolean;
+  showPayload: boolean;
+  showSenderBankId: boolean;
+  showReceiverBankId: boolean;
+  showReceiverProxy: boolean;
   showDelayWarning: boolean;
   delayWarningMinutes: number;
   bankId?: string;
@@ -57,6 +64,13 @@ interface FormData {
   showTime: boolean;
   showTransRef: boolean;
   showBankLogo: boolean;
+  showCountryCode: boolean;
+  showFee: boolean;
+  showRefs: boolean;
+  showPayload: boolean;
+  showSenderBankId: boolean;
+  showReceiverBankId: boolean;
+  showReceiverProxy: boolean;
   showDelayWarning: boolean;
   delayWarningMinutes: number;
   bankId: string;
@@ -85,6 +99,13 @@ const DEFAULT_FORM_DATA: FormData = {
   showTime: true,
   showTransRef: true,
   showBankLogo: true,
+  showCountryCode: false,
+  showFee: false,
+  showRefs: false,
+  showPayload: false,
+  showSenderBankId: false,
+  showReceiverBankId: false,
+  showReceiverProxy: false,
   showDelayWarning: false,
   delayWarningMinutes: 5,
   bankId: '',
@@ -162,6 +183,25 @@ const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selected
           </div>
         )}
 
+        {(config.showCountryCode || config.showFee || config.showRefs || config.showPayload || config.showSenderBankId || config.showReceiverBankId || config.showReceiverProxy) && (
+          <div className="p-2 bg-slate-50 rounded-lg space-y-1">
+            <p className="text-[8px] uppercase tracking-widest font-bold text-slate-400">รายละเอียดเพิ่มเติม</p>
+            {config.showCountryCode && <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">ประเทศ</span><span className="font-mono text-slate-700">TH</span></div>}
+            {config.showFee && <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">ค่าธรรมเนียม</span><span className="font-mono text-slate-700">฿0</span></div>}
+            {config.showRefs && (
+              <>
+                <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">Ref1</span><span className="font-mono text-slate-700">-</span></div>
+                <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">Ref2</span><span className="font-mono text-slate-700">-</span></div>
+                <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">Ref3</span><span className="font-mono text-slate-700">-</span></div>
+              </>
+            )}
+            {config.showSenderBankId && <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">ธนาคารผู้โอน (ID)</span><span className="font-mono text-slate-700">001</span></div>}
+            {config.showReceiverBankId && <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">ธนาคารผู้รับ (ID)</span><span className="font-mono text-slate-700">030</span></div>}
+            {config.showReceiverProxy && <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">Proxy</span><span className="font-mono text-slate-700">EWALLETID</span></div>}
+            {config.showPayload && <div className="flex justify-between text-[9px]"><span className="text-slate-500 font-medium">Payload</span><span className="font-mono text-slate-700">00000000…</span></div>}
+          </div>
+        )}
+
         {isDuplicate && (
           <div className="p-3 bg-amber-500 rounded-lg text-center shadow-lg">
             <p className="text-[10px] text-white font-bold uppercase tracking-wide">⚠️ คำเตือน</p>
@@ -231,7 +271,8 @@ export default function AdminTemplatesPage() {
   }, [fetchTemplates, fetchBanks]);
 
   const openCreateModal = () => {
-    setFormData(DEFAULT_FORM_DATA);
+    const firstActive = (banks.find((b) => b.isActive)?._id || '') as string;
+    setFormData({ ...DEFAULT_FORM_DATA, bankId: firstActive });
     setShowCreateModal(true);
   };
 
@@ -253,6 +294,13 @@ export default function AdminTemplatesPage() {
       showTime: template.showTime,
       showTransRef: template.showTransRef,
       showBankLogo: template.showBankLogo,
+      showCountryCode: template.showCountryCode ?? false,
+      showFee: template.showFee ?? false,
+      showRefs: template.showRefs ?? false,
+      showPayload: template.showPayload ?? false,
+      showSenderBankId: template.showSenderBankId ?? false,
+      showReceiverBankId: template.showReceiverBankId ?? false,
+      showReceiverProxy: template.showReceiverProxy ?? false,
       showDelayWarning: template.showDelayWarning,
       delayWarningMinutes: template.delayWarningMinutes || 5,
       bankId: template.bankId || '',
@@ -347,6 +395,10 @@ export default function AdminTemplatesPage() {
 
   const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
   const selectedPreviewBank = useMemo(() => banks.find(b => b._id === previewBankId) || null, [banks, previewBankId]);
+  const selectedModalBank = useMemo(() => {
+    const id = (formData.bankId || previewBankId) as string;
+    return banks.find(b => b._id === id) || null;
+  }, [banks, formData.bankId, previewBankId]);
 
   const isModalOpen = showCreateModal || showEditModal;
   const modalTitle = showCreateModal ? 'สร้างเทมเพลตใหม่' : 'แก้ไขเทมเพลต';
@@ -545,6 +597,18 @@ export default function AdminTemplatesPage() {
               <h3 className="font-bold text-slate-900 flex items-center gap-2">
                 <span>🎨</span> การแสดงผล
               </h3>
+              <Select
+                label="ธนาคาร (สำหรับโลโก้/ตัวอย่างในสลิป)"
+                value={formData.bankId}
+                onChange={(e) => updateFormField('bankId', e.target.value)}
+              >
+                <option value="">ใช้ธนาคารจากตัวอย่างด้านบน</option>
+                {activeBanks.map((b) => (
+                  <option key={b._id} value={b._id}>
+                    {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
+                  </option>
+                ))}
+              </Select>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-slate-700 text-sm">สีหลัก</p>
@@ -584,6 +648,13 @@ export default function AdminTemplatesPage() {
                   { label: 'เวลา', key: 'showTime' as keyof FormData, icon: '🕐' },
                   { label: 'รหัสอ้างอิง', key: 'showTransRef' as keyof FormData, icon: '🔢' },
                   { label: 'โลโก้ธนาคาร', key: 'showBankLogo' as keyof FormData, icon: '🖼️' },
+                  { label: 'ประเทศ', key: 'showCountryCode' as keyof FormData, icon: '🌍' },
+                  { label: 'ค่าธรรมเนียม', key: 'showFee' as keyof FormData, icon: '💸' },
+                  { label: 'Ref1-3', key: 'showRefs' as keyof FormData, icon: '🏷️' },
+                  { label: 'Payload', key: 'showPayload' as keyof FormData, icon: '🧾' },
+                  { label: 'Bank ID (ผู้โอน)', key: 'showSenderBankId' as keyof FormData, icon: '🆔' },
+                  { label: 'Bank ID (ผู้รับ)', key: 'showReceiverBankId' as keyof FormData, icon: '🆔' },
+                  { label: 'Proxy ผู้รับ', key: 'showReceiverProxy' as keyof FormData, icon: '🔗' },
                 ].map((item) => (
                   <div key={item.key} className="flex flex-col gap-1 p-2 bg-white rounded-lg border border-slate-200 hover:border-emerald-300 transition-colors">
                     <div className="flex items-center justify-between">
@@ -620,7 +691,7 @@ export default function AdminTemplatesPage() {
                 <h4 className="font-bold text-slate-700 text-sm">👁️ ตัวอย่างการแสดงผล</h4>
                 <p className="text-[10px] text-slate-400">ลูกค้าจะเห็นแบบนี้</p>
               </div>
-              <SlipPreview config={formData} selectedBank={selectedPreviewBank} />
+              <SlipPreview config={formData} selectedBank={selectedModalBank} />
               <div className="space-y-2 pt-4">
                 <Button variant="primary" fullWidth size="lg" className="rounded-xl font-bold shadow-lg shadow-emerald-500/20" onClick={modalSubmit} isLoading={isProcessing}>
                   {modalSubmitText}

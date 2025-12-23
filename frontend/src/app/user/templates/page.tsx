@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api } from '@/lib/api';
+import { api, lineAccountsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -44,6 +44,7 @@ function TemplatesContent() {
 
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<Partial<Record<SlipTemplate['type'], string>>>({});
 
   const fetchTemplates = useCallback(async () => {
     if (!accountId) {
@@ -56,6 +57,11 @@ function TemplatesContent() {
       if (response.data.success) {
         setTemplates(response.data.templates || []);
       }
+
+      // Fetch current account settings to know which template is selected per type
+      const accountRes = await lineAccountsApi.getById(accountId);
+      const ids = accountRes.data?.account?.settings?.slipTemplateIds || {};
+      setSelectedTemplateIds(ids);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้');
     } finally {
@@ -67,13 +73,15 @@ function TemplatesContent() {
     fetchTemplates();
   }, [fetchTemplates]);
 
-  const handleSetDefault = async (templateId: string) => {
+  const handleSetDefault = async (template: SlipTemplate) => {
     try {
-      await api.put(`/line-accounts/${accountId}/slip-templates/${templateId}/default`);
-      toast.success('ตั้งเป็น Default สำเร็จ');
+      const next = { ...selectedTemplateIds, [template.type]: template._id };
+      await lineAccountsApi.updateSettings(accountId, { slipTemplateIds: next });
+      setSelectedTemplateIds(next);
+      toast.success('เลือก Template สำเร็จ');
       fetchTemplates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถตั้งเป็น Default ได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถเลือก Template ได้');
     }
   };
 
@@ -162,6 +170,7 @@ function TemplatesContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
               {globalTemplates.map((template) => {
                 const typeInfo = getTypeInfo(template.type);
+                const isSelected = selectedTemplateIds[template.type] === template._id || (!selectedTemplateIds[template.type] && template.isDefault);
                 return (
                   <Card key={template._id} className="overflow-hidden p-0 border-2 border-purple-200 hover:shadow-lg transition-all">
                     <div className="h-2" style={{ backgroundColor: template.primaryColor || '#00C851' }} />
@@ -171,7 +180,7 @@ function TemplatesContent() {
                           <Badge className="bg-purple-100 text-purple-700 text-xs">🌐 ส่วนกลาง</Badge>
                           <Badge className={typeInfo.color}>{typeInfo.icon}</Badge>
                         </div>
-                        {template.isDefault && (
+                        {isSelected && (
                           <Badge variant="success" size="sm">✓ ใช้งานอยู่</Badge>
                         )}
                       </div>
@@ -199,14 +208,14 @@ function TemplatesContent() {
                       </div>
 
                       <div className="pt-3 border-t">
-                        {template.isDefault ? (
+                        {isSelected ? (
                           <Badge variant="success" className="w-full justify-center">✓ กำลังใช้งาน Template นี้</Badge>
                         ) : (
                           <Button
                             variant="primary"
                             size="sm"
                             fullWidth
-                            onClick={() => handleSetDefault(template._id)}
+                            onClick={() => handleSetDefault(template)}
                           >
                             🎯 เลือกใช้ Template นี้
                           </Button>
@@ -232,13 +241,14 @@ function TemplatesContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {accountTemplates.map((template) => {
                 const typeInfo = getTypeInfo(template.type);
+                const isSelected = selectedTemplateIds[template.type] === template._id || (!selectedTemplateIds[template.type] && template.isDefault);
                 return (
                   <Card key={template._id} className="overflow-hidden p-0 hover:shadow-lg transition-all">
                     <div className="h-2" style={{ backgroundColor: template.primaryColor || '#00C851' }} />
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
                         <Badge className={typeInfo.color}>{typeInfo.label}</Badge>
-                        {template.isDefault && (
+                        {isSelected && (
                           <Badge variant="success" size="sm">✓ ใช้งานอยู่</Badge>
                         )}
                       </div>
@@ -257,14 +267,14 @@ function TemplatesContent() {
                       )}
 
                       <div className="pt-3 border-t">
-                        {template.isDefault ? (
+                        {isSelected ? (
                           <Badge variant="success" className="w-full justify-center">✓ กำลังใช้งาน</Badge>
                         ) : (
                           <Button
                             variant="secondary"
                             size="sm"
                             fullWidth
-                            onClick={() => handleSetDefault(template._id)}
+                            onClick={() => handleSetDefault(template)}
                           >
                             เลือกใช้
                           </Button>

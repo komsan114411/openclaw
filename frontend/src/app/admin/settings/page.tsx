@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { systemSettingsApi, slipApi, chatbotApi } from '@/lib/api';
+import { systemSettingsApi, slipApi, chatbotApi, banksApi } from '@/lib/api';
+import type { Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, StatCard } from '@/components/ui/Card';
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('infrastructure');
+  const [banks, setBanks] = useState<Bank[]>([]);
 
   // Form States
   const [slipApiKey, setSlipApiKey] = useState('');
@@ -31,6 +33,7 @@ export default function SettingsPage() {
   // Bank account form
   const [showBankModal, setShowBankModal] = useState(false);
   const [bankForm, setBankForm] = useState({
+    bankCode: '',
     bankName: '',
     accountNumber: '',
     accountName: '',
@@ -108,9 +111,20 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchBanks = useCallback(async () => {
+    try {
+      const res = await banksApi.getAll();
+      setBanks(res.data.banks || []);
+    } catch {
+      // Non-blocking
+      setBanks([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSettings();
-  }, [fetchSettings]);
+    fetchBanks();
+  }, [fetchSettings, fetchBanks]);
 
   const handleUpdate = async (section: string, payload: any) => {
     setIsSaving(section);
@@ -173,7 +187,7 @@ export default function SettingsPage() {
       if (response.data.success) {
         toast.success('เพิ่มบัญชีธนาคารสำเร็จ');
         setShowBankModal(false);
-        setBankForm({ bankName: '', accountNumber: '', accountName: '' });
+        setBankForm({ bankCode: '', bankName: '', accountNumber: '', accountName: '' });
         fetchSettings();
       }
     } catch (error: any) {
@@ -630,13 +644,28 @@ export default function SettingsPage() {
                     <div className="flex-1 space-y-4">
                       {settings?.bankAccounts?.length > 0 ? (
                         settings.bankAccounts.map((account: any, index: number) => (
+                          (() => {
+                            const bankCode = (account.bankCode || '').toString().toUpperCase();
+                            const bank = bankCode ? banks.find(b => b.code === bankCode) : undefined;
+                            const logo = bank?.logoBase64 || bank?.logoUrl || null;
+                            const title = bank?.nameTh || bank?.name || account.bankName;
+                            const subtitle = bank?.shortName || bankCode || '';
+                            return (
                           <div key={index} className="group p-6 bg-slate-50/50 hover:bg-white rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
                             <div className="flex items-center gap-5">
-                              <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-500 font-black text-xs uppercase">
-                                {account.bankName.slice(0, 2)}
+                              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                                {logo ? (
+                                  <img src={logo} alt={subtitle || title} className="w-8 h-8 object-contain" />
+                                ) : (
+                                  <span className="text-slate-500 font-black text-xs uppercase">
+                                    {(subtitle || title).slice(0, 2)}
+                                  </span>
+                                )}
                               </div>
                               <div>
-                                <p className="font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">{account.bankName}</p>
+                                <p className="font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">
+                                  {title}{subtitle ? <span className="text-slate-400 font-bold"> • {subtitle}</span> : null}
+                                </p>
                                 <p className="text-xs text-slate-400 font-bold tracking-widest">{account.accountNumber} • {account.accountName}</p>
                               </div>
                             </div>
@@ -647,6 +676,8 @@ export default function SettingsPage() {
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                           </div>
+                            );
+                          })()
                         ))
                       ) : (
                         <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2.5rem]">
@@ -739,18 +770,23 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <Select
               label="Institution Name"
-              value={bankForm.bankName}
-              onChange={(e) => setBankForm({ ...bankForm, bankName: e.target.value })}
+              value={bankForm.bankCode || ''}
+              onChange={(e) => {
+                const code = e.target.value;
+                const bank = banks.find(b => b.code === code);
+                setBankForm({
+                  ...bankForm,
+                  bankCode: code,
+                  bankName: bank?.nameTh || bank?.name || bankForm.bankName,
+                });
+              }}
             >
               <option value="">เลือกธนาคาร</option>
-              <option value="กสิกรไทย">ธนาคารกสิกรไทย</option>
-              <option value="กรุงเทพ">ธนาคารกรุงเทพ</option>
-              <option value="กรุงไทย">ธนาคารกรุงไทย</option>
-              <option value="ไทยพาณิชย์">ธนาคารไทยพาณิชย์</option>
-              <option value="กรุงศรี">ธนาคารกรุงศรีอยุธยา</option>
-              <option value="ทหารไทยธนชาต">ธนาคารทหารไทยธนชาต</option>
-              <option value="ออมสิน">ธนาคารออมสิน</option>
-              <option value="ธ.ก.ส.">ธนาคาร ธ.ก.ส.</option>
+              {banks.map((b) => (
+                <option key={b._id} value={b.code}>
+                  {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
+                </option>
+              ))}
             </Select>
 
             <Input

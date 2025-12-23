@@ -61,6 +61,7 @@ export interface LineAccountSettings {
   slipResponseMode?: string;
   slipImmediateMessage?: string;
   slipTemplateId?: string;
+  slipTemplateIds?: Partial<Record<'success' | 'duplicate' | 'error' | 'not_found', string>>;
   autoReplyEnabled?: boolean;
   webhookEnabled?: boolean;
 }
@@ -161,6 +162,16 @@ export interface BankAccount {
   bankName: string;
   accountNumber: string;
   accountName: string;
+  bankCode?: string;
+  bank?: {
+    code: string;
+    name: string;
+    nameTh?: string;
+    nameEn?: string;
+    shortName?: string;
+    logoUrl?: string;
+    logoBase64?: string;
+  };
 }
 
 export interface Bank {

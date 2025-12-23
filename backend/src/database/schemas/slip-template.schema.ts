@@ -103,8 +103,30 @@ export class SlipTemplate {
   @Prop({ default: true })
   showTransRef: boolean;
 
-  @Prop({ default: false })
+  @Prop({ default: true })
   showBankLogo: boolean;
+
+  // Extended fields (from Thunder payload) - optional toggles
+  @Prop({ default: false })
+  showCountryCode: boolean;
+
+  @Prop({ default: false })
+  showFee: boolean;
+
+  @Prop({ default: false })
+  showRefs: boolean; // ref1/ref2/ref3
+
+  @Prop({ default: false })
+  showPayload: boolean; // raw payload/hash (truncated)
+
+  @Prop({ default: false })
+  showSenderBankId: boolean;
+
+  @Prop({ default: false })
+  showReceiverBankId: boolean;
+
+  @Prop({ default: false })
+  showReceiverProxy: boolean;
 
   createdAt: Date;
   updatedAt: Date;

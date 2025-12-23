@@ -12,6 +12,8 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { SystemSettingsService } from './system-settings.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -21,6 +23,7 @@ import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { HealthService } from '../health/health.service';
 import { TasksService } from '../tasks/tasks.service';
+import { Bank } from '../database/schemas/bank.schema';
 
 @ApiTags('System Settings')
 @ApiBearerAuth()
@@ -32,6 +35,8 @@ export class SystemSettingsController {
     private healthService?: HealthService,
     @Optional() @Inject(forwardRef(() => TasksService))
     private tasksService?: TasksService,
+    @InjectModel(Bank.name)
+    private bankModel?: Model<Bank>,
   ) {}
 
   @Get()
@@ -95,7 +100,7 @@ export class SystemSettingsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Add bank account (Admin only)' })
   async addBankAccount(
-    @Body() account: { bankName: string; accountNumber: string; accountName: string },
+    @Body() account: { bankName: string; accountNumber: string; accountName: string; bankCode?: string },
     @CurrentUser() user: AuthUser,
   ) {
     const success = await this.settingsService.addBankAccount(account as any, user.userId);
@@ -137,11 +142,54 @@ export class SystemSettingsController {
   @ApiOperation({ summary: 'Get payment information (for authenticated users)' })
   async getPaymentInfo() {
     const settings = await this.settingsService.getSettings();
+    const accounts = settings?.paymentBankAccounts || [];
+
+    // Enrich bank accounts with bank details (logo/name) for frontend display
+    const banksByCode = new Map<string, any>();
+    if (this.bankModel) {
+      const codes = Array.from(
+        new Set(
+          accounts
+            .map((a: any) => (a.bankCode ? String(a.bankCode).toUpperCase() : ''))
+            .filter(Boolean),
+        ),
+      );
+      if (codes.length > 0) {
+        const banks = await this.bankModel
+          .find({ code: { $in: codes } })
+          .select({ code: 1, name: 1, nameTh: 1, nameEn: 1, shortName: 1, logoUrl: 1, logoBase64: 1, isActive: 1 })
+          .lean()
+          .exec();
+        for (const b of banks) {
+          banksByCode.set(String((b as any).code).toUpperCase(), b);
+        }
+      }
+    }
     
     return {
       success: true,
       publicBaseUrl: settings?.publicBaseUrl || '',
-      bankAccounts: settings?.paymentBankAccounts || [],
+      bankAccounts: accounts.map((a: any) => {
+        const bankCode = a.bankCode ? String(a.bankCode).toUpperCase() : undefined;
+        const bank = bankCode ? banksByCode.get(bankCode) : undefined;
+        return {
+          bankName: a.bankName,
+          accountNumber: a.accountNumber,
+          accountName: a.accountName,
+          bankCode: bankCode || a.bankCode,
+          bank: bank
+            ? {
+                code: bank.code,
+                name: bank.name,
+                nameTh: bank.nameTh,
+                nameEn: bank.nameEn,
+                shortName: bank.shortName,
+                logoUrl: bank.logoUrl,
+                logoBase64: bank.logoBase64,
+              }
+            : undefined,
+        };
+      }),
       usdtWallet: {
         enabled: settings?.usdtEnabled ?? true,
         address: settings?.usdtWalletAddress || '',
