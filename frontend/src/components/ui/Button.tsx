@@ -36,19 +36,20 @@ export function Button({
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (preventDoubleClick && isDebouncing) {
+      // Don't prevent double click for submit buttons - let the form handle it
+      if (preventDoubleClick && isDebouncing && props.type !== 'submit') {
         e.preventDefault();
         return;
       }
 
-      if (preventDoubleClick) {
+      if (preventDoubleClick && !isDebouncing) {
         setIsDebouncing(true);
         setTimeout(() => setIsDebouncing(false), debounceMs);
       }
 
       onClick?.(e);
     },
-    [onClick, preventDoubleClick, isDebouncing, debounceMs]
+    [onClick, preventDoubleClick, isDebouncing, debounceMs, props.type]
   );
 
   const baseClasses =
