@@ -430,7 +430,7 @@ export default function AdminLineAccountsPage() {
         <div className="md:hidden grid grid-cols-1 gap-4">
           {isLoading ? (
             <div className="space-y-4">
-              {[1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse bg-white/50" />)}
+              {[1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse bg-white/50"><div /></Card>)}
             </div>
           ) : filteredAccounts.length === 0 ? (
             <div className="flex flex-col items-center gap-6 opacity-30 py-12">
