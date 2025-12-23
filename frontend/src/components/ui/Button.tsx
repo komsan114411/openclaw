@@ -75,7 +75,8 @@ export function Button({
     lg: 'px-6 py-3 text-base gap-2.5',
   };
 
-  const isDisabled = disabled || isLoading || isDebouncing;
+  // Don't disable submit buttons due to debouncing - form handles submission
+  const isDisabled = disabled || isLoading || (isDebouncing && props.type !== 'submit');
 
   return (
     <button
