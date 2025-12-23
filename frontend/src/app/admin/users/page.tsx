@@ -206,7 +206,7 @@ export default function UsersPage() {
         {/* Aggregated Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard title="Global Users" value={users.length} icon="👥" color="indigo" variant="glass" />
-          <StatCard title="Active Admins" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="purple" variant="glass" />
+          <StatCard title="Active Admins" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
           <StatCard title="Revenue Nodes" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
           <StatCard title="Suspended" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
         </div>
@@ -461,7 +461,6 @@ export default function UsersPage() {
             <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl font-black italic">ASSET GRANT</div>
             <Select
               label="Selected Asset Package"
-              variant="glass"
               value={selectedPackageId}
               onChange={(e) => setSelectedPackageId(e.target.value)}
               className="bg-white/10 border-white/10 text-white"
