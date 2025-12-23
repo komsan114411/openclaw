@@ -354,7 +354,7 @@ export default function UserLineAccountsPage() {
                     href={`/user/templates?accountId=${account._id}`}
                     className="btn btn-secondary text-sm"
                   >
-                    📝 Templates
+                    📝 เทมเพลต
                   </a>
                   <button onClick={() => handleEdit(account)} className="btn btn-secondary flex-1 text-sm">
                     แก้ไขข้อมูล
@@ -596,8 +596,8 @@ export default function UserLineAccountsPage() {
                       <span className="text-sm text-gray-700">แจ้งเมื่อบอทปิด</span>
                       <select
                         value={settingsData.sendMessageWhenBotDisabled}
-                        onChange={(e) => setSettingsData({ 
-                          ...settingsData, 
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
                           sendMessageWhenBotDisabled: e.target.value
                         })}
                         className="input w-36 text-sm"
@@ -620,8 +620,8 @@ export default function UserLineAccountsPage() {
                       <span className="text-sm text-gray-700">แจ้งเมื่อตรวจสลิปปิด</span>
                       <select
                         value={settingsData.sendMessageWhenSlipDisabled}
-                        onChange={(e) => setSettingsData({ 
-                          ...settingsData, 
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
                           sendMessageWhenSlipDisabled: e.target.value
                         })}
                         className="input w-36 text-sm"
@@ -644,8 +644,8 @@ export default function UserLineAccountsPage() {
                       <span className="text-sm text-gray-700">แจ้งเมื่อ AI ปิด</span>
                       <select
                         value={settingsData.sendMessageWhenAiDisabled}
-                        onChange={(e) => setSettingsData({ 
-                          ...settingsData, 
+                        onChange={(e) => setSettingsData({
+                          ...settingsData,
                           sendMessageWhenAiDisabled: e.target.value
                         })}
                         className="input w-36 text-sm"

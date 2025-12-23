@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/Card';
-import { Button, IconButton } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Switch, Select } from '@/components/ui/Input';
 import { PageLoading } from '@/components/ui/Loading';
 import { toast } from 'react-hot-toast';
@@ -11,18 +11,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 
-// System Response Types Info
+// System Response Types - Thai Labels
 const RESPONSE_TYPES = {
-  no_slip_found: { label: 'Asset Search Void', icon: '🔍', shadow: 'shadow-rose-500/10' },
-  qr_unclear: { label: 'Signal Interference', icon: '📡', shadow: 'shadow-amber-500/10' },
-  quota_exceeded: { label: 'Resource Depletion', icon: '🪫', shadow: 'shadow-rose-500/20' },
-  quota_low: { label: 'Critical Threshold', icon: '⚠️', shadow: 'shadow-amber-500/20' },
-  invalid_image: { label: 'Corrupt Data Object', icon: '🖼️', shadow: 'shadow-rose-500/10' },
-  image_download_error: { label: 'Downlink Failure', icon: '📥', shadow: 'shadow-rose-500/10' },
-  general_error: { label: 'Logic Breach', icon: '☣️', shadow: 'shadow-rose-500/10' },
-  bot_disabled: { label: 'Relay Offline', icon: '📵', shadow: 'shadow-slate-500/10' },
-  slip_disabled: { label: 'Extraction Halted', icon: '🔒', shadow: 'shadow-slate-500/10' },
-  processing: { label: 'Quantum Sync', icon: '⏳', shadow: 'shadow-emerald-500/10' },
+  no_slip_found: { label: 'ไม่พบสลิป', icon: '🔍', description: 'เมื่อไม่พบสลิปในรูป' },
+  qr_unclear: { label: 'QR ไม่ชัด', icon: '📡', description: 'เมื่อ QR code อ่านไม่ได้' },
+  quota_exceeded: { label: 'โควต้าหมด', icon: '🔴', description: 'เมื่อโควต้าหมด' },
+  quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'เตือนโควต้าเหลือน้อย' },
+  invalid_image: { label: 'รูปไม่ถูกต้อง', icon: '🖼️', description: 'เมื่อรูปไม่ใช่สลิป' },
+  image_download_error: { label: 'ดาวน์โหลดไม่ได้', icon: '📥', description: 'เมื่อดาวน์โหลดรูปล้มเหลว' },
+  general_error: { label: 'ข้อผิดพลาดทั่วไป', icon: '❌', description: 'ข้อผิดพลาดของระบบ' },
+  bot_disabled: { label: 'บอทปิด', icon: '📵', description: 'เมื่อบอทถูกปิด' },
+  slip_disabled: { label: 'ตรวจสลิปปิด', icon: '🔒', description: 'เมื่อระบบตรวจสลิปปิด' },
+  processing: { label: 'กำลังประมวลผล', icon: '⏳', description: 'ขณะกำลังตรวจสอบ' },
 };
 
 interface ResponseStyling {
@@ -60,10 +60,10 @@ const DEFAULT_STYLING: ResponseStyling = {
   icon: '⚡',
   showIcon: true,
   showContactButton: true,
-  contactButtonText: 'CONTACT COMMAND',
+  contactButtonText: 'ติดต่อผู้ดูแล',
   contactButtonUrl: '',
   showRetryButton: true,
-  retryButtonText: 'RETRY UPLINK',
+  retryButtonText: 'ส่งใหม่',
 };
 
 export default function SystemResponsesPage() {
@@ -85,7 +85,7 @@ export default function SystemResponsesPage() {
         }
       }
     } catch (error) {
-      toast.error('Failed to sync response registry');
+      toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
     }
@@ -117,11 +117,11 @@ export default function SystemResponsesPage() {
 
       const data = await res.json();
       if (data.success) {
-        toast.success('Core logic synchronized');
+        toast.success('บันทึกสำเร็จ');
         fetchTemplates();
       }
     } catch (error) {
-      toast.error('Sync failure');
+      toast.error('เกิดข้อผิดพลาด');
     } finally {
       setSaving(false);
     }
@@ -129,7 +129,7 @@ export default function SystemResponsesPage() {
 
   const handleReset = async () => {
     if (!selectedType) return;
-    if (!confirm('Revert behavior to factory defaults?')) return;
+    if (!confirm('รีเซ็ตเป็นค่าเริ่มต้น?')) return;
 
     try {
       setSaving(true);
@@ -140,161 +140,188 @@ export default function SystemResponsesPage() {
 
       const data = await res.json();
       if (data.success) {
-        toast.success('Behavior reset complete');
+        toast.success('รีเซ็ตสำเร็จ');
         setFormData({ ...data.data, styling: { ...DEFAULT_STYLING, ...data.data.styling } });
         fetchTemplates();
       }
     } catch (error) {
-      toast.error('Reset failed');
+      toast.error('เกิดข้อผิดพลาด');
     } finally {
       setSaving(false);
     }
   };
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = useCallback((field: string, value: any) => {
     setFormData((prev) => prev ? { ...prev, [field]: value } : null);
-  };
+  }, []);
 
-  const updateStyling = (field: string, value: any) => {
+  const updateStyling = useCallback((field: string, value: any) => {
     setFormData((prev) => prev ? {
       ...prev,
       styling: { ...(prev.styling || DEFAULT_STYLING), [field]: value },
     } : null);
-  };
+  }, []);
 
-  if (loading) return <DashboardLayout requiredRole="admin"><PageLoading message="Synchronizing Protocol Data..." /></DashboardLayout>;
+  if (loading) return <DashboardLayout requiredRole="admin"><PageLoading message="กำลังโหลดข้อมูล..." /></DashboardLayout>;
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 animate-fade max-w-[1600px] mx-auto pb-12">
+      <div className="space-y-8 animate-fade max-w-[1600px] mx-auto pb-12">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">Response Protocol Manifest</h1>
-              <Badge variant="slate" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest bg-slate-200">System Overrides</Badge>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">ข้อความตอบกลับระบบ</h1>
+              <Badge variant="indigo" className="text-[10px]">ผู้ดูแลเท่านั้น</Badge>
             </div>
-            <p className="text-slate-500 font-medium text-lg">Define immutable response patterns for organizational service-level events.</p>
+            <p className="text-slate-500">กำหนดข้อความตอบกลับอัตโนมัติสำหรับกรณีต่างๆ (ผู้ใช้ไม่สามารถแก้ไขได้)</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" className="font-bold uppercase tracking-widest text-[11px]" onClick={handleReset} disabled={saving || !selectedType}>
-              Factory Reset
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <Button variant="outline" onClick={handleReset} disabled={saving || !selectedType}>
+              รีเซ็ตค่าเริ่มต้น
             </Button>
-            <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl h-12" onClick={handleSave} isLoading={saving}>
-              Synchronize Registry
+            <Button variant="primary" className="shadow-lg shadow-emerald-500/20" onClick={handleSave} isLoading={saving}>
+              บันทึกการเปลี่ยนแปลง
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-          {/* Protocol Selection Sidebar */}
-          <div className="lg:col-span-4 space-y-6">
-            <Card className="p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem] overflow-hidden">
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Signal Events</p>
+          {/* Response Type Selector */}
+          <div className="lg:col-span-4 space-y-4">
+            <Card className="p-0 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 bg-slate-50">
+                <p className="text-sm font-bold text-slate-700">ประเภทข้อความ</p>
+                <p className="text-xs text-slate-400">เลือกประเภทที่ต้องการแก้ไข</p>
               </div>
-              <div className="px-4 py-6 space-y-2 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto">
                 {templates.map((template) => {
                   const typeInfo = RESPONSE_TYPES[template.type as keyof typeof RESPONSE_TYPES];
                   const isSelected = selectedType === template.type;
                   return (
                     <motion.button
                       key={template._id}
-                      whileHover={{ x: 5 }}
+                      whileHover={{ x: 3 }}
                       onClick={() => handleSelectTemplate(template)}
                       className={cn(
-                        "w-full p-4 rounded-[2rem] flex items-center gap-5 transition-all duration-500 group relative",
-                        isSelected ? "bg-slate-900 text-white shadow-2xl" : "hover:bg-white hover:shadow-premium-sm"
+                        "w-full p-3 rounded-xl flex items-center gap-3 transition-all group",
+                        isSelected ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "hover:bg-slate-50"
                       )}
                     >
-                      {isSelected && <motion.div layoutId="activeProtocol" className="absolute inset-0 bg-slate-900 rounded-[2rem] -z-10 shadow-2xl shadow-slate-900/10" />}
                       <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner",
-                        isSelected ? "bg-white/10" : "bg-slate-50"
+                        "w-10 h-10 rounded-xl flex items-center justify-center text-lg",
+                        isSelected ? "bg-white/20" : "bg-slate-100"
                       )}>
                         {typeInfo?.icon || '📄'}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="font-black text-sm uppercase tracking-tight truncate leading-none mb-1 group-hover:text-emerald-500 transition-colors">{template.name}</p>
-                        <p className={cn("text-[9px] font-black uppercase tracking-widest opacity-40 leading-none", isSelected && "opacity-60")}>Format: {template.responseFormat}</p>
+                        <p className="font-bold text-sm truncate">{template.name}</p>
+                        <p className={cn("text-[10px] opacity-60", isSelected && "opacity-80")}>{typeInfo?.description}</p>
                       </div>
-                      <div className={cn("w-2 h-2 rounded-full", template.isActive ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-slate-300")} />
+                      <div className={cn("w-2 h-2 rounded-full flex-shrink-0", template.isActive ? "bg-emerald-400" : "bg-slate-300")} />
                     </motion.button>
                   );
                 })}
               </div>
             </Card>
+
+            {/* Info Card */}
+            <Card className="p-4 bg-amber-50 border-amber-200">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">💡</span>
+                <div>
+                  <p className="font-bold text-amber-900 text-sm">หมายเหตุ</p>
+                  <p className="text-xs text-amber-700 mt-1">ข้อความเหล่านี้จะถูกส่งไปยังลูกค้าโดยอัตโนมัติเมื่อเกิดเหตุการณ์ที่กำหนด ผู้ใช้ทั่วไปไม่สามารถแก้ไขการตั้งค่าเหล่านี้ได้</p>
+                </div>
+              </div>
+            </Card>
           </div>
 
-          {/* Logic Constructor & Preview */}
-          <div className="lg:col-span-8 space-y-8 animate-slide-up">
+          {/* Form & Preview */}
+          <div className="lg:col-span-8 space-y-6">
             {formData ? (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-                {/* Workspace */}
-                <div className="space-y-10">
-                  <div className="space-y-6">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" /> Fundamental Logic
+                {/* Settings Form */}
+                <div className="space-y-6">
+                  {/* Basic Settings */}
+                  <Card className="p-5 space-y-4">
+                    <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                      <span>⚙️</span> ตั้งค่าพื้นฐาน
                     </h3>
-                    <Card className="p-8 bg-white border-none shadow-premium-sm rounded-[3rem] space-y-6">
-                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                        <span className="text-xs font-black uppercase tracking-widest text-slate-500">Service Status</span>
-                        <Switch checked={formData.isActive ?? true} onChange={(checked) => updateFormData('isActive', checked)} />
-                      </div>
-                      <Select label="Response Architecture" value={formData.responseFormat || 'flex'} onChange={(e) => updateFormData('responseFormat', e.target.value)}>
-                        <option value="flex">Neuro-Flex (High Fidelity)</option>
-                        <option value="text">Legacy-Text (Plain Object)</option>
-                      </Select>
-                      <Textarea label="Fallback Signal (Text)" value={formData.textMessage || ''} onChange={(e) => updateFormData('textMessage', e.target.value)} rows={3} placeholder="Signal content for legacy devices..." />
-                    </Card>
-                  </div>
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                      <span className="text-sm font-medium text-slate-700">สถานะการใช้งาน</span>
+                      <Switch checked={formData.isActive ?? true} onChange={(checked) => updateFormData('isActive', checked)} />
+                    </div>
+                    <Select label="รูปแบบการตอบกลับ" value={formData.responseFormat || 'flex'} onChange={(e) => updateFormData('responseFormat', e.target.value)}>
+                      <option value="flex">Flex Message (สวยงาม)</option>
+                      <option value="text">Text (ข้อความธรรมดา)</option>
+                    </Select>
+                    <Textarea label="ข้อความ Text (สำรอง)" value={formData.textMessage || ''} onChange={(e) => updateFormData('textMessage', e.target.value)} rows={3} placeholder="ข้อความสำรองเมื่อไม่รองรับ Flex..." />
+                  </Card>
 
                   <AnimatePresence mode="wait">
                     {formData.responseFormat === 'flex' && (
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
-                        <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-blue-500" /> Neuro-Flex Parameters
-                        </h3>
-                        <Card className="p-8 bg-slate-900 border-none shadow-2xl shadow-slate-900/10 rounded-[3rem] text-white space-y-6">
-                          <Input variant="glass" label="Primary Command (Title)" value={formData.title || ''} onChange={(e) => updateFormData('title', e.target.value)} className="bg-white/5 border-white/10 text-white" />
-                          <Input variant="glass" label="Core Transmission (Main)" value={formData.mainMessage || ''} onChange={(e) => updateFormData('mainMessage', e.target.value)} className="bg-white/5 border-white/10 text-white" />
-                          <Textarea variant="glass" label="Supplementary Data (Sub)" value={formData.subMessage || ''} onChange={(e) => updateFormData('subMessage', e.target.value)} rows={3} className="bg-white/5 border-white/10 text-white" />
+                        {/* Flex Message Content */}
+                        <Card className="p-5 space-y-4">
+                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>💬</span> เนื้อหาข้อความ
+                          </h3>
+                          <Input label="หัวข้อ" value={formData.title || ''} onChange={(e) => updateFormData('title', e.target.value)} placeholder="เช่น ไม่พบสลิป" />
+                          <Input label="ข้อความหลัก" value={formData.mainMessage || ''} onChange={(e) => updateFormData('mainMessage', e.target.value)} placeholder="ข้อความหลักที่ต้องการแสดง" />
+                          <Textarea label="ข้อความรอง" value={formData.subMessage || ''} onChange={(e) => updateFormData('subMessage', e.target.value)} rows={2} placeholder="คำอธิบายเพิ่มเติม..." />
                         </Card>
 
-                        <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4 flex items-center gap-2 pt-4">
-                          <span className="w-2 h-2 rounded-full bg-purple-500" /> UI Schema
-                        </h3>
-                        <Card className="p-8 bg-white border-none shadow-premium-sm rounded-[3rem] space-y-6">
-                          <div className="grid grid-cols-2 gap-6">
-                            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Header Hue</label><input type="color" value={formData.styling?.primaryColor || '#10b981'} onChange={(e) => updateStyling('primaryColor', e.target.value)} className="w-full h-12 rounded-2xl border-none cursor-pointer shadow-inner overflow-hidden flex-1" /></div>
-                            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Background Hue</label><input type="color" value={formData.styling?.backgroundColor || '#f8fafc'} onChange={(e) => updateStyling('backgroundColor', e.target.value)} className="w-full h-12 rounded-2xl border-none cursor-pointer shadow-inner overflow-hidden flex-1" /></div>
-                          </div>
-                          <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl">
-                            <div className="flex-1 flex items-center gap-4">
-                              <Switch checked={formData.styling?.showIcon ?? true} onChange={(checked) => updateStyling('showIcon', checked)} />
-                              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Visual Icon</span>
+                        {/* Appearance */}
+                        <Card className="p-5 space-y-4">
+                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>🎨</span> การแสดงผล
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-bold text-slate-500 mb-2 block">สีหัวข้อ</label>
+                              <input type="color" value={formData.styling?.primaryColor || '#10b981'} onChange={(e) => updateStyling('primaryColor', e.target.value)} className="w-full h-10 rounded-xl border-2 border-slate-200 cursor-pointer" />
                             </div>
-                            {formData.styling?.showIcon && <input value={formData.styling?.icon || '⚡'} onChange={(e) => updateStyling('icon', e.target.value)} className="w-12 h-12 bg-white rounded-xl border border-slate-100 text-center text-xl shadow-premium-sm" />}
+                            <div>
+                              <label className="text-xs font-bold text-slate-500 mb-2 block">สีพื้นหลัง</label>
+                              <input type="color" value={formData.styling?.backgroundColor || '#f8fafc'} onChange={(e) => updateStyling('backgroundColor', e.target.value)} className="w-full h-10 rounded-xl border-2 border-slate-200 cursor-pointer" />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl">
+                            <Switch checked={formData.styling?.showIcon ?? true} onChange={(checked) => updateStyling('showIcon', checked)} />
+                            <span className="text-sm font-medium text-slate-700">แสดงไอคอน</span>
+                            {formData.styling?.showIcon && (
+                              <input value={formData.styling?.icon || '⚡'} onChange={(e) => updateStyling('icon', e.target.value)} className="w-10 h-10 bg-white rounded-lg border border-slate-200 text-center text-lg ml-auto" />
+                            )}
                           </div>
                         </Card>
 
-                        <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4 flex items-center gap-2 pt-4">
-                          <span className="w-2 h-2 rounded-full bg-rose-500" /> Action Nodes
-                        </h3>
-                        <Card className="p-8 bg-white border-none shadow-premium-sm rounded-[3rem] space-y-8">
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-widest text-slate-500">Recalibration Button</span><Switch checked={formData.styling?.showRetryButton ?? true} onChange={(checked) => updateStyling('showRetryButton', checked)} /></div>
-                            {formData.styling?.showRetryButton && <Input label="Recalibration Label" value={formData.styling?.retryButtonText || ''} onChange={(e) => updateStyling('retryButtonText', e.target.value)} />}
+                        {/* Buttons */}
+                        <Card className="p-5 space-y-4">
+                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                            <span>🔘</span> ปุ่มกด
+                          </h3>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-slate-700">ปุ่มลองใหม่</span>
+                              <Switch checked={formData.styling?.showRetryButton ?? true} onChange={(checked) => updateStyling('showRetryButton', checked)} />
+                            </div>
+                            {formData.styling?.showRetryButton && (
+                              <Input label="ข้อความปุ่ม" value={formData.styling?.retryButtonText || ''} onChange={(e) => updateStyling('retryButtonText', e.target.value)} placeholder="เช่น ส่งใหม่" />
+                            )}
                           </div>
-                          <div className="space-y-4 border-t border-slate-50 pt-6">
-                            <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-widest text-slate-500">Support Terminal Button</span><Switch checked={formData.styling?.showContactButton ?? true} onChange={(checked) => updateStyling('showContactButton', checked)} /></div>
+                          <div className="space-y-3 pt-3 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-slate-700">ปุ่มติดต่อ</span>
+                              <Switch checked={formData.styling?.showContactButton ?? true} onChange={(checked) => updateStyling('showContactButton', checked)} />
+                            </div>
                             {formData.styling?.showContactButton && (
                               <>
-                                <Input label="Terminal Label" value={formData.styling?.contactButtonText || ''} onChange={(e) => updateStyling('contactButtonText', e.target.value)} />
-                                <Input label="Terminal Link Address" value={formData.styling?.contactButtonUrl || ''} onChange={(e) => updateStyling('contactButtonUrl', e.target.value)} placeholder="https://..." />
+                                <Input label="ข้อความปุ่ม" value={formData.styling?.contactButtonText || ''} onChange={(e) => updateStyling('contactButtonText', e.target.value)} placeholder="เช่น ติดต่อผู้ดูแล" />
+                                <Input label="ลิงก์ (ไม่บังคับ)" value={formData.styling?.contactButtonUrl || ''} onChange={(e) => updateStyling('contactButtonUrl', e.target.value)} placeholder="https://..." />
                               </>
                             )}
                           </div>
@@ -304,83 +331,61 @@ export default function SystemResponsesPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* High Fidelity Preview Overlay */}
-                <div className="sticky top-12 h-fit space-y-6">
-                  <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 px-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" /> Real-time Simulation
-                  </h3>
-                  <div className="relative group p-12 bg-slate-900 rounded-[4.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.4)] overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 text-7xl font-black italic">PREVIEW</div>
-                    <div className="relative z-10 w-full max-w-[320px] mx-auto bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-float">
+                {/* Preview */}
+                <div className="sticky top-4 h-fit space-y-4">
+                  <Card className="p-4 bg-slate-100">
+                    <p className="text-sm font-bold text-slate-700 mb-3 text-center">👁️ ตัวอย่างการแสดงผล</p>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                      <div className="w-full max-w-[280px] mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
 
-                      {/* Device Top */}
-                      <div className="h-6 bg-slate-50 flex items-center justify-center gap-1.5 opacity-20">
-                        <div className="w-1 h-1 rounded-full bg-slate-700" />
-                        <div className="w-8 h-1 rounded-full bg-slate-700" />
-                      </div>
-
-                      {/* Flex Message Rendering */}
-                      <div className="flex flex-col">
-                        <div className="px-6 py-5 flex items-center gap-3 justify-center text-center" style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}>
-                          {formData.styling?.showIcon && <span className="text-2xl drop-shadow-lg">{formData.styling?.icon || '⚡'}</span>}
-                          <span className="font-extrabold text-[15px] uppercase tracking-widest text-white">{formData.title || 'PROTOCOL_HEADER'}</span>
+                        {/* Header */}
+                        <div className="px-4 py-3 flex items-center gap-2 justify-center" style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}>
+                          {formData.styling?.showIcon && <span className="text-lg">{formData.styling?.icon || '⚡'}</span>}
+                          <span className="font-bold text-sm text-white">{formData.title || 'หัวข้อ'}</span>
                         </div>
 
-                        <div className="px-8 py-10 text-center space-y-3" style={{ backgroundColor: formData.styling?.backgroundColor || '#f8fafc' }}>
-                          <p className="font-black text-slate-900 text-lg leading-tight uppercase tracking-tight">{formData.mainMessage || 'CORE_MESSAGE_MANIFEST'}</p>
-                          {formData.subMessage && <p className="text-[11px] font-bold text-slate-400 leading-relaxed uppercase tracking-wider">{formData.subMessage}</p>}
+                        {/* Body */}
+                        <div className="px-4 py-5 text-center space-y-2" style={{ backgroundColor: formData.styling?.backgroundColor || '#f8fafc' }}>
+                          <p className="font-bold text-slate-900 text-sm">{formData.mainMessage || 'ข้อความหลัก'}</p>
+                          {formData.subMessage && <p className="text-xs text-slate-500">{formData.subMessage}</p>}
                         </div>
 
-                        <div className="p-6 bg-white space-y-3">
+                        {/* Buttons */}
+                        <div className="p-3 bg-white space-y-2">
                           {formData.styling?.showRetryButton && (
-                            <div className="w-full h-12 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.2em] text-white rounded-2xl shadow-xl shadow-emerald-500/10" style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}>
-                              {formData.styling?.retryButtonText || 'RETRY_SIGNAL'}
+                            <div className="w-full h-9 flex items-center justify-center text-xs font-bold text-white rounded-lg" style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}>
+                              {formData.styling?.retryButtonText || 'ส่งใหม่'}
                             </div>
                           )}
                           {formData.styling?.showContactButton && (
-                            <div className="w-full h-12 flex items-center justify-center font-black text-[11px] uppercase tracking-[0.2em] text-slate-400 bg-slate-50 rounded-2xl border border-slate-100">
-                              {formData.styling?.contactButtonText || 'SUPPORT_LINK'}
+                            <div className="w-full h-9 flex items-center justify-center text-xs font-bold text-slate-500 bg-slate-100 rounded-lg">
+                              {formData.styling?.contactButtonText || 'ติดต่อผู้ดูแล'}
                             </div>
                           )}
                         </div>
                       </div>
-
-                      <div className="h-4 bg-white" />
                     </div>
+                  </Card>
 
-                    {/* Background Glimmer */}
-                    <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-emerald-500/10 blur-[100px] rounded-full" />
-                    <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-500/10 blur-[100px] rounded-full" />
-                  </div>
-
-                  <Card className="p-6 bg-emerald-900/5 border-emerald-500/10 rounded-[2.5rem] flex items-start gap-4">
-                    <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white text-xl flex-shrink-0 shadow-lg shadow-emerald-500/20">💡</div>
-                    <p className="text-xs font-bold text-emerald-900/40 uppercase tracking-widest leading-relaxed pt-1">The real-time simulator mimics the exact visual hierarchy presented to the authorized end-user upon protocol trigger.</p>
+                  <Card className="p-4 bg-emerald-50 border-emerald-200">
+                    <div className="flex items-start gap-2">
+                      <span className="text-lg">✅</span>
+                      <p className="text-xs text-emerald-700">ข้อความนี้จะถูกส่งไปยังลูกค้าเมื่อเกิดเหตุการณ์ "{RESPONSE_TYPES[selectedType as keyof typeof RESPONSE_TYPES]?.description || selectedType}"</p>
+                    </div>
                   </Card>
                 </div>
 
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center p-20 opacity-30 bg-white/20 backdrop-blur-3xl rounded-[4rem] border-4 border-dashed border-slate-200">
-                <div className="text-8xl mb-8">🛠️</div>
-                <h4 className="text-2xl font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Protocol Core Standby</h4>
-                <p className="text-xs font-bold text-center max-w-xs leading-relaxed uppercase tracking-widest">Select an automated response event from the manifest to begin neuro-logic recalibration.</p>
-              </div>
+              <Card className="p-12 text-center">
+                <div className="text-6xl mb-4">🛠️</div>
+                <h4 className="text-xl font-bold text-slate-900 mb-2">เลือกประเภทข้อความ</h4>
+                <p className="text-slate-500">เลือกประเภทข้อความจากรายการทางซ้ายเพื่อเริ่มแก้ไข</p>
+              </Card>
             )}
           </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.1); border-radius: 10px; }
-        @keyframes float { 
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-      `}</style>
     </DashboardLayout>
   );
 }
