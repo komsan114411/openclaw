@@ -43,6 +43,7 @@ export interface LineAccount {
     totalUsers: number;
     totalSlipsVerified: number;
     totalAiResponses: number;
+    totalSlipErrors: number;
   };
   createdAt: string;
   updatedAt: string;

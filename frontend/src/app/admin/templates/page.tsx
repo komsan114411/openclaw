@@ -335,7 +335,7 @@ export default function AdminTemplatesPage() {
               </Select>
             </div>
 
-            <TextArea
+            <Textarea
               label="Internal Annotation"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}

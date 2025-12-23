@@ -15,6 +15,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   containerClassName?: string;
+  variant?: 'default' | 'glass';
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -40,6 +41,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               leftIcon && 'pl-11',
               rightIcon && 'pr-11',
               error && 'border-rose-500 focus:ring-rose-500/10 focus:border-rose-500',
+              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5',
               className
             )}
             {...props}
@@ -66,6 +68,7 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   error?: string;
   hint?: string;
   containerClassName?: string;
+  variant?: 'default' | 'glass';
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
@@ -83,6 +86,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={cn(
             'input min-h-[120px] py-3 resize-none',
             error && 'border-rose-500 focus:ring-rose-500/10 focus:border-rose-500',
+            props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5',
             className
           )}
           {...props}

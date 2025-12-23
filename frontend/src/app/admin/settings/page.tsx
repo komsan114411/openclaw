@@ -476,7 +476,7 @@ export default function SettingsPage() {
                       <div className="p-6 bg-emerald-50/30 rounded-3xl border border-emerald-100/50 flex items-center justify-between">
                         <div>
                           <p className="font-bold text-slate-800">Initialization Feedback</p>
-                          <p className="text-xs text-slate-400 italic">"กำลังตรวจสอบสลิป..."</p>
+                          <p className="text-xs text-slate-400 italic">&quot;กำลังตรวจสอบสลิป...&quot;</p>
                         </div>
                         <Switch
                           checked={messageSettings.showSlipProcessingMessage}

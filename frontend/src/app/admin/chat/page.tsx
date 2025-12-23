@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
-import { Spinner } from '@/components/ui/Loading';
+import { Spinner, PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 
 interface ChatUser {

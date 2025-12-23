@@ -144,11 +144,15 @@ export function LoadingTable({ rows = 5, cols = 4, className = '' }: LoadingTabl
 
 interface PageLoadingProps {
   message?: string;
+  transparent?: boolean;
 }
 
-export function PageLoading({ message = 'กำลังโหลดข้อมูล...' }: PageLoadingProps) {
+export function PageLoading({ message = 'กำลังโหลดข้อมูล...', transparent = false }: PageLoadingProps) {
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center animate-fade">
+    <div className={cn(
+      "min-h-[60vh] flex flex-col items-center justify-center animate-fade",
+      transparent ? "bg-transparent" : "min-h-screen bg-slate-50/50 backdrop-blur-xl"
+    )}>
       <div className="relative mb-8">
         <Spinner size="xl" />
         <div className="absolute inset-0 flex items-center justify-center">
