@@ -475,9 +475,13 @@ export class SlipTemplatesService {
 
   private generateDefaultFlexMessage(template: SlipTemplateDocument, data: SlipData): any {
     const primaryColor = template.primaryColor || '#00C851';
+    const isDuplicate = data.isDuplicate || template.type === 'duplicate';
+    const headerBgColor = isDuplicate ? '#FFF3E0' : '#E8F5E9';
+    const headerIcon = isDuplicate ? '⚠️' : '✓';
+    const headerText = template.headerText || (isDuplicate ? 'สลิปนี้ถูกใช้งานไปแล้ว' : 'สลิปถูกต้อง');
     const contents: any[] = [];
 
-    // Header with success icon
+    // Header with icon
     contents.push({
       type: 'box',
       layout: 'horizontal',
@@ -488,8 +492,8 @@ export class SlipTemplatesService {
           contents: [
             {
               type: 'text',
-              text: '✓',
-              color: '#FFFFFF',
+              text: headerIcon,
+              color: isDuplicate ? '#FF6B00' : '#FFFFFF',
               size: 'lg',
               weight: 'bold',
               align: 'center',
@@ -497,17 +501,17 @@ export class SlipTemplatesService {
           ],
           width: '30px',
           height: '30px',
-          backgroundColor: primaryColor,
+          backgroundColor: isDuplicate ? '#FFE0B2' : primaryColor,
           cornerRadius: '15px',
           justifyContent: 'center',
           alignItems: 'center',
         },
         {
           type: 'text',
-          text: template.headerText || 'สลิปถูกต้อง',
+          text: headerText,
           weight: 'bold',
           size: 'lg',
-          color: primaryColor,
+          color: isDuplicate ? '#FF6B00' : primaryColor,
           margin: 'md',
           flex: 1,
         },
@@ -517,7 +521,7 @@ export class SlipTemplatesService {
           contents: [
             {
               type: 'text',
-              text: '✓',
+              text: isDuplicate ? '!' : '✓',
               color: '#FFFFFF',
               size: 'xs',
               align: 'center',
@@ -525,13 +529,13 @@ export class SlipTemplatesService {
           ],
           width: '20px',
           height: '20px',
-          backgroundColor: primaryColor,
+          backgroundColor: isDuplicate ? '#FF6B00' : primaryColor,
           cornerRadius: '10px',
           justifyContent: 'center',
           alignItems: 'center',
         },
       ],
-      backgroundColor: '#E8F5E9',
+      backgroundColor: headerBgColor,
       paddingAll: '12px',
       cornerRadius: '12px',
     });
