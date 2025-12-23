@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api } from '@/lib/api';
+import { api, banksApi } from '@/lib/api';
+import { Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, StatCard } from '@/components/ui/Card';
@@ -36,6 +37,7 @@ interface SlipTemplate {
   showBankLogo: boolean;
   showDelayWarning: boolean;
   delayWarningMinutes: number;
+  bankId?: string;
   createdAt: string;
 }
 
@@ -64,10 +66,12 @@ const DEFAULT_FORM_DATA = {
   showBankLogo: false,
   showDelayWarning: false,
   delayWarningMinutes: 5,
+  bankId: '',
 };
 
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -91,9 +95,19 @@ export default function AdminTemplatesPage() {
     }
   }, []);
 
+  const fetchBanks = useCallback(async () => {
+    try {
+      const response = await banksApi.getAll();
+      setBanks(response.data.banks || []);
+    } catch (err) {
+      console.error('Failed to load banks:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTemplates();
-  }, [fetchTemplates]);
+    fetchBanks();
+  }, [fetchTemplates, fetchBanks]);
 
   const openCreateModal = () => {
     setFormData(DEFAULT_FORM_DATA);
@@ -120,6 +134,7 @@ export default function AdminTemplatesPage() {
       showBankLogo: template.showBankLogo,
       showDelayWarning: template.showDelayWarning,
       delayWarningMinutes: template.delayWarningMinutes || 5,
+      bankId: template.bankId || '',
     });
     setShowEditModal(true);
   };
@@ -211,8 +226,10 @@ export default function AdminTemplatesPage() {
   }, {} as Record<string, SlipTemplate[]>);
 
   const PreviewComponent = ({ config, type }: { config: typeof DEFAULT_FORM_DATA, type?: 'success' | 'duplicate' }) => {
+
     const isDuplicate = type === 'duplicate' || config.type === 'duplicate';
     const mainColor = isDuplicate ? '#f59e0b' : config.primaryColor;
+    const selectedBank = banks.find(b => b._id === config.bankId);
 
     return (
       <div className="bg-slate-900/5 backdrop-blur-3xl rounded-[2.5rem] p-6 border border-white max-w-[340px] w-full mx-auto shadow-premium-lg">
@@ -253,7 +270,15 @@ export default function AdminTemplatesPage() {
           <div className="space-y-3">
             {config.showSender && (
               <div className="flex items-center gap-4 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
-                {config.showBankLogo && <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-lg shadow-inner">🏦</div>}
+                {config.showBankLogo && (
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shadow-inner bg-white">
+                    {selectedBank?.logoUrl ? (
+                      <img src={selectedBank.logoUrl} alt="Bank" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl">🏦</span>
+                    )}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-[9px] uppercase tracking-widest font-black text-slate-300 leading-none mb-1">Originator</p>
                   <p className="text-xs font-black text-slate-900 truncate uppercase">Jonathan Doe</p>
@@ -317,6 +342,21 @@ export default function AdminTemplatesPage() {
         {/* Settings Side */}
         <div className="lg:col-span-7 space-y-8 pr-2">
           <div className="space-y-6">
+            {/* Bank Selection */}
+            <div className="p-4 bg-slate-50 rounded-[2rem] border border-slate-100">
+              <Select
+                label="Primary Bank Identity"
+                value={formData.bankId}
+                onChange={(e) => setFormData({ ...formData, bankId: e.target.value })}
+                className="bg-white"
+              >
+                <option value="">-- Generic System Default --</option>
+                {banks.map((bank) => (
+                  <option key={bank._id} value={bank._id}>{bank.name} ({bank.shortName})</option>
+                ))}
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-6">
               <Input
                 label="Interface Identity"

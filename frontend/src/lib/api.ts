@@ -135,6 +135,17 @@ export const paymentsApi = {
     api.post(`/payments/${id}/reject`, { notes }),
 };
 
+// Banks API
+export const banksApi = {
+  getAll: () => api.get('/banks'),
+  getById: (id: string) => api.get(`/banks/${id}`),
+  create: (data: any) => api.post('/banks', data),
+  update: (id: string, data: any) => api.put(`/banks/${id}`, data),
+  delete: (id: string) => api.delete(`/banks/${id}`),
+  toggleActive: (id: string) => api.post(`/banks/${id}/toggle-active`),
+  syncFromThunder: () => api.post('/admin/banks/sync-from-thunder'),
+};
+
 // System Settings API
 export const systemSettingsApi = {
   get: () => api.get('/system-settings'),

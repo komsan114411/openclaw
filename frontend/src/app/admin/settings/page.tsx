@@ -403,7 +403,7 @@ export default function SettingsPage() {
                 {/* Communication Policy Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                   <StatCard title="Auto-Retries" value={messageSettings.maxRetryAttempts} icon="🔄" color="blue" variant="glass" />
-                  <StatCard title="Retry Delay" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="slate" variant="glass" />
+                  <StatCard title="Retry Delay" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="indigo" variant="glass" />
                   <StatCard title="Quota Alert" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
                 </div>
 

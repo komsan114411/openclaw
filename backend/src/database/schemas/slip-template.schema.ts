@@ -61,6 +61,10 @@ export class SlipTemplate {
   @Prop()
   secondaryColor?: string;
 
+  // Linked Bank for styling
+  @Prop({ type: Types.ObjectId, ref: 'Bank' })
+  bankId?: Types.ObjectId;
+
   @Prop()
   headerText?: string;
 

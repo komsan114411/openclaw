@@ -162,3 +162,17 @@ export interface BankAccount {
   accountNumber: string;
   accountName: string;
 }
+
+export interface Bank {
+  _id: string;
+  code: string;
+  name: string;
+  nameTh?: string;
+  nameEn?: string;
+  shortName?: string;
+  color?: string;
+  logoUrl?: string;
+  logoBase64?: string;
+  isActive: boolean;
+  sortOrder: number;
+}
