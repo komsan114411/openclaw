@@ -42,10 +42,10 @@ interface SlipTemplate {
 }
 
 const TYPE_OPTIONS = [
-  { value: 'success', label: 'Completion Success', color: 'emerald', icon: '✅', description: 'Standard successful verification' },
-  { value: 'duplicate', label: 'Redundant Slip', color: 'amber', icon: '⚠️', description: 'Already processed transactions' },
-  { value: 'error', label: 'System Exception', color: 'rose', icon: '❌', description: 'Internal processing errors' },
-  { value: 'not_found', label: 'Null Record', color: 'slate', icon: '🔍', description: 'No matching transaction found' },
+  { value: 'success', label: 'ตรวจสอบสำเร็จ', color: 'emerald', icon: '✅', description: 'สลิปที่ผ่านการยืนยันแล้ว' },
+  { value: 'duplicate', label: 'สลิปซ้ำ', color: 'amber', icon: '⚠️', description: 'รายการที่เคยตรวจสอบแล้ว' },
+  { value: 'error', label: 'เกิดข้อผิดพลาด', color: 'rose', icon: '❌', description: 'ข้อผิดพลาดในการประมวลผล' },
+  { value: 'not_found', label: 'ไม่พบข้อมูล', color: 'slate', icon: '🔍', description: 'ไม่พบรายการธุรกรรม' },
 ] as const;
 
 const DEFAULT_FORM_DATA = {
@@ -89,7 +89,7 @@ export default function AdminTemplatesPage() {
       }
     } catch (err: any) {
       console.error('Failed to load templates:', err);
-      toast.error('ไม่สามารถโหลด Templates ได้');
+      toast.error('ไม่สามารถโหลดเทมเพลตได้');
     } finally {
       setLoading(false);
     }
@@ -141,18 +141,18 @@ export default function AdminTemplatesPage() {
 
   const handleCreate = async () => {
     if (!formData.name.trim()) {
-      toast.error('กรุณากรอกชื่อ Template');
+      toast.error('กรุณากรอกชื่อเทมเพลต');
       return;
     }
 
     setIsProcessing(true);
     try {
       await api.post('/slip-templates/global', formData);
-      toast.success('สร้าง Template สำเร็จ');
+      toast.success('สร้างเทมเพลตสำเร็จ');
       setShowCreateModal(false);
       fetchTemplates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถสร้าง Template ได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถสร้างเทมเพลตได้');
     } finally {
       setIsProcessing(false);
     }
@@ -160,18 +160,18 @@ export default function AdminTemplatesPage() {
 
   const handleUpdate = async () => {
     if (!selectedTemplate || !formData.name.trim()) {
-      toast.error('กรุณากรอกชื่อ Template');
+      toast.error('กรุณากรอกชื่อเทมเพลต');
       return;
     }
 
     setIsProcessing(true);
     try {
       await api.put(`/slip-templates/global/${selectedTemplate._id}`, formData);
-      toast.success('อัปเดต Template สำเร็จ');
+      toast.success('อัปเดตเทมเพลตสำเร็จ');
       setShowEditModal(false);
       fetchTemplates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถอัปเดต Template ได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถอัปเดตเทมเพลตได้');
     } finally {
       setIsProcessing(false);
     }
@@ -183,12 +183,12 @@ export default function AdminTemplatesPage() {
     setIsProcessing(true);
     try {
       await api.delete(`/slip-templates/global/${selectedTemplate._id}`);
-      toast.success('ลบ Template สำเร็จ');
+      toast.success('ลบเทมเพลตสำเร็จ');
       setShowDeleteConfirm(false);
       setSelectedTemplate(null);
       fetchTemplates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถลบ Template ได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถลบเทมเพลตได้');
     } finally {
       setIsProcessing(false);
     }
@@ -197,10 +197,10 @@ export default function AdminTemplatesPage() {
   const handleSetDefault = async (templateId: string) => {
     try {
       await api.put(`/slip-templates/global/${templateId}/default`);
-      toast.success('ตั้งเป็น Default สำเร็จ');
+      toast.success('ตั้งเป็นค่าเริ่มต้นสำเร็จ');
       fetchTemplates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถตั้งเป็น Default ได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถตั้งเป็นค่าเริ่มต้นได้');
     }
   };
 
@@ -208,10 +208,10 @@ export default function AdminTemplatesPage() {
     setIsProcessing(true);
     try {
       await api.post('/slip-templates/global/init-defaults');
-      toast.success('สร้าง Template เริ่มต้นสำเร็จ');
+      toast.success('สร้างเทมเพลตเริ่มต้นสำเร็จ');
       fetchTemplates();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถสร้าง Template เริ่มต้นได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถสร้างเทมเพลตเริ่มต้นได้');
     } finally {
       setIsProcessing(false);
     }
@@ -225,103 +225,191 @@ export default function AdminTemplatesPage() {
     return acc;
   }, {} as Record<string, SlipTemplate[]>);
 
-  const PreviewComponent = ({ config, type }: { config: typeof DEFAULT_FORM_DATA, type?: 'success' | 'duplicate' }) => {
+  // Bank Selection Component with Logo Preview
+  const BankSelector = () => {
+    const selectedBank = banks.find(b => b._id === formData.bankId);
 
+    return (
+      <div className="space-y-4">
+        <label className="block text-sm font-bold text-slate-700">เลือกธนาคาร</label>
+
+        {/* Visual Bank Grid */}
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 max-h-[200px] overflow-y-auto p-2">
+          {/* Default Option */}
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, bankId: '' })}
+            className={cn(
+              "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200",
+              !formData.bankId
+                ? "border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/20"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            )}
+          >
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">
+              🏦
+            </div>
+            <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">ค่าเริ่มต้น</span>
+          </button>
+
+          {/* Bank Options with Logos */}
+          {banks.filter(b => b.isActive).map((bank) => (
+            <button
+              key={bank._id}
+              type="button"
+              onClick={() => setFormData({ ...formData, bankId: bank._id })}
+              className={cn(
+                "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200",
+                formData.bankId === bank._id
+                  ? "border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-500/20"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              )}
+            >
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-inner"
+                style={{ backgroundColor: bank.color ? `${bank.color}15` : undefined }}
+              >
+                {bank.logoUrl ? (
+                  <img src={bank.logoUrl} alt={bank.shortName} className="w-8 h-8 object-contain" />
+                ) : bank.logoBase64 ? (
+                  <img src={bank.logoBase64} alt={bank.shortName} className="w-8 h-8 object-contain" />
+                ) : (
+                  <span className="text-xs font-black" style={{ color: bank.color }}>{bank.shortName?.substring(0, 3)}</span>
+                )}
+              </div>
+              <span className="text-[10px] font-bold text-slate-600 text-center leading-tight truncate w-full">
+                {bank.shortName || bank.code}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Selected Bank Info */}
+        {selectedBank && (
+          <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white shadow"
+              style={{ backgroundColor: selectedBank.color ? `${selectedBank.color}15` : undefined }}
+            >
+              {selectedBank.logoUrl ? (
+                <img src={selectedBank.logoUrl} alt={selectedBank.name} className="w-10 h-10 object-contain" />
+              ) : selectedBank.logoBase64 ? (
+                <img src={selectedBank.logoBase64} alt={selectedBank.name} className="w-10 h-10 object-contain" />
+              ) : (
+                <span className="text-lg">🏦</span>
+              )}
+            </div>
+            <div>
+              <p className="font-bold text-emerald-800">{selectedBank.name}</p>
+              <p className="text-xs text-emerald-600">{selectedBank.nameTh || selectedBank.nameEn}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Preview Component
+  const PreviewComponent = ({ config, type }: { config: typeof DEFAULT_FORM_DATA, type?: 'success' | 'duplicate' }) => {
     const isDuplicate = type === 'duplicate' || config.type === 'duplicate';
     const mainColor = isDuplicate ? '#f59e0b' : config.primaryColor;
     const selectedBank = banks.find(b => b._id === config.bankId);
 
     return (
-      <div className="bg-slate-900/5 backdrop-blur-3xl rounded-[2.5rem] p-6 border border-white max-w-[340px] w-full mx-auto shadow-premium-lg">
+      <div className="bg-slate-900/5 backdrop-blur-3xl rounded-3xl p-4 sm:p-6 border border-white max-w-full sm:max-w-[340px] w-full mx-auto shadow-xl">
         {/* Header */}
         <div
-          className="rounded-[2rem] p-4 mb-4 flex items-center gap-3 overflow-hidden relative group"
+          className="rounded-2xl p-4 mb-4 flex items-center gap-3"
           style={{ backgroundColor: `${mainColor}15` }}
         >
-          <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
           <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-lg relative z-10"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-black shadow-lg"
             style={{ backgroundColor: mainColor }}
           >
             {isDuplicate ? '!' : '✓'}
           </div>
-          <div className="relative z-10">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40 leading-none mb-1">Status Verification</p>
-            <span className="font-extrabold text-sm" style={{ color: mainColor }}>{config.headerText || (isDuplicate ? 'Duplicate Detected' : 'Verified OK')}</span>
+          <div>
+            <p className="text-[10px] uppercase tracking-widest font-bold opacity-40 mb-1">สถานะการตรวจสอบ</p>
+            <span className="font-bold text-sm" style={{ color: mainColor }}>
+              {config.headerText || (isDuplicate ? 'พบสลิปซ้ำ' : 'ตรวจสอบสำเร็จ')}
+            </span>
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-sm border border-white/50 space-y-5">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-white/50 space-y-4">
           {/* Amount */}
           {config.showAmount && (
-            <div className="text-center relative py-2">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-slate-100 rounded-full" />
-              <p className="text-[10px] uppercase tracking-widest font-black text-slate-300 mb-1">Transaction Value</p>
-              <p className="text-3xl font-black tracking-tighter" style={{ color: mainColor }}>฿1,250.00</p>
+            <div className="text-center py-2">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">จำนวนเงิน</p>
+              <p className="text-2xl sm:text-3xl font-black" style={{ color: mainColor }}>฿1,250.00</p>
               {(config.showDate || config.showTime) && (
-                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                  24 Dec, 2025 • 09:41
-                </p>
+                <p className="text-[10px] font-medium text-slate-400 mt-1">24 ธ.ค. 2568 • 09:41</p>
               )}
             </div>
           )}
 
-          {/* Parties */}
+          {/* Sender & Receiver */}
           <div className="space-y-3">
             {config.showSender && (
-              <div className="flex items-center gap-4 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                 {config.showBankLogo && (
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shadow-inner bg-white">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-inner">
                     {selectedBank?.logoUrl ? (
-                      <img src={selectedBank.logoUrl} alt="Bank" className="w-full h-full object-cover" />
+                      <img src={selectedBank.logoUrl} alt="Bank" className="w-8 h-8 object-contain" />
+                    ) : selectedBank?.logoBase64 ? (
+                      <img src={selectedBank.logoBase64} alt="Bank" className="w-8 h-8 object-contain" />
                     ) : (
-                      <span className="text-xl">🏦</span>
+                      <span className="text-lg">🏦</span>
                     )}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[9px] uppercase tracking-widest font-black text-slate-300 leading-none mb-1">Originator</p>
-                  <p className="text-xs font-black text-slate-900 truncate uppercase">Jonathan Doe</p>
-                  <p className="text-[10px] font-bold text-slate-400">xxx-x-x1234-x</p>
+                  <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">ผู้โอน</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">นายตัวอย่าง ทดสอบ</p>
+                  <p className="text-[10px] text-slate-400">xxx-x-x1234-x</p>
                 </div>
               </div>
             )}
             {config.showReceiver && (
-              <div className="flex items-center gap-4 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
-                {config.showBankLogo && <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-lg shadow-inner">🏦</div>}
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                {config.showBankLogo && (
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-blue-50 shadow-inner">
+                    <span className="text-lg">🏦</span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[9px] uppercase tracking-widest font-black text-slate-300 leading-none mb-1">Beneficiary</p>
-                  <p className="text-xs font-black text-slate-900 truncate uppercase">Nexus Corp Ltd.</p>
-                  <p className="text-[10px] font-bold text-slate-400">xxx-x-x5678-x</p>
+                  <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-0.5">ผู้รับ</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">บริษัท ตัวอย่าง จำกัด</p>
+                  <p className="text-[10px] text-slate-400">xxx-x-x5678-x</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Trans Ref */}
+          {/* Transaction Reference */}
           {config.showTransRef && (
-            <div className="flex justify-between items-center p-3 bg-slate-900 text-white rounded-2xl shadow-lg">
-              <span className="text-[9px] uppercase tracking-widest font-black opacity-50">Reference ID</span>
-              <span className="text-xs font-mono font-black tracking-wider">RX-084-2219</span>
+            <div className="flex justify-between items-center p-3 bg-slate-900 text-white rounded-xl">
+              <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">รหัสอ้างอิง</span>
+              <span className="text-xs font-mono font-bold">RX-084-2219</span>
             </div>
           )}
 
-          {/* Footer Warning (Duplicate) */}
+          {/* Duplicate Warning */}
           {isDuplicate && (
-            <div className="p-4 bg-amber-500 rounded-2xl text-center shadow-lg shadow-amber-500/20 border-t border-white/20">
-              <p className="text-xs text-white font-black uppercase tracking-widest mb-1">Security Alert</p>
-              <p className="text-[10px] text-amber-50/80 font-bold leading-tight">
-                This transaction was previously recorded. {config.showDelayWarning ? `Processed ${config.delayWarningMinutes} min delay alert.` : ''}
+            <div className="p-4 bg-amber-500 rounded-xl text-center shadow-lg">
+              <p className="text-xs text-white font-bold uppercase tracking-wide mb-1">⚠️ คำเตือน</p>
+              <p className="text-[10px] text-amber-50/90 leading-tight">
+                พบสลิปนี้ถูกใช้งานแล้ว {config.showDelayWarning ? `(ภายใน ${config.delayWarningMinutes} นาที)` : ''}
               </p>
             </div>
           )}
 
-          {/* Footer Text */}
+          {/* Footer */}
           {(config.footerText || config.footerLink) && (
             <div className="pt-2 text-center">
-              {config.footerText && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{config.footerText}</p>}
+              {config.footerText && <p className="text-[10px] font-medium text-slate-400">{config.footerText}</p>}
               {config.footerLink && config.footerLinkText && (
-                <p className="text-[10px] text-indigo-500 font-black mt-2 underline cursor-pointer">{config.footerLinkText}</p>
+                <p className="text-[10px] text-indigo-500 font-bold mt-1 underline">{config.footerLinkText}</p>
               )}
             </div>
           )}
@@ -330,6 +418,7 @@ export default function AdminTemplatesPage() {
     );
   };
 
+  // Template Form Modal - Redesigned for better UX
   const TemplateFormModal = ({ isOpen, onClose, onSubmit, title, submitText }: {
     isOpen: boolean;
     onClose: () => void;
@@ -338,108 +427,118 @@ export default function AdminTemplatesPage() {
     submitText: string;
   }) => (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="xl">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Settings Side */}
-        <div className="lg:col-span-7 space-y-8 pr-2">
-          <div className="space-y-6">
-            {/* Bank Selection */}
-            <div className="p-4 bg-slate-50 rounded-[2rem] border border-slate-100">
-              <Select
-                label="Primary Bank Identity"
-                value={formData.bankId}
-                onChange={(e) => setFormData({ ...formData, bankId: e.target.value })}
-                className="bg-white"
-              >
-                <option value="">-- Generic System Default --</option>
-                {banks.map((bank) => (
-                  <option key={bank._id} value={bank._id}>{bank.name} ({bank.shortName})</option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Settings Panel */}
+        <div className="flex-1 space-y-6 order-2 lg:order-1">
+          {/* Basic Info Section */}
+          <div className="bg-slate-50 rounded-2xl p-5 space-y-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-lg">📝</span> ข้อมูลพื้นฐาน
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Interface Identity"
+                label="ชื่อเทมเพลต"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. Premium Success"
+                placeholder="เช่น เทมเพลตหลัก"
               />
               <Select
-                label="Operational Context"
+                label="ประเภท"
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
               >
                 {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                 ))}
               </Select>
             </div>
-
             <Textarea
-              label="Internal Annotation"
+              label="คำอธิบาย (ไม่บังคับ)"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Briefly describe the use case for this template..."
+              placeholder="อธิบายการใช้งานเทมเพลตนี้..."
               rows={2}
             />
+          </div>
 
-            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center justify-between gap-10">
+          {/* Bank Selection Section */}
+          <div className="bg-slate-50 rounded-2xl p-5">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <span className="text-lg">🏦</span> โลโก้ธนาคาร
+            </h3>
+            <BankSelector />
+          </div>
+
+          {/* Appearance Section */}
+          <div className="bg-slate-50 rounded-2xl p-5 space-y-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-lg">🎨</span> การแสดงผล
+            </h3>
+
+            {/* Color Picker */}
+            <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Theme Chromatic</h4>
-                <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Brand signature color</p>
+                <p className="font-medium text-slate-700">สีหลัก</p>
+                <p className="text-xs text-slate-400">สีที่ใช้แสดงในเทมเพลต</p>
               </div>
-              <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
                 <input
                   type="color"
                   value={formData.primaryColor}
                   onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                  className="w-10 h-10 rounded-xl border-none cursor-pointer bg-transparent"
+                  className="w-10 h-10 rounded-lg border-none cursor-pointer"
                 />
-                <span className="font-mono text-xs font-black text-slate-500 px-2">{formData.primaryColor}</span>
+                <span className="font-mono text-xs text-slate-500 px-2">{formData.primaryColor}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Text Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Headline Typography"
+                label="ข้อความหัว"
                 value={formData.headerText}
                 onChange={(e) => setFormData({ ...formData, headerText: e.target.value })}
-                placeholder="e.g. ✅ TRANSACTION OK"
+                placeholder="เช่น ✅ ตรวจสอบสำเร็จ"
               />
               <Input
-                label="Endnote Content"
+                label="ข้อความท้าย"
                 value={formData.footerText}
                 onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
-                placeholder="e.g. Thank you for choosing us"
+                placeholder="เช่น ขอบคุณที่ใช้บริการ"
               />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Call to Action (URL)"
+                label="ลิงก์ (URL)"
                 value={formData.footerLink}
                 onChange={(e) => setFormData({ ...formData, footerLink: e.target.value })}
                 placeholder="https://..."
               />
               <Input
-                label="CTA Anchor Text"
+                label="ข้อความลิงก์"
                 value={formData.footerLinkText}
                 onChange={(e) => setFormData({ ...formData, footerLinkText: e.target.value })}
-                placeholder="Open Details"
+                placeholder="ดูรายละเอียด"
               />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-4">
+          {/* Display Options Section */}
+          <div className="bg-slate-50 rounded-2xl p-5 space-y-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-lg">👁️</span> ตัวเลือกการแสดง
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {[
-                { label: 'Amount', key: 'showAmount', icon: '💰' },
-                { label: 'Sender', key: 'showSender', icon: '👤' },
-                { label: 'Receiver', key: 'showReceiver', icon: '🏦' },
-                { label: 'Date', key: 'showDate', icon: '📅' },
-                { label: 'Time', key: 'showTime', icon: '🕐' },
-                { label: 'Ref ID', key: 'showTransRef', icon: '🔢' },
-                { label: 'Logos', key: 'showBankLogo', icon: '🖼️' },
+                { label: 'จำนวนเงิน', key: 'showAmount', icon: '💰' },
+                { label: 'ผู้โอน', key: 'showSender', icon: '👤' },
+                { label: 'ผู้รับ', key: 'showReceiver', icon: '🏦' },
+                { label: 'วันที่', key: 'showDate', icon: '📅' },
+                { label: 'เวลา', key: 'showTime', icon: '🕐' },
+                { label: 'รหัสอ้างอิง', key: 'showTransRef', icon: '🔢' },
+                { label: 'โลโก้ธนาคาร', key: 'showBankLogo', icon: '🖼️' },
               ].map((item) => (
-                <div key={item.key} className="flex flex-col gap-2 p-4 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 transition-colors">
+                <div key={item.key} className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-300 transition-colors">
                   <div className="flex items-center justify-between">
                     <span className="text-lg">{item.icon}</span>
                     <Switch
@@ -447,52 +546,48 @@ export default function AdminTemplatesPage() {
                       onChange={(checked) => setFormData({ ...formData, [item.key]: checked })}
                     />
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
+                  <span className="text-[10px] font-bold text-slate-500">{item.label}</span>
                 </div>
               ))}
             </div>
+          </div>
 
-            {formData.type === 'duplicate' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100 space-y-4"
-              >
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">Latency Alert System</h4>
-                  <Switch
-                    checked={formData.showDelayWarning}
-                    onChange={(checked) => setFormData({ ...formData, showDelayWarning: checked })}
-                  />
+          {/* Duplicate Warning Options */}
+          {formData.type === 'duplicate' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-amber-50 rounded-2xl p-5 space-y-4 border border-amber-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-amber-900">⚠️ แจ้งเตือนสลิปซ้ำ</h4>
+                  <p className="text-xs text-amber-600">แสดงระยะเวลาที่ผ่านมา</p>
                 </div>
-                {formData.showDelayWarning && (
-                  <Input
-                    label="Detection Radius (Minutes)"
-                    type="number"
-                    value={formData.delayWarningMinutes}
-                    onChange={(e) => setFormData({ ...formData, delayWarningMinutes: parseInt(e.target.value) || 5 })}
-                    className="bg-white/50"
-                  />
-                )}
-              </motion.div>
-            )}
-          </div>
-        </div>
+                <Switch
+                  checked={formData.showDelayWarning}
+                  onChange={(checked) => setFormData({ ...formData, showDelayWarning: checked })}
+                />
+              </div>
+              {formData.showDelayWarning && (
+                <Input
+                  label="ระยะเวลา (นาที)"
+                  type="number"
+                  value={formData.delayWarningMinutes}
+                  onChange={(e) => setFormData({ ...formData, delayWarningMinutes: parseInt(e.target.value) || 5 })}
+                  className="bg-white"
+                />
+              )}
+            </motion.div>
+          )}
 
-        {/* Preview Side */}
-        <div className="lg:col-span-5 bg-slate-50/50 rounded-[3rem] p-8 border border-slate-100 flex flex-col items-center justify-center sticky top-0 h-fit">
-          <div className="mb-6 text-center">
-            <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Live Manifestation</h4>
-            <p className="text-xs text-slate-300 font-medium italic">What your clients will experience</p>
-          </div>
-
-          <PreviewComponent config={formData} />
-
-          <div className="mt-10 w-full space-y-4">
+          {/* Action Buttons - Mobile */}
+          <div className="block lg:hidden space-y-3 pt-4">
             <Button
               variant="primary"
               fullWidth
               size="lg"
-              className="rounded-2xl h-14 font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium"
+              className="rounded-xl font-bold"
               onClick={onSubmit}
               isLoading={isProcessing}
             >
@@ -501,11 +596,45 @@ export default function AdminTemplatesPage() {
             <Button
               variant="ghost"
               fullWidth
-              className="text-slate-400 font-bold"
+              className="text-slate-400"
               onClick={onClose}
             >
-              Discard Changes
+              ยกเลิก
             </Button>
+          </div>
+        </div>
+
+        {/* Preview Panel - Fixed on Desktop */}
+        <div className="lg:w-[380px] lg:sticky lg:top-0 order-1 lg:order-2">
+          <div className="bg-gradient-to-b from-slate-100 to-slate-50 rounded-3xl p-6 border border-slate-200">
+            <div className="text-center mb-6">
+              <h4 className="font-bold text-slate-700">👁️ ตัวอย่างการแสดงผล</h4>
+              <p className="text-xs text-slate-400">ลูกค้าจะเห็นแบบนี้</p>
+            </div>
+
+            <PreviewComponent config={formData} />
+
+            {/* Action Buttons - Desktop */}
+            <div className="hidden lg:block space-y-3 pt-6">
+              <Button
+                variant="primary"
+                fullWidth
+                size="lg"
+                className="rounded-xl font-bold shadow-lg shadow-emerald-500/20"
+                onClick={onSubmit}
+                isLoading={isProcessing}
+              >
+                {submitText}
+              </Button>
+              <Button
+                variant="ghost"
+                fullWidth
+                className="text-slate-400"
+                onClick={onClose}
+              >
+                ยกเลิก
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -514,111 +643,125 @@ export default function AdminTemplatesPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 animate-fade max-w-[1600px] mx-auto pb-12">
+      <div className="space-y-8 animate-fade max-w-[1600px] mx-auto pb-12">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-1">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+          <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none">Global Blueprints</h1>
-              <Badge variant="indigo" className="uppercase tracking-[0.2em] px-2 font-black text-[10px]">Master Assets</Badge>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">เทมเพลตสลิป</h1>
+              <Badge variant="indigo" className="text-[10px]">ระดับระบบ</Badge>
             </div>
-            <p className="text-slate-500 font-medium text-lg">Orchestrate high-fidelity slip templates across the entire operational ecosystem.</p>
+            <p className="text-slate-500">จัดการรูปแบบการแสดงผลสลิปสำหรับทุกบัญชี</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" className="rounded-2xl font-black uppercase tracking-widest" onClick={handleInitDefaults} isLoading={isProcessing}>
-              Reset Defaults
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={handleInitDefaults}
+              isLoading={isProcessing}
+            >
+              รีเซ็ตค่าเริ่มต้น
             </Button>
-            <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={openCreateModal}>
-              + New Blueprint
+            <Button
+              variant="primary"
+              className="flex-1 sm:flex-none shadow-lg shadow-emerald-500/20"
+              onClick={openCreateModal}
+            >
+              + สร้างเทมเพลต
             </Button>
           </div>
         </div>
 
-        {/* Dynamic Aggregates */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard title="Total Blueprints" value={templates.length} icon="🎨" color="indigo" variant="glass" />
-          <StatCard title="Active Success" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
-          <StatCard title="Redundant Triggers" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" />
-          <StatCard title="System Defaults" value={templates.filter(t => t.isDefault).length} icon="⭐️" color="blue" variant="glass" />
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard title="เทมเพลตทั้งหมด" value={templates.length} icon="🎨" color="indigo" variant="glass" />
+          <StatCard title="ตรวจสอบสำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
+          <StatCard title="สลิปซ้ำ" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" />
+          <StatCard title="ค่าเริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐️" color="blue" variant="glass" />
         </div>
 
         {loading ? (
-          <PageLoading />
+          <PageLoading message="กำลังโหลดเทมเพลต..." />
         ) : (
-          <div className="space-y-16">
+          <div className="space-y-12">
             {TYPE_OPTIONS.map((typeOption) => {
               const typeTemplates = templatesByType[typeOption.value] || [];
               if (typeTemplates.length === 0) return null;
 
               return (
-                <section key={typeOption.value} className="space-y-8">
-                  <div className="flex items-center gap-6">
-                    <div className={`w-14 h-14 bg-${typeOption.color}-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner`}>
+                <section key={typeOption.value} className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl",
+                      typeOption.color === 'emerald' && 'bg-emerald-100',
+                      typeOption.color === 'amber' && 'bg-amber-100',
+                      typeOption.color === 'rose' && 'bg-rose-100',
+                      typeOption.color === 'slate' && 'bg-slate-100'
+                    )}>
                       {typeOption.icon}
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-tight">{typeOption.label}</h2>
-                      <p className="text-slate-400 font-medium text-sm">{typeOption.description}</p>
+                      <h2 className="text-xl font-bold text-slate-900">{typeOption.label}</h2>
+                      <p className="text-sm text-slate-400">{typeOption.description}</p>
                     </div>
-                    <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent ml-4" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent" />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                     {typeTemplates.map((template) => (
-                      <Card key={template._id} className="p-0 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] overflow-hidden group hover:shadow-premium-lg transition-all duration-500">
-                        {/* Mini Perspective Preview */}
-                        <div className="relative h-64 bg-slate-50 flex items-center justify-center p-8 overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50" />
-                          <div className="relative z-10 transform scale-75 group-hover:scale-[0.8] transition-transform duration-700 ease-out origin-center">
+                      <Card key={template._id} className="p-0 overflow-hidden group hover:shadow-xl transition-all duration-300">
+                        {/* Preview */}
+                        <div className="relative h-56 bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-6 overflow-hidden">
+                          <div className="transform scale-[0.65] group-hover:scale-[0.7] transition-transform duration-500">
                             <PreviewComponent config={{ ...DEFAULT_FORM_DATA, ...template }} type={template.type as any} />
                           </div>
 
-                          {/* Overlay Actions */}
-                          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4">
-                            <IconButton variant="glass" size="lg" className="rounded-2xl" onClick={() => openEditModal(template)}>
-                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                            </IconButton>
+                          {/* Hover Actions */}
+                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                            <Button variant="primary" size="sm" onClick={() => openEditModal(template)}>
+                              ✏️ แก้ไข
+                            </Button>
                             {!template.isDefault && (
-                              <IconButton variant="glass" size="lg" className="rounded-2xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}>
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                              </IconButton>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-white hover:bg-rose-500"
+                                onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
+                              >
+                                🗑️ ลบ
+                              </Button>
                             )}
                           </div>
                         </div>
 
-                        <div className="p-8 space-y-4">
+                        <div className="p-5 space-y-3">
                           <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none group-hover:text-emerald-600 transition-colors">{template.name}</h3>
-                              <p className="text-xs text-slate-400 font-medium truncate max-w-[200px]">{template.description || 'No supplementary annotation'}</p>
+                            <div>
+                              <h3 className="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{template.name}</h3>
+                              <p className="text-xs text-slate-400 truncate max-w-[200px]">{template.description || 'ไม่มีคำอธิบาย'}</p>
                             </div>
                             {template.isDefault && (
-                              <Badge variant="emerald" size="sm" className="font-black uppercase tracking-[0.2em]">Master</Badge>
+                              <Badge variant="emerald" size="sm">ค่าเริ่มต้น</Badge>
                             )}
                           </div>
 
-                          <div className="flex flex-wrap gap-2">
-                            {['showAmount', 'showSender', 'showReceiver', 'showDate', 'showTime', 'showTransRef', 'showBankLogo'].map((key) => {
-                              if (!(template as any)[key]) return null;
-                              const label = key.replace('show', '');
-                              return (
-                                <span key={key} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-slate-100 text-slate-500 rounded-lg">
-                                  {label}
-                                </span>
-                              );
-                            })}
+                          <div className="flex flex-wrap gap-1.5">
+                            {template.showAmount && <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded">จำนวนเงิน</span>}
+                            {template.showSender && <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded">ผู้โอน</span>}
+                            {template.showReceiver && <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded">ผู้รับ</span>}
+                            {template.showBankLogo && <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded">โลโก้</span>}
                           </div>
 
                           {!template.isDefault && (
-                            <div className="pt-4 mt-2 border-t border-slate-100 flex justify-end">
+                            <div className="pt-3 border-t border-slate-100">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-emerald-500 px-0"
+                                className="text-xs text-slate-400 hover:text-emerald-500 px-0"
                                 onClick={() => handleSetDefault(template._id)}
                               >
-                                Elevate to Default
+                                ⭐️ ตั้งเป็นค่าเริ่มต้น
                               </Button>
                             </div>
                           )}
@@ -631,13 +774,13 @@ export default function AdminTemplatesPage() {
             })}
 
             {templates.length === 0 && (
-              <div className="flex flex-col items-center justify-center min-h-[400px] bg-white/40 backdrop-blur-xl rounded-[4rem] border-4 border-dashed border-slate-200">
-                <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl mb-6">🏜️</div>
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Ocean of Emptiness</h3>
-                <p className="text-slate-400 font-medium max-w-sm text-center mb-8">No global blueprints have been orchestrated yet. Initialize the master defaults to begin.</p>
-                <div className="flex gap-4">
-                  <Button variant="outline" size="lg" className="rounded-2xl" onClick={handleInitDefaults}>Initialize Defaults</Button>
-                  <Button variant="primary" size="lg" className="rounded-2xl shadow-emerald-500/10 shadow-lg" onClick={openCreateModal}>Orchestrate New</Button>
+              <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center text-4xl mb-6">🎨</div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">ยังไม่มีเทมเพลต</h3>
+                <p className="text-slate-400 max-w-sm text-center mb-6">เริ่มต้นด้วยการสร้างเทมเพลตเริ่มต้น หรือสร้างเทมเพลตใหม่ตามต้องการ</p>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={handleInitDefaults}>สร้างค่าเริ่มต้น</Button>
+                  <Button variant="primary" className="shadow-lg shadow-emerald-500/20" onClick={openCreateModal}>สร้างเทมเพลตใหม่</Button>
                 </div>
               </div>
             )}
@@ -650,26 +793,26 @@ export default function AdminTemplatesPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreate}
-        title="Orchestrating New Blueprint"
-        submitText="Deploy Blueprint"
+        title="สร้างเทมเพลตใหม่"
+        submitText="สร้างเทมเพลต"
       />
 
       <TemplateFormModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         onSubmit={handleUpdate}
-        title="Refining Blueprint Logic"
-        submitText="Commit Changes"
+        title="แก้ไขเทมเพลต"
+        submitText="บันทึกการเปลี่ยนแปลง"
       />
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
-        title="Decommission Binary Blueprint?"
-        message={`Warning: This action will permanently delist the "${selectedTemplate?.name}" master asset and impact all downstream consumers. This cannot be undone.`}
-        confirmText="Execute Deletion"
-        cancelText="Abort Operation"
+        title="ลบเทมเพลต?"
+        message={`คุณแน่ใจหรือไม่ว่าต้องการลบเทมเพลต "${selectedTemplate?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+        confirmText="ลบเทมเพลต"
+        cancelText="ยกเลิก"
         type="danger"
         isLoading={isProcessing}
       />
