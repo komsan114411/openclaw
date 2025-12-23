@@ -43,7 +43,7 @@ function ChatContent() {
       return;
     }
     try {
-      const response = await api.get(`/api/chat-messages/${accountId}/users`);
+      const response = await api.get(`/chat-messages/${accountId}/users`);
       if (response.data.success) {
         setUsers(response.data.users);
       }
@@ -57,7 +57,7 @@ function ChatContent() {
   const fetchMessages = useCallback(async (userId: string) => {
     if (!accountId) return;
     try {
-      const response = await api.get(`/api/chat-messages/${accountId}/${userId}`);
+      const response = await api.get(`/chat-messages/${accountId}/${userId}`);
       if (response.data.success) {
         setMessages(response.data.messages);
       }
@@ -91,7 +91,7 @@ function ChatContent() {
     setSending(true);
     try {
       const response = await api.post(
-        `/api/chat-messages/${accountId}/${selectedUser.lineUserId}/send`,
+        `/chat-messages/${accountId}/${selectedUser.lineUserId}/send`,
         { message: newMessage }
       );
 

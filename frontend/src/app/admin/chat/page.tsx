@@ -69,7 +69,7 @@ function AdminChatContent() {
     }
     setLoading(true);
     try {
-      const response = await api.get(`/api/chat-messages/${selectedAccountId}/users`);
+      const response = await api.get(`/chat-messages/${selectedAccountId}/users`);
       if (response.data.success) {
         setUsers(response.data.users || []);
       }
@@ -85,7 +85,7 @@ function AdminChatContent() {
     if (!selectedAccountId) return;
     setLoadingMessages(true);
     try {
-      const response = await api.get(`/api/chat-messages/${selectedAccountId}/${userId}`);
+      const response = await api.get(`/chat-messages/${selectedAccountId}/${userId}`);
       if (response.data.success) {
         setMessages(response.data.messages || []);
       }
@@ -135,7 +135,7 @@ function AdminChatContent() {
     setSending(true);
     try {
       const response = await api.post(
-        `/api/chat-messages/${selectedAccountId}/${selectedUser.lineUserId}/send`,
+        `/chat-messages/${selectedAccountId}/${selectedUser.lineUserId}/send`,
         { message: newMessage }
       );
 
