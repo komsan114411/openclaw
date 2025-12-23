@@ -23,6 +23,8 @@ interface SlipTemplate {
   primaryColor?: string;
   headerText?: string;
   footerText?: string;
+  footerLink?: string;
+  footerLinkText?: string;
   showAmount: boolean;
   showSender: boolean;
   showReceiver: boolean;
@@ -30,6 +32,8 @@ interface SlipTemplate {
   showTime: boolean;
   showTransRef: boolean;
   showBankLogo: boolean;
+  showDelayWarning: boolean;
+  delayWarningMinutes: number;
   createdAt: string;
 }
 
@@ -47,6 +51,8 @@ const DEFAULT_FORM_DATA = {
   primaryColor: '#00C851',
   headerText: '',
   footerText: '',
+  footerLink: '',
+  footerLinkText: '',
   showAmount: true,
   showSender: true,
   showReceiver: true,
@@ -54,6 +60,8 @@ const DEFAULT_FORM_DATA = {
   showTime: true,
   showTransRef: true,
   showBankLogo: false,
+  showDelayWarning: false,
+  delayWarningMinutes: 5,
 };
 
 export default function AdminTemplatesPage() {
@@ -100,6 +108,8 @@ export default function AdminTemplatesPage() {
       primaryColor: template.primaryColor || '#00C851',
       headerText: template.headerText || '',
       footerText: template.footerText || '',
+      footerLink: template.footerLink || '',
+      footerLinkText: template.footerLinkText || '',
       showAmount: template.showAmount,
       showSender: template.showSender,
       showReceiver: template.showReceiver,
@@ -107,6 +117,8 @@ export default function AdminTemplatesPage() {
       showTime: template.showTime,
       showTransRef: template.showTransRef,
       showBankLogo: template.showBankLogo,
+      showDelayWarning: template.showDelayWarning,
+      delayWarningMinutes: template.delayWarningMinutes || 5,
     });
     setShowEditModal(true);
   };
@@ -274,6 +286,23 @@ export default function AdminTemplatesPage() {
           disabled={isProcessing}
         />
 
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="ลิงก์ Footer (URL)"
+            value={formData.footerLink}
+            onChange={(e) => setFormData({ ...formData, footerLink: e.target.value })}
+            placeholder="https://example.com"
+            disabled={isProcessing}
+          />
+          <Input
+            label="ข้อความลิงก์"
+            value={formData.footerLinkText}
+            onChange={(e) => setFormData({ ...formData, footerLinkText: e.target.value })}
+            placeholder="คลิกที่นี่"
+            disabled={isProcessing}
+          />
+        </div>
+
         <div className="border-t pt-4">
           <p className="text-sm font-medium text-gray-700 mb-3">ข้อมูลที่แสดง</p>
           <div className="grid grid-cols-2 gap-3">
@@ -314,6 +343,30 @@ export default function AdminTemplatesPage() {
             />
           </div>
         </div>
+
+        {/* Delay Warning (for duplicate templates) */}
+        {formData.type === 'duplicate' && (
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium text-gray-700 mb-3">⚠️ การแจ้งเตือนสลิปซ้ำ</p>
+            <div className="space-y-3">
+              <Switch
+                checked={formData.showDelayWarning}
+                onChange={(checked) => setFormData({ ...formData, showDelayWarning: checked })}
+                label="แสดงเวลาตรวจสอบช้า"
+              />
+              {formData.showDelayWarning && (
+                <Input
+                  label="ถือว่าช้าเกิน (นาที)"
+                  type="number"
+                  value={formData.delayWarningMinutes.toString()}
+                  onChange={(e) => setFormData({ ...formData, delayWarningMinutes: parseInt(e.target.value) || 5 })}
+                  placeholder="5"
+                  disabled={isProcessing}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Preview */}
         <div className="border-t pt-4">

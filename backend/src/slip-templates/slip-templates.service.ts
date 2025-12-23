@@ -19,6 +19,8 @@ export interface CreateTemplateDto {
   secondaryColor?: string;
   headerText?: string;
   footerText?: string;
+  footerLink?: string;
+  footerLinkText?: string;
   showAmount?: boolean;
   showSender?: boolean;
   showReceiver?: boolean;
@@ -26,6 +28,8 @@ export interface CreateTemplateDto {
   showTime?: boolean;
   showTransRef?: boolean;
   showBankLogo?: boolean;
+  showDelayWarning?: boolean;
+  delayWarningMinutes?: number;
   isGlobal?: boolean;
   isSystemTemplate?: boolean;
 }
@@ -47,6 +51,11 @@ export interface SlipData {
   transRef?: string;
   senderBankLogoUrl?: string;
   receiverBankLogoUrl?: string;
+  // For duplicate slip detection
+  isDuplicate?: boolean;
+  originalDate?: string;
+  delayMinutes?: number;
+  duplicateMessage?: string;
 }
 
 @Injectable()
@@ -77,6 +86,8 @@ export class SlipTemplatesService {
       secondaryColor: dto.secondaryColor || '#333333',
       headerText: dto.headerText,
       footerText: dto.footerText,
+      footerLink: dto.footerLink,
+      footerLinkText: dto.footerLinkText,
       showAmount: dto.showAmount ?? true,
       showSender: dto.showSender ?? true,
       showReceiver: dto.showReceiver ?? true,
@@ -84,6 +95,8 @@ export class SlipTemplatesService {
       showTime: dto.showTime ?? true,
       showTransRef: dto.showTransRef ?? true,
       showBankLogo: dto.showBankLogo ?? false,
+      showDelayWarning: dto.showDelayWarning ?? false,
+      delayWarningMinutes: dto.delayWarningMinutes ?? 5,
       isGlobal: dto.isGlobal ?? false,
       isSystemTemplate: dto.isSystemTemplate ?? false,
     });
@@ -591,21 +604,86 @@ export class SlipTemplatesService {
       });
     }
 
-    // Footer
-    if (template.footerText) {
+    // Duplicate warning with delay info
+    if (data.isDuplicate) {
+      const warningContents: any[] = [
+        {
+          type: 'text',
+          text: '⚠️ สลิปนี้ถูกใช้งานไปแล้ว',
+          size: 'sm',
+          color: '#FFFFFF',
+          weight: 'bold',
+          align: 'center',
+        },
+      ];
+
+      if (template.showDelayWarning && data.delayMinutes !== undefined) {
+        warningContents.push({
+          type: 'text',
+          text: `ตรวจสอบช้า ${data.delayMinutes} นาที`,
+          size: 'xs',
+          color: '#FFE0B2',
+          align: 'center',
+          margin: 'sm',
+        });
+      }
+
+      if (data.originalDate) {
+        warningContents.push({
+          type: 'text',
+          text: `บันทึกเมื่อ ${data.originalDate}`,
+          size: 'xxs',
+          color: '#FFE0B2',
+          align: 'center',
+          margin: 'xs',
+        });
+      }
+
       contents.push({
         type: 'box',
         layout: 'vertical',
-        contents: [
-          {
-            type: 'text',
-            text: template.footerText,
-            size: 'xxs',
-            color: '#888888',
-            wrap: true,
-            align: 'center',
+        contents: warningContents,
+        margin: 'md',
+        paddingAll: '12px',
+        backgroundColor: '#FF6B00',
+        cornerRadius: '8px',
+      });
+    }
+
+    // Footer with optional link
+    if (template.footerText || template.footerLink) {
+      const footerContents: any[] = [];
+
+      if (template.footerText) {
+        footerContents.push({
+          type: 'text',
+          text: template.footerText,
+          size: 'xxs',
+          color: '#888888',
+          wrap: true,
+          align: 'center',
+        });
+      }
+
+      if (template.footerLink && template.footerLinkText) {
+        footerContents.push({
+          type: 'text',
+          text: template.footerLinkText,
+          size: 'xxs',
+          color: '#0066CC',
+          align: 'center',
+          margin: template.footerText ? 'sm' : 'none',
+          action: {
+            type: 'uri',
+            uri: template.footerLink,
           },
-        ],
+        });
+      }
+
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: footerContents,
         margin: 'lg',
         paddingAll: '10px',
         backgroundColor: '#F0F0F0',

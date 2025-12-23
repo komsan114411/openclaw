@@ -67,6 +67,20 @@ export class SlipTemplate {
   @Prop()
   footerText?: string;
 
+  // Footer link settings
+  @Prop()
+  footerLink?: string;
+
+  @Prop()
+  footerLinkText?: string;
+
+  // Delay warning settings (for duplicate/late verification)
+  @Prop({ default: false })
+  showDelayWarning: boolean;
+
+  @Prop({ default: 5 })
+  delayWarningMinutes: number;
+
   @Prop({ default: true })
   showAmount: boolean;
 
