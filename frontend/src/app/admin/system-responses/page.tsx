@@ -370,7 +370,9 @@ export default function SystemResponsesPage() {
                   <Card className="p-4 bg-emerald-50 border-emerald-200">
                     <div className="flex items-start gap-2">
                       <span className="text-lg">✅</span>
-                      <p className="text-xs text-emerald-700">ข้อความนี้จะถูกส่งไปยังลูกค้าเมื่อเกิดเหตุการณ์ "{RESPONSE_TYPES[selectedType as keyof typeof RESPONSE_TYPES]?.description || selectedType}"</p>
+                      <p className="text-xs text-emerald-700">
+                        ข้อความนี้จะถูกส่งไปยังลูกค้าเมื่อเกิดเหตุการณ์: {RESPONSE_TYPES[selectedType as keyof typeof RESPONSE_TYPES]?.description || selectedType}
+                      </p>
                     </div>
                   </Card>
                 </div>
