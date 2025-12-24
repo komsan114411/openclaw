@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api, banksApi } from '@/lib/api';
 import { Bank } from '@/types';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Card, StatCard } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -44,13 +44,14 @@ interface SlipTemplate {
   showReceiverProxy: boolean;
   showDelayWarning: boolean;
   delayWarningMinutes: number;
-  // New enhanced fields
   showSenderAccount: boolean;
   showReceiverAccount: boolean;
   showSenderNameEn: boolean;
   showReceiverNameEn: boolean;
   showLocalAmount: boolean;
   bankId?: string;
+  senderBankId?: string;
+  receiverBankId?: string;
   createdAt: string;
 }
 
@@ -79,23 +80,21 @@ interface FormData {
   showReceiverProxy: boolean;
   showDelayWarning: boolean;
   delayWarningMinutes: number;
-  // New enhanced fields
   showSenderAccount: boolean;
   showReceiverAccount: boolean;
   showSenderNameEn: boolean;
   showReceiverNameEn: boolean;
   showLocalAmount: boolean;
   bankId: string;
-  // Separate bank for sender and receiver
   senderBankId: string;
   receiverBankId: string;
 }
 
 const TYPE_OPTIONS = [
-  { value: 'success', label: 'ตรวจสอบสำเร็จ', color: 'emerald', icon: '✅', description: 'สลิปที่ผ่านการยืนยันแล้ว' },
-  { value: 'duplicate', label: 'สลิปซ้ำ', color: 'amber', icon: '⚠️', description: 'รายการที่เคยตรวจสอบแล้ว' },
-  { value: 'error', label: 'เกิดข้อผิดพลาด', color: 'rose', icon: '❌', description: 'ข้อผิดพลาดในการประมวลผล' },
-  { value: 'not_found', label: 'ไม่พบข้อมูล', color: 'slate', icon: '🔍', description: 'ไม่พบรายการธุรกรรม' },
+  { value: 'success', label: 'ตรวจสอบสำเร็จ', color: 'emerald', icon: '✅', bgColor: 'bg-emerald-100' },
+  { value: 'duplicate', label: 'สลิปซ้ำ', color: 'amber', icon: '⚠️', bgColor: 'bg-amber-100' },
+  { value: 'error', label: 'เกิดข้อผิดพลาด', color: 'rose', icon: '❌', bgColor: 'bg-rose-100' },
+  { value: 'not_found', label: 'ไม่พบข้อมูล', color: 'slate', icon: '🔍', bgColor: 'bg-slate-100' },
 ] as const;
 
 const DEFAULT_FORM_DATA: FormData = {
@@ -133,115 +132,93 @@ const DEFAULT_FORM_DATA: FormData = {
   receiverBankId: '',
 };
 
-// Sample data matching the Thunder API response structure
-const SAMPLE_SLIP_DATA = {
-  amount: 1000,
-  amountFormatted: '฿1,000.00',
-  fee: 0,
-  feeFormatted: '฿0',
-  countryCode: 'TH',
-  ref1: '',
-  ref2: '',
-  ref3: '',
-  payload: '00000000000000000000000000000000000000000000000000000000000',
-  transRef: '68370160657749I376388B35',
+// Sample data for preview
+const SAMPLE_DATA = {
+  amount: '฿1,000.00',
   date: '24 ธ.ค. 2568',
   time: '09:41',
-  sender: {
-    name: 'นาย ธันเดอร์ มานะ',
-    nameEn: 'MR. THUNDER MANA',
-    bank: 'กสิกรไทย',
-    bankCode: 'KBANK',
-    bankId: '001',
-    account: '1234xxxx5678',
-  },
-  receiver: {
-    name: 'นาย ธันเดอร์ มานะ',
-    nameEn: '',
-    bank: 'ธนาคารออมสิน',
-    bankCode: 'GSB',
-    bankId: '030',
-    account: '12xxxx3456',
-    proxyType: 'EWALLETID',
-    proxyAccount: '123xxxxxxxx4567',
-  },
+  sender: { name: 'นาย ธันเดอร์ มานะ', nameEn: 'MR. THUNDER MANA', account: '1234xxxx5678', bank: 'กสิกรไทย' },
+  receiver: { name: 'นาย ธันเดอร์ มานะ', nameEn: '', account: '12xxxx3456', bank: 'ธนาคารออมสิน', proxy: 'EWALLETID: 123xxx4567' },
+  transRef: '68370160657749I376388B35',
 };
 
-// Toggle Switch Component
-const ToggleSwitch = memo(({ checked, onChange, disabled = false }: { checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) => (
+// Simple Toggle Component
+const Toggle = memo(({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) => (
   <button
     type="button"
-    role="switch"
-    aria-checked={checked}
-    disabled={disabled}
-    onClick={() => !disabled && onChange(!checked)}
+    onClick={onChange}
     className={cn(
-      'relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ring-offset-2',
-      'focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner',
-      checked ? 'bg-emerald-500' : 'bg-slate-300',
-      disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      "flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all w-full text-left",
+      checked ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
     )}
   >
-    <span
-      className={cn(
-        'inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-all duration-300',
-        checked ? 'translate-x-6' : 'translate-x-1'
-      )}
-    />
+    <div className={cn(
+      "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+      checked ? "border-emerald-500 bg-emerald-500" : "border-slate-300"
+    )}>
+      {checked && <span className="text-white text-xs">✓</span>}
+    </div>
+    <span className={cn("text-sm font-medium", checked ? "text-emerald-700" : "text-slate-600")}>{label}</span>
   </button>
 ));
-ToggleSwitch.displayName = 'ToggleSwitch';
+Toggle.displayName = 'Toggle';
 
-// Display Option Item Component
-const DisplayOptionItem = memo(({ 
-  icon, 
-  label, 
-  checked, 
-  onChange 
+// Bank Logo Button Component
+const BankButton = memo(({ 
+  bank, 
+  isSelected, 
+  onClick, 
+  color = 'emerald' 
 }: { 
-  icon: string; 
-  label: string; 
-  checked: boolean; 
-  onChange: (checked: boolean) => void;
-}) => (
-  <div className={cn(
-    "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none",
-    checked 
-      ? "bg-emerald-50 border-emerald-300 shadow-sm" 
-      : "bg-white border-slate-200 hover:border-slate-300"
-  )} onClick={() => onChange(!checked)}>
-    <span className="text-lg">{icon}</span>
-    <ToggleSwitch checked={checked} onChange={onChange} />
-    <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{label}</span>
-  </div>
-));
-DisplayOptionItem.displayName = 'DisplayOptionItem';
+  bank: Bank; 
+  isSelected: boolean; 
+  onClick: () => void;
+  color?: 'emerald' | 'blue';
+}) => {
+  const logo = bank.logoBase64 || bank.logoUrl;
+  const colors = {
+    emerald: 'border-emerald-500 bg-emerald-50 ring-emerald-500/20',
+    blue: 'border-blue-500 bg-blue-50 ring-blue-500/20',
+  };
+  
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center p-2 rounded-xl border-2 transition-all min-w-[60px]",
+        isSelected ? `${colors[color]} ring-4` : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+      )}
+    >
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-sm mb-1">
+        {logo ? (
+          <img src={logo} alt={bank.shortName} className="w-8 h-8 object-contain" />
+        ) : (
+          <span className="text-xs font-black text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
+        )}
+      </div>
+      <span className={cn(
+        "text-[10px] font-bold text-center truncate w-full",
+        isSelected ? (color === 'emerald' ? 'text-emerald-700' : 'text-blue-700') : 'text-slate-500'
+      )}>
+        {bank.shortName || bank.code}
+      </span>
+    </button>
+  );
+});
+BankButton.displayName = 'BankButton';
 
-// Enhanced Slip Preview Component
-const SlipPreview = memo(({ config, selectedBank, senderBank, receiverBank }: { 
+// Slip Preview Component
+const SlipPreview = memo(({ config, senderBank, receiverBank }: { 
   config: FormData; 
-  selectedBank: Bank | null;
-  senderBank?: Bank | null;
-  receiverBank?: Bank | null;
+  senderBank: Bank | null;
+  receiverBank: Bank | null;
 }) => {
   const isDuplicate = config.type === 'duplicate';
   const isError = config.type === 'error';
   const isNotFound = config.type === 'not_found';
   const mainColor = isDuplicate ? '#f59e0b' : isError ? '#ef4444' : isNotFound ? '#64748b' : config.primaryColor;
   
-  // Use specific sender/receiver banks if available, otherwise fall back to selectedBank
-  const effectiveSenderBank = senderBank || selectedBank;
-  const effectiveReceiverBank = receiverBank || selectedBank;
-  const senderBankLogo = effectiveSenderBank?.logoBase64 || effectiveSenderBank?.logoUrl || null;
-  const receiverBankLogo = effectiveReceiverBank?.logoBase64 || effectiveReceiverBank?.logoUrl || null;
-
-  const getStatusIcon = () => {
-    if (isDuplicate) return '!';
-    if (isError) return '✕';
-    if (isNotFound) return '?';
-    return '✓';
-  };
-
   const getStatusText = () => {
     if (config.headerText) return config.headerText;
     if (isDuplicate) return 'พบสลิปซ้ำ';
@@ -250,196 +227,87 @@ const SlipPreview = memo(({ config, selectedBank, senderBank, receiverBank }: {
     return 'ตรวจสอบสำเร็จ';
   };
 
+  const senderLogo = senderBank?.logoBase64 || senderBank?.logoUrl;
+  const receiverLogo = receiverBank?.logoBase64 || receiverBank?.logoUrl;
+
   return (
-    <div className="bg-gradient-to-b from-slate-100 to-slate-200 rounded-3xl p-4 border border-slate-200/50 max-w-[320px] w-full mx-auto shadow-xl">
+    <div className="bg-gradient-to-b from-slate-100 to-slate-200 rounded-2xl p-3 max-w-[280px] mx-auto shadow-lg">
       {/* Header */}
-      <div className="rounded-2xl p-3 mb-3 flex items-center gap-3" style={{ backgroundColor: `${mainColor}15` }}>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg" style={{ backgroundColor: mainColor }}>
-          {getStatusIcon()}
+      <div className="rounded-xl p-2.5 mb-2 flex items-center gap-2" style={{ backgroundColor: `${mainColor}15` }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-md" style={{ backgroundColor: mainColor }}>
+          {isDuplicate ? '!' : isError ? '✕' : isNotFound ? '?' : '✓'}
         </div>
-        <div className="flex-1">
-          <p className="text-[9px] uppercase tracking-widest font-bold opacity-40 mb-0.5">สถานะ</p>
-          <span className="font-bold text-sm" style={{ color: mainColor }}>
-            {getStatusText()}
-          </span>
-        </div>
+        <span className="font-bold text-sm flex-1" style={{ color: mainColor }}>{getStatusText()}</span>
       </div>
 
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-sm border border-white/50 space-y-3">
-        {/* Amount Display */}
+      <div className="bg-white rounded-xl p-3 space-y-2">
+        {/* Amount */}
         {config.showAmount && (
-          <div className="text-center py-2">
-            <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1">จำนวนเงิน</p>
-            <p className="text-2xl font-black" style={{ color: mainColor }}>
-              {SAMPLE_SLIP_DATA.amountFormatted}
-            </p>
+          <div className="text-center py-1">
+            <p className="text-[10px] text-slate-400 uppercase font-bold">จำนวนเงิน</p>
+            <p className="text-xl font-black" style={{ color: mainColor }}>{SAMPLE_DATA.amount}</p>
             {(config.showDate || config.showTime) && (
-              <p className="text-[10px] font-medium text-slate-400 mt-1">
-                {config.showDate && SAMPLE_SLIP_DATA.date}
-                {config.showDate && config.showTime && ' • '}
-                {config.showTime && SAMPLE_SLIP_DATA.time}
+              <p className="text-[10px] text-slate-400">
+                {config.showDate && SAMPLE_DATA.date}{config.showDate && config.showTime && ' • '}{config.showTime && SAMPLE_DATA.time}
               </p>
             )}
           </div>
         )}
 
-        {/* Sender Info */}
+        {/* Sender */}
         {config.showSender && (
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+          <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
             {config.showBankLogo && (
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner flex-shrink-0">
-                {senderBankLogo ? (
-                  <img src={senderBankLogo} alt="Sender Bank" className="w-7 h-7 object-contain" />
-                ) : (
-                  <span className="text-lg">👤</span>
-                )}
+              <div className="w-9 h-9 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {senderLogo ? <img src={senderLogo} alt="ธนาคาร" className="w-7 h-7 object-contain" /> : <span>👤</span>}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[8px] uppercase tracking-widest font-bold text-slate-400">ผู้โอน</p>
-              <p className="text-xs font-bold text-slate-900 truncate">{SAMPLE_SLIP_DATA.sender.name}</p>
-              {config.showSenderNameEn && SAMPLE_SLIP_DATA.sender.nameEn && (
-                <p className="text-[9px] text-slate-500 truncate">{SAMPLE_SLIP_DATA.sender.nameEn}</p>
-              )}
-              {config.showSenderAccount && (
-                <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_SLIP_DATA.sender.account}</p>
-              )}
-              {effectiveSenderBank && (
-                <p className="text-[8px] text-emerald-600 font-medium">{effectiveSenderBank.shortName || effectiveSenderBank.code}</p>
-              )}
+              <p className="text-[9px] text-slate-400 font-bold uppercase">ผู้โอน</p>
+              <p className="text-[11px] font-bold text-slate-900 truncate">{SAMPLE_DATA.sender.name}</p>
+              {config.showSenderNameEn && SAMPLE_DATA.sender.nameEn && <p className="text-[9px] text-slate-500 truncate">{SAMPLE_DATA.sender.nameEn}</p>}
+              {config.showSenderAccount && <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.sender.account}</p>}
+              {senderBank && <p className="text-[8px] text-emerald-600 font-medium">{senderBank.shortName}</p>}
             </div>
           </div>
         )}
 
-        {/* Receiver Info */}
+        {/* Receiver */}
         {config.showReceiver && (
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+          <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
             {config.showBankLogo && (
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-blue-50 shadow-inner flex-shrink-0">
-                {receiverBankLogo ? (
-                  <img src={receiverBankLogo} alt="Receiver Bank" className="w-7 h-7 object-contain" />
-                ) : (
-                  <span className="text-lg">🏛️</span>
-                )}
+              <div className="w-9 h-9 rounded-lg bg-blue-50 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {receiverLogo ? <img src={receiverLogo} alt="ธนาคาร" className="w-7 h-7 object-contain" /> : <span>🏛️</span>}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[8px] uppercase tracking-widest font-bold text-slate-400">ผู้รับ</p>
-              <p className="text-xs font-bold text-slate-900 truncate">{SAMPLE_SLIP_DATA.receiver.name}</p>
-              {config.showReceiverNameEn && SAMPLE_SLIP_DATA.receiver.nameEn && (
-                <p className="text-[9px] text-slate-500 truncate">{SAMPLE_SLIP_DATA.receiver.nameEn}</p>
-              )}
-              {config.showReceiverAccount && (
-                <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_SLIP_DATA.receiver.account}</p>
-              )}
-              {config.showReceiverProxy && SAMPLE_SLIP_DATA.receiver.proxyType && (
-                <p className="text-[9px] text-blue-500 font-mono">
-                  {SAMPLE_SLIP_DATA.receiver.proxyType}: {SAMPLE_SLIP_DATA.receiver.proxyAccount}
-                </p>
-              )}
-              {effectiveReceiverBank && (
-                <p className="text-[8px] text-blue-600 font-medium">{effectiveReceiverBank.shortName || effectiveReceiverBank.code}</p>
-              )}
+              <p className="text-[9px] text-slate-400 font-bold uppercase">ผู้รับ</p>
+              <p className="text-[11px] font-bold text-slate-900 truncate">{SAMPLE_DATA.receiver.name}</p>
+              {config.showReceiverAccount && <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.receiver.account}</p>}
+              {config.showReceiverProxy && <p className="text-[9px] text-blue-500 font-mono">{SAMPLE_DATA.receiver.proxy}</p>}
+              {receiverBank && <p className="text-[8px] text-blue-600 font-medium">{receiverBank.shortName}</p>}
             </div>
           </div>
         )}
 
-        {/* Transaction Reference */}
+        {/* TransRef */}
         {config.showTransRef && (
-          <div className="flex justify-between items-center p-3 bg-slate-900 text-white rounded-xl">
-            <span className="text-[9px] uppercase tracking-widest font-bold opacity-60">รหัสอ้างอิง</span>
-            <span className="text-[11px] font-mono font-bold">{SAMPLE_SLIP_DATA.transRef.slice(0, 16)}...</span>
-          </div>
-        )}
-
-        {/* Extended Details */}
-        {(config.showCountryCode || config.showFee || config.showRefs || config.showPayload || 
-          config.showSenderBankId || config.showReceiverBankId || config.showLocalAmount) && (
-          <div className="p-3 bg-slate-50 rounded-xl space-y-2">
-            <p className="text-[9px] uppercase tracking-widest font-bold text-slate-400">รายละเอียดเพิ่มเติม</p>
-            
-            {config.showLocalAmount && (
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">จำนวนเงิน (สกุลท้องถิ่น)</span>
-                <span className="font-mono text-slate-700">-</span>
-              </div>
-            )}
-            {config.showCountryCode && (
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">ประเทศ</span>
-                <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.countryCode}</span>
-              </div>
-            )}
-            {config.showFee && (
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">ค่าธรรมเนียม</span>
-                <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.feeFormatted}</span>
-              </div>
-            )}
-            {config.showRefs && (
-              <>
-                {SAMPLE_SLIP_DATA.ref1 && (
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-slate-500">Ref1</span>
-                    <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.ref1 || '-'}</span>
-                  </div>
-                )}
-                {SAMPLE_SLIP_DATA.ref2 && (
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-slate-500">Ref2</span>
-                    <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.ref2 || '-'}</span>
-                  </div>
-                )}
-                {SAMPLE_SLIP_DATA.ref3 && (
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-slate-500">Ref3</span>
-                    <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.ref3 || '-'}</span>
-                  </div>
-                )}
-              </>
-            )}
-            {config.showSenderBankId && (
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Bank ID (ผู้โอน)</span>
-                <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.sender.bankId}</span>
-              </div>
-            )}
-            {config.showReceiverBankId && (
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Bank ID (ผู้รับ)</span>
-                <span className="font-mono text-slate-700">{SAMPLE_SLIP_DATA.receiver.bankId}</span>
-              </div>
-            )}
-            {config.showPayload && (
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Payload</span>
-                <span className="font-mono text-slate-700 truncate max-w-[120px]">{SAMPLE_SLIP_DATA.payload.slice(0, 20)}...</span>
-              </div>
-            )}
+          <div className="flex justify-between items-center p-2 bg-slate-900 text-white rounded-lg">
+            <span className="text-[9px] font-bold opacity-60">อ้างอิง</span>
+            <span className="text-[10px] font-mono">{SAMPLE_DATA.transRef.slice(0, 16)}...</span>
           </div>
         )}
 
         {/* Duplicate Warning */}
         {isDuplicate && (
-          <div className="p-3 bg-amber-500 rounded-xl text-center shadow-lg">
-            <p className="text-[11px] text-white font-bold uppercase tracking-wide">⚠️ คำเตือน</p>
-            <p className="text-[10px] text-amber-50/90 mt-0.5">พบสลิปนี้ถูกใช้งานแล้ว</p>
-            {config.showDelayWarning && (
-              <p className="text-[9px] text-amber-100/70 mt-1">ตรวจสอบช้า {config.delayWarningMinutes} นาที</p>
-            )}
+          <div className="p-2 bg-amber-500 rounded-lg text-center">
+            <p className="text-[10px] text-white font-bold">⚠️ สลิปนี้ถูกใช้งานแล้ว</p>
           </div>
         )}
 
         {/* Footer */}
-        {(config.footerText || config.footerLink) && (
-          <div className="pt-2 text-center">
-            {config.footerText && (
-              <p className="text-[10px] font-medium text-slate-400">{config.footerText}</p>
-            )}
-            {config.footerLink && config.footerLinkText && (
-              <p className="text-[10px] text-blue-500 font-bold underline mt-1">{config.footerLinkText}</p>
-            )}
-          </div>
+        {config.footerText && (
+          <p className="text-[10px] text-slate-400 text-center pt-1">{config.footerText}</p>
         )}
       </div>
     </div>
@@ -447,159 +315,50 @@ const SlipPreview = memo(({ config, selectedBank, senderBank, receiverBank }: {
 });
 SlipPreview.displayName = 'SlipPreview';
 
-// Section Header Component
-const SectionHeader = memo(({ icon, title, subtitle }: { icon: string; title: string; subtitle?: string }) => (
-  <div className="flex items-center gap-3 mb-4">
-    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xl">{icon}</div>
-    <div>
-      <h3 className="font-bold text-slate-900">{title}</h3>
-      {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
-    </div>
-  </div>
-));
-SectionHeader.displayName = 'SectionHeader';
-
-// Bank Selector Mini Component for selecting sender/receiver banks
-const BankSelectorMini = memo(({ 
-  banks, 
-  selectedBankId, 
-  onSelect, 
-  label, 
-  icon,
-  color = 'emerald'
-}: { 
-  banks: Bank[]; 
-  selectedBankId: string; 
-  onSelect: (bankId: string) => void; 
-  label: string;
-  icon: string;
-  color?: 'emerald' | 'blue' | 'purple';
-}) => {
-  const selectedBank = banks.find(b => b._id === selectedBankId);
-  const colorClasses = {
-    emerald: { selected: 'border-emerald-500 bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' },
-    blue: { selected: 'border-blue-500 bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-100 text-blue-700' },
-    purple: { selected: 'border-purple-500 bg-purple-50', text: 'text-purple-700', badge: 'bg-purple-100 text-purple-700' },
-  };
-  const colors = colorClasses[color];
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="text-sm font-bold text-slate-700">{label}</span>
-        {selectedBank && (
-          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", colors.badge)}>
-            {selectedBank.shortName || selectedBank.code}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-1 custom-scrollbar">
-        <button
-          type="button"
-          onClick={() => onSelect('')}
-          className={cn(
-            "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all min-w-[52px]",
-            !selectedBankId 
-              ? `${colors.selected} shadow-sm` 
-              : "border-slate-200 bg-white hover:border-slate-300"
-          )}
-        >
-          <div className="w-7 h-7 rounded-md flex items-center justify-center bg-slate-100">
-            <span className="text-sm">🔄</span>
-          </div>
-          <span className="text-[8px] font-bold text-slate-500">อัตโนมัติ</span>
-        </button>
-        {banks.slice(0, 16).map((bank) => {
-          const logo = bank.logoBase64 || bank.logoUrl;
-          const isSelected = selectedBankId === bank._id;
-          return (
-            <button
-              key={bank._id}
-              type="button"
-              onClick={() => onSelect(bank._id)}
-              className={cn(
-                "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all min-w-[52px]",
-                isSelected 
-                  ? `${colors.selected} shadow-sm` 
-                  : "border-slate-200 bg-white hover:border-slate-300"
-              )}
-            >
-              <div className="w-7 h-7 rounded-md flex items-center justify-center overflow-hidden bg-white shadow-inner">
-                {logo ? (
-                  <img src={logo} alt={bank.shortName} className="w-5 h-5 object-contain" />
-                ) : (
-                  <span className="text-[10px] font-black text-slate-400">{bank.shortName?.substring(0, 2) || bank.code?.substring(0, 2)}</span>
-                )}
-              </div>
-              <span className={cn("text-[8px] font-bold truncate w-full text-center", isSelected ? colors.text : "text-slate-500")}>
-                {bank.shortName || bank.code}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
-BankSelectorMini.displayName = 'BankSelectorMini';
-
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<SlipTemplate | null>(null);
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM_DATA);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [previewBankId, setPreviewBankId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'basic' | 'display' | 'banks'>('basic');
 
-  const fetchTemplates = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/slip-templates/global');
-      if (response.data.success) {
-        setTemplates(response.data.templates || []);
-      }
-    } catch (err: any) {
-      console.error('Failed to load templates:', err);
-      toast.error('ไม่สามารถโหลดเทมเพลตได้');
+      const [templatesRes, banksRes] = await Promise.all([
+        api.get('/slip-templates/global'),
+        banksApi.getAll()
+      ]);
+      setTemplates(templatesRes.data.templates || []);
+      setBanks(banksRes.data.banks || []);
+    } catch (err) {
+      toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchBanks = useCallback(async () => {
-    try {
-      const response = await banksApi.getAll();
-      const allBanks = response.data.banks || [];
-      setBanks(allBanks);
-      const requestedBankId =
-        typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.search).get('bankId') || ''
-          : '';
-      if (requestedBankId && allBanks.some((b: Bank) => b._id === requestedBankId)) {
-        setPreviewBankId(requestedBankId);
-        return;
-      }
-      const firstActiveBank = allBanks.find((b: Bank) => b.isActive);
-      if (firstActiveBank) setPreviewBankId(firstActiveBank._id);
-    } catch (err) {
-      console.error('Failed to load banks:', err);
-    }
-  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  useEffect(() => {
-    fetchTemplates();
-    fetchBanks();
-  }, [fetchTemplates, fetchBanks]);
+  const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
+  
+  const senderBank = useMemo(() => 
+    formData.senderBankId ? banks.find(b => b._id === formData.senderBankId) : activeBanks[0] || null
+  , [banks, formData.senderBankId, activeBanks]);
+  
+  const receiverBank = useMemo(() => 
+    formData.receiverBankId ? banks.find(b => b._id === formData.receiverBankId) : activeBanks[1] || activeBanks[0] || null
+  , [banks, formData.receiverBankId, activeBanks]);
 
   const openCreateModal = () => {
-    const firstActive = (banks.find((b) => b.isActive)?._id || '') as string;
-    setFormData({ ...DEFAULT_FORM_DATA, bankId: firstActive });
-    setShowCreateModal(true);
+    setSelectedTemplate(null);
+    setFormData(DEFAULT_FORM_DATA);
+    setActiveTab('basic');
+    setShowModal(true);
   };
 
   const openEditModal = (template: SlipTemplate) => {
@@ -635,43 +394,31 @@ export default function AdminTemplatesPage() {
       showReceiverNameEn: template.showReceiverNameEn ?? false,
       showLocalAmount: template.showLocalAmount ?? false,
       bankId: template.bankId || '',
-      senderBankId: (template as any).senderBankId || '',
-      receiverBankId: (template as any).receiverBankId || '',
+      senderBankId: template.senderBankId || '',
+      receiverBankId: template.receiverBankId || '',
     });
-    setShowEditModal(true);
+    setActiveTab('basic');
+    setShowModal(true);
   };
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     if (!formData.name.trim()) {
       toast.error('กรุณากรอกชื่อเทมเพลต');
       return;
     }
     setIsProcessing(true);
     try {
-      await api.post('/slip-templates/global', formData);
-      toast.success('สร้างเทมเพลตสำเร็จ');
-      setShowCreateModal(false);
-      fetchTemplates();
+      if (selectedTemplate) {
+        await api.put(`/slip-templates/global/${selectedTemplate._id}`, formData);
+        toast.success('อัปเดตเทมเพลตสำเร็จ');
+      } else {
+        await api.post('/slip-templates/global', formData);
+        toast.success('สร้างเทมเพลตสำเร็จ');
+      }
+      setShowModal(false);
+      fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถสร้างเทมเพลตได้');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!selectedTemplate || !formData.name.trim()) {
-      toast.error('กรุณากรอกชื่อเทมเพลต');
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      await api.put(`/slip-templates/global/${selectedTemplate._id}`, formData);
-      toast.success('อัปเดตเทมเพลตสำเร็จ');
-      setShowEditModal(false);
-      fetchTemplates();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถอัปเดตเทมเพลตได้');
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsProcessing(false);
     }
@@ -685,21 +432,21 @@ export default function AdminTemplatesPage() {
       toast.success('ลบเทมเพลตสำเร็จ');
       setShowDeleteConfirm(false);
       setSelectedTemplate(null);
-      fetchTemplates();
+      fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถลบเทมเพลตได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถลบได้');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleSetDefault = async (templateId: string) => {
+  const handleSetDefault = async (id: string) => {
     try {
-      await api.put(`/slip-templates/global/${templateId}/default`);
+      await api.put(`/slip-templates/global/${id}/default`);
       toast.success('ตั้งเป็นค่าเริ่มต้นสำเร็จ');
-      fetchTemplates();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถตั้งเป็นค่าเริ่มต้นได้');
+      fetchData();
+    } catch (err) {
+      toast.error('ไม่สามารถตั้งเป็นค่าเริ่มต้นได้');
     }
   };
 
@@ -708,484 +455,346 @@ export default function AdminTemplatesPage() {
     try {
       await api.post('/slip-templates/global/init-defaults');
       toast.success('สร้างเทมเพลตเริ่มต้นสำเร็จ');
-      fetchTemplates();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถสร้างเทมเพลตเริ่มต้นได้');
+      fetchData();
+    } catch (err) {
+      toast.error('ไม่สามารถสร้างเทมเพลตเริ่มต้นได้');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const updateFormField = useCallback((field: keyof FormData, value: any) => {
+  const updateField = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  };
 
-  const templatesByType = useMemo(() => templates.reduce((acc, template) => {
-    if (!acc[template.type]) acc[template.type] = [];
-    acc[template.type].push(template);
+  const templatesByType = useMemo(() => templates.reduce((acc, t) => {
+    if (!acc[t.type]) acc[t.type] = [];
+    acc[t.type].push(t);
     return acc;
   }, {} as Record<string, SlipTemplate[]>), [templates]);
 
-  const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
-  const selectedPreviewBank = useMemo(() => banks.find(b => b._id === previewBankId) || null, [banks, previewBankId]);
-  const selectedModalBank = useMemo(() => {
-    const id = (formData.bankId || previewBankId) as string;
-    return banks.find(b => b._id === id) || null;
-  }, [banks, formData.bankId, previewBankId]);
-  
-  // Separate sender/receiver banks for preview
-  const selectedSenderBank = useMemo(() => {
-    if (formData.senderBankId) return banks.find(b => b._id === formData.senderBankId) || null;
-    return selectedModalBank;
-  }, [banks, formData.senderBankId, selectedModalBank]);
-  
-  const selectedReceiverBank = useMemo(() => {
-    if (formData.receiverBankId) return banks.find(b => b._id === formData.receiverBankId) || null;
-    return selectedModalBank;
-  }, [banks, formData.receiverBankId, selectedModalBank]);
-
-  const isModalOpen = showCreateModal || showEditModal;
-  const modalTitle = showCreateModal ? 'สร้างเทมเพลตใหม่' : 'แก้ไขเทมเพลต';
-  const modalSubmitText = showCreateModal ? 'สร้างเทมเพลต' : 'บันทึกการเปลี่ยนแปลง';
-  const modalSubmit = showCreateModal ? handleCreate : handleUpdate;
-  const closeModal = () => { setShowCreateModal(false); setShowEditModal(false); };
-
-  // Group display options by category
-  const displayOptionGroups = [
-    {
-      title: 'ข้อมูลหลัก',
-      icon: '💰',
-      options: [
-        { key: 'showAmount' as keyof FormData, icon: '💰', label: 'จำนวนเงิน' },
-        { key: 'showSender' as keyof FormData, icon: '👤', label: 'ผู้โอน' },
-        { key: 'showReceiver' as keyof FormData, icon: '🏦', label: 'ผู้รับ' },
-        { key: 'showDate' as keyof FormData, icon: '📅', label: 'วันที่' },
-      ],
-    },
-    {
-      title: 'รายละเอียดเวลา',
-      icon: '🕐',
-      options: [
-        { key: 'showTime' as keyof FormData, icon: '🕐', label: 'เวลา' },
-        { key: 'showTransRef' as keyof FormData, icon: '🔢', label: 'รหัสอ้างอิง' },
-        { key: 'showBankLogo' as keyof FormData, icon: '🖼️', label: 'โลโก้ธนาคาร' },
-        { key: 'showCountryCode' as keyof FormData, icon: '🌍', label: 'ประเทศ' },
-      ],
-    },
-    {
-      title: 'ค่าธรรมเนียม',
-      icon: '💸',
-      options: [
-        { key: 'showFee' as keyof FormData, icon: '💸', label: 'ค่าธรรมเนียม' },
-        { key: 'showRefs' as keyof FormData, icon: '🏷️', label: 'Ref1-3' },
-        { key: 'showPayload' as keyof FormData, icon: '🧾', label: 'Payload' },
-        { key: 'showLocalAmount' as keyof FormData, icon: '💱', label: 'สกุลท้องถิ่น' },
-      ],
-    },
-    {
-      title: 'ข้อมูลธนาคาร',
-      icon: '🆔',
-      options: [
-        { key: 'showSenderBankId' as keyof FormData, icon: '🆔', label: 'Bank ID\n(ผู้โอน)' },
-        { key: 'showReceiverBankId' as keyof FormData, icon: '🆔', label: 'Bank ID\n(ผู้รับ)' },
-        { key: 'showReceiverProxy' as keyof FormData, icon: '🔗', label: 'Proxy\nผู้รับ' },
-      ],
-    },
-    {
-      title: 'ข้อมูลบัญชี',
-      icon: '📝',
-      options: [
-        { key: 'showSenderAccount' as keyof FormData, icon: '📝', label: 'เลขบัญชี\nผู้โอน' },
-        { key: 'showReceiverAccount' as keyof FormData, icon: '📝', label: 'เลขบัญชี\nผู้รับ' },
-        { key: 'showSenderNameEn' as keyof FormData, icon: '🔤', label: 'ชื่อ EN\nผู้โอน' },
-        { key: 'showReceiverNameEn' as keyof FormData, icon: '🔤', label: 'ชื่อ EN\nผู้รับ' },
-      ],
-    },
-  ];
+  if (loading) {
+    return <DashboardLayout requiredRole="admin"><PageLoading message="กำลังโหลด..." /></DashboardLayout>;
+  }
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-8 animate-fade max-w-[1600px] mx-auto pb-12">
+      <div className="space-y-6 max-w-[1400px] mx-auto pb-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">🎨 เทมเพลตสลิป</h1>
-              <Badge variant="indigo" className="text-[10px]">ระดับระบบ</Badge>
-            </div>
-            <p className="text-slate-500">จัดการรูปแบบการแสดงผลสลิปสำหรับทุกบัญชี</p>
+            <h1 className="text-2xl font-bold text-slate-900">🎨 เทมเพลตสลิป</h1>
+            <p className="text-slate-500 text-sm">จัดการรูปแบบการแสดงผลสลิป</p>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleInitDefaults} isLoading={isProcessing}>
-              🔄 รีเซ็ตค่าเริ่มต้น
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleInitDefaults} isLoading={isProcessing}>
+              🔄 รีเซ็ต
             </Button>
-            <Button variant="primary" className="flex-1 sm:flex-none shadow-lg shadow-emerald-500/20" onClick={openCreateModal}>
-              ➕ สร้างเทมเพลต
+            <Button variant="primary" onClick={openCreateModal}>
+              ➕ สร้างใหม่
             </Button>
           </div>
         </div>
 
-        {/* Bank Selector for Preview */}
-        <Card className="p-4 bg-gradient-to-r from-slate-50 to-white border-slate-200">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm mb-0.5">🏦 ตัวอย่างธนาคาร</h3>
-              <p className="text-xs text-slate-400">เลือกธนาคารเพื่อดูตัวอย่างโลโก้ในสลิป</p>
-            </div>
-            <div className="flex-1 overflow-x-auto pb-2">
-              <div className="flex items-center gap-2">
-                {activeBanks.slice(0, 12).map((bank) => {
-                  const logo = bank.logoBase64 || bank.logoUrl;
-                  return (
-                    <button
-                      key={bank._id}
-                      onClick={() => setPreviewBankId(bank._id)}
-                      className={cn(
-                        "flex-shrink-0 flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all min-w-[70px]",
-                        previewBankId === bank._id 
-                          ? "border-emerald-500 bg-emerald-50 shadow-md" 
-                          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
-                      )}
-                    >
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner">
-                        {logo ? (
-                          <img src={logo} alt={bank.shortName} className="w-7 h-7 object-contain" />
-                        ) : (
-                          <span className="text-xs font-black text-slate-400">{bank.shortName?.substring(0, 2)}</span>
-                        )}
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-600 truncate w-full text-center">
-                        {bank.shortName || bank.code}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </Card>
-
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard title="เทมเพลตทั้งหมด" value={templates.length} icon="🎨" color="indigo" variant="glass" />
-          <StatCard title="ตรวจสอบสำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
+        <div className="grid grid-cols-4 gap-3">
+          <StatCard title="ทั้งหมด" value={templates.length} icon="🎨" color="indigo" variant="glass" />
+          <StatCard title="สำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
           <StatCard title="สลิปซ้ำ" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" />
           <StatCard title="ค่าเริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" />
         </div>
 
-        {loading ? (
-          <PageLoading message="กำลังโหลดเทมเพลต..." />
+        {/* Templates List */}
+        {templates.length === 0 ? (
+          <Card className="p-12 text-center">
+            <div className="text-5xl mb-4">🎨</div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">ยังไม่มีเทมเพลต</h3>
+            <p className="text-slate-500 mb-6">กดปุ่ม "รีเซ็ต" เพื่อสร้างเทมเพลตเริ่มต้น</p>
+            <Button onClick={handleInitDefaults}>สร้างเทมเพลตเริ่มต้น</Button>
+          </Card>
         ) : (
-          <div className="space-y-12">
-            {TYPE_OPTIONS.map((typeOption) => {
-              const typeTemplates = templatesByType[typeOption.value] || [];
-              if (typeTemplates.length === 0) return null;
-
+          <div className="space-y-8">
+            {TYPE_OPTIONS.map((type) => {
+              const list = templatesByType[type.value] || [];
+              if (list.length === 0) return null;
+              
               return (
-                <section key={typeOption.value} className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-sm",
-                      typeOption.color === 'emerald' && 'bg-emerald-100',
-                      typeOption.color === 'amber' && 'bg-amber-100',
-                      typeOption.color === 'rose' && 'bg-rose-100',
-                      typeOption.color === 'slate' && 'bg-slate-100'
-                    )}>
-                      {typeOption.icon}
+                <div key={type.value}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl", type.bgColor)}>
+                      {type.icon}
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-slate-900">{typeOption.label}</h2>
-                      <p className="text-sm text-slate-400">{typeOption.description}</p>
+                      <h2 className="font-bold text-slate-900">{type.label}</h2>
+                      <p className="text-xs text-slate-400">{list.length} เทมเพลต</p>
                     </div>
-                    <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent" />
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {typeTemplates.map((template) => (
-                      <Card key={template._id} className="p-0 overflow-hidden group hover:shadow-xl transition-all duration-300">
-                        <div className="relative h-60 bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-6 overflow-hidden">
-                          <div className="transform scale-[0.55] group-hover:scale-[0.6] transition-transform duration-500">
-                            <SlipPreview config={{ ...DEFAULT_FORM_DATA, ...template } as FormData} selectedBank={selectedPreviewBank} />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {list.map((template) => (
+                      <Card key={template._id} className="p-4 hover:shadow-lg transition-shadow">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-bold text-slate-900">{template.name}</h3>
+                            <p className="text-xs text-slate-400">{template.description || 'ไม่มีคำอธิบาย'}</p>
                           </div>
-                          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-                            <Button variant="primary" size="sm" onClick={() => openEditModal(template)}>
-                              ✏️ แก้ไข
-                            </Button>
-                            {!template.isDefault && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-white hover:bg-rose-500" 
-                                onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
-                              >
-                                🗑️ ลบ
-                              </Button>
-                            )}
-                          </div>
+                          {template.isDefault && <Badge variant="emerald" size="sm">⭐ เริ่มต้น</Badge>}
                         </div>
-                        <div className="p-5 space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h3 className="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                                {template.name}
-                              </h3>
-                              <p className="text-xs text-slate-400 truncate max-w-[200px]">
-                                {template.description || 'ไม่มีคำอธิบาย'}
-                              </p>
-                            </div>
-                            {template.isDefault && <Badge variant="emerald" size="sm">⭐ ค่าเริ่มต้น</Badge>}
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {template.showAmount && <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded">💰 เงิน</span>}
-                            {template.showSender && <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-50 text-blue-600 rounded">👤 ผู้โอน</span>}
-                            {template.showReceiver && <span className="text-[9px] font-bold px-2 py-0.5 bg-purple-50 text-purple-600 rounded">🏦 ผู้รับ</span>}
-                            {template.showBankLogo && <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded">🖼️ โลโก้</span>}
-                          </div>
+                        
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {template.showAmount && <span className="text-[9px] px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded font-bold">💰 เงิน</span>}
+                          {template.showSender && <span className="text-[9px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded font-bold">👤 ผู้โอน</span>}
+                          {template.showReceiver && <span className="text-[9px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded font-bold">🏛️ ผู้รับ</span>}
+                          {template.showBankLogo && <span className="text-[9px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-bold">🖼️ โลโก้</span>}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" fullWidth onClick={() => openEditModal(template)}>
+                            ✏️ แก้ไข
+                          </Button>
                           {!template.isDefault && (
-                            <div className="pt-3 border-t border-slate-100">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-xs text-slate-400 hover:text-emerald-500 px-0" 
-                                onClick={() => handleSetDefault(template._id)}
-                              >
-                                ⭐ ตั้งเป็นค่าเริ่มต้น
-                              </Button>
-                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => handleSetDefault(template._id)}>
+                              ⭐
+                            </Button>
+                          )}
+                          {!template.isDefault && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-rose-500 hover:bg-rose-50"
+                              onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
+                            >
+                              🗑️
+                            </Button>
                           )}
                         </div>
                       </Card>
                     ))}
                   </div>
-                </section>
+                </div>
               );
             })}
-
-            {templates.length === 0 && (
-              <div className="flex flex-col items-center justify-center min-h-[400px] bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center text-4xl mb-6">🎨</div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">ยังไม่มีเทมเพลต</h3>
-                <p className="text-slate-400 max-w-sm text-center mb-6">เริ่มต้นด้วยการสร้างเทมเพลตเริ่มต้น หรือสร้างเทมเพลตใหม่ตามต้องการ</p>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={handleInitDefaults}>สร้างค่าเริ่มต้น</Button>
-                  <Button variant="primary" className="shadow-lg shadow-emerald-500/20" onClick={openCreateModal}>สร้างเทมเพลตใหม่</Button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Template Form Modal */}
-      <Modal isOpen={isModalOpen} onClose={closeModal} title={modalTitle} size="xl">
+      {/* Create/Edit Modal */}
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={selectedTemplate ? 'แก้ไขเทมเพลต' : 'สร้างเทมเพลตใหม่'} size="xl">
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Settings Panel */}
-          <div className="flex-1 space-y-6 order-2 lg:order-1 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
-            
-            {/* Basic Info Section */}
-            <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-5 border border-slate-100">
-              <SectionHeader icon="📝" title="ข้อมูลพื้นฐาน" subtitle="ชื่อและประเภทของเทมเพลต" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="ชื่อเทมเพลต"
-                  value={formData.name}
-                  onChange={(e) => updateFormField('name', e.target.value)}
-                  placeholder="เช่น เทมเพลตหลัก"
-                />
-                <Select label="ประเภท" value={formData.type} onChange={(e) => updateFormField('type', e.target.value as any)}>
-                  {TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="mt-4">
-                <Textarea
-                  label="คำอธิบาย (ไม่บังคับ)"
-                  value={formData.description}
-                  onChange={(e) => updateFormField('description', e.target.value)}
-                  placeholder="อธิบายการใช้งานเทมเพลตนี้..."
-                  rows={2}
-                />
-              </div>
+          {/* Left: Settings */}
+          <div className="flex-1 space-y-4">
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
+              {[
+                { id: 'basic', label: '📝 ข้อมูล', icon: '📝' },
+                { id: 'display', label: '👁️ การแสดง', icon: '👁️' },
+                { id: 'banks', label: '🏦 ธนาคาร', icon: '🏦' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={cn(
+                    "flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all",
+                    activeTab === tab.id ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* Appearance Section */}
-            <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-5 border border-slate-100">
-              <SectionHeader icon="🎨" title="การแสดงผล" subtitle="ธนาคาร สี และข้อความ" />
-              
-              <div className="space-y-4">
-                {/* Bank Selector for Sender/Receiver */}
-                <div className="p-4 bg-gradient-to-br from-white to-slate-50 rounded-xl border border-slate-200 space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                    <span className="text-lg">🏦</span>
-                    <span className="font-bold text-slate-900 text-sm">ธนาคารตัวอย่าง</span>
-                    <span className="text-[10px] text-slate-400 ml-auto">เลือกธนาคารแยกสำหรับผู้โอน/ผู้รับ</span>
-                  </div>
-                  
-                  {/* Sender Bank Selector */}
-                  <BankSelectorMini
-                    banks={activeBanks}
-                    selectedBankId={formData.senderBankId}
-                    onSelect={(bankId) => updateFormField('senderBankId', bankId)}
-                    label="ธนาคารผู้โอน"
-                    icon="👤"
-                    color="emerald"
+            {/* Tab Content */}
+            <div className="bg-slate-50 rounded-xl p-4 max-h-[50vh] overflow-y-auto">
+              {/* Basic Tab */}
+              {activeTab === 'basic' && (
+                <div className="space-y-4">
+                  <Input
+                    label="ชื่อเทมเพลต"
+                    value={formData.name}
+                    onChange={(e) => updateField('name', e.target.value)}
+                    placeholder="เช่น เทมเพลตหลัก"
                   />
                   
-                  {/* Receiver Bank Selector */}
-                  <BankSelectorMini
-                    banks={activeBanks}
-                    selectedBankId={formData.receiverBankId}
-                    onSelect={(bankId) => updateFormField('receiverBankId', bankId)}
-                    label="ธนาคารผู้รับ"
-                    icon="🏛️"
-                    color="blue"
+                  <Select label="ประเภท" value={formData.type} onChange={(e) => updateField('type', e.target.value)}>
+                    {TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
+                    ))}
+                  </Select>
+                  
+                  <Textarea
+                    label="คำอธิบาย"
+                    value={formData.description}
+                    onChange={(e) => updateField('description', e.target.value)}
+                    placeholder="อธิบายการใช้งาน..."
+                    rows={2}
                   />
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200">
-                  <div>
-                    <p className="font-bold text-slate-700 text-sm">🎨 สีหลัก</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">สีที่ใช้แสดงในเทมเพลต</p>
-                  </div>
-                  <div className="flex items-center gap-3">
+                  
+                  <div className="flex items-center gap-4 p-3 bg-white rounded-xl">
+                    <span className="text-sm font-bold text-slate-700">🎨 สีหลัก</span>
                     <input
                       type="color"
                       value={formData.primaryColor}
-                      onChange={(e) => updateFormField('primaryColor', e.target.value)}
-                      className="w-10 h-10 rounded-lg border-2 border-slate-200 cursor-pointer"
+                      onChange={(e) => updateField('primaryColor', e.target.value)}
+                      className="w-10 h-10 rounded-lg border cursor-pointer"
                     />
-                    <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                      {formData.primaryColor}
-                    </span>
+                    <span className="text-xs font-mono text-slate-400">{formData.primaryColor}</span>
+                  </div>
+                  
+                  <Input
+                    label="ข้อความหัว"
+                    value={formData.headerText}
+                    onChange={(e) => updateField('headerText', e.target.value)}
+                    placeholder="เช่น ✅ ตรวจสอบสำเร็จ"
+                  />
+                  
+                  <Input
+                    label="ข้อความท้าย"
+                    value={formData.footerText}
+                    onChange={(e) => updateField('footerText', e.target.value)}
+                    placeholder="เช่น ขอบคุณที่ใช้บริการ"
+                  />
+                </div>
+              )}
+
+              {/* Display Tab */}
+              {activeTab === 'display' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500 font-bold uppercase mb-2">💰 ข้อมูลหลัก</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Toggle label="จำนวนเงิน" checked={formData.showAmount} onChange={() => updateField('showAmount', !formData.showAmount)} />
+                    <Toggle label="วันที่" checked={formData.showDate} onChange={() => updateField('showDate', !formData.showDate)} />
+                    <Toggle label="เวลา" checked={formData.showTime} onChange={() => updateField('showTime', !formData.showTime)} />
+                    <Toggle label="รหัสอ้างอิง" checked={formData.showTransRef} onChange={() => updateField('showTransRef', !formData.showTransRef)} />
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">👤 ผู้โอน</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Toggle label="แสดงผู้โอน" checked={formData.showSender} onChange={() => updateField('showSender', !formData.showSender)} />
+                    <Toggle label="เลขบัญชี" checked={formData.showSenderAccount} onChange={() => updateField('showSenderAccount', !formData.showSenderAccount)} />
+                    <Toggle label="ชื่อ EN" checked={formData.showSenderNameEn} onChange={() => updateField('showSenderNameEn', !formData.showSenderNameEn)} />
+                    <Toggle label="Bank ID" checked={formData.showSenderBankId} onChange={() => updateField('showSenderBankId', !formData.showSenderBankId)} />
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">🏛️ ผู้รับ</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Toggle label="แสดงผู้รับ" checked={formData.showReceiver} onChange={() => updateField('showReceiver', !formData.showReceiver)} />
+                    <Toggle label="เลขบัญชี" checked={formData.showReceiverAccount} onChange={() => updateField('showReceiverAccount', !formData.showReceiverAccount)} />
+                    <Toggle label="Proxy" checked={formData.showReceiverProxy} onChange={() => updateField('showReceiverProxy', !formData.showReceiverProxy)} />
+                    <Toggle label="Bank ID" checked={formData.showReceiverBankId} onChange={() => updateField('showReceiverBankId', !formData.showReceiverBankId)} />
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">🖼️ อื่นๆ</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Toggle label="โลโก้ธนาคาร" checked={formData.showBankLogo} onChange={() => updateField('showBankLogo', !formData.showBankLogo)} />
+                    <Toggle label="ค่าธรรมเนียม" checked={formData.showFee} onChange={() => updateField('showFee', !formData.showFee)} />
+                    <Toggle label="ประเทศ" checked={formData.showCountryCode} onChange={() => updateField('showCountryCode', !formData.showCountryCode)} />
+                    <Toggle label="Ref1-3" checked={formData.showRefs} onChange={() => updateField('showRefs', !formData.showRefs)} />
                   </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Input 
-                    label="ข้อความหัว" 
-                    value={formData.headerText} 
-                    onChange={(e) => updateFormField('headerText', e.target.value)} 
-                    placeholder="เช่น ✅ ตรวจสอบสำเร็จ" 
-                  />
-                  <Input 
-                    label="ข้อความท้าย" 
-                    value={formData.footerText} 
-                    onChange={(e) => updateFormField('footerText', e.target.value)} 
-                    placeholder="เช่น ขอบคุณที่ใช้บริการ" 
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input 
-                    label="ลิงก์ (URL)" 
-                    value={formData.footerLink} 
-                    onChange={(e) => updateFormField('footerLink', e.target.value)} 
-                    placeholder="https://..." 
-                  />
-                  <Input 
-                    label="ข้อความลิงก์" 
-                    value={formData.footerLinkText} 
-                    onChange={(e) => updateFormField('footerLinkText', e.target.value)} 
-                    placeholder="ดูรายละเอียด" 
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Display Options Section */}
-            <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl p-5 border border-slate-100">
-              <SectionHeader icon="👁️" title="ตัวเลือกการแสดง" subtitle="เลือกข้อมูลที่ต้องการแสดงในสลิป" />
-              
-              <div className="space-y-6">
-                {displayOptionGroups.map((group, groupIndex) => (
-                  <div key={groupIndex}>
+              {/* Banks Tab */}
+              {activeTab === 'banks' && (
+                <div className="space-y-6">
+                  {/* Sender Bank */}
+                  <div>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm">{group.icon}</span>
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{group.title}</span>
-                      <div className="flex-1 h-px bg-slate-200" />
+                      <span className="text-xl">👤</span>
+                      <span className="font-bold text-slate-900">ธนาคารผู้โอน</span>
+                      {senderBank && (
+                        <Badge variant="emerald" size="sm">{senderBank.shortName}</Badge>
+                      )}
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {group.options.map((item) => (
-                        <DisplayOptionItem
-                          key={item.key}
-                          icon={item.icon}
-                          label={item.label}
-                          checked={formData[item.key] as boolean}
-                          onChange={(checked) => updateFormField(item.key, checked)}
+                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-emerald-100">
+                      <button
+                        type="button"
+                        onClick={() => updateField('senderBankId', '')}
+                        className={cn(
+                          "flex flex-col items-center p-2 rounded-xl border-2 transition-all min-w-[60px]",
+                          !formData.senderBankId ? "border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/20" : "border-slate-200 bg-white"
+                        )}
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mb-1">
+                          <span className="text-lg">🔄</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500">อัตโนมัติ</span>
+                      </button>
+                      {activeBanks.map((bank) => (
+                        <BankButton
+                          key={bank._id}
+                          bank={bank}
+                          isSelected={formData.senderBankId === bank._id}
+                          onClick={() => updateField('senderBankId', bank._id)}
+                          color="emerald"
                         />
                       ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Duplicate Warning Settings */}
-            {formData.type === 'duplicate' && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200"
-              >
-                <SectionHeader icon="⚠️" title="แจ้งเตือนสลิปซ้ำ" subtitle="การตั้งค่าสำหรับสลิปที่ถูกใช้แล้ว" />
-                
-                <div className="flex items-center justify-between p-4 bg-white/80 rounded-xl border border-amber-200">
+                  {/* Receiver Bank */}
                   <div>
-                    <p className="font-bold text-amber-900 text-sm">แสดงระยะเวลาที่ผ่านมา</p>
-                    <p className="text-[10px] text-amber-600">แจ้งผู้ใช้ว่าสลิปถูกใช้ไปนานเท่าไหร่</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xl">🏛️</span>
+                      <span className="font-bold text-slate-900">ธนาคารผู้รับ</span>
+                      {receiverBank && (
+                        <Badge variant="info" size="sm">{receiverBank.shortName}</Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-blue-100">
+                      <button
+                        type="button"
+                        onClick={() => updateField('receiverBankId', '')}
+                        className={cn(
+                          "flex flex-col items-center p-2 rounded-xl border-2 transition-all min-w-[60px]",
+                          !formData.receiverBankId ? "border-blue-500 bg-blue-50 ring-4 ring-blue-500/20" : "border-slate-200 bg-white"
+                        )}
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mb-1">
+                          <span className="text-lg">🔄</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500">อัตโนมัติ</span>
+                      </button>
+                      {activeBanks.map((bank) => (
+                        <BankButton
+                          key={bank._id}
+                          bank={bank}
+                          isSelected={formData.receiverBankId === bank._id}
+                          onClick={() => updateField('receiverBankId', bank._id)}
+                          color="blue"
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <ToggleSwitch 
-                    checked={formData.showDelayWarning} 
-                    onChange={(checked) => updateFormField('showDelayWarning', checked)} 
-                  />
+
+                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      💡 <strong>วิธีใช้:</strong> เลือกธนาคารตัวอย่างสำหรับแสดงโลโก้ในสลิป เลือก "อัตโนมัติ" เพื่อใช้ธนาคารจริงจากข้อมูลสลิป
+                    </p>
+                  </div>
                 </div>
-                
-                {formData.showDelayWarning && (
-                  <div className="mt-4">
-                    <Input 
-                      label="ระยะเวลา (นาที)" 
-                      type="number" 
-                      value={formData.delayWarningMinutes} 
-                      onChange={(e) => updateFormField('delayWarningMinutes', parseInt(e.target.value) || 5)} 
-                    />
-                  </div>
-                )}
-              </motion.div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Preview Panel */}
-          <div className="lg:w-[360px] order-1 lg:order-2">
-            <div className="bg-gradient-to-b from-slate-100 to-slate-50 rounded-2xl p-5 border border-slate-200 lg:sticky lg:top-4">
-              <div className="text-center mb-4">
-                <h4 className="font-bold text-slate-700 text-sm">👁️ ตัวอย่างการแสดงผล</h4>
-                <p className="text-[10px] text-slate-400 mt-0.5">ลูกค้าจะเห็นแบบนี้</p>
+          {/* Right: Preview */}
+          <div className="lg:w-[320px]">
+            <div className="bg-gradient-to-b from-slate-100 to-slate-50 rounded-2xl p-4 border border-slate-200 sticky top-4">
+              <div className="text-center mb-3">
+                <p className="font-bold text-slate-700 text-sm">👁️ ตัวอย่างการแสดงผล</p>
+                <p className="text-[10px] text-slate-400">ลูกค้าจะเห็นแบบนี้</p>
               </div>
               
               <SlipPreview 
                 config={formData} 
-                selectedBank={selectedModalBank} 
-                senderBank={selectedSenderBank}
-                receiverBank={selectedReceiverBank}
+                senderBank={senderBank}
+                receiverBank={receiverBank}
               />
               
-              <div className="space-y-3 pt-5 mt-5 border-t border-slate-200">
-                <Button 
-                  variant="primary" 
-                  fullWidth 
-                  size="lg" 
-                  className="rounded-xl font-bold shadow-lg shadow-emerald-500/20" 
-                  onClick={modalSubmit} 
-                  isLoading={isProcessing}
-                >
-                  {modalSubmitText}
+              <div className="mt-4 pt-4 border-t border-slate-200 space-y-2">
+                <Button variant="primary" fullWidth onClick={handleSubmit} isLoading={isProcessing}>
+                  {selectedTemplate ? '💾 บันทึก' : '➕ สร้างเทมเพลต'}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  fullWidth 
-                  className="text-slate-400" 
-                  onClick={closeModal}
-                >
+                <Button variant="ghost" fullWidth onClick={() => setShowModal(false)}>
                   ยกเลิก
                 </Button>
               </div>
@@ -1194,34 +803,18 @@ export default function AdminTemplatesPage() {
         </div>
       </Modal>
 
+      {/* Delete Confirm */}
       <ConfirmModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
         title="🗑️ ลบเทมเพลต?"
-        message={`คุณแน่ใจหรือไม่ว่าต้องการลบเทมเพลต "${selectedTemplate?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
-        confirmText="ลบเทมเพลต"
+        message={`คุณแน่ใจหรือไม่ว่าต้องการลบ "${selectedTemplate?.name}"?`}
+        confirmText="ลบ"
         cancelText="ยกเลิก"
         type="danger"
         isLoading={isProcessing}
       />
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-      `}</style>
     </DashboardLayout>
   );
 }
