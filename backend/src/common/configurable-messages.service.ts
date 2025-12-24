@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { SystemResponseTemplatesService } from '../system-response-templates/system-response-templates.service';
+import { SystemResponseType } from '../database/schemas/system-response-template.schema';
 import { LineAccountDocument } from '../database/schemas/line-account.schema';
 
 export interface MessageContext {
@@ -13,7 +15,10 @@ export interface MessageContext {
 export class ConfigurableMessagesService {
   private readonly logger = new Logger(ConfigurableMessagesService.name);
 
-  constructor(private systemSettingsService: SystemSettingsService) {}
+  constructor(
+    private systemSettingsService: SystemSettingsService,
+    private systemResponseTemplatesService: SystemResponseTemplatesService,
+  ) {}
 
   /**
    * Get quota exceeded message with customization
@@ -192,32 +197,184 @@ export class ConfigurableMessagesService {
   }
 
   /**
-   * Format quota exceeded response as Flex or Text based on settings
+   * Format quota exceeded response using SystemResponseTemplates
    */
   async formatQuotaExceededResponse(context: MessageContext = {}): Promise<any> {
-    const settings = await this.systemSettingsService.getSettings();
-    const message = await this.getQuotaExceededMessage(context);
-    const responseType = settings?.quotaExceededResponseType || 'text';
-
-    if (responseType === 'flex') {
-      return {
-        type: 'flex',
-        altText: 'โควต้าหมด',
-        contents: {
-          type: 'bubble',
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            contents: [
-              { type: 'text', text: '⚠️ โควต้าหมด', weight: 'bold', size: 'lg', color: '#FF8800' },
-              { type: 'separator', margin: 'md' },
-              { type: 'text', text: message, margin: 'md', wrap: true },
-            ],
-          },
-        },
-      };
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.QUOTA_EXCEEDED,
+        { remaining: String(context.quotaRemaining || 0) }
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting quota exceeded response:', error);
+      const message = await this.getQuotaExceededMessage(context);
+      return this.formatTextMessage(message);
     }
+  }
 
-    return this.formatTextMessage(message);
+  /**
+   * Format no quota response (user has never had quota)
+   */
+  async formatNoQuotaResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.NO_QUOTA
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting no quota response:', error);
+      return this.formatTextMessage('🚫 ไม่มีโควต้าการตรวจสอบสลิป กรุณาซื้อแพ็คเกจเพื่อใช้งาน');
+    }
+  }
+
+  /**
+   * Format package expired response
+   */
+  async formatPackageExpiredResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.PACKAGE_EXPIRED
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting package expired response:', error);
+      return this.formatTextMessage('⏰ แพ็คเกจของคุณหมดอายุแล้ว กรุณาต่ออายุหรือซื้อแพ็คเกจใหม่');
+    }
+  }
+
+  /**
+   * Format QR code not found response
+   */
+  async formatQrCodeNotFoundResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.QRCODE_NOT_FOUND
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting QR code not found response:', error);
+      return this.formatTextMessage('🔳 ไม่พบ QR Code ในรูปสลิป กรุณาส่งรูปสลิปที่มี QR Code ชัดเจน');
+    }
+  }
+
+  /**
+   * Format no slip found response
+   */
+  async formatNoSlipFoundResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.NO_SLIP_FOUND
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting no slip found response:', error);
+      return this.formatTextMessage('🔍 ไม่พบสลิปในรูปภาพ กรุณาส่งรูปสลิปที่ชัดเจน');
+    }
+  }
+
+  /**
+   * Format QR unclear response
+   */
+  async formatQrUnclearResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.QR_UNCLEAR
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting QR unclear response:', error);
+      return this.formatTextMessage('⚠️ QR code ในสลิปไม่ชัดเจน กรุณาถ่ายรูปใหม่ให้ชัดขึ้น');
+    }
+  }
+
+  /**
+   * Format general error response
+   */
+  async formatGeneralErrorResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.GENERAL_ERROR
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting general error response:', error);
+      return this.formatTextMessage('❌ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+    }
+  }
+
+  /**
+   * Format invalid image response
+   */
+  async formatInvalidImageResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.INVALID_IMAGE
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting invalid image response:', error);
+      return this.formatTextMessage('❌ รูปภาพไม่ถูกต้อง กรุณาส่งรูปสลิปที่ชัดเจน');
+    }
+  }
+
+  /**
+   * Format image download error response
+   */
+  async formatImageDownloadErrorResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.IMAGE_DOWNLOAD_ERROR
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting image download error response:', error);
+      return this.formatTextMessage('❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่');
+    }
+  }
+
+  /**
+   * Format bot disabled response
+   */
+  async formatBotDisabledResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.BOT_DISABLED
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting bot disabled response:', error);
+      return this.formatTextMessage('🔴 ระบบบอทปิดให้บริการชั่วคราว');
+    }
+  }
+
+  /**
+   * Format slip disabled response
+   */
+  async formatSlipDisabledResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.SLIP_DISABLED
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting slip disabled response:', error);
+      return this.formatTextMessage('🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
+    }
+  }
+
+  /**
+   * Format processing response
+   */
+  async formatProcessingResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.PROCESSING
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting processing response:', error);
+      return this.formatTextMessage('⏳ กำลังตรวจสอบสลิป กรุณารอสักครู่...');
+    }
   }
 }

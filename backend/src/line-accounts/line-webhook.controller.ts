@@ -209,13 +209,33 @@ export class LineWebhookController {
       }
       await this.redisService.set(lockKey, '1', 300); // 5 minutes lock
 
-      // Verify owner's subscription is still active
-      const ownerQuota = await this.subscriptionsService.checkQuota(ownerId);
-      if (ownerQuota.activeSubscriptions === 0) {
+      // Verify owner's subscription with detailed status
+      const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
+      
+      // Handle different quota status scenarios
+      if (ownerQuotaDetail.status === 'no_subscription') {
+        // Never had any subscription - send no quota message
+        const noQuotaMsg = await this.configurableMessagesService.formatNoQuotaResponse({ account });
+        await safeSendMessage([noQuotaMsg], true);
+        return;
+      }
+      
+      if (ownerQuotaDetail.status === 'package_expired') {
+        // All subscriptions have expired
+        const expiredMsg = await this.configurableMessagesService.formatPackageExpiredResponse({ account });
+        await safeSendMessage([expiredMsg], true);
+        return;
+      }
+      
+      if (ownerQuotaDetail.status === 'quota_exhausted') {
+        // Has active subscription but no quota left
         const quotaMsg = await this.configurableMessagesService.formatQuotaExceededResponse({ account });
         await safeSendMessage([quotaMsg], true);
         return;
       }
+      
+      // status is 'has_quota' - proceed with verification
+      const ownerQuota = ownerQuotaDetail;
 
       // Send processing message if configured
       const processingConfig = await this.configurableMessagesService.getSlipProcessingMessage({ account });

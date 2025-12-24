@@ -13,6 +13,19 @@ export interface QuotaInfo {
   activeSubscriptions: number;
 }
 
+// Detailed status for different scenarios
+export type QuotaStatus = 
+  | 'has_quota'           // Has active subscription with remaining quota
+  | 'quota_exhausted'     // Has active subscription but no quota left
+  | 'package_expired'     // Had subscription but all expired
+  | 'no_subscription';    // Never had any subscription
+
+export interface DetailedQuotaInfo extends QuotaInfo {
+  status: QuotaStatus;
+  hasExpiredSubscriptions: boolean;
+  hasPreviousSubscriptions: boolean;
+}
+
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
@@ -131,6 +144,70 @@ export class SubscriptionsService {
       usedQuota,
       reservedQuota,
       activeSubscriptions: activeSubscriptions.length,
+    };
+  }
+
+  /**
+   * Check quota with detailed status for different scenarios
+   * Returns specific status for: has_quota, quota_exhausted, package_expired, no_subscription
+   */
+  async checkQuotaDetailed(userId: string): Promise<DetailedQuotaInfo> {
+    // Check for active (non-expired) subscriptions
+    const activeSubscriptions = await this.subscriptionModel.find({
+      userId,
+      status: SubscriptionStatus.ACTIVE,
+      endDate: { $gt: new Date() },
+    });
+
+    // Check for any subscriptions (including expired)
+    const allSubscriptions = await this.subscriptionModel.find({ userId });
+    const expiredSubscriptions = allSubscriptions.filter(
+      sub => sub.status === SubscriptionStatus.ACTIVE && sub.endDate <= new Date()
+    );
+
+    const hasPreviousSubscriptions = allSubscriptions.length > 0;
+    const hasExpiredSubscriptions = expiredSubscriptions.length > 0;
+
+    if (activeSubscriptions.length === 0) {
+      let status: QuotaStatus;
+      if (hasExpiredSubscriptions) {
+        status = 'package_expired';
+      } else if (hasPreviousSubscriptions) {
+        status = 'package_expired'; // Cancelled or completed subscriptions
+      } else {
+        status = 'no_subscription';
+      }
+
+      return {
+        hasQuota: false,
+        remainingQuota: 0,
+        totalQuota: 0,
+        usedQuota: 0,
+        reservedQuota: 0,
+        activeSubscriptions: 0,
+        status,
+        hasExpiredSubscriptions,
+        hasPreviousSubscriptions,
+      };
+    }
+
+    const totalQuota = activeSubscriptions.reduce((sum, sub) => sum + sub.slipsQuota, 0);
+    const usedQuota = activeSubscriptions.reduce((sum, sub) => sum + sub.slipsUsed, 0);
+    const reservedQuota = activeSubscriptions.reduce((sum, sub) => sum + sub.slipsReserved, 0);
+    const remainingQuota = totalQuota - usedQuota - reservedQuota;
+
+    const status: QuotaStatus = remainingQuota > 0 ? 'has_quota' : 'quota_exhausted';
+
+    return {
+      hasQuota: remainingQuota > 0,
+      remainingQuota,
+      totalQuota,
+      usedQuota,
+      reservedQuota,
+      activeSubscriptions: activeSubscriptions.length,
+      status,
+      hasExpiredSubscriptions,
+      hasPreviousSubscriptions,
     };
   }
 
