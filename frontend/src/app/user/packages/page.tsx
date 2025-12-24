@@ -529,25 +529,25 @@ export default function UserPackagesPage() {
             {/* Bank Transfer */}
             {paymentMethod === 'bank' && (
               <div className="space-y-4">
-                {/* Bank Info with Copy Button */}
-                {paymentInfo?.bankName && (
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-200 shadow-sm">
+                {/* Bank Info - Always Visible */}
+                {paymentInfo?.bankName && paymentInfo?.bankAccountNumber ? (
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 border-2 border-emerald-200 shadow-lg">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/30">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-emerald-500/30">
                         🏦
                       </div>
                       <div>
-                        <p className="font-bold text-blue-900">ข้อมูลการโอนเงิน</p>
-                        <p className="text-xs text-blue-600">{paymentInfo.bankName}</p>
+                        <p className="font-bold text-emerald-900 text-lg">โอนเงินมาที่บัญชีนี้</p>
+                        <p className="text-sm text-emerald-600 font-medium">{paymentInfo.bankName}</p>
                       </div>
                     </div>
                     
-                    {/* Account Number with Copy Button - Prominent Display */}
-                    <div className="bg-white rounded-xl p-4 border-2 border-blue-200 mb-4">
+                    {/* Account Number - Large & Prominent */}
+                    <div className="bg-white rounded-xl p-4 border-2 border-emerald-300 mb-4 shadow-inner">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] text-blue-500 uppercase font-bold tracking-wider mb-1">เลขบัญชี</p>
-                          <p className="text-xl font-black text-slate-900 font-mono tracking-wider">
+                          <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">เลขบัญชี</p>
+                          <p className="text-2xl font-black text-slate-900 font-mono tracking-wider">
                             {paymentInfo.bankAccountNumber}
                           </p>
                         </div>
@@ -557,9 +557,9 @@ export default function UserPackagesPage() {
                             navigator.clipboard.writeText(paymentInfo.bankAccountNumber);
                             toast.success('คัดลอกเลขบัญชีแล้ว', { icon: '📋' });
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all shadow-lg shadow-blue-500/30 font-bold text-sm"
+                          className="flex items-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/30 font-bold text-sm"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                           </svg>
                           คัดลอก
@@ -567,14 +567,14 @@ export default function UserPackagesPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white/80 rounded-lg p-3">
-                        <p className="text-[10px] text-blue-500 uppercase font-bold tracking-wider mb-1">ชื่อบัญชี</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white rounded-lg p-3 border border-emerald-100">
+                        <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">ชื่อบัญชี</p>
                         <p className="text-sm font-bold text-slate-900">{paymentInfo.bankAccountName}</p>
                       </div>
-                      <div className="bg-white/80 rounded-lg p-3">
-                        <p className="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-1">ยอดโอน</p>
-                        <p className="text-lg font-black text-emerald-600">฿{selectedPackage.price.toLocaleString()}</p>
+                      <div className="bg-emerald-100 rounded-lg p-3 border border-emerald-200">
+                        <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">ยอดที่ต้องโอน</p>
+                        <p className="text-xl font-black text-emerald-700">฿{selectedPackage.price.toLocaleString()}</p>
                       </div>
                     </div>
 
@@ -586,13 +586,29 @@ export default function UserPackagesPage() {
                         navigator.clipboard.writeText(info);
                         toast.success('คัดลอกข้อมูลทั้งหมดแล้ว', { icon: '✅' });
                       }}
-                      className="mt-4 w-full flex items-center justify-center gap-2 py-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-100/50 rounded-lg transition-colors font-bold"
+                      className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 rounded-xl transition-colors font-bold border border-emerald-200"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
                       คัดลอกข้อมูลทั้งหมด
                     </button>
+                  </div>
+                ) : (
+                  /* No Bank Info Warning */
+                  <div className="bg-amber-50 rounded-2xl p-5 border-2 border-amber-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-2xl">
+                        ⚠️
+                      </div>
+                      <div>
+                        <p className="font-bold text-amber-900">ยังไม่มีข้อมูลบัญชีธนาคาร</p>
+                        <p className="text-sm text-amber-700">กรุณาติดต่อผู้ดูแลระบบ</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-600 bg-amber-100 rounded-lg p-3">
+                      💡 ผู้ดูแลระบบต้องตั้งค่าข้อมูลบัญชีธนาคารในหน้า ตั้งค่าระบบ ก่อนจึงจะสามารถรับชำระเงินได้
+                    </p>
                   </div>
                 )}
 

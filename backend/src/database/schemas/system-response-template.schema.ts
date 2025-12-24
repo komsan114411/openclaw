@@ -7,8 +7,11 @@ export type SystemResponseTemplateDocument = SystemResponseTemplate & Document;
 export enum SystemResponseType {
   NO_SLIP_FOUND = 'no_slip_found',        // ไม่พบสลิปในรูป
   QR_UNCLEAR = 'qr_unclear',              // QR code ไม่ชัด
+  QRCODE_NOT_FOUND = 'qrcode_not_found',  // ไม่พบ QR Code ในสลิป
   QUOTA_EXCEEDED = 'quota_exceeded',      // โควต้าหมด
+  NO_QUOTA = 'no_quota',                  // ไม่มีโควต้า
   QUOTA_LOW = 'quota_low',                // โควต้าใกล้หมด
+  PACKAGE_EXPIRED = 'package_expired',    // แพ็คเกจหมดอายุ
   INVALID_IMAGE = 'invalid_image',        // รูปไม่ถูกต้อง
   IMAGE_DOWNLOAD_ERROR = 'image_download_error', // ดาวน์โหลดรูปไม่ได้
   GENERAL_ERROR = 'general_error',        // ข้อผิดพลาดทั่วไป

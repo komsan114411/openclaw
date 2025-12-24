@@ -15,8 +15,11 @@ import { Badge } from '@/components/ui/Badge';
 const RESPONSE_TYPES = {
   no_slip_found: { label: 'ไม่พบสลิป', icon: '🔍', description: 'เมื่อไม่พบสลิปในรูป' },
   qr_unclear: { label: 'QR ไม่ชัด', icon: '📡', description: 'เมื่อ QR code อ่านไม่ได้' },
-  quota_exceeded: { label: 'โควต้าหมด', icon: '🔴', description: 'เมื่อโควต้าหมด' },
+  qrcode_not_found: { label: 'ไม่พบ QR Code', icon: '🔳', description: 'เมื่อไม่พบ QR Code ในสลิป' },
+  quota_exceeded: { label: 'โควต้าหมด', icon: '🔴', description: 'เมื่อใช้โควต้าจนหมด' },
+  no_quota: { label: 'ไม่มีโควต้า', icon: '🚫', description: 'เมื่อไม่มีโควต้าเหลือ' },
   quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'เตือนโควต้าเหลือน้อย' },
+  package_expired: { label: 'แพ็คเกจหมดอายุ', icon: '⏰', description: 'เมื่อแพ็คเกจหมดอายุ' },
   invalid_image: { label: 'รูปไม่ถูกต้อง', icon: '🖼️', description: 'เมื่อรูปไม่ใช่สลิป' },
   image_download_error: { label: 'ดาวน์โหลดไม่ได้', icon: '📥', description: 'เมื่อดาวน์โหลดรูปล้มเหลว' },
   general_error: { label: 'ข้อผิดพลาดทั่วไป', icon: '❌', description: 'ข้อผิดพลาดของระบบ' },
