@@ -132,14 +132,35 @@ const DEFAULT_FORM_DATA: FormData = {
   receiverBankId: '',
 };
 
-// Sample data for preview
+// Sample data for preview (matching Thunder API format)
 const SAMPLE_DATA = {
   amount: '฿1,000.00',
+  fee: '฿0',
   date: '24 ธ.ค. 2568',
   time: '09:41',
-  sender: { name: 'นาย ธันเดอร์ มานะ', nameEn: 'MR. THUNDER MANA', account: '1234xxxx5678', bank: 'กสิกรไทย' },
-  receiver: { name: 'นาย ธันเดอร์ มานะ', nameEn: '', account: '12xxxx3456', bank: 'ธนาคารออมสิน', proxy: 'EWALLETID: 123xxx4567' },
+  countryCode: 'TH',
   transRef: '68370160657749I376388B35',
+  ref1: 'REF001',
+  ref2: 'REF002', 
+  ref3: '',
+  sender: { 
+    name: 'นาย ธันเดอร์ มานะ', 
+    nameEn: 'MR. THUNDER MANA', 
+    account: '1234xxxx5678', 
+    bankId: '004',
+    bankName: 'กสิกรไทย',
+    bankShort: 'KBANK'
+  },
+  receiver: { 
+    name: 'นาย ธันเดอร์ มานะ', 
+    nameEn: 'MR. THUNDER MANA',
+    account: '12xxxx3456', 
+    bankId: '030',
+    bankName: 'ธนาคารออมสิน',
+    bankShort: 'GSB',
+    proxyType: 'EWALLETID',
+    proxyAccount: '123xxxxxxxx4567'
+  },
 };
 
 // Simple Toggle Component
@@ -254,6 +275,22 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
           </div>
         )}
 
+        {/* Fee */}
+        {config.showFee && (
+          <div className="flex justify-between items-center p-1.5 bg-orange-50 rounded-lg">
+            <span className="text-[9px] font-bold text-orange-600">💰 ค่าธรรมเนียม</span>
+            <span className="text-[10px] font-mono text-orange-700">{SAMPLE_DATA.fee}</span>
+          </div>
+        )}
+
+        {/* Country Code */}
+        {config.showCountryCode && (
+          <div className="flex justify-between items-center p-1.5 bg-purple-50 rounded-lg">
+            <span className="text-[9px] font-bold text-purple-600">🌍 ประเทศ</span>
+            <span className="text-[10px] font-mono text-purple-700">{SAMPLE_DATA.countryCode}</span>
+          </div>
+        )}
+
         {/* Sender */}
         {config.showSender && (
           <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
@@ -265,9 +302,16 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
             <div className="flex-1 min-w-0">
               <p className="text-[9px] text-slate-400 font-bold uppercase">ผู้โอน</p>
               <p className="text-[11px] font-bold text-slate-900 truncate">{SAMPLE_DATA.sender.name}</p>
-              {config.showSenderNameEn && SAMPLE_DATA.sender.nameEn && <p className="text-[9px] text-slate-500 truncate">{SAMPLE_DATA.sender.nameEn}</p>}
-              {config.showSenderAccount && <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.sender.account}</p>}
-              {senderBank && <p className="text-[8px] text-emerald-600 font-medium">{senderBank.shortName}</p>}
+              {config.showSenderNameEn && SAMPLE_DATA.sender.nameEn && (
+                <p className="text-[9px] text-slate-500 truncate">{SAMPLE_DATA.sender.nameEn}</p>
+              )}
+              {config.showSenderAccount && (
+                <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.sender.account}</p>
+              )}
+              {config.showSenderBankId && (
+                <p className="text-[8px] text-emerald-600 font-mono">Bank ID: {SAMPLE_DATA.sender.bankId}</p>
+              )}
+              {senderBank && <p className="text-[8px] text-emerald-700 font-bold">{senderBank.shortName}</p>}
             </div>
           </div>
         )}
@@ -283,9 +327,19 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
             <div className="flex-1 min-w-0">
               <p className="text-[9px] text-slate-400 font-bold uppercase">ผู้รับ</p>
               <p className="text-[11px] font-bold text-slate-900 truncate">{SAMPLE_DATA.receiver.name}</p>
-              {config.showReceiverAccount && <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.receiver.account}</p>}
-              {config.showReceiverProxy && <p className="text-[9px] text-blue-500 font-mono">{SAMPLE_DATA.receiver.proxy}</p>}
-              {receiverBank && <p className="text-[8px] text-blue-600 font-medium">{receiverBank.shortName}</p>}
+              {config.showReceiverNameEn && SAMPLE_DATA.receiver.nameEn && (
+                <p className="text-[9px] text-slate-500 truncate">{SAMPLE_DATA.receiver.nameEn}</p>
+              )}
+              {config.showReceiverAccount && (
+                <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.receiver.account}</p>
+              )}
+              {config.showReceiverBankId && (
+                <p className="text-[8px] text-blue-600 font-mono">Bank ID: {SAMPLE_DATA.receiver.bankId}</p>
+              )}
+              {config.showReceiverProxy && (
+                <p className="text-[9px] text-blue-500 font-mono">{SAMPLE_DATA.receiver.proxyType}: {SAMPLE_DATA.receiver.proxyAccount}</p>
+              )}
+              {receiverBank && <p className="text-[8px] text-blue-700 font-bold">{receiverBank.shortName}</p>}
             </div>
           </div>
         )}
@@ -295,6 +349,16 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
           <div className="flex justify-between items-center p-2 bg-slate-900 text-white rounded-lg">
             <span className="text-[9px] font-bold opacity-60">อ้างอิง</span>
             <span className="text-[10px] font-mono">{SAMPLE_DATA.transRef.slice(0, 16)}...</span>
+          </div>
+        )}
+
+        {/* Refs 1-3 */}
+        {config.showRefs && (SAMPLE_DATA.ref1 || SAMPLE_DATA.ref2 || SAMPLE_DATA.ref3) && (
+          <div className="space-y-1 p-2 bg-indigo-50 rounded-lg">
+            <p className="text-[9px] font-bold text-indigo-600">📋 รหัสอ้างอิงเพิ่มเติม</p>
+            {SAMPLE_DATA.ref1 && <p className="text-[9px] text-indigo-700 font-mono">Ref1: {SAMPLE_DATA.ref1}</p>}
+            {SAMPLE_DATA.ref2 && <p className="text-[9px] text-indigo-700 font-mono">Ref2: {SAMPLE_DATA.ref2}</p>}
+            {SAMPLE_DATA.ref3 && <p className="text-[9px] text-indigo-700 font-mono">Ref3: {SAMPLE_DATA.ref3}</p>}
           </div>
         )}
 
@@ -685,8 +749,9 @@ export default function AdminTemplatesPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Toggle label="แสดงผู้รับ" checked={formData.showReceiver} onChange={() => updateField('showReceiver', !formData.showReceiver)} />
                     <Toggle label="เลขบัญชี" checked={formData.showReceiverAccount} onChange={() => updateField('showReceiverAccount', !formData.showReceiverAccount)} />
-                    <Toggle label="Proxy" checked={formData.showReceiverProxy} onChange={() => updateField('showReceiverProxy', !formData.showReceiverProxy)} />
+                    <Toggle label="ชื่อ EN" checked={formData.showReceiverNameEn} onChange={() => updateField('showReceiverNameEn', !formData.showReceiverNameEn)} />
                     <Toggle label="Bank ID" checked={formData.showReceiverBankId} onChange={() => updateField('showReceiverBankId', !formData.showReceiverBankId)} />
+                    <Toggle label="Proxy" checked={formData.showReceiverProxy} onChange={() => updateField('showReceiverProxy', !formData.showReceiverProxy)} />
                   </div>
                   
                   <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">🖼️ อื่นๆ</p>
