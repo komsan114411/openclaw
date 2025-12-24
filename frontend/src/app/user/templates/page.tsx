@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, Suspense, useMemo, memo } from 'react
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { api, lineAccountsApi } from '@/lib/api';
+import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
-import { Card, EmptyState } from '@/components/ui/Card';
+import { Card, EmptyState, StatCard } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Loading';
@@ -119,6 +120,8 @@ function TemplatesContent() {
   const [loading, setLoading] = useState(true);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<Partial<Record<SlipTemplate['type'], string>>>({});
   const [updatingType, setUpdatingType] = useState<string | null>(null);
+  const [currentAccount, setCurrentAccount] = useState<LineAccount | null>(null);
+  const [allAccounts, setAllAccounts] = useState<LineAccount[]>([]);
 
   const fetchTemplates = useCallback(async () => {
     if (!accountId) {
@@ -126,14 +129,21 @@ function TemplatesContent() {
       return;
     }
     try {
+      // Fetch templates
       const response = await api.get(`/line-accounts/${accountId}/slip-templates`);
       if (response.data.success) {
         setTemplates(response.data.templates || []);
       }
 
+      // Fetch current account info
       const accountRes = await lineAccountsApi.getById(accountId);
       const ids = accountRes.data?.account?.settings?.slipTemplateIds || {};
       setSelectedTemplateIds(ids);
+      setCurrentAccount(accountRes.data?.account || null);
+
+      // Fetch all accounts for navigation
+      const allAccountsRes = await lineAccountsApi.getMyAccounts();
+      setAllAccounts(allAccountsRes.data?.accounts || []);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้');
     } finally {
@@ -207,10 +217,24 @@ function TemplatesContent() {
     );
   }
 
+  // Get selected template names for summary
+  const getSelectedTemplateName = (type: SlipTemplate['type']) => {
+    const selectedId = selectedTemplateIds[type];
+    if (selectedId) {
+      const template = templates.find(t => t._id === selectedId);
+      return template?.name || 'ไม่ระบุ';
+    }
+    const defaultTemplate = templates.find(t => t.type === type && t.isDefault);
+    return defaultTemplate?.name || 'ค่าเริ่มต้น';
+  };
+
+  // Other LINE accounts (excluding current)
+  const otherAccounts = allAccounts.filter(acc => acc._id !== accountId);
+
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-fade-in max-w-[1400px] mx-auto">
-        {/* Header */}
+        {/* Header with Current Account Info */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
@@ -238,6 +262,93 @@ function TemplatesContent() {
             )}
           </div>
         </div>
+
+        {/* Current LINE Account Info Card */}
+        {currentAccount && (
+          <Card className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-emerald-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-emerald-500/30">
+                  📱
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-lg text-slate-900">{currentAccount.accountName}</h3>
+                    <span className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                      currentAccount.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                    )}>
+                      {currentAccount.isActive ? '🟢 ใช้งาน' : '🔴 ปิด'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 font-mono">Channel ID: {currentAccount.channelId}</p>
+                  <p className="text-xs text-slate-400 mt-1">{currentAccount.description || 'ไม่มีคำอธิบาย'}</p>
+                </div>
+              </div>
+              {otherAccounts.length > 0 && (
+                <div className="flex flex-col items-end gap-2">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">บัญชี LINE อื่น</span>
+                  <div className="flex flex-wrap gap-1 justify-end">
+                    {otherAccounts.slice(0, 3).map(acc => (
+                      <Button
+                        key={acc._id}
+                        variant="ghost"
+                        size="xs"
+                        className="text-xs bg-white/80 hover:bg-white border border-slate-200"
+                        onClick={() => router.push(`/user/templates?accountId=${acc._id}`)}
+                      >
+                        📱 {acc.accountName}
+                      </Button>
+                    ))}
+                    {otherAccounts.length > 3 && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="text-xs bg-white/80 hover:bg-white border border-slate-200"
+                        onClick={() => router.push('/user/line-accounts')}
+                      >
+                        +{otherAccounts.length - 3} อื่นๆ
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Template Selection Summary */}
+        <Card className="p-4 bg-gradient-to-r from-slate-50 to-white border-slate-200">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-xl">📋</span>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">สรุป Template ที่เลือก</h3>
+              <p className="text-[10px] text-slate-400">Template ที่ใช้สำหรับแต่ละประเภทการตอบกลับ</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {TYPE_OPTIONS.map((typeOption) => {
+              const templateName = getSelectedTemplateName(typeOption.value as SlipTemplate['type']);
+              return (
+                <div 
+                  key={typeOption.value}
+                  className={cn(
+                    "p-3 rounded-xl border-2 transition-all",
+                    typeOption.bgColor, typeOption.borderColor
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">{typeOption.icon}</span>
+                    <span className={cn("font-bold text-xs", typeOption.textColor)}>{typeOption.label}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 truncate font-medium">
+                    {templateName}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
 
         {/* Templates by Type */}
         {TYPE_OPTIONS.map((typeOption) => {
@@ -375,18 +486,56 @@ function TemplatesContent() {
         )}
 
         {/* Info Card */}
-        <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="p-5 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-blue-200">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-xl flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-2xl flex-shrink-0 shadow-lg shadow-blue-500/30">
               💡
             </div>
-            <div>
-              <h4 className="font-bold text-blue-900 text-sm mb-1">วิธีใช้งาน Template</h4>
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• เลือก Template สำหรับแต่ละประเภทการตอบกลับ (สำเร็จ, ซ้ำ, ผิดพลาด, ไม่พบ)</li>
-                <li>• Template ส่วนกลาง (🌐) สร้างโดยผู้ดูแลระบบ สามารถใช้ได้ทันที</li>
-                <li>• หากไม่เลือก จะใช้ Template ค่าเริ่มต้นอัตโนมัติ</li>
-              </ul>
+            <div className="flex-1">
+              <h4 className="font-bold text-blue-900 text-base mb-2">วิธีใช้งาน Template</h4>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-emerald-500 font-bold">✅</span>
+                    <p className="text-xs text-blue-800">เลือก Template สำหรับแต่ละประเภทการตอบกลับ (สำเร็จ, ซ้ำ, ผิดพลาด, ไม่พบ)</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-purple-500 font-bold">🌐</span>
+                    <p className="text-xs text-blue-800">Template ส่วนกลาง สร้างโดยผู้ดูแลระบบ สามารถใช้ได้ทันที</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-amber-500 font-bold">⚡</span>
+                    <p className="text-xs text-blue-800">หากไม่เลือก จะใช้ Template ค่าเริ่มต้นอัตโนมัติ</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-blue-500 font-bold">📱</span>
+                    <p className="text-xs text-blue-800">แต่ละบัญชี LINE สามารถตั้งค่า Template แยกกันได้อิสระ</p>
+                  </div>
+                </div>
+              </div>
+              {otherAccounts.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-blue-200">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-blue-700 font-bold">🔗 ตั้งค่าบัญชี LINE อื่น:</span>
+                    {otherAccounts.slice(0, 5).map(acc => (
+                      <Button
+                        key={acc._id}
+                        variant="ghost"
+                        size="xs"
+                        className="text-[11px] bg-white/60 hover:bg-white border border-blue-200 text-blue-700"
+                        onClick={() => router.push(`/user/templates?accountId=${acc._id}`)}
+                      >
+                        {acc.accountName}
+                      </Button>
+                    ))}
+                    {otherAccounts.length > 5 && (
+                      <span className="text-[10px] text-blue-500">+{otherAccounts.length - 5} อื่นๆ</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Card>

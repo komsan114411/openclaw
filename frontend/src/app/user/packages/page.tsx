@@ -312,6 +312,54 @@ export default function UserPackagesPage() {
           </Card>
         )}
 
+        {/* Bank Account Quick View - For Easy Copy */}
+        {paymentInfo?.bankName && (
+          <Card className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-blue-200 overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-stretch">
+              <div className="flex items-center gap-4 p-4 sm:p-5 flex-1">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-blue-500/30 flex-shrink-0">
+                  🏦
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">บัญชีสำหรับโอนเงิน</p>
+                  <p className="text-lg sm:text-xl font-black text-slate-900 font-mono tracking-wider truncate">
+                    {paymentInfo.bankAccountNumber}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-xs text-slate-600 font-medium">{paymentInfo.bankName}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-xs text-slate-600 font-medium">{paymentInfo.bankAccountName}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex sm:flex-col items-center justify-center gap-2 p-3 sm:p-4 bg-white/50 border-t sm:border-t-0 sm:border-l border-blue-200">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(paymentInfo.bankAccountNumber);
+                    toast.success('คัดลอกเลขบัญชีแล้ว', { icon: '📋' });
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all shadow-lg shadow-blue-500/30 font-bold text-sm whitespace-nowrap"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  คัดลอก
+                </button>
+                <button
+                  onClick={() => {
+                    const info = `${paymentInfo.bankName}\n${paymentInfo.bankAccountNumber}\n${paymentInfo.bankAccountName}`;
+                    navigator.clipboard.writeText(info);
+                    toast.success('คัดลอกข้อมูลทั้งหมดแล้ว', { icon: '✅' });
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-bold whitespace-nowrap"
+                >
+                  คัดลอกทั้งหมด
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Packages Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {packages.length === 0 ? (
@@ -481,18 +529,70 @@ export default function UserPackagesPage() {
             {/* Bank Transfer */}
             {paymentMethod === 'bank' && (
               <div className="space-y-4">
-                {/* Bank Info */}
+                {/* Bank Info with Copy Button */}
                 {paymentInfo?.bankName && (
-                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                    <p className="text-sm font-medium text-blue-800 mb-2">ข้อมูลการโอนเงิน</p>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="text-blue-600">ธนาคาร:</span> {paymentInfo.bankName}</p>
-                      <p><span className="text-blue-600">เลขบัญชี:</span> {paymentInfo.bankAccountNumber}</p>
-                      <p><span className="text-blue-600">ชื่อบัญชี:</span> {paymentInfo.bankAccountName}</p>
-                      <p className="font-bold text-blue-900 mt-2">
-                        ยอดโอน: ฿{selectedPackage.price.toLocaleString()}
-                      </p>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-200 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/30">
+                        🏦
+                      </div>
+                      <div>
+                        <p className="font-bold text-blue-900">ข้อมูลการโอนเงิน</p>
+                        <p className="text-xs text-blue-600">{paymentInfo.bankName}</p>
+                      </div>
                     </div>
+                    
+                    {/* Account Number with Copy Button - Prominent Display */}
+                    <div className="bg-white rounded-xl p-4 border-2 border-blue-200 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-blue-500 uppercase font-bold tracking-wider mb-1">เลขบัญชี</p>
+                          <p className="text-xl font-black text-slate-900 font-mono tracking-wider">
+                            {paymentInfo.bankAccountNumber}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(paymentInfo.bankAccountNumber);
+                            toast.success('คัดลอกเลขบัญชีแล้ว', { icon: '📋' });
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all shadow-lg shadow-blue-500/30 font-bold text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          คัดลอก
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white/80 rounded-lg p-3">
+                        <p className="text-[10px] text-blue-500 uppercase font-bold tracking-wider mb-1">ชื่อบัญชี</p>
+                        <p className="text-sm font-bold text-slate-900">{paymentInfo.bankAccountName}</p>
+                      </div>
+                      <div className="bg-white/80 rounded-lg p-3">
+                        <p className="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-1">ยอดโอน</p>
+                        <p className="text-lg font-black text-emerald-600">฿{selectedPackage.price.toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Quick Copy All Info */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const info = `ธนาคาร: ${paymentInfo.bankName}\nเลขบัญชี: ${paymentInfo.bankAccountNumber}\nชื่อบัญชี: ${paymentInfo.bankAccountName}\nยอดโอน: ฿${selectedPackage.price.toLocaleString()}`;
+                        navigator.clipboard.writeText(info);
+                        toast.success('คัดลอกข้อมูลทั้งหมดแล้ว', { icon: '✅' });
+                      }}
+                      className="mt-4 w-full flex items-center justify-center gap-2 py-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-100/50 rounded-lg transition-colors font-bold"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      คัดลอกข้อมูลทั้งหมด
+                    </button>
                   </div>
                 )}
 

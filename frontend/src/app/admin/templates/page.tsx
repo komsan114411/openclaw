@@ -86,6 +86,9 @@ interface FormData {
   showReceiverNameEn: boolean;
   showLocalAmount: boolean;
   bankId: string;
+  // Separate bank for sender and receiver
+  senderBankId: string;
+  receiverBankId: string;
 }
 
 const TYPE_OPTIONS = [
@@ -126,6 +129,8 @@ const DEFAULT_FORM_DATA: FormData = {
   showReceiverNameEn: false,
   showLocalAmount: false,
   bankId: '',
+  senderBankId: '',
+  receiverBankId: '',
 };
 
 // Sample data matching the Thunder API response structure
@@ -213,12 +218,22 @@ const DisplayOptionItem = memo(({
 DisplayOptionItem.displayName = 'DisplayOptionItem';
 
 // Enhanced Slip Preview Component
-const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selectedBank: Bank | null }) => {
+const SlipPreview = memo(({ config, selectedBank, senderBank, receiverBank }: { 
+  config: FormData; 
+  selectedBank: Bank | null;
+  senderBank?: Bank | null;
+  receiverBank?: Bank | null;
+}) => {
   const isDuplicate = config.type === 'duplicate';
   const isError = config.type === 'error';
   const isNotFound = config.type === 'not_found';
   const mainColor = isDuplicate ? '#f59e0b' : isError ? '#ef4444' : isNotFound ? '#64748b' : config.primaryColor;
-  const bankLogo = selectedBank?.logoBase64 || selectedBank?.logoUrl || null;
+  
+  // Use specific sender/receiver banks if available, otherwise fall back to selectedBank
+  const effectiveSenderBank = senderBank || selectedBank;
+  const effectiveReceiverBank = receiverBank || selectedBank;
+  const senderBankLogo = effectiveSenderBank?.logoBase64 || effectiveSenderBank?.logoUrl || null;
+  const receiverBankLogo = effectiveReceiverBank?.logoBase64 || effectiveReceiverBank?.logoUrl || null;
 
   const getStatusIcon = () => {
     if (isDuplicate) return '!';
@@ -273,10 +288,10 @@ const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selected
           <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
             {config.showBankLogo && (
               <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-inner flex-shrink-0">
-                {bankLogo ? (
-                  <img src={bankLogo} alt="Bank" className="w-7 h-7 object-contain" />
+                {senderBankLogo ? (
+                  <img src={senderBankLogo} alt="Sender Bank" className="w-7 h-7 object-contain" />
                 ) : (
-                  <span className="text-lg">🏦</span>
+                  <span className="text-lg">👤</span>
                 )}
               </div>
             )}
@@ -289,6 +304,9 @@ const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selected
               {config.showSenderAccount && (
                 <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_SLIP_DATA.sender.account}</p>
               )}
+              {effectiveSenderBank && (
+                <p className="text-[8px] text-emerald-600 font-medium">{effectiveSenderBank.shortName || effectiveSenderBank.code}</p>
+              )}
             </div>
           </div>
         )}
@@ -298,7 +316,11 @@ const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selected
           <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
             {config.showBankLogo && (
               <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-blue-50 shadow-inner flex-shrink-0">
-                <span className="text-lg">🏛️</span>
+                {receiverBankLogo ? (
+                  <img src={receiverBankLogo} alt="Receiver Bank" className="w-7 h-7 object-contain" />
+                ) : (
+                  <span className="text-lg">🏛️</span>
+                )}
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -314,6 +336,9 @@ const SlipPreview = memo(({ config, selectedBank }: { config: FormData; selected
                 <p className="text-[9px] text-blue-500 font-mono">
                   {SAMPLE_SLIP_DATA.receiver.proxyType}: {SAMPLE_SLIP_DATA.receiver.proxyAccount}
                 </p>
+              )}
+              {effectiveReceiverBank && (
+                <p className="text-[8px] text-blue-600 font-medium">{effectiveReceiverBank.shortName || effectiveReceiverBank.code}</p>
               )}
             </div>
           </div>
@@ -434,6 +459,91 @@ const SectionHeader = memo(({ icon, title, subtitle }: { icon: string; title: st
 ));
 SectionHeader.displayName = 'SectionHeader';
 
+// Bank Selector Mini Component for selecting sender/receiver banks
+const BankSelectorMini = memo(({ 
+  banks, 
+  selectedBankId, 
+  onSelect, 
+  label, 
+  icon,
+  color = 'emerald'
+}: { 
+  banks: Bank[]; 
+  selectedBankId: string; 
+  onSelect: (bankId: string) => void; 
+  label: string;
+  icon: string;
+  color?: 'emerald' | 'blue' | 'purple';
+}) => {
+  const selectedBank = banks.find(b => b._id === selectedBankId);
+  const colorClasses = {
+    emerald: { selected: 'border-emerald-500 bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' },
+    blue: { selected: 'border-blue-500 bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-100 text-blue-700' },
+    purple: { selected: 'border-purple-500 bg-purple-50', text: 'text-purple-700', badge: 'bg-purple-100 text-purple-700' },
+  };
+  const colors = colorClasses[color];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{icon}</span>
+        <span className="text-sm font-bold text-slate-700">{label}</span>
+        {selectedBank && (
+          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", colors.badge)}>
+            {selectedBank.shortName || selectedBank.code}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-1 custom-scrollbar">
+        <button
+          type="button"
+          onClick={() => onSelect('')}
+          className={cn(
+            "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all min-w-[52px]",
+            !selectedBankId 
+              ? `${colors.selected} shadow-sm` 
+              : "border-slate-200 bg-white hover:border-slate-300"
+          )}
+        >
+          <div className="w-7 h-7 rounded-md flex items-center justify-center bg-slate-100">
+            <span className="text-sm">🔄</span>
+          </div>
+          <span className="text-[8px] font-bold text-slate-500">อัตโนมัติ</span>
+        </button>
+        {banks.slice(0, 16).map((bank) => {
+          const logo = bank.logoBase64 || bank.logoUrl;
+          const isSelected = selectedBankId === bank._id;
+          return (
+            <button
+              key={bank._id}
+              type="button"
+              onClick={() => onSelect(bank._id)}
+              className={cn(
+                "flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all min-w-[52px]",
+                isSelected 
+                  ? `${colors.selected} shadow-sm` 
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              )}
+            >
+              <div className="w-7 h-7 rounded-md flex items-center justify-center overflow-hidden bg-white shadow-inner">
+                {logo ? (
+                  <img src={logo} alt={bank.shortName} className="w-5 h-5 object-contain" />
+                ) : (
+                  <span className="text-[10px] font-black text-slate-400">{bank.shortName?.substring(0, 2) || bank.code?.substring(0, 2)}</span>
+                )}
+              </div>
+              <span className={cn("text-[8px] font-bold truncate w-full text-center", isSelected ? colors.text : "text-slate-500")}>
+                {bank.shortName || bank.code}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+BankSelectorMini.displayName = 'BankSelectorMini';
+
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -525,6 +635,8 @@ export default function AdminTemplatesPage() {
       showReceiverNameEn: template.showReceiverNameEn ?? false,
       showLocalAmount: template.showLocalAmount ?? false,
       bankId: template.bankId || '',
+      senderBankId: (template as any).senderBankId || '',
+      receiverBankId: (template as any).receiverBankId || '',
     });
     setShowEditModal(true);
   };
@@ -620,6 +732,17 @@ export default function AdminTemplatesPage() {
     const id = (formData.bankId || previewBankId) as string;
     return banks.find(b => b._id === id) || null;
   }, [banks, formData.bankId, previewBankId]);
+  
+  // Separate sender/receiver banks for preview
+  const selectedSenderBank = useMemo(() => {
+    if (formData.senderBankId) return banks.find(b => b._id === formData.senderBankId) || null;
+    return selectedModalBank;
+  }, [banks, formData.senderBankId, selectedModalBank]);
+  
+  const selectedReceiverBank = useMemo(() => {
+    if (formData.receiverBankId) return banks.find(b => b._id === formData.receiverBankId) || null;
+    return selectedModalBank;
+  }, [banks, formData.receiverBankId, selectedModalBank]);
 
   const isModalOpen = showCreateModal || showEditModal;
   const modalTitle = showCreateModal ? 'สร้างเทมเพลตใหม่' : 'แก้ไขเทมเพลต';
@@ -891,18 +1014,34 @@ export default function AdminTemplatesPage() {
               <SectionHeader icon="🎨" title="การแสดงผล" subtitle="ธนาคาร สี และข้อความ" />
               
               <div className="space-y-4">
-                <Select
-                  label="ธนาคาร (สำหรับโลโก้/ตัวอย่างในสลิป)"
-                  value={formData.bankId}
-                  onChange={(e) => updateFormField('bankId', e.target.value)}
-                >
-                  <option value="">ใช้ธนาคารจากตัวอย่างด้านบน</option>
-                  {activeBanks.map((b) => (
-                    <option key={b._id} value={b._id}>
-                      {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
-                    </option>
-                  ))}
-                </Select>
+                {/* Bank Selector for Sender/Receiver */}
+                <div className="p-4 bg-gradient-to-br from-white to-slate-50 rounded-xl border border-slate-200 space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                    <span className="text-lg">🏦</span>
+                    <span className="font-bold text-slate-900 text-sm">ธนาคารตัวอย่าง</span>
+                    <span className="text-[10px] text-slate-400 ml-auto">เลือกธนาคารแยกสำหรับผู้โอน/ผู้รับ</span>
+                  </div>
+                  
+                  {/* Sender Bank Selector */}
+                  <BankSelectorMini
+                    banks={activeBanks}
+                    selectedBankId={formData.senderBankId}
+                    onSelect={(bankId) => updateFormField('senderBankId', bankId)}
+                    label="ธนาคารผู้โอน"
+                    icon="👤"
+                    color="emerald"
+                  />
+                  
+                  {/* Receiver Bank Selector */}
+                  <BankSelectorMini
+                    banks={activeBanks}
+                    selectedBankId={formData.receiverBankId}
+                    onSelect={(bankId) => updateFormField('receiverBankId', bankId)}
+                    label="ธนาคารผู้รับ"
+                    icon="🏛️"
+                    color="blue"
+                  />
+                </div>
 
                 <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200">
                   <div>
@@ -1023,7 +1162,12 @@ export default function AdminTemplatesPage() {
                 <p className="text-[10px] text-slate-400 mt-0.5">ลูกค้าจะเห็นแบบนี้</p>
               </div>
               
-              <SlipPreview config={formData} selectedBank={selectedModalBank} />
+              <SlipPreview 
+                config={formData} 
+                selectedBank={selectedModalBank} 
+                senderBank={selectedSenderBank}
+                receiverBank={selectedReceiverBank}
+              />
               
               <div className="space-y-3 pt-5 mt-5 border-t border-slate-200">
                 <Button 
