@@ -509,7 +509,7 @@ export default function AdminTemplatesPage() {
           <Card className="p-12 text-center">
             <div className="text-5xl mb-4">🎨</div>
             <h3 className="text-xl font-bold text-slate-900 mb-2">ยังไม่มีเทมเพลต</h3>
-            <p className="text-slate-500 mb-6">กดปุ่ม "รีเซ็ต" เพื่อสร้างเทมเพลตเริ่มต้น</p>
+            <p className="text-slate-500 mb-6">กดปุ่ม &quot;รีเซ็ต&quot; เพื่อสร้างเทมเพลตเริ่มต้น</p>
             <Button onClick={handleInitDefaults}>สร้างเทมเพลตเริ่มต้น</Button>
           </Card>
         ) : (
@@ -768,7 +768,7 @@ export default function AdminTemplatesPage() {
 
                   <div className="p-3 bg-blue-50 rounded-xl border border-blue-200">
                     <p className="text-xs text-blue-700">
-                      💡 <strong>วิธีใช้:</strong> เลือกธนาคารตัวอย่างสำหรับแสดงโลโก้ในสลิป เลือก "อัตโนมัติ" เพื่อใช้ธนาคารจริงจากข้อมูลสลิป
+                      💡 <strong>วิธีใช้:</strong> เลือกธนาคารตัวอย่างสำหรับแสดงโลโก้ในสลิป เลือก &quot;อัตโนมัติ&quot; เพื่อใช้ธนาคารจริงจากข้อมูลสลิป
                     </p>
                   </div>
                 </div>
