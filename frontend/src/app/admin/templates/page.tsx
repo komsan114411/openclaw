@@ -346,13 +346,19 @@ export default function AdminTemplatesPage() {
 
   const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
   
-  const senderBank = useMemo(() => 
-    formData.senderBankId ? banks.find(b => b._id === formData.senderBankId) : activeBanks[0] || null
-  , [banks, formData.senderBankId, activeBanks]);
+  const senderBank = useMemo(() => {
+    if (formData.senderBankId) {
+      return banks.find(b => b._id === formData.senderBankId) || null;
+    }
+    return activeBanks[0] || null;
+  }, [banks, formData.senderBankId, activeBanks]);
   
-  const receiverBank = useMemo(() => 
-    formData.receiverBankId ? banks.find(b => b._id === formData.receiverBankId) : activeBanks[1] || activeBanks[0] || null
-  , [banks, formData.receiverBankId, activeBanks]);
+  const receiverBank = useMemo(() => {
+    if (formData.receiverBankId) {
+      return banks.find(b => b._id === formData.receiverBankId) || null;
+    }
+    return activeBanks[1] || activeBanks[0] || null;
+  }, [banks, formData.receiverBankId, activeBanks]);
 
   const openCreateModal = () => {
     setSelectedTemplate(null);
