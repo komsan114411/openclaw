@@ -74,15 +74,27 @@ export class LineAccountSettings {
   @Prop()
   customSlipSuccessMessage: string;
 
-  // Whether to send message when feature is disabled (null = use system setting)
+  // ============================================
+  // ตัวเลือกการส่งข้อความ - ผู้ใช้เลือกได้
+  // null = ใช้ค่าจากระบบ, true = ส่ง, false = ไม่ส่ง
+  // ============================================
+  
+  // ส่งข้อความเมื่อบอทปิด
   @Prop({ type: Boolean, default: null })
   sendMessageWhenBotDisabled: boolean;
 
+  // ส่งข้อความเมื่อระบบตรวจสลิปปิด
   @Prop({ type: Boolean, default: null })
   sendMessageWhenSlipDisabled: boolean;
 
+  // ส่งข้อความเมื่อ AI ปิด
   @Prop({ type: Boolean, default: null })
   sendMessageWhenAiDisabled: boolean;
+  
+  // ส่งข้อความ "กำลังประมวลผล" ก่อนตรวจสลิป (ผู้ใช้เลือกได้)
+  // true = ส่งก่อนแล้วค่อยส่งผล, false = ตรวจสอบแล้วส่งผลทีเดียว
+  @Prop({ type: Boolean, default: true })
+  sendProcessingMessage: boolean;
 
   // Slip Template Settings
   @Prop({ type: Object })

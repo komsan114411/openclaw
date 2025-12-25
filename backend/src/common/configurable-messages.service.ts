@@ -196,35 +196,24 @@ export class ConfigurableMessagesService {
     return { type: 'text', text };
   }
 
+  // ============================================
+  // ปรับให้เรียบง่าย - ใช้ templates ใหม่
+  // ============================================
+
   /**
-   * Format quota exceeded response using SystemResponseTemplates
+   * Format quota exhausted response (รวม no_quota + quota_exceeded)
    */
-  async formatQuotaExceededResponse(context: MessageContext = {}): Promise<any> {
+  async formatQuotaExhaustedResponse(context: MessageContext = {}): Promise<any> {
     try {
       const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.QUOTA_EXCEEDED,
+        SystemResponseType.QUOTA_EXHAUSTED,
         { remaining: String(context.quotaRemaining || 0) }
       );
       return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
     } catch (error) {
-      this.logger.error('Error getting quota exceeded response:', error);
+      this.logger.error('Error getting quota exhausted response:', error);
       const message = await this.getQuotaExceededMessage(context);
       return this.formatTextMessage(message);
-    }
-  }
-
-  /**
-   * Format no quota response (user has never had quota)
-   */
-  async formatNoQuotaResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.NO_QUOTA
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting no quota response:', error);
-      return this.formatTextMessage('🚫 ไม่มีโควต้าการตรวจสอบสลิป กรุณาซื้อแพ็คเกจเพื่อใช้งาน');
     }
   }
 
@@ -244,99 +233,53 @@ export class ConfigurableMessagesService {
   }
 
   /**
-   * Format QR code not found response
+   * Format slip not found response (รวมทุกกรณีอ่านสลิปไม่ได้)
+   * - ไม่พบสลิป
+   * - QR code ไม่ชัด
+   * - ไม่พบ QR code
+   * - รูปไม่ถูกต้อง
+   * - ดาวน์โหลดรูปไม่ได้
    */
-  async formatQrCodeNotFoundResponse(context: MessageContext = {}): Promise<any> {
+  async formatSlipNotFoundResponse(context: MessageContext = {}): Promise<any> {
     try {
       const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.QRCODE_NOT_FOUND
+        SystemResponseType.SLIP_NOT_FOUND
       );
       return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
     } catch (error) {
-      this.logger.error('Error getting QR code not found response:', error);
-      return this.formatTextMessage('🔳 ไม่พบ QR Code ในรูปสลิป กรุณาส่งรูปสลิปที่มี QR Code ชัดเจน');
+      this.logger.error('Error getting slip not found response:', error);
+      return this.formatTextMessage('❌ ไม่พบสลิปหรือ QR code ในรูปภาพ กรุณาส่งรูปสลิปที่ชัดเจน');
     }
   }
 
   /**
-   * Format no slip found response
+   * Format system error response (รวมทุกกรณีข้อผิดพลาดระบบ)
    */
-  async formatNoSlipFoundResponse(context: MessageContext = {}): Promise<any> {
+  async formatSystemErrorResponse(context: MessageContext = {}): Promise<any> {
     try {
       const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.NO_SLIP_FOUND
+        SystemResponseType.SYSTEM_ERROR
       );
       return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
     } catch (error) {
-      this.logger.error('Error getting no slip found response:', error);
-      return this.formatTextMessage('🔍 ไม่พบสลิปในรูปภาพ กรุณาส่งรูปสลิปที่ชัดเจน');
+      this.logger.error('Error getting system error response:', error);
+      return this.formatTextMessage('⚠️ เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง');
     }
   }
 
   /**
-   * Format QR unclear response
-   */
-  async formatQrUnclearResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.QR_UNCLEAR
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting QR unclear response:', error);
-      return this.formatTextMessage('⚠️ QR code ในสลิปไม่ชัดเจน กรุณาถ่ายรูปใหม่ให้ชัดขึ้น');
-    }
-  }
-
-  /**
-   * Format general error response
-   */
-  async formatGeneralErrorResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.GENERAL_ERROR
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting general error response:', error);
-      return this.formatTextMessage('❌ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
-    }
-  }
-
-  /**
-   * Format invalid image response
-   */
-  async formatInvalidImageResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.INVALID_IMAGE
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting invalid image response:', error);
-      return this.formatTextMessage('❌ รูปภาพไม่ถูกต้อง กรุณาส่งรูปสลิปที่ชัดเจน');
-    }
-  }
-
-  /**
-   * Format image download error response
-   */
-  async formatImageDownloadErrorResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.IMAGE_DOWNLOAD_ERROR
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting image download error response:', error);
-      return this.formatTextMessage('❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่');
-    }
-  }
-
-  /**
-   * Format bot disabled response
+   * Format bot disabled response (ผู้ใช้เลือกส่ง/ไม่ส่ง)
    */
   async formatBotDisabledResponse(context: MessageContext = {}): Promise<any> {
+    // ตรวจสอบว่าผู้ใช้ต้องการให้ส่งหรือไม่
+    const settings = await this.systemSettingsService.getSettings();
+    const accountSettings = context.account?.settings;
+    const shouldSend = accountSettings?.sendMessageWhenBotDisabled ?? settings?.botDisabledSendMessage ?? true;
+    
+    if (!shouldSend) {
+      return null; // ไม่ส่งอะไรเลย
+    }
+
     try {
       const response = await this.systemResponseTemplatesService.getResponse(
         SystemResponseType.BOT_DISABLED
@@ -349,24 +292,21 @@ export class ConfigurableMessagesService {
   }
 
   /**
-   * Format slip disabled response
-   */
-  async formatSlipDisabledResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.SLIP_DISABLED
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting slip disabled response:', error);
-      return this.formatTextMessage('🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
-    }
-  }
-
-  /**
-   * Format processing response
+   * Format processing response (ผู้ใช้เลือกส่ง/ไม่ส่ง)
    */
   async formatProcessingResponse(context: MessageContext = {}): Promise<any> {
+    // ตรวจสอบว่าผู้ใช้ต้องการให้ส่งหรือไม่
+    const accountSettings = context.account?.settings;
+    
+    // ใช้ค่า sendProcessingMessage ถ้ามี หรือดูจาก slipResponseMode
+    const sendProcessing = accountSettings?.sendProcessingMessage;
+    const responseMode = accountSettings?.slipResponseMode || 'immediate';
+    
+    // ถ้าผู้ใช้ตั้งค่าไว้ชัดเจนว่าไม่ส่ง หรือโหมดเป็น direct = ไม่ต้องส่ง
+    if (sendProcessing === false || responseMode === 'direct') {
+      return null;
+    }
+
     try {
       const response = await this.systemResponseTemplatesService.getResponse(
         SystemResponseType.PROCESSING
@@ -376,5 +316,86 @@ export class ConfigurableMessagesService {
       this.logger.error('Error getting processing response:', error);
       return this.formatTextMessage('⏳ กำลังตรวจสอบสลิป กรุณารอสักครู่...');
     }
+  }
+
+  /**
+   * Format quota low warning response
+   */
+  async formatQuotaLowResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.QUOTA_LOW,
+        { remaining: String(context.quotaRemaining || 0) }
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting quota low response:', error);
+      return null; // ไม่ต้องส่งถ้าเกิดข้อผิดพลาด
+    }
+  }
+
+  /**
+   * Format duplicate slip response
+   */
+  async formatDuplicateSlipResponse(context: MessageContext = {}): Promise<any> {
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.DUPLICATE_SLIP
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting duplicate slip response:', error);
+      const message = await this.getDuplicateSlipMessage(context);
+      return this.formatTextMessage(message);
+    }
+  }
+
+  // ============================================
+  // Legacy methods (สำหรับ backward compatibility)
+  // ============================================
+
+  /** @deprecated ใช้ formatQuotaExhaustedResponse แทน */
+  async formatQuotaExceededResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatQuotaExhaustedResponse(context);
+  }
+
+  /** @deprecated ใช้ formatQuotaExhaustedResponse แทน */
+  async formatNoQuotaResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatQuotaExhaustedResponse(context);
+  }
+
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
+  async formatNoSlipFoundResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatSlipNotFoundResponse(context);
+  }
+
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
+  async formatQrCodeNotFoundResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatSlipNotFoundResponse(context);
+  }
+
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
+  async formatQrUnclearResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatSlipNotFoundResponse(context);
+  }
+
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
+  async formatInvalidImageResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatSlipNotFoundResponse(context);
+  }
+
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
+  async formatImageDownloadErrorResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatSlipNotFoundResponse(context);
+  }
+
+  /** @deprecated ใช้ formatSystemErrorResponse แทน */
+  async formatGeneralErrorResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatSystemErrorResponse(context);
+  }
+
+  /** @deprecated ใช้ formatBotDisabledResponse แทน */
+  async formatSlipDisabledResponse(context: MessageContext = {}): Promise<any> {
+    return this.formatBotDisabledResponse(context);
   }
 }

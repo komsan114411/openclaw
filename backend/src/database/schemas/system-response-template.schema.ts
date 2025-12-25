@@ -3,21 +3,21 @@ import { Document } from 'mongoose';
 
 export type SystemResponseTemplateDocument = SystemResponseTemplate & Document;
 
-// ประเภทของ System Response Template
+// ประเภทของ System Response Template (ปรับให้เรียบง่าย)
 export enum SystemResponseType {
-  NO_SLIP_FOUND = 'no_slip_found',        // ไม่พบสลิปในรูป
-  QR_UNCLEAR = 'qr_unclear',              // QR code ไม่ชัด
-  QRCODE_NOT_FOUND = 'qrcode_not_found',  // ไม่พบ QR Code ในสลิป
-  QUOTA_EXCEEDED = 'quota_exceeded',      // โควต้าหมด
-  NO_QUOTA = 'no_quota',                  // ไม่มีโควต้า
-  QUOTA_LOW = 'quota_low',                // โควต้าใกล้หมด
+  // หลัก - ใช้งานจริง
+  QUOTA_EXHAUSTED = 'quota_exhausted',    // โควต้าหมด (รวม no_quota + quota_exceeded)
   PACKAGE_EXPIRED = 'package_expired',    // แพ็คเกจหมดอายุ
-  INVALID_IMAGE = 'invalid_image',        // รูปไม่ถูกต้อง
-  IMAGE_DOWNLOAD_ERROR = 'image_download_error', // ดาวน์โหลดรูปไม่ได้
-  GENERAL_ERROR = 'general_error',        // ข้อผิดพลาดทั่วไป
-  BOT_DISABLED = 'bot_disabled',          // บอทปิดให้บริการ
-  SLIP_DISABLED = 'slip_disabled',        // ระบบตรวจสลิปปิด
-  PROCESSING = 'processing',              // กำลังประมวลผล
+  SLIP_NOT_FOUND = 'slip_not_found',      // ไม่พบสลิป (รวมทุกกรณีอ่านสลิปไม่ได้)
+  SYSTEM_ERROR = 'system_error',          // ข้อผิดพลาดระบบ
+  
+  // ตัวเลือก - ผู้ใช้เลือกได้ว่าจะส่งหรือไม่
+  BOT_DISABLED = 'bot_disabled',          // บอทปิด (แอดมินตั้งค่า, ผู้ใช้เลือกส่ง/ไม่ส่ง)
+  PROCESSING = 'processing',              // กำลังประมวลผล (ผู้ใช้เลือกส่ง/ไม่ส่ง)
+  
+  // เสริม
+  QUOTA_LOW = 'quota_low',                // โควต้าใกล้หมด (เตือน)
+  DUPLICATE_SLIP = 'duplicate_slip',      // สลิปซ้ำ
 }
 
 // รูปแบบการตอบกลับ

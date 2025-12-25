@@ -63,9 +63,11 @@ export default function UserLineAccountsPage() {
     customDuplicateSlipMessage: '',
     customSlipErrorMessage: '',
     customSlipSuccessMessage: '',
+    // ตัวเลือกการส่งข้อความ
     sendMessageWhenBotDisabled: 'default' as string,
     sendMessageWhenSlipDisabled: 'default' as string,
     sendMessageWhenAiDisabled: 'default' as string,
+    sendProcessingMessage: true, // ส่งข้อความ "กำลังประมวลผล" หรือไม่
   });
 
   useEffect(() => {
@@ -200,6 +202,7 @@ export default function UserLineAccountsPage() {
       sendMessageWhenBotDisabled: boolToString((s as any).sendMessageWhenBotDisabled),
       sendMessageWhenSlipDisabled: boolToString((s as any).sendMessageWhenSlipDisabled),
       sendMessageWhenAiDisabled: boolToString((s as any).sendMessageWhenAiDisabled),
+      sendProcessingMessage: (s as any).sendProcessingMessage ?? true,
     });
     setShowSettingsModal(true);
   };
@@ -217,6 +220,7 @@ export default function UserLineAccountsPage() {
         sendMessageWhenBotDisabled: stringToBool(settingsData.sendMessageWhenBotDisabled),
         sendMessageWhenSlipDisabled: stringToBool(settingsData.sendMessageWhenSlipDisabled),
         sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
+        sendProcessingMessage: settingsData.sendProcessingMessage,
       };
       await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
       toast.success('บันทึกการตั้งค่าสำเร็จ');
@@ -577,10 +581,29 @@ export default function UserLineAccountsPage() {
               ตั้งค่าตรวจสอบสลิป
             </h3>
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
+              {/* Processing Message Option */}
+              <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-bold text-slate-700">ส่งข้อความ &quot;กำลังประมวลผล&quot;</span>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {settingsData.sendProcessingMessage 
+                        ? '✅ ส่งข้อความก่อน แล้วค่อยส่งผลการตรวจสอบ' 
+                        : '⚡ ตรวจสอบแล้วส่งผลทีเดียว (ไม่ส่งข้อความ "กำลังประมวลผล")'}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settingsData.sendProcessingMessage}
+                    onChange={(checked) => setSettingsData({ ...settingsData, sendProcessingMessage: checked })}
+                  />
+                </div>
+              </div>
+              
               <Input
                 label="ข้อความรอตรวจสอบ (ตอบทันทีเมื่อได้รับรูป)"
                 value={settingsData.slipImmediateMessage}
                 onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })}
+                disabled={!settingsData.sendProcessingMessage}
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input

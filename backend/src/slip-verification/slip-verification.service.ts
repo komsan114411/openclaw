@@ -116,46 +116,59 @@ export class SlipVerificationService {
     );
   }
 
+  // ============================================
+  // ปรับให้ใช้ templates ใหม่ที่เรียบง่าย
+  // ============================================
+
+  async formatQuotaExhaustedResponse(): Promise<any> {
+    const response = await this.systemResponseTemplatesService.getResponse(
+      SystemResponseType.QUOTA_EXHAUSTED
+    );
+    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+  }
+
+  /** @deprecated ใช้ formatQuotaExhaustedResponse แทน */
   async formatQuotaExceededResponse(): Promise<any> {
+    return this.formatQuotaExhaustedResponse();
+  }
+
+  async formatSlipNotFoundResponse(): Promise<any> {
     const response = await this.systemResponseTemplatesService.getResponse(
-      SystemResponseType.QUOTA_EXCEEDED
+      SystemResponseType.SLIP_NOT_FOUND
     );
     return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
   }
 
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
   async formatNoSlipFoundResponse(): Promise<any> {
-    const response = await this.systemResponseTemplatesService.getResponse(
-      SystemResponseType.NO_SLIP_FOUND
-    );
-    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    return this.formatSlipNotFoundResponse();
   }
 
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
   async formatQrUnclearResponse(): Promise<any> {
-    const response = await this.systemResponseTemplatesService.getResponse(
-      SystemResponseType.QR_UNCLEAR
-    );
-    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    return this.formatSlipNotFoundResponse();
   }
 
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
   async formatInvalidImageResponse(): Promise<any> {
+    return this.formatSlipNotFoundResponse();
+  }
+
+  async formatSystemErrorResponse(): Promise<any> {
     const response = await this.systemResponseTemplatesService.getResponse(
-      SystemResponseType.INVALID_IMAGE
+      SystemResponseType.SYSTEM_ERROR
     );
     return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
   }
 
+  /** @deprecated ใช้ formatSystemErrorResponse แทน */
   async formatGeneralErrorResponse(): Promise<any> {
-    const response = await this.systemResponseTemplatesService.getResponse(
-      SystemResponseType.GENERAL_ERROR
-    );
-    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    return this.formatSystemErrorResponse();
   }
 
+  /** @deprecated ใช้ formatSlipNotFoundResponse แทน */
   async formatImageDownloadErrorResponse(): Promise<any> {
-    const response = await this.systemResponseTemplatesService.getResponse(
-      SystemResponseType.IMAGE_DOWNLOAD_ERROR
-    );
-    return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    return this.formatSlipNotFoundResponse();
   }
 
   async shouldRefundDuplicate(): Promise<boolean> {
