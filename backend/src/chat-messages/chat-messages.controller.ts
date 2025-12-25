@@ -15,7 +15,7 @@ import { ChatMessagesService } from './chat-messages.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 
-@Controller('api/chat-messages')
+@Controller('chat-messages')
 @UseGuards(SessionAuthGuard)
 export class ChatMessagesController {
   constructor(private readonly chatMessagesService: ChatMessagesService) {}

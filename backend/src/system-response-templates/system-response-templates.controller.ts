@@ -12,7 +12,7 @@ import { SystemResponseTemplatesService } from './system-response-templates.serv
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { SystemResponseType } from '../database/schemas/system-response-template.schema';
 
-@Controller('api/admin/system-response-templates')
+@Controller('admin/system-response-templates')
 @UseGuards(AdminGuard)
 export class SystemResponseTemplatesController {
   constructor(
