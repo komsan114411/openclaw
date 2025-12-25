@@ -92,15 +92,15 @@ export function Button({
       {...props}
     >
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2.5">
           <Spinner size="sm" color="currentColor" />
-          <span>{loadingText || children}</span>
+          <span className="opacity-90">{loadingText || children}</span>
         </div>
       ) : (
         <>
-          {leftIcon && <span className="flex-shrink-0 opacity-80 group-hover:scale-110 transition-transform">{leftIcon}</span>}
+          {leftIcon && <span className="flex-shrink-0 opacity-90 group-hover:scale-110 transition-transform duration-300">{leftIcon}</span>}
           <span className="relative z-10">{children}</span>
-          {rightIcon && <span className="flex-shrink-0 opacity-80 group-hover:scale-110 transition-transform">{rightIcon}</span>}
+          {rightIcon && <span className="flex-shrink-0 opacity-90 group-hover:translate-x-0.5 transition-transform duration-300">{rightIcon}</span>}
         </>
       )}
     </button>

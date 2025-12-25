@@ -48,7 +48,7 @@ export function Card({
         'card',
         paddingClasses[padding],
         variantClasses[variant],
-        hover && 'hover:-translate-y-1 hover:shadow-xl hover:border-emerald-500/20 transition-all duration-300',
+        hover && 'hover:-translate-y-1 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] hover:border-emerald-500/20 transition-all duration-300',
         className
       )}
       style={style}
@@ -69,15 +69,15 @@ interface CardHeaderProps {
 export function CardHeader({ title, subtitle, action, icon, className = '' }: CardHeaderProps) {
   return (
     <div className={cn('flex items-center justify-between mb-6', className)}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         {icon && (
-          <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition-transform">
+          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition-transform shadow-sm">
             {icon}
           </div>
         )}
         <div>
-          <h3 className="text-lg font-bold text-slate-900 tracking-tight">{title}</h3>
-          {subtitle && <p className="text-sm text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+          <h3 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h3>
+          {subtitle && <p className="text-sm text-slate-500 font-medium mt-1">{subtitle}</p>}
         </div>
       </div>
       {action && <div className="animate-in fade-in slide-in-from-right-4 duration-500">{action}</div>}

@@ -23,14 +23,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className={cn('w-full group', containerClassName)}>
         {label && (
-          <label className="label">
-            {label}
-            {props.required && <span className="text-rose-500 ml-1 opacity-70">*</span>}
+          <label className="label mb-1.5 flex items-center justify-between">
+            <span>
+              {label}
+              {props.required && <span className="text-rose-500 ml-1 opacity-70">*</span>}
+            </span>
           </label>
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none">
               {leftIcon}
             </div>
           )}
@@ -40,22 +42,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               'input',
               leftIcon && 'pl-11',
               rightIcon && 'pr-11',
-              error && 'border-rose-500 focus:ring-rose-500/10 focus:border-rose-500',
-              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5',
+              error && 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10 bg-rose-50/10',
+              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/20 focus:ring-white/5',
               className
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <p className="mt-1.5 text-xs font-bold text-rose-500 animate-in fade-in slide-in-from-top-1 flex items-center gap-1.5 uppercase tracking-wide">
-          <span className="w-1 h-1 rounded-full bg-rose-500" /> {error}
+        {error && <p className="mt-2 text-xs font-bold text-rose-500 animate-in fade-in slide-in-from-top-1 flex items-center gap-1.5 uppercase tracking-wide">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20" /> {error}
         </p>}
-        {hint && !error && <p className="mt-1.5 text-xs text-slate-400 font-medium px-1 italic">{hint}</p>}
+        {hint && !error && <p className="mt-2 text-xs text-slate-400 font-medium px-1 flex items-center gap-1">
+          <span className="w-1 h-1 rounded-full bg-slate-400" /> {hint}
+        </p>}
       </div>
     );
   }
