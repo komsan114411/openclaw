@@ -9,11 +9,15 @@ import {
   Req,
 } from '@nestjs/common';
 import { SystemResponseTemplatesService } from './system-response-templates.service';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../database/schemas/user.schema';
 import { SystemResponseType } from '../database/schemas/system-response-template.schema';
 
 @Controller('admin/system-response-templates')
-@UseGuards(AdminGuard)
+@UseGuards(SessionAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class SystemResponseTemplatesController {
   constructor(
     private readonly templatesService: SystemResponseTemplatesService,
