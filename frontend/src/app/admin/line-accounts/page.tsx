@@ -96,10 +96,12 @@ export default function AdminLineAccountsPage() {
     }
   };
 
-  const getWebhookUrl = (channelId: string) => {
+  const getWebhookUrl = (account: ExtendedLineAccount) => {
     const base = publicBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '') || '';
     const normalized = base.replace(/\/+$/, '');
-    return `${normalized}/api/webhook/line/${channelId}`;
+    // ใช้ webhookSlug ถ้ามี หรือ fallback ไป channelId
+    const slug = account.webhookSlug || account.channelId;
+    return `${normalized}/api/webhook/line/${slug}`;
   };
 
   const fetchData = useCallback(async () => {
@@ -271,8 +273,8 @@ export default function AdminLineAccountsPage() {
     }
   };
 
-  const copyWebhookUrl = (channelId: string) => {
-    const webhookUrl = getWebhookUrl(channelId);
+  const copyWebhookUrl = (account: ExtendedLineAccount) => {
+    const webhookUrl = getWebhookUrl(account);
     if (!webhookUrl) return;
     navigator.clipboard.writeText(webhookUrl);
     toast.success('คัดลอก Webhook URL แล้ว');
@@ -395,10 +397,35 @@ export default function AdminLineAccountsPage() {
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="flex flex-wrap gap-2 max-w-[150px]">
-                          {account.settings?.enableBot && <Badge variant="emerald" className="rounded-lg text-[9px] px-1.5 py-0 font-bold">บอท</Badge>}
-                          {account.settings?.enableSlipVerification && <Badge variant="indigo" className="rounded-lg text-[9px] px-1.5 py-0 font-bold">สลิป</Badge>}
-                          {account.settings?.enableAi && <Badge variant="purple" className="rounded-lg text-[9px] px-1.5 py-0 font-bold">AI</Badge>}
+                        <div className="flex flex-wrap gap-2 max-w-[180px]">
+                          {/* แสดง badges ทั้งหมด ถ้าปิดให้เป็นสีเทา */}
+                          <Badge 
+                            variant={account.settings?.enableBot ? "emerald" : "default"} 
+                            className={cn(
+                              "rounded-lg text-[9px] px-1.5 py-0 font-bold",
+                              !account.settings?.enableBot && "opacity-40 bg-slate-200 text-slate-500"
+                            )}
+                          >
+                            บอท
+                          </Badge>
+                          <Badge 
+                            variant={account.settings?.enableSlipVerification ? "indigo" : "default"}
+                            className={cn(
+                              "rounded-lg text-[9px] px-1.5 py-0 font-bold",
+                              !account.settings?.enableSlipVerification && "opacity-40 bg-slate-200 text-slate-500"
+                            )}
+                          >
+                            สลิป
+                          </Badge>
+                          <Badge 
+                            variant={account.settings?.enableAi ? "purple" : "default"}
+                            className={cn(
+                              "rounded-lg text-[9px] px-1.5 py-0 font-bold",
+                              !account.settings?.enableAi && "opacity-40 bg-slate-200 text-slate-500"
+                            )}
+                          >
+                            AI
+                          </Badge>
                         </div>
                       </td>
                       <td className="px-10 py-8">
@@ -465,9 +492,24 @@ export default function AdminLineAccountsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {account.settings?.enableBot && <Badge variant="emerald" className="text-[10px]">บอท</Badge>}
-                  {account.settings?.enableSlipVerification && <Badge variant="indigo" className="text-[10px]">สลิป</Badge>}
-                  {account.settings?.enableAi && <Badge variant="purple" className="text-[10px]">AI</Badge>}
+                  <Badge 
+                    variant={account.settings?.enableBot ? "emerald" : "default"} 
+                    className={cn("text-[10px]", !account.settings?.enableBot && "opacity-40")}
+                  >
+                    บอท
+                  </Badge>
+                  <Badge 
+                    variant={account.settings?.enableSlipVerification ? "indigo" : "default"}
+                    className={cn("text-[10px]", !account.settings?.enableSlipVerification && "opacity-40")}
+                  >
+                    สลิป
+                  </Badge>
+                  <Badge 
+                    variant={account.settings?.enableAi ? "purple" : "default"}
+                    className={cn("text-[10px]", !account.settings?.enableAi && "opacity-40")}
+                  >
+                    AI
+                  </Badge>
                 </div>
 
                 <div className="flex gap-2 border-t border-slate-100 pt-3 mt-1">
@@ -616,8 +658,8 @@ export default function AdminLineAccountsPage() {
               <div className="space-y-6">
                 <p className="text-xs font-bold text-slate-500 px-1">Webhook URL</p>
                 <div className="p-6 h-full bg-slate-900 text-white rounded-2xl shadow-lg flex flex-col justify-between">
-                  <p className="text-xs font-mono text-emerald-400 mb-4 leading-relaxed break-all opacity-80">{getWebhookUrl(selectedAccount.channelId)}</p>
-                  <Button variant="primary" className="bg-white text-slate-900 h-10 px-4 text-xs font-bold rounded-xl hover:bg-emerald-400" onClick={() => copyWebhookUrl(selectedAccount.channelId)}>
+                  <p className="text-xs font-mono text-emerald-400 mb-4 leading-relaxed break-all opacity-80">{getWebhookUrl(selectedAccount)}</p>
+                  <Button variant="primary" className="bg-white text-slate-900 h-10 px-4 text-xs font-bold rounded-xl hover:bg-emerald-400" onClick={() => copyWebhookUrl(selectedAccount)}>
                     คัดลอก URL
                   </Button>
                 </div>

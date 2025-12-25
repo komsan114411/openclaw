@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import axios, { AxiosError } from 'axios';
+import { randomUUID } from 'crypto';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { ChatMessage, ChatMessageDocument, MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { CreateLineAccountDto } from './dto/create-line-account.dto';
@@ -25,16 +26,38 @@ export class LineAccountsService {
     return Types.ObjectId.isValid(id);
   }
 
+  /**
+   * Generate unique webhook slug
+   */
+  private generateWebhookSlug(): string {
+    // สร้าง slug สั้นๆ 12 ตัวอักษร จาก UUID
+    return randomUUID().replace(/-/g, '').substring(0, 12);
+  }
+
   async create(ownerId: string, dto: CreateLineAccountDto): Promise<LineAccountDocument> {
     // Check if channel ID already exists
     const existing = await this.lineAccountModel.findOne({ channelId: dto.channelId });
     if (existing) {
-      throw new BadRequestException('Channel ID already exists');
+      throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว');
+    }
+
+    // Generate unique webhook slug
+    let webhookSlug = this.generateWebhookSlug();
+    
+    // ตรวจสอบว่า slug ซ้ำหรือไม่ (แม้จะหายากมาก)
+    let attempts = 0;
+    while (await this.lineAccountModel.findOne({ webhookSlug })) {
+      webhookSlug = this.generateWebhookSlug();
+      attempts++;
+      if (attempts > 5) {
+        throw new BadRequestException('ไม่สามารถสร้าง Webhook URL ได้ กรุณาลองใหม่');
+      }
     }
 
     const account = new this.lineAccountModel({
       ...dto,
       ownerId,
+      webhookSlug,
       isActive: true,
     });
 
@@ -56,6 +79,59 @@ export class LineAccountsService {
 
   async findByChannelId(channelId: string): Promise<LineAccountDocument | null> {
     return this.lineAccountModel.findOne({ channelId }).exec();
+  }
+
+  /**
+   * Find LINE account by webhook slug (for webhook handler)
+   */
+  async findByWebhookSlug(webhookSlug: string): Promise<LineAccountDocument | null> {
+    return this.lineAccountModel.findOne({ webhookSlug }).exec();
+  }
+
+  /**
+   * Regenerate webhook slug for an account
+   */
+  async regenerateWebhookSlug(id: string): Promise<string> {
+    const account = await this.lineAccountModel.findById(id);
+    if (!account) {
+      throw new NotFoundException('LINE account not found');
+    }
+
+    let webhookSlug = this.generateWebhookSlug();
+    let attempts = 0;
+    while (await this.lineAccountModel.findOne({ webhookSlug })) {
+      webhookSlug = this.generateWebhookSlug();
+      attempts++;
+      if (attempts > 5) {
+        throw new BadRequestException('ไม่สามารถสร้าง Webhook URL ใหม่ได้');
+      }
+    }
+
+    account.webhookSlug = webhookSlug;
+    await account.save();
+    await this.redisService.invalidateCache(`line-account:${id}`);
+
+    return webhookSlug;
+  }
+
+  /**
+   * Ensure all accounts have webhook slug (migration)
+   */
+  async ensureWebhookSlugs(): Promise<number> {
+    const accounts = await this.lineAccountModel.find({ webhookSlug: { $exists: false } }).exec();
+    let updated = 0;
+
+    for (const account of accounts) {
+      let webhookSlug = this.generateWebhookSlug();
+      while (await this.lineAccountModel.findOne({ webhookSlug })) {
+        webhookSlug = this.generateWebhookSlug();
+      }
+      account.webhookSlug = webhookSlug;
+      await account.save();
+      updated++;
+    }
+
+    return updated;
   }
 
   async update(id: string, dto: UpdateLineAccountDto): Promise<LineAccountDocument> {
