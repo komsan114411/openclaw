@@ -34,7 +34,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Noto Sans Thai', 'sans-serif'],
+        sans: ['var(--font-prompt)', 'sans-serif'],
       },
     },
   },

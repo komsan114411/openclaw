@@ -6,6 +6,9 @@ import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/store/auth';
 import { authApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface ChangePasswordForm {
   currentPassword: string;
@@ -50,79 +53,65 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-500 to-primary-700 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.18),transparent_55%),radial-gradient(circle_at_80%_60%,rgba(59,130,246,0.12),transparent_55%)]" />
+      <div className="relative w-full max-w-md">
+        <Card className="border-none shadow-premium-lg bg-white/80 backdrop-blur-2xl">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/20">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">เปลี่ยนรหัสผ่าน</h1>
-            <p className="text-gray-500 mt-2">กรุณาเปลี่ยนรหัสผ่านเพื่อความปลอดภัย</p>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">เปลี่ยนรหัสผ่าน</h1>
+            <p className="text-slate-500 mt-2 font-medium">เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่</p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <label htmlFor="currentPassword" className="label">
-                รหัสผ่านปัจจุบัน
-              </label>
-              <input
-                id="currentPassword"
-                type="password"
-                {...register('currentPassword', { required: 'กรุณากรอกรหัสผ่านปัจจุบัน' })}
-                className="input"
-                placeholder="กรอกรหัสผ่านปัจจุบัน"
-              />
-              {errors.currentPassword && (
-                <p className="mt-1 text-sm text-red-500">{errors.currentPassword.message}</p>
-              )}
-            </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <Input
+              label="รหัสผ่านปัจจุบัน"
+              placeholder="กรอกรหัสผ่านปัจจุบัน"
+              type="password"
+              {...register('currentPassword', { required: 'กรุณากรอกรหัสผ่านปัจจุบัน' })}
+              error={errors.currentPassword?.message}
+              autoComplete="current-password"
+            />
 
-            <div>
-              <label htmlFor="newPassword" className="label">
-                รหัสผ่านใหม่
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                {...register('newPassword', {
-                  required: 'กรุณากรอกรหัสผ่านใหม่',
-                  minLength: { value: 6, message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' },
-                })}
-                className="input"
-                placeholder="กรอกรหัสผ่านใหม่"
-              />
-              {errors.newPassword && (
-                <p className="mt-1 text-sm text-red-500">{errors.newPassword.message}</p>
-              )}
-            </div>
+            <Input
+              label="รหัสผ่านใหม่"
+              placeholder="กรอกรหัสผ่านใหม่"
+              type="password"
+              {...register('newPassword', {
+                required: 'กรุณากรอกรหัสผ่านใหม่',
+                minLength: { value: 6, message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' },
+              })}
+              error={errors.newPassword?.message}
+              autoComplete="new-password"
+            />
 
-            <div>
-              <label htmlFor="confirmPassword" className="label">
-                ยืนยันรหัสผ่านใหม่
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                {...register('confirmPassword', {
-                  required: 'กรุณายืนยันรหัสผ่าน',
-                  validate: (value) => value === newPassword || 'รหัสผ่านไม่ตรงกัน',
-                })}
-                className="input"
-                placeholder="ยืนยันรหัสผ่านใหม่"
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-500">{errors.confirmPassword.message}</p>
-              )}
-            </div>
+            <Input
+              label="ยืนยันรหัสผ่านใหม่"
+              placeholder="ยืนยันรหัสผ่านใหม่"
+              type="password"
+              {...register('confirmPassword', {
+                required: 'กรุณายืนยันรหัสผ่าน',
+                validate: (value) => value === newPassword || 'รหัสผ่านไม่ตรงกัน',
+              })}
+              error={errors.confirmPassword?.message}
+              autoComplete="new-password"
+            />
 
-            <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full py-3">
-              {isSubmitting ? 'กำลังบันทึก...' : 'เปลี่ยนรหัสผ่าน'}
-            </button>
+            <Button
+              type="submit"
+              fullWidth
+              size="lg"
+              isLoading={isSubmitting}
+              loadingText="กำลังบันทึก..."
+            >
+              เปลี่ยนรหัสผ่าน
+            </Button>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   );

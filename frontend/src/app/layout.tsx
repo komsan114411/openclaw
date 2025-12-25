@@ -1,24 +1,25 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Prompt } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/Toast';
 
-const inter = Inter({ 
-  subsets: ['latin'],
+const prompt = Prompt({ 
+  subsets: ['latin', 'thai'],
+  weight: ['300', '400', '500', '600', '700'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-prompt',
 });
 
 export const metadata: Metadata = {
   title: {
-    default: 'LINE OA Management System',
-    template: '%s | LINE OA Management',
+    default: 'ระบบจัดการ LINE OA',
+    template: '%s | ระบบจัดการ LINE OA',
   },
   description: 'ระบบจัดการ LINE Official Account แบบ Multi-Account พร้อมระบบตรวจสอบสลิปและ AI Chatbot',
-  keywords: ['LINE OA', 'LINE Official Account', 'Slip Verification', 'AI Chatbot', 'Management System'],
+  keywords: ['LINE OA', 'LINE Official Account', 'ตรวจสอบสลิป', 'AI Chatbot', 'ระบบจัดการ'],
   authors: [{ name: 'LINE OA Management Team' }],
   robots: 'index, follow',
 };
@@ -37,14 +38,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={inter.variable}>
+    <html lang="th" className={prompt.variable}>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className={`${inter.className} min-h-screen`}>
+      <body className={`${prompt.className} min-h-screen bg-slate-50 font-sans antialiased`}>
         <ErrorBoundary>
           <Providers>
             <ToastProvider>
@@ -59,6 +60,7 @@ export default function RootLayout({
                     borderRadius: '12px',
                     boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
                     padding: '12px 16px',
+                    fontFamily: 'var(--font-prompt)',
                   },
                   success: {
                     iconTheme: {

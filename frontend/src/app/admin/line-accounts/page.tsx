@@ -291,7 +291,7 @@ export default function AdminLineAccountsPage() {
     <DashboardLayout requiredRole="admin">
       <div className="space-y-6 md:space-y-12 animate-fade max-w-[1700px] mx-auto pb-20">
 
-        {/* Superior Header */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
@@ -411,11 +411,11 @@ export default function AdminLineAccountsPage() {
                       </td>
                       <td className="px-10 py-8 text-right">
                         <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                          <IconButton variant="glass" size="sm" className="rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="View Details"><Eye className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-emerald-500" onClick={() => openSettingsModal(account)} title="Settings"><Settings className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-blue-500" onClick={() => openEditModal(account)} title="Edit"><Edit className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className={cn("rounded-xl", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'Disable' : 'Enable'}><Power className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="Delete"><Trash2 className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="ดูรายละเอียด"><Eye className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-emerald-500" onClick={() => openSettingsModal(account)} title="ตั้งค่า"><Settings className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-blue-500" onClick={() => openEditModal(account)} title="แก้ไข"><Edit className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className={cn("rounded-xl", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}><Power className="w-4 h-4" /></IconButton>
+                          <IconButton variant="glass" size="sm" className="rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="ลบ"><Trash2 className="w-4 h-4" /></IconButton>
                         </div>
                       </td>
                     </motion.tr>

@@ -163,9 +163,9 @@ function AdminChatContent() {
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
 
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
+    if (minutes < 1) return 'เมื่อกี้';
+    if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
+    if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
     return date.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' });
   };
 
@@ -185,8 +185,8 @@ function AdminChatContent() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">🛰️</div>
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">Signal Relay</h1>
-              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Real-time LINE communication downlink</p>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">ระบบแชท</h1>
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">สนทนากับลูกค้าแบบ Real-time</p>
             </div>
           </div>
 
@@ -196,7 +196,7 @@ function AdminChatContent() {
               onChange={(e) => handleSelectAccount(e.target.value)}
               className="w-64 border-none shadow-none bg-transparent font-black uppercase text-xs"
             >
-              <option value="">Select Frequency Node</option>
+              <option value="">เลือกบัญชี LINE</option>
               {accounts.map((account) => (
                 <option key={account._id} value={account._id}>
                   {account.accountName}
@@ -219,8 +219,8 @@ function AdminChatContent() {
         {!selectedAccountId ? (
           <div className="flex-1 flex flex-col items-center justify-center bg-white/40 backdrop-blur-3xl rounded-[4rem] border-4 border-dashed border-slate-200">
             <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl mb-6 animate-pulse">📡</div>
-            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">No Uplink Established</h3>
-            <p className="text-slate-400 font-medium max-w-sm text-center">Establish a connection by selecting a LINE integration node from the frequency selector above.</p>
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">ยังไม่ได้เลือกบัญชี</h3>
+            <p className="text-slate-400 font-medium max-w-sm text-center">กรุณาเลือกบัญชี LINE OA เพื่อเริ่มการสนทนา</p>
           </div>
         ) : (
           <div className="flex-1 flex gap-6 min-h-0">
@@ -229,11 +229,11 @@ function AdminChatContent() {
             <Card className="w-[380px] flex flex-col p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3rem] overflow-hidden">
               <div className="p-6 border-b border-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Subjects</p>
-                  <Badge variant="emerald" className="animate-pulse">Live Feed</Badge>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">ลูกค้าที่ใช้งานอยู่</p>
+                  <Badge variant="emerald" className="animate-pulse">ล่าสุด</Badge>
                 </div>
                 <Input
-                  placeholder="Search by Alias or ID..."
+                  placeholder="ค้นหาชื่อลูกค้า..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="bg-slate-50 border-none rounded-2xl h-12 text-sm"
@@ -244,11 +244,11 @@ function AdminChatContent() {
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <Spinner size="lg" />
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Scanning Signal...</p>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">กำลังโหลด...</p>
                   </div>
                 ) : filteredUsers.length === 0 ? (
                   <div className="text-center py-20">
-                    <p className="text-xs font-black text-slate-300 uppercase tracking-[0.15em]">Terminal Void</p>
+                    <p className="text-xs font-black text-slate-300 uppercase tracking-[0.15em]">ไม่พบข้อมูล</p>
                   </div>
                 ) : (
                   <AnimatePresence mode="popLayout">
@@ -295,7 +295,7 @@ function AdminChatContent() {
                               </span>
                             </div>
                             <p className={cn("text-xs font-medium truncate opacity-50", selectedUser?.lineUserId === user.lineUserId && "opacity-80 font-bold")}>
-                              {user.lastMessage || 'Channel Established'}
+                              {user.lastMessage || 'เริ่มการสนทนา'}
                             </p>
                           </div>
                         </div>
@@ -322,7 +322,7 @@ function AdminChatContent() {
                       </div>
                       <div>
                         <h2 className="text-2xl font-black text-slate-900 tracking-tighter leading-none mb-1 uppercase">{selectedUser.lineUserName} <span className="text-emerald-500 opacity-20 ml-2 animate-pulse">●</span></h2>
-                        <p className="text-[10px] font-mono font-black text-slate-400 tracking-widest uppercase opacity-70">SUBJECT_ID: {selectedUser.lineUserId}</p>
+                        <p className="text-[10px] font-mono font-black text-slate-400 tracking-widest uppercase opacity-70">User ID: {selectedUser.lineUserId}</p>
                       </div>
                     </div>
                     <IconButton variant="glass" size="lg" className="rounded-2xl shadow-premium-sm" onClick={() => fetchMessages(selectedUser.lineUserId)}>
@@ -342,12 +342,12 @@ function AdminChatContent() {
                     {loadingMessages ? (
                       <div className="flex flex-col items-center justify-center py-20 gap-4">
                         <Spinner size="lg" />
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Decoding Feed...</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">กำลังโหลดข้อความ...</p>
                       </div>
                     ) : messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-20 opacity-20">
                         <p className="text-6xl mb-4">🧊</p>
-                        <p className="text-xs font-black uppercase tracking-[0.5em]">Frozen Data Link</p>
+                        <p className="text-xs font-black uppercase tracking-[0.5em]">ไม่มีข้อความ</p>
                       </div>
                     ) : (
                       <AnimatePresence>
@@ -380,7 +380,7 @@ function AdminChatContent() {
                                     ) : (
                                       <div className="p-6 bg-slate-100 rounded-2xl text-slate-500 text-sm font-bold">[รูปภาพ]</div>
                                     )}
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white font-black text-xs uppercase italic">Expand Interface</div>
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white font-black text-xs uppercase italic">คลิกเพื่อดูรูปขยาย</div>
                                   </div>
                                 ) : (
                                   <p className="text-[13px] font-medium leading-relaxed whitespace-pre-wrap break-words">{msg.messageText}</p>
@@ -418,7 +418,7 @@ function AdminChatContent() {
                             handleSendMessage();
                           }
                         }}
-                        placeholder="Type a command or response..."
+                        placeholder="พิมพ์ข้อความตอบกลับ..."
                         disabled={sending}
                         className="flex-1 bg-transparent border-none focus:ring-0 text-[13px] font-medium placeholder:text-slate-300 custom-scrollbar py-3 px-6 h-12 max-h-32 min-h-12 resize-none"
                         rows={1}
@@ -431,20 +431,20 @@ function AdminChatContent() {
                         disabled={sending || !newMessage.trim()}
                         isLoading={sending}
                       >
-                        Broadcast
+                        ส่งข้อความ
                       </Button>
                     </div>
                     <div className="mt-3 flex gap-4 px-4">
-                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Protocol: Secured downlink</p>
-                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest opacity-40">Markdown allowed</p>
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">การเชื่อมต่อปลอดภัย</p>
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest opacity-40">รองรับข้อความและรูปภาพ</p>
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-20 opacity-30">
                   <div className="w-32 h-32 bg-slate-100 rounded-[3.5rem] flex items-center justify-center text-5xl mb-8 grayscale">💬</div>
-                  <h4 className="text-2xl font-black text-slate-900 uppercase tracking-[0.2em] mb-4">Neural Link Standby</h4>
-                  <p className="text-xs font-bold text-center max-w-xs leading-relaxed uppercase tracking-widest">Select a persona from the downlink manifest to initiate high-fidelity interaction stream.</p>
+                  <h4 className="text-2xl font-black text-slate-900 uppercase tracking-[0.2em] mb-4">พร้อมสนทนา</h4>
+                  <p className="text-xs font-bold text-center max-w-xs leading-relaxed uppercase tracking-widest">เลือกลูกค้าจากรายการด้านซ้ายเพื่อเริ่มการสนทนา</p>
                 </div>
               )}
             </Card>
@@ -477,7 +477,7 @@ export default function AdminChatPage() {
     <Suspense fallback={
       <DashboardLayout requiredRole="admin">
         <div className="flex items-center justify-center min-h-[60vh]">
-          <PageLoading message="Synchronizing Frequencies..." />
+          <PageLoading message="กำลังเตรียมระบบแชท..." />
         </div>
       </DashboardLayout>
     }>

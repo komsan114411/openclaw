@@ -283,7 +283,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight">LINE OA</h1>
-            <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">Manager PRO</p>
+            <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">ระบบจัดการมืออาชีพ</p>
           </div>
         </div>
       </div>

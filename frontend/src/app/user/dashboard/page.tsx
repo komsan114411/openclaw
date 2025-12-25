@@ -226,7 +226,7 @@ export default function UserDashboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-sm truncate">{account.accountName}</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">{account.isActive ? 'Active' : 'Inactive'}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">{account.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}</p>
                         </div>
                         <Link href={`/user/line-accounts?edit=${account._id}`}>
                           <IconButton variant="ghost" size="sm" className="text-slate-400 hover:text-white">✏️</IconButton>

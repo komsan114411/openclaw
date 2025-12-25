@@ -258,12 +258,12 @@ export default function UsersPage() {
                           </div>
                           <div>
                             <p className="font-extrabold text-slate-900 leading-none mb-1 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{user.username}</p>
-                            <p className="text-xs text-slate-400 font-bold tracking-widest truncate max-w-[150px]">{user.fullName || 'UNREGISTERED ALIAS'}</p>
+                            <p className="text-xs text-slate-400 font-bold tracking-widest truncate max-w-[150px]">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6 font-mono text-xs font-black text-slate-500 lowercase opacity-70">
-                        {user.email || 'NO_COMMS_LINK'}
+                        {user.email || 'ไม่ระบุอีเมล'}
                       </td>
                       <td className="px-8 py-6">
                         <Badge
@@ -279,11 +279,11 @@ export default function UsersPage() {
                           <div className="flex items-center gap-2">
                             <div className={cn("w-2 h-2 rounded-full shadow-sm", user.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
                             <span className={cn("text-[10px] font-black uppercase tracking-widest", user.isActive ? "text-emerald-600" : "text-slate-400")}>
-                              {user.isActive ? 'operational' : 'deactivated'}
+                              {user.isActive ? 'ปกติ' : 'ถูกระงับ'}
                             </span>
                           </div>
                           {user.isBlocked && (
-                            <Badge variant="rose" className="w-fit text-[9px] font-black uppercase tracking-widest py-0">Suspended</Badge>
+                            <Badge variant="rose" className="w-fit text-[9px] font-black uppercase tracking-widest py-0">ระงับชั่วคราว</Badge>
                           )}
                         </div>
                       </td>
@@ -294,7 +294,7 @@ export default function UsersPage() {
                             size="sm"
                             className={cn("rounded-xl transition-all", user.isBlocked ? "text-emerald-500 bg-emerald-500/5" : "text-amber-500 bg-amber-500/5")}
                             onClick={() => handleBlockToggle(user)}
-                            title={user.isBlocked ? 'Restore Access' : 'Revoke Access'}
+                            title={user.isBlocked ? 'ปลดบล็อค' : 'บล็อค'}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                           </IconButton>
@@ -303,7 +303,7 @@ export default function UsersPage() {
                             size="sm"
                             className="rounded-xl text-emerald-500 bg-emerald-500/5"
                             onClick={() => openGrantModal(user)}
-                            title="Grant Subscription"
+                            title="เพิ่มแพ็คเกจ"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </IconButton>
@@ -312,7 +312,7 @@ export default function UsersPage() {
                             size="sm"
                             className="rounded-xl text-blue-500 bg-blue-500/5"
                             onClick={() => openEditModal(user)}
-                            title="Edit Profile"
+                            title="แก้ไขข้อมูล"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                           </IconButton>
@@ -321,7 +321,7 @@ export default function UsersPage() {
                             size="sm"
                             className="rounded-xl text-rose-500 bg-rose-500/5 hover:bg-rose-500 hover:text-white"
                             onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
-                            title="Terminate Account"
+                            title="ลบผู้ใช้"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </IconButton>
@@ -340,20 +340,20 @@ export default function UsersPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => !isProcessing && setShowCreateModal(false)}
-        title="Provision Digital Identity"
+        title="สร้างบัญชีผู้ใช้ใหม่"
         size="md"
       >
         <div className="space-y-6 pt-2">
           <div className="grid grid-cols-2 gap-6">
             <Input
-              label="Primary Handle"
+              label="ชื่อผู้ใช้"
               placeholder="username"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
             />
             <Input
               type="password"
-              label="Auth Security Key"
+              label="รหัสผ่าน"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -361,14 +361,14 @@ export default function UsersPage() {
           </div>
 
           <Input
-            label="Contact Node (Email)"
+            label="อีเมล"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             placeholder="node@network.com"
           />
 
           <Input
-            label="Legal Alias (Full Name)"
+            label="ชื่อ-นามสกุล"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             placeholder="John Doe"
@@ -376,15 +376,15 @@ export default function UsersPage() {
 
           <div className="grid grid-cols-2 gap-6 items-end">
             <Select
-              label="Hierarchy Status"
+              label="สิทธิ์การใช้งาน"
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
             >
-              <option value="user">Operational User</option>
-              <option value="admin">System Administrator</option>
+              <option value="user">ผู้ใช้ทั่วไป</option>
+              <option value="admin">ผู้ดูแลระบบ</option>
             </Select>
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Force Reset</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">บังคับเปลี่ยนรหัสผ่าน</span>
               <Switch
                 checked={formData.forcePasswordChange}
                 onChange={(checked) => setFormData({ ...formData, forcePasswordChange: checked })}
@@ -393,14 +393,14 @@ export default function UsersPage() {
           </div>
 
           <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>Abort</Button>
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>ยกเลิก</Button>
             <Button
               variant="primary"
               className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium"
               onClick={handleCreateUser}
               isLoading={isProcessing}
             >
-              Confirm Provisioning
+              ยืนยันการสร้าง
             </Button>
           </div>
         </div>
@@ -410,31 +410,31 @@ export default function UsersPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => !isProcessing && setShowEditModal(false)}
-        title={`Edit Profile: ${selectedUser?.username}`}
+        title={`แก้ไขข้อมูล: ${selectedUser?.username}`}
         size="md"
       >
         <div className="space-y-6 pt-2">
           <Input
-            label="Contact Node"
+            label="อีเมล"
             value={editFormData.email}
             onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
           />
           <Input
-            label="Alias Identity"
+            label="ชื่อ-นามสกุล"
             value={editFormData.fullName}
             onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
           />
           <div className="grid grid-cols-2 gap-6 items-end">
             <Select
-              label="Revise Level"
+              label="แก้ไขสิทธิ์"
               value={editFormData.role}
               onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
             >
-              <option value="user">Standard User</option>
-              <option value="admin">System Admin</option>
+              <option value="user">ผู้ใช้ทั่วไป</option>
+              <option value="admin">ผู้ดูแลระบบ</option>
             </Select>
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Operational</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">สถานะการใช้งาน</span>
               <Switch
                 checked={editFormData.isActive}
                 onChange={(checked) => setEditFormData({ ...editFormData, isActive: checked })}
@@ -443,8 +443,8 @@ export default function UsersPage() {
           </div>
 
           <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)} disabled={isProcessing}>Cancel</Button>
-            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase" onClick={handleEditUser} isLoading={isProcessing}>Apply Changes</Button>
+            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase" onClick={handleEditUser} isLoading={isProcessing}>บันทึกการเปลี่ยนแปลง</Button>
           </div>
         </div>
       </Modal>
@@ -453,39 +453,39 @@ export default function UsersPage() {
       <Modal
         isOpen={showGrantModal}
         onClose={() => !isProcessing && setShowGrantModal(false)}
-        title={`Elevate Assets: ${selectedUser?.username}`}
+        title={`เพิ่มแพ็คเกจ: ${selectedUser?.username}`}
         size="md"
       >
         <div className="space-y-8 pt-2">
           <div className="p-6 bg-slate-900 text-white rounded-[2.5rem] shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl font-black italic">ASSET GRANT</div>
             <Select
-              label="Selected Asset Package"
+              label="เลือกแพ็คเกจ"
               value={selectedPackageId}
               onChange={(e) => setSelectedPackageId(e.target.value)}
               className="bg-white/10 border-white/10 text-white"
             >
-              <option value="">Select Package Blueprint</option>
+              <option value="">เลือกแพ็คเกจ</option>
               {packages.filter(p => p.isActive).map((pkg) => (
                 <option key={pkg._id} value={pkg._id} className="text-slate-900">
-                  {pkg.name} • {pkg.slipQuota.toLocaleString()} Units
+                  {pkg.name} • {pkg.slipQuota.toLocaleString()} สลิป
                 </option>
               ))}
             </Select>
             <p className="mt-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-              Warning: This action will unilaterally grant resource allocation to the target node without billing verification.
+              คำเตือน: การดำเนินการนี้จะเป็นการเพิ่มแพ็คเกจให้กับผู้ใช้โดยตรงโดยไม่ต้องชำระเงิน
             </p>
           </div>
 
           <div className="flex gap-4">
-            <Button variant="ghost" className="flex-1 text-slate-400 font-bold" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>Abort</Button>
+            <Button variant="ghost" className="flex-1 text-slate-400 font-bold" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>ยกเลิก</Button>
             <Button
               variant="primary"
               className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/20 shadow-premium"
               onClick={handleGrantPackage}
               isLoading={isProcessing}
             >
-              Confirm Allocation
+              ยืนยันการเพิ่มแพ็คเกจ
             </Button>
           </div>
         </div>
@@ -496,10 +496,10 @@ export default function UsersPage() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteUser}
-        title="Account Termination Imminent"
-        message={`Warning: You are about to permanently purge the digital identity of "${selectedUser?.username}". All associated metadata, permissions, and logs will be archived or delisted. This operation is non-reversible.`}
-        confirmText="Terminate Account"
-        cancelText="Abort Operation"
+        title="ยืนยันการลบผู้ใช้"
+        message={`คำเตือน: คุณกำลังจะลบผู้ใช้ "${selectedUser?.username}" อย่างถาวร ข้อมูลทั้งหมดที่เกี่ยวข้องจะถูกลบและไม่สามารถกู้คืนได้`}
+        confirmText="ลบผู้ใช้"
+        cancelText="ยกเลิก"
         type="danger"
         isLoading={isProcessing}
       />
