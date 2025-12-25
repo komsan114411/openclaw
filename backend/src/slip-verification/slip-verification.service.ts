@@ -508,10 +508,17 @@ export class SlipVerificationService {
 
   /**
    * Format slip response with configurable success message and templates
+   * รวมบล็อกเตือนโควต้าใกล้หมดด้วย (ถ้ามี)
    */
-  async formatSlipResponseWithConfig(result: SlipVerificationResult, context?: { account?: any }): Promise<any> {
+  async formatSlipResponseWithConfig(
+    result: SlipVerificationResult, 
+    context?: { account?: any; quotaRemaining?: number }
+  ): Promise<any> {
     const accountSettings = context?.account?.settings || {};
     const settings = await this.systemSettingsService.getSettings();
+    const quotaRemaining = context?.quotaRemaining;
+    const quotaWarningThreshold = settings?.quotaWarningThreshold || 10;
+    const showQuotaWarning = quotaRemaining !== undefined && quotaRemaining <= quotaWarningThreshold;
 
     const toTemplateType = (status: SlipVerificationResult['status']): TemplateType => {
       switch (status) {
@@ -541,6 +548,78 @@ export class SlipVerificationService {
       };
     };
 
+    // สร้างบล็อกเตือนโควต้าใกล้หมด
+    const createQuotaWarningBlock = (): any => {
+      if (!showQuotaWarning) return null;
+      return {
+        type: 'box',
+        layout: 'horizontal',
+        backgroundColor: '#FFF3CD',
+        cornerRadius: 'lg',
+        paddingAll: 'md',
+        margin: 'lg',
+        contents: [
+          {
+            type: 'text',
+            text: '⚠️',
+            size: 'lg',
+            flex: 0,
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            paddingStart: 'sm',
+            contents: [
+              {
+                type: 'text',
+                text: 'โควต้าใกล้หมด',
+                weight: 'bold',
+                size: 'sm',
+                color: '#856404',
+              },
+              {
+                type: 'text',
+                text: `เหลืออีก ${quotaRemaining} สลิป`,
+                size: 'xs',
+                color: '#856404',
+                wrap: true,
+              },
+            ],
+          },
+        ],
+      };
+    };
+
+    // ฟังก์ชันเพิ่มบล็อกเตือนเข้าไปใน flex message
+    const addWarningToFlexMessage = (flexMsg: any): any => {
+      if (!showQuotaWarning || !flexMsg) return flexMsg;
+      
+      const warningBlock = createQuotaWarningBlock();
+      if (!warningBlock) return flexMsg;
+      
+      // ถ้าเป็น flex message bubble ให้เพิ่ม warning block ที่ footer
+      if (flexMsg.type === 'flex' && flexMsg.contents?.type === 'bubble') {
+        const bubble = flexMsg.contents;
+        
+        // เพิ่ม warning ใน body ถ้ามี
+        if (bubble.body?.contents) {
+          bubble.body.contents.push(warningBlock);
+        } else if (!bubble.footer) {
+          // หรือเพิ่มใน footer ถ้าไม่มี
+          bubble.footer = {
+            type: 'box',
+            layout: 'vertical',
+            contents: [warningBlock],
+          };
+        }
+        
+        return flexMsg;
+      }
+      
+      return flexMsg;
+    };
+
     const tryUseSlipTemplate = async (
       templateType: TemplateType,
       data: Record<string, any>,
@@ -557,11 +636,14 @@ export class SlipVerificationService {
       const slipData = await buildSlipData(data);
       const bubble = this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
 
-      return {
+      const flexMsg = {
         type: 'flex',
-        altText: 'ผลการตรวจสอบสลิป',
+        altText: templateType === TemplateType.DUPLICATE ? 'สลิปซ้ำ' : 'ผลการตรวจสอบสลิป',
         contents: bubble,
       };
+
+      // เพิ่มบล็อกเตือนโควต้าถ้าเหลือน้อย
+      return addWarningToFlexMessage(flexMsg);
     };
 
     if (result.status === 'success' && result.data) {
@@ -577,7 +659,41 @@ export class SlipVerificationService {
       // Check for custom success message
       const customSuccessMessage = accountSettings.customSlipSuccessMessage;
       
-      // Build default flex message
+      // Build default flex message (รวมบล็อกเตือนโควต้า)
+      const bodyContents: any[] = [
+        {
+          type: 'text',
+          text: customSuccessMessage || '✅ ตรวจสอบสลิปสำเร็จ',
+          weight: 'bold',
+          size: 'lg',
+          color: '#00C851',
+        },
+        {
+          type: 'separator',
+          margin: 'md',
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          margin: 'md',
+          spacing: 'sm',
+          contents: [
+            this.createInfoRow('จำนวนเงิน', result.data.amountFormatted),
+            this.createInfoRow('วันที่', result.data.date),
+            this.createInfoRow('เวลา', result.data.time),
+            this.createInfoRow('ผู้โอน', result.data.senderName),
+            this.createInfoRow('ธนาคารผู้โอน', result.data.senderBank),
+            this.createInfoRow('ผู้รับ', result.data.receiverName),
+            this.createInfoRow('ธนาคารผู้รับ', result.data.receiverBank),
+            this.createInfoRow('เลขอ้างอิง', result.data.transRef),
+          ],
+        },
+      ];
+      
+      // เพิ่มบล็อกเตือนโควต้าถ้าเหลือน้อย
+      const warningBlock = createQuotaWarningBlock();
+      if (warningBlock) bodyContents.push(warningBlock);
+      
       return {
         type: 'flex',
         altText: 'ผลการตรวจสอบสลิป',
@@ -586,54 +702,81 @@ export class SlipVerificationService {
           body: {
             type: 'box',
             layout: 'vertical',
-            contents: [
-              {
-                type: 'text',
-                text: customSuccessMessage || '✅ ตรวจสอบสลิปสำเร็จ',
-                weight: 'bold',
-                size: 'lg',
-                color: '#00C851',
-              },
-              {
-                type: 'separator',
-                margin: 'md',
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                margin: 'md',
-                spacing: 'sm',
-                contents: [
-                  this.createInfoRow('จำนวนเงิน', result.data.amountFormatted),
-                  this.createInfoRow('วันที่', result.data.date),
-                  this.createInfoRow('เวลา', result.data.time),
-                  this.createInfoRow('ผู้โอน', result.data.senderName),
-                  this.createInfoRow('ธนาคารผู้โอน', result.data.senderBank),
-                  this.createInfoRow('ผู้รับ', result.data.receiverName),
-                  this.createInfoRow('ธนาคารผู้รับ', result.data.receiverBank),
-                  this.createInfoRow('เลขอ้างอิง', result.data.transRef),
-                ],
-              },
-            ],
+            contents: bodyContents,
           },
         },
       };
     } else if (result.status === 'duplicate') {
       // Check for custom template first
       if (accountSettings.slipDuplicateTemplate && Object.keys(accountSettings.slipDuplicateTemplate).length > 0) {
-        return this.applyTemplateVariables(accountSettings.slipDuplicateTemplate, result.data || {});
+        const customTemplate = this.applyTemplateVariables(accountSettings.slipDuplicateTemplate, result.data || {});
+        return addWarningToFlexMessage(customTemplate);
       }
 
       if (result.data) {
         const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, result.data);
-        if (templated) return templated;
+        if (templated) return templated; // already has warning added
       }
 
+      // Fallback: สร้าง flex message สำหรับสลิปซ้ำ (รวมบล็อกเตือน)
       const duplicateMessage = accountSettings.customDuplicateSlipMessage ||
-        settings?.duplicateSlipMessage || '⚠️ สลิปนี้เคยถูกใช้แล้ว';
+        settings?.duplicateSlipMessage || 'สลิปนี้เคยถูกใช้แล้ว';
+      
+      const bodyContents: any[] = [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          backgroundColor: '#FFF3CD',
+          cornerRadius: 'lg',
+          paddingAll: 'md',
+          contents: [
+            {
+              type: 'text',
+              text: '⚠️',
+              size: 'xxl',
+              flex: 0,
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              flex: 1,
+              paddingStart: 'md',
+              contents: [
+                {
+                  type: 'text',
+                  text: 'สลิปซ้ำ',
+                  weight: 'bold',
+                  size: 'lg',
+                  color: '#856404',
+                },
+                {
+                  type: 'text',
+                  text: duplicateMessage,
+                  size: 'sm',
+                  color: '#856404',
+                  wrap: true,
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      
+      // เพิ่มบล็อกเตือนโควต้าถ้าเหลือน้อย
+      const warningBlock = createQuotaWarningBlock();
+      if (warningBlock) bodyContents.push(warningBlock);
+      
       return {
-        type: 'text',
-        text: duplicateMessage,
+        type: 'flex',
+        altText: 'สลิปซ้ำ',
+        contents: {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents: bodyContents,
+          },
+        },
       };
     } else {
       // Check for custom template first

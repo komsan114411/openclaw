@@ -336,18 +336,14 @@ export class ConfigurableMessagesService {
 
   /**
    * Format duplicate slip response
+   * @deprecated สลิปซ้ำให้ใช้ Slip Templates แทน (TemplateType.DUPLICATE)
+   * Method นี้คงไว้เพื่อ backward compatibility
    */
   async formatDuplicateSlipResponse(context: MessageContext = {}): Promise<any> {
-    try {
-      const response = await this.systemResponseTemplatesService.getResponse(
-        SystemResponseType.DUPLICATE_SLIP
-      );
-      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
-    } catch (error) {
-      this.logger.error('Error getting duplicate slip response:', error);
-      const message = await this.getDuplicateSlipMessage(context);
-      return this.formatTextMessage(message);
-    }
+    // ไม่ใช้ SystemResponseTemplate อีกต่อไป
+    // ใช้ข้อความจาก getDuplicateSlipMessage แทน
+    const message = await this.getDuplicateSlipMessage(context);
+    return this.formatTextMessage(message);
   }
 
   // ============================================

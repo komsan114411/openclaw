@@ -322,30 +322,16 @@ export class LineWebhookController {
       });
 
       // Phase 4: Finalize quota (commit or rollback)
+      // ตรวจสอบโควต้าเหลือน้อย (จะแสดงในบล็อกผลสลิปเลย)
+      let quotaRemaining: number | undefined;
+      
       if (result.status === 'success') {
         await this.subscriptionsService.confirmReservation(subscriptionId, 1);
         await this.slipVerificationService.confirmReservation(reservationId);
 
-        // ตรวจสอบโควต้าเหลือน้อยและส่งเตือน (ใช้ template ใหม่)
+        // ดึงโควต้าเหลือเพื่อแสดงในบล็อกสลิป
         const newQuota = await this.subscriptionsService.checkQuota(ownerId);
-        const warningMsg = await this.configurableMessagesService.formatQuotaLowResponse({
-          account,
-          quotaRemaining: newQuota.remainingQuota,
-        });
-        if (warningMsg) {
-          // Schedule warning to be sent after the main response
-          setTimeout(async () => {
-            try {
-              await this.lineAccountsService.sendPush(
-                lineUserId,
-                [warningMsg],
-                accessToken,
-              );
-            } catch (e) {
-              this.logger.error('Failed to send quota warning:', e);
-            }
-          }, 1000);
-        }
+        quotaRemaining = newQuota.remainingQuota;
       } else if (result.status === 'duplicate') {
         const refund = await this.configurableMessagesService.shouldRefundDuplicate();
         if (refund) {
@@ -355,8 +341,15 @@ export class LineWebhookController {
           await this.subscriptionsService.confirmReservation(subscriptionId, 1);
           await this.slipVerificationService.confirmReservation(reservationId);
         }
-        // Use configurable duplicate message (ใช้ template ใหม่)
-        const duplicateMsg = await this.configurableMessagesService.formatDuplicateSlipResponse({ account });
+        
+        // ตรวจสอบโควต้าเหลือน้อย (แสดงในบล็อกเดียวกับสลิปซ้ำ)
+        const newQuota = await this.subscriptionsService.checkQuota(ownerId);
+        
+        // ใช้ Slip Template สำหรับสลิปซ้ำ (ส่ง quota info ไปด้วย)
+        const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
+          result, 
+          { account, quotaRemaining: newQuota.remainingQuota }
+        );
         await safeSendMessage([duplicateMsg]);
         
         // Increment slip count and return early
@@ -371,8 +364,11 @@ export class LineWebhookController {
         reservationId = null;
       }
 
-      // Send result message
-      const responseMessage = await this.slipVerificationService.formatSlipResponseWithConfig(result, { account });
+      // Send result message (รวมบล็อกเตือนโควต้าถ้าเหลือน้อย)
+      const responseMessage = await this.slipVerificationService.formatSlipResponseWithConfig(
+        result, 
+        { account, quotaRemaining }
+      );
       await safeSendMessage([responseMessage]);
 
       // Increment slip count

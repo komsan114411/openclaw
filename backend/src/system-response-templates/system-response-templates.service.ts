@@ -154,10 +154,12 @@ const DEFAULT_TEMPLATES: Partial<SystemResponseTemplate>[] = [
   },
 
   // ===== เสริม =====
+  // หมายเหตุ: โควต้าใกล้หมดจะแสดงในบล็อกผลสลิปโดยตรง (ไม่ได้ส่งแยก)
+  // สลิปซ้ำให้ใช้ Slip Templates (TemplateType.DUPLICATE) แทน
   {
     type: SystemResponseType.QUOTA_LOW,
     name: 'โควต้าใกล้หมด',
-    description: 'เตือนเมื่อโควต้าเหลือน้อย',
+    description: 'เตือนเมื่อโควต้าเหลือน้อย (แสดงในบล็อกผลสลิป)',
     responseFormat: ResponseFormat.TEXT,
     textMessage: '⚠️ โควต้าเหลือน้อย ({remaining} สลิป) กรุณาเติมแพ็คเกจ',
     title: 'โควต้าใกล้หมด',
@@ -176,29 +178,6 @@ const DEFAULT_TEMPLATES: Partial<SystemResponseTemplate>[] = [
       retryButtonText: '',
     },
     sortOrder: 7,
-  },
-  {
-    type: SystemResponseType.DUPLICATE_SLIP,
-    name: 'สลิปซ้ำ',
-    description: 'เมื่อพบสลิปที่เคยใช้แล้ว',
-    responseFormat: ResponseFormat.FLEX,
-    textMessage: '⚠️ สลิปนี้เคยถูกใช้แล้ว กรุณาใช้สลิปใหม่',
-    title: 'สลิปซ้ำ',
-    mainMessage: 'สลิปนี้เคยถูกใช้แล้ว',
-    subMessage: 'กรุณาใช้สลิปใหม่',
-    styling: {
-      primaryColor: '#F59E0B',
-      textColor: '#FFFFFF',
-      backgroundColor: '#FFFBEB',
-      icon: '⚠️',
-      showIcon: true,
-      showContactButton: false,
-      contactButtonText: '',
-      contactButtonUrl: '',
-      showRetryButton: true,
-      retryButtonText: 'ส่งสลิปใหม่',
-    },
-    sortOrder: 8,
   },
 ];
 

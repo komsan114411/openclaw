@@ -4,6 +4,7 @@ import { Document } from 'mongoose';
 export type SystemResponseTemplateDocument = SystemResponseTemplate & Document;
 
 // ประเภทของ System Response Template (ปรับให้เรียบง่าย)
+// หมายเหตุ: สลิปซ้ำ ให้ใช้ Slip Templates แทน (TemplateType.DUPLICATE)
 export enum SystemResponseType {
   // หลัก - ใช้งานจริง
   QUOTA_EXHAUSTED = 'quota_exhausted',    // โควต้าหมด (รวม no_quota + quota_exceeded)
@@ -15,9 +16,8 @@ export enum SystemResponseType {
   BOT_DISABLED = 'bot_disabled',          // บอทปิด (แอดมินตั้งค่า, ผู้ใช้เลือกส่ง/ไม่ส่ง)
   PROCESSING = 'processing',              // กำลังประมวลผล (ผู้ใช้เลือกส่ง/ไม่ส่ง)
   
-  // เสริม
-  QUOTA_LOW = 'quota_low',                // โควต้าใกล้หมด (เตือน)
-  DUPLICATE_SLIP = 'duplicate_slip',      // สลิปซ้ำ
+  // เสริม - โควต้าใกล้หมด (แสดงในบล็อกผลสลิป)
+  QUOTA_LOW = 'quota_low',                // โควต้าใกล้หมด (เตือนในบล็อกผลสลิป)
 }
 
 // รูปแบบการตอบกลับ

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { systemResponseTemplatesApi } from '@/lib/api';
 
 // System Response Types organized by category (ปรับให้เรียบง่าย)
+// หมายเหตุ: สลิปซ้ำให้ใช้ Slip Templates แทน, โควต้าใกล้หมดจะแสดงในบล็อกผลสลิป
 const RESPONSE_CATEGORIES = {
   main: {
     label: '🎯 หลัก',
@@ -26,8 +27,8 @@ const RESPONSE_CATEGORIES = {
   },
   extra: {
     label: '📋 เสริม',
-    description: 'ข้อความเสริมอื่นๆ',
-    types: ['quota_low', 'duplicate_slip'],
+    description: 'ตั้งค่าเพิ่มเติม',
+    types: ['quota_low'],
   },
 };
 
@@ -41,9 +42,8 @@ const RESPONSE_TYPES: Record<string, { label: string; icon: string; description:
   // ตัวเลือก - ผู้ใช้เลือกได้
   bot_disabled: { label: 'บอทปิดให้บริการ', icon: '📵', description: 'เมื่อบอทถูกปิด (ผู้ใช้เลือกส่ง/ไม่ส่ง)', color: '#64748B', userConfigurable: true },
   processing: { label: 'กำลังประมวลผล', icon: '⏳', description: 'ขณะกำลังตรวจสอบ (ผู้ใช้เลือกส่ง/ไม่ส่ง)', color: '#0EA5E9', userConfigurable: true },
-  // เสริม
-  quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'เตือนเมื่อโควต้าเหลือน้อย', color: '#EAB308' },
-  duplicate_slip: { label: 'สลิปซ้ำ', icon: '🔄', description: 'เมื่อพบสลิปที่เคยใช้แล้ว', color: '#F59E0B' },
+  // เสริม - โควต้าใกล้หมด (แสดงในบล็อกผลสลิป)
+  quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'แสดงเตือนในบล็อกผลสลิป (เมื่อเหลือน้อยกว่า threshold)', color: '#EAB308' },
 };
 
 // Color presets for quick selection
