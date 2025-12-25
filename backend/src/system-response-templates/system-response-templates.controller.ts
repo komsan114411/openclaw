@@ -110,4 +110,14 @@ export class SystemResponseTemplatesController {
       data: response,
     };
   }
+
+  @Post('initialize')
+  async initialize() {
+    const count = await this.templatesService.initializeDefaults();
+    return {
+      success: true,
+      message: `สร้างเทมเพลต ${count} รายการ`,
+      templatesCreated: count,
+    };
+  }
 }

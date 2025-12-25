@@ -344,7 +344,37 @@ export class SystemResponseTemplatesService {
     }
   }
 
+  /**
+   * Force initialize all default templates (for admin use)
+   */
+  async initializeDefaults(): Promise<number> {
+    let count = 0;
+    try {
+      for (const template of DEFAULT_TEMPLATES) {
+        const exists = await this.templateModel.findOne({ type: template.type });
+        if (!exists) {
+          await this.templateModel.create({
+            ...template,
+            isActive: true,
+            useCustomTemplate: false,
+          });
+          count++;
+          this.logger.log(`Created default template: ${template.type}`);
+        }
+      }
+      return count;
+    } catch (error) {
+      this.logger.error('Error initializing default templates:', error);
+      throw error;
+    }
+  }
+
   async getAll(): Promise<SystemResponseTemplateDocument[]> {
+    // First ensure templates exist
+    const count = await this.templateModel.countDocuments();
+    if (count === 0) {
+      await this.initializeDefaults();
+    }
     return this.templateModel.find().sort({ sortOrder: 1 });
   }
 

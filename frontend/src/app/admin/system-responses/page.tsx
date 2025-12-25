@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
+import { systemResponseTemplatesApi } from '@/lib/api';
 
 // System Response Types organized by category
 const RESPONSE_CATEGORIES = {
@@ -117,9 +118,9 @@ export default function SystemResponsesPage() {
   const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/system-response-templates', { credentials: 'include' });
-      const data = await res.json();
-      if (data.success) {
+      const res = await systemResponseTemplatesApi.getAll();
+      const data = res.data;
+      if (data.success && data.data) {
         setTemplates(data.data);
         if (data.data.length > 0 && !selectedType) {
           // Select first critical template by default
@@ -127,10 +128,15 @@ export default function SystemResponsesPage() {
             RESPONSE_CATEGORIES.critical.types.includes(t.type)
           );
           if (firstCritical) handleSelectTemplate(firstCritical);
+          else if (data.data[0]) handleSelectTemplate(data.data[0]);
         }
+      } else {
+        // No templates found - might need to create them
+        toast.error('ไม่พบเทมเพลต กรุณาตรวจสอบการตั้งค่าระบบ');
       }
-    } catch (error) {
-      toast.error('ไม่สามารถโหลดข้อมูลได้');
+    } catch (error: any) {
+      console.error('Failed to fetch templates:', error);
+      toast.error(error.response?.data?.message || 'ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
     }
@@ -153,20 +159,15 @@ export default function SystemResponsesPage() {
 
     try {
       setSaving(true);
-      const res = await fetch(`/api/admin/system-response-templates/${selectedType}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
-      if (data.success) {
+      const res = await systemResponseTemplatesApi.update(selectedType, formData);
+      if (res.data.success) {
         toast.success('บันทึกสำเร็จ');
         fetchTemplates();
+      } else {
+        toast.error(res.data.error || 'เกิดข้อผิดพลาด');
       }
-    } catch (error) {
-      toast.error('เกิดข้อผิดพลาด');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setSaving(false);
     }
@@ -178,19 +179,16 @@ export default function SystemResponsesPage() {
 
     try {
       setSaving(true);
-      const res = await fetch(`/api/admin/system-response-templates/${selectedType}/reset`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      const data = await res.json();
-      if (data.success) {
+      const res = await systemResponseTemplatesApi.reset(selectedType);
+      if (res.data.success) {
         toast.success('รีเซ็ตสำเร็จ');
-        setFormData({ ...data.data, styling: { ...DEFAULT_STYLING, ...data.data.styling } });
+        setFormData({ ...res.data.data, styling: { ...DEFAULT_STYLING, ...res.data.data.styling } });
         fetchTemplates();
+      } else {
+        toast.error(res.data.error || 'เกิดข้อผิดพลาด');
       }
-    } catch (error) {
-      toast.error('เกิดข้อผิดพลาด');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setSaving(false);
     }

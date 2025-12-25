@@ -223,3 +223,14 @@ export const thunderApi = {
   checkHealth: (customToken?: string) =>
     api.get('/thunder/health', { params: customToken ? { token: customToken } : {} }),
 };
+
+// System Response Templates API (Admin Only)
+export const systemResponseTemplatesApi = {
+  getAll: () => api.get('/admin/system-response-templates'),
+  getByType: (type: string) => api.get(`/admin/system-response-templates/${type}`),
+  update: (type: string, data: any) => api.put(`/admin/system-response-templates/${type}`, data),
+  reset: (type: string) => api.post(`/admin/system-response-templates/${type}/reset`),
+  resetAll: () => api.post('/admin/system-response-templates/reset-all'),
+  preview: (type: string, variables?: Record<string, string>) => 
+    api.post(`/admin/system-response-templates/${type}/preview`, { variables }),
+};
