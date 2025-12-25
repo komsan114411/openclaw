@@ -12,45 +12,38 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { systemResponseTemplatesApi } from '@/lib/api';
 
-// System Response Types organized by category
+// System Response Types organized by category (ปรับให้เรียบง่าย)
 const RESPONSE_CATEGORIES = {
-  critical: {
-    label: '🚨 สถานะสำคัญ',
-    description: 'ข้อความสำหรับปัญหาเร่งด่วนที่ต้องแจ้งลูกค้า',
-    types: ['quota_exceeded', 'no_quota', 'package_expired'],
+  main: {
+    label: '🎯 หลัก',
+    description: 'ข้อความหลักที่ใช้งานบ่อย',
+    types: ['quota_exhausted', 'package_expired', 'slip_not_found', 'system_error'],
   },
-  slip: {
-    label: '📄 สลิป/QR Code',
-    description: 'ข้อความเกี่ยวกับการตรวจสอบสลิป',
-    types: ['no_slip_found', 'qrcode_not_found', 'qr_unclear', 'invalid_image'],
+  optional: {
+    label: '⚙️ ตัวเลือก',
+    description: 'ผู้ใช้เลือกได้ว่าจะส่งหรือไม่',
+    types: ['bot_disabled', 'processing'],
   },
-  system: {
-    label: '⚙️ ระบบ',
-    description: 'ข้อความสถานะระบบ',
-    types: ['bot_disabled', 'slip_disabled', 'processing'],
-  },
-  error: {
-    label: '❌ ข้อผิดพลาด',
-    description: 'ข้อความแจ้งเตือนข้อผิดพลาด',
-    types: ['general_error', 'image_download_error', 'quota_low'],
+  extra: {
+    label: '📋 เสริม',
+    description: 'ข้อความเสริมอื่นๆ',
+    types: ['quota_low', 'duplicate_slip'],
   },
 };
 
-// System Response Types - Thai Labels
-const RESPONSE_TYPES: Record<string, { label: string; icon: string; description: string; color: string }> = {
-  quota_exceeded: { label: 'โควต้าหมด', icon: '🔴', description: 'เมื่อใช้โควต้าจนหมด', color: '#DC2626' },
-  no_quota: { label: 'ไม่มีโควต้า', icon: '🚫', description: 'เมื่อไม่เคยมีโควต้า', color: '#EF4444' },
+// System Response Types - Thai Labels (ปรับให้เรียบง่าย)
+const RESPONSE_TYPES: Record<string, { label: string; icon: string; description: string; color: string; userConfigurable?: boolean }> = {
+  // หลัก
+  quota_exhausted: { label: 'โควต้าหมด', icon: '🔴', description: 'เมื่อไม่มีโควต้าหรือใช้หมดแล้ว', color: '#DC2626' },
   package_expired: { label: 'แพ็คเกจหมดอายุ', icon: '⏰', description: 'เมื่อแพ็คเกจหมดอายุ', color: '#F59E0B' },
-  no_slip_found: { label: 'ไม่พบสลิป', icon: '🔍', description: 'เมื่อไม่พบสลิปในรูป', color: '#6366F1' },
-  qrcode_not_found: { label: 'ไม่พบ QR Code', icon: '🔳', description: 'เมื่อไม่พบ QR Code ในสลิป', color: '#8B5CF6' },
-  qr_unclear: { label: 'QR ไม่ชัด', icon: '📡', description: 'เมื่อ QR code อ่านไม่ได้', color: '#EC4899' },
-  invalid_image: { label: 'รูปไม่ถูกต้อง', icon: '🖼️', description: 'เมื่อรูปไม่ใช่สลิป', color: '#F43F5E' },
-  bot_disabled: { label: 'บอทปิด', icon: '📵', description: 'เมื่อบอทถูกปิด', color: '#64748B' },
-  slip_disabled: { label: 'ตรวจสลิปปิด', icon: '🔒', description: 'เมื่อระบบตรวจสลิปปิด', color: '#475569' },
-  processing: { label: 'กำลังประมวลผล', icon: '⏳', description: 'ขณะกำลังตรวจสอบ', color: '#0EA5E9' },
-  general_error: { label: 'ข้อผิดพลาดทั่วไป', icon: '❌', description: 'ข้อผิดพลาดของระบบ', color: '#EF4444' },
-  image_download_error: { label: 'ดาวน์โหลดไม่ได้', icon: '📥', description: 'เมื่อดาวน์โหลดรูปล้มเหลว', color: '#F97316' },
-  quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'เตือนโควต้าเหลือน้อย', color: '#FBBF24' },
+  slip_not_found: { label: 'ไม่พบสลิป', icon: '❌', description: 'เมื่ออ่านสลิปไม่ได้ (รวมทุกกรณี)', color: '#EF4444' },
+  system_error: { label: 'ข้อผิดพลาดระบบ', icon: '⚠️', description: 'เมื่อเกิดข้อผิดพลาดในระบบ', color: '#F97316' },
+  // ตัวเลือก - ผู้ใช้เลือกได้
+  bot_disabled: { label: 'บอทปิดให้บริการ', icon: '📵', description: 'เมื่อบอทถูกปิด (ผู้ใช้เลือกส่ง/ไม่ส่ง)', color: '#64748B', userConfigurable: true },
+  processing: { label: 'กำลังประมวลผล', icon: '⏳', description: 'ขณะกำลังตรวจสอบ (ผู้ใช้เลือกส่ง/ไม่ส่ง)', color: '#0EA5E9', userConfigurable: true },
+  // เสริม
+  quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'เตือนเมื่อโควต้าเหลือน้อย', color: '#EAB308' },
+  duplicate_slip: { label: 'สลิปซ้ำ', icon: '🔄', description: 'เมื่อพบสลิปที่เคยใช้แล้ว', color: '#F59E0B' },
 };
 
 // Color presets for quick selection
@@ -112,7 +105,7 @@ export default function SystemResponsesPage() {
   const [saving, setSaving] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<SystemResponseTemplate> | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>('critical');
+  const [activeCategory, setActiveCategory] = useState<string>('main');
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchTemplates = useCallback(async () => {
@@ -123,11 +116,11 @@ export default function SystemResponsesPage() {
       if (data.success && data.data) {
         setTemplates(data.data);
         if (data.data.length > 0 && !selectedType) {
-          // Select first critical template by default
-          const firstCritical = data.data.find((t: SystemResponseTemplate) => 
-            RESPONSE_CATEGORIES.critical.types.includes(t.type)
+          // Select first main template by default
+          const firstMain = data.data.find((t: SystemResponseTemplate) => 
+            RESPONSE_CATEGORIES.main.types.includes(t.type)
           );
-          if (firstCritical) handleSelectTemplate(firstCritical);
+          if (firstMain) handleSelectTemplate(firstMain);
           else if (data.data[0]) handleSelectTemplate(data.data[0]);
         }
       } else {

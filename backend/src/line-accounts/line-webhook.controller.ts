@@ -104,11 +104,17 @@ export class LineWebhookController {
     // Check if webhook is enabled
     if (!account.settings?.webhookEnabled) return;
 
-    // Check if bot is enabled
+    // Check if bot is enabled (ผู้ใช้เลือกได้ว่าจะส่งข้อความหรือไม่)
     if (!account.settings?.enableBot) {
-      const disabledMessage = await this.configurableMessagesService.getBotDisabledMessage({ account });
-      if (disabledMessage) {
-        await safeSendReply(disabledMessage);
+      const disabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
+      if (disabledMsg) {
+        try {
+          if (replyToken) {
+            await this.lineAccountsService.sendReply(replyToken, [disabledMsg], accessToken);
+          }
+        } catch (error) {
+          this.logger.error('Failed to send bot disabled reply:', error);
+        }
       }
       return;
     }
@@ -119,10 +125,10 @@ export class LineWebhookController {
       if (account.settings?.enableSlipVerification) {
         await this.handleSlipVerification(account, event);
       } else {
-        // Send slip disabled message if configured
-        const slipDisabledMessage = await this.configurableMessagesService.getSlipDisabledMessage({ account });
-        if (slipDisabledMessage) {
-          await safeSendReply(slipDisabledMessage);
+        // Send slip disabled message if configured (ผู้ใช้เลือกได้ว่าจะส่งหรือไม่)
+        const slipDisabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
+        if (slipDisabledMsg) {
+          await safeSendReply(typeof slipDisabledMsg === 'string' ? slipDisabledMsg : slipDisabledMsg.text || '');
         }
       }
     } else if (message.type === 'text') {
@@ -209,47 +215,42 @@ export class LineWebhookController {
       }
       await this.redisService.set(lockKey, '1', 300); // 5 minutes lock
 
-      // Verify owner's subscription with detailed status
+      // ============================================
+      // ตรวจสอบโควต้าก่อนส่งตรวจสอบสลิป (ใช้ logic ใหม่ที่เรียบง่าย)
+      // ============================================
       const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
       
-      // Handle different quota status scenarios
-      if (ownerQuotaDetail.status === 'no_subscription') {
-        // Never had any subscription - send no quota message
-        const noQuotaMsg = await this.configurableMessagesService.formatNoQuotaResponse({ account });
-        await safeSendMessage([noQuotaMsg], true);
+      // สถานะ: no_subscription หรือ quota_exhausted = ใช้ template โควต้าหมด
+      if (ownerQuotaDetail.status === 'no_subscription' || ownerQuotaDetail.status === 'quota_exhausted') {
+        const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
+        await safeSendMessage([quotaMsg], true);
         return;
       }
       
+      // สถานะ: package_expired = ใช้ template แพ็คเกจหมดอายุ
       if (ownerQuotaDetail.status === 'package_expired') {
-        // All subscriptions have expired
         const expiredMsg = await this.configurableMessagesService.formatPackageExpiredResponse({ account });
         await safeSendMessage([expiredMsg], true);
-        return;
-      }
-      
-      if (ownerQuotaDetail.status === 'quota_exhausted') {
-        // Has active subscription but no quota left
-        const quotaMsg = await this.configurableMessagesService.formatQuotaExceededResponse({ account });
-        await safeSendMessage([quotaMsg], true);
         return;
       }
       
       // status is 'has_quota' - proceed with verification
       const ownerQuota = ownerQuotaDetail;
 
-      // Send processing message if configured
-      const processingConfig = await this.configurableMessagesService.getSlipProcessingMessage({ account });
-      if (processingConfig.show && processingConfig.message) {
-        await safeSendMessage(
-          [{ type: 'text', text: processingConfig.message }],
-          true,
-        );
+      // ============================================
+      // ส่งข้อความกำลังประมวลผล (ผู้ใช้เลือกได้ว่าจะส่งหรือไม่)
+      // ============================================
+      const processingMsg = await this.configurableMessagesService.formatProcessingResponse({ account });
+      if (processingMsg) {
+        await safeSendMessage([processingMsg], true);
       }
 
       // Get retry settings
       const retrySettings = await this.configurableMessagesService.getRetrySettings();
 
-      // Get image content with retry
+      // ============================================
+      // ดาวน์โหลดรูปภาพ (ใช้ template ไม่พบสลิป รวมทุกกรณีอ่านสลิปไม่ได้)
+      // ============================================
       let imageData: Buffer;
       try {
         imageData = await retryWithBackoff(
@@ -260,29 +261,29 @@ export class LineWebhookController {
         );
       } catch (imageError) {
         this.logger.error('Failed to get image content after retries:', imageError);
-        const errorMsg = await this.configurableMessagesService.getImageDownloadErrorMessage({ account });
-        await safeSendMessage([{ type: 'text', text: errorMsg }]);
+        const errorMsg = await this.configurableMessagesService.formatSlipNotFoundResponse({ account });
+        await safeSendMessage([errorMsg]);
         return;
       }
 
       // Phase 1: Pre-screen (validate) before reserving quota
       const validation = this.slipVerificationService.validateSlipImage(imageData);
       if (!validation.ok) {
-        const invalidMsg = await this.configurableMessagesService.getInvalidImageMessage({ account });
-        await safeSendMessage([{ type: 'text', text: validation.message || invalidMsg }]);
+        const invalidMsg = await this.configurableMessagesService.formatSlipNotFoundResponse({ account });
+        await safeSendMessage([invalidMsg]);
         return;
       }
 
       // Phase 2: Check and reserve quota (atomic operation)
       if (!ownerQuota.hasQuota) {
-        const quotaMsg = await this.configurableMessagesService.formatQuotaExceededResponse({ account });
+        const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
         await safeSendMessage([quotaMsg]);
         return;
       }
 
       subscriptionId = await this.subscriptionsService.reserveQuota(ownerId, 1);
       if (!subscriptionId) {
-        const quotaMsg = await this.configurableMessagesService.formatQuotaExceededResponse({ account });
+        const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
         await safeSendMessage([quotaMsg]);
         return;
       }
@@ -298,7 +299,7 @@ export class LineWebhookController {
       });
       reservationId = reservation._id.toString();
 
-      // Phase 3: Verify slip with retry
+      // Phase 3: Verify slip with retry (ใช้ template ใหม่เมื่อเกิดข้อผิดพลาด)
       const result = await retryWithBackoff(
         () => this.slipVerificationService.verifySlip(
           imageData,
@@ -312,9 +313,11 @@ export class LineWebhookController {
         'Slip verification',
       ).catch(async (error) => {
         this.logger.error('Slip verification failed after retries:', error);
+        // ใช้ template ข้อผิดพลาดระบบ
+        const errorResponse = await this.configurableMessagesService.formatSystemErrorResponse({ account });
         return {
           status: 'error' as const,
-          message: await this.configurableMessagesService.getSlipErrorMessage({ account }),
+          message: typeof errorResponse === 'string' ? errorResponse : errorResponse?.text || 'เกิดข้อผิดพลาด กรุณาลองใหม่',
         };
       });
 
@@ -323,19 +326,19 @@ export class LineWebhookController {
         await this.subscriptionsService.confirmReservation(subscriptionId, 1);
         await this.slipVerificationService.confirmReservation(reservationId);
 
-        // Check if quota is low and send warning
+        // ตรวจสอบโควต้าเหลือน้อยและส่งเตือน (ใช้ template ใหม่)
         const newQuota = await this.subscriptionsService.checkQuota(ownerId);
-        const warningMessage = await this.configurableMessagesService.getQuotaLowWarningMessage({
+        const warningMsg = await this.configurableMessagesService.formatQuotaLowResponse({
           account,
           quotaRemaining: newQuota.remainingQuota,
         });
-        if (warningMessage) {
+        if (warningMsg) {
           // Schedule warning to be sent after the main response
           setTimeout(async () => {
             try {
               await this.lineAccountsService.sendPush(
                 lineUserId,
-                [{ type: 'text', text: warningMessage }],
+                [warningMsg],
                 accessToken,
               );
             } catch (e) {
@@ -352,9 +355,9 @@ export class LineWebhookController {
           await this.subscriptionsService.confirmReservation(subscriptionId, 1);
           await this.slipVerificationService.confirmReservation(reservationId);
         }
-        // Use configurable duplicate message
-        const duplicateMsg = await this.configurableMessagesService.getDuplicateSlipMessage({ account });
-        await safeSendMessage([{ type: 'text', text: duplicateMsg }]);
+        // Use configurable duplicate message (ใช้ template ใหม่)
+        const duplicateMsg = await this.configurableMessagesService.formatDuplicateSlipResponse({ account });
+        await safeSendMessage([duplicateMsg]);
         
         // Increment slip count and return early
         await this.lineAccountsService.incrementStatistics(accountId, 'totalSlipsVerified');
@@ -394,11 +397,12 @@ export class LineWebhookController {
         });
       }
 
+      // ส่งข้อความข้อผิดพลาดระบบ (ใช้ template ใหม่)
       try {
-        const errorMsg = await this.configurableMessagesService.getSlipErrorMessage({ account });
+        const errorMsg = await this.configurableMessagesService.formatSystemErrorResponse({ account });
         await this.lineAccountsService.sendPush(
           lineUserId,
-          [{ type: 'text', text: errorMsg }],
+          [errorMsg],
           accessToken,
         );
       } catch (sendError) {
