@@ -170,6 +170,29 @@ export class LineAccountsController {
     };
   }
 
+  @Post(':id/regenerate-webhook')
+  @ApiOperation({ summary: 'Regenerate webhook URL' })
+  async regenerateWebhook(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const account = await this.lineAccountsService.findById(id);
+    if (!account) {
+      return { success: false, message: 'Account not found' };
+    }
+
+    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
+      return { success: false, message: 'Access denied' };
+    }
+
+    const newSlug = await this.lineAccountsService.regenerateWebhookSlug(id);
+    return {
+      success: true,
+      message: 'สร้าง Webhook URL ใหม่สำเร็จ',
+      webhookSlug: newSlug,
+    };
+  }
+
   @Get(':id/chat-history')
   @ApiOperation({ summary: 'Get chat history' })
   async getChatHistory(

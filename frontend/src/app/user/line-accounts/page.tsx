@@ -84,13 +84,15 @@ export default function UserLineAccountsPage() {
     }
   };
 
-  const getWebhookUrl = (channelId: string) => {
+  const getWebhookUrl = (account: LineAccount) => {
     const base =
       publicBaseUrl ||
       (typeof window !== 'undefined' ? window.location.origin : '') ||
       '';
     const normalized = base.replace(/\/+$/, '');
-    return `${normalized}/api/webhook/line/${channelId}`;
+    // ใช้ webhookSlug ถ้ามี หรือ fallback ไป channelId
+    const slug = account.webhookSlug || account.channelId;
+    return `${normalized}/api/webhook/line/${slug}`;
   };
 
   const fetchAccounts = async () => {
@@ -231,9 +233,8 @@ export default function UserLineAccountsPage() {
     }
   };
 
-  const copyWebhookUrl = (accountId: string) => {
-    const account = accounts.find((a) => a._id === accountId);
-    const webhookUrl = account ? getWebhookUrl(account.channelId) : '';
+  const copyWebhookUrl = (account: LineAccount) => {
+    const webhookUrl = getWebhookUrl(account);
     if (!webhookUrl) {
       toast.error('ไม่พบข้อมูล Webhook URL');
       return;
@@ -362,7 +363,7 @@ export default function UserLineAccountsPage() {
                         <Button
                           size="xs"
                           variant="ghost"
-                          onClick={() => copyWebhookUrl(account._id)}
+                          onClick={() => copyWebhookUrl(account)}
                           className="h-6 text-[10px]"
                           leftIcon={<Copy className="w-3 h-3" />}
                         >
@@ -370,7 +371,7 @@ export default function UserLineAccountsPage() {
                         </Button>
                       </div>
                       <div className="font-mono text-[10px] text-slate-500 break-all bg-white px-3 py-2 rounded-lg border border-slate-200/50 shadow-sm">
-                        {getWebhookUrl(account.channelId)}
+                        {getWebhookUrl(account)}
                       </div>
                     </div>
 

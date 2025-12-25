@@ -33,20 +33,25 @@ export class LineWebhookController {
     private configurableMessagesService: ConfigurableMessagesService,
   ) {}
 
-  @Post(':channelId')
+  @Post(':slug')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'LINE Webhook endpoint' })
+  @ApiOperation({ summary: 'LINE Webhook endpoint (supports both webhookSlug and channelId)' })
   async handleWebhook(
-    @Param('channelId') channelId: string,
+    @Param('slug') slug: string,
     @Headers('x-line-signature') signature: string,
     @Req() req: any,
     @Body() body: any,
   ) {
     try {
-      // Find LINE account
-      const account = await this.lineAccountsService.findByChannelId(channelId);
+      // Find LINE account by webhookSlug first, then fallback to channelId (backward compatibility)
+      let account = await this.lineAccountsService.findByWebhookSlug(slug);
       if (!account) {
-        console.error(`LINE account not found for channel: ${channelId}`);
+        // Fallback: try finding by channelId for old webhook URLs
+        account = await this.lineAccountsService.findByChannelId(slug);
+      }
+      
+      if (!account) {
+        this.logger.warn(`LINE account not found for slug/channelId: ${slug}`);
         return { success: false };
       }
 

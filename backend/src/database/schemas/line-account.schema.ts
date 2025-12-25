@@ -130,6 +130,11 @@ export class LineAccount {
   @Prop({ required: true, unique: true, index: true })
   channelId: string;
 
+  // Webhook slug - unique identifier for webhook URL (auto-generated)
+  // ใช้แทน channelId ใน URL เพื่อความปลอดภัยและป้องกันการซ้ำ
+  @Prop({ unique: true, index: true })
+  webhookSlug: string;
+
   @Prop({ required: true })
   channelSecret: string;
 

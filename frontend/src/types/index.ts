@@ -32,6 +32,7 @@ export interface LineAccount {
   _id: string;
   accountName: string;
   channelId: string;
+  webhookSlug?: string; // Unique slug for webhook URL
   channelSecret: string;
   accessToken: string;
   ownerId: string;
