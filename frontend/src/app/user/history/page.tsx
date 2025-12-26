@@ -43,13 +43,13 @@ export default function UserHistoryPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 max-w-[1600px] mx-auto animate-fade">
-        <div className="page-header">
+      <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto animate-fade">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="page-title">ประวัติการใช้งาน</h1>
-            <p className="page-subtitle">บันทึกการทำรายการที่เกี่ยวข้องกับบัญชีของคุณ</p>
+            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">ประวัติการใช้งาน</h1>
+            <p className="text-xs md:text-sm text-slate-500 font-medium">บันทึกการทำรายการที่เกี่ยวข้องกับบัญชีของคุณ</p>
           </div>
-          <Button variant="outline" onClick={fetchLogs}>
+          <Button variant="outline" size="sm" onClick={fetchLogs} className="w-full sm:w-auto">
             รีเฟรช
           </Button>
         </div>
@@ -57,7 +57,7 @@ export default function UserHistoryPage() {
         {error && (
           <Card className="bg-rose-50 border border-rose-200 text-rose-700">
             <div className="flex items-center justify-between gap-4">
-              <div className="font-bold">{error}</div>
+              <div className="font-bold text-sm">{error}</div>
               <Button variant="ghost" size="sm" onClick={fetchLogs} className="text-rose-700 hover:bg-rose-100">
                 ลองใหม่
               </Button>
@@ -72,34 +72,61 @@ export default function UserHistoryPage() {
             description="เมื่อคุณใช้งานฟีเจอร์ต่าง ๆ ระบบจะบันทึกไว้ที่นี่"
           />
         ) : (
-          <Card className="p-0 overflow-hidden" variant="glass">
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr className="bg-white/40 border-b border-white/40">
-                    <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">เวลา</th>
-                    <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Action</th>
-                    <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">รายละเอียด</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/40">
-                  {logs.map((log) => (
-                    <tr key={log._id} className="hover:bg-white/50 transition-colors">
-                      <td className="px-8 py-5 text-sm text-slate-600 font-medium">
-                        {new Date(log.createdAt).toLocaleString('th-TH')}
-                      </td>
-                      <td className="px-8 py-5 text-xs font-mono font-bold text-slate-700 whitespace-nowrap">
-                        {log.action}
-                      </td>
-                      <td className="px-8 py-5 text-sm text-slate-700">
-                        {log.message || '-'}
-                      </td>
+          <>
+            {/* Desktop Table */}
+            <Card className="hidden md:block p-0 overflow-hidden" variant="glass">
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr className="bg-white/40 border-b border-white/40">
+                      <th className="px-6 lg:px-8 py-4 lg:py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">เวลา</th>
+                      <th className="px-6 lg:px-8 py-4 lg:py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Action</th>
+                      <th className="px-6 lg:px-8 py-4 lg:py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">รายละเอียด</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/40">
+                    {logs.map((log) => (
+                      <tr key={log._id} className="hover:bg-white/50 transition-colors">
+                        <td className="px-6 lg:px-8 py-4 lg:py-5 text-sm text-slate-600 font-medium whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleString('th-TH')}
+                        </td>
+                        <td className="px-6 lg:px-8 py-4 lg:py-5 text-xs font-mono font-bold text-slate-700 whitespace-nowrap">
+                          {log.action}
+                        </td>
+                        <td className="px-6 lg:px-8 py-4 lg:py-5 text-sm text-slate-700">
+                          {log.message || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {logs.map((log) => (
+                <Card key={log._id} variant="glass" className="p-4">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                      {log.action}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString('th-TH', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {log.message || 'ไม่มีรายละเอียด'}
+                  </p>
+                </Card>
+              ))}
             </div>
-          </Card>
+          </>
         )}
       </div>
     </DashboardLayout>

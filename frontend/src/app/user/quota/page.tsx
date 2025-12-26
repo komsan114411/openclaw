@@ -81,15 +81,15 @@ export default function UserQuotaPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
         {/* Header */}
-        <div className="page-header">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="page-title">โควต้าการใช้งาน</h1>
-            <p className="page-subtitle">ติดตามการใช้งานโควต้าของคุณ</p>
+            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">โควต้าการใช้งาน</h1>
+            <p className="text-xs md:text-sm text-slate-500 font-medium">ติดตามการใช้งานโควต้าของคุณ</p>
           </div>
           <Link href="/user/packages">
-            <Button variant="primary">
+            <Button variant="primary" size="sm" className="w-full sm:w-auto">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
@@ -116,13 +116,13 @@ export default function UserQuotaPage() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid-stats">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <StatCard
             title="โควต้าคงเหลือ"
             value={(subscription?.remainingQuota || 0).toLocaleString()}
             color="emerald"
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             }
@@ -132,7 +132,7 @@ export default function UserQuotaPage() {
             value={getTotalSlipsVerified().toLocaleString()}
             color="blue"
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
             }
@@ -142,7 +142,7 @@ export default function UserQuotaPage() {
             value={getTotalMessages().toLocaleString()}
             color="violet"
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             }
@@ -152,7 +152,7 @@ export default function UserQuotaPage() {
             value={`${daysRemaining} วัน`}
             color={daysRemaining < 7 ? 'rose' : 'amber'}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
@@ -270,30 +270,30 @@ export default function UserQuotaPage() {
         {/* Per Account Usage */}
         {accounts.length > 0 && (
           <Card>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="font-semibold text-gray-900 text-lg">การใช้งานรายบัญชี</h3>
-                <p className="text-sm text-gray-500">{accounts.length} บัญชี LINE OA</p>
+                <h3 className="font-semibold text-gray-900 text-base md:text-lg">การใช้งานรายบัญชี</h3>
+                <p className="text-xs md:text-sm text-gray-500">{accounts.length} บัญชี LINE OA</p>
               </div>
             </div>
 
-            <div className="overflow-x-auto -mx-6">
+            <div className="overflow-x-auto -mx-4 sm:-mx-6">
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       บัญชี
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-center text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       ข้อความ
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-center text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       สลิป
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-center text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                       AI ตอบ
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-center text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       สถานะ
                     </th>
                   </tr>
@@ -301,33 +301,33 @@ export default function UserQuotaPage() {
                 <tbody className="divide-y divide-gray-100">
                   {accounts.map((account) => (
                     <tr key={account._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold">
+                      <td className="px-4 sm:px-6 py-3 md:py-4">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0">
                             {account.accountName?.charAt(0).toUpperCase() || 'L'}
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{account.accountName}</p>
-                            <p className="text-sm text-gray-500 font-mono">{account.channelId}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 text-sm md:text-base truncate">{account.accountName}</p>
+                            <p className="text-[10px] md:text-sm text-gray-500 font-mono truncate hidden sm:block">{account.channelId}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="font-semibold text-gray-900">
+                      <td className="px-4 sm:px-6 py-3 md:py-4 text-center">
+                        <span className="font-semibold text-gray-900 text-sm md:text-base">
                           {(account.statistics?.totalMessages || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="font-semibold text-gray-900">
+                      <td className="px-4 sm:px-6 py-3 md:py-4 text-center">
+                        <span className="font-semibold text-gray-900 text-sm md:text-base">
                           {(account.statistics?.totalSlipsVerified || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="font-semibold text-gray-900">
+                      <td className="px-4 sm:px-6 py-3 md:py-4 text-center hidden sm:table-cell">
+                        <span className="font-semibold text-gray-900 text-sm md:text-base">
                           {(account.statistics?.totalAiResponses || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-4 sm:px-6 py-3 md:py-4 text-center">
                         <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm">
                           {account.isActive ? 'ใช้งาน' : 'ปิด'}
                         </Badge>

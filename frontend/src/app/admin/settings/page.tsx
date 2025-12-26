@@ -225,46 +225,48 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 animate-fade max-w-[1400px] mx-auto pb-12">
+      <div className="space-y-6 md:space-y-10 lg:space-y-12 animate-fade max-w-[1400px] mx-auto pb-8 md:pb-12">
 
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
           <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">System Infrastructure</h1>
-            <p className="text-slate-500 font-medium text-lg">Manage mission-critical APIs, communication protocols, and financial gateways.</p>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">System Infrastructure</h1>
+            <p className="text-sm md:text-base lg:text-lg text-slate-500 font-medium">Manage mission-critical APIs, communication protocols, and financial gateways.</p>
           </div>
-          <Badge variant="emerald" className="px-4 py-2 font-black text-sm uppercase tracking-widest shadow-emerald-100 shadow-lg">
-            Production Environment
+          <Badge variant="emerald" className="px-3 md:px-4 py-1.5 md:py-2 font-black text-xs md:text-sm uppercase tracking-widest shadow-emerald-100 shadow-lg">
+            Production
           </Badge>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex p-1.5 bg-slate-100/50 backdrop-blur-md rounded-[2rem] w-fit border border-slate-200/50">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabType)}
-              className={cn(
-                "relative px-8 py-3.5 rounded-3xl text-sm font-black transition-all duration-500 flex items-center gap-3",
-                activeTab === tab.id
-                  ? "text-slate-900"
-                  : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="activeTabSlot"
-                  className="absolute inset-0 bg-white rounded-3xl shadow-premium-sm"
-                  transition={{ type: "spring", bounce: 0.25, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10">{tab.icon}</span>
-              <span className="relative z-10 uppercase tracking-widest">{tab.name}</span>
-            </button>
-          ))}
+        {/* Tab Switcher - Mobile Scroll */}
+        <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto no-scrollbar">
+          <div className="flex p-1 md:p-1.5 bg-slate-100/50 backdrop-blur-md rounded-2xl md:rounded-[2rem] w-max md:w-fit border border-slate-200/50">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={cn(
+                  "relative px-4 md:px-6 lg:px-8 py-2.5 md:py-3 lg:py-3.5 rounded-xl md:rounded-3xl text-xs md:text-sm font-black transition-all duration-500 flex items-center gap-2 md:gap-3 whitespace-nowrap",
+                  activeTab === tab.id
+                    ? "text-slate-900"
+                    : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTabSlot"
+                    className="absolute inset-0 bg-white rounded-xl md:rounded-3xl shadow-premium-sm"
+                    transition={{ type: "spring", bounce: 0.25, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10">{tab.icon}</span>
+                <span className="relative z-10 uppercase tracking-wider md:tracking-widest">{tab.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-10">
+        <div className="grid grid-cols-1 gap-6 md:gap-8 lg:gap-10">
           <AnimatePresence mode="wait">
             {activeTab === 'infrastructure' && (
               <motion.div
@@ -272,20 +274,20 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-8"
+                className="space-y-6 md:space-y-8"
               >
                 {/* Webhook Configuration */}
-                <Card className="p-10 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
-                  <div className="flex items-center gap-6 mb-10">
-                    <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner">🌐</div>
+                <Card className="p-5 md:p-8 lg:p-10 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-2xl md:rounded-[2.5rem] lg:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 mb-6 md:mb-10">
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-indigo-500/10 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-inner flex-shrink-0">🌐</div>
                     <div>
-                      <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">External Interface</h2>
-                      <p className="text-slate-400 font-medium text-sm">Configure the public access points for webhook integrations.</p>
+                      <h2 className="text-lg md:text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight">External Interface</h2>
+                      <p className="text-xs md:text-sm text-slate-400 font-medium">Configure the public access points for webhook integrations.</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-                    <div className="md:col-span-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-10">
+                    <div className="lg:col-span-3">
                       <Input
                         label="Public Base URL"
                         placeholder="https://api.yourdomain.com"
@@ -299,17 +301,17 @@ export default function SettingsPage() {
                       <Button
                         fullWidth
                         size="lg"
-                        className="rounded-2xl h-14 font-black uppercase tracking-widest"
+                        className="rounded-xl md:rounded-2xl h-12 md:h-14 font-black uppercase tracking-widest text-xs md:text-sm"
                         onClick={() => handleUpdate('base_url', { publicBaseUrl })}
                         isLoading={isSaving === 'base_url'}
                       >
-                        Update Endpoint
+                        Update
                       </Button>
                     </div>
                   </div>
                 </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
                   {/* Thunder API */}
                   <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
                     <div className="flex items-center justify-between mb-8">
@@ -651,31 +653,31 @@ export default function SettingsPage() {
                             const title = bank?.nameTh || bank?.name || account.bankName;
                             const subtitle = bank?.shortName || bankCode || '';
                             return (
-                          <div key={index} className="group p-6 bg-slate-50/50 hover:bg-white rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
-                            <div className="flex items-center gap-5">
-                              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
-                                {logo ? (
-                                  <img src={logo} alt={subtitle || title} className="w-8 h-8 object-contain" />
-                                ) : (
-                                  <span className="text-slate-500 font-black text-xs uppercase">
-                                    {(subtitle || title).slice(0, 2)}
-                                  </span>
-                                )}
+                              <div key={index} className="group p-6 bg-slate-50/50 hover:bg-white rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
+                                <div className="flex items-center gap-5">
+                                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                                    {logo ? (
+                                      <img src={logo} alt={subtitle || title} className="w-8 h-8 object-contain" />
+                                    ) : (
+                                      <span className="text-slate-500 font-black text-xs uppercase">
+                                        {(subtitle || title).slice(0, 2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">
+                                      {title}{subtitle ? <span className="text-slate-400 font-bold"> • {subtitle}</span> : null}
+                                    </p>
+                                    <p className="text-xs text-slate-400 font-bold tracking-widest">{account.accountNumber} • {account.accountName}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleRemoveBankAccount(index)}
+                                  className="p-2 text-rose-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
                               </div>
-                              <div>
-                                <p className="font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">
-                                  {title}{subtitle ? <span className="text-slate-400 font-bold"> • {subtitle}</span> : null}
-                                </p>
-                                <p className="text-xs text-slate-400 font-bold tracking-widest">{account.accountNumber} • {account.accountName}</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleRemoveBankAccount(index)}
-                              className="p-2 text-rose-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                          </div>
                             );
                           })()
                         ))
