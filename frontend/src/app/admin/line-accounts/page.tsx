@@ -295,11 +295,11 @@ export default function AdminLineAccountsPage() {
 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-          <div className="space-y-2">
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
               จัดการบัญชี <span className="text-emerald-500">LINE OA</span>
             </h1>
-            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
               ศูนย์ควบคุมการเชื่อมต่อ <span className="text-slate-900">Official Account</span> ทั่วทั้งระบบ
             </p>
           </div>
@@ -307,29 +307,30 @@ export default function AdminLineAccountsPage() {
             onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
             size="lg"
             variant="primary"
-            leftIcon={<Plus className="w-6 h-6" />}
-            className="w-full md:w-auto h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
+            leftIcon={<Plus className="w-5 h-5 md:w-6 md:h-6" />}
+            className="w-full md:w-auto h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
           >
-            เพิ่มบัญชีใหม่
+            <span className="hidden sm:inline">เพิ่มบัญชีใหม่</span>
+            <span className="sm:hidden">เพิ่มบัญชี</span>
           </Button>
         </div>
 
         {/* Global Network Analytics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📱" color="indigo" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="⚡" color="emerald" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ข้อความประมวลผล" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="สลิปที่ยืนยันแล้ว" value={totalSlips.toLocaleString()} icon="✅" color="amber" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-8">
+          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📱" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="⚡" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ข้อความ" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="สลิปยืนยัน" value={totalSlips.toLocaleString()} icon="✅" color="amber" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
         </div>
 
         {/* Search & Filter Interface */}
-        <Card className="p-3 md:p-6 bg-white/60 backdrop-blur-3xl border-none shadow-premium-sm rounded-[2rem] md:rounded-[3rem] group">
+        <Card className="p-3 md:p-6 bg-white/60 backdrop-blur-3xl border-none shadow-premium-sm rounded-xl md:rounded-[3rem] group">
           <Input
-            placeholder="ค้นหาตามชื่อบัญชี, Channel ID หรือ เจ้าของบัญชี..."
+            placeholder="ค้นหา..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-6 h-6 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />}
-            className="bg-transparent border-none shadow-none text-base md:text-xl font-black uppercase tracking-tight placeholder:text-slate-300 placeholder:font-bold h-12"
+            leftIcon={<Search className="w-5 h-5 md:w-6 md:h-6 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />}
+            className="bg-transparent border-none shadow-none text-sm md:text-xl font-black uppercase tracking-tight placeholder:text-slate-300 placeholder:font-bold h-10 md:h-12"
           />
         </Card>
 

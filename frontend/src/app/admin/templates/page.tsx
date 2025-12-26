@@ -543,34 +543,34 @@ export default function AdminTemplatesPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 max-w-[1600px] mx-auto pb-20 animate-fade">
+      <div className="space-y-6 md:space-y-8 lg:space-y-12 max-w-[1600px] mx-auto pb-10 md:pb-20 animate-fade">
         {/* Superior Studio Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center text-2xl shadow-inner border border-white/50">🎨</div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
+          <div className="flex items-center gap-3 md:gap-5">
+            <div className="w-10 h-10 md:w-14 md:h-14 bg-emerald-500/10 rounded-xl md:rounded-[2rem] flex items-center justify-center text-xl md:text-2xl shadow-inner border border-white/50 flex-shrink-0">🎨</div>
             <div>
-              <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-none uppercase">Template Studio</h1>
-              <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> ออกแบบเลเยอร์การแสดงผลสลิปอัจฉริยะ
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter leading-none uppercase">Template Studio</h1>
+              <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-[0.2em] mt-1 md:mt-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 animate-pulse" /> ออกแบบเลเยอร์การแสดงผลสลิป
               </p>
             </div>
           </div>
-          <div className="flex gap-4">
-            <Button variant="ghost" onClick={handleInitDefaults} isLoading={isProcessing} className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] border-slate-100 hover:bg-slate-50 transition-all">
-              🔄 Reset Protocols
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-4 w-full md:w-auto">
+            <Button variant="ghost" onClick={handleInitDefaults} isLoading={isProcessing} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] border-slate-100 hover:bg-slate-50 transition-all">
+              🔄 <span className="hidden sm:inline">Reset Protocols</span><span className="sm:hidden">Reset</span>
             </Button>
-            <Button variant="primary" onClick={openCreateModal} className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl">
-              ➕ Deployment Studio
+            <Button variant="primary" onClick={openCreateModal} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] shadow-emerald-500/20 shadow-xl">
+              ➕ <span className="hidden sm:inline">Deployment Studio</span><span className="sm:hidden">Create</span>
             </Button>
           </div>
         </div>
 
         {/* Performance Metrics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Total Templates" value={templates.length} icon="🧩" color="indigo" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
-          <StatCard title="Success Nodes" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
-          <StatCard title="Security Flags" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
-          <StatCard title="Default Core" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+          <StatCard title="Total" value={templates.length} icon="🧩" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="Success" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="Security" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="Default" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
         </div>
 
         {/* Templates List */}

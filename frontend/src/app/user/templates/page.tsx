@@ -66,8 +66,8 @@ const MiniSlipPreview = memo(({ template }: { template: SlipTemplate }) => {
     <div className="bg-gradient-to-b from-slate-50 to-slate-100 rounded-xl p-3 w-full max-w-[200px] mx-auto shadow-sm border border-slate-200/50">
       {/* Header */}
       <div className="rounded-lg p-2 mb-2 flex items-center gap-2" style={{ backgroundColor: `${mainColor}15` }}>
-        <div 
-          className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[10px] font-bold" 
+        <div
+          className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[10px] font-bold"
           style={{ backgroundColor: mainColor }}
         >
           {isDuplicate ? '!' : isError ? '✕' : isNotFound ? '?' : '✓'}
@@ -84,14 +84,14 @@ const MiniSlipPreview = memo(({ template }: { template: SlipTemplate }) => {
             <p className="text-sm font-bold" style={{ color: mainColor }}>{SAMPLE_SLIP_DATA.amount}</p>
           </div>
         )}
-        
+
         {template.showSender && (
           <div className="text-[8px] p-1.5 bg-slate-50 rounded">
             <span className="text-slate-400">ผู้โอน: </span>
             <span className="text-slate-700">{SAMPLE_SLIP_DATA.sender.slice(0, 15)}...</span>
           </div>
         )}
-        
+
         {template.showReceiver && (
           <div className="text-[8px] p-1.5 bg-slate-50 rounded">
             <span className="text-slate-400">ผู้รับ: </span>
@@ -233,30 +233,30 @@ function TemplatesContent() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-fade-in max-w-[1400px] mx-auto">
+      <div className="space-y-6 md:space-y-8 animate-fade-in max-w-[1400px] mx-auto pb-6">
         {/* Header with Current Account Info */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
               onClick={() => router.back()}
-              className="!p-2"
+              className="!p-2 text-xs md:text-sm"
             >
               ← กลับ
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">
                 🎨 Template ตอบกลับสลิป
               </h1>
-              <p className="text-slate-500 text-sm mt-1">เลือก Template สำหรับการตอบกลับเมื่อตรวจสอบสลิป</p>
+              <p className="text-slate-500 text-xs md:text-sm mt-1">เลือก Template สำหรับการตอบกลับเมื่อตรวจสอบสลิป</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="indigo" className="text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="indigo" className="text-[10px] md:text-xs">
               🌐 {globalTemplates.length} ส่วนกลาง
             </Badge>
             {accountTemplates.length > 0 && (
-              <Badge variant="emerald" className="text-xs">
+              <Badge variant="emerald" className="text-[10px] md:text-xs">
                 📁 {accountTemplates.length} ของบัญชี
               </Badge>
             )}
@@ -265,24 +265,23 @@ function TemplatesContent() {
 
         {/* Current LINE Account Info Card */}
         {currentAccount && (
-          <Card className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-emerald-200">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-emerald-500/30">
+          <Card className="p-3 md:p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-emerald-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-xl md:text-2xl shadow-lg shadow-emerald-500/30 flex-shrink-0">
                   📱
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg text-slate-900">{currentAccount.accountName}</h3>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-base md:text-lg text-slate-900 truncate">{currentAccount.accountName}</h3>
                     <span className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                      "px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold flex-shrink-0",
                       currentAccount.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
                     )}>
                       {currentAccount.isActive ? '🟢 ใช้งาน' : '🔴 ปิด'}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 font-mono">Channel ID: {currentAccount.channelId}</p>
-                  <p className="text-xs text-slate-400 mt-1">{currentAccount.description || 'ไม่มีคำอธิบาย'}</p>
+                  <p className="text-xs md:text-sm text-slate-500 font-mono truncate">ID: {currentAccount.channelId}</p>
                 </div>
               </div>
               {otherAccounts.length > 0 && (
@@ -330,7 +329,7 @@ function TemplatesContent() {
             {TYPE_OPTIONS.map((typeOption) => {
               const templateName = getSelectedTemplateName(typeOption.value as SlipTemplate['type']);
               return (
-                <div 
+                <div
                   key={typeOption.value}
                   className={cn(
                     "p-3 rounded-xl border-2 transition-all",
@@ -370,7 +369,7 @@ function TemplatesContent() {
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">{typeOption.label}</h2>
                   <p className="text-sm text-slate-400">
-                    {typeTemplates.length} เทมเพลต • 
+                    {typeTemplates.length} เทมเพลต •
                     {selectedId ? ' มีเทมเพลตที่เลือก' : ' ใช้ค่าเริ่มต้น'}
                   </p>
                 </div>
@@ -384,20 +383,20 @@ function TemplatesContent() {
                   const typeInfo = getTypeInfo(template.type);
 
                   return (
-                    <Card 
-                      key={template._id} 
+                    <Card
+                      key={template._id}
                       className={cn(
                         "p-0 overflow-hidden transition-all duration-300 hover:shadow-lg",
-                        isSelected 
-                          ? "ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/10" 
+                        isSelected
+                          ? "ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/10"
                           : "hover:border-slate-300",
                         template.isGlobal && "border-purple-200"
                       )}
                     >
                       {/* Color Bar */}
-                      <div 
-                        className="h-1.5" 
-                        style={{ backgroundColor: template.primaryColor || '#10b981' }} 
+                      <div
+                        className="h-1.5"
+                        style={{ backgroundColor: template.primaryColor || '#10b981' }}
                       />
 
                       {/* Preview */}

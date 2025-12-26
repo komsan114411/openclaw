@@ -141,13 +141,13 @@ export default function UserPaymentsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 max-w-[1600px] mx-auto animate-fade">
-        <div className="page-header">
+      <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto animate-fade pb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="page-title">ประวัติการชำระเงิน</h1>
-            <p className="page-subtitle">ตรวจสอบสถานะ และอัปโหลดสลิปสำหรับรายการที่รอตรวจสอบ</p>
+            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">ประวัติการชำระเงิน</h1>
+            <p className="text-xs md:text-sm text-slate-500 font-medium">ตรวจสอบสถานะ และอัปโหลดสลิปสำหรับรายการที่รอตรวจสอบ</p>
           </div>
-          <Button variant="outline" onClick={fetchData}>
+          <Button variant="outline" onClick={fetchData} className="w-full sm:w-auto h-10 md:h-11 text-xs md:text-sm rounded-xl">
             รีเฟรช
           </Button>
         </div>
@@ -155,39 +155,39 @@ export default function UserPaymentsPage() {
         {/* Payment Info */}
         {paymentInfo?.bankAccounts?.length > 0 && (
           <Card variant="glass" className="border-none">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 md:mb-6">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight">ข้อมูลสำหรับชำระเงิน</h3>
-                <p className="text-sm text-slate-500 font-medium">โอนตามบัญชีด้านล่าง แล้วอัปโหลดสลิปในรายการที่รอตรวจสอบ</p>
+                <h3 className="text-base md:text-lg font-bold text-slate-900 tracking-tight">ข้อมูลสำหรับชำระเงิน</h3>
+                <p className="text-xs md:text-sm text-slate-500 font-medium">โอนตามบัญชีด้านล่าง แล้วอัปโหลดสลิป</p>
               </div>
               <Badge variant="blue" dot>
                 {paymentInfo.bankAccounts.length} บัญชี
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
               {(paymentInfo.bankAccounts as BankAccount[]).map((account, index: number) => {
                 const logo = account.bank?.logoBase64 || account.bank?.logoUrl || null;
                 const title = account.bank?.nameTh || account.bank?.name || account.bankName;
                 const subtitle = account.bank?.shortName || account.bankCode || '';
 
                 return (
-                  <div key={index} className="p-4 bg-white/70 rounded-2xl border border-white/60 flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+                  <div key={index} className="p-3 md:p-4 bg-white/70 rounded-xl md:rounded-2xl border border-white/60 flex items-center gap-3">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {logo ? (
-                        <img src={logo} alt={subtitle || title} className="w-8 h-8 object-contain" />
+                        <img src={logo} alt={subtitle || title} className="w-6 h-6 md:w-8 md:h-8 object-contain" />
                       ) : (
-                        <span className="text-xs font-black text-slate-400">
+                        <span className="text-[10px] md:text-xs font-black text-slate-400">
                           {(subtitle || title || 'BK').slice(0, 2)}
                         </span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-900 truncate">
+                      <p className="font-bold text-slate-900 truncate text-sm md:text-base">
                         {title}{subtitle ? <span className="text-slate-400 font-medium"> • {subtitle}</span> : null}
                       </p>
-                      <p className="text-sm text-slate-600 font-medium">เลขบัญชี: <span className="font-mono">{account.accountNumber}</span></p>
-                      <p className="text-sm text-slate-600 font-medium">ชื่อบัญชี: {account.accountName}</p>
+                      <p className="text-xs md:text-sm text-slate-600 font-medium">เลขบัญชี: <span className="font-mono">{account.accountNumber}</span></p>
+                      <p className="text-xs md:text-sm text-slate-600 font-medium truncate">ชื่อ: {account.accountName}</p>
                     </div>
                   </div>
                 );
