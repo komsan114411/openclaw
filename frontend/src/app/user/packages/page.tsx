@@ -10,7 +10,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { Card, StatCard, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoading, LoadingCard, Spinner } from '@/components/ui/Loading';
-import { Input } from '@/components/ui/Input';
+import { cn } from '@/lib/utils';
 
 export default function UserPackagesPage() {
   const [packages, setPackages] = useState<Package[]>([]);
