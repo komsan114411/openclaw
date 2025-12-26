@@ -226,60 +226,62 @@ export default function SystemResponsesPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 animate-fade max-w-[1800px] mx-auto pb-12">
+      <div className="space-y-4 md:space-y-6 animate-fade max-w-[1800px] mx-auto pb-6 md:pb-12">
 
         {/* Neural Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 md:gap-8 mb-4">
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
               Response <span className="text-emerald-500">Matrix</span>
             </h1>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
-              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
+            <p className="text-[9px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] md:tracking-[0.3em] flex items-center gap-2">
+              <span className="w-4 md:w-8 h-[2px] bg-emerald-500/30"></span>
               Interaction Protocol & Automation Logic
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full lg:w-auto">
             <Button
               variant="ghost"
-              className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-900"
+              className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] text-slate-400 hover:text-slate-900"
               onClick={handleReset}
               disabled={saving || !selectedType}
             >
-              Reset Domain
+              <span className="hidden sm:inline">Reset Domain</span>
+              <span className="sm:hidden">Reset</span>
             </Button>
             <Button
               variant="primary"
-              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl"
+              className="h-11 md:h-14 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[11px] shadow-emerald-500/20 shadow-2xl"
               onClick={handleSave}
               isLoading={saving}
               leftIcon={
-                <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center mr-2">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                <div className="w-5 h-5 md:w-6 md:h-6 rounded-lg bg-white/20 flex items-center justify-center mr-1 md:mr-2">
+                  <svg className="w-3 h-3 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 </div>
               }
             >
-              Commit Protocol
+              <span className="hidden sm:inline">Commit Protocol</span>
+              <span className="sm:hidden">Commit</span>
             </Button>
           </div>
         </div>
 
-        {/* Protocol Flow Visualization */}
-        <Card className="p-8 bg-white/40 backdrop-blur-3xl border-none shadow-inner rounded-[3rem]">
-          <div className="flex flex-wrap items-center gap-8 justify-center">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xl">01</div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Signal Ingested</p>
+        {/* Protocol Flow Visualization - Hidden on Mobile */}
+        <Card className="hidden lg:block p-6 md:p-8 bg-white/40 backdrop-blur-3xl border-none shadow-inner rounded-2xl md:rounded-[3rem]">
+          <div className="flex flex-wrap items-center gap-4 md:gap-8 justify-center">
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-[10px] md:text-xs shadow-xl">01</div>
+              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Signal</p>
             </div>
-            <div className="w-10 h-[1px] bg-slate-200" />
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xl">02</div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Logic Verification</p>
+            <div className="w-6 md:w-10 h-[1px] bg-slate-200" />
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-[10px] md:text-xs shadow-xl">02</div>
+              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Verify</p>
             </div>
-            <div className="w-10 h-[1px] bg-slate-200" />
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center font-black text-xs shadow-xl">03</div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Protocol Transmission</p>
+            <div className="w-6 md:w-10 h-[1px] bg-slate-200" />
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-indigo-500 text-white flex items-center justify-center font-black text-[10px] md:text-xs shadow-xl">03</div>
+              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Transmit</p>
             </div>
           </div>
         </Card>
