@@ -187,24 +187,28 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 animate-fade max-w-[1600px] mx-auto pb-12">
+      <div className="space-y-6 md:space-y-8 lg:space-y-12 animate-fade max-w-[1600px] mx-auto pb-6 md:pb-12">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight leading-none">จัดการผู้ใช้</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">ผู้ดูแล</Badge>
+            <div className="flex items-center gap-2 md:gap-3">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-none">จัดการผู้ใช้</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[9px] md:text-[10px] uppercase tracking-widest">ผู้ดูแล</Badge>
             </div>
-            <p className="text-slate-500 font-medium text-lg">จัดการผู้ใช้, สิทธิ์การเข้าถึง และการจัดการบัญชี</p>
+            <p className="text-slate-500 font-medium text-sm md:text-base lg:text-lg">จัดการผู้ใช้, สิทธิ์การเข้าถึง และการจัดการบัญชี</p>
           </div>
-          <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl" onClick={() => setShowCreateModal(true)}>
-            + สร้างผู้ใช้
+          <Button
+            variant="primary"
+            className="w-full md:w-auto rounded-xl md:rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl text-[10px] md:text-xs h-11 md:h-12 px-4 md:px-6"
+            onClick={() => setShowCreateModal(true)}
+          >
+            + <span className="hidden sm:inline">สร้างผู้ใช้</span><span className="sm:hidden">สร้างใหม่</span>
           </Button>
         </div>
 
         {/* Aggregated Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
           <StatCard title="ผู้ใช้ทั้งหมด" value={users.length} icon="👥" color="indigo" variant="glass" />
           <StatCard title="ผู้ดูแลระบบ" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
           <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />

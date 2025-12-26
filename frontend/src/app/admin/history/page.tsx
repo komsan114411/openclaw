@@ -72,40 +72,45 @@ export default function AdminHistoryPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-12 animate-fade max-w-[1500px] mx-auto pb-12">
+      <div className="space-y-6 md:space-y-8 lg:space-y-12 animate-fade max-w-[1500px] mx-auto pb-6 md:pb-12">
 
         {/* Audit Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">System Audit Registry</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[10px] uppercase tracking-widest">Live Trace</Badge>
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">System Audit Registry</h1>
+              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[9px] md:text-[10px] uppercase tracking-widest">Live Trace</Badge>
             </div>
-            <p className="text-slate-500 font-medium text-lg">Immutable chronological ledger of all organizational operations and signal events.</p>
+            <p className="text-slate-500 font-medium text-sm md:text-base lg:text-lg">Immutable chronological ledger of all organizational operations.</p>
           </div>
-          <Button variant="outline" className="rounded-2xl border-slate-200 hover:bg-slate-50 font-black uppercase tracking-widest text-[11px] h-12 px-6" onClick={fetchData} disabled={isLoading}>
-            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} Refresh Ledger
+          <Button
+            variant="outline"
+            className="w-full md:w-auto rounded-xl md:rounded-2xl border-slate-200 hover:bg-slate-50 font-black uppercase tracking-widest text-[10px] md:text-[11px] h-11 md:h-12 px-4 md:px-6"
+            onClick={fetchData}
+            disabled={isLoading}
+          >
+            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} <span className="hidden sm:inline">Refresh Ledger</span><span className="sm:hidden">Refresh</span>
           </Button>
         </div>
 
         {/* Filters & Insight */}
-        <div className="flex flex-col xl:flex-row gap-6">
-          <Card className="flex-1 p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-3xl flex items-center gap-4">
-            <div className="pl-4 text-xl opacity-20">🔍</div>
+        <div className="flex flex-col xl:flex-row gap-3 md:gap-6">
+          <Card className="flex-1 p-3 md:p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-2xl md:rounded-3xl flex items-center gap-3 md:gap-4">
+            <div className="pl-2 md:pl-4 text-lg md:text-xl opacity-20">🔍</div>
             <input
-              className="bg-transparent border-none focus:ring-0 w-full text-lg font-medium placeholder:text-slate-300 text-slate-900"
-              placeholder="Query transaction signature, entity ID, or specific event detail..."
+              className="bg-transparent border-none focus:ring-0 w-full text-sm md:text-lg font-medium placeholder:text-slate-300 text-slate-900"
+              placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </Card>
-          <div className="flex gap-2 p-2 bg-slate-100/50 backdrop-blur-md rounded-3xl">
+          <div className="flex gap-1 md:gap-2 p-1.5 md:p-2 bg-slate-100/50 backdrop-blur-md rounded-2xl md:rounded-3xl overflow-x-auto no-scrollbar">
             {['all', 'system', 'admin', 'user'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={cn(
-                  "px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  "px-3 md:px-6 py-2 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
                   selectedCategory === cat ? "bg-slate-900 text-white shadow-xl" : "text-slate-400 hover:bg-white hover:text-slate-600"
                 )}
               >
@@ -115,8 +120,8 @@ export default function AdminHistoryPage() {
           </div>
         </div>
 
-        {/* Audit Table */}
-        <Card className="overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
+        {/* Desktop Audit Table */}
+        <Card className="hidden md:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-2xl md:rounded-[3.5rem]">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -207,19 +212,66 @@ export default function AdminHistoryPage() {
           </div>
         </Card>
 
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-3">
+          {isLoading ? (
+            [1, 2, 3].map(i => <Card key={i} className="h-32 animate-pulse bg-white/50"><div /></Card>)
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center opacity-30">
+              <p className="font-black uppercase tracking-widest text-sm">No records found</p>
+            </div>
+          ) : (
+            filtered.slice(0, 50).map((log) => (
+              <motion.div
+                key={log._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <Card className="p-4 bg-white/80 backdrop-blur-xl border-none shadow-sm rounded-xl">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm">
+                        {getRoleIcon(log.actorRole)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">
+                          {log.actorRole === 'system' ? 'SYSTEM' : userMap.get(log.actorUserId || '') || 'Unknown'}
+                        </p>
+                        <p className="text-[9px] text-slate-400">{log.actorRole}</p>
+                      </div>
+                    </div>
+                    {getActionBadge(log.action)}
+                  </div>
+                  <p className="text-xs text-slate-600 line-clamp-2 mb-2">
+                    {log.message || log.action}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-slate-400 font-mono">
+                      {log.entityType || 'GLOBAL'}
+                    </span>
+                    <span className="text-[9px] text-slate-400">
+                      {new Date(log.createdAt).toLocaleString('th-TH')}
+                    </span>
+                  </div>
+                </Card>
+              </motion.div>
+            ))
+          )}
+        </div>
+
         {/* Info Legend */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-60 grayscale hover:grayscale-0 transition-all duration-700">
-          <div className="p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex items-center gap-4">
-            <div className="w-10 h-10 bg-white rounded-2xl shadow-premium-sm flex items-center justify-center">🏛️</div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Immutable Governance Registry</p>
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 opacity-60 grayscale hover:grayscale-0 transition-all duration-700">
+          <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:rounded-[2.5rem] border border-slate-100 flex items-center gap-3 md:gap-4">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl md:rounded-2xl shadow-premium-sm flex items-center justify-center text-lg">🏛️</div>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Immutable Registry</p>
           </div>
-          <div className="p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex items-center gap-4">
-            <div className="w-10 h-10 bg-white rounded-2xl shadow-premium-sm flex items-center justify-center">🔐</div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Authorized Personnel Only</p>
+          <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:rounded-[2.5rem] border border-slate-100 flex items-center gap-3 md:gap-4">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl md:rounded-2xl shadow-premium-sm flex items-center justify-center text-lg">🔐</div>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Admin Access Only</p>
           </div>
-          <div className="p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex items-center gap-4">
-            <div className="w-10 h-10 bg-white rounded-2xl shadow-premium-sm flex items-center justify-center">⚛️</div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Atomic Event Trailing</p>
+          <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:rounded-[2.5rem] border border-slate-100 flex items-center gap-3 md:gap-4">
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl md:rounded-2xl shadow-premium-sm flex items-center justify-center text-lg">⚛️</div>
+            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Atomic Trailing</p>
           </div>
         </div>
       </div>

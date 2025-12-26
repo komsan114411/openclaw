@@ -118,41 +118,43 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
+      <div className="space-y-6 md:space-y-8 lg:space-y-10 animate-fade max-w-[1600px] mx-auto pb-6 md:pb-10">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-          <div className="space-y-2">
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative z-10">
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
               ศูนย์<span className="text-emerald-500">ควบคุม</span>
             </h1>
-            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
               ยินดีต้อนรับกลับ, <span className="text-slate-900">ผู้ดูแลระบบ</span> 👋
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
               onClick={() => { fetchStats(); fetchThunderQuota(); }}
-              className="group w-full sm:w-auto border-slate-200 bg-white/50 backdrop-blur-xl hover:bg-white rounded-2xl h-14 px-8 font-black uppercase tracking-widest text-xs"
+              className="group border-slate-200 bg-white/50 backdrop-blur-xl hover:bg-white rounded-xl md:rounded-2xl h-11 md:h-14 px-4 md:px-8 font-black uppercase tracking-widest text-[10px] md:text-xs"
               isLoading={isLoading || isLoadingQuota}
             >
-              <svg className="w-5 h-5 mr-3 group-hover:rotate-180 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 group-hover:rotate-180 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              รีเฟรชข้อมูล
+              <span className="hidden sm:inline">รีเฟรชข้อมูล</span>
+              <span className="sm:hidden">รีเฟรช</span>
             </Button>
-            <Link href="/admin/settings" className="w-full sm:w-auto">
-              <Button size="lg" variant="primary" className="w-full h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl">
-                ตั้งค่าระบบ
+            <Link href="/admin/settings" className="flex-1 sm:flex-none">
+              <Button size="lg" variant="primary" className="w-full h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl">
+                <span className="hidden sm:inline">ตั้งค่าระบบ</span>
+                <span className="sm:hidden">ตั้งค่า</span>
               </Button>
             </Link>
           </div>
         </div>
 
         {/* 1. Key Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
           <StatCard
             title="ผู้ใช้ทั้งหมด"
             value={stats?.totalUsers || 0}
@@ -206,26 +208,26 @@ export default function AdminDashboard() {
         </div>
 
         {/* 2. Main Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 lg:gap-8 items-stretch">
 
           {/* Thunder API Quota - Modern Glassmorphism */}
           <div className="xl:col-span-8">
             <Card className="h-full bg-slate-900 border-none relative overflow-hidden group">
               {/* Animated Background Gradients */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/20 rounded-full blur-[120px] -mr-48 -mt-48 animate-pulse duration-[10s]" />
-              <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/20 rounded-full blur-[100px] -ml-32 -mb-32 animate-pulse duration-[7s]" />
+              <div className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-emerald-500/20 rounded-full blur-[80px] md:blur-[120px] -mr-24 md:-mr-48 -mt-24 md:-mt-48 animate-pulse duration-[10s]" />
+              <div className="absolute bottom-0 left-0 w-[200px] md:w-[400px] h-[200px] md:h-[400px] bg-blue-600/20 rounded-full blur-[60px] md:blur-[100px] -ml-16 md:-ml-32 -mb-16 md:-mb-32 animate-pulse duration-[7s]" />
 
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between mb-10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-xl border border-white/10 group-hover:scale-110 transition-transform duration-500">
-                      <svg className="w-8 h-8 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-10">
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-xl border border-white/10 group-hover:scale-110 transition-transform duration-500 flex-shrink-0">
+                      <svg className="w-5 h-5 md:w-8 md:h-8 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-2xl font-black text-white tracking-tight uppercase">โควต้า Thunder API</h2>
-                      <p className="text-slate-400 font-bold text-sm tracking-widest uppercase opacity-75">บริการตรวจสลิป</p>
+                      <h2 className="text-lg md:text-2xl font-black text-white tracking-tight uppercase">โควต้า Thunder API</h2>
+                      <p className="text-slate-400 font-bold text-xs md:text-sm tracking-widest uppercase opacity-75">บริการตรวจสลิป</p>
                     </div>
                   </div>
                   <IconButton
@@ -233,32 +235,32 @@ export default function AdminDashboard() {
                     size="lg"
                     onClick={fetchThunderQuota}
                     isLoading={isLoadingQuota}
-                    className="text-white border-white/10"
+                    className="text-white border-white/10 hidden sm:flex"
                   >
                     <span className="text-xl">🔄</span>
                   </IconButton>
                 </div>
 
                 {isLoadingQuota ? (
-                  <div className="flex-1 flex flex-col items-center justify-center py-20">
+                  <div className="flex-1 flex flex-col items-center justify-center py-10 md:py-20">
                     <Spinner size="xl" color="white" />
-                    <p className="mt-4 text-slate-400 font-medium animate-pulse">กำลังเชื่อมต่อเซิร์ฟเวอร์...</p>
+                    <p className="mt-4 text-slate-400 font-medium animate-pulse text-sm">กำลังเชื่อมต่อเซิร์ฟเวอร์...</p>
                   </div>
                 ) : thunderQuota?.success && thunderQuota.data ? (
-                  <div className="space-y-10 flex-1 flex flex-col justify-between">
+                  <div className="space-y-6 md:space-y-10 flex-1 flex flex-col justify-between">
                     {/* Progress Visual */}
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-end">
+                    <div className="space-y-3 md:space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
                         <div className="space-y-1">
-                          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">การใช้งานประจำเดือน</p>
+                          <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-widest">การใช้งานประจำเดือน</p>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-5xl font-black text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
-                            <span className="text-slate-500 font-bold text-xl">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
+                            <span className="text-3xl md:text-5xl font-black text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
+                            <span className="text-slate-500 font-bold text-lg md:text-xl">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="sm:text-right">
                           <span className={cn(
-                            "text-3xl font-black",
+                            "text-2xl md:text-3xl font-black",
                             thunderQuota.data.usagePercentage > 90 ? "text-rose-500" :
                               thunderQuota.data.usagePercentage > 70 ? "text-amber-400" : "text-emerald-400"
                           )}>
@@ -267,38 +269,38 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      <div className="h-6 bg-white/5 rounded-2xl p-1.5 border border-white/5 relative shadow-inner">
+                      <div className="h-4 md:h-6 bg-white/5 rounded-xl md:rounded-2xl p-1 md:p-1.5 border border-white/5 relative shadow-inner">
                         <div
                           className={cn(
-                            "h-full rounded-xl transition-all duration-1000 ease-out relative",
+                            "h-full rounded-lg md:rounded-xl transition-all duration-1000 ease-out relative",
                             thunderQuota.data.usagePercentage > 90 ? "bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_20px_rgba(225,29,72,0.4)]" :
                               thunderQuota.data.usagePercentage > 70 ? "bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]" :
                                 "bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
                           )}
                           style={{ width: `${Math.max(thunderQuota.data.usagePercentage, 5)}%` }}
                         >
-                          <div className="absolute inset-0 bg-white/20 animate-pulse rounded-xl" />
+                          <div className="absolute inset-0 bg-white/20 animate-pulse rounded-lg md:rounded-xl" />
                         </div>
                       </div>
                     </div>
 
                     {/* Meta Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                      <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 space-y-2">
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">เครดิตคงเหลือ</p>
-                        <p className="text-3xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
+                      <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
+                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิตคงเหลือ</p>
+                        <p className="text-2xl md:text-3xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
                       </div>
-                      <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 space-y-2">
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
-                        <p className="text-2xl font-black text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
+                      <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
+                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
+                        <p className="text-lg md:text-2xl font-black text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
                       </div>
-                      <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 space-y-2">
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ระยะเวลาที่เหลือ</p>
+                      <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
+                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">ระยะเวลาที่เหลือ</p>
                         <p className={cn(
-                          "text-3xl font-black",
+                          "text-2xl md:text-3xl font-black",
                           thunderQuota.data.daysRemaining <= 7 ? "text-rose-400" : "text-blue-400"
                         )}>
-                          {thunderQuota.data.daysRemaining} <span className="text-lg">วัน</span>
+                          {thunderQuota.data.daysRemaining} <span className="text-base md:text-lg">วัน</span>
                         </p>
                       </div>
                     </div>
