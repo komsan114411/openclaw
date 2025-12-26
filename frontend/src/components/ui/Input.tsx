@@ -15,15 +15,16 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   containerClassName?: string;
+  labelClassName?: string; // Added labelClassName
   variant?: 'default' | 'glass';
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, leftIcon, rightIcon, className = '', containerClassName = '', ...props }, ref) => {
+  ({ label, error, hint, leftIcon, rightIcon, className = '', containerClassName = '', labelClassName = '', ...props }, ref) => {
     return (
       <div className={cn('w-full group', containerClassName)}>
         {label && (
-          <label className="label mb-1.5 flex items-center justify-between">
+          <label className={cn("label mb-1.5 flex items-center justify-between", labelClassName)}>
             <span>
               {label}
               {props.required && <span className="text-rose-500 ml-1 opacity-70">*</span>}
