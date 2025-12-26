@@ -247,12 +247,12 @@ export default function UserLineAccountsPage() {
     <DashboardLayout>
       <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
-          <div className="space-y-2">
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8 relative z-10">
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
               จัดการบัญชี <span className="text-emerald-500">LINE OA</span>
             </h1>
-            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
               เชื่อมต่อและจัดการบัญชี <span className="text-slate-900">Official Account</span> พร้อมระบบตอบกลับอัตโนมัติ
             </p>
           </div>
@@ -263,19 +263,19 @@ export default function UserLineAccountsPage() {
             }}
             size="lg"
             variant="primary"
-            leftIcon={<Plus className="w-6 h-6" />}
-            className="w-full md:w-auto h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
+            leftIcon={<Plus className="w-5 h-5 md:w-6 md:h-6" />}
+            className="w-full md:w-auto h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
           >
             เพิ่มบัญชีใหม่
           </Button>
         </div>
 
         {/* Content */}
-        <div className="grid gap-6">
+        <div className="grid gap-4 md:gap-6">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="h-80 animate-pulse bg-white/50"><div /></Card>
+                <Card key={i} className="h-64 md:h-80 animate-pulse bg-white/50"><div /></Card>
               ))}
             </div>
           ) : accounts.length === 0 ? (
@@ -293,7 +293,7 @@ export default function UserLineAccountsPage() {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-6">
               {accounts.map((account, index) => (
                 <motion.div
                   key={account._id}
@@ -303,56 +303,56 @@ export default function UserLineAccountsPage() {
                 >
                   <Card variant="glass" className="h-full flex flex-col group hover:border-emerald-500/30 transition-all duration-300">
                     {/* Card Header */}
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-[2px] shadow-lg shadow-emerald-500/20">
-                          <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center relative overflow-hidden">
-                            <i className="fab fa-line text-3xl text-[#00B900]" /> {/* Fallback if no icon */}
-                            <Smartphone className="w-7 h-7 text-emerald-600 relative z-10" />
+                    <div className="flex items-start justify-between mb-4 md:mb-6">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-[2px] shadow-lg shadow-emerald-500/20 flex-shrink-0">
+                          <div className="w-full h-full bg-white rounded-[10px] md:rounded-[14px] flex items-center justify-center relative overflow-hidden">
+                            <i className="fab fa-line text-xl md:text-3xl text-[#00B900]" />
+                            <Smartphone className="w-5 h-5 md:w-7 md:h-7 text-emerald-600 relative z-10" />
                             <div className="absolute inset-0 bg-emerald-50/50" />
                           </div>
                         </div>
-                        <div>
-                          <h3 className="font-bold text-lg text-slate-900 group-hover:text-emerald-700 transition-colors">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-base md:text-lg text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
                             {account.accountName}
                           </h3>
-                          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 mt-1 bg-slate-100/50 px-2 py-0.5 rounded-lg w-fit">
-                            <span>ID: {account.channelId}</span>
-                            <div className={`w-2 h-2 rounded-full ${account.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                          <div className="flex items-center gap-2 text-[9px] md:text-xs font-mono text-slate-500 mt-1 bg-slate-100/50 px-2 py-0.5 rounded-lg w-fit">
+                            <span className="truncate max-w-[100px] md:max-w-none">ID: {account.channelId}</span>
+                            <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full flex-shrink-0 ${account.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 md:gap-2">
                         <IconButton
                           onClick={() => handleEdit(account)}
                           size="sm"
                           className="text-slate-400 hover:text-blue-500 hover:bg-blue-50"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </IconButton>
                         <IconButton
                           onClick={() => confirmDelete(account._id)}
                           size="sm"
                           className="text-slate-400 hover:text-rose-500 hover:bg-rose-50"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         </IconButton>
                       </div>
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-bold text-emerald-700">{account.statistics?.totalMessages || 0}</span>
-                        <span className="text-[10px] text-emerald-600/70 font-bold uppercase tracking-wide mt-1">ข้อความ</span>
+                    <div className="grid grid-cols-3 gap-2 md:gap-3 mb-4 md:mb-6">
+                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-emerald-50/50 border border-emerald-100 flex flex-col items-center justify-center text-center">
+                        <span className="text-lg md:text-2xl font-bold text-emerald-700">{account.statistics?.totalMessages || 0}</span>
+                        <span className="text-[8px] md:text-[10px] text-emerald-600/70 font-bold uppercase tracking-wide mt-0.5 md:mt-1">ข้อความ</span>
                       </div>
-                      <div className="p-3 rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-bold text-blue-700">{account.statistics?.totalSlipsVerified || 0}</span>
-                        <span className="text-[10px] text-blue-600/70 font-bold uppercase tracking-wide mt-1">สลิป</span>
+                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col items-center justify-center text-center">
+                        <span className="text-lg md:text-2xl font-bold text-blue-700">{account.statistics?.totalSlipsVerified || 0}</span>
+                        <span className="text-[8px] md:text-[10px] text-blue-600/70 font-bold uppercase tracking-wide mt-0.5 md:mt-1">สลิป</span>
                       </div>
-                      <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-100 flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-bold text-amber-700">{account.statistics?.totalAiResponses || 0}</span>
-                        <span className="text-[10px] text-amber-600/70 font-bold uppercase tracking-wide mt-1">AI ตอบ</span>
+                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-amber-50/50 border border-amber-100 flex flex-col items-center justify-center text-center">
+                        <span className="text-lg md:text-2xl font-bold text-amber-700">{account.statistics?.totalAiResponses || 0}</span>
+                        <span className="text-[8px] md:text-[10px] text-amber-600/70 font-bold uppercase tracking-wide mt-0.5 md:mt-1">AI ตอบ</span>
                       </div>
                     </div>
 

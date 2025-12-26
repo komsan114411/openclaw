@@ -26,7 +26,7 @@ export default function UserPackagesPage() {
   const [error, setError] = useState<string | null>(null);
   const [slipPreview, setSlipPreview] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  
+
   // ป้องกันการกดซ้ำ
   const isSubmittingRef = useRef(false);
   const lastSubmitTimeRef = useRef(0);
@@ -220,25 +220,25 @@ export default function UserPackagesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
         {/* Header */}
-        <div className="page-header">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="page-title">แพ็คเกจ</h1>
-            <p className="page-subtitle">เลือกแพ็คเกจที่เหมาะกับธุรกิจของคุณ</p>
+            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">แพ็คเกจ</h1>
+            <p className="text-xs md:text-sm text-slate-500 font-medium">เลือกแพ็คเกจที่เหมาะกับธุรกิจของคุณ</p>
           </div>
         </div>
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between animate-slide-up">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 md:p-4 flex items-center justify-between animate-slide-up">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-1.5 md:p-2 bg-red-100 rounded-lg">
+                <svg className="w-4 h-4 md:w-5 md:h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-red-700 font-medium">{error}</span>
+              <span className="text-red-700 font-medium text-sm">{error}</span>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRetry}>
               ลองใหม่
@@ -249,23 +249,23 @@ export default function UserPackagesPage() {
         {/* Current Subscription */}
         {subscription && (
           <Card className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 text-white border-0 overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-            
+            <div className="absolute top-0 right-0 w-40 md:w-64 h-40 md:h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-20 md:w-32 h-20 md:h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+
             <div className="relative">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">แพ็คเกจปัจจุบัน</p>
-                  <h3 className="text-2xl font-bold mt-1">{subscription.packageName || 'Standard'}</h3>
+                  <p className="text-green-100 text-xs md:text-sm font-medium">แพ็คเกจปัจจุบัน</p>
+                  <h3 className="text-xl md:text-2xl font-bold mt-1">{subscription.packageName || 'Standard'}</h3>
                   <Badge variant="success" size="sm" className="mt-2 bg-white/20 border-white/30 text-white">
                     ใช้งานอยู่
                   </Badge>
                 </div>
                 <div className="text-left sm:text-right">
-                  <p className="text-green-100 text-sm font-medium">โควต้าคงเหลือ</p>
-                  <p className="text-3xl font-bold mt-1">
+                  <p className="text-green-100 text-xs md:text-sm font-medium">โควต้าคงเหลือ</p>
+                  <p className="text-2xl md:text-3xl font-bold mt-1">
                     {subscription.remainingQuota?.toLocaleString() || 0}
-                    <span className="text-lg text-green-200"> / {subscription.quota?.toLocaleString() || 0}</span>
+                    <span className="text-base md:text-lg text-green-200"> / {subscription.quota?.toLocaleString() || 0}</span>
                   </p>
                 </div>
               </div>
@@ -278,9 +278,8 @@ export default function UserPackagesPage() {
                 </div>
                 <div className="h-3 bg-white/20 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      quotaPercentage > 50 ? 'bg-white' : quotaPercentage > 20 ? 'bg-yellow-300' : 'bg-red-400'
-                    }`}
+                    className={`h-full rounded-full transition-all duration-500 ${quotaPercentage > 50 ? 'bg-white' : quotaPercentage > 20 ? 'bg-yellow-300' : 'bg-red-400'
+                      }`}
                     style={{ width: `${quotaPercentage}%` }}
                   />
                 </div>
@@ -292,10 +291,10 @@ export default function UserPackagesPage() {
                   <span className="font-medium">
                     {subscription.expiresAt
                       ? new Date(subscription.expiresAt).toLocaleDateString('th-TH', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
                       : '-'}
                   </span>
                 </div>
@@ -379,9 +378,8 @@ export default function UserPackagesPage() {
               <Card
                 key={pkg._id}
                 hover
-                className={`relative transition-all duration-300 ${
-                  index === 1 ? 'ring-2 ring-green-500 ring-offset-2 scale-[1.02]' : ''
-                }`}
+                className={`relative transition-all duration-300 ${index === 1 ? 'ring-2 ring-green-500 ring-offset-2 scale-[1.02]' : ''
+                  }`}
               >
                 {/* Popular Badge */}
                 {index === 1 && (
@@ -498,11 +496,10 @@ export default function UserPackagesPage() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('bank')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    paymentMethod === 'bank'
+                  className={`p-4 rounded-xl border-2 transition-all ${paymentMethod === 'bank'
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="text-2xl mb-2">🏦</div>
                   <p className="font-medium text-gray-900">โอนเงิน</p>
@@ -512,11 +509,10 @@ export default function UserPackagesPage() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('usdt')}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'usdt'
+                    className={`p-4 rounded-xl border-2 transition-all ${paymentMethod === 'usdt'
                         ? 'border-green-500 bg-green-50'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <div className="text-2xl mb-2">💵</div>
                     <p className="font-medium text-gray-900">USDT</p>
@@ -541,7 +537,7 @@ export default function UserPackagesPage() {
                         <p className="text-sm text-emerald-600 font-medium">{paymentInfo.bankName}</p>
                       </div>
                     </div>
-                    
+
                     {/* Account Number - Large & Prominent */}
                     <div className="bg-white rounded-xl p-4 border-2 border-emerald-300 mb-4 shadow-inner">
                       <div className="flex items-center justify-between">
@@ -626,11 +622,10 @@ export default function UserPackagesPage() {
                     />
                     <label
                       htmlFor="slip-upload"
-                      className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                        slipPreview
+                      className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all ${slipPreview
                           ? 'border-green-500 bg-green-50'
                           : 'border-gray-300 hover:border-gray-400 bg-gray-50'
-                      } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {slipPreview ? (
                         <div className="relative w-full h-full p-2">
@@ -725,11 +720,10 @@ export default function UserPackagesPage() {
         onClose={() => setShowConfirmModal(false)}
         onConfirm={handlePayment}
         title="ยืนยันการชำระเงิน"
-        message={`คุณต้องการซื้อแพ็คเกจ "${selectedPackage?.name}" ในราคา ${
-          paymentMethod === 'bank'
+        message={`คุณต้องการซื้อแพ็คเกจ "${selectedPackage?.name}" ในราคา ${paymentMethod === 'bank'
             ? `฿${selectedPackage?.price.toLocaleString()}`
             : `$${selectedPackage?.priceUsdt} USDT`
-        } หรือไม่?`}
+          } หรือไม่?`}
         confirmText="ยืนยัน"
         cancelText="ยกเลิก"
         type="warning"
