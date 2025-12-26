@@ -48,16 +48,16 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 relative overflow-hidden">
+    <div className="flex min-h-screen bg-slate-50/50 relative overflow-hidden font-sans selection:bg-emerald-500/30">
       {/* Decorative background elements */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[120px] -z-10 pointer-events-none" />
-      <div className="absolute bottom-0 left-64 w-[500px] h-[500px] bg-blue-500/5 blur-[100px] -z-10 pointer-events-none" />
+      <div className="fixed top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-full blur-[120px] -z-10 pointer-events-none animate-pulse duration-[10s]" />
+      <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-blue-500/5 to-indigo-500/5 rounded-full blur-[100px] -z-10 pointer-events-none animate-pulse duration-[8s]" />
 
       {/* Mobile Hamburger Button */}
       <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsSidebarOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-30 p-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-lg text-slate-700 hover:bg-white/20 transition-all"
+        className="md:hidden fixed top-4 left-4 z-30 p-3 bg-white/80 backdrop-blur-xl border border-white/40 rounded-xl shadow-lg shadow-slate-200/50 text-slate-700 hover:text-emerald-600 hover:border-emerald-200 transition-all duration-300"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />

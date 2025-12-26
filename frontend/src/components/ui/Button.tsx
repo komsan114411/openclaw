@@ -60,13 +60,13 @@ export function Button({
   );
 
   const variantClasses = {
-    primary: 'btn-primary hover-glow',
-    secondary: 'btn-secondary',
-    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 hover-glow',
-    danger: 'btn-danger shadow-lg shadow-rose-500/20',
-    warning: 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20',
-    ghost: 'btn-ghost',
-    outline: 'bg-transparent border-2 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 bg-white/50 backdrop-blur-sm',
+    primary: 'btn-primary hover-glow focus:ring-4 focus:ring-emerald-500/20 outline-none',
+    secondary: 'btn-secondary focus:ring-4 focus:ring-slate-200 outline-none',
+    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 hover-glow focus:ring-4 focus:ring-emerald-500/20 outline-none',
+    danger: 'btn-danger shadow-lg shadow-rose-500/20 focus:ring-4 focus:ring-rose-500/20 outline-none',
+    warning: 'bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/20 focus:ring-4 focus:ring-amber-500/20 outline-none',
+    ghost: 'btn-ghost focus:ring-4 focus:ring-slate-200/50 outline-none',
+    outline: 'bg-transparent border-2 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 bg-white/50 backdrop-blur-sm focus:ring-4 focus:ring-emerald-500/10 outline-none',
   };
 
   const sizeClasses = {
@@ -146,13 +146,13 @@ export function IconButton({
   );
 
   const variantClasses = {
-    primary: 'btn-primary shadow-lg shadow-emerald-500/20',
-    secondary: 'btn-secondary',
-    danger: 'btn-danger shadow-lg shadow-rose-500/20',
-    ghost: 'btn-ghost',
-    glass: 'glass-dark hover:bg-white/10 border-white/5 text-white',
-    outline: 'bg-white/50 border-2 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 backdrop-blur-md shadow-sm',
-    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20',
+    primary: 'btn-primary shadow-lg shadow-emerald-500/20 hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-emerald-500/20 outline-none',
+    secondary: 'btn-secondary hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-slate-200 outline-none',
+    danger: 'btn-danger shadow-lg shadow-rose-500/20 hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-rose-500/20 outline-none',
+    ghost: 'btn-ghost hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-slate-200/50 outline-none',
+    glass: 'glass-dark hover:bg-white/10 border-white/5 text-white hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-white/10 outline-none',
+    outline: 'bg-white/50 border-2 border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600 backdrop-blur-md shadow-sm hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-emerald-500/10 outline-none',
+    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 hover:scale-110 active:scale-95 transition-all duration-300 focus:ring-4 focus:ring-emerald-500/20 outline-none',
   };
 
   const sizeClasses = {

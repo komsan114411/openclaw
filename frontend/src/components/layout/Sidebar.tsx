@@ -240,26 +240,29 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               href={item.href}
               onClick={() => window.innerWidth < 768 && onClose()}
               className={clsx(
-                'group flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 relative overflow-hidden',
+                'group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
                 isActive
-                  ? 'sidebar-link-active text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'sidebar-link-active text-white bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-white/5 shadow-lg shadow-emerald-900/20'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5 hover:translate-x-1'
               )}
             >
               <span className={clsx(
-                'transition-colors duration-200',
-                isActive ? 'text-emerald-400' : 'group-hover:text-emerald-400'
+                'transition-all duration-300 transform',
+                isActive ? 'text-emerald-400 scale-110 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'group-hover:text-emerald-400 group-hover:scale-110'
               )}>
                 {item.icon}
               </span>
-              <span className="font-medium text-sm">{item.name}</span>
+              <span className={clsx(
+                "font-medium text-sm tracking-wide transition-all duration-300",
+                isActive ? "text-white font-bold" : "group-hover:text-white"
+              )}>{item.name}</span>
               {item.badge && (
-                <span className="absolute right-3 px-2 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                <span className="absolute right-3 px-2 py-0.5 text-[9px] font-bold bg-emerald-500 text-white rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)] tracking-widest uppercase">
                   {item.badge}
                 </span>
               )}
               {isActive && (
-                <div className="absolute left-0 w-1 h-5 bg-emerald-500 rounded-r-full shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-emerald-500 rounded-r-full shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
               )}
             </Link>
           );
@@ -296,24 +299,27 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* User Info */}
-      <div className="p-4 relative">
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-md">
+      <div className="p-4 relative z-10">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/5 backdrop-blur-md shadow-xl group hover:border-emerald-500/30 transition-all duration-500">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-emerald-500/20">
-              <span className="text-emerald-400 font-bold text-lg">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-500 group-hover:scale-110">
+              <span className="text-white font-bold text-lg drop-shadow-md">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </span>
             </div>
-            <div className="min-w-0">
-              <p className="font-bold text-sm truncate text-white">{user?.username}</p>
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                {user?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
-              </p>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm truncate text-white group-hover:text-emerald-400 transition-colors">{user?.username}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                  {user?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
+                </p>
+              </div>
             </div>
           </div>
           <button
             onClick={() => logout()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 border border-slate-700/50"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 border border-transparent"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

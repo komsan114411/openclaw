@@ -39,11 +39,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              'input',
+              'input shadow-sm backdrop-blur-sm transition-all duration-300',
               leftIcon && 'pl-11',
               rightIcon && 'pr-11',
-              error && 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/10 bg-rose-50/10',
-              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/20 focus:ring-white/5',
+              error 
+                ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 bg-rose-50/10 text-rose-900 placeholder:text-rose-300' 
+                : 'hover:border-emerald-400/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10',
+              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
               className
             )}
             {...props}
@@ -88,9 +90,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           className={cn(
-            'input min-h-[120px] py-3 resize-none',
-            error && 'border-rose-500 focus:ring-rose-500/10 focus:border-rose-500',
-            props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5',
+            'input min-h-[120px] py-3 resize-none shadow-sm backdrop-blur-sm transition-all duration-300',
+            error 
+              ? 'border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 bg-rose-50/10 text-rose-900 placeholder:text-rose-300'
+              : 'hover:border-emerald-400/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10',
+            props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
             className
           )}
           {...props}

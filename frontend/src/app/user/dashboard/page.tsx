@@ -67,7 +67,7 @@ export default function UserDashboard() {
             </p>
           </div>
           <Link href="/user/packages" className="w-full md:w-auto">
-            <Button size="lg" variant="primary" className="w-full h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in">
+            <Button size="lg" variant="primary" className="w-full h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-1 animate-scale-in transition-all duration-300">
               <span className="mr-2 md:mr-3 text-lg md:text-xl">💎</span>
               <span className="hidden sm:inline">ซื้อแพ็คเกจ / เติมเงิน</span>
               <span className="sm:hidden">ซื้อแพ็คเกจ</span>

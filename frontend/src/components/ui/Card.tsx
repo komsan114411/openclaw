@@ -35,11 +35,11 @@ export function Card({
   };
 
   const variantClasses = {
-    white: 'bg-white border-slate-100 shadow-sm',
-    glass: 'glass border-white/20 shadow-xl',
-    'glass-dark': 'glass-dark border-white/10 shadow-2xl',
+    white: 'bg-white border-slate-100 shadow-sm hover:shadow-md',
+    glass: 'glass border-white/40 shadow-xl bg-white/70 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60',
+    'glass-dark': 'glass-dark border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-900/60',
     outline: 'bg-transparent border-2 border-slate-100 shadow-none',
-    ghost: 'bg-slate-50/50 border-transparent shadow-none hover:bg-slate-50 trasition-colors',
+    ghost: 'bg-slate-50/50 border-transparent shadow-none hover:bg-slate-50 transition-colors',
   };
 
   return (
