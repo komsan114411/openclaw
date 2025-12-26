@@ -242,7 +242,7 @@ export default function SystemResponsesPage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full lg:w-auto">
             <Button
               variant="ghost"
-              className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] text-slate-400 hover:text-slate-900"
+              className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] text-slate-400 hover:text-slate-900 bg-white/50 border border-slate-100 hover:bg-white"
               onClick={handleReset}
               disabled={saving || !selectedType}
             >

@@ -575,11 +575,11 @@ export default function AdminTemplatesPage() {
 
         {/* Templates List */}
         {templates.length === 0 ? (
-          <Card className="p-12 text-center">
-            <div className="text-5xl mb-4">🎨</div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">ยังไม่มีเทมเพลต</h3>
-            <p className="text-slate-500 mb-6">กดปุ่ม &quot;รีเซ็ต&quot; เพื่อสร้างเทมเพลตเริ่มต้น</p>
-            <Button onClick={handleInitDefaults}>สร้างเทมเพลตเริ่มต้น</Button>
+          <Card className="p-12 text-center rounded-[3.5rem] border-none shadow-premium-lg bg-white/60 backdrop-blur-xl">
+            <div className="text-5xl mb-4 grayscale opacity-30">🎨</div>
+            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tight">ยังไม่มีเทมเพลต</h3>
+            <p className="text-slate-500 mb-8 font-bold text-xs uppercase tracking-widest">กดปุ่ม &quot;Reset Protocols&quot; เพื่อสร้างเทมเพลตเริ่มต้น</p>
+            <Button onClick={handleInitDefaults} variant="primary" className="rounded-2xl font-black uppercase tracking-widest text-xs px-8 h-12 shadow-xl shadow-emerald-500/20">สร้างเทมเพลตเริ่มต้น</Button>
           </Card>
         ) : (
           <div className="space-y-12">
@@ -601,38 +601,40 @@ export default function AdminTemplatesPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {list.map((template) => (
-                      <Card key={template._id} className="p-8 hover:shadow-premium transition-all duration-500 rounded-[2.5rem] border-none bg-white/70 group">
-                        <div className="flex items-start justify-between mb-6">
+                      <Card key={template._id} className="p-8 hover:shadow-premium transition-all duration-500 rounded-[2.5rem] border-none bg-white/70 group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700" />
+                        
+                        <div className="flex items-start justify-between mb-6 relative z-10">
                           <div>
                             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">{template.name}</h3>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate max-w-[200px]">{template.description || 'ไม่มีคำอธิบายโครร่าง'}</p>
                           </div>
                           {template.isDefault && (
-                            <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg animate-fade">Primary Node</Badge>
+                            <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg animate-fade shadow-sm">Primary Node</Badge>
                           )}
                         </div>
 
-                        <div className="flex flex-wrap gap-2 mb-8">
-                          {template.showAmount && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Amount</span>}
-                          {template.showSender && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Sender</span>}
-                          {template.showReceiver && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Receiver</span>}
-                          {template.showBankLogo && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Brand UI</span>}
+                        <div className="flex flex-wrap gap-2 mb-8 relative z-10">
+                          {template.showAmount && <span className="text-[9px] px-3 py-1 bg-slate-50 text-slate-500 rounded-lg font-black uppercase tracking-widest border border-slate-100">Amount</span>}
+                          {template.showSender && <span className="text-[9px] px-3 py-1 bg-slate-50 text-slate-500 rounded-lg font-black uppercase tracking-widest border border-slate-100">Sender</span>}
+                          {template.showReceiver && <span className="text-[9px] px-3 py-1 bg-slate-50 text-slate-500 rounded-lg font-black uppercase tracking-widest border border-slate-100">Receiver</span>}
+                          {template.showBankLogo && <span className="text-[9px] px-3 py-1 bg-slate-50 text-slate-500 rounded-lg font-black uppercase tracking-widest border border-slate-100">Brand UI</span>}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 pt-6 border-t border-slate-50">
-                          <Button variant="ghost" className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px] group-hover:bg-slate-50 transition-all" onClick={() => openEditModal(template)}>
+                        <div className="grid grid-cols-2 gap-3 pt-6 border-t border-slate-100 relative z-10">
+                          <Button variant="ghost" className="h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-slate-50 hover:bg-white hover:shadow-md transition-all border border-slate-100" onClick={() => openEditModal(template)}>
                             Modify Node
                           </Button>
                           <div className="flex gap-2">
                             {!template.isDefault && (
-                              <Button variant="ghost" className="h-12 w-12 p-0 rounded-xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all" onClick={() => handleSetDefault(template._id)}>
+                              <Button variant="ghost" className="h-12 w-12 p-0 rounded-2xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-transparent hover:border-emerald-100" onClick={() => handleSetDefault(template._id)}>
                                 ⭐
                               </Button>
                             )}
                             {!template.isDefault && (
                               <Button
                                 variant="ghost"
-                                className="h-12 w-12 p-0 rounded-xl flex items-center justify-center text-rose-300 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                                className="h-12 w-12 p-0 rounded-2xl flex items-center justify-center text-rose-300 hover:text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
                                 onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
                               >
                                 🗑️

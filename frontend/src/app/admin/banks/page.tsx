@@ -179,11 +179,11 @@ export default function BanksManagementPage() {
               Identity Management & Protocol Registry
             </p>
           </div>
-          <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
-              className="bg-white/60 backdrop-blur-xl border-slate-100 shadow-premium-sm text-[10px] font-black uppercase tracking-widest h-14 px-8 hover:bg-emerald-50 hover:text-emerald-600 transition-all flex-1 md:flex-none"
+              className="bg-white/60 backdrop-blur-xl border-slate-100 shadow-premium-sm text-[10px] font-black uppercase tracking-widest h-14 px-8 hover:bg-emerald-50 hover:text-emerald-600 transition-all w-full sm:w-auto"
               onClick={handleSyncFromThunder}
               isLoading={isSyncing}
               leftIcon={
@@ -200,7 +200,7 @@ export default function BanksManagementPage() {
               size="lg"
               variant="primary"
               onClick={() => setShowCreateModal(true)}
-              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl flex-1 md:flex-none"
+              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl w-full sm:w-auto"
             >
               + Deployment
             </Button>

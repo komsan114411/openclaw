@@ -190,7 +190,7 @@ export default function AdminPackagesPage() {
             size="lg"
             variant="primary"
             onClick={() => { resetForm(); setShowModal(true); }}
-            className="h-16 px-10 rounded-[2rem] font-black uppercase tracking-widest text-[12px] shadow-emerald-500/20 shadow-2xl flex-1 md:flex-none"
+            className="h-16 px-10 rounded-[2rem] font-black uppercase tracking-widest text-[12px] shadow-emerald-500/20 shadow-2xl w-full md:w-auto"
             leftIcon={
               <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mr-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

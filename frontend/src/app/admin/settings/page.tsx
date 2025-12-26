@@ -239,7 +239,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab Switcher - Mobile Scroll */}
-        <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto no-scrollbar">
+        <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto no-scrollbar pb-2">
           <div className="flex p-1 md:p-1.5 bg-slate-100/50 backdrop-blur-md rounded-2xl md:rounded-[2rem] w-max md:w-fit border border-slate-200/50">
             {tabs.map((tab) => (
               <button

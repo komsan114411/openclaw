@@ -271,29 +271,31 @@ export default function UserLineAccountsPage() {
         </div>
 
         {/* Content */}
-        <div className="grid gap-4 md:gap-6">
+        <div className="grid gap-6 md:gap-8">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="h-64 md:h-80 animate-pulse bg-white/50"><div /></Card>
+                <Card key={i} className="h-72 md:h-96 animate-pulse bg-white/50 rounded-[2.5rem]"><div /></Card>
               ))}
             </div>
           ) : accounts.length === 0 ? (
             <EmptyState
-              icon={<MessageSquare className="w-12 h-12" />}
+              icon={<div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center text-4xl shadow-inner">💬</div>}
               title="ยังไม่มีบัญชี LINE OA"
-              description="เริ่มต้นใช้งานโดยการเพิ่มบัญชี LINE OA ของคุณเพื่อใช้งานฟีเจอร์ต่างๆ"
+              description="เริ่มต้นใช้งานโดยการเชื่อมต่อบัญชี LINE OA ของคุณเพื่อเปิดใช้งานระบบตอบกลับอัตโนมัติ"
               action={
                 <Button
                   onClick={() => setShowModal(true)}
                   variant="primary"
+                  size="lg"
+                  className="h-14 px-8 rounded-2xl shadow-emerald-500/20 shadow-xl"
                 >
-                  เพิ่มบัญชีแรกของคุณ
+                  เชื่อมต่อบัญชีแรก
                 </Button>
               }
             />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 md:gap-8">
               {accounts.map((account, index) => (
                 <motion.div
                   key={account._id}
@@ -301,92 +303,97 @@ export default function UserLineAccountsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card variant="glass" className="h-full flex flex-col group hover:border-emerald-500/30 transition-all duration-300">
+                  <Card variant="glass" className="h-full flex flex-col group hover:border-emerald-500/30 transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 rounded-[2.5rem] overflow-hidden relative">
+                    {/* Background Decor */}
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700" />
+
                     {/* Card Header */}
-                    <div className="flex items-start justify-between mb-4 md:mb-6">
-                      <div className="flex items-center gap-3 md:gap-4">
-                        <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-[2px] shadow-lg shadow-emerald-500/20 flex-shrink-0">
-                          <div className="w-full h-full bg-white rounded-[10px] md:rounded-[14px] flex items-center justify-center relative overflow-hidden">
-                            <i className="fab fa-line text-xl md:text-3xl text-[#00B900]" />
-                            <Smartphone className="w-5 h-5 md:w-7 md:h-7 text-emerald-600 relative z-10" />
-                            <div className="absolute inset-0 bg-emerald-50/50" />
+                    <div className="flex items-start justify-between mb-6 md:mb-8 relative z-10">
+                      <div className="flex items-center gap-4 md:gap-5">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-[1.2rem] md:rounded-[1.5rem] bg-gradient-to-br from-[#06C755] to-[#00B900] p-0.5 shadow-lg shadow-emerald-500/20 flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
+                          <div className="w-full h-full bg-white rounded-[1rem] md:rounded-[1.3rem] flex items-center justify-center relative overflow-hidden">
+                            <i className="fab fa-line text-3xl md:text-4xl text-[#06C755]" />
+                            <div className="absolute inset-0 bg-emerald-50/20" />
                           </div>
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-bold text-base md:text-lg text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                          <h3 className="font-black text-lg md:text-xl text-slate-900 group-hover:text-emerald-700 transition-colors truncate tracking-tight">
                             {account.accountName}
                           </h3>
-                          <div className="flex items-center gap-2 text-[9px] md:text-xs font-mono text-slate-500 mt-1 bg-slate-100/50 px-2 py-0.5 rounded-lg w-fit">
-                            <span className="truncate max-w-[100px] md:max-w-none">ID: {account.channelId}</span>
-                            <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full flex-shrink-0 ${account.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${account.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                              {account.isActive ? 'ONLINE' : 'OFFLINE'}
+                            </div>
+                            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50/50 px-2 py-1 rounded-lg border border-slate-100/50 truncate max-w-[100px] md:max-w-none">
+                              {account.channelId}
+                            </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-1 md:gap-2">
+                      <div className="flex gap-1">
                         <IconButton
                           onClick={() => handleEdit(account)}
-                          size="sm"
-                          className="text-slate-400 hover:text-blue-500 hover:bg-blue-50"
+                          size="md"
+                          className="rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                         >
-                          <Edit className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <Edit className="w-4 h-4 md:w-5 md:h-5" />
                         </IconButton>
                         <IconButton
                           onClick={() => confirmDelete(account._id)}
-                          size="sm"
-                          className="text-slate-400 hover:text-rose-500 hover:bg-rose-50"
+                          size="md"
+                          className="rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                         >
-                          <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                         </IconButton>
                       </div>
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-2 md:gap-3 mb-4 md:mb-6">
-                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-emerald-50/50 border border-emerald-100 flex flex-col items-center justify-center text-center">
-                        <span className="text-lg md:text-2xl font-bold text-emerald-700">{account.statistics?.totalMessages || 0}</span>
-                        <span className="text-[8px] md:text-[10px] text-emerald-600/70 font-bold uppercase tracking-wide mt-0.5 md:mt-1">ข้อความ</span>
+                    <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8 relative z-10">
+                      <div className="p-3 md:p-4 rounded-2xl bg-slate-50/50 border border-slate-100 flex flex-col items-center justify-center text-center group-hover:bg-white/80 transition-colors">
+                        <span className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
+                        <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Messages</span>
                       </div>
-                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col items-center justify-center text-center">
-                        <span className="text-lg md:text-2xl font-bold text-blue-700">{account.statistics?.totalSlipsVerified || 0}</span>
-                        <span className="text-[8px] md:text-[10px] text-blue-600/70 font-bold uppercase tracking-wide mt-0.5 md:mt-1">สลิป</span>
+                      <div className="p-3 md:p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/50 flex flex-col items-center justify-center text-center group-hover:bg-emerald-50/60 transition-colors">
+                        <span className="text-xl md:text-2xl font-black text-emerald-600 tracking-tight">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
+                        <span className="text-[9px] md:text-[10px] text-emerald-600/60 font-black uppercase tracking-widest mt-1">Verified</span>
                       </div>
-                      <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-amber-50/50 border border-amber-100 flex flex-col items-center justify-center text-center">
-                        <span className="text-lg md:text-2xl font-bold text-amber-700">{account.statistics?.totalAiResponses || 0}</span>
-                        <span className="text-[8px] md:text-[10px] text-amber-600/70 font-bold uppercase tracking-wide mt-0.5 md:mt-1">AI ตอบ</span>
+                      <div className="p-3 md:p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 flex flex-col items-center justify-center text-center group-hover:bg-indigo-50/60 transition-colors">
+                        <span className="text-xl md:text-2xl font-black text-indigo-600 tracking-tight">{(account.statistics?.totalAiResponses || 0).toLocaleString()}</span>
+                        <span className="text-[9px] md:text-[10px] text-indigo-600/60 font-black uppercase tracking-widest mt-1">AI Reply</span>
                       </div>
                     </div>
 
                     {/* Webhook Section */}
-                    <div className="mb-6 p-4 rounded-xl bg-slate-50/80 border border-slate-100 backdrop-blur-sm group-hover:bg-white/50 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                          <Activity className="w-3 h-3" /> Webhook URL
-                        </span>
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => copyWebhookUrl(account)}
-                          className="h-6 text-[10px]"
-                          leftIcon={<Copy className="w-3 h-3" />}
-                        >
-                          คัดลอก
-                        </Button>
-                      </div>
-                      <div className="font-mono text-[10px] text-slate-500 break-all bg-white px-3 py-2 rounded-lg border border-slate-200/50 shadow-sm">
-                        {getWebhookUrl(account)}
+                    <div className="mb-8 p-1 relative z-10">
+                      <div className="bg-slate-900/5 rounded-2xl p-4 border border-slate-200/50 backdrop-blur-sm group-hover:bg-slate-900/80 group-hover:border-slate-900 transition-all duration-500 group/webhook">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 group-hover/webhook:text-white/60 transition-colors">
+                            <Activity className="w-3 h-3" /> Webhook Endpoint
+                          </span>
+                          <button
+                            onClick={() => copyWebhookUrl(account)}
+                            className="text-[10px] font-black text-emerald-600 hover:text-emerald-500 uppercase tracking-widest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg transition-colors group-hover/webhook:bg-white/10 group-hover/webhook:text-white"
+                          >
+                            Copy Link
+                          </button>
+                        </div>
+                        <div className="font-mono text-[10px] text-slate-600 break-all bg-white px-4 py-3 rounded-xl border border-white shadow-sm group-hover/webhook:bg-black/20 group-hover/webhook:text-white/90 group-hover/webhook:border-white/10 transition-colors">
+                          {getWebhookUrl(account)}
+                        </div>
                       </div>
                     </div>
 
                     {/* Quick Toggles */}
-                    <div className="space-y-3 mb-6 bg-white/40 p-4 rounded-2xl border border-white/50">
-                      <div className="flex items-center justify-between">
+                    <div className="space-y-3 mb-8 relative z-10">
+                      <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50/50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-lg ${account.settings?.enableBot ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Bot className="w-4 h-4" />
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${account.settings?.enableBot ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Bot className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700">บอทตอบกลับ</p>
-                            <p className="text-[10px] text-slate-400">ตอบข้อความอัตโนมัติ</p>
+                            <p className="text-sm font-bold text-slate-700">Auto-Reply</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Basic Automation</p>
                           </div>
                         </div>
                         <Switch
@@ -395,14 +402,14 @@ export default function UserLineAccountsPage() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50/50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-lg ${account.settings?.enableAi ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <MessageSquare className="w-4 h-4" />
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${account.settings?.enableAi ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <MessageSquare className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700">AI Genius</p>
-                            <p className="text-[10px] text-slate-400">ใช้ AI ตอบคำถามลูกค้า</p>
+                            <p className="text-sm font-bold text-slate-700">AI Neural</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Smart Response</p>
                           </div>
                         </div>
                         <Switch
@@ -411,14 +418,14 @@ export default function UserLineAccountsPage() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50/50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-lg ${account.settings?.enableSlipVerification ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <FileCheck className="w-4 h-4" />
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${account.settings?.enableSlipVerification ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <FileCheck className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700">ตรวจสลิป</p>
-                            <p className="text-[10px] text-slate-400">ยืนยันยอดเงินอัตโนมัติ</p>
+                            <p className="text-sm font-bold text-slate-700">Slip Verify</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Payment Audit</p>
                           </div>
                         </div>
                         <Switch
@@ -429,24 +436,22 @@ export default function UserLineAccountsPage() {
                     </div>
 
                     {/* Actions Footer */}
-                    <div className="mt-auto grid grid-cols-2 gap-2">
+                    <div className="mt-auto grid grid-cols-2 gap-3 relative z-10">
                       <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-full justify-center"
+                        variant="ghost"
+                        className="h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
                         onClick={() => window.open(`/user/chat?accountId=${account._id}`, '_self')}
                         leftIcon={<MessageSquare className="w-4 h-4" />}
                       >
-                        แชท
+                        Live Chat
                       </Button>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="w-full justify-center"
+                        className="h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 hover:border-slate-300 transition-all"
                         onClick={() => openSettingsModal(account)}
                         leftIcon={<Settings className="w-4 h-4" />}
                       >
-                        ตั้งค่า
+                        Settings
                       </Button>
                     </div>
                   </Card>

@@ -361,7 +361,7 @@ function TemplatesContent() {
               {/* Type Header */}
               <div className="flex items-center gap-4">
                 <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm",
+                  "w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-premium-sm",
                   typeOption.bgColor
                 )}>
                   {typeOption.icon}
@@ -386,66 +386,66 @@ function TemplatesContent() {
                     <Card
                       key={template._id}
                       className={cn(
-                        "p-0 overflow-hidden transition-all duration-300 hover:shadow-lg",
+                        "p-0 overflow-hidden transition-all duration-300 hover:shadow-lg rounded-[2.5rem]",
                         isSelected
-                          ? "ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/10"
+                          ? "ring-4 ring-emerald-500/30 shadow-lg shadow-emerald-500/10"
                           : "hover:border-slate-300",
-                        template.isGlobal && "border-purple-200"
+                        template.isGlobal && "border-purple-200/50"
                       )}
                     >
                       {/* Color Bar */}
                       <div
-                        className="h-1.5"
+                        className="h-2 w-full"
                         style={{ backgroundColor: template.primaryColor || '#10b981' }}
                       />
 
                       {/* Preview */}
-                      <div className="p-4 bg-gradient-to-b from-slate-50/50 to-white">
-                        <div className="transform scale-[0.85] origin-top">
+                      <div className="p-6 bg-gradient-to-b from-slate-50/50 to-white flex justify-center">
+                        <div className="transform scale-[0.9] origin-top hover:scale-100 transition-transform duration-500">
                           <MiniSlipPreview template={template} />
                         </div>
                       </div>
 
                       {/* Info */}
-                      <div className="p-4 border-t border-slate-100 space-y-3">
+                      <div className="p-5 border-t border-slate-100 space-y-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1.5">
                               {template.isGlobal && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                                <span className="text-[9px] font-black px-2 py-0.5 bg-purple-100 text-purple-700 rounded-lg uppercase tracking-wider">
                                   🌐 ส่วนกลาง
                                 </span>
                               )}
                             </div>
-                            <h3 className="font-bold text-slate-900 text-sm truncate">{template.name}</h3>
+                            <h3 className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">{template.name}</h3>
                             {template.description && (
-                              <p className="text-xs text-slate-400 truncate mt-0.5">{template.description}</p>
+                              <p className="text-[10px] text-slate-400 truncate mt-0.5 font-bold">{template.description}</p>
                             )}
                           </div>
                           {isSelected && (
-                            <Badge variant="success" size="sm" className="flex-shrink-0">
+                            <Badge variant="success" size="sm" className="flex-shrink-0 animate-pulse">
                               ✓ ใช้งาน
                             </Badge>
                           )}
                         </div>
 
                         {/* Features */}
-                        <div className="flex flex-wrap gap-1">
-                          {template.showAmount && <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded">💰</span>}
-                          {template.showSender && <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">👤</span>}
-                          {template.showReceiver && <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">🏦</span>}
-                          {template.showDate && <span className="text-[9px] px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded">📅</span>}
-                          {template.showTime && <span className="text-[9px] px-1.5 py-0.5 bg-pink-50 text-pink-600 rounded">🕐</span>}
-                          {template.showTransRef && <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">🔢</span>}
-                          {template.showBankLogo && <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded">🖼️</span>}
+                        <div className="flex flex-wrap gap-1.5">
+                          {template.showAmount && <span className="text-[8px] px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg font-black uppercase tracking-wider border border-emerald-100">Amount</span>}
+                          {template.showSender && <span className="text-[8px] px-2 py-1 bg-blue-50 text-blue-600 rounded-lg font-black uppercase tracking-wider border border-blue-100">Sender</span>}
+                          {template.showReceiver && <span className="text-[8px] px-2 py-1 bg-purple-50 text-purple-600 rounded-lg font-black uppercase tracking-wider border border-purple-100">Receiver</span>}
+                          {template.showDate && <span className="text-[8px] px-2 py-1 bg-orange-50 text-orange-600 rounded-lg font-black uppercase tracking-wider border border-orange-100">Date</span>}
+                          {template.showTime && <span className="text-[8px] px-2 py-1 bg-pink-50 text-pink-600 rounded-lg font-black uppercase tracking-wider border border-pink-100">Time</span>}
+                          {template.showTransRef && <span className="text-[8px] px-2 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-wider border border-slate-200">Ref</span>}
+                          {template.showBankLogo && <span className="text-[8px] px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-black uppercase tracking-wider border border-indigo-100">Logo</span>}
                         </div>
 
                         {/* Action */}
                         <div className="pt-2">
                           {isSelected ? (
-                            <div className="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
                               <span className="text-sm">✓</span>
-                              <span className="text-xs font-bold">กำลังใช้งาน Template นี้</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest">Active Template</span>
                             </div>
                           ) : (
                             <Button
@@ -454,7 +454,7 @@ function TemplatesContent() {
                               fullWidth
                               onClick={() => handleSetDefault(template)}
                               isLoading={updatingType === template.type}
-                              className="shadow-sm"
+                              className="shadow-sm rounded-xl font-black uppercase tracking-widest text-[10px] h-10"
                             >
                               🎯 เลือกใช้ Template นี้
                             </Button>

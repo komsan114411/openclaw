@@ -187,38 +187,39 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 md:space-y-8 lg:space-y-12 animate-fade max-w-[1600px] mx-auto pb-6 md:pb-12">
+      <div className="space-y-6 md:space-y-12 animate-fade max-w-[1700px] mx-auto pb-20">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 md:gap-3">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-none">จัดการผู้ใช้</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[9px] md:text-[10px] uppercase tracking-widest">ผู้ดูแล</Badge>
-            </div>
-            <p className="text-slate-500 font-medium text-sm md:text-base lg:text-lg">จัดการผู้ใช้, สิทธิ์การเข้าถึง และการจัดการบัญชี</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+          <div className="space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+              จัดการ<span className="text-emerald-500">ผู้ใช้งาน</span>
+            </h1>
+            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
+              ศูนย์ควบคุมสิทธิ์การเข้าถึงและ <span className="text-slate-900">บัญชีผู้ใช้ระบบ</span>
+            </p>
           </div>
           <Button
             variant="primary"
-            className="w-full md:w-auto rounded-xl md:rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl text-[10px] md:text-xs h-11 md:h-12 px-4 md:px-6"
+            className="w-full md:w-auto h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
             onClick={() => setShowCreateModal(true)}
           >
-            + <span className="hidden sm:inline">สร้างผู้ใช้</span><span className="sm:hidden">สร้างใหม่</span>
+            + <span className="hidden sm:inline">สร้างบัญชีผู้ใช้ใหม่</span><span className="sm:hidden">สร้างใหม่</span>
           </Button>
         </div>
 
         {/* Aggregated Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
-          <StatCard title="ผู้ใช้ทั้งหมด" value={users.length} icon="👥" color="indigo" variant="glass" />
-          <StatCard title="ผู้ดูแลระบบ" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
-          <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
-          <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-8">
+          <StatCard title="ผู้ใช้ทั้งหมด" value={users.length} icon="👥" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ผู้ดูแลระบบ" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
         </div>
 
         {/* User Registry Table & Mobile Cards */}
         <div className="space-y-6">
           {/* Desktop Table */}
-          <Card className="hidden lg:block overflow-hidden p-0 bg-white/60 backdrop-blur-2xl border-none shadow-premium-lg rounded-[3.5rem]">
+          <Card className="hidden lg:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -346,35 +347,35 @@ export default function UsersPage() {
           {/* Mobile Card Layout (Visible on lg and below) */}
           <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
             {isLoading ? (
-              [1, 2, 3, 4].map(i => <Card key={i} className="h-48 animate-pulse bg-white/50"><div /></Card>)
+              [1, 2, 3, 4].map(i => <Card key={i} className="h-64 animate-pulse bg-white/50 rounded-[2.5rem]"><div /></Card>)
             ) : users.length === 0 ? (
               <div className="col-span-full py-20 text-center opacity-30">
                 <p className="font-black uppercase tracking-widest text-sm">ไม่พบข้อมูลผู้ใช้</p>
               </div>
             ) : (
               users.map((user) => (
-                <Card key={user._id} variant="glass" className="p-6 relative overflow-hidden group">
+                <Card key={user._id} variant="glass" className="p-8 relative overflow-hidden group rounded-[3rem] border-none shadow-premium-sm">
                   <div className="flex items-center gap-4 mb-5">
                     <div className={cn(
-                      "w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner",
+                      "w-16 h-16 rounded-[1.5rem] flex items-center justify-center font-black text-xl shadow-inner",
                       user.role === 'admin' ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600"
                     )}>
                       {user.username[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-slate-900 truncate uppercase tracking-tight">{user.username}</h3>
+                      <h3 className="font-black text-slate-900 truncate uppercase tracking-tight text-lg">{user.username}</h3>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{user.fullName || 'No Name'}</p>
                     </div>
                     <Badge
                       variant={user.role === 'admin' ? 'indigo' : 'emerald'}
-                      className="font-black uppercase tracking-widest text-[9px] px-2 py-0.5"
+                      className="font-black uppercase tracking-widest text-[9px] px-3 py-1"
                     >
                       {user.role}
                     </Badge>
                   </div>
 
-                  <div className="space-y-4 mb-6">
-                    <div className="flex justify-between items-center bg-slate-50/50 p-3 rounded-xl border border-white/50">
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-white/50">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">สถานะ</span>
                       <div className="flex items-center gap-2">
                         <div className={cn("w-2 h-2 rounded-full", user.isActive ? "bg-emerald-500" : "bg-slate-300")} />
@@ -383,14 +384,14 @@ export default function UsersPage() {
                         </span>
                       </div>
                     </div>
-                    <p className="text-xs font-mono text-slate-400 truncate px-1">{user.email || '—'}</p>
+                    <p className="text-xs font-mono text-slate-400 truncate px-2">{user.email || '—'}</p>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2 pt-4 border-t border-slate-100">
-                    <IconButton variant="glass" size="sm" onClick={() => handleBlockToggle(user)} className={user.isBlocked ? "text-emerald-500" : "text-amber-500"}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
-                    <IconButton variant="glass" size="sm" onClick={() => openGrantModal(user)} className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
-                    <IconButton variant="glass" size="sm" onClick={() => openEditModal(user)} className="text-blue-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
-                    <IconButton variant="glass" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="text-rose-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
+                  <div className="grid grid-cols-4 gap-3 bg-slate-50/30 p-2 rounded-[2rem] border border-white/50">
+                    <IconButton variant="glass" size="sm" onClick={() => handleBlockToggle(user)} className={cn("flex-1 h-12 rounded-2xl", user.isBlocked ? "text-emerald-500" : "text-amber-500")}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
+                    <IconButton variant="glass" size="sm" onClick={() => openGrantModal(user)} className="flex-1 h-12 rounded-2xl text-indigo-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
+                    <IconButton variant="glass" size="sm" onClick={() => openEditModal(user)} className="flex-1 h-12 rounded-2xl text-blue-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
+                    <IconButton variant="glass" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="flex-1 h-12 rounded-2xl text-rose-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
                   </div>
                 </Card>
               ))

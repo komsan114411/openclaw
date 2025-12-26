@@ -359,109 +359,105 @@ export default function UserPackagesPage() {
           </Card>
         )}
 
-        {/* Packages Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {packages.length === 0 ? (
-            <div className="col-span-full">
-              <EmptyState
-                icon={
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                }
-                title="ยังไม่มีแพ็คเกจ"
-                description="กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มแพ็คเกจ"
-              />
-            </div>
-          ) : (
-            packages.map((pkg, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 pt-4">
+            {packages.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((pkg, index) => (
               <Card
                 key={pkg._id}
                 hover
-                className={`relative transition-all duration-300 ${index === 1 ? 'ring-2 ring-green-500 ring-offset-2 scale-[1.02]' : ''
-                  }`}
+                className={`relative transition-all duration-500 rounded-[3rem] border-none shadow-premium-lg flex flex-col h-full overflow-hidden group ${
+                  index === 1 ? 'ring-4 ring-emerald-500/20 scale-[1.02] z-10' : 'bg-white/80'
+                }`}
+                padding="none"
               >
                 {/* Popular Badge */}
                 {index === 1 && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                    <span className="px-4 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-lg shadow-green-500/30">
-                      ⭐ ยอดนิยม
+                  <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500" />
+                )}
+                {index === 1 && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20">
+                    <span className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-emerald-500/30 ring-4 ring-white">
+                      ⭐ Most Popular
                     </span>
                   </div>
                 )}
 
-                <div className="mb-4 mt-2">
-                  <h3 className="font-bold text-xl text-gray-900">{pkg.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                    {pkg.description || 'แพ็คเกจตรวจสอบสลิป'}
-                  </p>
-                </div>
-
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-gradient">฿{pkg.price.toLocaleString()}</span>
-                    <span className="text-gray-500 text-sm">/{pkg.durationDays} วัน</span>
-                  </div>
-                  {pkg.priceUsdt && pkg.priceUsdt > 0 && (
-                    <p className="text-sm text-gray-500 mt-1">หรือ ${pkg.priceUsdt} USDT</p>
-                  )}
-                  <div className="mt-2">
-                    <Badge variant="info" size="sm">
-                      ≈ ฿{(pkg.price / pkg.slipQuota).toFixed(2)}/สลิป
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-bold text-green-700">{pkg.slipQuota.toLocaleString()} สลิป</p>
-                      <p className="text-xs text-green-600">โควต้าตรวจสอบ</p>
-                    </div>
+                <div className="p-10 flex flex-col h-full relative">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none group-hover:bg-emerald-500/10 transition-colors duration-700" />
+                  
+                  <div className="mb-8 mt-4 relative z-10">
+                    <h3 className="font-black text-3xl text-slate-900 uppercase tracking-tight">{pkg.name}</h3>
+                    <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-8 h-[2px] bg-slate-200" />
+                      {pkg.description || 'Verified Protocol'}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                  <div className="mb-10 relative z-10">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-6xl font-black text-slate-900 tracking-tighter">฿{pkg.price.toLocaleString()}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">/ {pkg.durationDays} Days</span>
                     </div>
-                    <div>
-                      <p className="font-bold text-gray-700">{pkg.durationDays} วัน</p>
-                      <p className="text-xs text-gray-500">ระยะเวลาใช้งาน</p>
+                    {pkg.priceUsdt && pkg.priceUsdt > 0 && (
+                      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
+                          ${pkg.priceUsdt} USDT Accepted
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4 mb-10 flex-1 relative z-10">
+                    <div className="flex items-center gap-4 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 group-hover:bg-emerald-50 transition-colors">
+                      <div className="p-3 bg-white rounded-xl shadow-sm">
+                        <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-emerald-700 leading-none">{pkg.slipQuota.toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest mt-1">Verification Credits</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pl-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">Real-time Slip Verification</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">All Thai Banks Supported</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">Instant LINE Notification</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Features */}
-                <div className="space-y-2 mb-6">
-                  {['ตรวจสอบสลิปอัตโนมัติ', 'รองรับทุกธนาคาร', 'แจ้งเตือนผ่าน LINE', 'รายงานสรุป'].map((feature) => (
-                    <div key={feature} className="flex items-center gap-2 text-sm text-gray-600">
-                      <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      {feature}
-                    </div>
-                  ))}
+                  <Button
+                    variant={index === 1 ? 'primary' : 'outline'}
+                    fullWidth
+                    onClick={() => handleSelectPackage(pkg)}
+                    disabled={isProcessing}
+                    className={cn(
+                      "h-16 rounded-2xl font-black uppercase tracking-widest text-xs relative z-10",
+                      index === 1 ? "shadow-emerald-500/20 shadow-2xl hover:translate-y-[-2px]" : "border-2 hover:bg-slate-50"
+                    )}
+                  >
+                    Select Protocol
+                  </Button>
                 </div>
-
-                <Button
-                  variant={index === 1 ? 'primary' : 'secondary'}
-                  fullWidth
-                  onClick={() => handleSelectPackage(pkg)}
-                  disabled={isProcessing}
-                >
-                  เลือกแพ็คเกจนี้
-                </Button>
               </Card>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
       </div>
 
       {/* Payment Modal */}

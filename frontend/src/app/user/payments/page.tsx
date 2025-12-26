@@ -202,6 +202,7 @@ export default function UserPaymentsPage() {
             icon="💸"
             title="ยังไม่มีประวัติการชำระเงิน"
             description="เมื่อคุณทำรายการซื้อแพ็คเกจ รายการจะปรากฏที่นี่"
+            variant="glass"
             action={
               <Button variant="primary" onClick={() => window.location.assign('/user/packages')}>
                 ไปหน้าแพ็คเกจ
@@ -215,28 +216,28 @@ export default function UserPaymentsPage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse">
                   <thead>
-                    <tr className="bg-white/40 border-b border-white/40">
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">วันที่</th>
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">ประเภท</th>
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">จำนวนเงิน</th>
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">สถานะ</th>
-                      <th className="px-8 py-5 text-right text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">จัดการ</th>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">วันที่</th>
+                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">ประเภท</th>
+                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">จำนวนเงิน</th>
+                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">สถานะ</th>
+                      <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">จัดการ</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/40">
+                  <tbody className="divide-y divide-slate-100">
                     {payments.map((payment) => {
                       const type = paymentTypeLabel(payment.paymentType);
                       return (
-                        <tr key={payment._id} className="hover:bg-white/50 transition-colors">
-                          <td className="px-8 py-5 text-sm text-slate-600 font-medium">
+                        <tr key={payment._id} className="hover:bg-white/60 transition-colors group">
+                          <td className="px-8 py-5 text-sm text-slate-600 font-bold font-mono">
                             {new Date(payment.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </td>
                           <td className="px-8 py-5">
-                            <Badge variant={type.badge} size="sm">
+                            <Badge variant={type.badge} size="sm" className="font-bold">
                               {type.label}
                             </Badge>
                           </td>
-                          <td className="px-8 py-5 font-black text-slate-900">
+                          <td className="px-8 py-5 font-black text-slate-900 text-lg">
                             {payment.paymentType === 'usdt'
                               ? `$${payment.amount}`
                               : `฿${payment.amount.toLocaleString()}`}
@@ -244,7 +245,7 @@ export default function UserPaymentsPage() {
                           <td className="px-8 py-5">
                             <div className="flex items-center gap-3">
                               <StatusBadge status={statusToBadge(payment.status)} />
-                              <span className="text-xs text-slate-400 font-bold">{statusLabelTh(payment.status)}</span>
+                              <span className="text-xs text-slate-500 font-bold uppercase tracking-wide">{statusLabelTh(payment.status)}</span>
                             </div>
                           </td>
                           <td className="px-8 py-5 text-right">
@@ -258,11 +259,12 @@ export default function UserPaymentsPage() {
                                   setSlipPreview(null);
                                   setShowUploadModal(true);
                                 }}
+                                className="shadow-emerald-500/20 shadow-lg"
                               >
                                 อัปโหลดสลิป
                               </Button>
                             ) : (
-                              <span className="text-xs text-slate-400 font-bold">—</span>
+                              <span className="text-xs text-slate-300 font-black tracking-widest">—</span>
                             )}
                           </td>
                         </tr>
@@ -281,23 +283,23 @@ export default function UserPaymentsPage() {
                   <Card key={payment._id} variant="glass" className="border-none">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-900">
+                        <p className="text-lg font-black text-slate-900">
                           {payment.paymentType === 'usdt'
                             ? `$${payment.amount}`
                             : `฿${payment.amount.toLocaleString()}`}
                         </p>
-                        <p className="text-xs text-slate-500 font-medium mt-1">
+                        <p className="text-xs text-slate-500 font-bold mt-1 font-mono">
                           {new Date(payment.createdAt).toLocaleDateString('th-TH')}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge variant={type.badge} size="xs">{type.label}</Badge>
+                        <Badge variant={type.badge} size="xs" className="font-bold">{type.label}</Badge>
                         <StatusBadge status={statusToBadge(payment.status)} />
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-white/40 flex items-center justify-between">
-                      <span className="text-xs text-slate-400 font-bold">{statusLabelTh(payment.status)}</span>
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 font-bold">{statusLabelTh(payment.status)}</span>
                       {payment.status === 'pending' && payment.paymentType === 'bank_transfer' ? (
                         <Button
                           variant="primary"
@@ -308,11 +310,12 @@ export default function UserPaymentsPage() {
                             setSlipPreview(null);
                             setShowUploadModal(true);
                           }}
+                          className="shadow-md"
                         >
                           อัปโหลดสลิป
                         </Button>
                       ) : (
-                        <span className="text-xs text-slate-400 font-bold">—</span>
+                        <span className="text-xs text-slate-300 font-black">—</span>
                       )}
                     </div>
                   </Card>
