@@ -211,129 +211,188 @@ export default function UsersPage() {
           <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
         </div>
 
-        {/* User Registry Table */}
-        <Card className="overflow-hidden p-0 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ชื่อผู้ใช้</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">อีเมล</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">บทบาท</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">สถานะ</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="px-8 py-24">
-                      <PageLoading transparent message="กำลังโหลดข้อมูล..." />
-                    </td>
+        {/* User Registry Table & Mobile Cards */}
+        <div className="space-y-6">
+          {/* Desktop Table */}
+          <Card className="hidden lg:block overflow-hidden p-0 bg-white/60 backdrop-blur-2xl border-none shadow-premium-lg rounded-[3.5rem]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ชื่อผู้ใช้ / โปรไฟล์</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">การติดต่อ</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">บทบาท</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">สถานะระบบ</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">การจัดการ</th>
                   </tr>
-                ) : users.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-8 py-24 text-center">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl opacity-50">👤</div>
-                        <p className="text-slate-400 font-black uppercase tracking-widest text-sm">ไม่มีข้อมูลผู้ใช้</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <motion.tr
-                      key={user._id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="group hover:bg-slate-50/80 transition-all duration-300"
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="px-10 py-32">
+                        <PageLoading transparent message="กำลังเชื่อมต่อฐานข้อมูล..." />
+                      </td>
+                    </tr>
+                  ) : users.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-10 py-32 text-center">
+                        <div className="flex flex-col items-center gap-6 opacity-30">
+                          <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl">👤</div>
+                          <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm">ไม่พบข้อมูลผู้ใช้</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((user) => (
+                      <motion.tr
+                        key={user._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="group hover:bg-white transition-all duration-300"
+                      >
+                        <td className="px-10 py-8">
+                          <div className="flex items-center gap-6">
+                            <div className={cn(
+                              "w-16 h-16 rounded-[2rem] flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform duration-500",
+                              user.role === 'admin' ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600"
+                            )}>
+                              {user.username[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-black text-slate-900 leading-none mb-1.5 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg">{user.username}</p>
+                              <p className="text-xs text-slate-400 font-bold tracking-widest uppercase opacity-70">{user.fullName || 'Unidentified Personnel'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-8">
+                          <p className="font-mono text-xs font-black text-slate-500 lowercase opacity-60 mb-1">{user.email || 'no-email@system.com'}</p>
+                          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">การเชื่อมต่อ: เสถียร</p>
+                        </td>
+                        <td className="px-10 py-8">
+                          <Badge
+                            variant={user.role === 'admin' ? 'indigo' : 'emerald'}
+                            className="font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl text-[10px]"
+                          >
+                            {user.role}
+                          </Badge>
+                        </td>
+                        <td className="px-10 py-8">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className={cn("w-3 h-3 rounded-full shadow-lg", user.isActive ? "bg-emerald-500 shadow-emerald-500/50 animate-pulse" : "bg-slate-300")} />
+                              <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", user.isActive ? "text-emerald-600" : "text-slate-400")}>
+                                {user.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                              </span>
+                            </div>
+                            {user.isBlocked && (
+                              <div className="flex items-center gap-1.5 text-rose-500">
+                                <span className="text-[9px] font-black uppercase tracking-widest bg-rose-50 px-2 py-0.5 rounded-md">ถูกระงับชั่วคราว</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-10 py-8 text-right">
+                          <div className="flex gap-2.5 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                            <IconButton
+                              variant="glass"
+                              size="md"
+                              className={cn("rounded-2xl transition-all h-12 w-12", user.isBlocked ? "text-emerald-500" : "text-amber-500")}
+                              onClick={() => handleBlockToggle(user)}
+                              title={user.isBlocked ? 'ปลดบล็อค' : 'ระงับการใช้งาน'}
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                            </IconButton>
+                            <IconButton
+                              variant="glass"
+                              size="md"
+                              className="rounded-2xl text-indigo-500 h-12 w-12"
+                              onClick={() => openGrantModal(user)}
+                              title="ให้สิทธิแพ็คเกจ"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </IconButton>
+                            <IconButton
+                              variant="glass"
+                              size="md"
+                              className="rounded-2xl text-blue-500 h-12 w-12"
+                              onClick={() => openEditModal(user)}
+                              title="แก้ไขข้อมูลโปรไฟล์"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </IconButton>
+                            <IconButton
+                              variant="glass"
+                              size="md"
+                              className="rounded-2xl text-rose-500 hover:bg-rose-500 hover:text-white h-12 w-12"
+                              onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
+                              title="ลบข้อมูลถาวร"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </IconButton>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Mobile Card Layout (Visible on lg and below) */}
+          <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {isLoading ? (
+              [1, 2, 3, 4].map(i => <Card key={i} className="h-48 animate-pulse bg-white/50"><div /></Card>)
+            ) : users.length === 0 ? (
+              <div className="col-span-full py-20 text-center opacity-30">
+                <p className="font-black uppercase tracking-widest text-sm">ไม่พบข้อมูลผู้ใช้</p>
+              </div>
+            ) : (
+              users.map((user) => (
+                <Card key={user._id} variant="glass" className="p-6 relative overflow-hidden group">
+                  <div className="flex items-center gap-4 mb-5">
+                    <div className={cn(
+                      "w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner",
+                      user.role === 'admin' ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600"
+                    )}>
+                      {user.username[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-black text-slate-900 truncate uppercase tracking-tight">{user.username}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{user.fullName || 'No Name'}</p>
+                    </div>
+                    <Badge
+                      variant={user.role === 'admin' ? 'indigo' : 'emerald'}
+                      className="font-black uppercase tracking-widest text-[9px] px-2 py-0.5"
                     >
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-5">
-                          <div className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner",
-                            user.role === 'admin' ? "bg-purple-100 text-purple-600" : "bg-emerald-100 text-emerald-600"
-                          )}>
-                            {user.username[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-extrabold text-slate-900 leading-none mb-1 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{user.username}</p>
-                            <p className="text-xs text-slate-400 font-bold tracking-widest truncate max-w-[150px]">{user.fullName || 'ไม่ระบุชื่อ'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 font-mono text-xs font-black text-slate-500 lowercase opacity-70">
-                        {user.email || 'ไม่ระบุอีเมล'}
-                      </td>
-                      <td className="px-8 py-6">
-                        <Badge
-                          variant={user.role === 'admin' ? 'indigo' : 'slate'}
-                          size="sm"
-                          className="font-black uppercase tracking-[0.2em]"
-                        >
-                          {user.role}
-                        </Badge>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-2">
-                            <div className={cn("w-2 h-2 rounded-full shadow-sm", user.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
-                            <span className={cn("text-[10px] font-black uppercase tracking-widest", user.isActive ? "text-emerald-600" : "text-slate-400")}>
-                              {user.isActive ? 'ปกติ' : 'ถูกระงับ'}
-                            </span>
-                          </div>
-                          {user.isBlocked && (
-                            <Badge variant="rose" className="w-fit text-[9px] font-black uppercase tracking-widest py-0">ระงับชั่วคราว</Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                          <IconButton
-                            variant="glass"
-                            size="sm"
-                            className={cn("rounded-xl transition-all", user.isBlocked ? "text-emerald-500 bg-emerald-500/5" : "text-amber-500 bg-amber-500/5")}
-                            onClick={() => handleBlockToggle(user)}
-                            title={user.isBlocked ? 'ปลดบล็อค' : 'บล็อค'}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                          </IconButton>
-                          <IconButton
-                            variant="glass"
-                            size="sm"
-                            className="rounded-xl text-emerald-500 bg-emerald-500/5"
-                            onClick={() => openGrantModal(user)}
-                            title="เพิ่มแพ็คเกจ"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          </IconButton>
-                          <IconButton
-                            variant="glass"
-                            size="sm"
-                            className="rounded-xl text-blue-500 bg-blue-500/5"
-                            onClick={() => openEditModal(user)}
-                            title="แก้ไขข้อมูล"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                          </IconButton>
-                          <IconButton
-                            variant="glass"
-                            size="sm"
-                            className="rounded-xl text-rose-500 bg-rose-500/5 hover:bg-rose-500 hover:text-white"
-                            onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
-                            title="ลบผู้ใช้"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </IconButton>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      {user.role}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="flex justify-between items-center bg-slate-50/50 p-3 rounded-xl border border-white/50">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">สถานะ</span>
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2 h-2 rounded-full", user.isActive ? "bg-emerald-500" : "bg-slate-300")} />
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest", user.isActive ? "text-emerald-600" : "text-slate-400")}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs font-mono text-slate-400 truncate px-1">{user.email || '—'}</p>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 pt-4 border-t border-slate-100">
+                    <IconButton variant="glass" size="sm" onClick={() => handleBlockToggle(user)} className={user.isBlocked ? "text-emerald-500" : "text-amber-500"}><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
+                    <IconButton variant="glass" size="sm" onClick={() => openGrantModal(user)} className="text-indigo-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
+                    <IconButton variant="glass" size="sm" onClick={() => openEditModal(user)} className="text-blue-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
+                    <IconButton variant="glass" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="text-rose-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
+                  </div>
+                </Card>
+              ))
+            )}
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Provision User Modal */}

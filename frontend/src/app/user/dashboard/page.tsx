@@ -7,7 +7,8 @@ import { lineAccountsApi, subscriptionsApi, paymentsApi } from '@/lib/api';
 import { LineAccount, QuotaInfo, Payment } from '@/types';
 import { Card, StatCard } from '@/components/ui/Card';
 import { Button, IconButton } from '@/components/ui/Button';
-import { StatusBadge } from '@/components/ui/Badge';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { PageLoading } from '@/components/ui/Loading';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -56,149 +57,167 @@ export default function UserDashboard() {
       <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">แดชบอร์ด</h1>
-            <p className="text-slate-500 font-medium text-lg">ยินดีต้อนรับสู่ระบบจัดการ LINE OA</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+              ระบบ<span className="text-emerald-500">แดชบอร์ด</span>
+            </h1>
+            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+              ภาพรวมการใช้งานและ <span className="text-slate-900">โควต้าปัจจุบันของคุณ</span>
+            </p>
           </div>
-          <Link href="/user/packages">
-            <Button size="lg" variant="primary" className="shadow-emerald-500/20 shadow-lg">
-              <span className="mr-2">💎</span> ซื้อแพ็คเกจ / เติมเงิน
+          <Link href="/user/packages" className="w-full md:w-auto">
+            <Button size="lg" variant="primary" className="w-full h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in">
+              <span className="mr-3 text-xl">💎</span> ซื้อแพ็คเกจ / เติมเงิน
             </Button>
           </Link>
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           <StatCard
-            title="บัญชี LINE"
+            title="บัญชีที่เชื่อมต่อ"
             value={lineAccounts.length}
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            }
+            icon="💬"
             color="emerald"
             variant="glass"
             isLoading={isLoading}
+            className="rounded-[2.5rem] border-none shadow-premium-sm"
           />
           <StatCard
-            title="โควต้าคงเหลือ"
+            title="เครดิตคงเหลือ"
             value={quota?.remainingQuota?.toLocaleString() || 0}
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            }
-            color={quota && quota.remainingQuota < 100 ? "rose" : "blue"}
+            icon="⚡"
+            color={quota && quota.remainingQuota < 50 ? "rose" : "emerald"}
             variant="glass"
             isLoading={isLoading}
+            className="rounded-[2.5rem] border-none shadow-premium-sm"
           />
           <StatCard
-            title="สลิปที่ตรวจสอบแล้ว"
+            title="ยืนยันสำเร็จแล้ว"
             value={lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0), 0).toLocaleString()}
-            icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
-            color="violet"
+            icon="✅"
+            color="indigo"
             variant="glass"
             isLoading={isLoading}
+            className="rounded-[2.5rem] border-none shadow-premium-sm md:col-span-2 xl:col-span-1"
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Main Quota Section */}
           <div className="lg:col-span-2">
-            <Card className="h-full bg-white border-slate-100 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+            <Card className="h-full bg-white/70 backdrop-blur-3xl border-none shadow-premium-lg overflow-hidden relative rounded-[3.5rem]" padding="none">
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] -mr-40 -mt-40 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-500/5 rounded-full blur-[100px] -ml-20 -mb-20 pointer-events-none" />
 
-              <div className="p-6 md:p-8 flex flex-col h-full relative z-10">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <span className="text-2xl">📊</span> สถานะโควต้า
-                  </h2>
+              <div className="p-8 md:p-12 flex flex-col h-full relative z-10">
+                <div className="flex items-center justify-between mb-12">
+                  <div className="space-y-1">
+                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                      สถานะ<span className="text-emerald-500">โควต้า</span>
+                    </h2>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">ข้อมูลการประมวลผลสลิป</p>
+                  </div>
                   <Link href="/user/quota">
-                    <Button variant="ghost" size="sm" className="text-slate-500 hover:text-emerald-600">
-                      ดูรายละเอียด →
+                    <Button variant="ghost" size="sm" className="font-black text-[10px] uppercase tracking-widest text-slate-500 hover:text-emerald-600 rounded-xl">
+                      ดูรายละเอียด <span className="ml-2">→</span>
                     </Button>
                   </Link>
                 </div>
 
                 {isLoading ? (
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="w-10 h-10 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin" />
+                  <div className="flex-1 flex items-center justify-center py-20">
+                    <PageLoading transparent message="กำลังตรวจสอบเครดิตของคุณ..." />
                   </div>
                 ) : quota ? (
-                  <div className="flex flex-col md:flex-row gap-10 items-center md:items-start flex-1">
+                  <div className="flex flex-col lg:flex-row gap-12 items-center lg:items-center flex-1">
                     {/* Animated Circle */}
-                    <div className="relative w-48 h-48 flex-shrink-0">
-                      <svg className="w-full h-full transform -rotate-90">
+                    <div className="relative w-56 h-56 flex-shrink-0 group">
+                      <div className="absolute inset-0 bg-white/50 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors duration-700" />
+                      <svg className="w-full h-full transform -rotate-90 relative z-10">
                         <circle
-                          cx="96" cy="96" r="88"
+                          cx="112" cy="112" r="100"
                           fill="transparent"
-                          stroke="currentColor"
-                          strokeWidth="12"
-                          className="text-slate-100"
+                          stroke="rgba(241, 245, 249, 1)"
+                          strokeWidth="16"
                         />
                         <motion.circle
-                          initial={{ strokeDashoffset: 553 }}
-                          animate={{ strokeDashoffset: 553 - (quotaPercentage / 100 * 553) }}
-                          transition={{ duration: 1.5, ease: "easeOut" }}
-                          cx="96" cy="96" r="88"
+                          initial={{ strokeDashoffset: 628 }}
+                          animate={{ strokeDashoffset: 628 - (quotaPercentage / 100 * 628) }}
+                          transition={{ duration: 2, ease: "circOut" }}
+                          cx="112" cy="112" r="100"
                           fill="transparent"
                           stroke="currentColor"
-                          strokeWidth="12"
-                          strokeDasharray="553"
+                          strokeWidth="16"
+                          strokeDasharray="628"
                           strokeLinecap="round"
                           className={cn(
+                            "transition-colors duration-1000 shadow-2xl",
                             quotaPercentage >= 90 ? "text-rose-500" :
                               quotaPercentage >= 70 ? "text-amber-500" : "text-emerald-500"
                           )}
                         />
                       </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-4xl font-extrabold text-slate-900">{100 - quotaPercentage}%</span>
-                        <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">คงเหลือ</span>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                        <motion.span
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-5xl font-black text-slate-900 text-shadow-sm"
+                        >
+                          {100 - quotaPercentage}%
+                        </motion.span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">คงเหลือ</span>
                       </div>
                     </div>
 
                     {/* Stats List */}
-                    <div className="flex-1 w-full space-y-4 pt-2">
-                      <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center border border-slate-100">
+                    <div className="flex-1 w-full space-y-6">
+                      <div className="bg-slate-50/80 backdrop-blur-sm rounded-[2rem] p-6 border border-white flex justify-between items-center shadow-inner">
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">โควต้าทั้งหมด</span>
-                          <span className="text-lg font-bold text-slate-900">{quota.totalQuota.toLocaleString()}</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">เครดิตโควต้าทั้งหมด</span>
+                          <span className="text-3xl font-black text-slate-900 tracking-tighter">{quota.totalQuota.toLocaleString()}</span>
                         </div>
-                        <div className="h-8 w-1 bg-slate-200 rounded-full" />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/50">
-                          <span className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest">คงเหลือ</span>
-                          <p className="text-emerald-600 font-bold text-xl">{quota.remainingQuota.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100/50">
-                          <span className="text-[10px] font-bold text-blue-600/70 uppercase tracking-widest">ใช้ไปแล้ว</span>
-                          <p className="text-blue-600 font-bold text-xl">{quota.usedQuota.toLocaleString()}</p>
+                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                          <span className="text-2xl">📦</span>
                         </div>
                       </div>
 
-                      {(quota.remainingQuota <= 10 && quota.remainingQuota > 0) && (
-                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-3 text-amber-700 text-sm font-medium">
-                          ⚠️ <span>โควต้าใกล้หมด! เหลืออีกเพียง {quota.remainingQuota} รายการ</span>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="bg-emerald-50/80 backdrop-blur-sm rounded-[2rem] p-6 border border-white shadow-inner group overflow-hidden relative">
+                          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -mr-10 -mt-10 blur-xl group-hover:bg-emerald-500/10 transition-colors" />
+                          <span className="text-[10px] font-black text-emerald-600/70 uppercase tracking-[0.2em] mb-2 block">คงเหลือ</span>
+                          <p className="text-emerald-600 font-black text-3xl tracking-tighter relative z-10">{quota.remainingQuota.toLocaleString()}</p>
                         </div>
+                        <div className="bg-indigo-50/80 backdrop-blur-sm rounded-[2rem] p-6 border border-white shadow-inner group overflow-hidden relative">
+                          <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-full -mr-10 -mt-10 blur-xl group-hover:bg-indigo-500/10 transition-colors" />
+                          <span className="text-[10px] font-black text-indigo-600/70 uppercase tracking-[0.2em] mb-2 block">ใช้งานแล้ว</span>
+                          <p className="text-indigo-600 font-black text-3xl tracking-tighter relative z-10">{quota.usedQuota.toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      {(quota.remainingQuota <= 50 && quota.remainingQuota > 0) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-5 bg-rose-50/80 backdrop-blur-sm rounded-2xl border border-rose-100/50 flex items-center gap-4 text-rose-700 shadow-sm"
+                        >
+                          <span className="text-2xl animate-bounce">⚠️</span>
+                          <div className="flex flex-col">
+                            <span className="font-black text-[10px] uppercase tracking-widest leading-none mb-1">แจ้งเตือนเครดิตต่ำ</span>
+                            <span className="font-bold text-sm text-slate-700">เหลือเพียง {quota.remainingQuota} เครดิต</span>
+                          </div>
+                        </motion.div>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
-                    <span className="text-4xl mb-4">📦</span>
-                    <h3 className="text-lg font-bold text-slate-900">ยังไม่มีแพ็คเกจ</h3>
-                    <p className="text-slate-500 mb-6 max-w-xs mx-auto">เริ่มต้นใช้งานระบบตรวจสอบสลิปอัตโนมัติ ด้วยการเลือกแพ็คเกจที่เหมาะสมกับคุณ</p>
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200 shadow-inner">
+                    <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center text-5xl shadow-sm mb-8 animate-pulse">🎁</div>
+                    <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">ยังไม่มีแพ็คเกจ</h3>
+                    <p className="text-slate-500 mb-10 max-w-sm mx-auto font-bold text-sm opacity-70">เริ่มต้นใช้งานระบบ AI ตรวจสอบสลิปอัตโนมัติ เพื่อประหยัดเวลาและเพิ่มความแม่นยำให้กับธุรกิจของคุณ</p>
                     <Link href="/user/packages">
-                      <Button variant="primary">เลือกแพ็คเกจ</Button>
+                      <Button variant="primary" size="lg" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs">เริ่มต้นเลือกแพ็คเกจเลย</Button>
                     </Link>
                   </div>
                 )}
@@ -208,43 +227,53 @@ export default function UserDashboard() {
 
           {/* Quick Actions & Accounts */}
           <div className="space-y-6">
-            <Card className="p-6 bg-slate-900 text-white relative overflow-hidden border-none shadow-xl shadow-slate-900/10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[60px] -mr-16 -mt-16 pointer-events-none" />
-              <h3 className="text-lg font-bold mb-6 relative z-10 flex items-center gap-2">
-                <span className="w-1 h-6 bg-emerald-500 rounded-full" /> บัญชีของคุณ
-              </h3>
+            <Card className="p-8 bg-slate-900 text-white relative overflow-hidden border-none shadow-premium-lg rounded-[3.5rem]" padding="none">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/20 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-[60px] -ml-10 -mb-10 pointer-events-none" />
 
-              <div className="space-y-3 relative z-10">
+              <div className="flex items-center justify-between mb-8 relative z-10 px-2">
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
+                  <span className="w-1.5 h-8 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" /> บัญชีของคุณ
+                </h3>
+                <Badge variant="emerald" className="bg-emerald-500/20 text-emerald-400 border-none font-black text-[9px] px-3 py-1 uppercase tracking-[0.2em] rounded-lg">ACTIVE</Badge>
+              </div>
+
+              <div className="space-y-4 relative z-10">
                 {isLoading ? (
-                  <div className="bg-white/5 h-16 rounded-xl animate-pulse" />
+                  Array(3).fill(0).map((_, i) => <div key={i} className="bg-white/5 h-16 rounded-2xl animate-pulse mx-2" />)
                 ) : lineAccounts.length > 0 ? (
                   <>
-                    {lineAccounts.slice(0, 3).map(account => (
-                      <div key={account._id} className="p-3 bg-white/5 hover:bg-white/10 transition-colors rounded-xl border border-white/5 flex items-center gap-3 group">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                          {account.accountName.charAt(0)}
+                    <div className="space-y-3 mx-2">
+                      {lineAccounts.slice(0, 3).map(account => (
+                        <div key={account._id} className="p-4 bg-white/5 hover:bg-white/10 transition-all duration-300 rounded-2xl border border-white/5 flex items-center gap-4 group">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-lg transform group-hover:rotate-12 transition-transform">
+                            {account.accountName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-black text-sm truncate uppercase tracking-tight text-white/90">{account.accountName}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px]", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-500")} />
+                              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{account.isActive ? 'เปิดสัญญาณ' : 'ปิดสัญญาณ'}</p>
+                            </div>
+                          </div>
+                          <Link href={`/user/line-accounts?edit=${account._id}`}>
+                            <IconButton variant="ghost" size="sm" className="text-white/30 hover:text-white hover:bg-white/10 rounded-xl">✏️</IconButton>
+                          </Link>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm truncate">{account.accountName}</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">{account.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'}</p>
-                        </div>
-                        <Link href={`/user/line-accounts?edit=${account._id}`}>
-                          <IconButton variant="ghost" size="sm" className="text-slate-400 hover:text-white">✏️</IconButton>
-                        </Link>
-                      </div>
-                    ))}
-                    <Link href="/user/line-accounts">
-                      <Button variant="ghost" fullWidth className="mt-2 text-emerald-400 hover:text-emerald-300">
-                        ดูทั้งหมด ({lineAccounts.length})
+                      ))}
+                    </div>
+                    <Link href="/user/line-accounts" className="block mt-4 px-2">
+                      <Button variant="ghost" fullWidth className="h-14 rounded-2xl text-emerald-400 hover:text-emerald-300 font-black uppercase tracking-[0.2em] text-[10px] bg-white/5 border border-white/5">
+                        จัดการทั้งหมด ({lineAccounts.length})
                       </Button>
                     </Link>
                   </>
                 ) : (
-                  <div className="text-center py-6">
-                    <p className="text-slate-400 text-sm mb-4">ยังไม่ได้เชื่อมต่อบัญชี</p>
+                  <div className="text-center py-10 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 mx-2">
+                    <p className="text-slate-400 font-bold text-xs mb-6 px-4">ยังไม่มีการเชื่อมต่อบัญชีเข้าสู่ระบบ</p>
                     <Link href="/user/line-accounts">
-                      <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10 w-full">
-                        + เพิ่มบัญชี
+                      <Button variant="outline" size="md" className="border-white/20 text-white hover:bg-white shadow-none h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">
+                        + เพิ่มบัญชีใหม่
                       </Button>
                     </Link>
                   </div>
@@ -254,15 +283,15 @@ export default function UserDashboard() {
 
             <div className="grid grid-cols-2 gap-4">
               <Link href="/user/packages" className="group">
-                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-100 transition-all text-center h-full flex flex-col items-center justify-center gap-3">
-                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">💎</div>
-                  <span className="font-bold text-slate-700">เติมเครดิต</span>
+                <div className="bg-white/60 backdrop-blur-3xl p-6 rounded-[2.5rem] border border-white shadow-premium-sm hover:shadow-premium-lg hover:border-emerald-200 transition-all duration-500 text-center h-full flex flex-col items-center justify-center gap-4 group">
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-[1.5rem] flex items-center justify-center text-3xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 shadow-inner">💎</div>
+                  <span className="font-black text-slate-900 uppercase tracking-widest text-[11px]">เติมเครดิต</span>
                 </div>
               </Link>
               <Link href="/user/line-accounts" className="group">
-                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-100 transition-all text-center h-full flex flex-col items-center justify-center gap-3">
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">💬</div>
-                  <span className="font-bold text-slate-700">ตั้งค่าบอท</span>
+                <div className="bg-white/60 backdrop-blur-3xl p-6 rounded-[2.5rem] border border-white shadow-premium-sm hover:shadow-premium-lg hover:border-indigo-200 transition-all duration-500 text-center h-full flex flex-col items-center justify-center gap-4 group">
+                  <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-[1.5rem] flex items-center justify-center text-3xl group-hover:scale-110 group-hover:-rotate-12 transition-all duration-500 shadow-inner">🤖</div>
+                  <span className="font-black text-slate-900 uppercase tracking-widest text-[11px]">ตั้งค่าบอท</span>
                 </div>
               </Link>
             </div>
@@ -271,21 +300,30 @@ export default function UserDashboard() {
 
         {/* Recent Payments Section */}
         {recentPayments.length > 0 && (
-          <div className="pt-4 animate-fade-up">
-            <h3 className="font-bold text-slate-700 mb-4 px-1">ประวัติการชำระเงินล่าสุด</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="pt-8 space-y-6 animate-fade-up">
+            <div className="flex items-center justify-between px-2">
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">ธุรกรรมล่าสุด</h3>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">รายการชำระเงินที่เพิ่งทำรายการ</p>
+              </div>
+              <Link href="/user/payments">
+                <Button variant="ghost" size="sm" className="font-black text-[10px] uppercase tracking-widest text-slate-500">ดูทั้งหมด</Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {recentPayments.map((payment) => (
-                <div key={payment._id} className="p-4 bg-white rounded-2xl border border-slate-100 flex items-center justify-between hover:border-slate-300 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-lg">
+                <div key={payment._id} className="p-6 bg-white/60 backdrop-blur-3xl rounded-[2.5rem] border border-white flex items-center justify-between hover:border-emerald-200 hover:shadow-premium-sm transition-all duration-500 group">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
                       {payment.paymentType === 'bank_transfer' ? '🏦' : '🪙'}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900">฿{payment.amount.toLocaleString()}</p>
-                      <p className="text-xs text-slate-500">{formatDate(payment.createdAt)}</p>
+                      <p className="font-black text-slate-900 text-xl tracking-tight">฿{payment.amount.toLocaleString()}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{formatDate(payment.createdAt)}</p>
                     </div>
                   </div>
-                  <StatusBadge status={payment.status} />
+                  <StatusBadge status={payment.status} className="font-black uppercase tracking-widest text-[9px] px-3 py-1.5 rounded-xl shadow-sm" />
                 </div>
               ))}
             </div>

@@ -141,20 +141,20 @@ const SAMPLE_DATA = {
   countryCode: 'TH',
   transRef: '68370160657749I376388B35',
   ref1: 'REF001',
-  ref2: 'REF002', 
+  ref2: 'REF002',
   ref3: '',
-  sender: { 
-    name: 'นาย ธันเดอร์ มานะ', 
-    nameEn: 'MR. THUNDER MANA', 
-    account: '1234xxxx5678', 
+  sender: {
+    name: 'นาย ธันเดอร์ มานะ',
+    nameEn: 'MR. THUNDER MANA',
+    account: '1234xxxx5678',
     bankId: '004',
     bankName: 'กสิกรไทย',
     bankShort: 'KBANK'
   },
-  receiver: { 
-    name: 'นาย ธันเดอร์ มานะ', 
+  receiver: {
+    name: 'นาย ธันเดอร์ มานะ',
     nameEn: 'MR. THUNDER MANA',
-    account: '12xxxx3456', 
+    account: '12xxxx3456',
     bankId: '030',
     bankName: 'ธนาคารออมสิน',
     bankShort: 'GSB',
@@ -163,75 +163,84 @@ const SAMPLE_DATA = {
   },
 };
 
-// Simple Toggle Component
+// Premium Switch Toggle Component
 const Toggle = memo(({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) => (
   <button
     type="button"
     onClick={onChange}
     className={cn(
-      "flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all w-full text-left",
-      checked ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
+      "flex items-center justify-between gap-4 px-5 py-4 rounded-2xl border-2 transition-all w-full text-left group",
+      checked ? "border-emerald-500/20 bg-emerald-50/50 shadow-premium-sm" : "border-slate-100 bg-white hover:border-slate-200"
     )}
   >
+    <span className={cn("text-[11px] font-black uppercase tracking-widest transition-colors", checked ? "text-emerald-700" : "text-slate-400 group-hover:text-slate-600")}>{label}</span>
     <div className={cn(
-      "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-      checked ? "border-emerald-500 bg-emerald-500" : "border-slate-300"
+      "w-10 h-6 rounded-full relative transition-all duration-300",
+      checked ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "bg-slate-200"
     )}>
-      {checked && <span className="text-white text-xs">✓</span>}
+      <div className={cn(
+        "absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300",
+        checked ? "left-5" : "left-1"
+      )} />
     </div>
-    <span className={cn("text-sm font-medium", checked ? "text-emerald-700" : "text-slate-600")}>{label}</span>
   </button>
 ));
 Toggle.displayName = 'Toggle';
 
-// Bank Logo Button Component
-const BankButton = memo(({ 
-  bank, 
-  isSelected, 
-  onClick, 
-  color = 'emerald' 
-}: { 
-  bank: Bank; 
-  isSelected: boolean; 
+// Bank Logo Selection Component
+const BankButton = memo(({
+  bank,
+  isSelected,
+  onClick,
+  color = 'emerald'
+}: {
+  bank: Bank;
+  isSelected: boolean;
   onClick: () => void;
   color?: 'emerald' | 'blue';
 }) => {
   const logo = bank.logoBase64 || bank.logoUrl;
   const colors = {
-    emerald: 'border-emerald-500 bg-emerald-50 ring-emerald-500/20',
-    blue: 'border-blue-500 bg-blue-50 ring-blue-500/20',
+    emerald: 'border-emerald-500 bg-emerald-50/80 shadow-emerald-500/10',
+    blue: 'border-indigo-500 bg-indigo-50/80 shadow-indigo-500/10',
   };
-  
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center p-2 rounded-xl border-2 transition-all min-w-[60px]",
-        isSelected ? `${colors[color]} ring-4` : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+        "flex flex-col items-center p-3 rounded-2xl border-2 transition-all min-w-[70px] group relative overflow-hidden",
+        isSelected ? `${colors[color]} shadow-lg -translate-y-1` : "border-transparent bg-slate-50 hover:bg-white hover:border-slate-200"
       )}
     >
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-sm mb-1">
+      <div className="w-12 h-12 rounded-[1.2rem] flex items-center justify-center overflow-hidden bg-white shadow-premium-sm mb-2 group-hover:scale-110 transition-transform">
         {logo ? (
-          <img src={logo} alt={bank.shortName} className="w-8 h-8 object-contain" />
+          <img src={logo} alt={bank.shortName} className="w-9 h-9 object-contain" />
         ) : (
-          <span className="text-xs font-black text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
+          <span className="text-[10px] font-black text-slate-300">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
         )}
       </div>
       <span className={cn(
-        "text-[10px] font-bold text-center truncate w-full",
-        isSelected ? (color === 'emerald' ? 'text-emerald-700' : 'text-blue-700') : 'text-slate-500'
+        "text-[10px] font-black text-center truncate w-full uppercase tracking-tighter",
+        isSelected ? (color === 'emerald' ? 'text-emerald-700' : 'text-indigo-700') : 'text-slate-400'
       )}>
         {bank.shortName || bank.code}
       </span>
+      {isSelected && (
+        <div className={cn(
+          "absolute top-0 right-0 w-4 h-4 p-1 flex items-center justify-center rounded-bl-lg text-[8px] text-white font-black",
+          color === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500'
+        )}>✓</div>
+      )}
     </button>
   );
 });
 BankButton.displayName = 'BankButton';
 
-// Slip Preview Component
-const SlipPreview = memo(({ config, senderBank, receiverBank }: { 
-  config: FormData; 
+// Premium Slip Preview Component
+const SlipPreview = memo(({ config, senderBank, receiverBank }: {
+  config: FormData;
   senderBank: Bank | null;
   receiverBank: Bank | null;
 }) => {
@@ -239,140 +248,125 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
   const isError = config.type === 'error';
   const isNotFound = config.type === 'not_found';
   const mainColor = isDuplicate ? '#f59e0b' : isError ? '#ef4444' : isNotFound ? '#64748b' : config.primaryColor;
-  
+
   const getStatusText = () => {
     if (config.headerText) return config.headerText;
-    if (isDuplicate) return 'พบสลิปซ้ำ';
-    if (isError) return 'เกิดข้อผิดพลาด';
-    if (isNotFound) return 'ไม่พบข้อมูล';
-    return 'ตรวจสอบสำเร็จ';
+    if (isDuplicate) return 'ตรวจพบสลิปซ้ำในระบบ';
+    if (isError) return 'ระบบขัดข้องกรุณาลองใหม่';
+    if (isNotFound) return 'ไม่พบข้อมูลสลิปนี้';
+    return 'ตรวจสอบสลิปสำเร็จ';
   };
 
   const senderLogo = senderBank?.logoBase64 || senderBank?.logoUrl;
   const receiverLogo = receiverBank?.logoBase64 || receiverBank?.logoUrl;
 
   return (
-    <div className="bg-gradient-to-b from-slate-100 to-slate-200 rounded-2xl p-3 max-w-[280px] mx-auto shadow-lg">
-      {/* Header */}
-      <div className="rounded-xl p-2.5 mb-2 flex items-center gap-2" style={{ backgroundColor: `${mainColor}15` }}>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-md" style={{ backgroundColor: mainColor }}>
+    <div className="bg-slate-900 rounded-[3rem] p-6 max-w-[320px] mx-auto shadow-3xl border border-white/5 relative overflow-hidden group">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[60px] -mr-32 -mt-32 pointer-events-none group-hover:bg-emerald-500/20 transition-all duration-1000" />
+
+      {/* Dynamic Header Node */}
+      <div className="rounded-[1.5rem] p-4 mb-4 flex items-center gap-4 border border-white/5 bg-white/5 backdrop-blur-md">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-lg" style={{ backgroundColor: mainColor }}>
           {isDuplicate ? '!' : isError ? '✕' : isNotFound ? '?' : '✓'}
         </div>
-        <span className="font-bold text-sm flex-1" style={{ color: mainColor }}>{getStatusText()}</span>
+        <div>
+          <p className="text-[14px] font-black leading-none" style={{ color: mainColor }}>{getStatusText()}</p>
+          <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mt-1">Transaction Verified</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl p-3 space-y-2">
-        {/* Amount */}
+      <div className="bg-white rounded-[2rem] p-6 space-y-4 shadow-inner relative z-10">
+        {/* Amount Section */}
         {config.showAmount && (
-          <div className="text-center py-1">
-            <p className="text-[10px] text-slate-400 uppercase font-bold">จำนวนเงิน</p>
-            <p className="text-xl font-black" style={{ color: mainColor }}>{SAMPLE_DATA.amount}</p>
-            {(config.showDate || config.showTime) && (
-              <p className="text-[10px] text-slate-400">
-                {config.showDate && SAMPLE_DATA.date}{config.showDate && config.showTime && ' • '}{config.showTime && SAMPLE_DATA.time}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Fee */}
-        {config.showFee && (
-          <div className="flex justify-between items-center p-1.5 bg-orange-50 rounded-lg">
-            <span className="text-[9px] font-bold text-orange-600">💰 ค่าธรรมเนียม</span>
-            <span className="text-[10px] font-mono text-orange-700">{SAMPLE_DATA.fee}</span>
-          </div>
-        )}
-
-        {/* Country Code */}
-        {config.showCountryCode && (
-          <div className="flex justify-between items-center p-1.5 bg-purple-50 rounded-lg">
-            <span className="text-[9px] font-bold text-purple-600">🌍 ประเทศ</span>
-            <span className="text-[10px] font-mono text-purple-700">{SAMPLE_DATA.countryCode}</span>
-          </div>
-        )}
-
-        {/* Sender */}
-        {config.showSender && (
-          <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
-            {config.showBankLogo && (
-              <div className="w-9 h-9 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {senderLogo ? <img src={senderLogo} alt="ธนาคาร" className="w-7 h-7 object-contain" /> : <span>👤</span>}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] text-slate-400 font-bold uppercase">ผู้โอน</p>
-              <p className="text-[11px] font-bold text-slate-900 truncate">{SAMPLE_DATA.sender.name}</p>
-              {config.showSenderNameEn && SAMPLE_DATA.sender.nameEn && (
-                <p className="text-[9px] text-slate-500 truncate">{SAMPLE_DATA.sender.nameEn}</p>
-              )}
-              {config.showSenderAccount && (
-                <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.sender.account}</p>
-              )}
-              {config.showSenderBankId && (
-                <p className="text-[8px] text-emerald-600 font-mono">Bank ID: {SAMPLE_DATA.sender.bankId}</p>
-              )}
-              {senderBank && <p className="text-[8px] text-emerald-700 font-bold">{senderBank.shortName}</p>}
+          <div className="text-center py-2 border-b border-slate-50">
+            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Total Amount</p>
+            <p className="text-3xl font-black tracking-tighter" style={{ color: mainColor }}>{SAMPLE_DATA.amount}</p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              {config.showDate && <p className="text-[10px] text-slate-400 font-bold uppercase">{SAMPLE_DATA.date}</p>}
+              {config.showDate && config.showTime && <div className="w-1 h-1 rounded-full bg-slate-200" />}
+              {config.showTime && <p className="text-[10px] text-slate-400 font-bold uppercase">{SAMPLE_DATA.time}</p>}
             </div>
           </div>
         )}
 
-        {/* Receiver */}
-        {config.showReceiver && (
-          <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
-            {config.showBankLogo && (
-              <div className="w-9 h-9 rounded-lg bg-blue-50 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {receiverLogo ? <img src={receiverLogo} alt="ธนาคาร" className="w-7 h-7 object-contain" /> : <span>🏛️</span>}
+        <div className="space-y-3">
+          {/* Sender Node */}
+          {config.showSender && (
+            <div className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+              {config.showBankLogo && (
+                <div className="w-11 h-11 rounded-xl bg-white shadow-premium-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                  {senderLogo ? <img src={senderLogo} alt="Bank" className="w-8 h-8 object-contain" /> : <div className="text-lg">👤</div>}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Sender</p>
+                <p className="text-[12px] font-black text-slate-900 truncate leading-none mb-1">{SAMPLE_DATA.sender.name}</p>
+                {config.showSenderAccount && (
+                  <p className="text-[10px] text-slate-400 font-mono font-bold">{SAMPLE_DATA.sender.account}</p>
+                )}
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] text-slate-400 font-bold uppercase">ผู้รับ</p>
-              <p className="text-[11px] font-bold text-slate-900 truncate">{SAMPLE_DATA.receiver.name}</p>
-              {config.showReceiverNameEn && SAMPLE_DATA.receiver.nameEn && (
-                <p className="text-[9px] text-slate-500 truncate">{SAMPLE_DATA.receiver.nameEn}</p>
-              )}
-              {config.showReceiverAccount && (
-                <p className="text-[9px] text-slate-500 font-mono">{SAMPLE_DATA.receiver.account}</p>
-              )}
-              {config.showReceiverBankId && (
-                <p className="text-[8px] text-blue-600 font-mono">Bank ID: {SAMPLE_DATA.receiver.bankId}</p>
-              )}
-              {config.showReceiverProxy && (
-                <p className="text-[9px] text-blue-500 font-mono">{SAMPLE_DATA.receiver.proxyType}: {SAMPLE_DATA.receiver.proxyAccount}</p>
-              )}
-              {receiverBank && <p className="text-[8px] text-blue-700 font-bold">{receiverBank.shortName}</p>}
+            </div>
+          )}
+
+          {/* Transition Icon */}
+          <div className="flex justify-center -my-3 relative z-20">
+            <div className="w-8 h-8 rounded-full bg-white border-4 border-slate-50 flex items-center justify-center shadow-md">
+              <div className="w-1 h-4 bg-slate-200 rounded-full" />
             </div>
           </div>
-        )}
 
-        {/* TransRef */}
-        {config.showTransRef && (
-          <div className="flex justify-between items-center p-2 bg-slate-900 text-white rounded-lg">
-            <span className="text-[9px] font-bold opacity-60">อ้างอิง</span>
-            <span className="text-[10px] font-mono">{SAMPLE_DATA.transRef.slice(0, 16)}...</span>
-          </div>
-        )}
+          {/* Receiver Node */}
+          {config.showReceiver && (
+            <div className="flex items-center gap-4 p-4 bg-emerald-50/10 rounded-2xl border border-emerald-50">
+              {config.showBankLogo && (
+                <div className="w-11 h-11 rounded-xl bg-white shadow-premium-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-emerald-50">
+                  {receiverLogo ? <img src={receiverLogo} alt="Bank" className="w-8 h-8 object-contain" /> : <div className="text-lg text-emerald-500">🏛️</div>}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest mb-0.5">Receiver</p>
+                <p className="text-[12px] font-black text-slate-900 truncate leading-none mb-1">{SAMPLE_DATA.receiver.name}</p>
+                {config.showReceiverAccount && (
+                  <p className="text-[10px] text-slate-400 font-mono font-bold">{SAMPLE_DATA.receiver.account}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
-        {/* Refs 1-3 */}
-        {config.showRefs && (SAMPLE_DATA.ref1 || SAMPLE_DATA.ref2 || SAMPLE_DATA.ref3) && (
-          <div className="space-y-1 p-2 bg-indigo-50 rounded-lg">
-            <p className="text-[9px] font-bold text-indigo-600">📋 รหัสอ้างอิงเพิ่มเติม</p>
-            {SAMPLE_DATA.ref1 && <p className="text-[9px] text-indigo-700 font-mono">Ref1: {SAMPLE_DATA.ref1}</p>}
-            {SAMPLE_DATA.ref2 && <p className="text-[9px] text-indigo-700 font-mono">Ref2: {SAMPLE_DATA.ref2}</p>}
-            {SAMPLE_DATA.ref3 && <p className="text-[9px] text-indigo-700 font-mono">Ref3: {SAMPLE_DATA.ref3}</p>}
-          </div>
-        )}
+        {/* Protocol Data Table */}
+        <div className="pt-4 border-t border-dashed border-slate-100 space-y-2">
+          {config.showTransRef && (
+            <div className="flex justify-between items-center text-[9px] font-bold">
+              <span className="text-slate-400 uppercase tracking-widest">Trans ID</span>
+              <span className="text-slate-900 font-mono">{SAMPLE_DATA.transRef.slice(0, 12)}...{SAMPLE_DATA.transRef.slice(-4)}</span>
+            </div>
+          )}
+          {config.showFee && (
+            <div className="flex justify-between items-center text-[9px] font-bold">
+              <span className="text-slate-400 uppercase tracking-widest">Processing Fee</span>
+              <span className="text-emerald-600">฿0.00 FREE</span>
+            </div>
+          )}
+          {config.showRefs && SAMPLE_DATA.ref1 && (
+            <div className="flex justify-between items-center text-[9px] font-bold">
+              <span className="text-slate-400 uppercase tracking-widest">Protocol Ref</span>
+              <span className="text-slate-900 font-mono">{SAMPLE_DATA.ref1}</span>
+            </div>
+          )}
+        </div>
 
-        {/* Duplicate Warning */}
-        {isDuplicate && (
-          <div className="p-2 bg-amber-500 rounded-lg text-center">
-            <p className="text-[10px] text-white font-bold">⚠️ สลิปนี้ถูกใช้งานแล้ว</p>
-          </div>
-        )}
-
-        {/* Footer */}
+        {/* Verification Footer Text */}
         {config.footerText && (
-          <p className="text-[10px] text-slate-400 text-center pt-1">{config.footerText}</p>
+          <div className="pt-4 mt-2 border-t border-slate-50">
+            <p className="text-[9px] text-slate-400 text-center font-bold tracking-tight px-4">{config.footerText}</p>
+          </div>
         )}
+      </div>
+
+      {/* Bottom Brand Mark */}
+      <div className="mt-6 flex justify-center opacity-20 filter invert grayscale">
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white">Line Identity</p>
       </div>
     </div>
   );
@@ -409,14 +403,14 @@ export default function AdminTemplatesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
-  
+
   const senderBank = useMemo(() => {
     if (formData.senderBankId) {
       return banks.find(b => b._id === formData.senderBankId) || null;
     }
     return activeBanks[0] || null;
   }, [banks, formData.senderBankId, activeBanks]);
-  
+
   const receiverBank = useMemo(() => {
     if (formData.receiverBankId) {
       return banks.find(b => b._id === formData.receiverBankId) || null;
@@ -549,29 +543,34 @@ export default function AdminTemplatesPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 max-w-[1400px] mx-auto pb-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">🎨 เทมเพลตสลิป</h1>
-            <p className="text-slate-500 text-sm">จัดการรูปแบบการแสดงผลสลิป</p>
+      <div className="space-y-12 max-w-[1600px] mx-auto pb-20 animate-fade">
+        {/* Superior Studio Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center text-2xl shadow-inner border border-white/50">🎨</div>
+            <div>
+              <h1 className="text-4xl font-black text-slate-900 tracking-tighter leading-none uppercase">Template Studio</h1>
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> ออกแบบเลเยอร์การแสดงผลสลิปอัจฉริยะ
+              </p>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleInitDefaults} isLoading={isProcessing}>
-              🔄 รีเซ็ต
+          <div className="flex gap-4">
+            <Button variant="ghost" onClick={handleInitDefaults} isLoading={isProcessing} className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] border-slate-100 hover:bg-slate-50 transition-all">
+              🔄 Reset Protocols
             </Button>
-            <Button variant="primary" onClick={openCreateModal}>
-              ➕ สร้างใหม่
+            <Button variant="primary" onClick={openCreateModal} className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl">
+              ➕ Deployment Studio
             </Button>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
-          <StatCard title="ทั้งหมด" value={templates.length} icon="🎨" color="indigo" variant="glass" />
-          <StatCard title="สำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
-          <StatCard title="สลิปซ้ำ" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" />
-          <StatCard title="ค่าเริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" />
+        {/* Performance Metrics */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard title="Total Templates" value={templates.length} icon="🧩" color="indigo" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="Success Nodes" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="Security Flags" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="Default Core" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" className="rounded-[2.5rem] shadow-premium-sm" />
         </div>
 
         {/* Templates List */}
@@ -583,60 +582,63 @@ export default function AdminTemplatesPage() {
             <Button onClick={handleInitDefaults}>สร้างเทมเพลตเริ่มต้น</Button>
           </Card>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-12">
             {TYPE_OPTIONS.map((type) => {
               const list = templatesByType[type.value] || [];
               if (list.length === 0) return null;
-              
+
               return (
-                <div key={type.value}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl", type.bgColor)}>
+                <div key={type.value} className="space-y-6">
+                  <div className="flex items-center gap-4 px-2">
+                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-premium-sm", type.bgColor)}>
                       {type.icon}
                     </div>
                     <div>
-                      <h2 className="font-bold text-slate-900">{type.label}</h2>
-                      <p className="text-xs text-slate-400">{list.length} เทมเพลต</p>
+                      <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em]">{type.label} Protocol</h2>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{list.length} ACTIVE LAYERS</p>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {list.map((template) => (
-                      <Card key={template._id} className="p-4 hover:shadow-lg transition-shadow">
-                        <div className="flex items-start justify-between mb-3">
+                      <Card key={template._id} className="p-8 hover:shadow-premium transition-all duration-500 rounded-[2.5rem] border-none bg-white/70 group">
+                        <div className="flex items-start justify-between mb-6">
                           <div>
-                            <h3 className="font-bold text-slate-900">{template.name}</h3>
-                            <p className="text-xs text-slate-400">{template.description || 'ไม่มีคำอธิบาย'}</p>
+                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">{template.name}</h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate max-w-[200px]">{template.description || 'ไม่มีคำอธิบายโครร่าง'}</p>
                           </div>
-                          {template.isDefault && <Badge variant="emerald" size="sm">⭐ เริ่มต้น</Badge>}
+                          {template.isDefault && (
+                            <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg animate-fade">Primary Node</Badge>
+                          )}
                         </div>
-                        
-                        <div className="flex flex-wrap gap-1 mb-4">
-                          {template.showAmount && <span className="text-[9px] px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded font-bold">💰 เงิน</span>}
-                          {template.showSender && <span className="text-[9px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded font-bold">👤 ผู้โอน</span>}
-                          {template.showReceiver && <span className="text-[9px] px-2 py-0.5 bg-purple-50 text-purple-600 rounded font-bold">🏛️ ผู้รับ</span>}
-                          {template.showBankLogo && <span className="text-[9px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-bold">🖼️ โลโก้</span>}
+
+                        <div className="flex flex-wrap gap-2 mb-8">
+                          {template.showAmount && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Amount</span>}
+                          {template.showSender && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Sender</span>}
+                          {template.showReceiver && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Receiver</span>}
+                          {template.showBankLogo && <span className="text-[9px] px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest">Brand UI</span>}
                         </div>
-                        
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" fullWidth onClick={() => openEditModal(template)}>
-                            ✏️ แก้ไข
+
+                        <div className="grid grid-cols-2 gap-3 pt-6 border-t border-slate-50">
+                          <Button variant="ghost" className="h-12 rounded-xl font-black uppercase tracking-widest text-[10px] group-hover:bg-slate-50 transition-all" onClick={() => openEditModal(template)}>
+                            Modify Node
                           </Button>
-                          {!template.isDefault && (
-                            <Button variant="ghost" size="sm" onClick={() => handleSetDefault(template._id)}>
-                              ⭐
-                            </Button>
-                          )}
-                          {!template.isDefault && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-rose-500 hover:bg-rose-50"
-                              onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
-                            >
-                              🗑️
-                            </Button>
-                          )}
+                          <div className="flex gap-2">
+                            {!template.isDefault && (
+                              <Button variant="ghost" className="h-12 w-12 p-0 rounded-xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all" onClick={() => handleSetDefault(template._id)}>
+                                ⭐
+                              </Button>
+                            )}
+                            {!template.isDefault && (
+                              <Button
+                                variant="ghost"
+                                className="h-12 w-12 p-0 rounded-xl flex items-center justify-center text-rose-300 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                                onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
+                              >
+                                🗑️
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </Card>
                     ))}
@@ -648,147 +650,176 @@ export default function AdminTemplatesPage() {
         )}
       </div>
 
-      {/* Create/Edit Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={selectedTemplate ? 'แก้ไขเทมเพลต' : 'สร้างเทมเพลตใหม่'} size="xl">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left: Settings */}
-          <div className="flex-1 space-y-4">
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
+      {/* Advanced Studio Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => !isProcessing && setShowModal(false)}
+        title={selectedTemplate ? `DEPLOYMENT STUDIO: ${selectedTemplate.name}` : 'NEW PROTOCOL DEPLOYMENT'}
+        size="xl"
+      >
+        <div className="flex flex-col lg:flex-row gap-12 p-2">
+          {/* Left: Configuration Matrix */}
+          <div className="flex-1 space-y-8">
+            {/* Neural Tabs */}
+            <div className="flex gap-2 p-1.5 bg-slate-100/50 rounded-2xl backdrop-blur-sm border border-slate-100">
               {[
-                { id: 'basic', label: '📝 ข้อมูล', icon: '📝' },
-                { id: 'display', label: '👁️ การแสดง', icon: '👁️' },
-                { id: 'banks', label: '🏦 ธนาคาร', icon: '🏦' },
+                { id: 'basic', label: 'Core Config', icon: '📝' },
+                { id: 'display', label: 'Layer Matrix', icon: '👁️' },
+                { id: 'banks', label: 'Bank Identity', icon: '🏦' },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={cn(
-                    "flex-1 py-2 px-3 rounded-lg text-sm font-bold transition-all",
-                    activeTab === tab.id ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                    "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                    activeTab === tab.id
+                      ? "bg-white shadow-premium-sm text-emerald-600 scale-100"
+                      : "text-slate-400 hover:text-slate-600 hover:scale-95"
                   )}
                 >
-                  {tab.label}
+                  <span className="mr-2">{tab.icon}</span> {tab.label}
                 </button>
               ))}
             </div>
 
-            {/* Tab Content */}
-            <div className="bg-slate-50 rounded-xl p-4 max-h-[50vh] overflow-y-auto">
-              {/* Basic Tab */}
+            {/* Tab Content Node */}
+            <div className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 shadow-inner max-h-[60vh] overflow-y-auto custom-scrollbar">
+              {/* Core Config Tab */}
               {activeTab === 'basic' && (
-                <div className="space-y-4">
+                <div className="space-y-6 animate-fade">
                   <Input
-                    label="ชื่อเทมเพลต"
+                    label="Protocol Name"
                     value={formData.name}
                     onChange={(e) => updateField('name', e.target.value)}
-                    placeholder="เช่น เทมเพลตหลัก"
+                    placeholder="e.g., Emerald Standard"
+                    className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-bold"
                   />
-                  
-                  <Select label="ประเภท" value={formData.type} onChange={(e) => updateField('type', e.target.value)}>
+
+                  <Select
+                    label="Response Type"
+                    value={formData.type}
+                    onChange={(e) => updateField('type', e.target.value)}
+                    className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-bold px-4"
+                  >
                     {TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                     ))}
                   </Select>
-                  
+
                   <Textarea
-                    label="คำอธิบาย"
+                    label="Deployment Brief"
                     value={formData.description}
                     onChange={(e) => updateField('description', e.target.value)}
-                    placeholder="อธิบายการใช้งาน..."
+                    placeholder="Describe the operational scope..."
                     rows={2}
+                    className="rounded-2xl bg-white border-none shadow-premium-sm font-medium p-4"
                   />
-                  
-                  <div className="flex items-center gap-4 p-3 bg-white rounded-xl">
-                    <span className="text-sm font-bold text-slate-700">🎨 สีหลัก</span>
+
+                  <div className="flex items-center justify-between p-5 bg-white rounded-2xl shadow-premium-sm border border-slate-50">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">🎨</div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Brand Accent</p>
+                        <p className="text-xs font-bold text-slate-900">{formData.primaryColor}</p>
+                      </div>
+                    </div>
                     <input
                       type="color"
                       value={formData.primaryColor}
                       onChange={(e) => updateField('primaryColor', e.target.value)}
-                      className="w-10 h-10 rounded-lg border cursor-pointer"
+                      className="w-12 h-12 rounded-xl border-4 border-white shadow-lg cursor-pointer transition-transform hover:scale-110"
                     />
-                    <span className="text-xs font-mono text-slate-400">{formData.primaryColor}</span>
                   </div>
-                  
-                  <Input
-                    label="ข้อความหัว"
-                    value={formData.headerText}
-                    onChange={(e) => updateField('headerText', e.target.value)}
-                    placeholder="เช่น ✅ ตรวจสอบสำเร็จ"
-                  />
-                  
-                  <Input
-                    label="ข้อความท้าย"
-                    value={formData.footerText}
-                    onChange={(e) => updateField('footerText', e.target.value)}
-                    placeholder="เช่น ขอบคุณที่ใช้บริการ"
-                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Header Directive"
+                      value={formData.headerText}
+                      onChange={(e) => updateField('headerText', e.target.value)}
+                      placeholder="e.g., ✅ VERIFIED"
+                      className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-bold text-xs"
+                    />
+                    <Input
+                      label="Footer Directive"
+                      value={formData.footerText}
+                      onChange={(e) => updateField('footerText', e.target.value)}
+                      placeholder="e.g., System Secure"
+                      className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-bold text-xs"
+                    />
+                  </div>
                 </div>
               )}
 
-              {/* Display Tab */}
+              {/* Display Matrix Tab */}
               {activeTab === 'display' && (
-                <div className="space-y-3">
-                  <p className="text-xs text-slate-500 font-bold uppercase mb-2">💰 ข้อมูลหลัก</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Toggle label="จำนวนเงิน" checked={formData.showAmount} onChange={() => updateField('showAmount', !formData.showAmount)} />
-                    <Toggle label="วันที่" checked={formData.showDate} onChange={() => updateField('showDate', !formData.showDate)} />
-                    <Toggle label="เวลา" checked={formData.showTime} onChange={() => updateField('showTime', !formData.showTime)} />
-                    <Toggle label="รหัสอ้างอิง" checked={formData.showTransRef} onChange={() => updateField('showTransRef', !formData.showTransRef)} />
-                  </div>
-                  
-                  <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">👤 ผู้โอน</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Toggle label="แสดงผู้โอน" checked={formData.showSender} onChange={() => updateField('showSender', !formData.showSender)} />
-                    <Toggle label="เลขบัญชี" checked={formData.showSenderAccount} onChange={() => updateField('showSenderAccount', !formData.showSenderAccount)} />
-                    <Toggle label="ชื่อ EN" checked={formData.showSenderNameEn} onChange={() => updateField('showSenderNameEn', !formData.showSenderNameEn)} />
-                    <Toggle label="Bank ID" checked={formData.showSenderBankId} onChange={() => updateField('showSenderBankId', !formData.showSenderBankId)} />
-                  </div>
-                  
-                  <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">🏛️ ผู้รับ</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Toggle label="แสดงผู้รับ" checked={formData.showReceiver} onChange={() => updateField('showReceiver', !formData.showReceiver)} />
-                    <Toggle label="เลขบัญชี" checked={formData.showReceiverAccount} onChange={() => updateField('showReceiverAccount', !formData.showReceiverAccount)} />
-                    <Toggle label="ชื่อ EN" checked={formData.showReceiverNameEn} onChange={() => updateField('showReceiverNameEn', !formData.showReceiverNameEn)} />
-                    <Toggle label="Bank ID" checked={formData.showReceiverBankId} onChange={() => updateField('showReceiverBankId', !formData.showReceiverBankId)} />
-                    <Toggle label="Proxy" checked={formData.showReceiverProxy} onChange={() => updateField('showReceiverProxy', !formData.showReceiverProxy)} />
-                  </div>
-                  
-                  <p className="text-xs text-slate-500 font-bold uppercase mt-4 mb-2">🖼️ อื่นๆ</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Toggle label="โลโก้ธนาคาร" checked={formData.showBankLogo} onChange={() => updateField('showBankLogo', !formData.showBankLogo)} />
-                    <Toggle label="ค่าธรรมเนียม" checked={formData.showFee} onChange={() => updateField('showFee', !formData.showFee)} />
-                    <Toggle label="ประเทศ" checked={formData.showCountryCode} onChange={() => updateField('showCountryCode', !formData.showCountryCode)} />
-                    <Toggle label="Ref1-3" checked={formData.showRefs} onChange={() => updateField('showRefs', !formData.showRefs)} />
-                  </div>
+                <div className="space-y-8 animate-fade">
+                  <section>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 pl-1">Financial Parameters</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Toggle label="Total Amount" checked={formData.showAmount} onChange={() => updateField('showAmount', !formData.showAmount)} />
+                      <Toggle label="Trans ID" checked={formData.showTransRef} onChange={() => updateField('showTransRef', !formData.showTransRef)} />
+                      <Toggle label="Auth Date" checked={formData.showDate} onChange={() => updateField('showDate', !formData.showDate)} />
+                      <Toggle label="Auth Time" checked={formData.showTime} onChange={() => updateField('showTime', !formData.showTime)} />
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 pl-1">Sender Identity</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Toggle label="Enable Sender" checked={formData.showSender} onChange={() => updateField('showSender', !formData.showSender)} />
+                      <Toggle label="Account Mask" checked={formData.showSenderAccount} onChange={() => updateField('showSenderAccount', !formData.showSenderAccount)} />
+                      <Toggle label="Global Name" checked={formData.showSenderNameEn} onChange={() => updateField('showSenderNameEn', !formData.showSenderNameEn)} />
+                      <Toggle label="Bank ID" checked={formData.showSenderBankId} onChange={() => updateField('showSenderBankId', !formData.showSenderBankId)} />
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 pl-1">Receiver Identity</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Toggle label="Enable Receiver" checked={formData.showReceiver} onChange={() => updateField('showReceiver', !formData.showReceiver)} />
+                      <Toggle label="Account Mask" checked={formData.showReceiverAccount} onChange={() => updateField('showReceiverAccount', !formData.showReceiverAccount)} />
+                      <Toggle label="Receiver Bank ID" checked={formData.showReceiverBankId} onChange={() => updateField('showReceiverBankId', !formData.showReceiverBankId)} />
+                      <Toggle label="Proxy Trace" checked={formData.showReceiverProxy} onChange={() => updateField('showReceiverProxy', !formData.showReceiverProxy)} />
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 pl-1">UI Elements</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Toggle label="Brand Logos" checked={formData.showBankLogo} onChange={() => updateField('showBankLogo', !formData.showBankLogo)} />
+                      <Toggle label="Fee Trace" checked={formData.showFee} onChange={() => updateField('showFee', !formData.showFee)} />
+                      <Toggle label="Extra Refs" checked={formData.showRefs} onChange={() => updateField('showRefs', !formData.showRefs)} />
+                      <Toggle label="Region Code" checked={formData.showCountryCode} onChange={() => updateField('showCountryCode', !formData.showCountryCode)} />
+                    </div>
+                  </section>
                 </div>
               )}
 
               {/* Banks Tab */}
               {activeTab === 'banks' && (
-                <div className="space-y-6">
+                <div className="space-y-8 animate-fade">
                   {/* Sender Bank */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xl">👤</span>
-                      <span className="font-bold text-slate-900">ธนาคารผู้โอน</span>
-                      {senderBank && (
-                        <Badge variant="emerald" size="sm">{senderBank.shortName}</Badge>
-                      )}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">👤</span>
+                        <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Sender UI Context</span>
+                      </div>
+                      {senderBank && <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] uppercase">{senderBank.shortName}</Badge>}
                     </div>
-                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-emerald-100">
+                    <div className="flex flex-wrap gap-3 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-premium-sm">
                       <button
                         type="button"
                         onClick={() => updateField('senderBankId', '')}
                         className={cn(
-                          "flex flex-col items-center p-2 rounded-xl border-2 transition-all min-w-[60px]",
-                          !formData.senderBankId ? "border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/20" : "border-slate-200 bg-white"
+                          "flex flex-col items-center p-3 rounded-2xl border-2 transition-all min-w-[70px] group",
+                          !formData.senderBankId ? "border-emerald-500 bg-emerald-50 shadow-lg" : "border-transparent bg-slate-50 hover:bg-white hover:border-slate-200"
                         )}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mb-1">
-                          <span className="text-lg">🔄</span>
+                        <div className="w-12 h-12 rounded-[1.2rem] bg-white shadow-premium-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                          <span className="text-xl">🔄</span>
                         </div>
-                        <span className="text-[10px] font-bold text-slate-500">อัตโนมัติ</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Auto</span>
                       </button>
                       {activeBanks.map((bank) => (
                         <BankButton
@@ -803,27 +834,27 @@ export default function AdminTemplatesPage() {
                   </div>
 
                   {/* Receiver Bank */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xl">🏛️</span>
-                      <span className="font-bold text-slate-900">ธนาคารผู้รับ</span>
-                      {receiverBank && (
-                        <Badge variant="info" size="sm">{receiverBank.shortName}</Badge>
-                      )}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">🏛️</span>
+                        <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Receiver UI Context</span>
+                      </div>
+                      {receiverBank && <Badge className="bg-indigo-50 text-indigo-600 border-none font-black text-[9px] uppercase">{receiverBank.shortName}</Badge>}
                     </div>
-                    <div className="flex flex-wrap gap-2 p-3 bg-white rounded-xl border-2 border-blue-100">
+                    <div className="flex flex-wrap gap-3 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-premium-sm">
                       <button
                         type="button"
                         onClick={() => updateField('receiverBankId', '')}
                         className={cn(
-                          "flex flex-col items-center p-2 rounded-xl border-2 transition-all min-w-[60px]",
-                          !formData.receiverBankId ? "border-blue-500 bg-blue-50 ring-4 ring-blue-500/20" : "border-slate-200 bg-white"
+                          "flex flex-col items-center p-3 rounded-2xl border-2 transition-all min-w-[70px] group",
+                          !formData.receiverBankId ? "border-indigo-500 bg-indigo-50 shadow-lg" : "border-transparent bg-slate-50 hover:bg-white hover:border-slate-200"
                         )}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mb-1">
-                          <span className="text-lg">🔄</span>
+                        <div className="w-12 h-12 rounded-[1.2rem] bg-white shadow-premium-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                          <span className="text-xl">🔄</span>
                         </div>
-                        <span className="text-[10px] font-bold text-slate-500">อัตโนมัติ</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Auto</span>
                       </button>
                       {activeBanks.map((bank) => (
                         <BankButton
@@ -837,9 +868,9 @@ export default function AdminTemplatesPage() {
                     </div>
                   </div>
 
-                  <div className="p-3 bg-blue-50 rounded-xl border border-blue-200">
-                    <p className="text-xs text-blue-700">
-                      💡 <strong>วิธีใช้:</strong> เลือกธนาคารตัวอย่างสำหรับแสดงโลโก้ในสลิป เลือก &quot;อัตโนมัติ&quot; เพื่อใช้ธนาคารจริงจากข้อมูลสลิป
+                  <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <p className="text-[10px] text-blue-700 font-bold leading-relaxed">
+                      💡 <strong>PROTOCOL GUIDANCE:</strong> Select standard UI contexts for real-time preview simulation. Selecting &quot;Auto&quot; will prioritize real-time metadata from the verified slip.
                     </p>
                   </div>
                 </div>
@@ -847,26 +878,28 @@ export default function AdminTemplatesPage() {
             </div>
           </div>
 
-          {/* Right: Preview */}
-          <div className="lg:w-[320px]">
-            <div className="bg-gradient-to-b from-slate-100 to-slate-50 rounded-2xl p-4 border border-slate-200 sticky top-4">
-              <div className="text-center mb-3">
-                <p className="font-bold text-slate-700 text-sm">👁️ ตัวอย่างการแสดงผล</p>
-                <p className="text-[10px] text-slate-400">ลูกค้าจะเห็นแบบนี้</p>
+          {/* Right: Neural Preview Studio */}
+          <div className="lg:w-[400px] flex flex-col">
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-premium sticky top-8 flex flex-col items-center">
+              <div className="text-center mb-10">
+                <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.3em]">Neural Live Preview</h4>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2 px-10">Real-time simulation of mobile verified interface</p>
               </div>
-              
-              <SlipPreview 
-                config={formData} 
-                senderBank={senderBank}
-                receiverBank={receiverBank}
-              />
-              
-              <div className="mt-4 pt-4 border-t border-slate-200 space-y-2">
-                <Button variant="primary" fullWidth onClick={handleSubmit} isLoading={isProcessing}>
-                  {selectedTemplate ? '💾 บันทึก' : '➕ สร้างเทมเพลต'}
+
+              <div className="scale-90 xl:scale-100 transition-transform origin-top">
+                <SlipPreview
+                  config={formData}
+                  senderBank={senderBank}
+                  receiverBank={receiverBank}
+                />
+              </div>
+
+              <div className="w-full mt-10 pt-8 border-t border-slate-50 space-y-4">
+                <Button variant="primary" fullWidth className="h-16 rounded-[2rem] font-black uppercase tracking-widest text-[12px] shadow-emerald-500/20 shadow-2xl" onClick={handleSubmit} isLoading={isProcessing}>
+                  {selectedTemplate ? '⚡ Commit Protocol' : '🚀 Launch Layer'}
                 </Button>
-                <Button variant="ghost" fullWidth onClick={() => setShowModal(false)}>
-                  ยกเลิก
+                <Button variant="ghost" fullWidth className="h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all" onClick={() => setShowModal(false)}>
+                  Abort Deployment
                 </Button>
               </div>
             </div>
@@ -874,15 +907,15 @@ export default function AdminTemplatesPage() {
         </div>
       </Modal>
 
-      {/* Delete Confirm */}
+      {/* Security Confirm Modal */}
       <ConfirmModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
-        title="🗑️ ลบเทมเพลต?"
-        message={`คุณแน่ใจหรือไม่ว่าต้องการลบ "${selectedTemplate?.name}"?`}
-        confirmText="ลบ"
-        cancelText="ยกเลิก"
+        title="PROTOCOL DESTRUCTION"
+        message={`Are you absolutely sure you want to terminate the "${selectedTemplate?.name}" layout matrix? This action cannot be reversed.`}
+        confirmText="Confirm Termination"
+        cancelText="Abort"
         type="danger"
         isLoading={isProcessing}
       />

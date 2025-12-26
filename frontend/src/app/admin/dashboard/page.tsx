@@ -121,26 +121,30 @@ export default function AdminDashboard() {
       <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">ศูนย์ควบคุม</h1>
-            <p className="text-slate-500 font-medium text-lg">ยินดีต้อนรับกลับ, ผู้ดูแลระบบ 👋</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+              ศูนย์<span className="text-emerald-500">ควบคุม</span>
+            </h1>
+            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+              ยินดีต้อนรับกลับ, <span className="text-slate-900">ผู้ดูแลระบบ</span> 👋
+            </p>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
               onClick={() => { fetchStats(); fetchThunderQuota(); }}
-              className="group flex-1 md:flex-none border-slate-200"
+              className="group w-full sm:w-auto border-slate-200 bg-white/50 backdrop-blur-xl hover:bg-white rounded-2xl h-14 px-8 font-black uppercase tracking-widest text-xs"
               isLoading={isLoading || isLoadingQuota}
             >
-              <svg className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-3 group-hover:rotate-180 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               รีเฟรชข้อมูล
             </Button>
-            <Link href="/admin/settings" className="flex-1 md:flex-none">
-              <Button size="lg" variant="primary" fullWidth>
+            <Link href="/admin/settings" className="w-full sm:w-auto">
+              <Button size="lg" variant="primary" className="w-full h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl">
                 ตั้งค่าระบบ
               </Button>
             </Link>

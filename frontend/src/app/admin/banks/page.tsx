@@ -35,21 +35,22 @@ function BankLogo({ bank }: { bank: Bank }) {
 
   return (
     <div
-      className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm"
+      className="relative w-16 h-16 md:w-20 md:h-20 rounded-[1.5rem] flex items-center justify-center overflow-hidden border border-white/40 shadow-premium-sm bg-white backdrop-blur-md group-hover:scale-110 transition-transform duration-500"
       style={bg ? { backgroundColor: bg } : undefined}
     >
       {logo ? (
         <img
           src={logo}
           alt={bank.name}
-          className="w-12 h-12 md:w-16 md:h-16 object-contain"
+          className="w-10 h-10 md:w-12 md:h-12 object-contain drop-shadow-md group-hover:drop-shadow-xl transition-all"
           onError={() => setFailed(true)}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-slate-50">
-          <span className="text-slate-400 font-black text-xl md:text-2xl">{initials || '🏦'}</span>
+          <span className="text-slate-300 font-black text-xl md:text-2xl tracking-tighter">{initials || '🏦'}</span>
         </div>
       )}
+      <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );
 }
@@ -168,87 +169,99 @@ export default function BanksManagementPage() {
       <div className="space-y-8 animate-fade max-w-[1600px] mx-auto pb-10">
 
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-1">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">จัดการธนาคาร</h1>
-            <p className="text-slate-500 font-medium">จัดการรายชื่อธนาคารและโลโก้ในระบบ</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
+          <div className="space-y-2">
+            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
+              Bank <span className="text-emerald-500">Identity</span>
+            </h1>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
+              Identity Management & Protocol Registry
+            </p>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-4 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
-              className="bg-white/50 backdrop-blur-sm border-slate-200 flex-1 md:flex-none"
+              className="bg-white/60 backdrop-blur-xl border-slate-100 shadow-premium-sm text-[10px] font-black uppercase tracking-widest h-14 px-8 hover:bg-emerald-50 hover:text-emerald-600 transition-all flex-1 md:flex-none"
               onClick={handleSyncFromThunder}
               isLoading={isSyncing}
               leftIcon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mr-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
               }
             >
-              Sync Thunder
+              Sync Matrix
             </Button>
             <Button
               size="lg"
               variant="primary"
               onClick={() => setShowCreateModal(true)}
-              className="shadow-emerald-200/50 flex-1 md:flex-none"
+              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl flex-1 md:flex-none"
             >
-              + เพิ่มธนาคาร
+              + Deployment
             </Button>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-4 md:gap-6">
+        {/* Quick Stats Node */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatCard
-            title="ธนาคารทั้งหมด"
+            title="Total Entities"
             value={stats.total}
-            icon="🏦"
+            icon={<span className="text-2xl">🏦</span>}
             color="indigo"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
-            title="เปิดใช้งาน"
+            title="Active Layers"
             value={stats.active}
-            icon="🟢"
+            icon={<span className="text-2xl">🟢</span>}
             color="emerald"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
-            title="ปิดใช้งาน"
+            title="Idle Profiles"
             value={stats.inactive}
-            icon="🔴"
+            icon={<span className="text-2xl">🔴</span>}
             color="rose"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
         </div>
 
-        {/* Filter & List Section */}
-        <div className="space-y-6">
-          <Card className="p-4 border-none shadow-premium-sm bg-white/60 backdrop-blur-md sticky top-0 z-20">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative flex-1 w-full">
+        {/* Filter & List Matrix */}
+        <div className="space-y-8">
+          <Card className="p-6 border-none shadow-premium bg-white/60 backdrop-blur-3xl rounded-[2.5rem] sticky top-8 z-20">
+            <div className="flex flex-col lg:flex-row items-center gap-6">
+              <div className="relative flex-1 w-full group">
+                <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
                 <Input
-                  placeholder="ค้นหาชื่อธนาคาร, รหัส หรือชื่อย่อ..."
+                  placeholder="Query Registry: Search by Name, Code, or Alias..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   containerClassName="!mb-0"
-                  leftIcon={
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  }
-                  className="bg-white/80 border-slate-200 focus:bg-white"
+                  className="pl-14 h-16 bg-white/50 border-white shadow-inner focus:bg-white rounded-[1.5rem] font-bold text-sm"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={handleInitDefaults} className="text-slate-500 hover:text-slate-900">
-                  นำเข้าค่าเริ่มต้น
+              <div className="flex items-center gap-4 w-full lg:w-auto">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleInitDefaults}
+                  className="text-[10px] font-black text-slate-400 hover:text-emerald-600 hover:bg-emerald-50/50 uppercase tracking-[0.2em] px-6 h-12 rounded-xl"
+                >
+                  Factory Defaults
                 </Button>
-                <div className="h-8 w-px bg-slate-200 mx-2 hidden sm:block" />
-                <Badge variant="indigo" className="px-4 py-1.5 font-bold uppercase tracking-widest text-[10px]">
-                  {filteredBanks.length} Banks
+                <div className="h-10 w-[1px] bg-slate-200/50 hidden lg:block" />
+                <Badge className="bg-slate-900 text-white border-none px-6 py-3 font-black uppercase tracking-[0.2em] text-[10px] rounded-full shadow-emerald-500/10 shadow-lg">
+                  {filteredBanks.length} REGISTRIES
                 </Badge>
               </div>
             </div>
@@ -257,76 +270,77 @@ export default function BanksManagementPage() {
           {filteredBanks.length === 0 ? (
             <EmptyState
               icon={
-                <div className="w-24 h-24 rounded-full bg-slate-50 flex items-center justify-center text-slate-200">
+                <div className="w-24 h-24 rounded-full bg-slate-100/50 flex items-center justify-center text-slate-300">
                   <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
               }
-              title="ไม่พบข้อมูลธนาคาร"
-              description={searchQuery ? `ไม่พบธนาคารที่ตรงกับ "${searchQuery}"` : "ยังไม่มีข้อมูลธนาคารในระบบ"}
-              action={searchQuery ? <Button variant="outline" onClick={() => setSearchQuery('')}>ล้างการค้นหา</Button> : null}
+              title="NO IDENTITY FOUND"
+              description={searchQuery ? `Registry query for "${searchQuery}" returned zero matches.` : "The protocol registry is currently empty."}
+              action={searchQuery ? <Button variant="outline" onClick={() => setSearchQuery('')} className="rounded-xl font-black uppercase tracking-widest text-[10px]">Clear Filter</Button> : null}
             />
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {filteredBanks.map((bank) => (
                 <Card
                   key={bank._id}
                   className={cn(
-                    "group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-none bg-white text-center",
-                    !bank.isActive && "opacity-60 grayscale"
+                    "group relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border-none bg-white p-6 flex flex-col items-center rounded-[2.5rem]",
+                    !bank.isActive && "opacity-60 grayscale scale-95 hover:scale-100 hover:grayscale-0"
                   )}
                   padding="none"
                 >
-                  <div className="p-4 flex flex-col items-center">
-                    {/* Bank Logo */}
-                    <div className="transition-transform duration-300 group-hover:scale-110">
-                      <BankLogo bank={bank} />
-                    </div>
+                  {/* Neural Background Decor */}
+                  <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
 
-                    {/* Bank Name & Status */}
-                    <h3 className="mt-3 text-sm md:text-base font-bold text-slate-900 truncate w-full px-1">
+                  {/* Bank Identity Node */}
+                  <div className="relative mb-6">
+                    <BankLogo bank={bank} />
+                    <div className={cn(
+                      "absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm transition-colors",
+                      bank.isActive ? "bg-emerald-500" : "bg-slate-300"
+                    )} />
+                  </div>
+
+                  {/* Identity Label */}
+                  <div className="text-center space-y-1 mb-8 w-full px-2">
+                    <h3 className="text-[12px] font-black text-slate-900 uppercase tracking-widest truncate">
                       {bank.shortName || bank.code}
                     </h3>
-                    <p className="text-[10px] md:text-xs text-slate-400 truncate w-full px-1">
+                    <p className="text-[10px] font-bold text-slate-400 truncate opacity-70">
                       {bank.nameTh || bank.name}
                     </p>
-                    <div className="mt-1 flex items-center justify-center gap-1.5">
-                      <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full tracking-widest">
+                    <div className="pt-2">
+                      <span className="text-[9px] font-black text-indigo-500 bg-indigo-50/50 px-2 py-0.5 rounded-lg tracking-widest border border-indigo-100/50">
                         {bank.code}
                       </span>
                     </div>
+                  </div>
 
-                    {/* Status Badge */}
-                    <div className="mt-2">
-                      <div className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase",
-                        bank.isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"
-                      )}>
-                        <div className={cn("w-1.5 h-1.5 rounded-full", bank.isActive ? "bg-emerald-500" : "bg-slate-300")} />
-                        {bank.isActive ? 'ใช้งาน' : 'ปิด'}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="grid grid-cols-2 gap-2 mt-4 w-full">
+                  {/* Operational Matrix */}
+                  <div className="w-full space-y-3">
+                    <div className="flex gap-2">
                       <Button
                         variant="ghost"
                         size="xs"
                         fullWidth
                         onClick={() => setEditingBank(bank)}
-                        className="font-bold text-slate-500 hover:bg-slate-50"
+                        className="h-10 rounded-xl font-black uppercase tracking-widest text-[9px] text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all"
                       >
-                        แก้ไข
+                        Modify
                       </Button>
                       <Button
                         variant={bank.isActive ? "outline" : "primary"}
                         size="xs"
                         fullWidth
                         onClick={() => handleToggleActive(bank)}
-                        className={cn("font-bold", bank.isActive ? "text-rose-500 border-rose-100 hover:bg-rose-50" : "")}
+                        className={cn(
+                          "h-10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all",
+                          bank.isActive ? "text-rose-500 border-rose-100 hover:bg-rose-50" : "shadow-emerald-500/10 shadow-lg"
+                        )}
                       >
-                        {bank.isActive ? 'ปิด' : 'เปิด'}
+                        {bank.isActive ? 'Suspend' : 'Resume'}
                       </Button>
                     </div>
 
@@ -334,10 +348,10 @@ export default function BanksManagementPage() {
                       variant="ghost"
                       size="xs"
                       fullWidth
-                      className="mt-2 text-[11px] font-bold text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                      className="h-10 rounded-xl font-black uppercase tracking-widest text-[8px] text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 group/preview"
                       onClick={() => router.push(`/admin/templates?bankId=${bank._id}`)}
                     >
-                      👁️ ดูตัวอย่างในเทมเพลตสลิป
+                      <span className="group-hover/preview:scale-110 transition-transform">Preview Simulator</span>
                     </Button>
                   </div>
                 </Card>
@@ -487,101 +501,117 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
     <Modal
       isOpen={true}
       onClose={() => !saving && onClose()}
-      title={bank ? 'แก้ไขธนาคาร' : 'เพิ่มธนาคาร'}
+      title={bank ? 'IDENTITY MODIFICATION' : 'NEW PROTOCOL REGISTRY'}
       size="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-6 p-1">
+      <form onSubmit={handleSubmit} className="space-y-8 p-2 animate-fade">
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-5 py-4 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
-            ⚠️ {error}
+          <div className="bg-rose-50/50 border border-rose-100 text-rose-600 px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-top-2">
+            ⚠️ SYSTEM ERROR: {error}
           </div>
         )}
 
-        {/* Logo Upload */}
+        {/* Logo Upload Zone */}
         <div className="flex flex-col items-center">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">โลโก้ธนาคาร</label>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Identity Visualization</p>
           <div
             className={cn(
-              "relative group cursor-pointer rounded-3xl border-4 border-dashed transition-all duration-300 overflow-hidden w-32 h-32 flex flex-col items-center justify-center",
-              logoPreview ? "border-emerald-100 bg-emerald-50/20" : "border-slate-200 bg-slate-50 hover:border-emerald-300"
+              "relative group cursor-pointer rounded-[2.5rem] border-4 border-dashed transition-all duration-500 overflow-hidden w-40 h-40 flex flex-col items-center justify-center",
+              logoPreview ? "border-emerald-500 bg-white shadow-premium" : "border-slate-100 bg-slate-50/50 hover:border-emerald-300 hover:bg-white"
             )}
             onClick={() => !saving && fileInputRef.current?.click()}
           >
             {logoPreview ? (
-              <img src={logoPreview} alt="Preview" className="w-20 h-20 object-contain" />
+              <>
+                <img src={logoPreview} alt="Preview" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform duration-500" />
+                {!saving && (
+                  <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Update Image</span>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="flex flex-col items-center p-4 text-center">
-                <span className="text-4xl mb-2">📸</span>
-                <p className="text-[9px] font-bold text-slate-400 uppercase">อัปโหลด</p>
+              <div className="flex flex-col items-center p-6 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mb-3 group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deploy Logo</p>
               </div>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={saving} />
           </div>
-          {logoPreview && (
+          {logoPreview && !saving && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handleRemoveLogo(); }}
-              disabled={saving}
-              className="mt-2 text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
+              className="mt-4 text-[9px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-[0.2em] transition-colors"
             >
-              ลบรูปภาพ
+              Purge Image
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           <Input
-            label="รหัสธนาคาร"
-            placeholder="KBANK, SCB"
+            label="PROTOCOL CODE"
+            placeholder="e.g., KBANK"
             value={formData.code}
             onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
             error={formErrors.code}
             required
             disabled={saving || !!bank}
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs"
           />
           <Input
-            label="ชื่อย่อ"
-            placeholder="KBANK"
+            label="IDENTITY ALIAS"
+            placeholder="e.g., K-Connect"
             value={formData.shortName}
             onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
             disabled={saving}
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs"
           />
         </div>
 
-        <Input
-          label="ชื่อธนาคาร (ไทย)"
-          placeholder="ธนาคารกสิกรไทย"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          error={formErrors.name}
-          required
-          disabled={saving}
-        />
+        <div className="space-y-4">
+          <Input
+            label="NATIVE NOMENCLATURE (TH)"
+            placeholder="ธนาคารกสิกรไทย"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            error={formErrors.name}
+            required
+            disabled={saving}
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs"
+          />
 
-        <Input
-          label="ชื่อธนาคาร (อังกฤษ)"
-          placeholder="Kasikorn Bank"
-          value={formData.nameEn}
-          onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
-          disabled={saving}
-        />
+          <Input
+            label="GLOBAL NOMENCLATURE (EN)"
+            placeholder="Kasikorn Bank PCL"
+            value={formData.nameEn}
+            onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
+            disabled={saving}
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs opacity-70 focus:opacity-100"
+          />
+        </div>
 
-        <div className="flex gap-4 pt-4 border-t border-slate-100">
+        <div className="flex gap-4 pt-8 border-t border-slate-50">
           <Button
             type="button"
             variant="ghost"
-            className="flex-1 font-bold text-slate-500 h-12"
+            className="flex-1 font-black text-[10px] uppercase tracking-widest text-slate-400 h-14 rounded-2xl hover:bg-slate-50"
             onClick={onClose}
             disabled={saving}
           >
-            ยกเลิก
+            Abort
           </Button>
           <Button
             type="submit"
-            className="flex-[2] font-black h-12 shadow-premium shadow-emerald-500/10"
+            className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
             isLoading={saving || uploadingLogo}
           >
-            {bank ? 'บันทึก' : 'เพิ่มธนาคาร'}
+            {bank ? 'Commit Changes' : 'Initialize Registry'}
           </Button>
         </div>
       </form>

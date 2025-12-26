@@ -97,6 +97,7 @@ interface StatCardProps {
   color?: 'emerald' | 'blue' | 'amber' | 'rose' | 'indigo' | 'violet';
   variant?: 'simple' | 'gradient' | 'glass';
   isLoading?: boolean;
+  className?: string;
 }
 
 export function StatCard({
@@ -107,6 +108,7 @@ export function StatCard({
   color = 'emerald',
   variant = 'simple',
   isLoading = false,
+  className = '',
 }: StatCardProps) {
   const colorConfigs = {
     emerald: {
@@ -157,7 +159,7 @@ export function StatCard({
 
   if (isLoading) {
     return (
-      <Card className="relative overflow-hidden group animate-pulse" variant={variant === 'glass' ? 'glass' : 'white'}>
+      <Card className={cn("relative overflow-hidden group animate-pulse", className)} variant={variant === 'glass' ? 'glass' : 'white'}>
         <div className="flex items-center justify-between">
           <div className="space-y-3 flex-1">
             <div className="h-4 bg-slate-200 rounded w-24"></div>
@@ -171,7 +173,7 @@ export function StatCard({
 
   if (variant === 'gradient') {
     return (
-      <Card className={cn('border-none text-white overflow-hidden group', config.gradient, 'bg-gradient-to-br', config.shadow)}>
+      <Card className={cn('border-none text-white overflow-hidden group', config.gradient, 'bg-gradient-to-br', config.shadow, className)}>
         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-500">
           {icon}
         </div>
@@ -191,7 +193,7 @@ export function StatCard({
   }
 
   return (
-    <Card className={cn("relative overflow-hidden group hover:border-emerald-500/30 transition-all", variant === 'glass' ? 'glass border-white/10' : '')} hover={variant !== 'glass'}>
+    <Card className={cn("relative overflow-hidden group hover:border-emerald-500/30 transition-all", variant === 'glass' ? 'glass border-white/10' : '', className)} hover={variant !== 'glass'}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm text-slate-500 font-semibold uppercase tracking-wider">{title}</p>

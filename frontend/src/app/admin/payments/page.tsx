@@ -146,91 +146,99 @@ export default function AdminPaymentsPage() {
     <DashboardLayout requiredRole="admin">
       <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
 
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Financial Transactions</h1>
-            <p className="text-slate-500 font-medium text-lg">ตรวจสอบและจัดการรายการชำระเงินจากลูกค้า</p>
+        {/* Neural Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
+          <div className="space-y-2">
+            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
+              Financial <span className="text-emerald-500">Ledger</span>
+            </h1>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
+              Transactional Audit & Monetary Validation
+            </p>
           </div>
-          <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-3 bg-white/60 backdrop-blur-2xl p-2.5 rounded-[2rem] border border-white shadow-premium w-full md:w-auto">
+            <div className="pl-6 pr-2 py-2 flex items-center gap-2 border-r border-slate-100/50 mr-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Identity Filter</span>
+            </div>
             <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="min-w-[180px] bg-white/50 backdrop-blur-md"
+              className="min-w-[200px] border-none shadow-none bg-transparent font-black uppercase text-[11px] tracking-wider focus:ring-0 cursor-pointer"
             >
-              <option value="">ทั้งหมด</option>
-              <option value="pending">รอตรวจสอบ</option>
-              <option value="verified">อนุมัติแล้ว</option>
-              <option value="rejected">ปฏิเสธ</option>
+              <option value="">ALL PROTOCOLS</option>
+              <option value="pending">PENDING AUDIT</option>
+              <option value="verified">VERIFIED TRANSACTION</option>
+              <option value="rejected">REJECTED PAYLOAD</option>
             </Select>
             <IconButton
-              variant="outline"
+              variant="glass"
+              size="md"
               onClick={fetchPayments}
-              className="bg-white/50 backdrop-blur-md"
+              className="rounded-2xl shadow-premium-sm w-12 h-12 bg-white/50 border-white hover:bg-white"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </IconButton>
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Financial Protocol Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
-            title="รอตรวจสอบ"
+            title="Awaiting Audit"
             value={pendingCount}
-            icon="⏳"
+            icon={<span className="text-2xl">⏳</span>}
             color="amber"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
-            title="อนุมัติแล้ว"
+            title="Verified Access"
             value={verifiedCount}
-            icon="✅"
+            icon={<span className="text-2xl">✅</span>}
             color="emerald"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
-            title="ปฏิเสธ"
+            title="Rejected Signals"
             value={rejectedCount}
-            icon="❌"
+            icon={<span className="text-2xl">❌</span>}
             color="rose"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
-            title="รายได้รวม"
+            title="Gross Velocity"
             value={`฿${totalVerifiedAmount.toLocaleString()}`}
-            icon="💰"
+            icon={<span className="text-2xl">💰</span>}
             color="blue"
-            variant="glass"
+            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
         </div>
 
-        {/* Payments Table/List */}
-        <Card className="overflow-hidden p-0 border-none shadow-premium-sm bg-white/60 backdrop-blur-xl rounded-[2.5rem]">
+        {/* Neural Financial Ledger */}
+        <Card className="overflow-hidden p-0 border-none shadow-premium bg-white/60 backdrop-blur-3xl rounded-[3.5rem]">
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Transaction Date</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User Account</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Selected Package</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Amount</th>
-                  <th className="px-8 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
-                  <th className="px-8 py-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
+                <tr className="bg-slate-50/30 border-b border-slate-100/50">
+                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Temporal Index</th>
+                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Identity Matrix</th>
+                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Protocol Layer</th>
+                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Valuation</th>
+                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Audit Status</th>
+                  <th className="px-10 py-8 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Operations</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/50">
+              <tbody className="divide-y divide-slate-100/30">
                 <AnimatePresence mode="popLayout">
                   {payments.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-8 py-20 text-center">
-                        <EmptyState
-                          icon="💸"
-                          title="No transactions found"
-                          description="รายการชำระเงินจะแสดงที่นี่เมื่อลูกค้าเริ่มทำรายการสั่งซื้อ"
-                        />
+                      <td colSpan={6} className="px-10 py-32 text-center">
+                        <div className="flex flex-col items-center justify-center opacity-30">
+                          <div className="w-20 h-20 rounded-[2rem] bg-slate-100 flex items-center justify-center text-4xl mb-6">📉</div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.5em]">Zero Transactions Logged</p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -239,81 +247,98 @@ export default function AdminPaymentsPage() {
                         key={payment._id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                        className="group hover:bg-white/40 transition-all duration-500 cursor-pointer"
                         onClick={() => openDetailModal(payment)}
                       >
-                        <td className="px-8 py-6">
-                          <div className="space-y-1">
-                            <p className="text-sm font-bold text-slate-900">
-                              {new Date(payment.createdAt).toLocaleDateString('th-TH', {
-                                day: 'numeric', month: 'short', year: 'numeric',
+                        <td className="px-10 py-8">
+                          <div className="space-y-1.5">
+                            <p className="text-sm font-black text-slate-900 tracking-tight">
+                              {new Date(payment.createdAt).toLocaleDateString('en-US', {
+                                day: '2-digit', month: 'short', year: 'numeric',
                               })}
                             </p>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                              {new Date(payment.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/20" />
+                              <p className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-widest opacity-60">
+                                {new Date(payment.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                              </p>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-black shadow-sm group-hover:scale-110 transition-transform">
+                        <td className="px-10 py-8">
+                          <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-100 to-white flex items-center justify-center text-slate-400 font-black shadow-inner border border-slate-50 group-hover:scale-110 group-hover:shadow-lg transition-all duration-500">
                               {payment.user?.username?.charAt(0).toUpperCase() || 'U'}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-slate-900 leading-tight">{payment.user?.username || '-'}</p>
-                              <p className="text-xs text-slate-400 font-medium leading-tight">{payment.user?.email || '-'}</p>
+                              <p className="text-[13px] font-black text-slate-900 uppercase tracking-tight mb-1">{payment.user?.username || '-'}</p>
+                              <p className="text-[10px] font-bold text-slate-400 tracking-wider lowercase opacity-60">{payment.user?.email || '-'}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-10 py-8">
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-black text-slate-900 leading-none uppercase tracking-widest">{payment.package?.name || '-'}</p>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="indigo" size="xs" className="bg-indigo-50/50 text-indigo-600 border-none font-black text-[9px] px-2 py-0.5 tracking-widest uppercase">
+                                {payment.package?.slipQuota?.toLocaleString() || '-'} PAYLOAD
+                              </Badge>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-8">
                           <div className="space-y-1">
-                            <p className="text-sm font-bold text-slate-900 leading-tight uppercase tracking-tight">{payment.package?.name || '-'}</p>
-                            <Badge variant="indigo" size="xs" className="font-black">{payment.package?.slipQuota?.toLocaleString() || '-'} SLIPS</Badge>
+                            <p className="text-xl font-black text-slate-900 tracking-tighter">฿{payment.amount.toLocaleString()}</p>
+                            <div className="flex items-center gap-2">
+                              <div className={cn("w-2 h-2 rounded-full", payment.paymentType === 'usdt' ? "bg-emerald-500" : "bg-indigo-500")} />
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] opacity-60">
+                                {payment.paymentType === 'usdt' ? 'USDT MATRIX' : 'FIAT GATEWAY'}
+                              </p>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-8 py-6">
-                          <div className="space-y-0.5">
-                            <p className="text-lg font-black text-slate-900 leading-tight">฿{payment.amount.toLocaleString()}</p>
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                              {payment.paymentType === 'usdt' ? 'USDT' : 'BANK TRANSFER'}
-                            </p>
+                        <td className="px-10 py-8">
+                          <div className={cn(
+                            "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border w-fit shadow-sm",
+                            payment.status === 'verified' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                              payment.status === 'pending' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                "bg-rose-50 text-rose-600 border-rose-100"
+                          )}>
+                            {payment.status === 'verified' ? 'Authorized' :
+                              payment.status === 'pending' ? 'Verification' : 'Rejected'}
                           </div>
                         </td>
-                        <td className="px-8 py-6">
-                          <StatusBadge status={payment.status === 'verified' ? 'approved' : payment.status as any} />
-                        </td>
-                        <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex gap-2 justify-end">
+                        <td className="px-10 py-8 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-3 justify-end items-center">
                             {payment.status === 'pending' ? (
-                              <>
-                                <Button
+                              <div className="flex gap-2">
+                                <IconButton
                                   variant="primary"
-                                  size="sm"
+                                  size="md"
                                   onClick={() => handleApproveClick(payment)}
-                                  className="h-9 px-4 rounded-xl shadow-emerald-200/50"
+                                  className="w-11 h-11 rounded-2xl shadow-emerald-500/20 shadow-lg"
                                 >
-                                  Approve
-                                </Button>
-                                <Button
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                </IconButton>
+                                <IconButton
                                   variant="outline"
-                                  size="sm"
+                                  size="md"
                                   onClick={() => handleRejectClick(payment)}
-                                  className="h-9 px-4 rounded-xl text-rose-500 border-rose-100 hover:bg-rose-50"
+                                  className="w-11 h-11 rounded-2xl text-rose-500 border-rose-100 hover:bg-rose-50"
                                 >
-                                  Reject
-                                </Button>
-                              </>
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </IconButton>
+                              </div>
                             ) : (
                               <IconButton
-                                variant="ghost"
-                                size="sm"
+                                variant="glass"
+                                size="md"
                                 onClick={() => openDetailModal(payment)}
-                                className="text-slate-400 hover:text-slate-900"
+                                className="w-11 h-11 rounded-2xl bg-white/50 border-white text-slate-400 hover:text-slate-900"
                               >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                               </IconButton>
                             )}
@@ -329,36 +354,50 @@ export default function AdminPaymentsPage() {
         </Card>
       </div>
 
-      {/* Detail Modal */}
       <Modal
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
-        title="Transaction Intelligence"
+        title="TRANSACTION INTELLIGENCE"
         size="lg"
       >
         {selectedPayment && (
-          <div className="space-y-10 p-2">
+          <div className="space-y-12 p-2">
 
-            {/* Payment Summary Header */}
-            <div className="flex items-center justify-between p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
-              <div className="relative z-10">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Amount to Verify</p>
-                <p className="text-4xl font-black text-slate-900 tracking-tight">฿{selectedPayment.amount.toLocaleString()}</p>
-                <div className="flex gap-2 mt-3">
-                  <Badge variant="indigo" size="xs" className="font-black uppercase tracking-widest">{selectedPayment.paymentType}</Badge>
-                  <StatusBadge status={selectedPayment.status === 'verified' ? 'approved' : selectedPayment.status as any} />
+            {/* Neural Summary Header */}
+            <div className="flex flex-col md:flex-row items-center justify-between p-10 bg-slate-900 rounded-[3.5rem] relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full" />
+              <div className="relative z-10 text-center md:text-left mb-6 md:mb-0">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-3">Verification Payload</p>
+                <p className="text-5xl font-black text-white tracking-tighter">฿{selectedPayment.amount.toLocaleString()}</p>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-6">
+                  <div className="px-4 py-1.5 rounded-full bg-white/10 text-white font-black text-[9px] uppercase tracking-widest border border-white/10 border-dashed">
+                    {selectedPayment.paymentType} Protocol
+                  </div>
+                  <div className={cn(
+                    "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-xl shadow-black/20",
+                    selectedPayment.status === 'verified' ? "bg-emerald-500 text-white border-emerald-400" :
+                      selectedPayment.status === 'pending' ? "bg-amber-500 text-white border-amber-400" :
+                        "bg-rose-500 text-white border-rose-400"
+                  )}>
+                    {selectedPayment.status === 'verified' ? 'Authorization Confirmed' :
+                      selectedPayment.status === 'pending' ? 'Audit in Progress' : 'Access Denied'}
+                  </div>
                 </div>
               </div>
+
               {selectedPayment.slipImageUrl && (
-                <div className="relative group cursor-zoom-in">
+                <div
+                  className="relative group cursor-zoom-in group/slip"
+                  onClick={() => window.open(selectedPayment.slipImageUrl, '_blank')}
+                >
+                  <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                   <img
                     src={selectedPayment.slipImageUrl}
                     alt="Slip thumbnail"
-                    className="w-20 h-28 object-cover rounded-2xl shadow-lg rotate-3 group-hover:rotate-0 transition-transform"
+                    className="w-28 h-40 object-cover rounded-[1.5rem] shadow-2xl relative z-10 border-2 border-white/20 -rotate-6 group-hover:rotate-0 transition-all duration-700"
                   />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="absolute inset-0 z-20 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-500 rounded-[1.5rem] flex items-center justify-center backdrop-blur-sm -rotate-6 group-hover:rotate-0">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </div>
@@ -366,50 +405,68 @@ export default function AdminPaymentsPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-12 gap-y-8">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Customer Account</p>
-                <p className="text-sm font-bold text-slate-900">{selectedPayment.user?.username || 'Unknown'}</p>
-                <p className="text-xs text-slate-400 font-medium">{selectedPayment.user?.email || 'No email provided'}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10 px-4">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Identity Matrix</p>
+                <p className="text-xl font-black text-slate-900 tracking-tight uppercase">{selectedPayment.user?.username || 'Unknown Operator'}</p>
+                <p className="text-xs text-slate-400 font-bold tracking-wider">{selectedPayment.user?.email || 'No registry email'}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purchase Target</p>
-                <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">{selectedPayment.package?.name || 'Manual Adjustment'}</p>
-                <p className="text-xs text-emerald-600 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} Slips Added</p>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Protocol Layer</p>
+                <p className="text-xl font-black text-slate-900 tracking-tight uppercase">{selectedPayment.package?.name || 'Manual Index'}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} Credits Applied</p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference ID</p>
-                <p className="text-xs font-mono font-bold text-slate-600 truncate">{selectedPayment._id}</p>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Manifest Reference</p>
+                <p className="text-xs font-mono font-black text-slate-400 break-all select-all hover:text-emerald-600 transition-colors uppercase">{selectedPayment._id}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completion Date</p>
-                <p className="text-sm font-bold text-slate-900">
-                  {new Date(selectedPayment.createdAt).toLocaleDateString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'long', year: 'numeric' })}
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Temporal Marker (UTC)</p>
+                <p className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  {new Date(selectedPayment.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                 </p>
               </div>
             </div>
 
             {selectedPayment.slipImageUrl && (
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Digital Receipt Preview</p>
-                <div className="p-4 bg-slate-900 rounded-[2.5rem] shadow-2xl">
-                  <img
-                    src={selectedPayment.slipImageUrl}
-                    alt="Payment slip"
-                    className="w-full max-h-[500px] object-contain rounded-[2rem]"
-                    onClick={() => window.open(selectedPayment.slipImageUrl, '_blank')}
-                  />
+              <div className="space-y-6 pt-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] text-center">Receipt Metadata Visualization</p>
+                <div className="p-1.5 bg-slate-900 rounded-[3.5rem] shadow-2xl border-[12px] border-slate-900">
+                  <div className="overflow-hidden rounded-[2.8rem] bg-slate-800">
+                    <img
+                      src={selectedPayment.slipImageUrl}
+                      alt="Payment slip"
+                      className="w-full max-h-[600px] object-contain hover:scale-105 transition-transform duration-1000"
+                      onClick={() => window.open(selectedPayment.slipImageUrl, '_blank')}
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
             {selectedPayment.status === 'pending' && (
-              <div className="grid grid-cols-2 gap-4 pt-4">
-                <Button variant="primary" size="lg" className="h-16 font-black text-lg shadow-premium shadow-emerald-500/20" onClick={() => handleApproveClick(selectedPayment)}>
-                  Verify & Approve
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="h-20 rounded-[2rem] font-black text-lg uppercase tracking-widest shadow-emerald-500/20 shadow-2xl flex flex-col items-center justify-center gap-1"
+                  onClick={() => handleApproveClick(selectedPayment)}
+                >
+                  Confirm Protocol
+                  <span className="text-[9px] opacity-40 font-bold uppercase tracking-[0.3em]">Authorize Entry</span>
                 </Button>
-                <Button variant="outline" size="lg" className="h-16 font-black text-lg text-rose-500 border-rose-100" onClick={() => handleRejectClick(selectedPayment)}>
-                  Decline Request
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-20 rounded-[2rem] font-black text-lg uppercase tracking-widest text-rose-500 border-rose-100 hover:bg-rose-50 hover:border-rose-300 flex flex-col items-center justify-center gap-1"
+                  onClick={() => handleRejectClick(selectedPayment)}
+                >
+                  Deny Protocol
+                  <span className="text-[9px] opacity-40 font-bold uppercase tracking-[0.3em]">Reject Access</span>
                 </Button>
               </div>
             )}
@@ -422,9 +479,9 @@ export default function AdminPaymentsPage() {
         isOpen={showConfirmApprove}
         onClose={() => setShowConfirmApprove(false)}
         onConfirm={handleApprove}
-        title="Authorize Credit Injection"
-        message={`Confirming this will immediately add ${selectedPayment?.package?.slipQuota?.toLocaleString()} slips to "${selectedPayment?.user?.username}"'s account. This action is irreversible.`}
-        confirmText="Confirm Authorization"
+        title="AUTHORIZE CREDIT INJECTION"
+        message={`Authorize immediate transmission of ${selectedPayment?.package?.slipQuota?.toLocaleString()} credits to index "${selectedPayment?.user?.username}"? This protocol is irreversible.`}
+        confirmText="Authorize Transmission"
         type="success"
         isLoading={isProcessing}
       />
@@ -432,33 +489,44 @@ export default function AdminPaymentsPage() {
       <Modal
         isOpen={showRejectModal}
         onClose={() => !isProcessing && setShowRejectModal(false)}
-        title="Transaction Denial"
+        title="TRANSACTION DENIAL PROTOCOL"
         size="md"
       >
-        <div className="space-y-8 p-1">
-          <div className="p-6 bg-rose-50 rounded-[2rem] border border-rose-100">
-            <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Impacted Account</p>
-            <p className="text-xl font-black text-rose-900">
-              {selectedPayment?.user?.username} (฿{selectedPayment?.amount.toLocaleString()})
+        <div className="space-y-10 p-2">
+          <div className="p-8 bg-rose-50/50 rounded-[2.5rem] border border-rose-100/50 backdrop-blur-md relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 blur-3xl rounded-full" />
+            <p className="text-[10px] font-black text-rose-400 uppercase tracking-[0.4em] mb-3">Impacted Identity Matrix</p>
+            <p className="text-2xl font-black text-rose-900 tracking-tight uppercase">
+              {selectedPayment?.user?.username} <span className="text-[14px] opacity-40 ml-1">฿{selectedPayment?.amount.toLocaleString()}</span>
             </p>
           </div>
 
           <TextArea
-            label="Denial Rationale"
-            placeholder="e.g. Image resolution insufficient, Transaction ID mismatch..."
+            label="DENIAL RATIONALE & FEEDBACK"
+            placeholder="e.g. VISUAL RESOLUTION INSUFFICIENT, METADATA MISMATCH DETECTED..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            rows={4}
+            rows={5}
             disabled={isProcessing}
-            className="font-medium"
+            className="rounded-[2rem] bg-slate-50 border-none shadow-inner font-black text-[11px] p-6 leading-relaxed uppercase"
           />
 
-          <div className="flex gap-4 pt-4 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 h-14 font-bold text-slate-500" onClick={() => setShowRejectModal(false)} disabled={isProcessing}>
-              Cancel
+          <div className="flex gap-4 pt-4 border-t border-slate-50">
+            <Button
+              variant="ghost"
+              className="flex-1 h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest text-slate-400 hover:bg-slate-50"
+              onClick={() => setShowRejectModal(false)}
+              disabled={isProcessing}
+            >
+              Abort
             </Button>
-            <Button variant="danger" className="flex-[2] h-14 font-black text-lg shadow-premium shadow-rose-500/20" onClick={handleReject} isLoading={isProcessing}>
-              Reject Transaction
+            <Button
+              variant="danger"
+              className="flex-[2] h-14 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-rose-500/10 shadow-2xl"
+              onClick={handleReject}
+              isLoading={isProcessing}
+            >
+              Execute Denial Protocol
             </Button>
           </div>
         </div>

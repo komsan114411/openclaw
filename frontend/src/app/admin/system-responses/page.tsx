@@ -12,50 +12,50 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { systemResponseTemplatesApi } from '@/lib/api';
 
-// System Response Types organized by category (ปรับให้เรียบง่าย)
-// หมายเหตุ: สลิปซ้ำให้ใช้ Slip Templates แทน, โควต้าใกล้หมดจะแสดงในบล็อกผลสลิป
+// Interaction Protocol Deployment Matrix
+// [NOTE] REDUNDANT SLIPS UTILIZE SLIP TEMPLATES; LOW QUOTA SIGNALS ARE INJECTED INTO SLIP PAYLOADS
 const RESPONSE_CATEGORIES = {
   main: {
-    label: '🎯 หลัก',
-    description: 'ข้อความหลักที่ใช้งานบ่อย',
+    label: 'CORE PROTOCOLS',
+    description: 'ESSENTIAL INTERACTION SIGNALS',
     types: ['quota_exhausted', 'package_expired', 'slip_not_found', 'system_error'],
   },
   optional: {
-    label: '⚙️ ตัวเลือก',
-    description: 'ผู้ใช้เลือกได้ว่าจะส่งหรือไม่',
+    label: 'EXTENDED LOGIC',
+    description: 'OPTIONAL COMMUNICATION LAYERS',
     types: ['bot_disabled', 'processing'],
   },
   extra: {
-    label: '📋 เสริม',
-    description: 'ตั้งค่าเพิ่มเติม',
+    label: 'ANCILLARY DATA',
+    description: 'SUPPLEMENTARY TELEMETRY',
     types: ['quota_low'],
   },
 };
 
-// System Response Types - Thai Labels (ปรับให้เรียบง่าย)
+// INTERACTION PROTOCOL DEFINITIONS
 const RESPONSE_TYPES: Record<string, { label: string; icon: string; description: string; color: string; userConfigurable?: boolean }> = {
-  // หลัก
-  quota_exhausted: { label: 'โควต้าหมด', icon: '🔴', description: 'เมื่อไม่มีโควต้าหรือใช้หมดแล้ว', color: '#DC2626' },
-  package_expired: { label: 'แพ็คเกจหมดอายุ', icon: '⏰', description: 'เมื่อแพ็คเกจหมดอายุ', color: '#F59E0B' },
-  slip_not_found: { label: 'ไม่พบสลิป', icon: '❌', description: 'เมื่ออ่านสลิปไม่ได้ (รวมทุกกรณี)', color: '#EF4444' },
-  system_error: { label: 'ข้อผิดพลาดระบบ', icon: '⚠️', description: 'เมื่อเกิดข้อผิดพลาดในระบบ', color: '#F97316' },
-  // ตัวเลือก - ผู้ใช้เลือกได้
-  bot_disabled: { label: 'บอทปิดให้บริการ', icon: '📵', description: 'เมื่อบอทถูกปิด (ผู้ใช้เลือกส่ง/ไม่ส่ง)', color: '#64748B', userConfigurable: true },
-  processing: { label: 'กำลังประมวลผล', icon: '⏳', description: 'ขณะกำลังตรวจสอบ (ผู้ใช้เลือกส่ง/ไม่ส่ง)', color: '#0EA5E9', userConfigurable: true },
-  // เสริม - โควต้าใกล้หมด (แสดงในบล็อกผลสลิป)
-  quota_low: { label: 'โควต้าใกล้หมด', icon: '⚠️', description: 'แสดงเตือนในบล็อกผลสลิป (เมื่อเหลือน้อยกว่า threshold)', color: '#EAB308' },
+  // CORE
+  quota_exhausted: { label: 'QUOTA EXHAUSTED', icon: '🔴', description: 'CREDIT PAYLOAD DEPLETED', color: '#DC2626' },
+  package_expired: { label: 'PACKAGE EXPIRED', icon: '⏰', description: 'SUBSCRIPTION CYCLE TERMINATED', color: '#F59E0B' },
+  slip_not_found: { label: 'SLIP DATA NOT FOUND', icon: '❌', description: 'VERIFICATION REGISTRY MISMATCH', color: '#EF4444' },
+  system_error: { label: 'SYSTEM CRITICAL ERROR', icon: '⚠️', description: 'INTERNAL PROTOCOL FAILURE', color: '#F97316' },
+  // OPTIONAL
+  bot_disabled: { label: 'BOT DISCONNECTED', icon: '📵', description: 'NEURAL INTERFACE INACTIVE', color: '#64748B', userConfigurable: true },
+  processing: { label: 'SIGNAL PROCESSING', icon: '⏳', description: 'METADATA VALIDATION ACTIVE', color: '#0EA5E9', userConfigurable: true },
+  // EXTRA
+  quota_low: { label: 'QUOTA LOW THRESHOLD', icon: '⚠️', description: 'CREDIT RESERVES CRITICAL', color: '#EAB308' },
 };
 
 // Color presets for quick selection
 const COLOR_PRESETS = [
-  { name: 'เขียว', primary: '#10B981', bg: '#ECFDF5' },
-  { name: 'แดง', primary: '#EF4444', bg: '#FEF2F2' },
-  { name: 'ส้ม', primary: '#F97316', bg: '#FFF7ED' },
-  { name: 'เหลือง', primary: '#EAB308', bg: '#FEFCE8' },
-  { name: 'น้ำเงิน', primary: '#3B82F6', bg: '#EFF6FF' },
-  { name: 'ม่วง', primary: '#8B5CF6', bg: '#F5F3FF' },
-  { name: 'ชมพู', primary: '#EC4899', bg: '#FDF2F8' },
-  { name: 'เทา', primary: '#64748B', bg: '#F8FAFC' },
+  { name: 'EMERALD', primary: '#10B981', bg: '#ECFDF5' },
+  { name: 'ROSE', primary: '#EF4444', bg: '#FEF2F2' },
+  { name: 'ORANGE', primary: '#F97316', bg: '#FFF7ED' },
+  { name: 'AMBER', primary: '#EAB308', bg: '#FEFCE8' },
+  { name: 'BLUE', primary: '#3B82F6', bg: '#EFF6FF' },
+  { name: 'VIOLET', primary: '#8B5CF6', bg: '#F5F3FF' },
+  { name: 'PINK', primary: '#EC4899', bg: '#FDF2F8' },
+  { name: 'SLATE', primary: '#64748B', bg: '#F8FAFC' },
 ];
 
 interface ResponseStyling {
@@ -93,10 +93,10 @@ const DEFAULT_STYLING: ResponseStyling = {
   icon: '⚡',
   showIcon: true,
   showContactButton: true,
-  contactButtonText: 'ติดต่อผู้ดูแล',
+  contactButtonText: 'UPLINK OPERATOR',
   contactButtonUrl: '',
   showRetryButton: true,
-  retryButtonText: 'ส่งใหม่',
+  retryButtonText: 'RETRY PROTOCOL',
 };
 
 export default function SystemResponsesPage() {
@@ -117,7 +117,7 @@ export default function SystemResponsesPage() {
         setTemplates(data.data);
         if (data.data.length > 0 && !selectedType) {
           // Select first main template by default
-          const firstMain = data.data.find((t: SystemResponseTemplate) => 
+          const firstMain = data.data.find((t: SystemResponseTemplate) =>
             RESPONSE_CATEGORIES.main.types.includes(t.type)
           );
           if (firstMain) handleSelectTemplate(firstMain);
@@ -125,11 +125,11 @@ export default function SystemResponsesPage() {
         }
       } else {
         // No templates found - might need to create them
-        toast.error('ไม่พบเทมเพลต กรุณาตรวจสอบการตั้งค่าระบบ');
+        toast.error('MATRIX REGISTRY EMPTY: PLEASE INITIALIZE SYSTEM CONFIGURATION');
       }
     } catch (error: any) {
       console.error('Failed to fetch templates:', error);
-      toast.error(error.response?.data?.message || 'ไม่สามารถโหลดข้อมูลได้');
+      toast.error(error.response?.data?.message || 'SIGNAL ACQUISITION FAILED: MATRIX UNREACHABLE');
     } finally {
       setLoading(false);
     }
@@ -154,13 +154,13 @@ export default function SystemResponsesPage() {
       setSaving(true);
       const res = await systemResponseTemplatesApi.update(selectedType, formData);
       if (res.data.success) {
-        toast.success('บันทึกสำเร็จ');
+        toast.success('PROTOCOL COMMITTED SUCCESSFULLY');
         fetchTemplates();
       } else {
-        toast.error(res.data.error || 'เกิดข้อผิดพลาด');
+        toast.error(res.data.error || 'PROTOCOL COMMIT FAILED');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'SIGNAL TRANSMISSION ERROR');
     } finally {
       setSaving(false);
     }
@@ -168,20 +168,20 @@ export default function SystemResponsesPage() {
 
   const handleReset = async () => {
     if (!selectedType) return;
-    if (!confirm('รีเซ็ตเป็นค่าเริ่มต้น?')) return;
+    if (!confirm('WARNING: RESETTING DOMAIN WILL REVERT ALL PARAMETERS. PROCEED?')) return;
 
     try {
       setSaving(true);
       const res = await systemResponseTemplatesApi.reset(selectedType);
       if (res.data.success) {
-        toast.success('รีเซ็ตสำเร็จ');
+        toast.success('DOMAIN PARAMETERS RESET');
         setFormData({ ...res.data.data, styling: { ...DEFAULT_STYLING, ...res.data.data.styling } });
         fetchTemplates();
       } else {
-        toast.error(res.data.error || 'เกิดข้อผิดพลาด');
+        toast.error(res.data.error || 'RESET PROTOCOL FAILED');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+      toast.error(error.response?.data?.message || 'SIGNAL TRANSMISSION ERROR');
     } finally {
       setSaving(false);
     }
@@ -206,10 +206,10 @@ export default function SystemResponsesPage() {
   // Filter templates by category and search
   const filteredTemplates = useMemo(() => {
     let result = templates;
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(t => 
+      result = result.filter(t =>
         t.name.toLowerCase().includes(query) ||
         t.type.toLowerCase().includes(query) ||
         RESPONSE_TYPES[t.type]?.label.toLowerCase().includes(query)
@@ -218,69 +218,68 @@ export default function SystemResponsesPage() {
       const categoryTypes = RESPONSE_CATEGORIES[activeCategory as keyof typeof RESPONSE_CATEGORIES]?.types || [];
       result = result.filter(t => categoryTypes.includes(t.type));
     }
-    
+
     return result;
   }, [templates, activeCategory, searchQuery]);
 
-  if (loading) return <DashboardLayout requiredRole="admin"><PageLoading message="กำลังโหลดข้อมูล..." /></DashboardLayout>;
+  if (loading) return <DashboardLayout requiredRole="admin"><PageLoading message="LOGGING INTO INTERACTION MATRIX..." /></DashboardLayout>;
 
   return (
     <DashboardLayout requiredRole="admin">
       <div className="space-y-6 animate-fade max-w-[1800px] mx-auto pb-12">
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl">
-                  💬
+        {/* Neural Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
+          <div className="space-y-2">
+            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
+              Response <span className="text-emerald-500">Matrix</span>
+            </h1>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
+              Interaction Protocol & Automation Logic
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-900"
+              onClick={handleReset}
+              disabled={saving || !selectedType}
+            >
+              Reset Domain
+            </Button>
+            <Button
+              variant="primary"
+              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl"
+              onClick={handleSave}
+              isLoading={saving}
+              leftIcon={
+                <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center mr-2">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold">ข้อความตอบกลับระบบ</h1>
-                  <p className="text-white/80 text-sm">ตั้งค่าข้อความที่จะส่งถึงลูกค้าอัตโนมัติ</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge className="bg-white/20 text-white border-0">
-                🔒 ผู้ดูแลเท่านั้น
-              </Badge>
-              <Button 
-                variant="outline" 
-                className="border-white/30 text-white hover:bg-white/10"
-                onClick={handleReset} 
-                disabled={saving || !selectedType}
-              >
-                รีเซ็ต
-              </Button>
-              <Button 
-                className="bg-white text-indigo-600 hover:bg-white/90 shadow-lg"
-                onClick={handleSave} 
-                isLoading={saving}
-              >
-                💾 บันทึก
-              </Button>
-            </div>
+              }
+            >
+              Commit Protocol
+            </Button>
           </div>
         </div>
 
-        {/* Flow explanation */}
-        <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <div className="flex flex-wrap items-center gap-4 justify-center text-sm">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">1</span>
-              <span className="text-blue-800">ลูกค้าส่งรูปมา LINE</span>
+        {/* Protocol Flow Visualization */}
+        <Card className="p-8 bg-white/40 backdrop-blur-3xl border-none shadow-inner rounded-[3rem]">
+          <div className="flex flex-wrap items-center gap-8 justify-center">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xl">01</div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Signal Ingested</p>
             </div>
-            <span className="text-blue-400">→</span>
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold">2</span>
-              <span className="text-indigo-800">ระบบตรวจสอบสถานะ</span>
+            <div className="w-10 h-[1px] bg-slate-200" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xl">02</div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Logic Verification</p>
             </div>
-            <span className="text-indigo-400">→</span>
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold">3</span>
-              <span className="text-purple-800">ส่งข้อความตอบกลับตาม Template</span>
+            <div className="w-10 h-[1px] bg-slate-200" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center font-black text-xs shadow-xl">03</div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Protocol Transmission</p>
             </div>
           </div>
         </Card>
@@ -289,30 +288,33 @@ export default function SystemResponsesPage() {
 
           {/* Left Sidebar - Template Selector */}
           <div className="lg:col-span-4 xl:col-span-3 space-y-4">
-            
-            {/* Search */}
-            <div className="relative">
+
+            {/* Neural Search */}
+            <div className="relative group">
               <input
                 type="text"
-                placeholder="🔍 ค้นหาข้อความ..."
+                placeholder="SEARCH INTERACTION MATRIX..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all outline-none"
+                className="w-full h-14 pl-12 pr-6 rounded-2xl bg-white/60 backdrop-blur-xl border-none shadow-premium-sm focus:shadow-premium focus:ring-0 font-black text-[10px] tracking-widest uppercase transition-all"
               />
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
             </div>
 
-            {/* Category Tabs */}
+            {/* Neural Domain Tabs */}
             {!searchQuery && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 bg-slate-100/50 p-1.5 rounded-[1.5rem] backdrop-blur-md">
                 {Object.entries(RESPONSE_CATEGORIES).map(([key, cat]) => (
                   <button
                     key={key}
                     onClick={() => setActiveCategory(key)}
                     className={cn(
-                      "px-3 py-2 rounded-xl text-xs font-bold transition-all",
-                      activeCategory === key 
-                        ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30" 
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      "flex-1 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-500",
+                      activeCategory === key
+                        ? "bg-white text-slate-900 shadow-premium-sm scale-100"
+                        : "text-slate-400 hover:text-slate-600 scale-95"
                     )}
                   >
                     {cat.label}
@@ -321,18 +323,17 @@ export default function SystemResponsesPage() {
               </div>
             )}
 
-            {/* Template List */}
-            <Card className="p-0 overflow-hidden">
-              <div className="p-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100">
-                <p className="text-sm font-bold text-slate-700">
-                  {searchQuery ? `ผลการค้นหา (${filteredTemplates.length})` : RESPONSE_CATEGORIES[activeCategory as keyof typeof RESPONSE_CATEGORIES]?.label}
+            {/* Interaction Protocol List */}
+            <Card className="p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium rounded-[2.5rem] overflow-hidden">
+              <div className="px-6 py-5 border-b border-slate-100/50 bg-slate-50/50">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  {searchQuery ? `Search Results (${filteredTemplates.length})` : RESPONSE_CATEGORIES[activeCategory as keyof typeof RESPONSE_CATEGORIES]?.label}
                 </p>
               </div>
-              <div className="p-2 space-y-1 max-h-[50vh] overflow-y-auto">
+              <div className="p-3 space-y-2 max-h-[55vh] overflow-y-auto custom-scrollbar">
                 {filteredTemplates.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
-                    <span className="text-3xl block mb-2">🔍</span>
-                    ไม่พบข้อความที่ค้นหา
+                  <div className="text-center py-16 opacity-30">
+                    <p className="text-[10px] font-black uppercase tracking-widest">Zero Signals Filtered</p>
                   </div>
                 ) : filteredTemplates.map((template) => {
                   const typeInfo = RESPONSE_TYPES[template.type];
@@ -340,33 +341,43 @@ export default function SystemResponsesPage() {
                   return (
                     <motion.button
                       key={template._id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => handleSelectTemplate(template)}
                       className={cn(
-                        "w-full p-3 rounded-xl flex items-center gap-3 transition-all border-2",
-                        isSelected 
-                          ? "border-indigo-500 bg-indigo-50 shadow-lg shadow-indigo-500/10" 
-                          : "border-transparent hover:bg-slate-50"
+                        "relative w-full p-4 rounded-[1.8rem] flex items-center gap-4 transition-all duration-500 group overflow-hidden border border-transparent",
+                        isSelected
+                          ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/10 border-white/5"
+                          : "hover:bg-white hover:shadow-premium-sm"
                       )}
                     >
-                      <div 
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm"
-                        style={{ backgroundColor: typeInfo?.color + '20', color: typeInfo?.color }}
+                      {isSelected && (
+                        <motion.div
+                          layoutId="activeResponseSlot"
+                          className="absolute inset-0 bg-slate-900 -z-10"
+                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                      )}
+                      <div
+                        className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center text-lg shadow-inner transition-transform duration-500 group-hover:scale-110 relative z-10",
+                          isSelected ? "bg-white/10 border border-white/10" : "bg-slate-50 border border-slate-100"
+                        )}
+                        style={{ color: typeInfo?.color }}
                       >
                         {typeInfo?.icon || '📄'}
                       </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className={cn("font-bold text-sm truncate", isSelected ? "text-indigo-700" : "text-slate-700")}>
+                      <div className="flex-1 min-w-0 text-left relative z-10">
+                        <p className={cn("font-black text-[11px] truncate uppercase tracking-tight mb-0.5", isSelected ? "text-white" : "text-slate-900")}>
                           {template.name || typeInfo?.label}
                         </p>
-                        <p className="text-[10px] text-slate-400 truncate">{typeInfo?.description}</p>
+                        <p className={cn("text-[9px] font-bold truncate uppercase tracking-widest opacity-40", isSelected && "text-emerald-400 opacity-100")}>
+                          {typeInfo?.description}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="relative z-10">
                         {template.isActive ? (
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
                         ) : (
-                          <span className="w-2 h-2 rounded-full bg-slate-300"></span>
+                          <div className="w-2 h-2 rounded-full bg-slate-200" />
                         )}
                       </div>
                     </motion.button>
@@ -399,238 +410,282 @@ export default function SystemResponsesPage() {
 
                 {/* Settings Form */}
                 <div className="xl:col-span-3 space-y-6">
-                  
-                  {/* Template Header */}
-                  <Card className="p-4 bg-gradient-to-r from-slate-50 to-slate-100">
-                    <div className="flex items-center gap-4">
-                      <div 
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg"
-                        style={{ 
-                          backgroundColor: RESPONSE_TYPES[selectedType || '']?.color + '20',
-                          color: RESPONSE_TYPES[selectedType || '']?.color 
+
+                  {/* Interaction Protocol Header */}
+                  <Card className="p-8 bg-white/60 backdrop-blur-3xl border-none shadow-premium rounded-[3.5rem] overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] rounded-full" />
+                    <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                      <div
+                        className="w-20 h-20 rounded-3xl flex items-center justify-center text-3xl shadow-premium group-hover:scale-110 transition-transform duration-700"
+                        style={{
+                          backgroundColor: RESPONSE_TYPES[selectedType || '']?.color + '15',
+                          color: RESPONSE_TYPES[selectedType || '']?.color
                         }}
                       >
                         {RESPONSE_TYPES[selectedType || '']?.icon}
                       </div>
-                      <div className="flex-1">
-                        <h2 className="text-xl font-bold text-slate-900">
+                      <div className="flex-1 text-center md:text-left">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-1">
                           {formData.name || RESPONSE_TYPES[selectedType || '']?.label}
                         </h2>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
                           {RESPONSE_TYPES[selectedType || '']?.description}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white shadow-sm">
-                        <span className="text-sm font-medium text-slate-600">สถานะ</span>
-                        <Switch 
-                          checked={formData.isActive ?? true} 
-                          onChange={(checked) => updateFormData('isActive', checked)} 
+                      <div className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-white shadow-inner">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Protocol Active</span>
+                        <Switch
+                          checked={formData.isActive ?? true}
+                          onChange={(checked) => updateFormData('isActive', checked)}
                         />
                       </div>
                     </div>
                   </Card>
 
-                  {/* Response Format */}
-                  <Card className="p-5 space-y-4">
-                    <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">📝</span>
-                      รูปแบบการตอบกลับ
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
+                  {/* Communication Logistics */}
+                  <Card className="p-8 bg-white/60 backdrop-blur-3xl border-none shadow-premium rounded-[3.5rem] space-y-8">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-xl shadow-inner">🛰️</div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Deployment Format</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select interaction layer architecture</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                       <button
                         type="button"
                         onClick={() => updateFormData('responseFormat', 'flex')}
                         className={cn(
-                          "p-4 rounded-xl border-2 transition-all text-left",
-                          formData.responseFormat === 'flex' 
-                            ? "border-indigo-500 bg-indigo-50" 
-                            : "border-slate-200 hover:border-slate-300"
+                          "p-6 rounded-[2.5rem] border-2 transition-all duration-500 text-left relative overflow-hidden group",
+                          formData.responseFormat === 'flex'
+                            ? "border-emerald-500 bg-emerald-50/30"
+                            : "border-slate-100 bg-slate-50/50 hover:border-slate-300"
                         )}
                       >
-                        <div className="text-2xl mb-2">🎨</div>
-                        <p className="font-bold text-slate-900">Flex Message</p>
-                        <p className="text-xs text-slate-500">สวยงาม มีปุ่มกด</p>
+                        <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">💎</div>
+                        <p className="font-black text-[13px] text-slate-900 uppercase tracking-tight mb-1">Neural Flex</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">High-fidelity visual matrix</p>
+                        {formData.responseFormat === 'flex' && (
+                          <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                        )}
                       </button>
                       <button
                         type="button"
                         onClick={() => updateFormData('responseFormat', 'text')}
                         className={cn(
-                          "p-4 rounded-xl border-2 transition-all text-left",
-                          formData.responseFormat === 'text' 
-                            ? "border-indigo-500 bg-indigo-50" 
-                            : "border-slate-200 hover:border-slate-300"
+                          "p-6 rounded-[2.5rem] border-2 transition-all duration-500 text-left relative overflow-hidden group",
+                          formData.responseFormat === 'text'
+                            ? "border-emerald-500 bg-emerald-50/30"
+                            : "border-slate-100 bg-slate-50/50 hover:border-slate-300"
                         )}
                       >
-                        <div className="text-2xl mb-2">💬</div>
-                        <p className="font-bold text-slate-900">ข้อความธรรมดา</p>
-                        <p className="text-xs text-slate-500">เรียบง่าย รวดเร็ว</p>
+                        <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">⌨️</div>
+                        <p className="font-black text-[13px] text-slate-900 uppercase tracking-tight mb-1">Standard Cipher</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Clean terminal-style response</p>
+                        {formData.responseFormat === 'text' && (
+                          <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                        )}
                       </button>
                     </div>
-                    <Textarea 
-                      label="ข้อความ Text (สำรอง)" 
-                      value={formData.textMessage || ''} 
-                      onChange={(e) => updateFormData('textMessage', e.target.value)} 
-                      rows={2} 
-                      placeholder="ข้อความสำรองเมื่อไม่รองรับ Flex..." 
+
+                    <Textarea
+                      label="NOMINAL CLI FALLBACK"
+                      value={formData.textMessage || ''}
+                      onChange={(e) => updateFormData('textMessage', e.target.value)}
+                      rows={3}
+                      placeholder="ENTER FALLBACK SIGNAL CIPHER..."
+                      className="rounded-[2rem] bg-slate-50 border-none shadow-inner font-black text-[11px] p-6 leading-relaxed uppercase"
                     />
                   </Card>
 
                   <AnimatePresence mode="wait">
                     {formData.responseFormat === 'flex' && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 20 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        exit={{ opacity: 0, y: -20 }} 
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
                         className="space-y-6"
                       >
-                        {/* Message Content */}
-                        <Card className="p-5 space-y-4">
-                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">💬</span>
-                            เนื้อหาข้อความ
-                          </h3>
-                          <Input 
-                            label="หัวข้อ" 
-                            value={formData.title || ''} 
-                            onChange={(e) => updateFormData('title', e.target.value)} 
-                            placeholder="เช่น โควต้าหมด" 
-                          />
-                          <Input 
-                            label="ข้อความหลัก" 
-                            value={formData.mainMessage || ''} 
-                            onChange={(e) => updateFormData('mainMessage', e.target.value)} 
-                            placeholder="ข้อความที่ต้องการบอกลูกค้า" 
-                          />
-                          <Textarea 
-                            label="ข้อความรอง (ไม่บังคับ)" 
-                            value={formData.subMessage || ''} 
-                            onChange={(e) => updateFormData('subMessage', e.target.value)} 
-                            rows={2} 
-                            placeholder="คำอธิบายเพิ่มเติม..." 
-                          />
-                        </Card>
-
-                        {/* Colors */}
-                        <Card className="p-5 space-y-4">
-                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">🎨</span>
-                            สีและการแสดงผล
-                          </h3>
-                          
-                          {/* Color Presets */}
-                          <div>
-                            <label className="text-xs font-bold text-slate-500 mb-2 block">ธีมสีด่วน</label>
-                            <div className="flex flex-wrap gap-2">
-                              {COLOR_PRESETS.map((preset) => (
-                                <button
-                                  key={preset.name}
-                                  type="button"
-                                  onClick={() => applyColorPreset(preset)}
-                                  className="w-10 h-10 rounded-xl shadow-md hover:scale-110 transition-transform border-2 border-white"
-                                  style={{ backgroundColor: preset.primary }}
-                                  title={preset.name}
-                                />
-                              ))}
+                        {/* Signal Content Mapping */}
+                        <Card className="p-8 bg-white/60 backdrop-blur-3xl border-none shadow-premium rounded-[3.5rem] space-y-8">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center text-xl shadow-inner">📡</div>
+                            <div>
+                              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Signal Parameters</h3>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Define the core interaction payload</p>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs font-bold text-slate-500 mb-2 block">สีหัวข้อ</label>
-                              <div className="flex items-center gap-2">
-                                <input 
-                                  type="color" 
-                                  value={formData.styling?.primaryColor || '#10b981'} 
-                                  onChange={(e) => updateStyling('primaryColor', e.target.value)} 
-                                  className="w-12 h-12 rounded-xl border-2 border-slate-200 cursor-pointer" 
-                                />
-                                <span className="text-xs font-mono text-slate-400">{formData.styling?.primaryColor}</span>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs font-bold text-slate-500 mb-2 block">สีพื้นหลัง</label>
-                              <div className="flex items-center gap-2">
-                                <input 
-                                  type="color" 
-                                  value={formData.styling?.backgroundColor || '#f8fafc'} 
-                                  onChange={(e) => updateStyling('backgroundColor', e.target.value)} 
-                                  className="w-12 h-12 rounded-xl border-2 border-slate-200 cursor-pointer" 
-                                />
-                                <span className="text-xs font-mono text-slate-400">{formData.styling?.backgroundColor}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                              <Switch 
-                                checked={formData.styling?.showIcon ?? true} 
-                                onChange={(checked) => updateStyling('showIcon', checked)} 
-                              />
-                              <span className="text-sm font-medium text-slate-700">แสดงไอคอน</span>
-                            </div>
-                            {formData.styling?.showIcon && (
-                              <input 
-                                value={formData.styling?.icon || '⚡'} 
-                                onChange={(e) => updateStyling('icon', e.target.value)} 
-                                className="w-12 h-12 bg-white rounded-xl border-2 border-slate-200 text-center text-xl" 
-                              />
-                            )}
+                          <div className="space-y-6">
+                            <Input
+                              label="PRIMARY NOMENCLATURE (TITLE)"
+                              value={formData.title || ''}
+                              onChange={(e) => updateFormData('title', e.target.value)}
+                              placeholder="e.g. QUOTA DEPLETED..."
+                              className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-[11px] px-6 uppercase tracking-widest"
+                            />
+                            <Input
+                              label="CORE TRANSMISSION (MAIN MESSAGE)"
+                              value={formData.mainMessage || ''}
+                              onChange={(e) => updateFormData('mainMessage', e.target.value)}
+                              placeholder="e.g. YOUR ACCOUNT HAS REACHED ZERO CREDITS..."
+                              className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-[11px] px-6 uppercase tracking-widest"
+                            />
+                            <Textarea
+                              label="ANCILLARY TELEMETRY (SUB MESSAGE)"
+                              value={formData.subMessage || ''}
+                              onChange={(e) => updateFormData('subMessage', e.target.value)}
+                              rows={3}
+                              placeholder="e.g. PLEASE REFUND TO CONTINUE AUTOMATED SERVICES..."
+                              className="rounded-[2rem] bg-slate-50 border-none shadow-inner font-black text-[11px] p-6 leading-relaxed uppercase"
+                            />
                           </div>
                         </Card>
 
-                        {/* Buttons */}
-                        <Card className="p-5 space-y-4">
-                          <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">🔘</span>
-                            ปุ่มกด
-                          </h3>
-                          
-                          <div className="p-4 bg-slate-50 rounded-xl space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg">🔄</span>
-                                <span className="text-sm font-bold text-slate-700">ปุ่มลองใหม่</span>
-                              </div>
-                              <Switch 
-                                checked={formData.styling?.showRetryButton ?? true} 
-                                onChange={(checked) => updateStyling('showRetryButton', checked)} 
-                              />
+                        {/* Visual Matrix Aesthetics */}
+                        <Card className="p-8 bg-white/60 backdrop-blur-3xl border-none shadow-premium rounded-[3.5rem] space-y-8">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-pink-50 flex items-center justify-center text-xl shadow-inner">🎨</div>
+                            <div>
+                              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Visual Matrix</h3>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configure chromatic deployment parameters</p>
                             </div>
-                            {formData.styling?.showRetryButton && (
-                              <Input 
-                                value={formData.styling?.retryButtonText || ''} 
-                                onChange={(e) => updateStyling('retryButtonText', e.target.value)} 
-                                placeholder="เช่น ส่งรูปใหม่" 
-                              />
-                            )}
                           </div>
 
-                          <div className="p-4 bg-slate-50 rounded-xl space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg">📞</span>
-                                <span className="text-sm font-bold text-slate-700">ปุ่มติดต่อ</span>
+                          <div className="space-y-6">
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Neural Chromatic Presets</p>
+                              <div className="flex flex-wrap gap-3">
+                                {COLOR_PRESETS.map((preset) => (
+                                  <button
+                                    key={preset.name}
+                                    type="button"
+                                    onClick={() => applyColorPreset(preset)}
+                                    className="w-12 h-12 rounded-2xl shadow-lg hover:scale-110 transition-all duration-500 border-2 border-white ring-2 ring-slate-100/50"
+                                    style={{ backgroundColor: preset.primary }}
+                                    title={preset.name}
+                                  />
+                                ))}
                               </div>
-                              <Switch 
-                                checked={formData.styling?.showContactButton ?? true} 
-                                onChange={(checked) => updateStyling('showContactButton', checked)} 
-                              />
                             </div>
-                            {formData.styling?.showContactButton && (
-                              <>
-                                <Input 
-                                  value={formData.styling?.contactButtonText || ''} 
-                                  onChange={(e) => updateStyling('contactButtonText', e.target.value)} 
-                                  placeholder="เช่น ติดต่อผู้ดูแล" 
+
+                            <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-3">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Primary Frequency</p>
+                                <div className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 shadow-inner">
+                                  <input
+                                    type="color"
+                                    value={formData.styling?.primaryColor || '#10b981'}
+                                    onChange={(e) => updateStyling('primaryColor', e.target.value)}
+                                    className="w-12 h-12 rounded-xl border-none cursor-pointer bg-transparent"
+                                  />
+                                  <span className="text-[11px] font-black font-mono text-slate-400 uppercase">{formData.styling?.primaryColor}</span>
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Background Void</p>
+                                <div className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 shadow-inner">
+                                  <input
+                                    type="color"
+                                    value={formData.styling?.backgroundColor || '#f8fafc'}
+                                    onChange={(e) => updateStyling('backgroundColor', e.target.value)}
+                                    className="w-12 h-12 rounded-xl border-none cursor-pointer bg-transparent"
+                                  />
+                                  <span className="text-[11px] font-black font-mono text-slate-400 uppercase">{formData.styling?.backgroundColor}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between p-6 bg-slate-50/50 rounded-3xl border border-slate-100/50 backdrop-blur-md">
+                              <div className="flex items-center gap-4">
+                                <Switch
+                                  checked={formData.styling?.showIcon ?? true}
+                                  onChange={(checked) => updateStyling('showIcon', checked)}
                                 />
-                                <Input 
-                                  value={formData.styling?.contactButtonUrl || ''} 
-                                  onChange={(e) => updateStyling('contactButtonUrl', e.target.value)} 
-                                  placeholder="ลิงก์ (ไม่บังคับ) https://..." 
+                                <div>
+                                  <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Signal Marker</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Visual identifier toggle</p>
+                                </div>
+                              </div>
+                              {formData.styling?.showIcon && (
+                                <input
+                                  value={formData.styling?.icon || '⚡'}
+                                  onChange={(e) => updateStyling('icon', e.target.value)}
+                                  className="w-16 h-16 bg-white rounded-2xl border-none shadow-premium-sm text-center text-3xl focus:ring-0 transition-all font-black"
                                 />
-                              </>
-                            )}
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+
+                        {/* Control Interface Buttons */}
+                        <Card className="p-8 bg-white/60 backdrop-blur-3xl border-none shadow-premium rounded-[3.5rem] space-y-8">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-xl shadow-inner">🔘</div>
+                            <div>
+                              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Control Interface</h3>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manage interaction triggers & links</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100/50 space-y-6">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <Switch
+                                    checked={formData.styling?.showRetryButton ?? true}
+                                    onChange={(checked) => updateStyling('showRetryButton', checked)}
+                                  />
+                                  <div>
+                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Retry Protocol</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Re-initiation trigger</p>
+                                  </div>
+                                </div>
+                              </div>
+                              {formData.styling?.showRetryButton && (
+                                <Input
+                                  label="RETRY TRIGGER NOMENCLATURE"
+                                  value={formData.styling?.retryButtonText || ''}
+                                  onChange={(e) => updateStyling('retryButtonText', e.target.value)}
+                                  placeholder="e.g. RE-TRANSMIT PROTOCOL..."
+                                  className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-black text-[11px] px-6 uppercase tracking-widest"
+                                />
+                              )}
+                            </div>
+
+                            <div className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100/50 space-y-6">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <Switch
+                                    checked={formData.styling?.showContactButton ?? true}
+                                    onChange={(checked) => updateStyling('showContactButton', checked)}
+                                  />
+                                  <div>
+                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Uplink Contact</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Operator communication conduit</p>
+                                  </div>
+                                </div>
+                              </div>
+                              {formData.styling?.showContactButton && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <Input
+                                    label="UPLINK LABEL"
+                                    value={formData.styling?.contactButtonText || ''}
+                                    onChange={(e) => updateStyling('contactButtonText', e.target.value)}
+                                    placeholder="e.g. UPLINK TO OPERATOR..."
+                                    className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-black text-[11px] px-6 uppercase tracking-widest"
+                                  />
+                                  <Input
+                                    label="CONDUIT URI (LINK)"
+                                    value={formData.styling?.contactButtonUrl || ''}
+                                    onChange={(e) => updateStyling('contactButtonUrl', e.target.value)}
+                                    placeholder="https://..."
+                                    className="h-14 rounded-2xl bg-white border-none shadow-premium-sm font-black text-[11px] px-6 uppercase tracking-widest"
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </Card>
                       </motion.div>
@@ -638,111 +693,125 @@ export default function SystemResponsesPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Preview */}
-                <div className="xl:col-span-2 space-y-4">
-                  <div className="sticky top-4 space-y-4">
-                    <Card className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 border-0">
-                      <p className="text-sm font-bold text-white/80 mb-4 text-center flex items-center justify-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs">📱</span>
-                        ตัวอย่างใน LINE
+                {/* Neural Visualization Preview */}
+                <div className="xl:col-span-2 space-y-6">
+                  <div className="sticky top-10 space-y-6">
+                    <Card className="p-8 bg-slate-900 border-none shadow-2xl rounded-[3.5rem] overflow-hidden relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
+                      <p className="text-[10px] font-black text-white/40 mb-8 text-center uppercase tracking-[0.4em] flex items-center justify-center gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Neural Interface Preview
                       </p>
-                      
-                      <div className="bg-[#8CABD9] rounded-2xl p-4 min-h-[300px] flex items-center justify-center">
-                        <motion.div 
+
+                      <div className="bg-slate-800/50 rounded-[2.8rem] p-6 min-h-[450px] flex flex-col items-center justify-center border border-white/5 relative shadow-inner">
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-12 h-4 rounded-full bg-slate-900 border border-white/5" />
+
+                        <motion.div
                           key={selectedType}
-                          initial={{ scale: 0.9, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="w-full max-w-[260px] bg-white rounded-2xl shadow-xl overflow-hidden"
+                          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                          animate={{ scale: 1, opacity: 1, y: 0 }}
+                          className="w-full max-w-[280px] bg-white rounded-[2.2rem] shadow-2xl overflow-hidden"
                         >
-                          {/* Header */}
-                          <div 
-                            className="px-4 py-3 flex items-center gap-2 justify-center"
+                          {/* Neural Header */}
+                          <div
+                            className="px-6 py-5 flex items-center gap-3 justify-center"
                             style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}
                           >
                             {formData.styling?.showIcon && (
-                              <span className="text-lg">{formData.styling?.icon || '⚡'}</span>
+                              <span className="text-xl drop-shadow-md">{formData.styling?.icon || '⚡'}</span>
                             )}
-                            <span className="font-bold text-sm text-white">
-                              {formData.title || 'หัวข้อ'}
+                            <span className="font-black text-[12px] text-white uppercase tracking-widest drop-shadow-sm">
+                              {formData.title || 'PROTOCOL TITLE'}
                             </span>
                           </div>
 
-                          {/* Body */}
-                          <div 
-                            className="px-4 py-6 text-center space-y-2"
+                          {/* Neural Body */}
+                          <div
+                            className="px-6 py-10 text-center space-y-4"
                             style={{ backgroundColor: formData.styling?.backgroundColor || '#f8fafc' }}
                           >
-                            <p className="font-bold text-slate-900 text-sm">
-                              {formData.mainMessage || 'ข้อความหลัก'}
+                            <p className="font-black text-slate-900 text-[13px] leading-tight uppercase tracking-tight">
+                              {formData.mainMessage || 'MAIN PAYLOAD MESSAGE'}
                             </p>
                             {formData.subMessage && (
-                              <p className="text-xs text-slate-500">{formData.subMessage}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">{formData.subMessage}</p>
                             )}
                           </div>
 
-                          {/* Buttons */}
+                          {/* Neural Controls */}
                           {(formData.styling?.showRetryButton || formData.styling?.showContactButton) && (
-                            <div className="p-3 bg-white space-y-2">
+                            <div className="p-4 bg-white space-y-2 border-t border-slate-50">
                               {formData.styling?.showRetryButton && (
-                                <div 
-                                  className="w-full h-10 flex items-center justify-center text-xs font-bold text-white rounded-lg"
+                                <div
+                                  className="w-full h-12 flex items-center justify-center text-[10px] font-black text-white rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10"
                                   style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}
                                 >
-                                  {formData.styling?.retryButtonText || 'ส่งใหม่'}
+                                  {formData.styling?.retryButtonText || 'RETRY PROTOCOL'}
                                 </div>
                               )}
                               {formData.styling?.showContactButton && (
-                                <div className="w-full h-10 flex items-center justify-center text-xs font-bold text-slate-600 bg-slate-100 rounded-lg">
-                                  {formData.styling?.contactButtonText || 'ติดต่อผู้ดูแล'}
+                                <div className="w-full h-12 flex items-center justify-center text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-100/50 rounded-2xl uppercase tracking-[0.2em]">
+                                  {formData.styling?.contactButtonText || 'UPLINK OPERATOR'}
                                 </div>
                               )}
                             </div>
                           )}
                         </motion.div>
+
+                        <div className="mt-8 flex gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                        </div>
                       </div>
                     </Card>
 
-                    <Card className="p-4 bg-emerald-50 border-emerald-200">
-                      <div className="flex items-start gap-3">
-                        <span className="text-xl">✅</span>
+                    {/* Operational Summary */}
+                    <Card className="p-8 bg-emerald-50/50 border border-emerald-100/50 backdrop-blur-md rounded-[2.5rem]">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl shadow-lg">⚡</div>
                         <div>
-                          <p className="font-bold text-emerald-800 text-sm">จะส่งเมื่อ</p>
-                          <p className="text-xs text-emerald-700 mt-1">
+                          <p className="font-black text-emerald-900 text-xs uppercase tracking-widest mb-1">Activation Trigger</p>
+                          <p className="text-[10px] font-bold text-emerald-700/60 leading-relaxed uppercase">
                             {RESPONSE_TYPES[selectedType || '']?.description}
                           </p>
                         </div>
                       </div>
                     </Card>
 
-                    {/* Quick Actions */}
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                    {/* Quick Access Matrix */}
+                    <div className="flex gap-4">
+                      <Button
+                        variant="ghost"
+                        size="lg"
                         fullWidth
                         onClick={handleReset}
                         disabled={saving}
+                        className="rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-400"
                       >
-                        🔄 รีเซ็ต
+                        Reset Domain
                       </Button>
-                      <Button 
-                        variant="primary" 
-                        size="sm" 
+                      <Button
+                        variant="primary"
+                        size="lg"
                         fullWidth
                         onClick={handleSave}
                         isLoading={saving}
+                        className="rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-emerald-500/20"
                       >
-                        💾 บันทึก
+                        Deploy Signal
                       </Button>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <Card className="p-12 text-center bg-gradient-to-br from-slate-50 to-slate-100">
-                <div className="text-6xl mb-4">👈</div>
-                <h4 className="text-xl font-bold text-slate-900 mb-2">เลือกประเภทข้อความ</h4>
-                <p className="text-slate-500">เลือกจากรายการทางซ้ายเพื่อเริ่มปรับแต่ง</p>
+              <Card className="p-20 text-center bg-white/40 backdrop-blur-3xl border-none shadow-inner rounded-[4rem] flex flex-col items-center justify-center space-y-6">
+                <div className="w-24 h-24 bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-4xl shadow-2xl animate-bounce">👈</div>
+                <div className="space-y-2">
+                  <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Initialize Control</h4>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Select an Interaction Protocol from the manifest</p>
+                </div>
               </Card>
             )}
           </div>

@@ -294,70 +294,71 @@ export default function AdminLineAccountsPage() {
       <div className="space-y-6 md:space-y-12 animate-fade max-w-[1700px] mx-auto pb-20">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">จัดการบัญชี LINE OA</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-bold text-[10px] hidden md:inline-flex">ผู้ดูแลระบบ</Badge>
-            </div>
-            <p className="text-sm md:text-base text-slate-500">จัดการบัญชี LINE Official Account, ตั้งค่าบอท และ Webhook</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+              จัดการบัญชี <span className="text-emerald-500">LINE OA</span>
+            </h1>
+            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+              ศูนย์ควบคุมการเชื่อมต่อ <span className="text-slate-900">Official Account</span> ทั่วทั้งระบบ
+            </p>
           </div>
           <Button
-            variant="primary"
-            className="w-full md:w-auto rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/10 shadow-xl"
             onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
-            leftIcon={<Plus className="w-5 h-5" />}
+            size="lg"
+            variant="primary"
+            leftIcon={<Plus className="w-6 h-6" />}
+            className="w-full md:w-auto h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
           >
             เพิ่มบัญชีใหม่
           </Button>
         </div>
 
         {/* Global Network Analytics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon={<Smartphone className="w-6 h-6" />} color="indigo" variant="glass" />
-          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon={<Activity className="w-6 h-6" />} color="emerald" variant="glass" />
-          <StatCard title="ข้อความ" value={totalMessages.toLocaleString()} icon={<MessageSquare className="w-6 h-6" />} color="violet" variant="glass" />
-          <StatCard title="สลิปที่ตรวจ" value={totalSlips.toLocaleString()} icon={<FileCheck className="w-6 h-6" />} color="amber" variant="glass" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📱" color="indigo" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="⚡" color="emerald" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="ข้อความประมวลผล" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
+          <StatCard title="สลิปที่ยืนยันแล้ว" value={totalSlips.toLocaleString()} icon="✅" color="amber" variant="glass" className="rounded-[2.5rem] border-none shadow-premium-sm" />
         </div>
 
         {/* Search & Filter Interface */}
-        <Card className="p-2 md:p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-2xl md:rounded-3xl">
+        <Card className="p-3 md:p-6 bg-white/60 backdrop-blur-3xl border-none shadow-premium-sm rounded-[2rem] md:rounded-[3rem] group">
           <Input
-            placeholder="ค้นหาบัญชี..."
+            placeholder="ค้นหาตามชื่อบัญชี, Channel ID หรือ เจ้าของบัญชี..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-5 h-5" />}
-            className="bg-transparent border-none shadow-none text-base md:text-lg font-medium placeholder:text-slate-300"
+            leftIcon={<Search className="w-6 h-6 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />}
+            className="bg-transparent border-none shadow-none text-base md:text-xl font-black uppercase tracking-tight placeholder:text-slate-300 placeholder:font-bold h-12"
           />
         </Card>
 
         {/* Desktop Table View */}
-        <Card className="hidden md:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
-          <div className="overflow-x-auto overflow-y-visible">
+        <Card className="hidden lg:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-8 py-6 text-xs font-bold text-slate-500">บัญชี</th>
-                  <th className="px-8 py-6 text-xs font-bold text-slate-500">เจ้าของ</th>
-                  <th className="px-8 py-6 text-xs font-bold text-slate-500">สถิติ</th>
-                  <th className="px-8 py-6 text-xs font-bold text-slate-500">ฟีเจอร์</th>
-                  <th className="px-8 py-6 text-xs font-bold text-slate-500">สถานะ</th>
-                  <th className="px-8 py-6 text-xs font-bold text-slate-500 text-right">จัดการ</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">บัญชี / ช่องทาง</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ผู้ดูแลรับผิดชอบ</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">ตัวชี้วัดประสิทธิภาพ</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">สถานะระบบ</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-10 py-32">
-                      <PageLoading transparent message="กำลังโหลดข้อมูล..." />
+                    <td colSpan={5} className="px-10 py-32">
+                      <PageLoading transparent message="กำลังเชื่อมโยงเครือข่าย..." />
                     </td>
                   </tr>
                 ) : filteredAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-10 py-32 text-center">
+                    <td colSpan={5} className="px-10 py-32 text-center">
                       <div className="flex flex-col items-center gap-6 opacity-30">
-                        <div className="text-7xl">🕳️</div>
-                        <p className="text-sm font-bold">ไม่พบบัญชี</p>
+                        <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl">🤖</div>
+                        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm">ไม่พบข้อมูลบัญชี</p>
                       </div>
                     </td>
                   </tr>
@@ -367,82 +368,71 @@ export default function AdminLineAccountsPage() {
                       key={account._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="group hover:bg-slate-50/80 transition-all duration-300"
+                      className="group hover:bg-white transition-all duration-300"
                     >
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-6">
-                          <div className="w-16 h-16 rounded-3xl bg-slate-900 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                          <div className="w-16 h-16 rounded-[2rem] bg-slate-900 flex items-center justify-center text-white shadow-xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             <Smartphone className="w-8 h-8" />
                           </div>
                           <div>
-                            <p className="font-black text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg mb-0.5">{account.accountName}</p>
-                            <p className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg w-fit">ID: {account.channelId}</p>
+                            <p className="font-black text-slate-900 leading-none mb-1.5 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg">{account.accountName}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">ID: {account.channelId}</p>
+                              <div className="flex gap-1">
+                                {account.settings?.enableBot && <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" title="BOT Active" />}
+                                {account.settings?.enableAi && <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" title="AI Active" />}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <p className="font-bold text-slate-700 text-sm mb-1">{account.owner?.username || 'ระบบ'}</p>
-                        <p className="text-xs text-slate-400">{account.owner?.email || '-'}</p>
-                      </td>
-                      <td className="px-10 py-8">
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-900">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
-                            <span className="text-xs text-slate-400">ข้อความ</span>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 shadow-inner group-hover:text-emerald-500 transition-colors">
+                            {(account.owner?.username || 'ADM')[0].toUpperCase()}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-900">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
-                            <span className="text-xs text-slate-400">สลิป</span>
+                          <div>
+                            <p className="font-black text-slate-700 uppercase tracking-tight leading-none mb-1">{account.owner?.username || 'System Admin'}</p>
+                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{account.owner?.email || 'OFFICIAL'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="flex flex-wrap gap-2 max-w-[180px]">
-                          {/* แสดง badges ทั้งหมด ถ้าปิดให้เป็นสีเทา */}
-                          <Badge 
-                            variant={account.settings?.enableBot ? "emerald" : "default"} 
-                            className={cn(
-                              "rounded-lg text-[9px] px-1.5 py-0 font-bold",
-                              !account.settings?.enableBot && "opacity-40 bg-slate-200 text-slate-500"
-                            )}
-                          >
-                            บอท
-                          </Badge>
-                          <Badge 
-                            variant={account.settings?.enableSlipVerification ? "indigo" : "default"}
-                            className={cn(
-                              "rounded-lg text-[9px] px-1.5 py-0 font-bold",
-                              !account.settings?.enableSlipVerification && "opacity-40 bg-slate-200 text-slate-500"
-                            )}
-                          >
-                            สลิป
-                          </Badge>
-                          <Badge 
-                            variant={account.settings?.enableAi ? "purple" : "default"}
-                            className={cn(
-                              "rounded-lg text-[9px] px-1.5 py-0 font-bold",
-                              !account.settings?.enableAi && "opacity-40 bg-slate-200 text-slate-500"
-                            )}
-                          >
-                            AI
-                          </Badge>
+                        <div className="flex items-center justify-center gap-10">
+                          <div className="text-center group-hover:scale-110 transition-transform">
+                            <p className="text-lg font-black text-slate-900 tracking-tighter">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Messages</p>
+                          </div>
+                          <div className="text-center group-hover:scale-110 transition-transform">
+                            <p className="text-lg font-black text-emerald-600 tracking-tighter">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Verified Slips</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn("w-3 h-3 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
-                          <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-600" : "text-slate-400")}>
-                            {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                          </span>
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className={cn("w-3 h-3 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50 animate-pulse" : "bg-slate-300")} />
+                            <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-600" : "text-slate-400")}>
+                              {account.isActive ? 'เปิดสัญญาณ' : 'ปิดสัญญาณ'}
+                            </span>
+                          </div>
+                          <div className="flex gap-1.5 mt-1">
+                            <div className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Bot</div>
+                            <div className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-100 bg-indigo-50 text-indigo-600" : "border-slate-100 bg-slate-50 text-slate-300")}>AI</div>
+                            <div className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-100 bg-amber-50 text-amber-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Slip</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-10 py-8 text-right">
-                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                          <IconButton variant="glass" size="sm" className="rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="ดูรายละเอียด"><Eye className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-emerald-500" onClick={() => openSettingsModal(account)} title="ตั้งค่า"><Settings className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-blue-500" onClick={() => openEditModal(account)} title="แก้ไข"><Edit className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className={cn("rounded-xl", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}><Power className="w-4 h-4" /></IconButton>
-                          <IconButton variant="glass" size="sm" className="rounded-xl text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="ลบ"><Trash2 className="w-4 h-4" /></IconButton>
+                        <div className="flex gap-2.5 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-slate-400 hover:text-slate-900" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="ดูรายละเอียดคอนฟิก"><Eye className="w-5 h-5" /></IconButton>
+                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-emerald-500" onClick={() => openSettingsModal(account)} title="ตั้งค่าระบบขีดจำกัด"><Settings className="w-5 h-5" /></IconButton>
+                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-blue-500" onClick={() => openEditModal(account)} title="แก้ไขข้อมูลพื้นฐาน"><Edit className="w-5 h-5" /></IconButton>
+                          <IconButton variant="glass" size="md" className={cn("rounded-2xl h-12 w-12 transition-all", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'ปิดการเชื่อมต่อ' : 'เปิดการเชื่อมต่อ'}><Power className="w-5 h-5" /></IconButton>
+                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="ถอนการติดตั้ง"><Trash2 className="w-5 h-5" /></IconButton>
                         </div>
                       </td>
                     </motion.tr>
@@ -454,68 +444,55 @@ export default function AdminLineAccountsPage() {
         </Card>
 
         {/* Mobile Card View */}
-        <div className="md:hidden grid grid-cols-1 gap-4">
+        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-6 pb-10">
           {isLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse bg-white/50"><div /></Card>)}
-            </div>
+            [1, 2, 3, 4].map(i => <Card key={i} className="h-64 animate-pulse bg-white/50 rounded-[2.5rem]"><div /></Card>)
           ) : filteredAccounts.length === 0 ? (
-            <div className="flex flex-col items-center gap-6 opacity-30 py-12">
+            <div className="col-span-full flex flex-col items-center gap-6 opacity-30 py-20">
               <div className="text-5xl">🕳️</div>
-              <p className="text-sm font-bold">ไม่พบบัญชี</p>
+              <p className="text-sm font-black uppercase tracking-widest">ไม่พบข้อมูลบัญชี</p>
             </div>
           ) : (
             filteredAccounts.map((account) => (
-              <Card key={account._id} variant="glass" className="flex flex-col gap-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white">
-                      <Smartphone className="w-6 h-6" />
+              <Card key={account._id} variant="glass" className="p-8 relative overflow-hidden group rounded-[3rem] border-none shadow-premium-sm">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl">
+                      <Smartphone className="w-7 h-7" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900">{account.accountName}</h3>
-                      <p className="text-xs font-mono text-slate-500">ID: {account.channelId}</p>
+                      <h3 className="font-black text-slate-900 uppercase tracking-tight text-lg leading-none mb-1.5">{account.accountName}</h3>
+                      <p className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 w-fit">ID: {account.channelId}</p>
                     </div>
                   </div>
-                  <div className={cn("w-2 h-2 rounded-full", account.isActive ? "bg-emerald-500" : "bg-slate-300")} />
+                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <p className="text-slate-400 mb-1">เจ้าของ</p>
-                    <p className="font-bold text-slate-700 truncate">{account.owner?.username || 'ระบบ'}</p>
+                <div className="space-y-4 mb-8">
+                  <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-white/50">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Messages</span>
+                      <p className="font-black text-slate-900 text-sm">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="w-px h-6 bg-slate-200" />
+                    <div className="flex flex-col text-right">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Slips</span>
+                      <p className="font-black text-emerald-600 text-sm">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+                    </div>
                   </div>
-                  <div className="p-2 bg-slate-50 rounded-lg">
-                    <p className="text-slate-400 mb-1">ข้อความ</p>
-                    <p className="font-bold text-slate-700">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
+
+                  <div className="flex flex-wrap gap-2">
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Bot</div>
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-100 bg-indigo-50 text-indigo-600" : "border-slate-100 bg-slate-50 text-slate-300")}>AI</div>
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-100 bg-amber-50 text-amber-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Slip</div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Badge 
-                    variant={account.settings?.enableBot ? "emerald" : "default"} 
-                    className={cn("text-[10px]", !account.settings?.enableBot && "opacity-40")}
-                  >
-                    บอท
-                  </Badge>
-                  <Badge 
-                    variant={account.settings?.enableSlipVerification ? "indigo" : "default"}
-                    className={cn("text-[10px]", !account.settings?.enableSlipVerification && "opacity-40")}
-                  >
-                    สลิป
-                  </Badge>
-                  <Badge 
-                    variant={account.settings?.enableAi ? "purple" : "default"}
-                    className={cn("text-[10px]", !account.settings?.enableAi && "opacity-40")}
-                  >
-                    AI
-                  </Badge>
-                </div>
-
-                <div className="flex gap-2 border-t border-slate-100 pt-3 mt-1">
-                  <Button size="xs" variant="ghost" className="flex-1" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></Button>
-                  <Button size="xs" variant="ghost" className="flex-1" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></Button>
-                  <Button size="xs" variant="ghost" className="flex-1 text-rose-500" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></Button>
+                <div className="grid grid-cols-4 gap-3 bg-slate-50/30 p-2 rounded-[2rem] border border-white/50">
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl text-emerald-500" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl text-blue-500" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl text-rose-500" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></IconButton>
                 </div>
               </Card>
             ))
@@ -526,118 +503,166 @@ export default function AdminLineAccountsPage() {
 
       {/* Provision Node Modal */}
       <Modal isOpen={showAddModal} onClose={() => !isProcessing && setShowAddModal(false)} title="เพิ่มบัญชี LINE OA" size="lg">
-        <div className="space-y-6 pt-2">
-          <div className="p-5 bg-slate-900 text-white rounded-[2rem] shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10 text-3xl font-bold">LINE</div>
-            <p className="text-sm font-bold mb-4 text-emerald-400 flex items-center gap-2"><Smartphone className="w-4 h-4" /> ข้อมูลช่องทาง LINE</p>
-            <div className="space-y-4">
-              <Input variant="glass" label="ชื่อบัญชี" placeholder="เช่น บัญชีหลัก" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="bg-white/5 border-white/10 text-white" />
-              <div className="grid grid-cols-2 gap-4">
-                <Input variant="glass" label="Channel ID" placeholder="1234567890" value={formData.channelId} onChange={(e) => setFormData({ ...formData, channelId: e.target.value })} className="bg-white/5 border-white/10 text-white" />
-                <Input variant="glass" type="password" label="Channel Secret" placeholder="••••••••" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+        <div className="space-y-8 pt-4">
+          <div className="p-8 bg-slate-900 text-white rounded-[3rem] shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[60px] -mr-32 -mt-32 pointer-events-none group-hover:bg-emerald-500/30 transition-colors duration-700" />
+            <p className="text-[10px] font-black mb-6 text-emerald-400 flex items-center gap-3 uppercase tracking-[0.2em]"><Smartphone className="w-5 h-5" /> LINE CONNECTIVITY PROTOCOL</p>
+            <div className="space-y-6">
+              <Input variant="glass" label="ชื่อบัญชีสำหรับการระบุตัวตน" placeholder="เช่น บัญชีธุรกิจหลัก / ฝ่ายบริการลูกค้า" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="bg-white/5 border-white/10 text-white h-14 font-bold" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input variant="glass" label="Channel ID" placeholder="1234567890" value={formData.channelId} onChange={(e) => setFormData({ ...formData, channelId: e.target.value })} className="bg-white/5 border-white/10 text-white h-14 font-mono" />
+                <Input variant="glass" type="password" label="Channel Secret" placeholder="••••••••" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} className="bg-white/5 border-white/10 text-white h-14" />
               </div>
-              <Input variant="glass" type="password" label="Access Token" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+              <Input variant="glass" type="password" label="Messaging Access Token (Long-lived)" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} className="bg-white/5 border-white/10 text-white h-14" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Select label="เจ้าของบัญชี" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
-              <option value="">ผู้ดูแลระบบ</option>
-              {users.filter(u => u.role === 'user').map((user) => (
-                <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
-              ))}
-            </Select>
-            <Input label="คำอธิบาย" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-2">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">เจ้าของบัญชีผู้รับผิดชอบ</label>
+              <Select value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold">
+                <option value="">System Administrator</option>
+                {users.filter(u => u.role === 'user').map((user) => (
+                  <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">บันทึกช่วยจำ (Optional)</label>
+              <Input placeholder="ระบุรายละเอียดเพิ่มเติม..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner" />
+            </div>
           </div>
 
-          <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1" onClick={() => setShowAddModal(false)} disabled={isProcessing}>ยกเลิก</Button>
-            <Button variant="primary" className="flex-[2] font-bold h-12 rounded-xl" onClick={handleAddAccount} isLoading={isProcessing}>เพิ่มบัญชี</Button>
+          <div className="flex gap-4 pt-8 border-t border-slate-100 px-2">
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setShowAddModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl" onClick={handleAddAccount} isLoading={isProcessing}>Initialize Account</Button>
           </div>
         </div>
       </Modal>
 
       {/* Identity Overhaul Modal */}
       <Modal isOpen={showEditModal} onClose={() => !isProcessing && setShowEditModal(false)} title={`แก้ไขบัญชี: ${selectedAccount?.accountName}`} size="lg">
-        <div className="space-y-6 pt-2">
-          <Input label="ชื่อบัญชี" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Channel Secret" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} />
-            <Input label="Access Token" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} />
+        <div className="space-y-8 pt-4">
+          <div className="bg-slate-50/50 p-8 rounded-[3rem] border border-white shadow-inner space-y-6">
+            <Input label="ชื่อบัญชี" value={formData.accountName} onChange={(e) => setFormData({ ...formData, accountName: e.target.value })} className="h-14 rounded-2xl bg-white border-none shadow-sm font-bold" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input label="Channel Secret" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.channelSecret} onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })} className="h-14 rounded-2xl bg-white border-none shadow-sm" />
+              <Input label="Access Token" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยน" value={formData.accessToken} onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })} className="h-14 rounded-2xl bg-white border-none shadow-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">โอนสิทธิ์การดูแล</label>
+              <Select value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })} className="h-14 rounded-2xl bg-white border-none shadow-sm font-bold">
+                <option value="">System Administrator</option>
+                {users.filter(u => u.role === 'user').map((user) => (
+                  <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
+                ))}
+              </Select>
+            </div>
+            <Textarea label="คำอธิบายเพิ่มเติม" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} className="rounded-[2rem] bg-white border-none shadow-sm p-6" />
           </div>
-          <Select label="เจ้าของบัญชี" value={formData.ownerId} onChange={(e) => setFormData({ ...formData, ownerId: e.target.value })}>
-            <option value="">ผู้ดูแลระบบ</option>
-            {users.filter(u => u.role === 'user').map((user) => (
-              <option key={user._id} value={user._id}>{user.username} ({user.email})</option>
-            ))}
-          </Select>
-          <Textarea label="คำอธิบาย" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
 
-          <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1" onClick={() => setShowEditModal(false)} disabled={isProcessing}>ยกเลิก</Button>
-            <Button variant="primary" className="flex-[2] font-bold h-12 rounded-xl" onClick={handleEditAccount} isLoading={isProcessing}>บันทึก</Button>
+          <div className="flex gap-4 pt-8 border-t border-slate-100 px-2">
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setShowEditModal(false)} disabled={isProcessing}>ยกเลิกการแก้ไข</Button>
+            <Button variant="primary" className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl" onClick={handleEditAccount} isLoading={isProcessing}>อัปเดตข้อมูลบัญชี</Button>
           </div>
         </div>
       </Modal>
 
       {/* Logic Config Modal */}
-      <Modal isOpen={showSettingsModal} onClose={() => !isProcessing && setShowSettingsModal(false)} title={`ตั้งค่า: ${selectedAccount?.accountName}`} size="xl">
-        <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
+      <Modal isOpen={showSettingsModal} onClose={() => !isProcessing && setShowSettingsModal(false)} title={`ตั้งค่าระบบอัจฉริยะ: ${selectedAccount?.accountName}`} size="xl">
+        <div className="space-y-12 pt-6 max-h-[75vh] overflow-y-auto px-6 custom-scrollbar pb-10">
 
-          {/* feature switches */}
-          <div className="grid grid-cols-3 gap-6">
-            <Card className="p-6 bg-emerald-50/50 border-emerald-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl"><Bot className="w-6 h-6 text-emerald-600" /></div>
-              <div className="space-y-1">
-                <p className="font-bold text-xs">บอท</p>
-                <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
+          {/* Feature Matrix */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className={cn("p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 transition-all border-2", settingsData.enableBot ? "bg-emerald-50 border-emerald-200 shadow-premium-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
+              <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg", settingsData.enableBot ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-400")}>🤖</div>
+              <div className="space-y-2">
+                <p className="font-black text-xs uppercase tracking-widest text-slate-900">Automation Bot</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">ระบบตอบกลับอัตโนมัติ</p>
               </div>
-            </Card>
-            <Card className="p-6 bg-indigo-50/50 border-indigo-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl"><FileCheck className="w-6 h-6 text-indigo-600" /></div>
-              <div className="space-y-1">
-                <p className="font-bold text-xs">ตรวจสลิป</p>
-                <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
+              <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
+            </div>
+
+            <div className={cn("p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 transition-all border-2", settingsData.enableSlipVerification ? "bg-amber-50 border-amber-200 shadow-premium-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
+              <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg", settingsData.enableSlipVerification ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-400")}>📄</div>
+              <div className="space-y-2">
+                <p className="font-black text-xs uppercase tracking-widest text-slate-900">Slip Verifier</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">ระบบตรวจสอบสลิป</p>
               </div>
-            </Card>
-            <Card className="p-6 bg-purple-50/50 border-purple-100/50 rounded-3xl flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl"><MessageSquare className="w-6 h-6 text-purple-600" /></div>
-              <div className="space-y-1">
-                <p className="font-bold text-xs">AI</p>
-                <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
+              <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
+            </div>
+
+            <div className={cn("p-8 rounded-[2.5rem] flex flex-col items-center text-center gap-6 transition-all border-2", settingsData.enableAi ? "bg-indigo-50 border-indigo-200 shadow-premium-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
+              <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg", settingsData.enableAi ? "bg-indigo-500 text-white" : "bg-slate-200 text-slate-400")}>🧠</div>
+              <div className="space-y-2">
+                <p className="font-black text-xs uppercase tracking-widest text-slate-900">Neural Engine</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">สมองกลอัจฉริยะ (AI)</p>
               </div>
-            </Card>
+              <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
+            </div>
           </div>
 
-          {/* AI Neuro Parameters */}
+          {/* AI Configuration Section */}
           <AnimatePresence>
             {settingsData.enableAi && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6 p-8 bg-slate-900 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-6 opacity-5 text-5xl font-bold">AI</div>
-                <h3 className="text-lg font-bold mb-4 text-purple-400 flex items-center gap-2"><MessageSquare className="w-5 h-5" /> การตั้งค่า AI</h3>
-                <Textarea variant="glass" label="System Prompt" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบุคลิกภาพของ AI..." rows={5} className="bg-white/5 border-white/10 text-white" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input variant="glass" type="number" step="0.1" min="0" max="1" label="Temperature" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white" />
-                  <Input variant="glass" label="ข้อความเมื่อเกิดข้อผิดพลาด" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white" />
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-8 p-10 bg-slate-900 rounded-[3.5rem] text-white shadow-3xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none group-hover:bg-indigo-500/20 transition-colors duration-1000" />
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                  <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-4 text-indigo-400">
+                    <span className="w-1.5 h-8 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)]" /> Neural Engine Parameters
+                  </h3>
+                  <Badge className="bg-white/10 text-white border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg">GEN-2 AI</Badge>
+                </div>
+
+                <div className="space-y-6 relative z-10">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Core System Directive (AI Instructions)</label>
+                    <Textarea variant="glass" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบทบาท, เงื่อนไข และพฤติกรรมของ AI..." rows={6} className="bg-white/5 border-white/10 text-white p-8 rounded-[2rem] font-medium leading-relaxed" />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Creativity Temperature (0.0 - 1.0)</label>
+                      <Input variant="glass" type="number" step="0.1" min="0" max="1" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Emergency Fallback Response</label>
+                      <Input variant="glass" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl" />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* Protocol Message Overrides */}
-          <div className="space-y-6">
-            <h3 className="text-sm font-bold text-slate-500 px-4">ข้อความที่กำหนดเอง (ว่าง = ใช้ค่าระบบ)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="ข้อความกำลังตรวจสลิป" value={settingsData.slipImmediateMessage} onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })} />
-              <Input label="ข้อความโควต้าหมด" value={settingsData.customQuotaExceededMessage} onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })} />
-              <Input label="ข้อความบอทปิด" value={settingsData.customBotDisabledMessage} onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })} />
-              <Input label="ข้อความสลิปซ้ำ" value={settingsData.customDuplicateSlipMessage} onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })} />
+          <div className="space-y-8 px-2">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
+              <span className="w-8 h-px bg-slate-200" /> UI / UX Customizations <span className="flex-1 h-px bg-slate-200" />
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">กำลังตรวจสอบสลิป</label>
+                <Input value={settingsData.slipImmediateMessage} onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">เครดิตโควต้าหมด</label>
+                <Input value={settingsData.customQuotaExceededMessage} onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">ระบบบอทปิดใช้งาน</label>
+                <Input value={settingsData.customBotDisabledMessage} onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">ตรวจพบสลิปซ้ำ</label>
+                <Input value={settingsData.customDuplicateSlipMessage} onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner" />
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-10 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1" onClick={() => setShowSettingsModal(false)} disabled={isProcessing}>ยกเลิก</Button>
-            <Button variant="primary" className="flex-[2] font-bold h-12 rounded-xl" onClick={handleSaveSettings} isLoading={isProcessing}>บันทึก</Button>
+          <div className="flex gap-4 pt-10 border-t border-slate-100 pb-4">
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setShowSettingsModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl" onClick={handleSaveSettings} isLoading={isProcessing}>บันทึกการตั้งค่าโครงข่าย</Button>
           </div>
         </div>
       </Modal>
@@ -645,46 +670,80 @@ export default function AdminLineAccountsPage() {
       {/* Node Analysis Detail Modal */}
       <Modal isOpen={showDetailModal} onClose={() => setShowDetailModal(false)} title={`รายละเอียดบัญชี: ${selectedAccount?.accountName}`} size="xl">
         {selectedAccount && (
-          <div className="space-y-10 pt-2 max-h-[70vh] overflow-y-auto px-4 custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-12 pt-6 max-h-[75vh] overflow-y-auto px-6 custom-scrollbar pb-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               <div className="space-y-6">
-                <p className="text-xs font-bold text-slate-500 px-1">ข้อมูลบัญชี</p>
-                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                  <div><p className="text-xs text-slate-400 mb-1">Channel ID</p><p className="font-mono text-sm font-bold text-slate-900 break-all">{selectedAccount.channelId}</p></div>
-                  <div><p className="text-xs text-slate-400 mb-1">Channel Secret</p><p className="font-mono text-sm text-slate-400">••••••••••••</p></div>
-                  <div><p className="text-xs text-slate-400 mb-1">คำอธิบาย</p><p className="text-sm text-slate-600">{selectedAccount.description || '-'}</p></div>
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Core Configuration
+                </h3>
+                <div className="p-8 bg-slate-50/50 rounded-[3rem] border border-white shadow-inner space-y-6">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Target Channel ID</p>
+                    <p className="font-mono text-sm font-black text-slate-900 break-all p-4 bg-white rounded-2xl shadow-sm border border-slate-100">{selectedAccount.channelId}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Secret Key</p>
+                      <p className="font-mono text-sm text-slate-300 p-4 bg-white rounded-2xl border border-slate-100">••••••••••••</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Admin Owner</p>
+                      <p className="text-sm font-black text-slate-900 p-4 bg-white rounded-2xl border border-slate-100 truncate">{selectedAccount.owner?.username || 'System'}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">System Memo</p>
+                    <p className="text-sm font-bold text-slate-600 p-4 bg-white rounded-2xl border border-slate-100 min-h-[80px] leading-relaxed">{selectedAccount.description || 'ไม่มีคำอธิบายเพิ่มเติมสำหรับบัญชีนี้'}</p>
+                  </div>
                 </div>
               </div>
+
               <div className="space-y-6">
-                <p className="text-xs font-bold text-slate-500 px-1">Webhook URL</p>
-                <div className="p-6 h-full bg-slate-900 text-white rounded-2xl shadow-lg flex flex-col justify-between">
-                  <p className="text-xs font-mono text-emerald-400 mb-4 leading-relaxed break-all opacity-80">{getWebhookUrl(selectedAccount)}</p>
-                  <Button variant="primary" className="bg-white text-slate-900 h-10 px-4 text-xs font-bold rounded-xl hover:bg-emerald-400" onClick={() => copyWebhookUrl(selectedAccount)}>
-                    คัดลอก URL
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" /> Node Connectivity
+                </h3>
+                <div className="p-8 h-full bg-slate-900 text-white rounded-[3rem] shadow-premium-lg flex flex-col justify-between relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[60px] -mr-32 -mt-32 pointer-events-none" />
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-black text-emerald-400 mb-4 uppercase tracking-[0.2em]">Live Webhook Endpoint</p>
+                    <div className="p-6 bg-white/5 border border-white/10 rounded-[2rem] font-mono text-sm text-white/80 break-all leading-relaxed mb-8">
+                      {getWebhookUrl(selectedAccount)}
+                    </div>
+                  </div>
+                  <Button variant="primary" size="lg" className="w-full h-16 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-white text-slate-900 hover:bg-emerald-400 transition-all relative z-10" onClick={() => copyWebhookUrl(selectedAccount)}>
+                    คัดลอก Webhook URL
                   </Button>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
-              <div className="p-4 md:p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
-                <p className="text-xs text-slate-400 mb-2">ข้อความ</p>
-                <p className="text-2xl md:text-3xl font-bold text-slate-900">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 md:p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
-                <p className="text-xs text-slate-400 mb-2">สลิปที่ตรวจ</p>
-                <p className="text-2xl md:text-3xl font-bold text-emerald-600">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 md:p-6 bg-white border border-slate-100 rounded-2xl text-center shadow-sm">
-                <p className="text-xs text-slate-400 mb-2">ข้อผิดพลาด</p>
-                <p className="text-2xl md:text-3xl font-bold text-rose-500">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Real-time Node Analytics
+              </h3>
+              <div className="grid grid-cols-3 gap-6">
+                <Card variant="glass" className="p-8 text-center rounded-[2.5rem] border-slate-100 hover:scale-105 transition-transform">
+                  <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Network Traffic</p>
+                  <p className="text-3xl font-black text-slate-900 tracking-tighter">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Processed Messages</p>
+                </Card>
+                <Card variant="glass" className="p-8 text-center rounded-[2.5rem] border-emerald-100 bg-emerald-50/20 hover:scale-105 transition-transform">
+                  <p className="text-[10px] font-black text-emerald-600 mb-3 uppercase tracking-widest">Efficiency</p>
+                  <p className="text-3xl font-black text-emerald-600 tracking-tighter">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+                  <p className="text-[8px] font-bold text-emerald-500/60 uppercase mt-1">Validated Slips</p>
+                </Card>
+                <Card variant="glass" className="p-8 text-center rounded-[2.5rem] border-rose-100 bg-rose-50/20 hover:scale-105 transition-transform">
+                  <p className="text-[10px] font-black text-rose-600 mb-3 uppercase tracking-widest">System Errors</p>
+                  <p className="text-3xl font-black text-rose-600 tracking-tighter">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
+                  <p className="text-[8px] font-bold text-rose-500/60 uppercase mt-1">Validation Failures</p>
+                </Card>
               </div>
             </div>
 
-            <div className="flex gap-4 pt-8 border-t border-slate-100">
-              <Button variant="ghost" className="flex-1" onClick={() => setShowDetailModal(false)}>ปิด</Button>
-              <Button variant="secondary" className="flex-1 font-bold" onClick={() => openEditModal(selectedAccount)}>แก้ไข</Button>
-              <Button variant="danger" className="flex-1 font-bold" onClick={() => setShowDeleteConfirm(true)}>ลบ</Button>
+            <div className="flex gap-4 pt-10 border-t border-slate-100">
+              <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setShowDetailModal(false)}>ปิดหน้าต่าง</Button>
+              <Button variant="secondary" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => openEditModal(selectedAccount)}>แก้ไขโครงร่าง</Button>
+              <Button variant="danger" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border-none" onClick={() => setShowDeleteConfirm(true)}>ถอนรากบัญชี</Button>
             </div>
           </div>
         )}

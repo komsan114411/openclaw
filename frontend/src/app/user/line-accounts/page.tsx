@@ -247,13 +247,13 @@ export default function UserLineAccountsPage() {
     <DashboardLayout>
       <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500 tracking-tight">
-              จัดการบัญชี LINE OA
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+              จัดการบัญชี <span className="text-emerald-500">LINE OA</span>
             </h1>
-            <p className="text-slate-500 mt-1 font-medium">
-              เชื่อมต่อและจัดการบัญชี LINE Official Account พร้อมระบบตอบกลับอัตโนมัติ
+            <p className="text-slate-500 font-bold text-sm md:text-lg tracking-wide opacity-80 uppercase">
+              เชื่อมต่อและจัดการบัญชี <span className="text-slate-900">Official Account</span> พร้อมระบบตอบกลับอัตโนมัติ
             </p>
           </div>
           <Button
@@ -261,8 +261,10 @@ export default function UserLineAccountsPage() {
               resetForm();
               setShowModal(true);
             }}
-            leftIcon={<Plus className="w-5 h-5" />}
-            className="shadow-lg shadow-emerald-500/20"
+            size="lg"
+            variant="primary"
+            leftIcon={<Plus className="w-6 h-6" />}
+            className="w-full md:w-auto h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
           >
             เพิ่มบัญชีใหม่
           </Button>
@@ -588,8 +590,8 @@ export default function UserLineAccountsPage() {
                   <div>
                     <span className="text-sm font-bold text-slate-700">ส่งข้อความ &quot;กำลังประมวลผล&quot;</span>
                     <p className="text-xs text-slate-400 mt-1">
-                      {settingsData.sendProcessingMessage 
-                        ? '✅ ส่งข้อความก่อน แล้วค่อยส่งผลการตรวจสอบ' 
+                      {settingsData.sendProcessingMessage
+                        ? '✅ ส่งข้อความก่อน แล้วค่อยส่งผลการตรวจสอบ'
                         : '⚡ ตรวจสอบแล้วส่งผลทีเดียว (ไม่ส่งข้อความ "กำลังประมวลผล")'}
                     </p>
                   </div>
@@ -599,7 +601,7 @@ export default function UserLineAccountsPage() {
                   />
                 </div>
               </div>
-              
+
               <Input
                 label="ข้อความรอตรวจสอบ (ตอบทันทีเมื่อได้รับรูป)"
                 value={settingsData.slipImmediateMessage}
