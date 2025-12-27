@@ -123,11 +123,11 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative z-10">
           <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
-              ศูนย์<span className="text-emerald-500">ควบคุม</span>
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+              ศูนย์<span className="text-emerald-400">ควบคุม</span>
             </h1>
-            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
-              ยินดีต้อนรับกลับ, <span className="text-slate-900">ผู้ดูแลระบบ</span> 👋
+            <p className="text-slate-400 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
+              ยินดีต้อนรับกลับ, <span className="text-white">ผู้ดูแลระบบ</span> 👋
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4 w-full md:w-auto">
@@ -135,17 +135,17 @@ export default function AdminDashboard() {
               variant="outline"
               size="lg"
               onClick={() => { fetchStats(); fetchThunderQuota(); }}
-              className="group border-slate-200 bg-white/50 backdrop-blur-xl hover:bg-white hover:border-emerald-200 hover:text-emerald-600 rounded-xl md:rounded-2xl h-12 md:h-14 px-4 md:px-8 font-black uppercase tracking-widest text-[10px] md:text-xs shadow-sm hover:shadow-md transition-all duration-300"
+              className="group border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 hover:border-emerald-500/30 text-slate-300 hover:text-emerald-400 rounded-xl md:rounded-2xl h-12 md:h-14 px-4 md:px-8 font-black uppercase tracking-widest text-[10px] md:text-xs transition-all duration-300"
               isLoading={isLoading || isLoadingQuota}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 text-slate-400 group-hover:text-emerald-500 group-hover:rotate-180 transition-all duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 text-slate-500 group-hover:text-emerald-400 group-hover:rotate-180 transition-all duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <span className="hidden sm:inline">รีเฟรชข้อมูล</span>
               <span className="sm:hidden">รีเฟรช</span>
             </Button>
             <Link href="/admin/settings" className="flex-1 sm:flex-none">
-              <Button size="lg" variant="primary" className="w-full h-12 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
+              <Button size="lg" variant="primary" className="w-full h-12 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/30 shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all duration-300">
                 <span className="hidden sm:inline">ตั้งค่าระบบ</span>
                 <span className="sm:hidden">ตั้งค่า</span>
               </Button>

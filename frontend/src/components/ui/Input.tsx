@@ -40,11 +40,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              'input shadow-sm backdrop-blur-sm transition-all duration-300',
+              'input shadow-sm backdrop-blur-sm transition-all duration-300 min-h-[44px] text-base sm:text-sm',
               leftIcon && 'pl-11',
               rightIcon && 'pr-11',
-              error 
-                ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 bg-rose-50/10 text-rose-900 placeholder:text-rose-300' 
+              error
+                ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 bg-rose-50/10 text-rose-900 placeholder:text-rose-300'
                 : 'hover:border-emerald-400/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10',
               props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
               className
@@ -91,8 +91,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           className={cn(
-            'input min-h-[120px] py-3 resize-none shadow-sm backdrop-blur-sm transition-all duration-300',
-            error 
+            'input min-h-[120px] py-3 resize-none shadow-sm backdrop-blur-sm transition-all duration-300 text-base sm:text-sm',
+            error
               ? 'border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 bg-rose-50/10 text-rose-900 placeholder:text-rose-300'
               : 'hover:border-emerald-400/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10',
             props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
@@ -135,7 +135,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             className={cn(
-              'input appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em]',
+              'input appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em] min-h-[44px] text-base sm:text-sm',
               'pr-10', // Room for custom arrow if needed, but styling default arrow for now
               error && 'border-rose-500 focus:ring-rose-500/10 focus:border-rose-500',
               className
@@ -177,12 +177,12 @@ interface SwitchProps {
 export function Switch({ checked, onChange, label, description, disabled = false }: SwitchProps) {
   return (
     <label className={cn(
-      'flex items-center justify-between p-3 rounded-2xl border-2 transition-all duration-300 group',
+      'flex items-center justify-between p-3 sm:p-3 rounded-2xl border-2 transition-all duration-300 group min-h-[48px]',
       checked ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50 border-slate-100',
       disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-emerald-200'
     )}>
       {(label || description) && (
-        <div className="mr-4">
+        <div className="mr-4 flex-1">
           {label && <span className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{label}</span>}
           {description && <p className="text-xs text-slate-500 mt-0.5 font-medium italic">{description}</p>}
         </div>
@@ -194,7 +194,7 @@ export function Switch({ checked, onChange, label, description, disabled = false
         disabled={disabled}
         onClick={() => !disabled && onChange(!checked)}
         className={cn(
-          'relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ring-offset-4',
+          'relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ring-offset-4 flex-shrink-0',
           'focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner',
           checked ? 'bg-emerald-500' : 'bg-slate-300',
           disabled ? 'cursor-not-allowed' : ''
@@ -202,7 +202,7 @@ export function Switch({ checked, onChange, label, description, disabled = false
       >
         <span
           className={cn(
-            'inline-block h-4 w-4 transform rounded-full bg-white shadow-xl transition-all duration-300 ease-spring',
+            'inline-block h-5 w-5 transform rounded-full bg-white shadow-xl transition-all duration-300 ease-spring',
             checked ? 'translate-x-6 scale-110' : 'translate-x-1'
           )}
         />

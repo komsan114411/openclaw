@@ -192,11 +192,11 @@ export default function UsersPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
           <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
-              จัดการ<span className="text-emerald-500">ผู้ใช้งาน</span>
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+              จัดการ<span className="text-emerald-400">ผู้ใช้งาน</span>
             </h1>
-            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
-              ศูนย์ควบคุมสิทธิ์การเข้าถึงและ <span className="text-slate-900">บัญชีผู้ใช้ระบบ</span>
+            <p className="text-slate-400 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
+              ศูนย์ควบคุมสิทธิ์การเข้าถึงและ <span className="text-white">บัญชีผู้ใช้ระบบ</span>
             </p>
           </div>
           <Button
@@ -408,7 +408,7 @@ export default function UsersPage() {
         size="md"
       >
         <div className="space-y-6 pt-2">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <Input
               label="ชื่อผู้ใช้"
               placeholder="username"
@@ -438,7 +438,7 @@ export default function UsersPage() {
             placeholder="John Doe"
           />
 
-          <div className="grid grid-cols-2 gap-6 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-end">
             <Select
               label="สิทธิ์การใช้งาน"
               value={formData.role}
@@ -488,7 +488,7 @@ export default function UsersPage() {
             value={editFormData.fullName}
             onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
           />
-          <div className="grid grid-cols-2 gap-6 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-end">
             <Select
               label="แก้ไขสิทธิ์"
               value={editFormData.role}

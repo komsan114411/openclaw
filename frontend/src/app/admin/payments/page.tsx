@@ -147,24 +147,25 @@ export default function AdminPaymentsPage() {
       <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
 
         {/* Neural Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-8 mb-4">
           <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
-              Financial <span className="text-emerald-500">Ledger</span>
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white tracking-[-0.04em] uppercase">
+              Financial <span className="text-emerald-400">Ledger</span>
             </h1>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
-              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
-              Transactional Audit & Monetary Validation
+            <p className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] md:tracking-[0.3em] flex items-center gap-2">
+              <span className="w-6 md:w-8 h-[2px] bg-emerald-500/30"></span>
+              <span className="hidden sm:inline">Transactional Audit & Monetary Validation</span>
+              <span className="sm:hidden">Transaction Audit</span>
             </p>
           </div>
-          <div className="flex items-center gap-3 bg-white/60 backdrop-blur-2xl p-2.5 rounded-[2rem] border border-white shadow-premium w-full md:w-auto">
-            <div className="pl-6 pr-2 py-2 flex items-center gap-2 border-r border-slate-100/50 mr-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/60 backdrop-blur-2xl p-2.5 rounded-2xl sm:rounded-[2rem] border border-white shadow-premium w-full md:w-auto">
+            <div className="hidden sm:flex pl-6 pr-2 py-2 items-center gap-2 border-r border-slate-100/50 mr-2">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Identity Filter</span>
             </div>
             <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="min-w-[200px] border-none shadow-none bg-transparent font-black uppercase text-[11px] tracking-wider focus:ring-0 cursor-pointer"
+              className="flex-1 sm:min-w-[200px] border-none shadow-none bg-transparent font-black uppercase text-[11px] tracking-wider focus:ring-0 cursor-pointer"
             >
               <option value="">ALL PROTOCOLS</option>
               <option value="pending">PENDING AUDIT</option>
@@ -175,7 +176,7 @@ export default function AdminPaymentsPage() {
               variant="glass"
               size="md"
               onClick={fetchPayments}
-              className="rounded-2xl shadow-premium-sm w-12 h-12 bg-white/50 border-white hover:bg-white"
+              className="rounded-xl sm:rounded-2xl shadow-premium-sm w-full sm:w-12 h-12 bg-white/50 border-white hover:bg-white"
             >
               <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -185,39 +186,39 @@ export default function AdminPaymentsPage() {
         </div>
 
         {/* Financial Protocol Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           <StatCard
             title="Awaiting Audit"
             value={pendingCount}
-            icon={<span className="text-2xl">⏳</span>}
+            icon={<span className="text-xl md:text-2xl">⏳</span>}
             color="amber"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            className="rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
             title="Verified Access"
             value={verifiedCount}
-            icon={<span className="text-2xl">✅</span>}
+            icon={<span className="text-xl md:text-2xl">✅</span>}
             color="emerald"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            className="rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
             title="Rejected Signals"
             value={rejectedCount}
-            icon={<span className="text-2xl">❌</span>}
+            icon={<span className="text-xl md:text-2xl">❌</span>}
             color="rose"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            className="rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
           <StatCard
             title="Gross Velocity"
             value={`฿${totalVerifiedAmount.toLocaleString()}`}
-            icon={<span className="text-2xl">💰</span>}
+            icon={<span className="text-xl md:text-2xl">💰</span>}
             color="blue"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            className="rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
           />
         </div>
 
-        {/* Neural Financial Ledger */}
-        <Card className="overflow-hidden p-0 border-none shadow-premium bg-white/60 backdrop-blur-3xl rounded-[3.5rem]">
+        {/* Neural Financial Ledger - Desktop Table */}
+        <Card className="hidden md:block overflow-hidden p-0 border-none shadow-premium bg-white/60 backdrop-blur-3xl rounded-[3.5rem]">
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead>
@@ -352,6 +353,75 @@ export default function AdminPaymentsPage() {
             </table>
           </div>
         </Card>
+
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-4">
+          {payments.length === 0 ? (
+            <Card className="p-10 text-center border-none bg-white/60 backdrop-blur-3xl rounded-3xl">
+              <div className="flex flex-col items-center gap-4 opacity-40">
+                <span className="text-4xl">📉</span>
+                <p className="text-xs font-black uppercase tracking-widest">No Transactions</p>
+              </div>
+            </Card>
+          ) : (
+            payments.map((payment) => (
+              <Card
+                key={payment._id}
+                className="p-5 border-none bg-white/60 backdrop-blur-3xl rounded-3xl"
+                onClick={() => openDetailModal(payment)}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-slate-100 to-white flex items-center justify-center text-slate-500 font-black shadow-inner border border-slate-50">
+                      {payment.user?.username?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{payment.user?.username || '-'}</p>
+                      <p className="text-[10px] font-bold text-slate-400">{payment.package?.name || '-'}</p>
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest",
+                    payment.status === 'verified' ? "bg-emerald-50 text-emerald-600" :
+                      payment.status === 'pending' ? "bg-amber-50 text-amber-600" :
+                        "bg-rose-50 text-rose-600"
+                  )}>
+                    {payment.status}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between py-3 border-t border-slate-100/50">
+                  <div>
+                    <p className="text-xl font-black text-slate-900 tracking-tighter">฿{payment.amount.toLocaleString()}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {new Date(payment.createdAt).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
+                  {payment.status === 'pending' && (
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <IconButton
+                        variant="primary"
+                        size="md"
+                        onClick={() => handleApproveClick(payment)}
+                        className="w-11 h-11 rounded-xl shadow-emerald-500/20 shadow-lg"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </IconButton>
+                      <IconButton
+                        variant="outline"
+                        size="md"
+                        onClick={() => handleRejectClick(payment)}
+                        className="w-11 h-11 rounded-xl text-rose-500 border-rose-100 hover:bg-rose-50"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </IconButton>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
       </div>
 
       <Modal

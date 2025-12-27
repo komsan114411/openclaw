@@ -15,6 +15,7 @@ interface CardProps {
   hover?: boolean;
   variant?: 'white' | 'glass' | 'glass-dark' | 'outline' | 'ghost';
   style?: React.CSSProperties;
+  onClick?: () => void;
 }
 
 export function Card({
@@ -23,23 +24,24 @@ export function Card({
   padding = 'md',
   hover = false,
   variant = 'white',
-  style
+  style,
+  onClick
 }: CardProps) {
   const paddingClasses = {
     none: '',
     xs: 'p-2',
-    sm: 'p-4',
-    md: 'p-6',
-    lg: 'p-8',
-    xl: 'p-10',
+    sm: 'p-3 md:p-4',
+    md: 'p-4 md:p-6',
+    lg: 'p-5 md:p-6 lg:p-8',
+    xl: 'p-6 md:p-8 lg:p-10',
   };
 
   const variantClasses = {
-    white: 'bg-white border-slate-100 shadow-sm hover:shadow-md',
-    glass: 'glass border-white/40 shadow-xl bg-white/70 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60',
-    'glass-dark': 'glass-dark border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-900/60',
-    outline: 'bg-transparent border-2 border-slate-100 shadow-none',
-    ghost: 'bg-slate-50/50 border-transparent shadow-none hover:bg-slate-50 transition-colors',
+    white: 'bg-white/10 border-white/10 shadow-lg shadow-black/5 backdrop-blur-xl',
+    glass: 'border-white/10 shadow-xl bg-white/5 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/5 hover:bg-white/10 transition-colors',
+    'glass-dark': 'border-white/5 shadow-2xl bg-slate-900/60 backdrop-blur-2xl supports-[backdrop-filter]:bg-slate-900/50',
+    outline: 'bg-transparent border border-white/10 shadow-none',
+    ghost: 'bg-white/5 border-transparent shadow-none hover:bg-white/10 transition-colors',
   };
 
   return (
@@ -49,9 +51,11 @@ export function Card({
         paddingClasses[padding],
         variantClasses[variant],
         hover && 'hover:-translate-y-1 hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.1)] hover:border-emerald-500/20 transition-all duration-300',
+        onClick && 'cursor-pointer',
         className
       )}
       style={style}
+      onClick={onClick}
     >
       {children}
     </div>
@@ -113,45 +117,45 @@ export function StatCard({
   const colorConfigs = {
     emerald: {
       bg: 'bg-emerald-50',
-      text: 'text-emerald-600',
+      text: 'text-emerald-400',
       gradient: 'from-emerald-500 to-teal-600',
       shadow: 'shadow-emerald-500/20',
-      iconBg: 'bg-emerald-500/10'
+      iconBg: 'bg-emerald-500/20'
     },
     blue: {
-      bg: 'bg-blue-50',
-      text: 'text-blue-600',
+      bg: 'bg-blue-500/20',
+      text: 'text-blue-400',
       gradient: 'from-blue-500 to-cyan-600',
       shadow: 'shadow-blue-500/20',
-      iconBg: 'bg-blue-500/10'
+      iconBg: 'bg-blue-500/20'
     },
     amber: {
-      bg: 'bg-amber-50',
-      text: 'text-amber-600',
+      bg: 'bg-amber-500/20',
+      text: 'text-amber-400',
       gradient: 'from-amber-500 to-orange-600',
       shadow: 'shadow-amber-500/20',
-      iconBg: 'bg-amber-500/10'
+      iconBg: 'bg-amber-500/20'
     },
     rose: {
-      bg: 'bg-rose-50',
-      text: 'text-rose-600',
+      bg: 'bg-rose-500/20',
+      text: 'text-rose-400',
       gradient: 'from-rose-500 to-pink-600',
       shadow: 'shadow-rose-500/20',
-      iconBg: 'bg-rose-500/10'
+      iconBg: 'bg-rose-500/20'
     },
     indigo: {
-      bg: 'bg-indigo-50',
-      text: 'text-indigo-600',
+      bg: 'bg-indigo-500/20',
+      text: 'text-indigo-400',
       gradient: 'from-indigo-500 to-blue-600',
       shadow: 'shadow-indigo-500/20',
-      iconBg: 'bg-indigo-500/10'
+      iconBg: 'bg-indigo-500/20'
     },
     violet: {
-      bg: 'bg-violet-50',
-      text: 'text-violet-600',
+      bg: 'bg-violet-500/20',
+      text: 'text-violet-400',
       gradient: 'from-violet-500 to-purple-600',
       shadow: 'shadow-violet-500/20',
-      iconBg: 'bg-violet-500/10'
+      iconBg: 'bg-violet-500/20'
     },
   };
 
@@ -193,22 +197,22 @@ export function StatCard({
   }
 
   return (
-    <Card className={cn("relative overflow-hidden group hover:border-emerald-500/30 transition-all", variant === 'glass' ? 'glass border-white/10' : '', className)} hover={variant !== 'glass'}>
+    <Card className={cn("relative overflow-hidden group hover:border-emerald-500/20 transition-all", variant === 'glass' ? 'border-white/10 bg-white/5 backdrop-blur-2xl' : '', className)} hover={variant !== 'glass'}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm text-slate-500 font-semibold uppercase tracking-wider">{title}</p>
-          <p className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight leading-none">{value}</p>
+          <p className="text-xs sm:text-sm text-slate-400 font-semibold uppercase tracking-wider">{title}</p>
+          <p className="text-2xl sm:text-3xl font-extrabold text-white mt-2 tracking-tight leading-none">{value}</p>
           {trend && (
             <div className="flex items-center gap-1.5 mt-3">
               <span
                 className={cn(
                   'text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1',
-                  trend.isUp ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                  trend.isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
                 )}
               >
                 {trend.isUp !== undefined ? (trend.isUp ? '↑' : '↓') : ''} {trend.value}
               </span>
-              {trend.label && <span className="text-[10px] text-slate-400 font-medium uppercase">{trend.label}</span>}
+              {trend.label && <span className="text-[10px] text-slate-500 font-medium uppercase">{trend.label}</span>}
             </div>
           )}
         </div>
@@ -235,7 +239,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action, variant = 'white' }: EmptyStateProps) {
   return (
-    <Card className="text-center py-16 flex flex-col items-center justify-center animate-fade" variant={variant}>
+    <Card className="text-center py-10 md:py-16 px-4 flex flex-col items-center justify-center animate-fade" variant={variant}>
       {icon && (
         <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-300 mb-6 group-hover:scale-110 transition-transform">
           {icon}

@@ -240,7 +240,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               href={item.href}
               onClick={() => window.innerWidth < 768 && onClose()}
               className={clsx(
-                'group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                'group flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-xl transition-all duration-300 relative overflow-hidden',
                 isActive
                   ? 'sidebar-link-active text-white bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-white/5 shadow-lg shadow-emerald-900/20'
                   : 'text-slate-400 hover:text-white hover:bg-white/5 hover:translate-x-1'
@@ -319,7 +319,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <button
             onClick={() => logout()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 border border-transparent"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 border border-transparent"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

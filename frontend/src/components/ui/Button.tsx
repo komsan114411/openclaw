@@ -70,10 +70,10 @@ export function Button({
   };
 
   const sizeClasses = {
-    xs: 'px-2 py-1 text-xs gap-1 rounded-lg',
-    sm: 'px-3 py-1.5 text-sm gap-1.5 rounded-xl',
-    md: 'px-5 py-2.5 text-sm font-semibold gap-2 rounded-xl',
-    lg: 'px-8 py-4 text-base font-bold gap-3 rounded-2xl',
+    xs: 'px-3 py-2 text-xs gap-1 rounded-lg min-h-[44px]',
+    sm: 'px-4 py-2 text-sm gap-1.5 rounded-xl min-h-[44px]',
+    md: 'px-5 py-2.5 text-sm font-semibold gap-2 rounded-xl min-h-[44px]',
+    lg: 'px-8 py-4 text-base font-bold gap-3 rounded-2xl min-h-[48px]',
   };
 
   const isDisabled = disabled || isLoading || (isDebouncing && props.type !== 'submit');
@@ -156,9 +156,9 @@ export function IconButton({
   };
 
   const sizeClasses = {
-    sm: 'p-1.5 rounded-lg',
-    md: 'p-2.5 rounded-xl',
-    lg: 'p-4 rounded-2xl',
+    sm: 'p-2.5 rounded-lg min-h-[44px] min-w-[44px]',
+    md: 'p-2.5 rounded-xl min-h-[44px] min-w-[44px]',
+    lg: 'p-4 rounded-2xl min-h-[48px] min-w-[48px]',
   };
 
   return (

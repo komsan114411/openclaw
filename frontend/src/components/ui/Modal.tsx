@@ -64,10 +64,11 @@ export function Modal({
     xl: 'max-w-2xl',
     '2xl': 'max-w-4xl',
     full: 'max-w-[95vw]',
+    fullMobile: 'max-w-[95vw] md:max-w-2xl', // Fullscreen on mobile, normal on desktop
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
       {/* Overlay */}
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-all duration-500 animate-fade"
@@ -77,15 +78,15 @@ export function Modal({
       {/* Modal Container */}
       <div
         className={cn(
-          'relative w-full overflow-hidden bg-white rounded-[2rem] shadow-2xl transition-all animate-scale-in',
+          'relative w-full overflow-hidden bg-white rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
           sizeClasses[size],
-          'flex flex-col max-h-[90vh]'
+          'flex flex-col max-h-[85vh] sm:max-h-[90vh]'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-8 py-6 border-b border-slate-50 bg-white sticky top-0 z-10">
+          <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-4 sm:py-6 border-b border-slate-50 bg-white sticky top-0 z-10">
             <div className="space-y-1">
               {title && <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{title}</h3>}
               {subtitle && <p className="text-sm font-medium text-slate-500">{subtitle}</p>}
@@ -106,13 +107,13 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="flex-1 px-8 py-8 overflow-y-auto no-scrollbar scroll-smooth">
+        <div className="flex-1 px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 overflow-y-auto no-scrollbar scroll-smooth">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+          <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 bg-slate-50 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 sticky bottom-0 z-10">
             {footer}
           </div>
         )}

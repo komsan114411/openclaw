@@ -59,11 +59,11 @@ export default function UserDashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative z-10">
           <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
-              ระบบ<span className="text-emerald-500">แดชบอร์ด</span>
+            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+              ระบบ<span className="text-emerald-400">แดชบอร์ด</span>
             </h1>
-            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
-              ภาพรวมการใช้งานและ <span className="text-slate-900">โควต้าปัจจุบันของคุณ</span>
+            <p className="text-slate-400 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
+              ภาพรวมการใช้งานและ <span className="text-white">โควต้าปัจจุบันของคุณ</span>
             </p>
           </div>
           <Link href="/user/packages" className="w-full md:w-auto">
