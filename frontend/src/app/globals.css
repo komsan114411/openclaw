@@ -431,5 +431,5 @@
 
 /* Sidebar Specifics */
 .sidebar-link-active {
-  @apply bg-white/10 text-white shadow-[inset_0_1px_1px_rgba(255, 255, 255, 0.1)] backdrop-blur-md;
+  @apply bg-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-md;
 }
