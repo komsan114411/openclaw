@@ -33,39 +33,42 @@ import { SystemResponseTemplatesModule } from './system-response-templates/syste
       isGlobal: true,
       envFilePath: ['.env', '../.env'],
     }),
-    
+
     // Schedule module for cron jobs
     ScheduleModule.forRoot(),
-    
+
     // Serve static files (Frontend)
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
       exclude: ['/api*', '/webhook*', '/socket.io*'],
     }),
-    
+
     // Database
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const uri = configService.get<string>('MONGODB_URI');
         if (!uri) {
-          console.warn('⚠️ MONGODB_URI not set, using default connection');
+          console.error('❌ MONGODB_URI not set! App will fail to start.');
+          throw new Error('MONGODB_URI environment variable is required');
         }
+        console.log('🔌 Connecting to MongoDB...');
         return {
-          uri: uri || 'mongodb://localhost:27017/lineoa_system',
+          uri,
           dbName: configService.get<string>('MONGODB_DATABASE', 'lineoa_system'),
-          retryAttempts: 3,
-          retryDelay: 1000,
-          serverSelectionTimeoutMS: 5000,
-          connectTimeoutMS: 10000,
+          retryAttempts: 5,
+          retryDelay: 2000,
+          serverSelectionTimeoutMS: 30000,
+          connectTimeoutMS: 30000,
+          socketTimeoutMS: 45000,
         };
       },
       inject: [ConfigService],
     }),
-    
+
     // Common module (guards, utilities)
     CommonModule,
-    
+
     // Feature modules
     DatabaseModule,
     RedisModule,
@@ -81,7 +84,7 @@ import { SystemResponseTemplatesModule } from './system-response-templates/syste
     SystemSettingsModule,
     WebsocketModule,
     TasksModule,
-    
+
     // New modules
     ChatMessagesModule,
     SlipTemplatesModule,
@@ -91,4 +94,4 @@ import { SystemResponseTemplatesModule } from './system-response-templates/syste
     SystemResponseTemplatesModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
