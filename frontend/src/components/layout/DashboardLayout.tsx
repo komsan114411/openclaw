@@ -49,9 +49,8 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
 
   return (
     <div className="flex min-h-screen relative overflow-hidden font-sans selection:bg-emerald-500/30">
-      {/* Decorative background elements */}
-      <div className="fixed top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-emerald-500/10 to-teal-500/8 rounded-full blur-[150px] -z-10 pointer-events-none animate-pulse" style={{ animationDuration: '10s' }} />
-      <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-teal-500/8 to-cyan-500/5 rounded-full blur-[120px] -z-10 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
+      {/* Minimal decorative gradient */}
+      <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-[150px] -z-10 pointer-events-none" />
 
       {/* Mobile Hamburger Button */}
       <motion.button

@@ -133,7 +133,7 @@ export default function SystemResponsesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedType]);
 
   useEffect(() => {
     fetchTemplates();
