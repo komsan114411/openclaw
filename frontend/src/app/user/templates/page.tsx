@@ -245,18 +245,18 @@ function TemplatesContent() {
               ← กลับ
             </Button>
             <div>
-              <h1 className="text-base md:text-xl lg:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tight">
-                LINE OA <span className="text-[#06C755]">Dashboard</span>
+              <h1 className="text-base md:text-xl lg:text-2xl font-black text-white flex items-center gap-2 tracking-tight">
+                เทมเพลต<span className="text-[#06C755]">ของฉัน</span>
               </h1>
-              <p className="text-slate-400 text-[10px] md:text-sm mt-0.5 font-bold uppercase tracking-wider">Overview & Analytics for Official Account System</p>
+              <p className="text-slate-400 text-[10px] md:text-sm mt-0.5 font-medium">จัดการเทมเพลตการตอบกลับสำหรับการตรวจสอบสลิป</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="indigo" className="text-[10px] md:text-xs">
+            <Badge variant="indigo" className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1">
               🌐 {globalTemplates.length} ส่วนกลาง
             </Badge>
             {accountTemplates.length > 0 && (
-              <Badge variant="emerald" className="text-[10px] md:text-xs">
+              <Badge variant="emerald" className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1">
                 📁 {accountTemplates.length} ของบัญชี
               </Badge>
             )}
@@ -265,35 +265,35 @@ function TemplatesContent() {
 
         {/* Current LINE Account Info Card */}
         {currentAccount && (
-          <Card className="p-3 md:p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-emerald-200">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white text-xl md:text-2xl shadow-lg shadow-emerald-500/30 flex-shrink-0">
+          <Card className="p-3 sm:p-4 bg-gradient-to-r from-[#06C755]/10 via-teal-500/10 to-cyan-500/10 border-[#06C755]/20 mb-4 sm:mb-6" variant="glass">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#06C755] to-teal-500 flex items-center justify-center text-white text-lg sm:text-xl md:text-2xl shadow-lg shadow-[#06C755]/30 flex-shrink-0">
                   📱
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-base md:text-lg text-slate-900 truncate">{currentAccount.accountName}</h3>
+                    <h3 className="font-bold text-sm sm:text-base md:text-lg text-white truncate">{currentAccount.accountName}</h3>
                     <span className={cn(
-                      "px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold flex-shrink-0",
-                      currentAccount.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      "px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] md:text-[10px] font-semibold flex-shrink-0",
+                      currentAccount.isActive ? "bg-[#06C755]/20 text-[#06C755]" : "bg-white/10 text-slate-400"
                     )}>
                       {currentAccount.isActive ? '🟢 ใช้งาน' : '🔴 ปิด'}
                     </span>
                   </div>
-                  <p className="text-xs md:text-sm text-slate-500 font-mono truncate">ID: {currentAccount.channelId}</p>
+                  <p className="text-xs sm:text-sm text-slate-400 font-mono truncate mt-0.5 sm:mt-1">ID: {currentAccount.channelId}</p>
                 </div>
               </div>
               {otherAccounts.length > 0 && (
-                <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-emerald-100/50">
-                  <span className="text-[9px] text-emerald-600/60 uppercase font-black tracking-widest">Switch Channel</span>
+                <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-[#06C755]/20">
+                  <span className="text-[8px] sm:text-[9px] text-[#06C755]/70 font-semibold">เปลี่ยนบัญชี</span>
                   <div className="flex flex-wrap gap-1.5 justify-start sm:justify-end">
                     {otherAccounts.slice(0, 3).map(acc => (
                       <Button
                         key={acc._id}
                         variant="ghost"
                         size="xs"
-                        className="text-[10px] bg-white/80 hover:bg-white border border-emerald-100/50 rounded-lg px-3 py-1.5 h-auto font-bold shadow-sm"
+                        className="text-[9px] sm:text-[10px] bg-white/[0.03] hover:bg-white/10 border border-white/10 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 h-auto font-semibold text-white"
                         onClick={() => router.push(`/user/templates?accountId=${acc._id}`)}
                       >
                         📱 {acc.accountName}
@@ -303,7 +303,7 @@ function TemplatesContent() {
                       <Button
                         variant="ghost"
                         size="xs"
-                        className="text-[10px] bg-white/80 hover:bg-white border border-emerald-100/50 rounded-lg px-2 py-1.5 h-auto font-bold"
+                        className="text-[9px] sm:text-[10px] bg-white/[0.03] hover:bg-white/10 border border-white/10 rounded-lg px-2 py-1.5 h-auto font-semibold text-white"
                         onClick={() => router.push('/user/line-accounts')}
                       >
                         +{otherAccounts.length - 3}
@@ -317,30 +317,38 @@ function TemplatesContent() {
         )}
 
         {/* Template Selection Summary */}
-        <Card className="p-4 bg-gradient-to-r from-slate-50 to-white border-slate-200">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-xl">📋</span>
+        <Card className="p-4 sm:p-6 bg-gradient-to-r from-white/[0.02] to-white/[0.05] border-white/10 mb-4 sm:mb-6" variant="glass">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <span className="text-lg sm:text-xl">📋</span>
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">สรุป Template ที่เลือก</h3>
-              <p className="text-[10px] text-slate-400">Template ที่ใช้สำหรับแต่ละประเภทการตอบกลับ</p>
+              <h3 className="font-bold text-white text-sm sm:text-base">สรุป Template ที่เลือก</h3>
+              <p className="text-[9px] sm:text-[10px] text-slate-400">Template ที่ใช้สำหรับแต่ละประเภทการตอบกลับ</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
             {TYPE_OPTIONS.map((typeOption) => {
               const templateName = getSelectedTemplateName(typeOption.value as SlipTemplate['type']);
               return (
                 <div
                   key={typeOption.value}
                   className={cn(
-                    "p-3 sm:p-4 rounded-2xl border-2 transition-all shadow-premium-sm",
-                    typeOption.bgColor, typeOption.borderColor
+                    "p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/10 transition-all bg-white/[0.02] hover:bg-white/[0.05]",
+                    typeOption.value === 'success' && 'border-[#06C755]/20',
+                    typeOption.value === 'duplicate' && 'border-amber-500/20',
+                    typeOption.value === 'error' && 'border-rose-500/20',
+                    typeOption.value === 'not_found' && 'border-slate-500/20'
                   )}
                 >
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                     <span className="text-base sm:text-lg">{typeOption.icon}</span>
-                    <span className={cn("font-black text-[10px] uppercase tracking-wider", typeOption.textColor)}>{typeOption.label}</span>
+                    <span className={cn("font-semibold text-[9px] sm:text-[10px]", 
+                      typeOption.value === 'success' ? 'text-[#06C755]' :
+                      typeOption.value === 'duplicate' ? 'text-amber-400' :
+                      typeOption.value === 'error' ? 'text-rose-400' :
+                      'text-slate-400'
+                    )}>{typeOption.label}</span>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-slate-900 truncate font-black uppercase tracking-tight">
+                  <p className="text-[10px] sm:text-[11px] text-white truncate font-semibold">
                     {templateName}
                   </p>
                 </div>
@@ -359,25 +367,28 @@ function TemplatesContent() {
           return (
             <div key={typeOption.value} className="space-y-4">
               {/* Type Header */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-premium-sm",
-                  typeOption.bgColor
+                  "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0",
+                  typeOption.value === 'success' ? 'bg-[#06C755]/10' :
+                  typeOption.value === 'duplicate' ? 'bg-amber-500/10' :
+                  typeOption.value === 'error' ? 'bg-rose-500/10' :
+                  'bg-slate-500/10'
                 )}>
                   {typeOption.icon}
                 </div>
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">{typeOption.label}</h2>
-                  <p className="text-sm text-slate-400">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base sm:text-lg font-black text-white">{typeOption.label}</h2>
+                  <p className="text-xs sm:text-sm text-slate-400">
                     {typeTemplates.length} เทมเพลต •
                     {selectedId ? ' มีเทมเพลตที่เลือก' : ' ใช้ค่าเริ่มต้น'}
                   </p>
                 </div>
-                <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent" />
+                <div className="hidden sm:flex flex-1 h-px bg-gradient-to-r from-white/10 to-transparent ml-4" />
               </div>
 
               {/* Templates Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 {typeTemplates.map((template) => {
                   const isSelected = selectedId === template._id || (!selectedId && template.isDefault);
                   const typeInfo = getTypeInfo(template.type);
@@ -386,66 +397,67 @@ function TemplatesContent() {
                     <Card
                       key={template._id}
                       className={cn(
-                        "p-0 overflow-hidden transition-all duration-300 hover:shadow-lg rounded-[2.5rem]",
+                        "p-0 overflow-hidden transition-all duration-300 hover:shadow-lg rounded-xl sm:rounded-2xl border border-white/5",
                         isSelected
-                          ? "ring-4 ring-emerald-500/30 shadow-lg shadow-emerald-500/10"
-                          : "hover:border-slate-300",
-                        template.isGlobal && "border-purple-200/50"
+                          ? "ring-2 sm:ring-4 ring-[#06C755]/30 shadow-lg shadow-[#06C755]/10"
+                          : "hover:border-white/10",
+                        template.isGlobal && "border-purple-500/30"
                       )}
+                      variant="glass"
                     >
                       {/* Color Bar */}
                       <div
-                        className="h-2 w-full"
-                        style={{ backgroundColor: template.primaryColor || '#10b981' }}
+                        className="h-1 sm:h-2 w-full"
+                        style={{ backgroundColor: template.primaryColor || '#06C755' }}
                       />
 
                       {/* Preview */}
-                      <div className="p-6 bg-gradient-to-b from-slate-50/50 to-white flex justify-center">
-                        <div className="transform scale-[0.9] origin-top hover:scale-100 transition-transform duration-500">
+                      <div className="p-4 sm:p-6 bg-gradient-to-b from-white/[0.02] to-white/[0.05] flex justify-center">
+                        <div className="transform scale-[0.85] sm:scale-[0.9] origin-top hover:scale-100 transition-transform duration-500">
                           <MiniSlipPreview template={template} />
                         </div>
                       </div>
 
                       {/* Info */}
-                      <div className="p-5 border-t border-slate-100 space-y-4">
+                      <div className="p-4 sm:p-5 border-t border-white/5 space-y-3 sm:space-y-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1.5">
+                            <div className="flex items-center gap-2 mb-1 sm:mb-1.5">
                               {template.isGlobal && (
-                                <span className="text-[9px] font-black px-2 py-0.5 bg-purple-100 text-purple-700 rounded-lg uppercase tracking-wider">
+                                <span className="text-[8px] sm:text-[9px] font-semibold px-1.5 sm:px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-lg">
                                   🌐 ส่วนกลาง
                                 </span>
                               )}
                             </div>
-                            <h3 className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">{template.name}</h3>
+                            <h3 className="font-black text-white text-xs sm:text-sm truncate">{template.name}</h3>
                             {template.description && (
-                              <p className="text-[10px] text-slate-400 truncate mt-0.5 font-bold">{template.description}</p>
+                              <p className="text-[9px] sm:text-[10px] text-slate-400 truncate mt-0.5 font-semibold">{template.description}</p>
                             )}
                           </div>
                           {isSelected && (
-                            <Badge variant="success" size="sm" className="flex-shrink-0 animate-pulse">
+                            <Badge variant="success" size="sm" className="flex-shrink-0 text-[8px] sm:text-[9px] px-2 py-1">
                               ✓ ใช้งาน
                             </Badge>
                           )}
                         </div>
 
                         {/* Features */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {template.showAmount && <span className="text-[8px] px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg font-black uppercase tracking-wider border border-emerald-100">Amount</span>}
-                          {template.showSender && <span className="text-[8px] px-2 py-1 bg-blue-50 text-blue-600 rounded-lg font-black uppercase tracking-wider border border-blue-100">Sender</span>}
-                          {template.showReceiver && <span className="text-[8px] px-2 py-1 bg-purple-50 text-purple-600 rounded-lg font-black uppercase tracking-wider border border-purple-100">Receiver</span>}
-                          {template.showDate && <span className="text-[8px] px-2 py-1 bg-orange-50 text-orange-600 rounded-lg font-black uppercase tracking-wider border border-orange-100">Date</span>}
-                          {template.showTime && <span className="text-[8px] px-2 py-1 bg-pink-50 text-pink-600 rounded-lg font-black uppercase tracking-wider border border-pink-100">Time</span>}
-                          {template.showTransRef && <span className="text-[8px] px-2 py-1 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-wider border border-slate-200">Ref</span>}
-                          {template.showBankLogo && <span className="text-[8px] px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg font-black uppercase tracking-wider border border-indigo-100">Logo</span>}
+                        <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                          {template.showAmount && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-[#06C755]/10 text-[#06C755] rounded-lg font-semibold border border-[#06C755]/20">จำนวนเงิน</span>}
+                          {template.showSender && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-500/10 text-blue-400 rounded-lg font-semibold border border-blue-500/20">ผู้โอน</span>}
+                          {template.showReceiver && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-500/10 text-purple-400 rounded-lg font-semibold border border-purple-500/20">ผู้รับ</span>}
+                          {template.showDate && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-orange-500/10 text-orange-400 rounded-lg font-semibold border border-orange-500/20">วันที่</span>}
+                          {template.showTime && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-pink-500/10 text-pink-400 rounded-lg font-semibold border border-pink-500/20">เวลา</span>}
+                          {template.showTransRef && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-500/10 text-slate-400 rounded-lg font-semibold border border-slate-500/20">อ้างอิง</span>}
+                          {template.showBankLogo && <span className="text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 bg-indigo-500/10 text-indigo-400 rounded-lg font-semibold border border-indigo-500/20">โลโก้</span>}
                         </div>
 
                         {/* Action */}
                         <div className="pt-2">
                           {isSelected ? (
-                            <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+                            <div className="flex items-center justify-center gap-2 py-2 sm:py-3 px-3 sm:px-4 bg-[#06C755]/10 text-[#06C755] rounded-lg sm:rounded-xl border border-[#06C755]/20">
                               <span className="text-sm">✓</span>
-                              <span className="text-[10px] font-black uppercase tracking-widest">Active Template</span>
+                              <span className="text-[9px] sm:text-[10px] font-semibold">Template ที่ใช้งาน</span>
                             </div>
                           ) : (
                             <Button
@@ -454,7 +466,7 @@ function TemplatesContent() {
                               fullWidth
                               onClick={() => handleSetDefault(template)}
                               isLoading={updatingType === template.type}
-                              className="shadow-sm rounded-xl font-black uppercase tracking-widest text-[10px] h-10"
+                              className="shadow-sm rounded-lg sm:rounded-xl font-semibold text-[9px] sm:text-[10px] h-9 sm:h-10 bg-[#06C755] hover:bg-[#05B048] transition-all"
                             >
                               🎯 เลือกใช้ Template นี้
                             </Button>
@@ -485,53 +497,55 @@ function TemplatesContent() {
         )}
 
         {/* Info Card */}
-        <Card className="p-5 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-blue-200">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-2xl flex-shrink-0 shadow-lg shadow-blue-500/30">
+        <Card className="p-4 sm:p-5 lg:p-6 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border-blue-500/20 mt-4 sm:mt-6" variant="glass">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-xl sm:text-2xl flex-shrink-0 shadow-lg shadow-blue-500/30">
               💡
             </div>
-            <div className="flex-1">
-              <h4 className="font-bold text-blue-900 text-base mb-2">วิธีใช้งาน Template</h4>
-              <div className="grid sm:grid-cols-2 gap-4">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-white text-sm sm:text-base mb-2 sm:mb-3">วิธีใช้งาน Template</h4>
+              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
-                    <span className="text-emerald-500 font-bold">✅</span>
-                    <p className="text-xs text-blue-800">เลือก Template สำหรับแต่ละประเภทการตอบกลับ (สำเร็จ, ซ้ำ, ผิดพลาด, ไม่พบ)</p>
+                    <span className="text-[#06C755] font-bold text-sm">✅</span>
+                    <p className="text-xs sm:text-sm text-slate-300">เลือก Template สำหรับแต่ละประเภทการตอบกลับ (สำเร็จ, ซ้ำ, ผิดพลาด, ไม่พบ)</p>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-purple-500 font-bold">🌐</span>
-                    <p className="text-xs text-blue-800">Template ส่วนกลาง สร้างโดยผู้ดูแลระบบ สามารถใช้ได้ทันที</p>
+                    <span className="text-purple-400 font-bold text-sm">🌐</span>
+                    <p className="text-xs sm:text-sm text-slate-300">Template ส่วนกลาง สร้างโดยผู้ดูแลระบบ สามารถใช้ได้ทันที</p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
-                    <span className="text-amber-500 font-bold">⚡</span>
-                    <p className="text-xs text-blue-800">หากไม่เลือก จะใช้ Template ค่าเริ่มต้นอัตโนมัติ</p>
+                    <span className="text-amber-400 font-bold text-sm">⚡</span>
+                    <p className="text-xs sm:text-sm text-slate-300">หากไม่เลือก จะใช้ Template ค่าเริ่มต้นอัตโนมัติ</p>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-blue-500 font-bold">📱</span>
-                    <p className="text-xs text-blue-800">แต่ละบัญชี LINE สามารถตั้งค่า Template แยกกันได้อิสระ</p>
+                    <span className="text-blue-400 font-bold text-sm">📱</span>
+                    <p className="text-xs sm:text-sm text-slate-300">แต่ละบัญชี LINE สามารถตั้งค่า Template แยกกันได้อิสระ</p>
                   </div>
                 </div>
               </div>
               {otherAccounts.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-blue-200">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-blue-700 font-bold">🔗 ตั้งค่าบัญชี LINE อื่น:</span>
-                    {otherAccounts.slice(0, 5).map(acc => (
-                      <Button
-                        key={acc._id}
-                        variant="ghost"
-                        size="xs"
-                        className="text-[11px] bg-white/60 hover:bg-white border border-blue-200 text-blue-700"
-                        onClick={() => router.push(`/user/templates?accountId=${acc._id}`)}
-                      >
-                        {acc.accountName}
-                      </Button>
-                    ))}
-                    {otherAccounts.length > 5 && (
-                      <span className="text-[10px] text-blue-500">+{otherAccounts.length - 5} อื่นๆ</span>
-                    )}
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/10">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-wrap">
+                    <span className="text-xs text-slate-400 font-semibold">🔗 ตั้งค่าบัญชี LINE อื่น:</span>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      {otherAccounts.slice(0, 5).map(acc => (
+                        <Button
+                          key={acc._id}
+                          variant="ghost"
+                          size="xs"
+                          className="text-[10px] sm:text-[11px] bg-white/[0.03] hover:bg-white/10 border border-white/10 text-white"
+                          onClick={() => router.push(`/user/templates?accountId=${acc._id}`)}
+                        >
+                          {acc.accountName}
+                        </Button>
+                      ))}
+                      {otherAccounts.length > 5 && (
+                        <span className="text-[9px] sm:text-[10px] text-slate-400">+{otherAccounts.length - 5} อื่นๆ</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

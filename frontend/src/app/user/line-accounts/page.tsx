@@ -248,16 +248,16 @@ export default function UserLineAccountsPage() {
   return (
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10">
-        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
-          <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              LINE OA <span className="text-[#06C755]">Dashboard</span>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+          <div className="space-y-1 sm:space-y-2 text-left flex-1">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+              บัญชี <span className="text-[#06C755]">LINE ของฉัน</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Manage Your Official Accounts
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">
+              จัดการบัญชีทางการ LINE Official Account ของคุณ
             </p>
           </div>
-          <div className="flex gap-3 mt-6 lg:mt-0">
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
             <Button
               onClick={() => {
                 resetForm();
@@ -265,84 +265,70 @@ export default function UserLineAccountsPage() {
               }}
               size="lg"
               variant="primary"
-              leftIcon={<Plus className="w-5 h-5" />}
-              className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]"
+              leftIcon={<Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
+              className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048] transition-all"
             >
-              + New Broadcast
+              เพิ่มบัญชีใหม่
             </Button>
-            <Button
-              variant="outline"
-              className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white"
-            >
-              Verify Slip
-            </Button>
+            <Link href="/user/payments" className="flex-1 sm:flex-none">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm border-white/10 bg-white/[0.03] hover:bg-white/5 text-white transition-all"
+              >
+                ตรวจสลิป
+              </Button>
+            </Link>
           </div>
         </div>
-
-        <div className="mb-6">
+        
+        <div className="mb-4 sm:mb-6">
           <div className="relative">
             <input
               type="text"
-              placeholder="Search users, slips, or chats..."
-              className="w-full h-12 px-6 pl-12 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#06C755]/50 transition-all"
+              placeholder="ค้นหาผู้ใช้, สลิป, หรือแชท..."
+              className="w-full h-11 sm:h-12 px-4 sm:px-6 pl-10 sm:pl-12 bg-white/[0.03] border border-white/5 rounded-xl sm:rounded-2xl text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#06C755]/50 transition-all"
             />
-            <svg className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Card variant="glass" className="p-6">
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <Card variant="glass" className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Followers</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-black text-white">12.5k</p>
-                  <span className="text-sm font-bold text-[#06C755] flex items-center gap-1">
-                    <span>↑</span> +5% this week
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ผู้ติดตามทั้งหมด</p>
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                  <p className="text-xl sm:text-2xl font-black text-white">{accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
+                  <span className="text-xs sm:text-sm font-bold text-[#06C755] flex items-center gap-1">
+                    <span>↑</span> +5% สัปดาห์นี้
                   </span>
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-[#06C755]/10 flex items-center justify-center">
-                <span className="text-2xl">👥</span>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center flex-shrink-0 ml-2">
+                <span className="text-xl sm:text-2xl">👥</span>
               </div>
             </div>
           </Card>
-          <Card variant="glass" className="p-6">
+          <Card variant="glass" className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Messages</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-black text-white">4.5k</p>
-                  <span className="text-sm font-bold text-slate-400">/ 5k</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ข้อความ</p>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <p className="text-xl sm:text-2xl font-black text-white">{accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
+                  <span className="text-xs sm:text-sm font-semibold text-slate-400">/ {accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0) + 1000}</span>
                 </div>
-                <div className="mt-2 h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
                   <div className="h-full bg-[#06C755] rounded-full" style={{ width: '90%' }}></div>
                 </div>
-                <p className="text-[9px] font-bold text-slate-500 mt-1">Renews in 5 days</p>
+                <p className="text-[8px] sm:text-[9px] font-semibold text-slate-500 mt-1">ต่ออายุใน 5 วัน</p>
               </div>
-              <Badge variant="info" className="text-[9px] px-2 py-1">PRO</Badge>
+              <Badge variant="info" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1 ml-2 flex-shrink-0">PRO</Badge>
             </div>
           </Card>
         </div>
-
-        <Card variant="glass" className="p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <span className="text-xl">⚠️</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white tracking-tight">Pending Slips</h3>
-                <p className="text-[10px] font-bold text-slate-400">12 unverified payments waiting.</p>
-              </div>
-            </div>
-            <Button variant="primary" className="h-10 px-4 rounded-xl bg-[#06C755] hover:bg-[#05B048] text-xs font-semibold">
-              Review All
-            </Button>
-          </div>
-        </Card>
+        
 
         <div className="grid gap-6 md:gap-10">
           {isLoading ? (
@@ -368,7 +354,7 @@ export default function UserLineAccountsPage() {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               {accounts.map((account, index) => (
                 <motion.div
                   key={account._id}
@@ -377,110 +363,110 @@ export default function UserLineAccountsPage() {
                   transition={{ delay: index * 0.05 }}
                   className="h-full"
                 >
-                  <Card variant="glass" className="h-full flex flex-col group relative overflow-hidden p-6 rounded-2xl">
+                  <Card variant="glass" className="h-full flex flex-col group relative overflow-hidden p-4 sm:p-6 rounded-xl sm:rounded-2xl hover:border-[#06C755]/20 transition-all">
                     {/* Card Header */}
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl bg-[#06C755]/10 border border-[#06C755]/20 flex items-center justify-center flex-shrink-0">
-                          <i className="fab fa-line text-2xl text-[#06C755]" />
+                    <div className="flex items-start justify-between mb-4 sm:mb-6 gap-3">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-[#06C755]/10 border border-[#06C755]/20 flex items-center justify-center flex-shrink-0">
+                          <i className="fab fa-line text-xl sm:text-2xl text-[#06C755]" />
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="font-black text-lg text-white truncate tracking-tight">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-black text-base sm:text-lg text-white truncate tracking-tight">
                             {account.accountName}
                           </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className={cn("px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-widest", account.isActive ? 'bg-[#06C755]/10 text-[#06C755]' : 'bg-white/5 text-slate-500')}>
-                              {account.isActive ? 'Active' : 'Inactive'}
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <div className={cn("px-2 py-0.5 rounded-lg text-[8px] sm:text-[9px] font-semibold", account.isActive ? 'bg-[#06C755]/10 text-[#06C755]' : 'bg-white/5 text-slate-500')}>
+                              {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                         <IconButton
                           onClick={() => handleEdit(account)}
                           size="sm"
-                          className="rounded-lg border border-white/5 text-slate-400 hover:text-white hover:bg-white/5"
+                          className="rounded-lg border border-white/5 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </IconButton>
                         <IconButton
                           onClick={() => confirmDelete(account._id)}
                           size="sm"
-                          className="rounded-lg border border-white/5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10"
+                          className="rounded-lg border border-white/5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </IconButton>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col items-center justify-center text-center">
-                        <span className="text-xl font-black text-white">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
-                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Messages</span>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                      <div className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02] border border-white/5 flex flex-col items-center justify-center text-center">
+                        <span className="text-lg sm:text-xl font-black text-white">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
+                        <span className="text-[8px] sm:text-[9px] text-slate-400 font-semibold mt-1">ข้อความ</span>
                       </div>
-                      <div className="p-3 rounded-xl bg-[#06C755]/10 border border-[#06C755]/20 flex flex-col items-center justify-center text-center">
-                        <span className="text-xl font-black text-[#06C755]">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
-                        <span className="text-[9px] text-[#06C755]/70 font-bold uppercase tracking-widest mt-1">Slips</span>
+                      <div className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-[#06C755]/10 border border-[#06C755]/20 flex flex-col items-center justify-center text-center">
+                        <span className="text-lg sm:text-xl font-black text-[#06C755]">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
+                        <span className="text-[8px] sm:text-[9px] text-[#06C755]/70 font-semibold mt-1">สลิป</span>
                       </div>
-                      <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col items-center justify-center text-center">
-                        <span className="text-xl font-black text-indigo-400">{(account.statistics?.totalAiResponses || 0).toLocaleString()}</span>
-                        <span className="text-[9px] text-indigo-400/70 font-bold uppercase tracking-widest mt-1">AI</span>
+                      <div className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col items-center justify-center text-center">
+                        <span className="text-lg sm:text-xl font-black text-indigo-400">{(account.statistics?.totalAiResponses || 0).toLocaleString()}</span>
+                        <span className="text-[8px] sm:text-[9px] text-indigo-400/70 font-semibold mt-1">AI</span>
                       </div>
                     </div>
 
-                    <div className="mb-6">
-                      <div className="bg-white/[0.02] rounded-xl p-4 border border-white/5">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <Activity className="w-4 h-4" /> Webhook URL
+                    <div className="mb-4 sm:mb-6">
+                      <div className="bg-white/[0.02] rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/5">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
+                          <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 flex items-center gap-2">
+                            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Webhook URL
                           </span>
                           <button
                             onClick={() => copyWebhookUrl(account)}
-                            className="text-[9px] font-bold text-[#06C755] hover:text-[#05B048] uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[#06C755]/10 hover:bg-[#06C755]/20 transition-all"
+                            className="text-[8px] sm:text-[9px] font-semibold text-[#06C755] hover:text-[#05B048] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[#06C755]/10 hover:bg-[#06C755]/20 transition-all w-full sm:w-auto text-center"
                           >
-                            Copy
+                            คัดลอก
                           </button>
                         </div>
-                        <div className="font-mono text-[10px] text-slate-400 break-all bg-black/40 px-4 py-3 rounded-lg border border-white/5">
+                        <div className="font-mono text-[9px] sm:text-[10px] text-slate-400 break-all bg-black/40 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border border-white/5 overflow-x-auto">
                           {getWebhookUrl(account)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                        <div className="flex items-center gap-3">
-                          <Bot className={`w-5 h-5 ${account.settings?.enableBot ? 'text-[#06C755]' : 'text-slate-500'}`} />
-                          <div>
-                            <p className="text-sm font-bold text-white">AI Bot Status</p>
-                            <p className="text-[9px] font-bold text-slate-400">98% response rate</p>
+                    <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+                      <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02] border border-white/5">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                          <Bot className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${account.settings?.enableBot ? 'text-[#06C755]' : 'text-slate-500'}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs sm:text-sm font-semibold text-white truncate">สถานะ AI Bot</p>
+                            <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400">อัตราการตอบกลับ 98%</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-12 h-6 rounded-full relative transition-all ${account.settings?.enableBot ? 'bg-[#06C755]' : 'bg-white/10'}`}>
-                            <div className={`absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-all ${account.settings?.enableBot ? '' : 'translate-x-[-1.5rem]'}`}></div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                          <div className={`w-10 sm:w-12 h-5 sm:h-6 rounded-full relative transition-all ${account.settings?.enableBot ? 'bg-[#06C755]' : 'bg-white/10'}`}>
+                            <div className={`absolute right-0.5 sm:right-1 top-0.5 sm:top-1 w-3.5 sm:w-4 h-3.5 sm:h-4 bg-white rounded-full transition-all ${account.settings?.enableBot ? '' : 'translate-x-[-1.25rem] sm:translate-x-[-1.5rem]'}`}></div>
                           </div>
-                          <span className={`text-[10px] font-bold ${account.settings?.enableBot ? 'text-[#06C755]' : 'text-slate-500'}`}>
-                            {account.settings?.enableBot ? 'Active' : 'Inactive'}
+                          <span className={`text-[8px] sm:text-[10px] font-semibold hidden sm:inline ${account.settings?.enableBot ? 'text-[#06C755]' : 'text-slate-500'}`}>
+                            {account.settings?.enableBot ? 'เปิด' : 'ปิด'}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-white/5">
                       <Button
                         variant="primary"
-                        className="h-10 rounded-xl font-semibold text-xs bg-[#06C755] hover:bg-[#05B048]"
+                        className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs bg-[#06C755] hover:bg-[#05B048] transition-all"
                         onClick={() => window.open(`/user/chat?accountId=${account._id}`, '_self')}
                       >
-                        Chat
+                        แชท
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-10 rounded-xl font-semibold text-xs border-white/5 bg-white/[0.02] hover:bg-white/5 text-white"
+                        className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs border-white/5 bg-white/[0.02] hover:bg-white/5 text-white transition-all"
                         onClick={() => openSettingsModal(account)}
                       >
-                        Settings
+                        ตั้งค่า
                       </Button>
                     </div>
                   </Card>

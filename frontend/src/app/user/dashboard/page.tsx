@@ -56,106 +56,106 @@ export default function UserDashboard() {
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10">
 
-        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
-          <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              LINE OA <span className="text-[#06C755]">Dashboard</span>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+          <div className="space-y-1 sm:space-y-2 text-left flex-1">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+              แดชบอร์ด <span className="text-[#06C755]">LINE OA</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Overview & Analytics for Official Account System
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">
+              ภาพรวมและวิเคราะห์ระบบบัญชีทางการ
             </p>
           </div>
-          <div className="flex gap-3 mt-6 lg:mt-0">
-            <Link href="/user/packages">
-              <Button variant="primary" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]">
-                + New Broadcast
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
+            <Link href="/user/packages" className="flex-1 sm:flex-none">
+              <Button variant="primary" className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048] transition-all">
+                📢 ส่งข้อความใหม่
               </Button>
             </Link>
-            <Link href="/user/payments">
-              <Button variant="outline" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white">
-                Verify Slip
+            <Link href="/user/payments" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm border-white/10 bg-white/[0.03] hover:bg-white/5 text-white transition-all">
+                ✅ ตรวจสลิป
               </Button>
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          <Card variant="glass" className="p-6 rounded-2xl border border-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[#06C755]/10 flex items-center justify-center">
-                <span className="text-2xl">💬</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-[#06C755]/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center">
+                <span className="text-xl sm:text-2xl">💬</span>
               </div>
-              <Badge variant="success" className="text-[9px] px-2 py-1">+2 New</Badge>
+              <Badge variant="success" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">+2 ใหม่</Badge>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total OAs</p>
-            <p className="text-2xl font-black text-white">{lineAccounts.length}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">บัญชีทั้งหมด</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{lineAccounts.length}</p>
           </Card>
-          <Card variant="glass" className="p-6 rounded-2xl border border-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <span className="text-2xl">📄</span>
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <span className="text-xl sm:text-2xl">📄</span>
               </div>
-              <Badge variant="warning" className="text-[9px] px-2 py-1">Action Req.</Badge>
+              <Badge variant="warning" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ต้องดำเนินการ</Badge>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Slips</p>
-            <p className="text-2xl font-black text-white">{recentPayments.filter(p => p.status === 'pending').length}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">สลิปรอตรวจ</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{recentPayments.filter(p => p.status === 'pending').length}</p>
           </Card>
-          <Card variant="glass" className="p-6 rounded-2xl border border-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <span className="text-2xl">🤖</span>
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-violet-500/10 flex items-center justify-center">
+                <span className="text-xl sm:text-2xl">🤖</span>
               </div>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">AI</p>
-            <p className="text-2xl font-black text-white">98</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">AI Bot</p>
+            <p className="text-xl sm:text-2xl font-black text-white">98%</p>
           </Card>
-          <Card variant="glass" className="p-6 rounded-2xl border border-white/5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <span className="text-2xl">👥</span>
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <span className="text-xl sm:text-2xl">👥</span>
               </div>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Followers</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-black text-white">12.5k</p>
-              <span className="text-[10px] font-bold text-[#06C755] flex items-center gap-1">
-                <span>↑</span> +5% this week
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ผู้ติดตาม</p>
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+              <p className="text-xl sm:text-2xl font-black text-white">{lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
+              <span className="text-[9px] sm:text-[10px] font-bold text-[#06C755] flex items-center gap-1">
+                <span>↑</span> +5% สัปดาห์นี้
               </span>
             </div>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           <div className="lg:col-span-2">
-            <Card className="h-full relative overflow-hidden group" variant="glass" padding="lg">
-              <div className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-[#06C755]/10 rounded-full blur-[80px] md:blur-[120px] -mr-20 md:-mr-40 -mt-20 md:-mt-40 pointer-events-none" />
+            <Card className="h-full relative overflow-hidden group" variant="glass" padding="md">
+              <div className="absolute top-0 right-0 w-[200px] sm:w-[300px] md:w-[500px] h-[200px] sm:h-[300px] md:h-[500px] bg-[#06C755]/10 rounded-full blur-[60px] sm:blur-[80px] md:blur-[120px] -mr-10 sm:-mr-20 md:-mr-40 -mt-10 sm:-mt-20 md:-mt-40 pointer-events-none" />
               
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 relative z-10">
                 <div className="space-y-1">
-                  <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">
-                    Daily Active Users
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight">
+                    ผู้ใช้งานรายวัน
                   </h2>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Engagement Trend (Last 7 Days)</p>
+                  <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">แนวโน้มการมีส่วนร่วม (7 วันล่าสุด)</p>
                 </div>
               </div>
               
-              <div className="mb-6">
-                <div className="flex items-baseline gap-3 mb-4">
-                  <p className="text-4xl font-black text-white">4,285</p>
-                  <span className="text-sm font-bold text-[#06C755] flex items-center gap-1">
+              <div className="mb-4 sm:mb-6 relative z-10">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-3 mb-3 sm:mb-4">
+                  <p className="text-3xl sm:text-4xl font-black text-white">{lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
+                  <span className="text-xs sm:text-sm font-bold text-[#06C755] flex items-center gap-1">
                     <span>↑</span> +12.5%
                   </span>
                 </div>
-                <div className="h-32 bg-white/[0.02] rounded-xl p-4 flex items-end justify-between gap-2">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => (
-                    <div key={day} className="flex-1 flex flex-col items-center gap-2">
+                <div className="h-24 sm:h-32 bg-white/[0.02] rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-end justify-between gap-1 sm:gap-2 overflow-x-auto">
+                  {['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'].map((day, idx) => (
+                    <div key={day} className="flex-1 min-w-[30px] sm:min-w-0 flex flex-col items-center gap-1 sm:gap-2">
                       <div 
                         className={cn(
-                          "w-full rounded-t-lg transition-all",
+                          "w-full rounded-t transition-all",
                           idx === 6 ? "bg-[#06C755] h-full" : "bg-white/10 h-3/4"
                         )}
                       />
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">{day}</span>
+                      <span className="text-[8px] sm:text-[9px] font-semibold text-slate-400">{day}</span>
                     </div>
                   ))}
                 </div>
@@ -163,128 +163,128 @@ export default function UserDashboard() {
             </Card>
           </div>
 
-          <div className="space-y-6">
-            <Card className="p-6 relative overflow-hidden" variant="glass">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-white tracking-tight">Subscription Growth</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last 30 Days</p>
+          <div className="space-y-4 sm:space-y-6">
+            <Card className="p-4 sm:p-6 relative overflow-hidden" variant="glass">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">การเติบโตสมาชิก</h3>
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">30 วันล่าสุด</p>
               </div>
-              <div className="mb-4">
-                <div className="flex items-baseline gap-3">
-                  <p className="text-3xl font-black text-white">1,240</p>
-                  <span className="text-sm font-bold text-[#06C755]">+12% vs last mo</span>
+              <div className="mb-3 sm:mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-3">
+                  <p className="text-2xl sm:text-3xl font-black text-white">{lineAccounts.length * 310}</p>
+                  <span className="text-xs sm:text-sm font-bold text-[#06C755]">+12% เทียบเดือนที่แล้ว</span>
                 </div>
               </div>
-              <div className="h-24 bg-white/[0.02] rounded-xl p-3 flex items-end justify-between gap-2">
+              <div className="h-20 sm:h-24 bg-white/[0.02] rounded-lg sm:rounded-xl p-2 sm:p-3 flex items-end justify-between gap-1 sm:gap-2">
                 {[1, 2, 3, 4].map((week) => (
-                  <div key={week} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="w-full bg-[#06C755] rounded-t-lg h-3/4" />
-                    <span className="text-[9px] font-bold text-slate-400">Week {week}</span>
+                  <div key={week} className="flex-1 flex flex-col items-center gap-1 sm:gap-2">
+                    <div className="w-full bg-[#06C755] rounded-t h-3/4" />
+                    <span className="text-[8px] sm:text-[9px] font-semibold text-slate-400">สัปดาห์ {week}</span>
                   </div>
                 ))}
               </div>
             </Card>
             
-            <Card className="p-6 relative overflow-hidden" variant="glass">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-white tracking-tight">Recent Verifications</h3>
+            <Card className="p-4 sm:p-6 relative overflow-hidden" variant="glass">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">การตรวจสอบล่าสุด</h3>
                 <Link href="/user/payments">
-                  <Button variant="ghost" size="sm" className="text-[10px] font-bold text-[#06C755] hover:text-[#05B048]">
-                    View All
+                  <Button variant="ghost" size="sm" className="text-[9px] sm:text-[10px] font-semibold text-[#06C755] hover:text-[#05B048]">
+                    ดูทั้งหมด
                   </Button>
                 </Link>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {recentPayments.length > 0 ? (
                   recentPayments.map((payment) => (
-                    <div key={payment._id} className="p-4 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl border border-white/5 flex items-center justify-between group">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="w-10 h-10 rounded-lg bg-[#06C755]/10 flex items-center justify-center">
-                          <span className="text-lg">💎</span>
+                    <div key={payment._id} className="p-3 sm:p-4 bg-white/[0.02] hover:bg-white/[0.05] rounded-lg sm:rounded-xl border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 group transition-all">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
+                        <div className="w-10 h-10 rounded-lg bg-[#06C755]/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-base sm:text-lg">💎</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-white text-sm">Premium Package</p>
-                          <p className="text-[10px] font-bold text-slate-400">@{payment._id.slice(-8)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-black text-white">฿{payment.amount.toLocaleString()}</p>
-                          <StatusBadge status={payment.status} className="text-[9px] mt-1" />
+                          <p className="font-bold text-white text-xs sm:text-sm truncate">แพ็คเกจพรีเมียม</p>
+                          <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 truncate">@{payment._id.slice(-8)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                        <div className="text-left sm:text-right">
+                          <p className="font-black text-white text-sm sm:text-base">฿{payment.amount.toLocaleString()}</p>
+                          <StatusBadge status={payment.status} className="text-[8px] sm:text-[9px] mt-1" />
+                        </div>
                         {payment.status === 'pending' && (
-                          <>
+                          <div className="flex items-center gap-2">
                             <button className="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 flex items-center justify-center text-rose-400 transition-colors">
                               <span className="text-sm">✕</span>
                             </button>
                             <button className="w-8 h-8 rounded-lg bg-[#06C755]/10 hover:bg-[#06C755]/20 flex items-center justify-center text-[#06C755] transition-colors">
                               <span className="text-sm">✓</span>
                             </button>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8">
-                    <p className="text-slate-500 font-bold text-sm">No recent verifications</p>
+                  <div className="text-center py-6 sm:py-8">
+                    <p className="text-slate-500 font-semibold text-xs sm:text-sm">ยังไม่มีการตรวจสอบล่าสุด</p>
                   </div>
                 )}
               </div>
             </Card>
 
-            <Card className="p-6" variant="glass">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-black text-white tracking-tight">AI Bot Status</h3>
+            <Card className="p-4 sm:p-6" variant="glass">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">สถานะ AI Bot</h3>
                 <div className="flex items-center gap-2">
-                  <div className="w-12 h-6 rounded-full bg-[#06C755] relative">
-                    <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+                  <div className="w-10 sm:w-12 h-5 sm:h-6 rounded-full bg-[#06C755] relative">
+                    <div className="absolute right-0.5 sm:right-1 top-0.5 sm:top-1 w-3.5 sm:w-4 h-3.5 sm:h-4 bg-white rounded-full"></div>
                   </div>
-                  <span className="text-[10px] font-bold text-[#06C755]">Active</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-[#06C755]">เปิดใช้งาน</span>
                 </div>
               </div>
-              <p className="text-[10px] font-bold text-slate-400">98% response rate</p>
+              <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">อัตราการตอบกลับ 98%</p>
             </Card>
             
-            <Card className="p-6" variant="glass">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <span className="text-2xl">💬</span>
+            <Card className="p-4 sm:p-6" variant="glass">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl sm:text-2xl">💬</span>
                 </div>
                 <div>
-                  <p className="text-3xl font-black text-white">842</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Chats</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">{lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
+                  <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">แชทที่ใช้งาน</p>
                 </div>
               </div>
             </Card>
           </div>
         </div>
         
-        <Card className="p-6" variant="glass">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-black text-white tracking-tight">Recent Activity</h3>
+        <Card className="p-4 sm:p-6" variant="glass">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-black text-white tracking-tight">กิจกรรมล่าสุด</h3>
             <Link href="/user/history">
-              <Button variant="ghost" size="sm" className="text-[10px] font-bold text-[#06C755] hover:text-[#05B048]">
-                View All
+              <Button variant="ghost" size="sm" className="text-[9px] sm:text-[10px] font-semibold text-[#06C755] hover:text-[#05B048]">
+                ดูทั้งหมด
               </Button>
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {[
-              { name: 'Sarah Jenkins', message: 'Is the promotion still valid for today?', time: '2m ago' },
-              { name: 'Mike K.', message: 'Attached the payment slip for order #9921', time: '15m ago' },
-              { name: 'David Chen', message: 'Thanks for the update!', time: '1m ago' }
+              { name: 'สมชาย ล.', message: 'โปรโมชั่นวันนี้ยังใช้ได้อยู่ไหม?', time: '2 นาทีที่แล้ว' },
+              { name: 'มike K.', message: 'แนบสลิปการชำระเงินสำหรับคำสั่งซื้อ #9921', time: '15 นาทีที่แล้ว' },
+              { name: 'David Chen', message: 'ขอบคุณสำหรับการอัปเดต!', time: '1 นาทีที่แล้ว' }
             ].map((activity, idx) => (
-              <div key={idx} className="p-4 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl border border-white/5 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-[#06C755]/10 flex items-center justify-center text-white font-bold">
+              <div key={idx} className="p-3 sm:p-4 bg-white/[0.02] hover:bg-white/[0.05] rounded-lg sm:rounded-xl border border-white/5 flex items-center gap-3 sm:gap-4 transition-all">
+                <div className="w-10 h-10 rounded-lg bg-[#06C755]/10 flex items-center justify-center text-white font-bold flex-shrink-0">
                   {activity.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white text-sm">{activity.name}</p>
-                  <p className="text-[10px] font-bold text-slate-400 truncate">{activity.message}</p>
+                  <p className="font-bold text-white text-xs sm:text-sm truncate">{activity.name}</p>
+                  <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 truncate">{activity.message}</p>
                 </div>
-                <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">{activity.time}</span>
+                <span className="text-[8px] sm:text-[9px] font-semibold text-slate-500 whitespace-nowrap flex-shrink-0">{activity.time}</span>
               </div>
             ))}
           </div>

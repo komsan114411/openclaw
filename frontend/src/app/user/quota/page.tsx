@@ -83,29 +83,29 @@ export default function UserQuotaPage() {
   return (
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10">
-        <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
-          <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              OA <span className="text-[#06C755]">Analytics</span>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+          <div className="space-y-1 sm:space-y-2 text-left flex-1">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+              โควต้าการ<span className="text-[#06C755]">ใช้งาน</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Users & Slips • Finance • Message AI • System Health
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">
+              ตรวจสอบและจัดการโควต้าของคุณ
             </p>
-            <p className="text-[10px] font-bold text-slate-500 mt-2">Last updated: Just now</p>
+            <p className="text-[10px] font-semibold text-slate-500 mt-2">อัปเดตล่าสุด: เมื่อสักครู่</p>
           </div>
-          <div className="flex gap-3 mt-6 sm:mt-0">
-            <Button variant="outline" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white">
-              Filter View
-            </Button>
-            <Link href="/user/packages" className="w-full sm:w-auto">
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
+            <Link href="/user/packages" className="flex-1 sm:flex-none">
               <Button
                 variant="primary"
                 size="lg"
-                className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]"
+                className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048] transition-all"
               >
-                + New Broadcast
+                💎 ซื้อแพ็คเกจ
               </Button>
             </Link>
+            <Button variant="outline" className="flex-1 sm:flex-none h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm border-white/10 bg-white/[0.03] hover:bg-white/5 text-white transition-all">
+              🔍 กรองข้อมูล
+            </Button>
           </div>
         </div>
 
@@ -117,224 +117,221 @@ export default function UserQuotaPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-rose-400 font-black text-[10px] uppercase tracking-widest">{error}</span>
+              <span className="text-rose-400 font-semibold text-xs sm:text-sm">{error}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleRetry} className="text-rose-400 hover:bg-rose-500/10">
-              RETRY
+            <Button variant="ghost" size="sm" onClick={handleRetry} className="text-rose-400 hover:bg-rose-500/10 text-xs sm:text-sm">
+              ลองใหม่
             </Button>
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card variant="glass" className="p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <span className="text-2xl">📄</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-[#06C755]/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl sm:text-2xl">💬</span>
               </div>
-              <Badge variant="warning" className="text-[9px] px-2 py-1">Action Req.</Badge>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Slips</p>
-            <p className="text-2xl font-black text-white">12</p>
-            <p className="text-[9px] font-bold text-[#06C755] mt-1">+3 today</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าคงเหลือ</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{(subscription?.remainingQuota || 0).toLocaleString()}</p>
           </Card>
-          <Card variant="glass" className="p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <span className="text-2xl">👥</span>
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl sm:text-2xl">📄</span>
               </div>
+              <Badge variant="warning" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ต้องดำเนินการ</Badge>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Users</p>
-            <p className="text-2xl font-black text-white">1,240</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">สลิปที่ตรวจสอบ</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{getTotalSlipsVerified().toLocaleString()}</p>
           </Card>
-          <Card variant="glass" className="p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[#06C755]/10 flex items-center justify-center">
-                <span className="text-2xl">💬</span>
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl sm:text-2xl">💬</span>
               </div>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Messages</p>
-            <p className="text-2xl font-black text-white">{(subscription?.remainingQuota || 0).toLocaleString()}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ข้อความทั้งหมด</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{getTotalMessages().toLocaleString()}</p>
           </Card>
-          <Card variant="glass" className="p-6 rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl sm:text-2xl">⏰</span>
               </div>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Verified</p>
-            <p className="text-2xl font-black text-white">{getTotalSlipsVerified().toLocaleString()}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">วันคงเหลือ</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{daysRemaining}</p>
           </Card>
         </div>
 
-        <Card className="rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-6 group" variant="glass">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
+        <Card className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-4 sm:p-6 group" variant="glass">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 mb-4 sm:mb-6">
             <div className="space-y-1">
-              <h3 className="font-black text-white text-xl tracking-tight">User Growth</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Daily active users over last 30 days</p>
+              <h3 className="font-black text-white text-lg sm:text-xl tracking-tight">การเติบโตผู้ใช้</h3>
+              <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ใช้งานรายวันในช่วง 30 วันที่ผ่านมา</p>
             </div>
           </div>
           
-          <div className="h-32 bg-white/[0.02] rounded-xl p-4 flex items-end justify-between gap-2">
+          <div className="h-24 sm:h-32 bg-white/[0.02] rounded-lg sm:rounded-xl p-2 sm:p-4 flex items-end justify-between gap-1 sm:gap-2 overflow-x-auto">
             {Array.from({ length: 28 }, (_, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div key={i} className="flex-1 min-w-[8px] sm:min-w-0 flex flex-col items-center gap-1">
                 <div 
-                  className="w-full bg-[#06C755] rounded-t-lg transition-all"
+                  className="w-full bg-[#06C755] rounded-t transition-all"
                   style={{ height: `${Math.random() * 60 + 20}%` }}
                 />
               </div>
             ))}
           </div>
         </Card>
-        
-        <Card className="rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-6 mt-6" variant="glass">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-black text-white text-xl tracking-tight">Recent Registrations</h3>
-            <Button variant="ghost" size="sm" className="text-[10px] font-bold text-[#06C755] hover:text-[#05B048]">
-              View All
-            </Button>
-          </div>
 
           {subscription ? (
-            <div className="relative z-10 space-y-12">
-              <div>
-                <div className="flex justify-between items-end mb-4">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Consumption Metric</p>
-                    <p className="text-2xl font-black text-white tracking-widest">
-                      {(subscription.remainingQuota || 0).toLocaleString()}
-                    </p>
+            <Card className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-4 sm:p-6 mt-4 sm:mt-6" variant="glass">
+              <div className="relative z-10 space-y-6 sm:space-y-8">
+                <div>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-0 mb-4">
+                    <div>
+                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าคงเหลือ</p>
+                      <p className="text-xl sm:text-2xl font-black text-white">
+                        {(subscription.remainingQuota || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าทั้งหมด</p>
+                      <p className="text-sm sm:text-base font-black text-slate-300">{(subscription.quota || 0).toLocaleString()} หน่วย</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Matrix Limit</p>
-                    <p className="text-sm font-black text-slate-400">{(subscription.quota || 0).toLocaleString()} Units</p>
-                  </div>
-                </div>
 
-                <div className="relative pt-2">
-                  <div className="h-4 bg-white/[0.02] border border-white/5 rounded-full overflow-hidden shadow-2xl">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all duration-1000 ease-out relative shadow-[0_0_20px_rgba(52,211,153,0.3)]",
-                        getQuotaPercentage() > 50 ? 'bg-emerald-500' : getQuotaPercentage() > 20 ? 'bg-amber-500' : 'bg-rose-500'
-                      )}
-                      style={{ width: `${Math.max(getQuotaPercentage(), 2)}%` }}
-                    >
-                      <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-r from-transparent to-white/20" />
+                  <div className="relative pt-2">
+                    <div className="h-3 sm:h-4 bg-white/[0.02] border border-white/5 rounded-full overflow-hidden shadow-lg">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-1000 ease-out relative",
+                          getQuotaPercentage() > 50 ? 'bg-[#06C755] shadow-[0_0_20px_rgba(6,199,85,0.3)]' : getQuotaPercentage() > 20 ? 'bg-amber-500' : 'bg-rose-500'
+                        )}
+                        style={{ width: `${Math.max(getQuotaPercentage(), 2)}%` }}
+                      >
+                        <div className="absolute top-0 right-0 h-full w-16 sm:w-24 bg-gradient-to-r from-transparent to-white/20" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-8">
-                <div className="p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2.5rem] border border-white/5 transition-all duration-500 text-center group/card">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Activation Timestamp</p>
-                  <p className="font-black text-white text-xl uppercase tracking-widest font-mono">
-                    {subscription.startDate
-                      ? new Date(subscription.startDate).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      }).toUpperCase()
-                      : '---'}
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+                  <div className="p-4 sm:p-6 lg:p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl sm:rounded-2xl border border-white/5 transition-all duration-500 text-center">
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-2 sm:mb-3">วันที่เริ่มใช้งาน</p>
+                    <p className="font-black text-white text-base sm:text-lg lg:text-xl">
+                      {subscription.startDate
+                        ? new Date(subscription.startDate).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })
+                        : '---'}
+                    </p>
+                  </div>
+                  <div className="p-4 sm:p-6 lg:p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl sm:rounded-2xl border border-white/5 transition-all duration-500 text-center">
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-2 sm:mb-3">วันหมดอายุ</p>
+                    <p className="font-black text-white text-base sm:text-lg lg:text-xl">
+                      {subscription.expiresAt
+                        ? new Date(subscription.expiresAt).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })
+                        : 'ไม่มีกำหนด'}
+                    </p>
+                  </div>
                 </div>
-                <div className="p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2.5rem] border border-white/5 transition-all duration-500 text-center group/card">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Planned Expiration</p>
-                  <p className="font-black text-white text-xl uppercase tracking-widest font-mono">
-                    {subscription.expiresAt
-                      ? new Date(subscription.expiresAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      }).toUpperCase()
-                      : 'PERPETUAL'}
-                  </p>
-                </div>
-              </div>
 
-              {getQuotaPercentage() < 20 && (
-                <div className="p-8 bg-rose-500/5 border border-rose-500/20 rounded-[2.5rem] flex flex-col sm:flex-row items-center gap-6 animate-pulse">
-                  <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 text-3xl">
-                    ⚠️
+                {getQuotaPercentage() < 20 && (
+                  <div className="p-4 sm:p-6 lg:p-8 bg-rose-500/5 border border-rose-500/20 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 text-2xl sm:text-3xl flex-shrink-0">
+                      ⚠️
+                    </div>
+                    <div className="flex-1 text-center sm:text-left">
+                      <p className="font-black text-white text-base sm:text-lg mb-1">โควต้าใกล้หมด</p>
+                      <p className="text-xs sm:text-sm font-semibold text-rose-400/80">กรุณาเติมเงินเพื่อใช้งานต่อ</p>
+                    </div>
+                    <Link href="/user/packages" className="w-full sm:w-auto">
+                      <Button variant="primary" className="w-full sm:w-auto h-11 sm:h-14 px-6 sm:px-10 rounded-xl sm:rounded-2xl bg-rose-500 hover:bg-rose-400 shadow-lg shadow-rose-500/20 font-semibold text-xs sm:text-sm transition-all">
+                        💎 เติมเงินตอนนี้
+                      </Button>
+                    </Link>
                   </div>
-                  <div className="flex-1 text-center sm:text-left">
-                    <p className="font-black text-white uppercase tracking-tight text-lg">CRITICAL_THRESHOLD_DETECTED</p>
-                    <p className="text-[10px] font-black text-rose-400/60 uppercase tracking-widest mt-1">Initialize protocol recharge to maintain neural integrity.</p>
-                  </div>
-                  <Link href="/user/packages" className="w-full sm:w-auto">
-                    <Button variant="primary" className="h-14 px-10 rounded-2xl bg-rose-500 hover:bg-rose-400 shadow-lg shadow-rose-500/20 font-black uppercase tracking-widest text-[10px] w-full">
-                      RECHARGE_NOW
+                )}
+              </div>
+            </Card>
+          ) : (
+            <Card className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-4 sm:p-6 mt-4 sm:mt-6" variant="glass">
+              <EmptyState
+                icon="🧊"
+                title="ยังไม่มีแพ็คเกจ"
+                description="กรุณาซื้อแพ็คเกจเพื่อเริ่มใช้งานระบบตรวจสอบสลิปอัตโนมัติ"
+                variant="glass"
+                className="py-12 sm:py-20"
+                action={
+                  <Link href="/user/packages">
+                    <Button variant="primary" className="h-12 sm:h-14 px-6 sm:px-10 rounded-xl sm:rounded-2xl bg-[#06C755] hover:bg-[#05B048] font-semibold text-xs sm:text-sm shadow-2xl shadow-[#06C755]/20 transition-all">
+                      💎 ซื้อแพ็คเกจ
                     </Button>
                   </Link>
-                </div>
-              )}
-            </div>
-          ) : (
-            <EmptyState
-              icon="🧊"
-              title="NO_ACTIVE_PROTOCOL"
-              description="Deploy a subscription matrix to unlock neural validation capabilities."
-              variant="glass"
-              className="py-20"
-              action={
-                <Link href="/user/packages">
-                  <Button variant="primary" className="h-14 px-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-emerald-500/20">Initialize Matrix</Button>
-                </Link>
-              }
-            />
+                }
+              />
+            </Card>
           )}
         </Card>
 
         {accounts.length > 0 && (
-          <Card variant="glass" className="rounded-[3rem] border border-white/5 shadow-2xl bg-white/[0.01] overflow-hidden p-0">
-            <div className="p-8 sm:p-10">
-              <h3 className="font-black text-white text-xl uppercase tracking-tight">Account Telemetry</h3>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Real-time resource distribution across {accounts.length} active nodes</p>
+          <Card variant="glass" className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl bg-white/[0.01] overflow-hidden mt-4 sm:mt-6">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <h3 className="font-black text-white text-lg sm:text-xl tracking-tight mb-2">สถิติตามบัญชี</h3>
+              <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">การกระจายทรัพยากรแบบเรียลไทม์ใน {accounts.length} บัญชีที่ใช้งาน</p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-white/[0.02] border-y border-white/5">
-                    <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Node Identity</th>
-                    <th className="px-8 py-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Messages</th>
-                    <th className="px-8 py-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Slips</th>
-                    <th className="px-8 py-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden sm:table-cell">AI Neural Load</th>
-                    <th className="px-8 py-5 text-right text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Protocol Status</th>
+                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">ชื่อบัญชี</th>
+                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400">ข้อความ</th>
+                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400">สลิป</th>
+                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 hidden sm:table-cell">AI</th>
+                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-right text-[9px] sm:text-[10px] font-semibold text-slate-400">สถานะ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {accounts.map((account) => (
                     <tr key={account._id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-5">
-                          <div className="w-12 h-12 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-emerald-400 font-black text-lg shadow-2xl group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500">
+                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6">
+                        <div className="flex items-center gap-3 sm:gap-4 lg:gap-5">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#06C755] font-black text-base sm:text-lg shadow-lg group-hover:scale-110 group-hover:bg-[#06C755] group-hover:text-white transition-all duration-500 flex-shrink-0">
                             {account.accountName?.charAt(0).toUpperCase() || 'L'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-black text-white uppercase tracking-tight truncate group-hover:text-emerald-400 transition-colors">{account.accountName}</p>
-                            <p className="text-[9px] font-mono font-black text-slate-500 truncate mt-1 tracking-widest">{account.channelId}</p>
+                            <p className="font-black text-white text-sm sm:text-base truncate group-hover:text-[#06C755] transition-colors">{account.accountName}</p>
+                            <p className="text-[8px] sm:text-[9px] font-mono font-semibold text-slate-500 truncate mt-0.5 sm:mt-1">{account.channelId}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-center">
-                        <span className="font-black text-slate-300 text-sm tracking-widest">
+                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center">
+                        <span className="font-black text-slate-300 text-xs sm:text-sm">
                           {(account.statistics?.totalMessages || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-8 py-6 text-center">
-                        <span className="font-black text-emerald-400 text-lg tracking-tighter">
+                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center">
+                        <span className="font-black text-[#06C755] text-sm sm:text-base lg:text-lg">
                           {(account.statistics?.totalSlipsVerified || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-8 py-6 text-center hidden sm:table-cell">
-                        <span className="font-black text-indigo-400 text-sm tracking-widest">
+                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center hidden sm:table-cell">
+                        <span className="font-black text-indigo-400 text-xs sm:text-sm">
                           {(account.statistics?.totalAiResponses || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-8 py-6 text-right">
-                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-black uppercase tracking-widest text-[9px] px-3 py-1 rounded-lg">
-                          {account.isActive ? 'OPERATIONAL' : 'HIBERNATED'}
+                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-right">
+                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-semibold text-[8px] sm:text-[9px] px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg">
+                          {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                         </Badge>
                       </td>
                     </tr>

@@ -148,47 +148,44 @@ function UserChatContent() {
   return (
     <DashboardLayout>
       <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto animate-fade h-[calc(100vh-120px)] md:h-auto">
-        <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
-          <div className="space-y-1 sm:space-y-2">
-            <h1 className="page-title-responsive">
-              LINE OA <span className="text-[#06C755]">Dashboard</span>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+          <div className="space-y-1 sm:space-y-2 flex-1">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+              แชทกับ<span className="text-[#06C755]">ลูกค้า</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Overview & Analytics for Official Account System
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">
+              สื่อสารและตอบกลับข้อความจากลูกค้าผ่าน LINE OA
             </p>
           </div>
-          <div className="flex gap-3 mt-6 sm:mt-0">
-            <Button variant="outline" size="lg" onClick={fetchUsers} isLoading={loadingUsers} className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white">
-              Filter View
-            </Button>
-            <Button variant="primary" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]">
-              + New Broadcast
+          <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
+            <Button variant="outline" size="lg" onClick={fetchUsers} isLoading={loadingUsers} className="flex-1 sm:flex-none h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm border-white/10 bg-white/[0.03] hover:bg-white/5 text-white transition-all">
+              🔄 รีเฟรช
             </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 min-h-0">
           {/* Mobile User Selector */}
-          <div className="lg:hidden">
-            <Card className="p-3" variant="glass">
-              <div className="flex items-center justify-between gap-3">
+          <div className="lg:hidden mb-4">
+            <Card className="p-3 sm:p-4" variant="glass">
+              <div className="flex items-center justify-between gap-2 sm:gap-3">
                 <div className="flex-1 min-w-0">
                   {selectedUser ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 text-white flex items-center justify-center overflow-hidden">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-10 h-10 rounded-lg sm:rounded-xl bg-white/5 border border-white/5 text-white flex items-center justify-center overflow-hidden flex-shrink-0">
                         {selectedUser.lineUserPicture ? (
                           <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
                         ) : (
                           <span className="font-black text-sm">{(selectedUser.lineUserName || '?').charAt(0)}</span>
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-white truncate text-sm uppercase tracking-tight">{selectedUser.lineUserName || 'Unknown'}</p>
-                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{users.length} NODES</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-white truncate text-xs sm:text-sm">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
+                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">{users.length} ผู้ใช้</p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">INITIALIZE_SESSION...</p>
+                    <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">กรุณาเลือกผู้ใช้...</p>
                   )}
                 </div>
                 <select
@@ -197,12 +194,12 @@ function UserChatContent() {
                     const user = users.find(u => u.lineUserId === e.target.value);
                     if (user) setSelectedUser(user);
                   }}
-                  className="px-3 py-2 bg-white/[0.03] border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white focus:ring-1 focus:ring-emerald-500 transition-all outline-none"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white/[0.03] border border-white/5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold text-white focus:ring-1 focus:ring-[#06C755] transition-all outline-none flex-shrink-0"
                 >
-                  <option value="" className="bg-slate-900 text-slate-500">SELECT_NODE...</option>
+                  <option value="" className="bg-slate-900 text-slate-500">เลือกผู้ใช้...</option>
                   {users.map(u => (
                     <option key={u.lineUserId} value={u.lineUserId} className="bg-slate-900 text-white">
-                      {u.lineUserName || u.lineUserId} {u.unreadCount > 0 ? `[SIGNAL: ${u.unreadCount}]` : ''}
+                      {u.lineUserName || u.lineUserId} {u.unreadCount > 0 ? `[${u.unreadCount}]` : ''}
                     </option>
                   ))}
                 </select>
@@ -210,34 +207,34 @@ function UserChatContent() {
             </Card>
           </div>
 
-          <Card className="hidden lg:block lg:col-span-4 p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-[2.5rem]" variant="glass">
-            <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">User Registry</p>
-                <Badge variant="success" className="bg-emerald-500/10 text-emerald-400 border-white/5 font-black text-[9px] px-3 py-1 rounded-lg">
-                  {users.length} NODES
+          <Card className="hidden lg:block lg:col-span-4 p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl" variant="glass">
+            <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02]">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">รายชื่อผู้ใช้</p>
+                <Badge variant="success" className="bg-[#06C755]/10 text-[#06C755] border-white/5 font-semibold text-[8px] sm:text-[9px] px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg">
+                  {users.length} คน
                 </Badge>
               </div>
               <Input
-                placeholder="QUERY_REGISTRY..."
+                placeholder="ค้นหาผู้ใช้..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-white/[0.03] border-white/5 h-12 rounded-xl text-white font-black text-[10px] tracking-widest placeholder:text-slate-600"
+                className="bg-white/[0.03] border-white/5 h-10 sm:h-12 rounded-lg sm:rounded-xl text-white text-sm font-medium placeholder:text-slate-500"
               />
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto no-scrollbar p-3 space-y-2">
+            <div className="max-h-[60vh] overflow-y-auto no-scrollbar p-2 sm:p-3 space-y-2">
               {loadingUsers ? (
-                <div className="py-20 flex flex-col items-center gap-4">
+                <div className="py-12 sm:py-20 flex flex-col items-center gap-3 sm:gap-4">
                   <Spinner size="lg" />
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Acquiring Data...</p>
+                  <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">กำลังโหลดข้อมูล...</p>
                 </div>
               ) : filteredUsers.length === 0 ? (
-                <div className="py-20 opacity-40">
+                <div className="py-12 sm:py-20 opacity-60">
                   <EmptyState
                     icon="🧊"
-                    title="NO_ACTIVE_SESSIONS"
-                    description="Waiting for incoming neural signals."
+                    title="ยังไม่มีแชท"
+                    description="รอข้อความจากลูกค้า"
                     variant="glass"
                   />
                 </div>
@@ -249,38 +246,38 @@ function UserChatContent() {
                       key={u.lineUserId}
                       onClick={() => setSelectedUser(u)}
                       className={cn(
-                        'w-full text-left p-4 rounded-3xl transition-all duration-500 border group',
+                        'w-full text-left p-3 sm:p-4 rounded-xl sm:rounded-2xl transition-all duration-500 border group',
                         isActive
-                          ? 'bg-slate-900 text-white border-white/10 shadow-emerald-500/10'
+                          ? 'bg-slate-900 text-white border-[#06C755]/20 shadow-[#06C755]/10'
                           : 'bg-white/[0.01] hover:bg-white/[0.03] border-white/5'
                       )}
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3 sm:gap-4">
                         <div className="relative flex-shrink-0">
                           <div className={cn(
-                            'w-12 h-12 rounded-[1.2rem] overflow-hidden flex items-center justify-center border transition-all duration-500 group-hover:scale-110',
+                            'w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden flex items-center justify-center border transition-all duration-500 group-hover:scale-110',
                             isActive ? 'bg-white/10 border-white/10' : 'bg-white/5 border-white/5'
                           )}>
                             {u.lineUserPicture ? (
                               <img src={u.lineUserPicture} alt={u.lineUserName} className="w-full h-full object-cover" />
                             ) : (
-                              <span className={cn('font-black text-lg', isActive ? 'text-white' : 'text-slate-500')}>
+                              <span className={cn('font-black text-base sm:text-lg', isActive ? 'text-white' : 'text-slate-500')}>
                                 {(u.lineUserName || '?').charAt(0)}
                               </span>
                             )}
                           </div>
                           {u.unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black rounded-lg px-2 py-0.5 border-2 border-black shadow-lg">
+                            <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] sm:text-[9px] font-semibold rounded-lg px-1.5 sm:px-2 py-0.5 border-2 border-black shadow-lg">
                               {u.unreadCount > 9 ? '9+' : u.unreadCount}
                             </span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={cn('font-black text-xs truncate uppercase tracking-tight', isActive ? 'text-white' : 'text-slate-300')}>
-                            {u.lineUserName || 'Unknown'}
+                          <p className={cn('font-black text-xs sm:text-sm truncate', isActive ? 'text-white' : 'text-slate-300')}>
+                            {u.lineUserName || 'ไม่ระบุชื่อ'}
                           </p>
-                          <p className={cn('text-[10px] truncate uppercase tracking-widest group-hover:text-emerald-400 transition-colors', isActive ? 'text-white/60' : 'text-slate-500')}>
-                            {u.lastMessage || 'NO_PAYLOAD'}
+                          <p className={cn('text-[9px] sm:text-[10px] truncate group-hover:text-[#06C755] transition-colors', isActive ? 'text-white/60' : 'text-slate-400')}>
+                            {u.lastMessage || 'ไม่มีข้อความ'}
                           </p>
                         </div>
                       </div>
@@ -291,51 +288,51 @@ function UserChatContent() {
             </div>
           </Card>
 
-          <Card className="lg:col-span-8 p-0 overflow-hidden flex flex-col bg-black/40 border border-white/5 shadow-2xl rounded-[3rem]" variant="glass">
+          <Card className="lg:col-span-8 p-0 overflow-hidden flex flex-col bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl" variant="glass">
             {selectedUser ? (
               <>
-                <div className="p-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-white/5 border border-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {selectedUser.lineUserPicture ? (
                         <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="font-black text-slate-500 text-lg">{(selectedUser.lineUserName || '?').charAt(0)}</span>
+                        <span className="font-black text-slate-400 text-base sm:text-lg">{(selectedUser.lineUserName || '?').charAt(0)}</span>
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-black text-white truncate text-base uppercase tracking-tight">{selectedUser.lineUserName || 'Unknown'}</p>
-                      <p className="text-[10px] font-mono font-black text-emerald-400 truncate tracking-widest">NODE_ID: {selectedUser.lineUserId}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-white truncate text-sm sm:text-base">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
+                      <p className="text-[9px] sm:text-[10px] font-mono font-semibold text-[#06C755] truncate">ID: {selectedUser.lineUserId}</p>
                     </div>
                   </div>
                   <IconButton
                     variant="ghost"
                     onClick={() => fetchMessages(selectedUser.lineUserId)}
                     disabled={loadingMessages}
-                    className="w-12 h-12 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 transition-all disabled:opacity-50"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 transition-all disabled:opacity-50 flex-shrink-0"
                   >
                     {loadingMessages ? (
                       <Spinner size="sm" />
                     ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                     )}
                   </IconButton>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-black/20 min-h-[50vh]">
+                <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 bg-black/20 min-h-[50vh]">
                   {loadingMessages ? (
-                    <div className="py-24 flex flex-col items-center gap-4">
+                    <div className="py-16 sm:py-24 flex flex-col items-center gap-3 sm:gap-4">
                       <Spinner size="lg" />
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Protocol Sync...</p>
+                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">กำลังโหลดข้อความ...</p>
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="py-24 opacity-60">
-                      <EmptyState icon="🧊" title="SESSION_VOID" description="No interaction metadata found." variant="glass" />
+                    <div className="py-16 sm:py-24 opacity-60">
+                      <EmptyState icon="🧊" title="ยังไม่มีข้อความ" description="ยังไม่มีข้อความในแชทนี้" variant="glass" />
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {messages.map((msg) => {
                         const isOut = msg.direction === 'out';
                         const imageUrl =
@@ -345,33 +342,33 @@ function UserChatContent() {
 
                         return (
                           <div key={msg._id} className={cn('flex', isOut ? 'justify-end' : 'justify-start')}>
-                            <div className={cn('max-w-[80%] space-y-2', isOut ? 'items-end' : 'items-start')}>
+                            <div className={cn('max-w-[85%] sm:max-w-[80%] space-y-1 sm:space-y-2', isOut ? 'items-end' : 'items-start')}>
                               <div className={cn(
-                                'p-4 rounded-[1.8rem] shadow-2xl border transition-all duration-500',
+                                'p-3 sm:p-4 rounded-2xl sm:rounded-3xl shadow-lg border transition-all duration-500',
                                 isOut
-                                  ? 'bg-slate-900 text-white border-white/10 rounded-tr-none'
-                                  : 'bg-white/[0.03] text-white border-white/5 rounded-tl-none backdrop-blur-md'
+                                  ? 'bg-slate-900 text-white border-white/10 rounded-tr-sm sm:rounded-tr-none'
+                                  : 'bg-white/[0.03] text-white border-white/5 rounded-tl-sm sm:rounded-tl-none backdrop-blur-md'
                               )}>
                                 {msg.messageType === 'image' ? (
                                   imageUrl ? (
                                     <img
                                       src={imageUrl}
                                       alt="LINE image"
-                                      className="max-w-full rounded-2xl cursor-zoom-in"
+                                      className="max-w-full rounded-xl sm:rounded-2xl cursor-zoom-in"
                                       onClick={() => window.open(imageUrl, '_blank')}
                                     />
                                   ) : (
-                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">[IMAGE_PAYLOAD]</p>
+                                    <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[รูปภาพ]</p>
                                   )
                                 ) : msg.messageType === 'sticker' ? (
-                                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40">[STICKER_SIGNAL]</p>
+                                  <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[สติกเกอร์]</p>
                                 ) : (
-                                  <p className="text-[13px] font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
+                                  <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
                                 )}
 
                                 <div className={cn(
-                                  'mt-3 text-[9px] font-black uppercase tracking-widest opacity-40',
-                                  isOut ? 'text-emerald-400 text-right' : 'text-slate-500'
+                                  'mt-2 sm:mt-3 text-[8px] sm:text-[9px] font-semibold opacity-50',
+                                  isOut ? 'text-[#06C755] text-right' : 'text-slate-400'
                                 )}>
                                   {formatTime(msg.createdAt)}{isOut && msg.sentBy ? ` • ${msg.sentBy}` : ''}
                                 </div>
@@ -385,8 +382,8 @@ function UserChatContent() {
                   )}
                 </div>
 
-                <div className="p-6 bg-white/[0.02] border-t border-white/5 pb-10 sm:pb-6">
-                  <div className="flex gap-4 items-end">
+                <div className="p-4 sm:p-6 bg-white/[0.02] border-t border-white/5">
+                  <div className="flex gap-2 sm:gap-3 lg:gap-4 items-end">
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
@@ -396,30 +393,30 @@ function UserChatContent() {
                           handleSendMessage();
                         }
                       }}
-                      placeholder="ENTER_PAYLOAD_CIPHER..."
-                      className="flex-1 min-h-[56px] max-h-48 resize-none bg-white/[0.03] border-white/5 rounded-2xl px-6 py-4 text-white font-medium text-[13px] focus:ring-1 focus:ring-emerald-500/50 transition-all placeholder:text-slate-600 outline-none"
+                      placeholder="พิมพ์ข้อความ..."
+                      className="flex-1 min-h-[48px] sm:min-h-[56px] max-h-32 sm:max-h-48 resize-none bg-white/[0.03] border-white/5 rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-white font-medium text-xs sm:text-sm focus:ring-1 focus:ring-[#06C755]/50 transition-all placeholder:text-slate-500 outline-none"
                       rows={1}
                       disabled={sending}
                     />
                     <Button
                       variant="primary"
                       size="lg"
-                      className="h-14 px-8 rounded-2xl bg-emerald-500 hover:bg-emerald-400 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20"
+                      className="h-12 sm:h-14 px-6 sm:px-8 rounded-xl sm:rounded-2xl bg-[#06C755] hover:bg-[#05B048] font-semibold text-xs sm:text-sm shadow-[#06C755]/20 transition-all"
                       onClick={handleSendMessage}
                       isLoading={sending}
                       disabled={sending || !newMessage.trim()}
                     >
-                      TRANSMIT
+                      ส่ง
                     </Button>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="p-8 md:p-10 flex-1 flex items-center justify-center">
+              <div className="p-8 sm:p-10 lg:p-12 flex-1 flex items-center justify-center">
                 <EmptyState
                   icon="👈"
-                  title="INITIALIZE_COMMUNICATION"
-                  description="Awaiting selection for interaction protocol."
+                  title="เลือกผู้ใช้เพื่อเริ่มแชท"
+                  description="กรุณาเลือกผู้ใช้จากรายชื่อด้านซ้ายเพื่อเริ่มการสนทนา"
                   variant="glass"
                 />
               </div>
