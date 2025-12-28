@@ -7,6 +7,7 @@ import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, EmptyState } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input, Textarea, Select, Switch } from '@/components/ui/Input';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
@@ -277,7 +278,7 @@ export default function UserLineAccountsPage() {
             </Button>
           </div>
         </div>
-        
+
         <div className="mb-6">
           <div className="relative">
             <input
@@ -290,7 +291,7 @@ export default function UserLineAccountsPage() {
             </svg>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Card variant="glass" className="p-6">
             <div className="flex items-center justify-between">
@@ -325,7 +326,7 @@ export default function UserLineAccountsPage() {
             </div>
           </Card>
         </div>
-        
+
         <Card variant="glass" className="p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
