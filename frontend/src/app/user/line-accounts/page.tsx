@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, systemSettingsApi } from '@/lib/api';
 import { LineAccount } from '@/types';
