@@ -556,11 +556,11 @@ export default function AdminTemplatesPage() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 md:gap-4 w-full md:w-auto">
-            <Button variant="ghost" onClick={handleInitDefaults} isLoading={isProcessing} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] border-slate-100 hover:bg-slate-50 transition-all">
-              🔄 <span className="hidden sm:inline">Reset Protocols</span><span className="sm:hidden">Reset</span>
+            <Button variant="ghost" onClick={handleInitDefaults} isLoading={isProcessing} className="h-10 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[8px] sm:text-[9px] md:text-[10px] border-slate-100 hover:bg-slate-50 transition-all">
+              🔄 <span className="inline">Reset Protocols</span>
             </Button>
             <Button variant="primary" onClick={openCreateModal} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] shadow-emerald-500/20 shadow-xl">
-              ➕ <span className="hidden sm:inline">Deployment Studio</span><span className="sm:hidden">Create</span>
+              ➕ <span className="inline">Deployment Studio</span>
             </Button>
           </div>
         </div>
@@ -603,7 +603,7 @@ export default function AdminTemplatesPage() {
                     {list.map((template) => (
                       <Card key={template._id} className="p-8 hover:shadow-premium transition-all duration-500 rounded-[2.5rem] border-none bg-white/70 group relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700" />
-                        
+
                         <div className="flex items-start justify-between mb-6 relative z-10">
                           <div>
                             <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-1">{template.name}</h3>
@@ -657,7 +657,7 @@ export default function AdminTemplatesPage() {
         isOpen={showModal}
         onClose={() => !isProcessing && setShowModal(false)}
         title={selectedTemplate ? `DEPLOYMENT STUDIO: ${selectedTemplate.name}` : 'NEW PROTOCOL DEPLOYMENT'}
-        size="xl"
+        size="fullMobile"
       >
         <div className="flex flex-col lg:flex-row gap-12 p-2">
           {/* Left: Configuration Matrix */}
@@ -673,13 +673,13 @@ export default function AdminTemplatesPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={cn(
-                    "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                    "flex-1 py-3 px-2 sm:px-4 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all duration-300",
                     activeTab === tab.id
                       ? "bg-white shadow-premium-sm text-emerald-600 scale-100"
                       : "text-slate-400 hover:text-slate-600 hover:scale-95"
                   )}
                 >
-                  <span className="mr-2">{tab.icon}</span> {tab.label}
+                  <span className="hidden sm:inline-block mr-2">{tab.icon}</span> {tab.label}
                 </button>
               ))}
             </div>
@@ -809,16 +809,16 @@ export default function AdminTemplatesPage() {
                       </div>
                       {senderBank && <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] uppercase">{senderBank.shortName}</Badge>}
                     </div>
-                    <div className="flex flex-wrap gap-3 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-premium-sm">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3 p-4 sm:p-6 bg-white rounded-[2rem] border border-slate-100 shadow-premium-sm">
                       <button
                         type="button"
                         onClick={() => updateField('senderBankId', '')}
                         className={cn(
-                          "flex flex-col items-center p-3 rounded-2xl border-2 transition-all min-w-[70px] group",
+                          "flex flex-col items-center p-2 rounded-2xl border-2 transition-all min-w-[60px] group",
                           !formData.senderBankId ? "border-emerald-500 bg-emerald-50 shadow-lg" : "border-transparent bg-slate-50 hover:bg-white hover:border-slate-200"
                         )}
                       >
-                        <div className="w-12 h-12 rounded-[1.2rem] bg-white shadow-premium-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-[1.2rem] bg-white shadow-premium-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                           <span className="text-xl">🔄</span>
                         </div>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Auto</span>
@@ -844,16 +844,16 @@ export default function AdminTemplatesPage() {
                       </div>
                       {receiverBank && <Badge className="bg-indigo-50 text-indigo-600 border-none font-black text-[9px] uppercase">{receiverBank.shortName}</Badge>}
                     </div>
-                    <div className="flex flex-wrap gap-3 p-6 bg-white rounded-[2rem] border border-slate-100 shadow-premium-sm">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3 p-4 sm:p-6 bg-white rounded-[2rem] border border-slate-100 shadow-premium-sm">
                       <button
                         type="button"
                         onClick={() => updateField('receiverBankId', '')}
                         className={cn(
-                          "flex flex-col items-center p-3 rounded-2xl border-2 transition-all min-w-[70px] group",
+                          "flex flex-col items-center p-2 rounded-2xl border-2 transition-all min-w-[60px] group",
                           !formData.receiverBankId ? "border-indigo-500 bg-indigo-50 shadow-lg" : "border-transparent bg-slate-50 hover:bg-white hover:border-slate-200"
                         )}
                       >
-                        <div className="w-12 h-12 rounded-[1.2rem] bg-white shadow-premium-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-[1.2rem] bg-white shadow-premium-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                           <span className="text-xl">🔄</span>
                         </div>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Auto</span>

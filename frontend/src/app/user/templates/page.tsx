@@ -245,10 +245,10 @@ function TemplatesContent() {
               ← กลับ
             </Button>
             <div>
-              <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-slate-900 flex items-center gap-2">
-                🎨 Template ตอบกลับสลิป
+              <h1 className="text-base md:text-xl lg:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tight">
+                🎨 Template Gallery
               </h1>
-              <p className="text-slate-500 text-xs md:text-sm mt-1">เลือก Template สำหรับการตอบกลับเมื่อตรวจสอบสลิป</p>
+              <p className="text-slate-500 text-[10px] md:text-sm mt-0.5 font-bold uppercase tracking-wider">Configure your verification response interface</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -285,15 +285,15 @@ function TemplatesContent() {
                 </div>
               </div>
               {otherAccounts.length > 0 && (
-                <div className="flex flex-col items-end gap-2">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">บัญชี LINE อื่น</span>
-                  <div className="flex flex-wrap gap-1 justify-end">
+                <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-emerald-100/50">
+                  <span className="text-[9px] text-emerald-600/60 uppercase font-black tracking-widest">Switch Channel</span>
+                  <div className="flex flex-wrap gap-1.5 justify-start sm:justify-end">
                     {otherAccounts.slice(0, 3).map(acc => (
                       <Button
                         key={acc._id}
                         variant="ghost"
                         size="xs"
-                        className="text-xs bg-white/80 hover:bg-white border border-slate-200"
+                        className="text-[10px] bg-white/80 hover:bg-white border border-emerald-100/50 rounded-lg px-3 py-1.5 h-auto font-bold shadow-sm"
                         onClick={() => router.push(`/user/templates?accountId=${acc._id}`)}
                       >
                         📱 {acc.accountName}
@@ -303,10 +303,10 @@ function TemplatesContent() {
                       <Button
                         variant="ghost"
                         size="xs"
-                        className="text-xs bg-white/80 hover:bg-white border border-slate-200"
+                        className="text-[10px] bg-white/80 hover:bg-white border border-emerald-100/50 rounded-lg px-2 py-1.5 h-auto font-bold"
                         onClick={() => router.push('/user/line-accounts')}
                       >
-                        +{otherAccounts.length - 3} อื่นๆ
+                        +{otherAccounts.length - 3}
                       </Button>
                     )}
                   </div>
@@ -325,22 +325,22 @@ function TemplatesContent() {
               <p className="text-[10px] text-slate-400">Template ที่ใช้สำหรับแต่ละประเภทการตอบกลับ</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {TYPE_OPTIONS.map((typeOption) => {
               const templateName = getSelectedTemplateName(typeOption.value as SlipTemplate['type']);
               return (
                 <div
                   key={typeOption.value}
                   className={cn(
-                    "p-3 rounded-xl border-2 transition-all",
+                    "p-3 sm:p-4 rounded-2xl border-2 transition-all shadow-premium-sm",
                     typeOption.bgColor, typeOption.borderColor
                   )}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">{typeOption.icon}</span>
-                    <span className={cn("font-bold text-xs", typeOption.textColor)}>{typeOption.label}</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-base sm:text-lg">{typeOption.icon}</span>
+                    <span className={cn("font-black text-[10px] uppercase tracking-wider", typeOption.textColor)}>{typeOption.label}</span>
                   </div>
-                  <p className="text-[11px] text-slate-600 truncate font-medium">
+                  <p className="text-[11px] sm:text-xs text-slate-900 truncate font-black uppercase tracking-tight">
                     {templateName}
                   </p>
                 </div>
@@ -377,7 +377,7 @@ function TemplatesContent() {
               </div>
 
               {/* Templates Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                 {typeTemplates.map((template) => {
                   const isSelected = selectedId === template._id || (!selectedId && template.isDefault);
                   const typeInfo = getTypeInfo(template.type);
