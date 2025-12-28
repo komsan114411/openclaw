@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { packagesApi, paymentsApi, subscriptionsApi, systemSettingsApi } from '@/lib/api';
 import { Package, Subscription } from '@/types';
