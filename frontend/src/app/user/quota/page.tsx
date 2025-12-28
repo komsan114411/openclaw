@@ -86,21 +86,27 @@ export default function UserQuotaPage() {
         <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
             <h1 className="page-title-responsive">
-              Operational <span className="text-emerald-400">Matrix</span>
+              OA <span className="text-[#06C755]">Analytics</span>
             </h1>
             <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Neural Resource Allocation & Utilization Telemetry
+              Users & Slips • Finance • Message AI • System Health
             </p>
+            <p className="text-[10px] font-bold text-slate-500 mt-2">Last updated: Just now</p>
           </div>
-          <Link href="/user/packages" className="w-full sm:w-auto">
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full sm:w-auto h-11 sm:h-14 px-8 rounded-2xl bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 font-black uppercase tracking-widest text-[10px]"
-            >
-              Initialize Top-Up
+          <div className="flex gap-3 mt-6 sm:mt-0">
+            <Button variant="outline" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white">
+              Filter View
             </Button>
-          </Link>
+            <Link href="/user/packages" className="w-full sm:w-auto">
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]"
+              >
+                + New Broadcast
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {error && (
@@ -119,56 +125,73 @@ export default function UserQuotaPage() {
           </div>
         )}
 
-        <div className="grid-stats">
-          <StatCard
-            title="REMAINING_QUOTA"
-            value={(subscription?.remainingQuota || 0).toLocaleString()}
-            color="emerald"
-            variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-          />
-          <StatCard
-            title="SLIPS_VERIFIED"
-            value={getTotalSlipsVerified().toLocaleString()}
-            color="blue"
-            variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-          />
-          <StatCard
-            title="NEURAL_MESSAGES"
-            value={getTotalMessages().toLocaleString()}
-            color="violet"
-            variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-          />
-          <StatCard
-            title="TTL_RESIDUE"
-            value={`${daysRemaining} DAYS`}
-            color={daysRemaining < 7 ? 'rose' : 'amber'}
-            variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-          />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <Card variant="glass" className="p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <span className="text-2xl">📄</span>
+              </div>
+              <Badge variant="warning" className="text-[9px] px-2 py-1">Action Req.</Badge>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Slips</p>
+            <p className="text-2xl font-black text-white">12</p>
+            <p className="text-[9px] font-bold text-[#06C755] mt-1">+3 today</p>
+          </Card>
+          <Card variant="glass" className="p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <span className="text-2xl">👥</span>
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Users</p>
+            <p className="text-2xl font-black text-white">1,240</p>
+          </Card>
+          <Card variant="glass" className="p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-[#06C755]/10 flex items-center justify-center">
+                <span className="text-2xl">💬</span>
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Messages</p>
+            <p className="text-2xl font-black text-white">{(subscription?.remainingQuota || 0).toLocaleString()}</p>
+          </Card>
+          <Card variant="glass" className="p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                <span className="text-2xl">📊</span>
+              </div>
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Verified</p>
+            <p className="text-2xl font-black text-white">{getTotalSlipsVerified().toLocaleString()}</p>
+          </Card>
         </div>
 
-        <Card className="rounded-[3rem] border border-white/5 shadow-2xl bg-black overflow-hidden relative p-8 sm:p-12 group">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -mr-64 -mt-64 group-hover:bg-emerald-500/10 transition-all duration-1000" />
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12 relative z-10">
-            <div className="space-y-2">
-              <h3 className="font-black text-white text-3xl tracking-tighter uppercase">Slip Quota Utilization</h3>
-              {subscription && (
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Protocol: <span className="text-slate-300">{subscription.packageName || 'Standard Matrix'}</span></p>
-                </div>
-              )}
+        <Card className="rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-6 group" variant="glass">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-6">
+            <div className="space-y-1">
+              <h3 className="font-black text-white text-xl tracking-tight">User Growth</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Daily active users over last 30 days</p>
             </div>
-            {subscription && (
-              <div className="px-6 py-3 bg-white/[0.03] border border-white/10 rounded-2xl">
-                <span className="text-xl font-black text-emerald-400 tracking-tighter">{getQuotaPercentage()}%</span>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-3">Residual</span>
+          </div>
+          
+          <div className="h-32 bg-white/[0.02] rounded-xl p-4 flex items-end justify-between gap-2">
+            {Array.from({ length: 28 }, (_, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div 
+                  className="w-full bg-[#06C755] rounded-t-lg transition-all"
+                  style={{ height: `${Math.random() * 60 + 20}%` }}
+                />
               </div>
-            )}
+            ))}
+          </div>
+        </Card>
+        
+        <Card className="rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-6 mt-6" variant="glass">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-black text-white text-xl tracking-tight">Recent Registrations</h3>
+            <Button variant="ghost" size="sm" className="text-[10px] font-bold text-[#06C755] hover:text-[#05B048]">
+              View All
+            </Button>
           </div>
 
           {subscription ? (

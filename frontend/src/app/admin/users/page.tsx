@@ -191,27 +191,28 @@ export default function UsersPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              User <span className="text-emerald-400">Registry</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              จัดการ<span className="text-[#06C755]">ผู้ใช้งาน</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              ศูนย์ควบคุมสิทธิ์การเข้าถึงและ <span className="text-white">บัญชีผู้ใช้ระบบ</span>
+            <p className="text-slate-500 text-xs sm:text-sm">
+              ศูนย์ควบคุมบัญชีผู้ใช้ทั้งหมดในระบบ
             </p>
           </div>
           <Button
             variant="primary"
-            className="w-full lg:w-auto h-12 sm:h-14 px-8 sm:px-12 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-emerald-500/20 shadow-2xl mt-4 lg:mt-0"
+            className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 mt-4 lg:mt-0"
             onClick={() => setShowCreateModal(true)}
           >
-            + <span className="hidden sm:inline">Provision User Account</span><span className="sm:hidden">Create Account</span>
+            + สร้างผู้ใช้ใหม่
           </Button>
         </div>
 
         <div className="grid-stats">
-          <StatCard title="Total Registry" value={users.length} icon="👥" color="indigo" variant="glass" />
-          <StatCard title="Administrative" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
-          <StatCard title="Standard Users" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
-          <StatCard title="Blacklisted" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
+          <StatCard title="ผู้ใช้ทั้งหมด" value={users.length} icon="👥" color="indigo" variant="glass" />
+          <StatCard title="ผู้ดูแลระบบ" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
+          <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
+          <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
         </div>
 
         {/* User Registry Table & Mobile Cards */}

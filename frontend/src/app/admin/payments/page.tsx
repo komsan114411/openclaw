@@ -148,45 +148,43 @@ export default function AdminPaymentsPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-end">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              Financial <span className="text-emerald-400">Ledger</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              ประวัติ<span className="text-[#06C755]">การชำระเงิน</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              ศูนย์ตรวจสอบและอนุมัติ <span className="text-white">ธุรกรรมทางการเงิน</span> ในระบบ
+            <p className="text-slate-500 text-xs sm:text-sm">
+              ศูนย์ตรวจสอบและอนุมัติธุรกรรมการเงิน
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/[0.03] backdrop-blur-2xl p-2 rounded-2xl sm:rounded-3xl border border-white/10 w-full lg:w-auto mt-6 lg:mt-0">
-            <div className="hidden sm:flex pl-6 pr-3 py-2 items-center gap-2 border-r border-white/5 mr-1">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Security Protocol</span>
-            </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-[#0F1A14] p-2 rounded-full border border-emerald-500/10 w-full lg:w-auto mt-6 lg:mt-0">
             <Select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="flex-1 sm:min-w-[200px] border-none shadow-none bg-transparent font-black uppercase text-[10px] tracking-wider focus:ring-0 cursor-pointer text-white"
+              className="flex-1 sm:min-w-[180px] border-none shadow-none bg-transparent font-semibold text-xs focus:ring-0 cursor-pointer text-white rounded-full px-4"
             >
-              <option value="" className="bg-slate-900">ALL PROTOCOLS</option>
-              <option value="pending" className="bg-slate-900">PENDING AUDIT</option>
-              <option value="verified" className="bg-slate-900">VERIFIED TRANSACTION</option>
-              <option value="rejected" className="bg-slate-900">REJECTED PAYLOAD</option>
+              <option value="" className="bg-[#0A0F0D]">ทั้งหมด</option>
+              <option value="pending" className="bg-[#0A0F0D]">รอตรวจสอบ</option>
+              <option value="verified" className="bg-[#0A0F0D]">อนุมัติแล้ว</option>
+              <option value="rejected" className="bg-[#0A0F0D]">ปฏิเสธ</option>
             </Select>
             <IconButton
               variant="ghost"
               size="md"
               onClick={fetchPayments}
-              className="rounded-xl sm:rounded-2xl w-full sm:w-12 h-12 bg-white/5 border border-white/5 text-slate-400 hover:text-white"
+              className="rounded-full w-10 h-10 bg-emerald-500/10 text-[#06C755] hover:bg-emerald-500/20"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </IconButton>
           </div>
         </div>
 
         <div className="grid-stats">
-          <StatCard title="Awaiting Audit" value={pendingCount} icon="⏳" color="amber" variant="glass" />
-          <StatCard title="Verified Access" value={verifiedCount} icon="✅" color="emerald" variant="glass" />
-          <StatCard title="Rejected Signals" value={rejectedCount} icon="❌" color="rose" variant="glass" />
-          <StatCard title="Gross Velocity" value={`฿${totalVerifiedAmount.toLocaleString()}`} icon="💰" color="blue" variant="glass" />
+          <StatCard title="รอตรวจสอบ" value={pendingCount} icon="⏳" color="amber" variant="glass" />
+          <StatCard title="อนุมัติแล้ว" value={verifiedCount} icon="✅" color="emerald" variant="glass" />
+          <StatCard title="ปฏิเสธ" value={rejectedCount} icon="❌" color="rose" variant="glass" />
+          <StatCard title="ยอดรวม" value={`฿${totalVerifiedAmount.toLocaleString()}`} icon="💰" color="blue" variant="glass" />
         </div>
 
         <Card className="hidden md:block overflow-hidden" variant="glass" padding="none">

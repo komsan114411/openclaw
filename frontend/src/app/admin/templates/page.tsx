@@ -546,18 +546,18 @@ export default function AdminTemplatesPage() {
       <div className="space-y-6 md:space-y-8 lg:space-y-12 max-w-[1600px] mx-auto pb-10 md:pb-20 animate-fade">
         {/* Superior Studio Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
-          <div className="flex items-center gap-3 md:gap-5">
-            <div className="w-10 h-10 md:w-14 md:h-14 bg-emerald-500/10 rounded-xl md:rounded-[2rem] flex items-center justify-center text-xl md:text-2xl shadow-inner border border-white/50 flex-shrink-0">🎨</div>
-            <div>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tighter leading-none uppercase">Template Studio</h1>
-              <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-[0.2em] mt-1 md:mt-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 animate-pulse" /> ออกแบบเลเยอร์การแสดงผลสลิป
-              </p>
-            </div>
+          <div className="space-y-1 sm:space-y-2">
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              จัดการ<span className="text-[#06C755]">เทมเพลต</span>
+            </h1>
+            <p className="text-slate-500 text-xs sm:text-sm">
+              ออกแบบเลเยอร์การแสดงผลสลิป
+            </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 md:gap-4 w-full md:w-auto">
-            <Button variant="ghost" onClick={handleInitDefaults} isLoading={isProcessing} className="h-10 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[8px] sm:text-[9px] md:text-[10px] border-slate-100 hover:bg-slate-50 transition-all">
-              🔄 <span className="inline">Reset Protocols</span>
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-3 w-full md:w-auto mt-4 md:mt-0">
+            <Button variant="outline" onClick={handleInitDefaults} isLoading={isProcessing} className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] text-slate-400 hover:text-[#06C755] hover:bg-emerald-500/10">
+              รีเซ็ตเทมเพลต
             </Button>
             <Button variant="primary" onClick={openCreateModal} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] shadow-emerald-500/20 shadow-xl">
               ➕ <span className="inline">Deployment Studio</span>

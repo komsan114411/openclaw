@@ -231,29 +231,30 @@ export default function SystemResponsesPage() {
         {/* Neural Header Section */}
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2">
-            <h1 className="page-title-responsive">
-              Response <span className="text-emerald-400">Matrix</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              ข้อความ<span className="text-[#06C755]">ตอบกลับอัตโนมัติ</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Interaction Protocol & Automation Logic
+            <p className="text-slate-500 text-xs sm:text-sm">
+              ตั้งค่าข้อความตอบกลับและ AI ของระบบ
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full lg:w-auto mt-4 lg:mt-0">
             <Button
               variant="outline"
-              className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] text-slate-400 hover:text-white bg-white/[0.03] border-white/5 hover:bg-white/[0.05]"
+              className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] text-slate-400 hover:text-[#06C755] hover:bg-emerald-500/10"
               onClick={handleReset}
               disabled={saving || !selectedType}
             >
-              Reset Domain
+              รีเซ็ต
             </Button>
             <Button
               variant="primary"
-              className="h-11 md:h-14 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[11px] shadow-emerald-500/20 shadow-2xl bg-emerald-500 hover:bg-emerald-400"
+              className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20"
               onClick={handleSave}
               isLoading={saving}
             >
-              Commit Protocol
+              บันทึก
             </Button>
           </div>
         </div>

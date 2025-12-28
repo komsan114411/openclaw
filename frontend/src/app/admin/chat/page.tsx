@@ -181,33 +181,26 @@ function AdminChatContent() {
       <div className="h-[calc(100vh-140px)] flex flex-col space-y-6 max-w-[1600px] mx-auto animate-fade">
 
         {/* Neural Navigation Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-2">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-emerald-500/10 rounded-[1.8rem] flex items-center justify-center text-3xl shadow-inner border border-emerald-500/20 animate-pulse-subtle">🛰️</div>
-            <div>
-              <h1 className="text-4xl font-black text-slate-900 tracking-[-0.04em] uppercase leading-none">
-                Neural <span className="text-emerald-500 text-[0.8em] align-top ml-1">Live</span> Chat
-              </h1>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
-                <span className="w-8 h-[2px] bg-emerald-500/30"></span>
-                Uplink Active: Real-time Communication Matrix
-              </p>
-            </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-2">
+          <div className="space-y-1 sm:space-y-2">
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              แชท<span className="text-[#06C755]">กับลูกค้า</span>
+            </h1>
+            <p className="text-slate-500 text-xs sm:text-sm">
+              สนทนากับลูกค้าผ่าน LINE OA
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white/60 backdrop-blur-2xl p-2.5 rounded-[2rem] border border-white shadow-premium">
-            <div className="pl-6 pr-2 py-2 flex items-center gap-2 border-r border-slate-100/50 mr-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Account</span>
-            </div>
+          <div className="flex items-center gap-3 bg-[#0F1A14] p-2 rounded-full border border-emerald-500/10">
             <Select
               value={selectedAccountId}
               onChange={(e) => handleSelectAccount(e.target.value)}
-              className="w-72 border-none shadow-none bg-transparent font-black uppercase text-[11px] tracking-wider focus:ring-0 cursor-pointer"
+              className="w-60 border-none shadow-none bg-transparent font-semibold text-xs focus:ring-0 cursor-pointer text-white rounded-full px-4"
             >
-              <option value="">SELECT LINE IDENTITY</option>
+              <option value="" className="bg-[#0A0F0D]">เลือกบัญชี LINE</option>
               {accounts.map((account) => (
-                <option key={account._id} value={account._id}>
+                <option key={account._id} value={account._id} className="bg-[#0A0F0D]">
                   {account.accountName}
                 </option>
               ))}
@@ -216,10 +209,10 @@ function AdminChatContent() {
               <IconButton
                 variant="primary"
                 size="md"
-                className="rounded-2xl shadow-emerald-500/20 shadow-xl w-12 h-12"
+                className="rounded-full w-10 h-10 shadow-lg shadow-[#06C755]/20"
                 onClick={fetchUsers}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
               </IconButton>
             )}
           </div>

@@ -76,20 +76,21 @@ export default function AdminHistoryPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              Audit <span className="text-emerald-400">Registry</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              ประวัติ<span className="text-[#06C755]">ระบบ</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Immutable chronological ledger of operations
+            <p className="text-slate-500 text-xs sm:text-sm">
+              บันทึกกิจกรรมทั้งหมดในระบบ
             </p>
           </div>
           <Button
-            variant="ghost"
-            className="w-full lg:w-auto h-12 px-6 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs border border-white/5 bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5 mt-4 lg:mt-0"
+            variant="outline"
+            className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] text-slate-400 hover:text-[#06C755] hover:bg-emerald-500/10 mt-4 lg:mt-0"
             onClick={fetchData}
             disabled={isLoading}
           >
-            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} <span className="hidden sm:inline">Refresh Matrix</span><span className="sm:hidden">Refresh</span>
+            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} รีเฟรช
           </Button>
         </div>
 

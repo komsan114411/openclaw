@@ -229,15 +229,16 @@ export default function SettingsPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              System <span className="text-emerald-400">Settings</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              ตั้งค่า<span className="text-[#06C755]">ระบบ</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Manage core infrastructure and operational protocols
+            <p className="text-slate-500 text-xs sm:text-sm">
+              จัดการการตั้งค่าหลักของระบบ
             </p>
           </div>
-          <Badge variant="emerald" className="px-4 py-1.5 font-black text-[10px] uppercase tracking-widest mt-4 lg:mt-0">
-            Production Node
+          <Badge variant="emerald" className="px-4 py-1.5 font-semibold text-xs rounded-full mt-4 lg:mt-0">
+            Production
           </Badge>
         </div>
 

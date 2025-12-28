@@ -177,40 +177,41 @@ export default function AdminPackagesPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <h1 className="page-title-responsive">
-              Subscription <span className="text-emerald-400">Matrix</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              จัดการ<span className="text-[#06C755]">แพ็คเกจ</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Plan Logistics & Monetary Protocol
+            <p className="text-slate-500 text-xs sm:text-sm">
+              ตั้งค่าแพ็คเกจและราคาบริการ
             </p>
           </div>
           <Button
             size="lg"
             variant="primary"
             onClick={() => { resetForm(); setShowModal(true); }}
-            className="w-full lg:w-auto h-12 sm:h-14 px-8 sm:px-12 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-emerald-500/20 shadow-2xl mt-4 lg:mt-0"
+            className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 mt-4 lg:mt-0"
           >
-            + <span className="hidden sm:inline">Deploy New Plan</span><span className="sm:hidden">New Plan</span>
+            + สร้างแพ็คเกจใหม่
           </Button>
         </div>
 
         <div className="grid-stats">
           <StatCard
-            title="Total Indices"
+            title="แพ็คเกจทั้งหมด"
             value={packages.length}
             icon="💎"
             color="indigo"
             variant="glass"
           />
           <StatCard
-            title="Active Layers"
+            title="ใช้งานอยู่"
             value={packages.filter(p => p.isActive).length}
             icon="🟢"
             color="emerald"
             variant="glass"
           />
           <StatCard
-            title="Peak Demand"
+            title="ยอดนิยม"
             value={packages.length > 0 ? "PREMIUM" : "N/A"}
             icon="🔥"
             color="amber"

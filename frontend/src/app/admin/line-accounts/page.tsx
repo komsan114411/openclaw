@@ -295,19 +295,20 @@ export default function AdminLineAccountsPage() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <h1 className="page-title-responsive">
-              จัดการบัญชี <span className="text-emerald-400">LINE OA</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              บัญชี <span className="text-[#06C755]">LINE OA</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              ศูนย์ควบคุมการเชื่อมต่อ <span className="text-white">Official Account</span> ทั่วทั้งระบบ
+            <p className="text-slate-500 text-xs sm:text-sm">
+              ศูนย์ควบคุมบัญชี Official Account ทั้งหมด
             </p>
           </div>
           <Button
             onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
             size="lg"
             variant="primary"
-            leftIcon={<Plus className="w-5 h-5 sm:w-6 sm:h-6" />}
-            className="w-full sm:w-auto h-11 sm:h-16 px-6 sm:px-10 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl transition-all"
+            leftIcon={<Plus className="w-4 h-4" />}
+            className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20"
           >
             เพิ่มบัญชีใหม่
           </Button>

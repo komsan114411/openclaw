@@ -169,30 +169,31 @@ export default function BanksManagementPage() {
       <div className="section-gap animate-fade pb-10">
         <div className="page-header relative z-10 flex-col md:flex-row items-start md:items-center">
           <div className="space-y-1 sm:space-y-2">
-            <h1 className="page-title-responsive">
-              Bank <span className="text-emerald-400">Identity</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              จัดการ<span className="text-[#06C755]">ธนาคาร</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Financial Endpoint Management & Protocol Registry
+            <p className="text-slate-500 text-xs sm:text-sm">
+              เพิ่มและจัดการรายชื่อธนาคารในระบบ
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
             <Button
               variant="outline"
               size="lg"
-              className="bg-white/[0.03] backdrop-blur-xl border-white/5 shadow-2xl text-[10px] font-black uppercase tracking-widest h-14 px-8 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all w-full md:w-auto rounded-2xl"
+              className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] text-slate-400 hover:text-[#06C755] hover:bg-emerald-500/10 w-full md:w-auto"
               onClick={handleSyncFromThunder}
               isLoading={isSyncing}
             >
-              Sync Matrix
+              ซิงค์ข้อมูล
             </Button>
             <Button
               size="lg"
               variant="primary"
               onClick={() => setShowCreateModal(true)}
-              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl bg-emerald-500 hover:bg-emerald-400 w-full md:w-auto"
+              className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 w-full md:w-auto"
             >
-              Initialize Node
+              + เพิ่มธนาคาร
             </Button>
           </div>
         </div>
