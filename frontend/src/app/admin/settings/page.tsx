@@ -225,42 +225,43 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 md:space-y-10 lg:space-y-12 animate-fade max-w-[1400px] mx-auto pb-8 md:pb-12">
+      <div className="section-gap animate-fade pb-8 md:pb-12">
 
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">System Infrastructure</h1>
-            <p className="text-sm md:text-base lg:text-lg text-slate-500 font-medium">Manage mission-critical APIs, communication protocols, and financial gateways.</p>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              System <span className="text-emerald-400">Settings</span>
+            </h1>
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Manage core infrastructure and operational protocols
+            </p>
           </div>
-          <Badge variant="emerald" className="px-3 md:px-4 py-1.5 md:py-2 font-black text-xs md:text-sm uppercase tracking-widest shadow-emerald-100 shadow-lg">
-            Production
+          <Badge variant="emerald" className="px-4 py-1.5 font-black text-[10px] uppercase tracking-widest mt-4 lg:mt-0">
+            Production Node
           </Badge>
         </div>
 
         {/* Tab Switcher - Mobile Scroll */}
-        <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto no-scrollbar pb-2">
-          <div className="flex p-1 md:p-1.5 bg-slate-100/50 backdrop-blur-md rounded-2xl md:rounded-[2rem] w-max md:w-fit border border-slate-200/50">
+        <div className="overflow-x-auto no-scrollbar pb-2">
+          <div className="flex p-1.5 bg-white/[0.02] border border-white/5 backdrop-blur-md rounded-[1.5rem] sm:rounded-[2rem] w-fit">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
                 className={cn(
-                  "relative px-4 md:px-6 lg:px-8 py-2.5 md:py-3 lg:py-3.5 rounded-xl md:rounded-3xl text-xs md:text-sm font-black transition-all duration-500 flex items-center gap-2 md:gap-3 whitespace-nowrap",
-                  activeTab === tab.id
-                    ? "text-slate-900"
-                    : "text-slate-400 hover:text-slate-600"
+                  "relative px-4 sm:px-8 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black transition-all duration-500 flex items-center gap-2 sm:gap-3 whitespace-nowrap",
+                  activeTab === tab.id ? "text-slate-900" : "text-slate-500 hover:text-white"
                 )}
               >
                 {activeTab === tab.id && (
                   <motion.div
                     layoutId="activeTabSlot"
-                    className="absolute inset-0 bg-white rounded-xl md:rounded-3xl shadow-premium-sm"
-                    transition={{ type: "spring", bounce: 0.25, duration: 0.6 }}
+                    className="absolute inset-0 bg-emerald-400 rounded-xl sm:rounded-2xl shadow-emerald-400/20 shadow-xl"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                   />
                 )}
                 <span className="relative z-10">{tab.icon}</span>
-                <span className="relative z-10 uppercase tracking-wider md:tracking-widest">{tab.name}</span>
+                <span className="relative z-10 uppercase tracking-widest">{tab.name}</span>
               </button>
             ))}
           </div>
@@ -277,12 +278,12 @@ export default function SettingsPage() {
                 className="space-y-6 md:space-y-8"
               >
                 {/* Webhook Configuration */}
-                <Card className="p-5 md:p-8 lg:p-10 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-2xl md:rounded-[2.5rem] lg:rounded-[3rem]">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 md:gap-6 mb-6 md:mb-10">
-                    <div className="w-12 h-12 md:w-14 md:h-14 bg-indigo-500/10 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-inner flex-shrink-0">🌐</div>
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🌐</div>
                     <div>
-                      <h2 className="text-lg md:text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tight">External Interface</h2>
-                      <p className="text-xs md:text-sm text-slate-400 font-medium">Configure the public access points for webhook integrations.</p>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">External Interface</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">Public access points for core webhooks</p>
                     </div>
                   </div>
 
@@ -293,19 +294,19 @@ export default function SettingsPage() {
                         placeholder="https://api.yourdomain.com"
                         value={publicBaseUrl}
                         onChange={(e) => setPublicBaseUrl(e.target.value)}
-                        className="font-mono text-emerald-600 font-bold"
-                        hint="ใช้สำหรับสร้าง Webhook URL เพื่อรับข้อมูลจาก LINE API"
+                        className="font-black text-emerald-400 h-14 rounded-2xl bg-white/[0.03] border-white/10"
+                        hint="Automated webhook endpoint derivation master."
                       />
                     </div>
                     <div className="flex items-end">
                       <Button
                         fullWidth
                         size="lg"
-                        className="rounded-xl md:rounded-2xl h-12 md:h-14 font-black uppercase tracking-widest text-xs md:text-sm"
+                        className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
                         onClick={() => handleUpdate('base_url', { publicBaseUrl })}
                         isLoading={isSaving === 'base_url'}
                       >
-                        Update
+                        Commit URL
                       </Button>
                     </div>
                   </div>
@@ -313,17 +314,17 @@ export default function SettingsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
                   {/* Thunder API */}
-                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
+                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
                     <div className="flex items-center justify-between mb-8">
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">⚡</div>
                         <div>
-                          <h2 className="text-lg font-extrabold text-slate-900 uppercase tracking-tighter">Thunder Verification</h2>
-                          <p className="text-slate-400 font-medium text-xs">Slip verification engine</p>
+                          <h2 className="text-lg font-black text-white uppercase tracking-tight">Thunder Verification</h2>
+                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">Slip Audit Engine</p>
                         </div>
                       </div>
-                      <Badge variant={settings?.slipApiKeyPreview ? "emerald" : "rose"} size="sm" className="font-black uppercase tracking-widest">
-                        {settings?.slipApiKeyPreview ? "Configured" : "Inactive"}
+                      <Badge variant={settings?.slipApiKeyPreview ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+                        {settings?.slipApiKeyPreview ? "Operational" : "Offline"}
                       </Badge>
                     </div>
 
@@ -334,19 +335,20 @@ export default function SettingsPage() {
                         placeholder="••••••••••••••••"
                         value={slipApiKey}
                         onChange={(e) => setSlipApiKey(e.target.value)}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
                       />
                       <div className="flex gap-4">
                         <Button
                           variant="primary"
-                          className="flex-1 rounded-2xl h-12 font-bold"
+                          className="flex-1 rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] shadow-emerald-500/10"
                           onClick={() => handleUpdate('slip_api', { slipApiKey })}
                           isLoading={isSaving === 'slip_api'}
                         >
                           Commit Key
                         </Button>
                         <Button
-                          variant="outline"
-                          className="flex-1 rounded-2xl h-12 font-bold"
+                          variant="ghost"
+                          className="flex-1 rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] border border-white/5 hover:bg-white/5 text-slate-400 hover:text-white"
                           onClick={handleTestSlipApi}
                           isLoading={testingSlip}
                         >
@@ -360,17 +362,17 @@ export default function SettingsPage() {
                   </Card>
 
                   {/* OpenAI API */}
-                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem]">
+                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
                     <div className="flex items-center justify-between mb-8">
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">🤖</div>
                         <div>
-                          <h2 className="text-lg font-extrabold text-slate-900 uppercase tracking-tighter">Cognitive Services</h2>
-                          <p className="text-slate-400 font-medium text-xs">OpenAI Large Language Models</p>
+                          <h2 className="text-lg font-black text-white uppercase tracking-tight">Cognitive Services</h2>
+                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">OpenAI Integration</p>
                         </div>
                       </div>
-                      <Badge variant={settings?.aiApiKeyPreview ? "emerald" : "rose"} size="sm" className="font-black uppercase tracking-widest">
-                        {settings?.aiApiKeyPreview ? "Connected" : "Not Linked"}
+                      <Badge variant={settings?.aiApiKeyPreview ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+                        {settings?.aiApiKeyPreview ? "Linked" : "Disconnected"}
                       </Badge>
                     </div>
 
@@ -382,20 +384,21 @@ export default function SettingsPage() {
                           placeholder="sk-••••••••••••••••"
                           value={aiApiKey}
                           onChange={(e) => setAiApiKey(e.target.value)}
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
                         />
                       </div>
                       <div className="flex gap-4">
                         <Button
                           variant="primary"
-                          className="flex-1 rounded-2xl h-12 font-bold"
+                          className="flex-1 rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] shadow-emerald-500/10"
                           onClick={() => handleUpdate('ai_api', { aiApiKey })}
                           isLoading={isSaving === 'ai_api'}
                         >
                           Synchronize
                         </Button>
                         <Button
-                          variant="outline"
-                          className="flex-1 rounded-2xl h-12 font-bold"
+                          variant="ghost"
+                          className="flex-1 rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] border border-white/5 hover:bg-white/5 text-slate-400 hover:text-white"
                           onClick={handleTestAiApi}
                           isLoading={testingAi}
                         >
@@ -420,15 +423,15 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                   <StatCard title="Auto-Retries" value={messageSettings.maxRetryAttempts} icon="🔄" color="blue" variant="glass" />
                   <StatCard title="Retry Delay" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="indigo" variant="glass" />
-                  <StatCard title="Quota Alert" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
+                  <StatCard title="Threshold Alert" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Quota & Operational Messages */}
-                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] space-y-8">
+                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] space-y-8">
                     <div>
-                      <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Resource Thresholds</h3>
-                      <p className="text-slate-400 text-sm font-medium">Messages sent when resources or quotas are impacted.</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">Resource Thresholds</h3>
+                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Messages triggered by resource exhaustion</p>
                     </div>
 
                     <div className="space-y-6">
@@ -437,20 +440,22 @@ export default function SettingsPage() {
                         value={messageSettings.quotaExceededMessage}
                         onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededMessage: e.target.value })}
                         rows={2}
+                        className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                       />
                       <Select
                         label="Depletion Response Protocol"
                         value={messageSettings.quotaExceededResponseType}
                         onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value as any })}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
                       >
                         <option value="text">Standard Plaintext</option>
                         <option value="flex">Rich Flex Interface</option>
                       </Select>
 
-                      <div className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 flex items-center justify-between">
+                      <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-slate-800">Critical Resource Alert</p>
-                          <p className="text-xs text-slate-400">Trigger warnings before exhaustion.</p>
+                          <p className="font-bold text-white uppercase tracking-tight text-xs">Critical Resource Alert</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Enforce preemptive warnings</p>
                         </div>
                         <Switch
                           checked={messageSettings.quotaWarningEnabled}
@@ -469,12 +474,14 @@ export default function SettingsPage() {
                             label="Warning Threshold (Transaction Unit)"
                             value={messageSettings.quotaWarningThreshold}
                             onChange={(e) => setMessageSettings({ ...messageSettings, quotaWarningThreshold: parseInt(e.target.value) || 10 })}
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
                           />
                           <TextArea
                             label="Warning Template"
                             value={messageSettings.quotaLowWarningMessage}
                             onChange={(e) => setMessageSettings({ ...messageSettings, quotaLowWarningMessage: e.target.value })}
                             hint="Use {threshold} or {remaining} as variables."
+                            className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                           />
                         </motion.div>
                       )}
@@ -482,17 +489,17 @@ export default function SettingsPage() {
                   </Card>
 
                   {/* Slip Verification Logic */}
-                  <Card className="p-8 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] space-y-8">
+                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] space-y-8">
                     <div>
-                      <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Audit Responses</h3>
-                      <p className="text-slate-400 text-sm font-medium">Real-time feedback during transaction auditing.</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">Audit Responses</h3>
+                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Real-time telemetry feedback</p>
                     </div>
 
                     <div className="space-y-6">
-                      <div className="p-6 bg-emerald-50/30 rounded-3xl border border-emerald-100/50 flex items-center justify-between">
+                      <div className="p-6 bg-emerald-500/5 rounded-3xl border border-emerald-500/10 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-slate-800">Initialization Feedback</p>
-                          <p className="text-xs text-slate-400 italic">&quot;กำลังตรวจสอบสลิป...&quot;</p>
+                          <p className="font-bold text-white uppercase tracking-tight text-xs">Initialization Feedback</p>
+                          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">&quot;กำลังตรวจสอบสลิป...&quot;</p>
                         </div>
                         <Switch
                           checked={messageSettings.showSlipProcessingMessage}
@@ -505,17 +512,19 @@ export default function SettingsPage() {
                         value={messageSettings.slipProcessingMessage}
                         onChange={(e) => setMessageSettings({ ...messageSettings, slipProcessingMessage: e.target.value })}
                         disabled={!messageSettings.showSlipProcessingMessage}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
                       />
 
-                      <div className="grid grid-cols-1 gap-6 pt-4 border-t border-slate-100/50">
+                      <div className="grid grid-cols-1 gap-6 pt-6 border-t border-white/5">
                         <TextArea
                           label="Redundancy Detected (Duplicate Slip)"
                           value={messageSettings.duplicateSlipMessage}
                           onChange={(e) => setMessageSettings({ ...messageSettings, duplicateSlipMessage: e.target.value })}
                           rows={2}
+                          className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                         />
                         <div className="flex items-center justify-between px-2">
-                          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Refund internal quota on redundancy?</p>
+                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Refund internal quota on redundancy?</p>
                           <Switch
                             checked={messageSettings.duplicateRefundEnabled}
                             onChange={() => setMessageSettings({ ...messageSettings, duplicateRefundEnabled: !messageSettings.duplicateRefundEnabled })}
@@ -528,17 +537,18 @@ export default function SettingsPage() {
                         value={messageSettings.slipErrorMessage}
                         onChange={(e) => setMessageSettings({ ...messageSettings, slipErrorMessage: e.target.value })}
                         rows={2}
+                        className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                       />
                     </div>
                   </Card>
 
                   {/* Operational Status (Switches) */}
-                  <Card className="lg:col-span-2 p-10 bg-slate-900 text-white border-none shadow-2xl rounded-[3rem]">
+                  <Card className="lg:col-span-2 p-10 bg-slate-900 border border-white/5 shadow-2xl rounded-[3rem]">
                     <div className="flex items-center gap-6 mb-10">
-                      <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">⚡</div>
+                      <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner">⚡</div>
                       <div>
-                        <h2 className="text-2xl font-black uppercase tracking-tight">Protocol Resilience</h2>
-                        <p className="text-slate-400 font-medium text-sm">Fine-tune system retry logic and safety margins.</p>
+                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">Protocol Resilience</h2>
+                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Retry logic and operational safety margins</p>
                       </div>
                     </div>
 
@@ -598,15 +608,15 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-12 pt-8 border-t border-white/5 flex justify-end">
+                    <div className="mt-12 pt-10 border-t border-white/5 flex justify-end">
                       <Button
                         variant="primary"
                         size="lg"
-                        className="px-10 h-16 rounded-2xl shadow-emerald-500/10 font-black tracking-widest uppercase"
+                        className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
                         onClick={() => handleUpdate('messages', messageSettings)}
                         isLoading={isSaving === 'messages'}
                       >
-                        Store Deployment Config
+                        Commit Deployment Config
                       </Button>
                     </div>
                   </Card>
@@ -624,22 +634,22 @@ export default function SettingsPage() {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {/* Bank Gateways */}
-                  <Card className="p-10 bg-white/60 backdrop-blur-2xl border-none shadow-premium-sm rounded-[3rem] flex flex-col h-full">
+                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] flex flex-col h-full">
                     <div className="flex items-center justify-between mb-10">
                       <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl">🏦</div>
+                        <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl">🏦</div>
                         <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Settlement Banks</h2>
-                          <p className="text-slate-400 font-medium text-sm">Traditional fiat entry points.</p>
+                          <h2 className="text-2xl font-black uppercase tracking-tight text-white">Fiat Gateways</h2>
+                          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Traditional settlement endpoints</p>
                         </div>
                       </div>
                       <IconButton
                         variant="primary"
                         size="lg"
-                        className="rounded-2xl shadow-emerald-200 shadow-lg"
+                        className="rounded-2xl shadow-emerald-400/20 shadow-xl"
                         onClick={() => setShowBankModal(true)}
                       >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
                       </IconButton>
                     </div>
 
@@ -653,50 +663,50 @@ export default function SettingsPage() {
                             const title = bank?.nameTh || bank?.name || account.bankName;
                             const subtitle = bank?.shortName || bankCode || '';
                             return (
-                              <div key={index} className="group p-6 bg-slate-50/50 hover:bg-white rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
+                              <div key={index} className="group p-6 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2rem] border border-white/5 transition-all flex items-center justify-between">
                                 <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shadow-sm">
                                     {logo ? (
-                                      <img src={logo} alt={subtitle || title} className="w-8 h-8 object-contain" />
+                                      <img src={logo as string} alt={subtitle || title} className="w-8 h-8 object-contain" />
                                     ) : (
-                                      <span className="text-slate-500 font-black text-xs uppercase">
+                                      <span className="text-black font-black text-xs uppercase">
                                         {(subtitle || title).slice(0, 2)}
                                       </span>
                                     )}
                                   </div>
                                   <div>
-                                    <p className="font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">
-                                      {title}{subtitle ? <span className="text-slate-400 font-bold"> • {subtitle}</span> : null}
+                                    <p className="font-black text-white leading-none mb-1 uppercase tracking-tight">
+                                      {title}{subtitle ? <span className="text-slate-500 font-bold"> • {subtitle}</span> : null}
                                     </p>
-                                    <p className="text-xs text-slate-400 font-bold tracking-widest">{account.accountNumber} • {account.accountName}</p>
+                                    <p className="text-[10px] text-slate-500 font-black tracking-widest uppercase">{account.accountNumber} • {account.accountName}</p>
                                   </div>
                                 </div>
                                 <button
                                   onClick={() => handleRemoveBankAccount(index)}
-                                  className="p-2 text-rose-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                                  className="p-2 text-rose-500/50 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                               </div>
                             );
                           })()
                         ))
                       ) : (
-                        <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2.5rem]">
-                          <p className="text-slate-300 font-black uppercase tracking-widest">No Bank Gateways Configured</p>
+                        <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[2.5rem]">
+                          <p className="text-slate-700 font-black uppercase tracking-widest text-[10px]">No Fiat Gateways Active</p>
                         </div>
                       )}
                     </div>
                   </Card>
 
                   {/* Digital Asset Gateways (USDT) */}
-                  <Card className="p-10 bg-slate-900 text-white border-none shadow-2xl rounded-[3rem]">
+                  <Card className="p-10 bg-slate-900 border border-white/5 shadow-2xl rounded-[3rem]">
                     <div className="flex items-center justify-between mb-10">
                       <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 bg-emerald-400/20 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-emerald-400/10">💎</div>
+                        <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner shadow-emerald-400/5">💎</div>
                         <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight">USDT Liquidity</h2>
-                          <p className="text-slate-400 font-medium text-sm">Crypto settlement infrastructure.</p>
+                          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Digital Assets</h2>
+                          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Cryptographic settlement nodes</p>
                         </div>
                       </div>
                       <Switch
@@ -743,16 +753,18 @@ export default function SettingsPage() {
                 </div>
 
                 {/* System Contacts */}
-                <Card className="p-8 bg-slate-50 border-none rounded-[2.5rem]">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Internal Support Metadata</h3>
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] border border-white/5">
+                  <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-10 text-center">
+                    <span className="px-4">Internal Support Metadata</span>
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-900">ADMIN LINE ACCESS</p>
-                      <p className="text-2xl font-black text-indigo-500">@{settings?.contactAdminLine || 'Not Defined'}</p>
+                    <div className="space-y-1 text-center md:text-left">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">ADMIN LINE COORDINATES</p>
+                      <p className="text-3xl font-black text-emerald-400">@{settings?.contactAdminLine || 'UNDEFINED'}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-black text-slate-900">PRIMARY CONTACT CHANNEL</p>
-                      <p className="text-2xl font-black text-slate-500 font-mono italic">{settings?.contactAdminEmail || 'Not Defined'}</p>
+                    <div className="space-y-1 text-center md:text-right">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">PRIMARY CONTACT CHANNEL</p>
+                      <p className="text-xl sm:text-2xl font-black text-white font-mono uppercase tracking-tight">{settings?.contactAdminEmail || 'NO_VECTOR_FOUND'}</p>
                     </div>
                   </div>
                 </Card>
@@ -765,13 +777,13 @@ export default function SettingsPage() {
       <Modal
         isOpen={showBankModal}
         onClose={() => !isSaving && setShowBankModal(false)}
-        title="Deploy New Bank Gateway"
+        title="PROTOCOL DEPLOYMENT: BANK GATEWAY"
         size="md"
       >
         <div className="space-y-8 p-1">
           <div className="space-y-6">
             <Select
-              label="Institution Name"
+              label="Institution Identity"
               value={bankForm.bankCode || ''}
               onChange={(e) => {
                 const code = e.target.value;
@@ -782,8 +794,9 @@ export default function SettingsPage() {
                   bankName: bank?.nameTh || bank?.name || bankForm.bankName,
                 });
               }}
+              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
             >
-              <option value="">เลือกธนาคาร</option>
+              <option value="">SELECT CLEARING INSTITUTION</option>
               {banks.map((b) => (
                 <option key={b._id} value={b.code}>
                   {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
@@ -792,31 +805,33 @@ export default function SettingsPage() {
             </Select>
 
             <Input
-              label="Account Serial"
+              label="Account Serial Matrix"
               placeholder="xxx-x-xxxxx-x"
               value={bankForm.accountNumber}
               onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
+              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono"
             />
 
             <Input
-              label="Legal Holder Name"
-              placeholder="ชื่อ-นามสกุล"
+              label="Legal Asset Holder"
+              placeholder="IDENTITY_STRING"
               value={bankForm.accountName}
               onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })}
+              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black"
             />
           </div>
 
-          <div className="flex gap-4 pt-6 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 h-14 font-bold text-slate-400" onClick={() => setShowBankModal(false)} disabled={isSaving !== null}>
+          <div className="flex gap-4 pt-6 border-t border-white/5">
+            <Button variant="ghost" className="flex-1 h-14 font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-white" onClick={() => setShowBankModal(false)} disabled={isSaving !== null}>
               Abort
             </Button>
             <Button
               variant="primary"
-              className="flex-[2] h-14 font-black shadow-emerald-500/20 shadow-premium"
+              className="flex-[2] h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-xl"
               onClick={handleAddBankAccount}
               isLoading={isSaving === 'bank_add'}
             >
-              Provision Gateway
+              Authorize Node
             </Button>
           </div>
         </div>

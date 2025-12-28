@@ -37,9 +37,9 @@ export function Card({
   };
 
   const variantClasses = {
-    white: 'bg-white/10 border-white/10 shadow-lg shadow-black/5 backdrop-blur-xl',
-    glass: 'border-white/10 shadow-xl bg-white/5 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/5 hover:bg-white/10 transition-colors',
-    'glass-dark': 'border-white/5 shadow-2xl bg-slate-900/60 backdrop-blur-2xl supports-[backdrop-filter]:bg-slate-900/50',
+    white: 'bg-white/[0.03] backdrop-blur-xl border-white/[0.08] shadow-2xl shadow-black/10',
+    glass: 'glass-card',
+    'glass-dark': 'bg-slate-900/60 backdrop-blur-2xl border-white/5 shadow-2xl',
     outline: 'bg-transparent border border-white/10 shadow-none',
     ghost: 'bg-white/5 border-transparent shadow-none hover:bg-white/10 transition-colors',
   };
@@ -197,7 +197,7 @@ export function StatCard({
   }
 
   return (
-    <Card className={cn("relative overflow-hidden group hover:border-emerald-500/20 transition-all", variant === 'glass' ? 'border-white/10 bg-white/5 backdrop-blur-2xl' : '', className)} hover={variant !== 'glass'}>
+    <Card className={cn("relative overflow-hidden group transition-all", variant === 'glass' ? '' : '', className)} variant={variant === 'glass' ? 'glass' : 'white'} hover={true}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-xs sm:text-sm text-slate-400 font-semibold uppercase tracking-wider">{title}</p>
@@ -235,11 +235,12 @@ interface EmptyStateProps {
   description?: string;
   action?: ReactNode;
   variant?: 'white' | 'glass';
+  className?: string;
 }
 
-export function EmptyState({ icon, title, description, action, variant = 'white' }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, variant = 'white', className = '' }: EmptyStateProps) {
   return (
-    <Card className="text-center py-10 md:py-16 px-4 flex flex-col items-center justify-center animate-fade" variant={variant}>
+    <Card className={cn("text-center py-10 md:py-16 px-4 flex flex-col items-center justify-center animate-fade", className)} variant={variant}>
       {icon && (
         <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-300 mb-6 group-hover:scale-110 transition-transform">
           {icon}

@@ -291,63 +291,58 @@ export default function AdminLineAccountsPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 md:space-y-12 animate-fade max-w-[1700px] mx-auto pb-20">
+      <div className="section-gap animate-fade pb-10">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
-              จัดการบัญชี <span className="text-emerald-500">LINE OA</span>
+        <div className="page-header relative z-10">
+          <div className="space-y-1 sm:space-y-2">
+            <h1 className="page-title-responsive">
+              จัดการบัญชี <span className="text-emerald-400">LINE OA</span>
             </h1>
-            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
-              ศูนย์ควบคุมการเชื่อมต่อ <span className="text-slate-900">Official Account</span> ทั่วทั้งระบบ
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              ศูนย์ควบคุมการเชื่อมต่อ <span className="text-white">Official Account</span> ทั่วทั้งระบบ
             </p>
           </div>
           <Button
             onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
             size="lg"
             variant="primary"
-            leftIcon={<Plus className="w-5 h-5 md:w-6 md:h-6" />}
-            className="w-full md:w-auto h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
+            leftIcon={<Plus className="w-5 h-5 sm:w-6 sm:h-6" />}
+            className="w-full sm:w-auto h-11 sm:h-16 px-6 sm:px-10 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl transition-all"
           >
-            <span className="hidden sm:inline">เพิ่มบัญชีใหม่</span>
-            <span className="sm:hidden">เพิ่มบัญชี</span>
+            เพิ่มบัญชีใหม่
           </Button>
         </div>
 
-        {/* Global Network Analytics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-8">
-          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📱" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="⚡" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ข้อความ" value={totalMessages.toLocaleString()} icon="💬" color="violet" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="สลิปยืนยัน" value={totalSlips.toLocaleString()} icon="✅" color="amber" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+        <div className="grid-stats">
+          <StatCard title="บัญชีทั้งหมด" value={accounts.length} icon="📱" color="indigo" variant="glass" />
+          <StatCard title="ใช้งานอยู่" value={accounts.filter(a => a.isActive).length} icon="⚡" color="emerald" variant="glass" />
+          <StatCard title="ข้อความ" value={totalMessages.toLocaleString()} icon="violet" color="violet" variant="glass" />
+          <StatCard title="สลิปยืนยัน" value={totalSlips.toLocaleString()} icon="✅" color="amber" variant="glass" />
         </div>
 
-        {/* Search & Filter Interface */}
-        <Card className="p-3 md:p-6 bg-white/60 backdrop-blur-3xl border-none shadow-premium-sm rounded-xl md:rounded-[3rem] group">
+        <Card variant="glass" className="p-2 sm:p-4 group border-white/[0.05]">
           <Input
-            placeholder="ค้นหา..."
+            placeholder="ค้นหาชื่อบัญชี, Channel ID หรือเจ้าของ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-5 h-5 md:w-6 md:h-6 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />}
-            className="bg-transparent border-none shadow-none text-sm md:text-xl font-black uppercase tracking-tight placeholder:text-slate-300 placeholder:font-bold h-10 md:h-12"
+            leftIcon={<Search className="w-5 h-5 sm:w-6 sm:h-6 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />}
+            className="bg-transparent border-none shadow-none text-sm sm:text-lg font-black uppercase tracking-tight placeholder:text-slate-600 placeholder:font-bold h-10 sm:h-14 text-white"
           />
         </Card>
 
-        {/* Desktop Table View */}
-        <Card className="hidden lg:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
-          <div className="overflow-x-auto">
+        <Card className="hidden lg:block overflow-hidden" variant="glass" padding="none">
+          <div className="table-responsive">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">บัญชี / ช่องทาง</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ผู้ดูแลรับผิดชอบ</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">ตัวชี้วัดประสิทธิภาพ</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">สถานะระบบ</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">การจัดการ</th>
+                <tr className="border-b border-white/[0.05] bg-white/[0.02]">
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">บัญชี / ช่องทาง</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">ผู้ดูแลรับผิดชอบ</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">ตัวชี้วัดประสิทธิภาพ</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">สถานะระบบ</th>
+                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-right">การจัดการ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-white/[0.02]">
                 {isLoading ? (
                   <tr>
                     <td colSpan={5} className="px-10 py-32">
@@ -369,18 +364,18 @@ export default function AdminLineAccountsPage() {
                       key={account._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="group hover:bg-white transition-all duration-300"
+                      className="group hover:bg-white/[0.02] transition-all duration-300"
                     >
-                      <td className="px-10 py-8">
+                      <td className="px-8 py-6">
                         <div className="flex items-center gap-6">
-                          <div className="w-16 h-16 rounded-[2rem] bg-slate-900 flex items-center justify-center text-white shadow-xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <Smartphone className="w-8 h-8" />
+                          <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center text-white shadow-xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Smartphone className="w-7 h-7" />
                           </div>
                           <div>
-                            <p className="font-black text-slate-900 leading-none mb-1.5 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg">{account.accountName}</p>
+                            <p className="font-black text-white leading-none mb-1.5 group-hover:text-emerald-400 transition-colors uppercase tracking-tight text-base">{account.accountName}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-xs font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">ID: {account.channelId}</p>
+                              <p className="text-[10px] font-mono font-bold text-slate-500 bg-white/[0.03] px-2 py-0.5 rounded-lg border border-white/5">ID: {account.channelId}</p>
                               <div className="flex gap-1">
                                 {account.settings?.enableBot && <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" title="BOT Active" />}
                                 {account.settings?.enableAi && <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" title="AI Active" />}
@@ -389,51 +384,51 @@ export default function AdminLineAccountsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-10 py-8">
+                      <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 shadow-inner group-hover:text-emerald-500 transition-colors">
+                          <div className="w-11 h-11 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center font-black text-slate-500 group-hover:text-emerald-400 transition-colors">
                             {(account.owner?.username || 'ADM')[0].toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-black text-slate-700 uppercase tracking-tight leading-none mb-1">{account.owner?.username || 'System Admin'}</p>
-                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{account.owner?.email || 'OFFICIAL'}</p>
+                            <p className="font-black text-white uppercase tracking-tight leading-none mb-1 text-sm">{account.owner?.username || 'System Admin'}</p>
+                            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">{account.owner?.email || 'OFFICIAL'}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-10 py-8">
-                        <div className="flex items-center justify-center gap-10">
-                          <div className="text-center group-hover:scale-110 transition-transform">
-                            <p className="text-lg font-black text-slate-900 tracking-tighter">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Messages</p>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center justify-center gap-8">
+                          <div className="text-center group-hover:scale-105 transition-transform">
+                            <p className="text-base font-black text-white tracking-tighter">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
+                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Messages</p>
                           </div>
-                          <div className="text-center group-hover:scale-110 transition-transform">
-                            <p className="text-lg font-black text-emerald-600 tracking-tighter">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Verified Slips</p>
+                          <div className="text-center group-hover:scale-105 transition-transform">
+                            <p className="text-base font-black text-emerald-400 tracking-tighter">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Verified</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-10 py-8">
+                      <td className="px-8 py-6">
                         <div className="flex flex-col items-center gap-2">
                           <div className="flex items-center gap-2.5">
-                            <div className={cn("w-3 h-3 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50 animate-pulse" : "bg-slate-300")} />
-                            <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-600" : "text-slate-400")}>
-                              {account.isActive ? 'เปิดสัญญาณ' : 'ปิดสัญญาณ'}
+                            <div className={cn("w-2.5 h-2.5 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/30 animate-pulse" : "bg-slate-700")} />
+                            <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-400" : "text-slate-600")}>
+                              {account.isActive ? 'Active' : 'Disabled'}
                             </span>
                           </div>
-                          <div className="flex gap-1.5 mt-1">
-                            <div className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Bot</div>
-                            <div className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-100 bg-indigo-50 text-indigo-600" : "border-slate-100 bg-slate-50 text-slate-300")}>AI</div>
-                            <div className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-100 bg-amber-50 text-amber-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Slip</div>
+                          <div className="flex gap-1 mt-1">
+                            <div className={cn("px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-white/5 bg-white/5 text-slate-600")}>Bot</div>
+                            <div className={cn("px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-400" : "border-white/5 bg-white/5 text-slate-600")}>AI</div>
+                            <div className={cn("px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-white/5 bg-white/5 text-slate-600")}>Slip</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-10 py-8 text-right">
-                        <div className="flex gap-2.5 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
-                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-slate-400 hover:text-slate-900" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }} title="ดูรายละเอียดคอนฟิก"><Eye className="w-5 h-5" /></IconButton>
-                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-emerald-500" onClick={() => openSettingsModal(account)} title="ตั้งค่าระบบขีดจำกัด"><Settings className="w-5 h-5" /></IconButton>
-                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-blue-500" onClick={() => openEditModal(account)} title="แก้ไขข้อมูลพื้นฐาน"><Edit className="w-5 h-5" /></IconButton>
-                          <IconButton variant="glass" size="md" className={cn("rounded-2xl h-12 w-12 transition-all", account.isActive ? "text-amber-500" : "text-emerald-500")} onClick={() => handleToggleActive(account)} title={account.isActive ? 'ปิดการเชื่อมต่อ' : 'เปิดการเชื่อมต่อ'}><Power className="w-5 h-5" /></IconButton>
-                          <IconButton variant="glass" size="md" className="rounded-2xl h-12 w-12 text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }} title="ถอนการติดตั้ง"><Trash2 className="w-5 h-5" /></IconButton>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                          <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-slate-500 hover:text-white hover:bg-white/5" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4" /></IconButton>
+                          <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-emerald-500 hover:bg-emerald-500/10" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
+                          <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-blue-400 hover:bg-blue-400/10" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></IconButton>
+                          <IconButton variant="ghost" size="sm" className={cn("rounded-xl h-10 w-10 transition-all", account.isActive ? "text-amber-500 hover:bg-amber-500/10" : "text-emerald-500 hover:bg-emerald-500/10")} onClick={() => handleToggleActive(account)}><Power className="w-4 h-4" /></IconButton>
+                          <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-rose-500 hover:bg-rose-500 hover:text-white" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></IconButton>
                         </div>
                       </td>
                     </motion.tr>
@@ -445,55 +440,55 @@ export default function AdminLineAccountsPage() {
         </Card>
 
         {/* Mobile Card View */}
-        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-6 pb-10">
+        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pb-10">
           {isLoading ? (
-            [1, 2, 3, 4].map(i => <Card key={i} className="h-64 animate-pulse bg-white/50 rounded-[2.5rem]"><div /></Card>)
+            [1, 2, 3, 4].map(i => <Card key={i} className="h-64 animate-pulse" variant="glass"><div /></Card>)
           ) : filteredAccounts.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center gap-6 opacity-30 py-20">
+            <div className="col-span-full flex flex-col items-center gap-6 opacity-30 py-20 text-white">
               <div className="text-5xl">🕳️</div>
               <p className="text-sm font-black uppercase tracking-widest">ไม่พบข้อมูลบัญชี</p>
             </div>
           ) : (
             filteredAccounts.map((account) => (
-              <Card key={account._id} variant="glass" className="p-8 relative overflow-hidden group rounded-[3rem] border-none shadow-premium-sm">
+              <Card key={account._id} variant="glass" className="p-6 sm:p-8 relative overflow-hidden group">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl">
-                      <Smartphone className="w-7 h-7" />
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-950 border border-white/10 flex items-center justify-center text-white shadow-xl">
+                      <Smartphone className="w-6 h-6 sm:w-7 sm:h-7" />
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-900 uppercase tracking-tight text-lg leading-none mb-1.5">{account.accountName}</h3>
-                      <p className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 w-fit">ID: {account.channelId}</p>
+                      <h3 className="font-black text-white uppercase tracking-tight text-base sm:text-lg leading-none mb-1.5">{account.accountName}</h3>
+                      <p className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 bg-white/[0.03] px-2 py-0.5 rounded-lg border border-white/5 w-fit">ID: {account.channelId}</p>
                     </div>
                   </div>
-                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-300")} />
+                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/30" : "bg-slate-700")} />
                 </div>
 
                 <div className="space-y-4 mb-8">
-                  <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-white/50">
+                  <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Messages</span>
-                      <p className="font-black text-slate-900 text-sm">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Messages</span>
+                      <p className="font-black text-white text-sm">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
                     </div>
-                    <div className="w-px h-6 bg-slate-200" />
+                    <div className="w-px h-6 bg-white/5" />
                     <div className="flex flex-col text-right">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Slips</span>
-                      <p className="font-black text-emerald-600 text-sm">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Verified</span>
+                      <p className="font-black text-emerald-400 text-sm">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Bot</div>
-                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-100 bg-indigo-50 text-indigo-600" : "border-slate-100 bg-slate-50 text-slate-300")}>AI</div>
-                    <div className={cn("px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-100 bg-amber-50 text-amber-600" : "border-slate-100 bg-slate-50 text-slate-300")}>Slip</div>
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-white/5 bg-white/5 text-slate-600")}>Bot</div>
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-400" : "border-white/5 bg-white/5 text-slate-600")}>AI</div>
+                    <div className={cn("px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-white/5 bg-white/5 text-slate-600")}>Slip</div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3 bg-slate-50/30 p-2 rounded-[2rem] border border-white/50">
-                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4" /></IconButton>
-                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl text-emerald-500" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
-                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl text-blue-500" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></IconButton>
-                  <IconButton variant="ghost" size="sm" className="flex-1 h-12 rounded-2xl text-rose-500" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></IconButton>
+                <div className="grid grid-cols-4 gap-2 bg-white/[0.03] p-2 rounded-2xl border border-white/5">
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4 text-slate-500" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-emerald-500 hover:bg-emerald-500/10" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-blue-400 hover:bg-blue-400/10" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-rose-500 hover:bg-rose-500/10" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></IconButton>
                 </div>
               </Card>
             ))

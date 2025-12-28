@@ -31,26 +31,26 @@ function BankLogo({ bank }: { bank: Bank }) {
   const [failed, setFailed] = useState(false);
   const logo = failed ? null : (bank.logoBase64 || bank.logoUrl || null);
   const initials = (bank.shortName || bank.code || bank.name || '').toString().slice(0, 2).toUpperCase();
-  const bg = bank.color ? `${bank.color}12` : undefined;
+  const bg = bank.color ? `${bank.color}20` : undefined;
 
   return (
     <div
-      className="relative w-16 h-16 md:w-20 md:h-20 rounded-[1.5rem] flex items-center justify-center overflow-hidden border border-white/40 shadow-premium-sm bg-white backdrop-blur-md group-hover:scale-110 transition-transform duration-500"
+      className="relative w-20 h-20 md:w-24 md:h-24 rounded-[2rem] flex items-center justify-center overflow-hidden border border-white/5 shadow-2xl bg-black/40 backdrop-blur-xl group-hover:scale-110 transition-all duration-700"
       style={bg ? { backgroundColor: bg } : undefined}
     >
       {logo ? (
         <img
           src={logo}
           alt={bank.name}
-          className="w-10 h-10 md:w-12 md:h-12 object-contain drop-shadow-md group-hover:drop-shadow-xl transition-all"
+          className="w-12 h-12 md:w-14 md:h-14 object-contain filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] group-hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all"
           onError={() => setFailed(true)}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-slate-50">
-          <span className="text-slate-300 font-black text-xl md:text-2xl tracking-tighter">{initials || '🏦'}</span>
+        <div className="w-full h-full flex items-center justify-center bg-white/[0.02]">
+          <span className="text-slate-500 font-black text-2xl md:text-3xl tracking-tighter uppercase">{initials || '🏦'}</span>
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );
 }
@@ -166,33 +166,23 @@ export default function BanksManagementPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-8 animate-fade max-w-[1600px] mx-auto pb-10">
-
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
-              Bank <span className="text-emerald-500">Identity</span>
+      <div className="section-gap animate-fade pb-10">
+        <div className="page-header relative z-10 flex-col md:flex-row items-start md:items-center">
+          <div className="space-y-1 sm:space-y-2">
+            <h1 className="page-title-responsive">
+              Bank <span className="text-emerald-400">Identity</span>
             </h1>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
-              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
-              Identity Management & Protocol Registry
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Financial Endpoint Management & Protocol Registry
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
-              className="bg-white/60 backdrop-blur-xl border-slate-100 shadow-premium-sm text-[10px] font-black uppercase tracking-widest h-14 px-8 hover:bg-emerald-50 hover:text-emerald-600 transition-all w-full sm:w-auto"
+              className="bg-white/[0.03] backdrop-blur-xl border-white/5 shadow-2xl text-[10px] font-black uppercase tracking-widest h-14 px-8 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all w-full md:w-auto rounded-2xl"
               onClick={handleSyncFromThunder}
               isLoading={isSyncing}
-              leftIcon={
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mr-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-              }
             >
               Sync Matrix
             </Button>
@@ -200,54 +190,54 @@ export default function BanksManagementPage() {
               size="lg"
               variant="primary"
               onClick={() => setShowCreateModal(true)}
-              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl w-full sm:w-auto"
+              className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl bg-emerald-500 hover:bg-emerald-400 w-full md:w-auto"
             >
-              + Deployment
+              Initialize Node
             </Button>
           </div>
         </div>
 
         {/* Quick Stats Node */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid-stats">
           <StatCard
-            title="Total Entities"
+            title="TOTAL_ENTITIES"
             value={stats.total}
-            icon={<span className="text-2xl">🏦</span>}
             color="indigo"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            variant="glass"
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="Active Layers"
+            title="ACTIVE_LAYERS"
             value={stats.active}
-            icon={<span className="text-2xl">🟢</span>}
             color="emerald"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            variant="glass"
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="Idle Profiles"
+            title="IDLE_PROFILES"
             value={stats.inactive}
-            icon={<span className="text-2xl">🔴</span>}
             color="rose"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            variant="glass"
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
         </div>
 
         {/* Filter & List Matrix */}
-        <div className="space-y-8">
-          <Card className="p-6 border-none shadow-premium bg-white/60 backdrop-blur-3xl rounded-[2.5rem] sticky top-8 z-20">
+        <div className="space-y-10">
+          <Card className="p-6 border border-white/5 shadow-2xl bg-black/40 backdrop-blur-3xl rounded-[2.5rem] sticky top-8 z-20">
             <div className="flex flex-col lg:flex-row items-center gap-6">
               <div className="relative flex-1 w-full group">
-                <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
                 <Input
-                  placeholder="Query Registry: Search by Name, Code, or Alias..."
+                  placeholder="QUERY_REGISTRY: Search by Name, Code, or Alias..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   containerClassName="!mb-0"
-                  className="pl-14 h-16 bg-white/50 border-white shadow-inner focus:bg-white rounded-[1.5rem] font-bold text-sm"
+                  className="pl-16 h-16 bg-white/[0.02] border-white/5 shadow-inner focus:bg-white/[0.05] rounded-2xl font-black text-sm uppercase tracking-widest text-white placeholder:text-slate-600"
                 />
               </div>
               <div className="flex items-center gap-4 w-full lg:w-auto">
@@ -255,30 +245,27 @@ export default function BanksManagementPage() {
                   variant="ghost"
                   size="sm"
                   onClick={handleInitDefaults}
-                  className="text-[10px] font-black text-slate-400 hover:text-emerald-600 hover:bg-emerald-50/50 uppercase tracking-[0.2em] px-6 h-12 rounded-xl"
+                  className="text-[10px] font-black text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 uppercase tracking-[0.2em] px-8 h-12 rounded-xl"
                 >
                   Factory Defaults
                 </Button>
-                <div className="h-10 w-[1px] bg-slate-200/50 hidden lg:block" />
-                <Badge className="bg-slate-900 text-white border-none px-6 py-3 font-black uppercase tracking-[0.2em] text-[10px] rounded-full shadow-emerald-500/10 shadow-lg">
-                  {filteredBanks.length} REGISTRIES
-                </Badge>
+                <div className="h-10 w-[1px] bg-white/5 hidden lg:block" />
+                <div className="px-6 py-3 bg-white/[0.03] border border-white/5 rounded-2xl">
+                  <span className="text-xl font-black text-emerald-400 tracking-tighter">{filteredBanks.length}</span>
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-3">Registries</span>
+                </div>
               </div>
             </div>
           </Card>
 
           {filteredBanks.length === 0 ? (
             <EmptyState
-              icon={
-                <div className="w-24 h-24 rounded-full bg-slate-100/50 flex items-center justify-center text-slate-300">
-                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-              }
-              title="NO IDENTITY FOUND"
+              icon="🏢"
+              title="NO_IDENTITY_FOUND"
               description={searchQuery ? `Registry query for "${searchQuery}" returned zero matches.` : "The protocol registry is currently empty."}
-              action={searchQuery ? <Button variant="outline" onClick={() => setSearchQuery('')} className="rounded-xl font-black uppercase tracking-widest text-[10px]">Clear Filter</Button> : null}
+              variant="glass"
+              className="py-24"
+              action={searchQuery ? <Button variant="ghost" onClick={() => setSearchQuery('')} className="rounded-xl font-black uppercase tracking-widest text-[10px] text-emerald-400 hover:bg-emerald-500/10">Wipe Query Cache</Button> : null}
             />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
@@ -286,47 +273,43 @@ export default function BanksManagementPage() {
                 <Card
                   key={bank._id}
                   className={cn(
-                    "group relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border-none bg-white p-6 flex flex-col items-center rounded-[2.5rem]",
-                    !bank.isActive && "opacity-60 grayscale scale-95 hover:scale-100 hover:grayscale-0"
+                    "group relative overflow-hidden transition-all duration-700 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:-translate-y-3 border border-white/5 bg-white/[0.01] p-8 flex flex-col items-center rounded-[3rem]",
+                    !bank.isActive && "opacity-40 grayscale hover:opacity-100 hover:grayscale-0"
                   )}
                   padding="none"
                 >
-                  {/* Neural Background Decor */}
-                  <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
 
-                  {/* Bank Identity Node */}
-                  <div className="relative mb-6">
+                  <div className="relative mb-8">
                     <BankLogo bank={bank} />
                     <div className={cn(
-                      "absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm transition-colors",
-                      bank.isActive ? "bg-emerald-500" : "bg-slate-300"
+                      "absolute top-2 right-2 w-4 h-4 rounded-full border-2 border-black transition-all duration-500",
+                      bank.isActive ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)] animate-pulse" : "bg-slate-700"
                     )} />
                   </div>
 
-                  {/* Identity Label */}
-                  <div className="text-center space-y-1 mb-8 w-full px-2">
-                    <h3 className="text-[12px] font-black text-slate-900 uppercase tracking-widest truncate">
+                  <div className="text-center space-y-2 mb-10 w-full px-2">
+                    <h3 className="text-[13px] font-black text-white uppercase tracking-tighter truncate group-hover:text-emerald-400 transition-colors">
                       {bank.shortName || bank.code}
                     </h3>
-                    <p className="text-[10px] font-bold text-slate-400 truncate opacity-70">
-                      {bank.nameTh || bank.name}
+                    <p className="text-[10px] font-black text-slate-500 truncate uppercase tracking-widest opacity-60">
+                      {bank.nameEn || bank.name}
                     </p>
-                    <div className="pt-2">
-                      <span className="text-[9px] font-black text-indigo-500 bg-indigo-50/50 px-2 py-0.5 rounded-lg tracking-widest border border-indigo-100/50">
+                    <div className="pt-3">
+                      <span className="text-[9px] font-mono font-black text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg tracking-widest border border-indigo-500/20">
                         {bank.code}
                       </span>
                     </div>
                   </div>
 
-                  {/* Operational Matrix */}
-                  <div className="w-full space-y-3">
-                    <div className="flex gap-2">
+                  <div className="w-full space-y-4">
+                    <div className="flex gap-3">
                       <Button
                         variant="ghost"
                         size="xs"
                         fullWidth
                         onClick={() => setEditingBank(bank)}
-                        className="h-10 rounded-xl font-black uppercase tracking-widest text-[9px] text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all"
+                        className="h-11 rounded-xl font-black uppercase tracking-widest text-[9px] text-slate-400 hover:text-white hover:bg-white/5 border border-white/5 transition-all"
                       >
                         Modify
                       </Button>
@@ -336,8 +319,8 @@ export default function BanksManagementPage() {
                         fullWidth
                         onClick={() => handleToggleActive(bank)}
                         className={cn(
-                          "h-10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all",
-                          bank.isActive ? "text-rose-500 border-rose-100 hover:bg-rose-50" : "shadow-emerald-500/10 shadow-lg"
+                          "h-11 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all",
+                          bank.isActive ? "text-rose-400 border-rose-500/20 hover:bg-rose-500/10" : "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20 shadow-lg text-white"
                         )}
                       >
                         {bank.isActive ? 'Suspend' : 'Resume'}
@@ -348,10 +331,10 @@ export default function BanksManagementPage() {
                       variant="ghost"
                       size="xs"
                       fullWidth
-                      className="h-10 rounded-xl font-black uppercase tracking-widest text-[8px] text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 group/preview"
+                      className="h-11 rounded-xl font-black uppercase tracking-widest text-[9px] text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/5 group/preview border border-transparent hover:border-indigo-500/20"
                       onClick={() => router.push(`/admin/templates?bankId=${bank._id}`)}
                     >
-                      <span className="group-hover/preview:scale-110 transition-transform">Preview Simulator</span>
+                      <span className="group-hover/preview:tracking-[0.2em] transition-all">Simulation Matrix</span>
                     </Button>
                   </div>
                 </Card>

@@ -44,13 +44,22 @@ export default function UserHistoryPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto animate-fade">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">ประวัติการใช้งาน</h1>
-            <p className="text-xs md:text-sm text-slate-500 font-medium">บันทึกการทำรายการที่เกี่ยวข้องกับบัญชีของคุณ</p>
+        <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              Operational <span className="text-emerald-400">Ledger</span>
+            </h1>
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Chronological Audit of Neural & Financial Transactions
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchLogs} className="w-full sm:w-auto">
-            รีเฟรช
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={fetchLogs}
+            className="w-full sm:w-auto h-11 sm:h-14 px-8 rounded-2xl bg-white/[0.03] border border-white/5 text-slate-500 hover:text-white hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]"
+          >
+            Refresh Ledger
           </Button>
         </div>
 
@@ -75,28 +84,28 @@ export default function UserHistoryPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <Card className="hidden md:block p-0 overflow-hidden rounded-[2.5rem]" variant="glass">
+            <Card className="hidden md:block p-0 overflow-hidden rounded-[2.5rem] border border-white/5" variant="glass">
               <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/50 border-b border-slate-100">
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">เวลา</th>
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Action</th>
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">รายละเอียด</th>
+                    <tr className="bg-white/[0.02] border-b border-white/5">
+                      <th className="px-8 py-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Timestamp</th>
+                      <th className="px-8 py-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Protocol Action</th>
+                      <th className="px-8 py-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Ledger Details</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-white/5">
                     {logs.map((log) => (
-                      <tr key={log._id} className="hover:bg-white/60 transition-colors group">
-                        <td className="px-8 py-5 text-sm text-slate-600 font-bold font-mono">
+                      <tr key={log._id} className="hover:bg-white/[0.02] transition-colors group">
+                        <td className="px-8 py-6 text-sm text-slate-400 font-bold font-mono">
                           {new Date(log.createdAt).toLocaleString('th-TH')}
                         </td>
-                        <td className="px-8 py-5">
-                          <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-wide border border-slate-200">
+                        <td className="px-8 py-6">
+                          <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl uppercase tracking-widest border border-emerald-500/10 shadow-emerald-500/5 shadow-lg">
                             {log.action}
                           </span>
                         </td>
-                        <td className="px-8 py-5 text-sm text-slate-600 font-medium">
+                        <td className="px-8 py-6 text-sm text-slate-500 font-black tracking-tight uppercase">
                           {log.message || '-'}
                         </td>
                       </tr>
@@ -107,14 +116,14 @@ export default function UserHistoryPage() {
             </Card>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-4">
               {logs.map((log) => (
-                <Card key={log._id} variant="glass" className="p-5 border-none shadow-sm">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-wider border border-emerald-100">
+                <Card key={log._id} variant="glass" className="p-8 border border-white/5 shadow-2xl rounded-[2rem]">
+                  <div className="flex items-start justify-between gap-3 mb-6">
+                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl uppercase tracking-widest border border-emerald-500/10">
                       {log.action}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono font-bold whitespace-nowrap">
+                    <span className="text-[10px] text-slate-500 font-mono font-black uppercase whitespace-nowrap pt-1">
                       {new Date(log.createdAt).toLocaleString('th-TH', {
                         day: 'numeric',
                         month: 'short',
@@ -123,8 +132,8 @@ export default function UserHistoryPage() {
                       })}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                    {log.message || 'ไม่มีรายละเอียด'}
+                  <p className="text-xs text-slate-400 leading-relaxed font-black uppercase tracking-tight">
+                    {log.message || 'NO_DETAILS_RECORDED'}
                   </p>
                 </Card>
               ))}

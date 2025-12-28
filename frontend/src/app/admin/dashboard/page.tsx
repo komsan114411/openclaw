@@ -118,43 +118,40 @@ export default function AdminDashboard() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 md:space-y-8 lg:space-y-10 animate-fade max-w-[1600px] mx-auto pb-6 md:pb-10">
+      <div className="section-gap animate-fade pb-10">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative z-10">
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-white tracking-tight leading-tight uppercase">
+        <div className="page-header relative z-10">
+          <div className="space-y-1 sm:space-y-2">
+            <h1 className="page-title-responsive">
               ศูนย์<span className="text-emerald-400">ควบคุม</span>
             </h1>
-            <p className="text-slate-400 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
               ยินดีต้อนรับกลับ, <span className="text-white">ผู้ดูแลระบบ</span> 👋
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
               onClick={() => { fetchStats(); fetchThunderQuota(); }}
-              className="group border-white/10 bg-white/5 backdrop-blur-xl hover:bg-white/10 hover:border-emerald-500/30 text-slate-300 hover:text-emerald-400 rounded-xl md:rounded-2xl h-12 md:h-14 px-4 md:px-8 font-black uppercase tracking-widest text-[10px] md:text-xs transition-all duration-300"
+              className="group border-white/[0.05] bg-white/[0.02] backdrop-blur-xl hover:bg-white/[0.05] hover:border-emerald-500/20 text-slate-400 hover:text-emerald-400 rounded-2xl h-11 sm:h-14 px-4 sm:px-8 font-black uppercase tracking-widest text-[9px] sm:text-xs transition-all duration-300"
               isLoading={isLoading || isLoadingQuota}
             >
-              <svg className="w-4 h-4 md:w-5 md:h-5 mr-2 md:mr-3 text-slate-500 group-hover:text-emerald-400 group-hover:rotate-180 transition-all duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-slate-500 group-hover:text-emerald-400 group-hover:rotate-180 transition-all duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              <span className="hidden sm:inline">รีเฟรชข้อมูล</span>
-              <span className="sm:hidden">รีเฟรช</span>
+              รีเฟรชข้อมูล
             </Button>
             <Link href="/admin/settings" className="flex-1 sm:flex-none">
-              <Button size="lg" variant="primary" className="w-full h-12 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/30 shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all duration-300">
-                <span className="hidden sm:inline">ตั้งค่าระบบ</span>
-                <span className="sm:hidden">ตั้งค่า</span>
+              <Button size="lg" variant="primary" className="w-full h-11 sm:h-14 px-4 sm:px-8 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                ตั้งค่าระบบ
               </Button>
             </Link>
           </div>
         </div>
 
         {/* 1. Key Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+        <div className="grid-stats">
           <StatCard
             title="ผู้ใช้ทั้งหมด"
             value={stats?.totalUsers || 0}
@@ -218,16 +215,16 @@ export default function AdminDashboard() {
               <div className="absolute bottom-0 left-0 w-[200px] md:w-[400px] h-[200px] md:h-[400px] bg-blue-600/20 rounded-full blur-[60px] md:blur-[100px] -ml-16 md:-ml-32 -mb-16 md:-mb-32 animate-pulse duration-[7s]" />
 
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-10">
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-xl border border-white/10 group-hover:scale-110 transition-transform duration-500 flex-shrink-0">
-                      <svg className="w-5 h-5 md:w-8 md:h-8 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 md:mb-12">
+                  <div className="flex items-center gap-4 md:gap-6">
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white/[0.05] flex items-center justify-center backdrop-blur-xl border border-white/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 flex-shrink-0">
+                      <svg className="w-6 h-6 md:w-10 md:h-10 text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-lg md:text-2xl font-black text-white tracking-tight uppercase">โควต้า Thunder API</h2>
-                      <p className="text-slate-400 font-bold text-xs md:text-sm tracking-widest uppercase opacity-75">บริการตรวจสลิป</p>
+                      <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">Thunder API</h2>
+                      <p className="text-slate-400 font-bold text-[9px] md:text-xs tracking-[0.3em] uppercase opacity-40 mt-1 md:mt-2 text-gradient">Verification Layer Matrix</p>
                     </div>
                   </div>
                   <IconButton
@@ -338,43 +335,42 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          {/* Pending Payments Feed */}
-          <div className="xl:col-span-4 h-full">
-            <Card className="h-full flex flex-col p-8 border-slate-100">
-              <div className="flex items-center justify-between mb-8">
+          <div className="xl:col-span-4 flex flex-col gap-6 md:gap-8 lg:gap-10">
+            <Card className="h-full flex flex-col p-6 sm:p-8" variant="white">
+              <div className="flex items-center justify-between mb-6 md:mb-8">
                 <div className="space-y-1">
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">กิจกรรมล่าสุด</h2>
-                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest leading-none">รอการอนุมัติ</p>
+                  <h2 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none uppercase">กิจกรรมล่าสุด</h2>
+                  <p className="text-emerald-400/40 font-black text-[9px] uppercase tracking-[0.2em] leading-none mt-1">Pending Protocols</p>
                 </div>
                 <Link href="/admin/payments">
-                  <Button variant="ghost" size="sm" className="text-emerald-600 font-bold hover:bg-emerald-50">
-                    ดูทั้งหมด
+                  <Button variant="ghost" size="sm" className="text-emerald-400 font-black tracking-widest text-[9px] uppercase hover:bg-emerald-500/10">
+                    View All
                   </Button>
                 </Link>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto no-scrollbar">
+              <div className="flex-1 space-y-3 sm:space-y-4 overflow-y-auto no-scrollbar">
                 {recentPayments.length > 0 ? (
                   recentPayments.map((payment) => (
-                    <div key={payment._id} className="group p-5 bg-slate-50 rounded-3xl border border-slate-100/50 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 hover:border-emerald-200 transition-all duration-300">
-                      <div className="flex items-center justify-between mb-3">
+                    <div key={payment._id} className="group p-4 sm:p-5 bg-white/[0.02] rounded-3xl border border-white/[0.05] hover:bg-white/[0.05] hover:shadow-2xl hover:shadow-black/20 hover:border-emerald-500/20 transition-all duration-300">
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">
+                          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-white/[0.05] flex items-center justify-center text-lg sm:text-xl shadow-inner">
                             {payment.paymentType === 'bank_transfer' ? '🏦' : '💎'}
                           </div>
                           <div>
-                            <p className="text-lg font-black text-slate-900 leading-none mb-1">฿{payment.amount?.toLocaleString()}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{payment.paymentType === 'bank_transfer' ? 'โอนธนาคาร' : 'USDT / คริปโต'}</p>
+                            <p className="text-base sm:text-xl font-black text-white leading-none mb-1">฿{payment.amount?.toLocaleString()}</p>
+                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em]">{payment.paymentType === 'bank_transfer' ? 'Bank Transfer' : 'Crypto / USDT'}</p>
                           </div>
                         </div>
-                        <StatusBadge status="pending" className="px-3" />
+                        <StatusBadge status="pending" className="px-3 text-[8px] sm:text-[9px] h-6" />
                       </div>
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-200/50">
-                        <p className="text-xs font-bold text-slate-500">{formatDate(payment.createdAt)}</p>
+                      <div className="flex items-center justify-between pt-3 border-t border-white/[0.05]">
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-500">{formatDate(payment.createdAt)}</p>
                         <Link href={`/admin/payments?id=${payment._id}`}>
-                          <IconButton variant="ghost" size="sm" className="group-hover:text-emerald-600">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          <IconButton variant="ghost" size="sm" className="text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                             </svg>
                           </IconButton>
                         </Link>
@@ -382,13 +378,13 @@ export default function AdminDashboard() {
                     </div>
                   ))
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center py-10 opacity-40">
-                    <div className="w-20 h-20 rounded-[2rem] bg-slate-100 flex items-center justify-center mb-4">
-                      <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex-1 flex flex-col items-center justify-center py-10 opacity-30">
+                    <div className="w-16 h-16 rounded-[1.5rem] bg-white/[0.02] flex items-center justify-center mb-4">
+                      <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                       </svg>
                     </div>
-                    <p className="font-bold text-slate-500 uppercase tracking-widest text-xs">ไม่มีรายการรอดำเนินการ</p>
+                    <p className="font-black text-slate-500 uppercase tracking-widest text-[9px]">No pending protocols</p>
                   </div>
                 )}
               </div>
@@ -396,49 +392,48 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* 3. Bottom Row: Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           <ActionTile
             title="จัดการผู้ใช้"
-            desc="ผู้ใช้ & สิทธิ์"
+            desc="Protocols"
             href="/admin/users"
             icon="👥"
             color="blue"
           />
           <ActionTile
             title="บัญชี LINE"
-            desc="เชื่อมต่อบัญชี"
+            desc="Channels"
             href="/admin/line-accounts"
             icon="🟢"
             color="emerald"
           />
           <ActionTile
             title="ธนาคาร"
-            desc="ธนาคาร & รูปภาพ"
+            desc="Assets"
             href="/admin/banks"
             icon="🏦"
             color="indigo"
           />
           <div className="group relative">
-            <Card className="h-full border-none bg-slate-50/50 hover:bg-white hover:shadow-xl hover:shadow-slate-200 transition-all duration-300 p-6 flex items-center justify-between overflow-hidden">
+            <Card className="h-full bg-white/[0.02] hover:bg-white/[0.05] transition-all duration-300 p-4 sm:p-6 flex items-center justify-between overflow-hidden" variant="white">
               <div className="absolute top-0 right-0 p-12 bg-rose-500/5 rounded-full blur-[40px] -mr-8 -mt-8" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-xl shadow-sm">
+              <div className="flex items-center gap-3 sm:gap-4 relative z-10">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center text-lg shadow-sm">
                   🗑️
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 leading-tight">ล้างระบบ</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ลบ Session หมดอายุ</p>
+                  <h3 className="font-black text-white text-sm sm:text-base leading-tight uppercase tracking-tight">ล้างระบบ</h3>
+                  <p className="text-[8px] sm:text-[10px] font-black text-rose-500/40 uppercase tracking-widest mt-1">Maintenance</p>
                 </div>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-rose-600 font-bold hover:bg-rose-50 relative z-10 h-10 w-20"
+                className="text-white hover:text-rose-400 font-black text-[9px] uppercase tracking-widest hover:bg-rose-500/10 relative z-10 px-2 sm:px-4"
                 onClick={runCleanupSessions}
                 isLoading={isRunningMaintenance === 'sessions'}
               >
-                ดำเนินการ
+                Launch
               </Button>
             </Card>
           </div>
@@ -458,15 +453,15 @@ function ActionTile({ title, desc, href, icon, color }: { title: string, desc: s
   return (
     <Link href={href} className="group">
       <Card className={cn(
-        "h-full border-none transition-all duration-300 p-6 flex items-center gap-4 hover:shadow-xl hover:-translate-y-1",
+        "h-full transition-all duration-300 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 hover:-translate-y-1",
         colorClasses[color]
-      )}>
-        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-[inset_0_0_20px_rgba(255,255,255,0.5)] bg-white")}>
+      )} variant="white">
+        <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-xl sm:text-2xl shadow-inner bg-white/5 border border-white/10")}>
           {icon}
         </div>
         <div>
-          <h3 className="font-black text-slate-900 leading-tight">{title}</h3>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">{desc}</p>
+          <h3 className="font-black text-white text-sm sm:text-lg leading-tight uppercase tracking-tight">{title}</h3>
+          <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-60 leading-none">{desc}</p>
         </div>
       </Card>
     </Link>

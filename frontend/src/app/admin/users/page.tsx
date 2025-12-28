@@ -187,51 +187,49 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 md:space-y-12 animate-fade max-w-[1700px] mx-auto pb-20">
+      <div className="section-gap animate-fade pb-20">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-white tracking-tight leading-tight uppercase">
-              จัดการ<span className="text-emerald-400">ผู้ใช้งาน</span>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              User <span className="text-emerald-400">Registry</span>
             </h1>
-            <p className="text-slate-400 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
               ศูนย์ควบคุมสิทธิ์การเข้าถึงและ <span className="text-white">บัญชีผู้ใช้ระบบ</span>
             </p>
           </div>
           <Button
             variant="primary"
-            className="w-full md:w-auto h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
+            className="w-full lg:w-auto h-12 sm:h-14 px-8 sm:px-12 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-emerald-500/20 shadow-2xl mt-4 lg:mt-0"
             onClick={() => setShowCreateModal(true)}
           >
-            + <span className="hidden sm:inline">สร้างบัญชีผู้ใช้ใหม่</span><span className="sm:hidden">สร้างใหม่</span>
+            + <span className="hidden sm:inline">Provision User Account</span><span className="sm:hidden">Create Account</span>
           </Button>
         </div>
 
-        {/* Aggregated Statistics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-8">
-          <StatCard title="ผู้ใช้ทั้งหมด" value={users.length} icon="👥" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ผู้ดูแลระบบ" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
-          <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm" />
+        <div className="grid-stats">
+          <StatCard title="Total Registry" value={users.length} icon="👥" color="indigo" variant="glass" />
+          <StatCard title="Administrative" value={users.filter(u => u.role === 'admin' && !u.isBlocked).length} icon="🛡️" color="violet" variant="glass" />
+          <StatCard title="Standard Users" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
+          <StatCard title="Blacklisted" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
         </div>
 
         {/* User Registry Table & Mobile Cards */}
         <div className="space-y-6">
           {/* Desktop Table */}
-          <Card className="hidden lg:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem]">
-            <div className="overflow-x-auto">
+          <Card className="hidden lg:block overflow-hidden" variant="glass" padding="none">
+            <div className="table-responsive">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50">
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ชื่อผู้ใช้ / โปรไฟล์</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">การติดต่อ</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">บทบาท</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">สถานะระบบ</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">การจัดการ</th>
+                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Identity Matrix</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Contact Vector</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Protocol Level</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">System Status</th>
+                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-right">Operations</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-white/[0.02]">
                   {isLoading ? (
                     <tr>
                       <td colSpan={5} className="px-10 py-32">
@@ -253,30 +251,28 @@ export default function UsersPage() {
                         key={user._id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="group hover:bg-white transition-all duration-300"
+                        className="group hover:bg-white/[0.01] transition-all duration-300"
                       >
                         <td className="px-10 py-8">
                           <div className="flex items-center gap-6">
                             <div className={cn(
-                              "w-16 h-16 rounded-[2rem] flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform duration-500",
-                              user.role === 'admin' ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600"
+                              "w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 group-hover:text-emerald-400 transition-all duration-500 bg-slate-900 border border-white/5",
+                              user.role === 'admin' ? "text-violet-400" : "text-emerald-400"
                             )}>
                               {user.username[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-black text-slate-900 leading-none mb-1.5 group-hover:text-emerald-600 transition-colors uppercase tracking-tight text-lg">{user.username}</p>
-                              <p className="text-xs text-slate-400 font-bold tracking-widest uppercase opacity-70">{user.fullName || 'Unidentified Personnel'}</p>
+                              <p className="font-black text-white leading-none mb-1.5 group-hover:text-emerald-400 transition-colors uppercase tracking-tight text-lg">{user.username}</p>
+                              <p className="text-[10px] text-slate-600 font-bold tracking-widest uppercase opacity-70">{user.fullName || 'Unidentified Personnel'}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-10 py-8">
-                          <p className="font-mono text-xs font-black text-slate-500 lowercase opacity-60 mb-1">{user.email || 'no-email@system.com'}</p>
-                          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">การเชื่อมต่อ: เสถียร</p>
-                        </td>
+                        <p className="font-mono text-xs font-black text-slate-500 lowercase mb-1">{user.email || 'no-email@system.com'}</p>
+                        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Matrix Connectivity: Optimized</p>
                         <td className="px-10 py-8">
                           <Badge
-                            variant={user.role === 'admin' ? 'indigo' : 'emerald'}
-                            className="font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl text-[10px]"
+                            variant={user.role === 'admin' ? 'purple' : 'emerald'}
+                            className="font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl text-[9px] shadow-lg"
                           >
                             {user.role}
                           </Badge>
@@ -284,55 +280,55 @@ export default function UsersPage() {
                         <td className="px-10 py-8">
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2.5">
-                              <div className={cn("w-3 h-3 rounded-full shadow-lg", user.isActive ? "bg-emerald-500 shadow-emerald-500/50 animate-pulse" : "bg-slate-300")} />
-                              <span className={cn("text-[11px] font-black uppercase tracking-[0.15em]", user.isActive ? "text-emerald-600" : "text-slate-400")}>
-                                {user.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                              <div className={cn("w-2 h-2 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]", user.isActive ? "bg-emerald-500 animate-pulse" : "bg-white/10")} />
+                              <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", user.isActive ? "text-emerald-400" : "text-white/20")}>
+                                {user.isActive ? 'Network Active' : 'System Offline'}
                               </span>
                             </div>
                             {user.isBlocked && (
-                              <div className="flex items-center gap-1.5 text-rose-500">
-                                <span className="text-[9px] font-black uppercase tracking-widest bg-rose-50 px-2 py-0.5 rounded-md">ถูกระงับชั่วคราว</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/10">Blacklisted</span>
                               </div>
                             )}
                           </div>
                         </td>
                         <td className="px-10 py-8 text-right">
-                          <div className="flex gap-2.5 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                          <div className="flex gap-2.5 justify-end lg:opacity-0 group-hover:opacity-100 transition-all duration-300 lg:translate-x-4 group-hover:translate-x-0">
                             <IconButton
-                              variant="glass"
+                              variant="ghost"
                               size="md"
-                              className={cn("rounded-2xl transition-all h-12 w-12", user.isBlocked ? "text-emerald-500" : "text-amber-500")}
+                              className={cn("rounded-xl transition-all h-10 w-10 bg-white/5 border border-white/5", user.isBlocked ? "text-emerald-400" : "text-amber-400")}
                               onClick={() => handleBlockToggle(user)}
                               title={user.isBlocked ? 'ปลดบล็อค' : 'ระงับการใช้งาน'}
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                             </IconButton>
                             <IconButton
-                              variant="glass"
+                              variant="ghost"
                               size="md"
-                              className="rounded-2xl text-indigo-500 h-12 w-12"
+                              className="rounded-xl text-violet-400 bg-white/5 border border-white/5 h-10 w-10"
                               onClick={() => openGrantModal(user)}
                               title="ให้สิทธิแพ็คเกจ"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </IconButton>
                             <IconButton
-                              variant="glass"
+                              variant="ghost"
                               size="md"
-                              className="rounded-2xl text-blue-500 h-12 w-12"
+                              className="rounded-xl text-blue-400 bg-white/5 border border-white/5 h-10 w-10"
                               onClick={() => openEditModal(user)}
                               title="แก้ไขข้อมูลโปรไฟล์"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                             </IconButton>
                             <IconButton
-                              variant="glass"
+                              variant="ghost"
                               size="md"
-                              className="rounded-2xl text-rose-500 hover:bg-rose-500 hover:text-white h-12 w-12"
+                              className="rounded-xl text-rose-400 bg-white/5 border border-white/5 hover:bg-rose-500 hover:text-white h-10 w-10"
                               onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
                               title="ลบข้อมูลถาวร"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </IconButton>
                           </div>
                         </td>
@@ -347,51 +343,54 @@ export default function UsersPage() {
           {/* Mobile Card Layout (Visible on lg and below) */}
           <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
             {isLoading ? (
-              [1, 2, 3, 4].map(i => <Card key={i} className="h-64 animate-pulse bg-white/50 rounded-[2.5rem]"><div /></Card>)
+              <div className="col-span-full py-20">
+                <PageLoading transparent />
+              </div>
             ) : users.length === 0 ? (
-              <div className="col-span-full py-20 text-center opacity-30">
-                <p className="font-black uppercase tracking-widest text-sm">ไม่พบข้อมูลผู้ใช้</p>
+              <div className="col-span-full flex flex-col items-center justify-center opacity-30 py-20">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl mb-4">👥</div>
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white">No Users Found</p>
               </div>
             ) : (
               users.map((user) => (
-                <Card key={user._id} variant="glass" className="p-8 relative overflow-hidden group rounded-[3rem] border-none shadow-premium-sm">
-                  <div className="flex items-center gap-4 mb-5">
+                <Card key={user._id} variant="glass" className="p-8 relative overflow-hidden group rounded-[2.5rem]">
+                  <div className="flex items-center gap-4 mb-6">
                     <div className={cn(
-                      "w-16 h-16 rounded-[1.5rem] flex items-center justify-center font-black text-xl shadow-inner",
-                      user.role === 'admin' ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600"
+                      "w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner bg-slate-900 border border-white/5",
+                      user.role === 'admin' ? "text-violet-400" : "text-emerald-400"
                     )}>
                       {user.username[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-slate-900 truncate uppercase tracking-tight text-lg">{user.username}</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{user.fullName || 'No Name'}</p>
+                      <h3 className="font-black text-white truncate uppercase tracking-tight text-lg leading-none mb-1">{user.username}</h3>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate leading-none">{user.fullName || 'No Identified Name'}</p>
                     </div>
                     <Badge
-                      variant={user.role === 'admin' ? 'indigo' : 'emerald'}
-                      className="font-black uppercase tracking-widest text-[9px] px-3 py-1"
+                      variant={user.role === 'admin' ? 'purple' : 'emerald'}
+                      className="font-black uppercase tracking-widest text-[8px] px-3 py-1 shadow-lg"
                     >
                       {user.role}
                     </Badge>
                   </div>
 
                   <div className="space-y-4 mb-8">
-                    <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-2xl border border-white/50">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">สถานะ</span>
+                    <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">System Connectivity</span>
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-2 h-2 rounded-full", user.isActive ? "bg-emerald-500" : "bg-slate-300")} />
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest", user.isActive ? "text-emerald-600" : "text-slate-400")}>
-                          {user.isActive ? 'Active' : 'Inactive'}
+                        <div className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-white/10")} />
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", user.isActive ? "text-emerald-400" : "text-slate-600")}>
+                          {user.isActive ? 'Active' : 'Offline'}
                         </span>
                       </div>
                     </div>
-                    <p className="text-xs font-mono text-slate-400 truncate px-2">{user.email || '—'}</p>
+                    <p className="text-[10px] font-mono text-slate-600 truncate px-2 text-center">{user.email || '—'}</p>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3 bg-slate-50/30 p-2 rounded-[2rem] border border-white/50">
-                    <IconButton variant="glass" size="sm" onClick={() => handleBlockToggle(user)} className={cn("flex-1 h-12 rounded-2xl", user.isBlocked ? "text-emerald-500" : "text-amber-500")}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
-                    <IconButton variant="glass" size="sm" onClick={() => openGrantModal(user)} className="flex-1 h-12 rounded-2xl text-indigo-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
-                    <IconButton variant="glass" size="sm" onClick={() => openEditModal(user)} className="flex-1 h-12 rounded-2xl text-blue-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
-                    <IconButton variant="glass" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="flex-1 h-12 rounded-2xl text-rose-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
+                  <div className="grid grid-cols-4 gap-2 bg-white/[0.02] p-2 rounded-2xl border border-white/5">
+                    <IconButton variant="ghost" size="sm" onClick={() => handleBlockToggle(user)} className={cn("flex-1 h-12 rounded-xl transition-colors", user.isBlocked ? "text-emerald-400 bg-white/5" : "text-amber-400 bg-white/5")}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => openGrantModal(user)} className="flex-1 h-12 rounded-xl text-violet-400 bg-white/5 hover:bg-violet-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => openEditModal(user)} className="flex-1 h-12 rounded-xl text-blue-400 bg-white/5 hover:bg-blue-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="flex-1 h-12 rounded-xl text-rose-400 bg-white/5 hover:bg-rose-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
                   </div>
                 </Card>
               ))
@@ -404,51 +403,57 @@ export default function UsersPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => !isProcessing && setShowCreateModal(false)}
-        title="สร้างบัญชีผู้ใช้ใหม่"
+        title="PROVISION NETWORK IDENTITY"
+        subtitle="Initialize new authenticated operative in the system registry"
         size="md"
       >
         <div className="space-y-6 pt-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <Input
-              label="ชื่อผู้ใช้"
-              placeholder="username"
+              label="Operative Username"
+              placeholder="e.g. ALPHA_USER"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             />
             <Input
               type="password"
-              label="รหัสผ่าน"
+              label="Access Password"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             />
           </div>
 
           <Input
-            label="อีเมล"
+            label="Communication Vector (Email)"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             placeholder="node@network.com"
+            className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
 
           <Input
-            label="ชื่อ-นามสกุล"
+            label="Designated Full Identity"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             placeholder="John Doe"
+            className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-end">
             <Select
-              label="สิทธิ์การใช้งาน"
+              label="Protocol Clearance"
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             >
-              <option value="user">ผู้ใช้ทั่วไป</option>
-              <option value="admin">ผู้ดูแลระบบ</option>
+              <option value="user" className="bg-slate-900">Standard Operative</option>
+              <option value="admin" className="bg-slate-900">High Administrator</option>
             </Select>
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">บังคับเปลี่ยนรหัสผ่าน</span>
+            <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5 flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Rotate Password</span>
               <Switch
                 checked={formData.forcePasswordChange}
                 onChange={(checked) => setFormData({ ...formData, forcePasswordChange: checked })}
@@ -456,15 +461,15 @@ export default function UsersPage() {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+          <div className="flex gap-4 pt-8">
+            <Button variant="ghost" className="flex-1 font-black text-[10px] uppercase tracking-widest h-12 rounded-xl" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>Abort</Button>
             <Button
               variant="primary"
-              className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium"
+              className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium h-12 rounded-xl text-[10px]"
               onClick={handleCreateUser}
               isLoading={isProcessing}
             >
-              ยืนยันการสร้าง
+              Initialize Provisioning
             </Button>
           </div>
         </div>
@@ -474,31 +479,35 @@ export default function UsersPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => !isProcessing && setShowEditModal(false)}
-        title={`แก้ไขข้อมูล: ${selectedUser?.username}`}
+        title={`${selectedUser?.username}`}
+        subtitle="Modify existing identity metadata and clearance levels"
         size="md"
       >
         <div className="space-y-6 pt-2">
           <Input
-            label="อีเมล"
+            label="Operative Email"
             value={editFormData.email}
             onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+            className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
           <Input
-            label="ชื่อ-นามสกุล"
+            label="Operative Full Name"
             value={editFormData.fullName}
             onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+            className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-end">
             <Select
-              label="แก้ไขสิทธิ์"
+              label="Adjust Clearance"
               value={editFormData.role}
               onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+              className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             >
-              <option value="user">ผู้ใช้ทั่วไป</option>
-              <option value="admin">ผู้ดูแลระบบ</option>
+              <option value="user" className="bg-slate-900">Standard Operative</option>
+              <option value="admin" className="bg-slate-900">High Administrator</option>
             </Select>
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">สถานะการใช้งาน</span>
+            <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5 flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Active Status</span>
               <Switch
                 checked={editFormData.isActive}
                 onChange={(checked) => setEditFormData({ ...editFormData, isActive: checked })}
@@ -506,9 +515,9 @@ export default function UsersPage() {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-8 border-t border-slate-100">
-            <Button variant="ghost" className="flex-1 font-bold" onClick={() => setShowEditModal(false)} disabled={isProcessing}>ยกเลิก</Button>
-            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase" onClick={handleEditUser} isLoading={isProcessing}>บันทึกการเปลี่ยนแปลง</Button>
+          <div className="flex gap-4 pt-8">
+            <Button variant="ghost" className="flex-1 font-black text-[10px] tracking-widest uppercase h-12 rounded-xl" onClick={() => setShowEditModal(false)} disabled={isProcessing}>Cancel</Button>
+            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase h-12 rounded-xl text-[10px]" onClick={handleEditUser} isLoading={isProcessing}>Apply Modifications</Button>
           </div>
         </div>
       </Modal>
@@ -517,39 +526,46 @@ export default function UsersPage() {
       <Modal
         isOpen={showGrantModal}
         onClose={() => !isProcessing && setShowGrantModal(false)}
-        title={`เพิ่มแพ็คเกจ: ${selectedUser?.username}`}
+        title="PROTOCOL ASSET INFUSION"
+        subtitle={`Injecting computational credits to index: ${selectedUser?.username}`}
         size="md"
       >
-        <div className="space-y-8 pt-2">
-          <div className="p-6 bg-slate-900 text-white rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10 text-4xl font-black italic">ASSET GRANT</div>
-            <Select
-              label="เลือกแพ็คเกจ"
-              value={selectedPackageId}
-              onChange={(e) => setSelectedPackageId(e.target.value)}
-              className="bg-white/10 border-white/10 text-white"
-            >
-              <option value="">เลือกแพ็คเกจ</option>
-              {packages.filter(p => p.isActive).map((pkg) => (
-                <option key={pkg._id} value={pkg._id} className="text-slate-900">
-                  {pkg.name} • {pkg.slipQuota.toLocaleString()} สลิป
-                </option>
-              ))}
-            </Select>
-            <p className="mt-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-              คำเตือน: การดำเนินการนี้จะเป็นการเพิ่มแพ็คเกจให้กับผู้ใช้โดยตรงโดยไม่ต้องชำระเงิน
-            </p>
+        <div className="space-y-10 pt-2 pb-2">
+          <div className="p-8 sm:p-10 bg-slate-950 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/[0.05] blur-[80px] rounded-full group-hover:bg-emerald-500/[0.05] transition-colors duration-1000" />
+
+            <div className="relative z-10 space-y-8">
+              <Select
+                label="SELECT PROTOCOL PACKAGE"
+                value={selectedPackageId}
+                onChange={(e) => setSelectedPackageId(e.target.value)}
+                className="bg-white/5 border-white/10 text-white h-14 rounded-2xl text-xs font-black uppercase tracking-widest"
+              >
+                <option value="" className="bg-slate-900">Select Package Layer</option>
+                {packages.filter(p => p.isActive).map((pkg) => (
+                  <option key={pkg._id} value={pkg._id} className="bg-slate-900">
+                    {pkg.name} | {pkg.slipQuota.toLocaleString()} PAYLOADS
+                  </option>
+                ))}
+              </Select>
+
+              <div className="p-5 bg-amber-500/5 rounded-2xl border border-amber-500/10">
+                <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em] leading-relaxed text-center">
+                  WARNING: THIS OPERATION BYPASSES FINANCIAL GATEWAYS. ASSETS WILL BE INJECTED IMMEDIATELY INTO THE OPERATIVE'S QUOTA.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-4">
-            <Button variant="ghost" className="flex-1 text-slate-400 font-bold" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>Abort Protocol</Button>
             <Button
               variant="primary"
-              className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest shadow-emerald-500/20 shadow-premium"
+              className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-2xl"
               onClick={handleGrantPackage}
               isLoading={isProcessing}
             >
-              ยืนยันการเพิ่มแพ็คเกจ
+              Execute Asset Infusion
             </Button>
           </div>
         </div>

@@ -228,8 +228,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (items.length === 0) return null;
 
     return (
-      <div className="space-y-1 mb-6">
-        <h3 className="px-4 text-[11px] font-bold uppercase tracking-[0.1em] text-emerald-400/60 mb-2">
+      <div className="space-y-1.5 mb-8">
+        <h3 className="px-5 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400/40 mb-3">
           {title}
         </h3>
         {items.map((item) => {
@@ -272,9 +272,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0F172A] text-white w-72 h-full border-r border-white/5 relative overflow-hidden shadow-2xl">
-      {/* Background Glow */}
-      <div className="absolute top-0 left-0 w-full h-64 bg-emerald-500/10 blur-[100px] pointer-events-none" />
+    <div className="flex flex-col h-full glass-sidebar text-white w-72 relative overflow-hidden shadow-2xl">
+      {/* Dynamic Background Effects */}
+      <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[30%] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none" />
 
       {/* Logo */}
       <div className="p-8 relative">
@@ -298,9 +299,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {renderGroup('logs', 'ข้อมูล & บันทึก')}
       </nav>
 
-      {/* User Info */}
-      <div className="p-4 relative z-10">
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/5 backdrop-blur-md shadow-xl group hover:border-emerald-500/30 transition-all duration-500">
+      {/* User Info Section */}
+      <div className="p-6 relative z-10 border-t border-white/5 bg-white/[0.01]">
+        <div className="p-4 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.05] backdrop-blur-md shadow-xl group hover:border-emerald-500/20 transition-all duration-500">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-500 group-hover:scale-110">
               <span className="text-white font-bold text-lg drop-shadow-md">

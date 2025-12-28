@@ -10,6 +10,7 @@ import { Card, CardHeader, EmptyState } from '@/components/ui/Card';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input, Textarea, Select, Switch } from '@/components/ui/Input';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
+import { cn } from '@/lib/utils';
 import {
   MessageSquare,
   FileCheck,
@@ -245,15 +246,14 @@ export default function UserLineAccountsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 max-w-[1600px] mx-auto pb-10">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8 relative z-10">
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight uppercase">
-              จัดการบัญชี <span className="text-emerald-500">LINE OA</span>
+      <div className="section-gap animate-fade pb-10">
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              Neural <span className="text-emerald-400">Connectivity</span>
             </h1>
-            <p className="text-slate-500 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
-              เชื่อมต่อและจัดการบัญชี <span className="text-slate-900">Official Account</span> พร้อมระบบตอบกลับอัตโนมัติ
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Orchestrate LINE Official Accounts & Autonomous Protocols
             </p>
           </div>
           <Button
@@ -263,19 +263,18 @@ export default function UserLineAccountsPage() {
             }}
             size="lg"
             variant="primary"
-            leftIcon={<Plus className="w-5 h-5 md:w-6 md:h-6" />}
-            className="w-full md:w-auto h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl animate-scale-in"
+            leftIcon={<Plus className="w-5 h-5 sm:w-6 sm:h-6" />}
+            className="w-full sm:w-auto h-11 sm:h-16 px-6 sm:px-10 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl transition-all mt-6 lg:mt-0"
           >
-            เพิ่มบัญชีใหม่
+            Deploy New Node
           </Button>
         </div>
 
-        {/* Content */}
-        <div className="grid gap-6 md:gap-8">
+        <div className="grid gap-6 md:gap-10">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="h-72 md:h-96 animate-pulse bg-white/50 rounded-[2.5rem]"><div /></Card>
+                <Card key={i} className="h-72 md:h-96 animate-pulse" variant="glass"><div /></Card>
               ))}
             </div>
           ) : accounts.length === 0 ? (
@@ -295,105 +294,103 @@ export default function UserLineAccountsPage() {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
               {accounts.map((account, index) => (
                 <motion.div
                   key={account._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="h-full"
                 >
-                  <Card variant="glass" className="h-full flex flex-col group hover:border-emerald-500/30 transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 rounded-[2.5rem] overflow-hidden relative">
+                  <Card variant="glass" className="h-full flex flex-col group relative overflow-hidden p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
                     {/* Background Decor */}
                     <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700" />
 
                     {/* Card Header */}
-                    <div className="flex items-start justify-between mb-6 md:mb-8 relative z-10">
-                      <div className="flex items-center gap-4 md:gap-5">
-                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-[1.2rem] md:rounded-[1.5rem] bg-gradient-to-br from-[#06C755] to-[#00B900] p-0.5 shadow-lg shadow-emerald-500/20 flex-shrink-0 group-hover:scale-105 transition-transform duration-500">
-                          <div className="w-full h-full bg-white rounded-[1rem] md:rounded-[1.3rem] flex items-center justify-center relative overflow-hidden">
+                    <div className="flex items-start justify-between mb-8 relative z-10">
+                      <div className="flex items-center gap-5">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl bg-slate-950 border border-white/5 p-0.5 shadow-2xl flex-shrink-0 group-hover:scale-105 transition-all">
+                          <div className="w-full h-full bg-slate-900 rounded-[14px] md:rounded-[22px] flex items-center justify-center relative overflow-hidden">
                             <i className="fab fa-line text-3xl md:text-4xl text-[#06C755]" />
-                            <div className="absolute inset-0 bg-emerald-50/20" />
+                            <div className="absolute inset-0 bg-emerald-500/5 animate-pulse-slow" />
                           </div>
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-black text-lg md:text-xl text-slate-900 group-hover:text-emerald-700 transition-colors truncate tracking-tight">
+                          <h3 className="font-black text-lg md:text-xl text-white group-hover:text-emerald-400 transition-colors truncate tracking-tight uppercase">
                             {account.accountName}
                           </h3>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${account.isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                              {account.isActive ? 'ONLINE' : 'OFFLINE'}
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className={cn("px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all", account.isActive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/10 shadow-lg' : 'bg-white/5 text-slate-600 border-white/5')}>
+                              {account.isActive ? 'Operational' : 'Hibernated'}
                             </div>
-                            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50/50 px-2 py-1 rounded-lg border border-slate-100/50 truncate max-w-[100px] md:max-w-none">
+                            <span className="text-[9px] font-mono font-black text-slate-500 bg-white/[0.03] px-2.5 py-1 rounded-lg border border-white/5 truncate max-w-[80px] sm:max-w-none uppercase tracking-tighter">
                               {account.channelId}
                             </span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-2">
                         <IconButton
                           onClick={() => handleEdit(account)}
                           size="md"
-                          className="rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                          className="rounded-xl border border-white/5 text-slate-500 hover:text-white hover:bg-white/5"
                         >
                           <Edit className="w-4 h-4 md:w-5 md:h-5" />
                         </IconButton>
                         <IconButton
                           onClick={() => confirmDelete(account._id)}
                           size="md"
-                          className="rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          className="rounded-xl border border-white/5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10"
                         >
                           <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                         </IconButton>
                       </div>
                     </div>
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8 relative z-10">
-                      <div className="p-3 md:p-4 rounded-2xl bg-slate-50/50 border border-slate-100 flex flex-col items-center justify-center text-center group-hover:bg-white/80 transition-colors">
-                        <span className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
-                        <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Messages</span>
+                    <div className="grid grid-cols-3 gap-3 md:gap-4 mb-8 relative z-10">
+                      <div className="p-3 md:p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col items-center justify-center text-center group-hover:bg-white/[0.05] transition-colors">
+                        <span className="text-xl md:text-2xl font-black text-white tracking-tighter">{(account.statistics?.totalMessages || 0).toLocaleString()}</span>
+                        <span className="text-[8px] md:text-[9px] text-slate-600 font-black uppercase tracking-widest mt-1">Traffic</span>
                       </div>
-                      <div className="p-3 md:p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/50 flex flex-col items-center justify-center text-center group-hover:bg-emerald-50/60 transition-colors">
-                        <span className="text-xl md:text-2xl font-black text-emerald-600 tracking-tight">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
-                        <span className="text-[9px] md:text-[10px] text-emerald-600/60 font-black uppercase tracking-widest mt-1">Verified</span>
+                      <div className="p-3 md:p-4 rounded-2xl bg-emerald-500/[0.03] border border-emerald-500/10 flex flex-col items-center justify-center text-center group-hover:bg-emerald-500/[0.08] transition-colors">
+                        <span className="text-xl md:text-2xl font-black text-emerald-400 tracking-tighter">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</span>
+                        <span className="text-[8px] md:text-[9px] text-emerald-500/40 font-black uppercase tracking-widest mt-1">Verified</span>
                       </div>
-                      <div className="p-3 md:p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 flex flex-col items-center justify-center text-center group-hover:bg-indigo-50/60 transition-colors">
-                        <span className="text-xl md:text-2xl font-black text-indigo-600 tracking-tight">{(account.statistics?.totalAiResponses || 0).toLocaleString()}</span>
-                        <span className="text-[9px] md:text-[10px] text-indigo-600/60 font-black uppercase tracking-widest mt-1">AI Reply</span>
+                      <div className="p-3 md:p-4 rounded-2xl bg-indigo-500/[0.03] border border-indigo-500/10 flex flex-col items-center justify-center text-center group-hover:bg-indigo-500/[0.08] transition-colors">
+                        <span className="text-xl md:text-2xl font-black text-indigo-400 tracking-tighter">{(account.statistics?.totalAiResponses || 0).toLocaleString()}</span>
+                        <span className="text-[8px] md:text-[9px] text-indigo-500/40 font-black uppercase tracking-widest mt-1">Neural</span>
                       </div>
                     </div>
 
-                    {/* Webhook Section */}
-                    <div className="mb-8 p-1 relative z-10">
-                      <div className="bg-slate-900/5 rounded-2xl p-4 border border-slate-200/50 backdrop-blur-sm group-hover:bg-slate-900/80 group-hover:border-slate-900 transition-all duration-500 group/webhook">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 group-hover/webhook:text-white/60 transition-colors">
-                            <Activity className="w-3 h-3" /> Webhook Endpoint
+                    <div className="mb-10 relative z-10">
+                      <div className="bg-slate-950/40 rounded-[2rem] p-6 border border-white/5 backdrop-blur-xl group-hover:border-white/10 transition-all duration-500 group/webhook shadow-inner">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-2 group-hover/webhook:text-white transition-colors">
+                            <Activity className="w-3.5 h-3.5" /> Security Protocol
                           </span>
                           <button
                             onClick={() => copyWebhookUrl(account)}
-                            className="text-[10px] font-black text-emerald-600 hover:text-emerald-500 uppercase tracking-widest bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg transition-colors group-hover/webhook:bg-white/10 group-hover/webhook:text-white"
+                            className="text-[9px] font-black text-emerald-400 hover:text-white uppercase tracking-widest bg-emerald-500/10 hover:bg-emerald-500 transition-all px-4 py-2 rounded-xl border border-emerald-500/10"
                           >
-                            Copy Link
+                            Copy Matrix
                           </button>
                         </div>
-                        <div className="font-mono text-[10px] text-slate-600 break-all bg-white px-4 py-3 rounded-xl border border-white shadow-sm group-hover/webhook:bg-black/20 group-hover/webhook:text-white/90 group-hover/webhook:border-white/10 transition-colors">
+                        <div className="font-mono text-[10px] text-slate-500 break-all bg-black/40 px-5 py-4 rounded-xl border border-white/5 group-hover/webhook:text-emerald-400/90 transition-colors">
                           {getWebhookUrl(account)}
                         </div>
                       </div>
                     </div>
 
-                    {/* Quick Toggles */}
-                    <div className="space-y-3 mb-8 relative z-10">
-                      <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50/50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${account.settings?.enableBot ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Bot className="w-5 h-5" />
+                    <div className="space-y-4 mb-10 relative z-10">
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] transition-all border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-11 h-11 rounded-[14px] flex items-center justify-center text-lg transition-all ${account.settings?.enableBot ? 'bg-emerald-500/20 text-emerald-400 shadow-emerald-500/20 shadow-lg' : 'bg-slate-950 text-slate-700 border border-white/5'}`}>
+                            <Bot className="w-5.5 h-5.5" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700">Auto-Reply</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Basic Automation</p>
+                            <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight">Auto-Reply</p>
+                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none">Response Engine</p>
                           </div>
                         </div>
                         <Switch
@@ -402,14 +399,14 @@ export default function UserLineAccountsPage() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50/50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${account.settings?.enableAi ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <MessageSquare className="w-5 h-5" />
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] transition-all border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-11 h-11 rounded-[14px] flex items-center justify-center text-lg transition-all ${account.settings?.enableAi ? 'bg-violet-500/20 text-violet-400 shadow-violet-500/20 shadow-lg' : 'bg-slate-950 text-slate-700 border border-white/5'}`}>
+                            <MessageSquare className="w-5.5 h-5.5" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700">AI Neural</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Smart Response</p>
+                            <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight">Neural AI</p>
+                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none">Cognitive Logic</p>
                           </div>
                         </div>
                         <Switch
@@ -418,14 +415,14 @@ export default function UserLineAccountsPage() {
                         />
                       </div>
 
-                      <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50/50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${account.settings?.enableSlipVerification ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <FileCheck className="w-5 h-5" />
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] transition-all border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-11 h-11 rounded-[14px] flex items-center justify-center text-lg transition-all ${account.settings?.enableSlipVerification ? 'bg-amber-500/20 text-amber-400 shadow-amber-500/20 shadow-lg' : 'bg-slate-950 text-slate-700 border border-white/5'}`}>
+                            <FileCheck className="w-5.5 h-5.5" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-700">Slip Verify</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Payment Audit</p>
+                            <p className="text-sm font-black text-white leading-none mb-1 uppercase tracking-tight">Slip Auditor</p>
+                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none">Audit Protocol</p>
                           </div>
                         </div>
                         <Switch
@@ -435,23 +432,20 @@ export default function UserLineAccountsPage() {
                       </div>
                     </div>
 
-                    {/* Actions Footer */}
-                    <div className="mt-auto grid grid-cols-2 gap-3 relative z-10">
+                    <div className="mt-auto grid grid-cols-2 gap-4 relative z-10 pt-6 border-t border-white/5">
                       <Button
-                        variant="ghost"
-                        className="h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+                        variant="primary"
+                        className="h-11 sm:h-14 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[10px] bg-white/[0.02] border border-white/5 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all shadow-none group/btn"
                         onClick={() => window.open(`/user/chat?accountId=${account._id}`, '_self')}
-                        leftIcon={<MessageSquare className="w-4 h-4" />}
                       >
-                        Live Chat
+                        <MessageSquare className="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform" /> Command Hub
                       </Button>
                       <Button
-                        variant="outline"
-                        className="h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 hover:border-slate-300 transition-all"
+                        variant="ghost"
+                        className="h-11 sm:h-14 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[10px] bg-white/[0.02] border border-white/5 hover:bg-white/[0.1] text-slate-500 hover:text-white transition-all group/btn"
                         onClick={() => openSettingsModal(account)}
-                        leftIcon={<Settings className="w-4 h-4" />}
                       >
-                        Settings
+                        <Settings className="w-4 h-4 mr-2 group-hover/btn:rotate-90 transition-transform duration-700" /> Options
                       </Button>
                     </div>
                   </Card>
@@ -462,103 +456,104 @@ export default function UserLineAccountsPage() {
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editAccount ? 'แก้ไขบัญชี LINE OA' : 'เพิ่มบัญชีใหม่'}
-        subtitle="กรอกข้อมูลการเชื่อมต่อ LINE Messaging API"
+        title={editAccount ? 'IDENTITY MODIFICATION: NODE' : 'INITIAL DEPLOYMENT: NODE'}
+        subtitle="Authorize the neural bridge via LINE Messaging API credentials"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <Input
-            label="ชื่อบัญชี (Display Name)"
-            placeholder="เช่น ร้านค้าหลัก, แอดมิน 1"
+            label="Node Identity (Display Name)"
+            placeholder="PRIMARY_VECTA_01"
             value={formData.accountName}
             onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
             required
-            leftIcon={<Bot className="w-5 h-5" />}
+            leftIcon={<Bot className="w-5 h-5 text-emerald-400" />}
+            className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Channel ID"
+              label="Channel Access ID"
               placeholder="1234567890"
               value={formData.channelId}
               onChange={(e) => setFormData({ ...formData, channelId: e.target.value })}
               required
-              className="font-mono"
+              className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
             />
             <Input
-              label="Channel Secret"
-              placeholder="xxxxxxxxxxxxxxxx"
+              label="Secret Matrix"
+              placeholder="••••••••••••••••"
               value={formData.channelSecret}
               onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })}
               required
               type="password"
-              className="font-mono"
+              className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
             />
           </div>
 
           <Textarea
-            label="Channel Access Token (Long-lived)"
+            label="Long-Term Access Token"
             placeholder="eyJh....."
             value={formData.accessToken}
             onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
             required
-            className="font-mono text-xs min-h-[100px]"
+            className="font-mono text-[10px] min-h-[140px] bg-white/[0.03] border-white/10 text-white rounded-[2rem] p-6"
           />
 
           <Input
-            label="คำอธิบายเพิ่มเติม (Optional)"
-            placeholder="เช่น สำหรับตอบลูกค้า VIP"
+            label="Operational Meta (Description)"
+            placeholder="VIP_PROTOCOL_LOGISTICS"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
           />
 
-          <div className="pt-4 flex gap-3">
-            <Button type="button" variant="ghost" fullWidth onClick={() => setShowModal(false)}>
-              ยกเลิก
+          <div className="pt-6 flex gap-4">
+            <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>
+              Abort
             </Button>
-            <Button type="submit" variant="primary" fullWidth>
-              {editAccount ? 'บันทึกการแก้ไข' : 'เชื่อมต่อบัญชี'}
+            <Button type="submit" variant="primary" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20">
+              {editAccount ? 'Update Matrix' : 'Deploy Node'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Advanced Settings Modal */}
       <Modal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        title={`ตั้งค่า: ${selectedAccount?.accountName}`}
-        subtitle="ปรับแต่งการทำงานของบอทและข้อความอัตโนมัติ"
+        title={`PROTOCOL CONFIG: ${selectedAccount?.accountName}`}
+        subtitle="Fine-tune autonomous logic and response parameters"
         size="lg"
       >
-        <div className="space-y-8">
-          {/* AI Settings Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-purple-500" />
-              ตั้งค่า AI & Chatbot
+        <div className="space-y-12 pb-6">
+          <div className="space-y-6">
+            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              Neural Architecture
             </h3>
 
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="font-bold text-slate-700">System Prompt</label>
-                  <p className="text-xs text-slate-400">คำสั่งเริ่มต้นเพื่อกำหนดบุคลิกของ AI</p>
-                </div>
+            <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Cognitive Meta-Prompt</label>
+                <Textarea
+                  value={settingsData.aiSystemPrompt}
+                  onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
+                  placeholder="Define behavior, tone, and operational boundaries..."
+                  className="bg-slate-950/50 border-white/10 text-white min-h-[140px] rounded-[1.5rem] text-sm p-6"
+                />
               </div>
-              <Textarea
-                value={settingsData.aiSystemPrompt}
-                onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
-                placeholder="เช่น คุณเป็นแอดมินเพจขายเสื้อผ้า ตอบคำถามสุภาพ เป็นกันเอง..."
-                className="bg-white"
-              />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">ความสร้างสรรค์ (Temperature: {settingsData.aiTemperature})</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Logic Variance (Temp)</label>
+                    <span className="text-[10px] font-mono font-black text-emerald-400 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/20">{settingsData.aiTemperature}</span>
+                  </div>
                   <input
                     type="range"
                     min="0"
@@ -566,138 +561,83 @@ export default function UserLineAccountsPage() {
                     step="0.1"
                     value={settingsData.aiTemperature}
                     onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })}
-                    className="w-full accent-emerald-500 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                   />
-                  <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                    <span>แม่นยำ</span>
-                    <span>สร้างสรรค์</span>
+                  <div className="flex justify-between text-[8px] font-black text-slate-600 uppercase tracking-widest">
+                    <span>Precise Logic</span>
+                    <span>Neural Drift</span>
                   </div>
                 </div>
-                <Input
-                  label="ข้อความเมื่อ AI ตอบไม่ได้"
-                  value={settingsData.aiFallbackMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Slip Verification Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
-              <FileCheck className="w-5 h-5 text-blue-500" />
-              ตั้งค่าตรวจสอบสลิป
-            </h3>
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
-              {/* Processing Message Option */}
-              <div className="p-3 bg-white border border-slate-200 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-bold text-slate-700">ส่งข้อความ &quot;กำลังประมวลผล&quot;</span>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {settingsData.sendProcessingMessage
-                        ? '✅ ส่งข้อความก่อน แล้วค่อยส่งผลการตรวจสอบ'
-                        : '⚡ ตรวจสอบแล้วส่งผลทีเดียว (ไม่ส่งข้อความ "กำลังประมวลผล")'}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settingsData.sendProcessingMessage}
-                    onChange={(checked) => setSettingsData({ ...settingsData, sendProcessingMessage: checked })}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Circuit Breaker Message</label>
+                  <Input
+                    value={settingsData.aiFallbackMessage}
+                    onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
+                    className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-white font-bold"
                   />
                 </div>
               </div>
-
-              <Input
-                label="ข้อความรอตรวจสอบ (ตอบทันทีเมื่อได้รับรูป)"
-                value={settingsData.slipImmediateMessage}
-                onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })}
-                disabled={!settingsData.sendProcessingMessage}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="เมื่อตรวจสอบสำเร็จ"
-                  placeholder="✅ ตรวจสอบสลิปสำเร็จ (ว่าง = ค่าระบบ)"
-                  value={settingsData.customSlipSuccessMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, customSlipSuccessMessage: e.target.value })}
-                />
-                <Input
-                  label="เมื่อสลิปซ้ำ"
-                  placeholder="⚠️ สลิปนี้ถูกใช้แล้ว (ว่าง = ค่าระบบ)"
-                  value={settingsData.customDuplicateSlipMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })}
-                />
-                <Input
-                  label="เมื่อเกิดข้อผิดพลาด"
-                  placeholder="❌ ไม่สามารถตรวจสอบได้ (ว่าง = ค่าระบบ)"
-                  value={settingsData.customSlipErrorMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, customSlipErrorMessage: e.target.value })}
-                />
-                <Input
-                  label="เมื่อโควต้าหมด"
-                  placeholder="⚠️ ระบบตรวจสอบปิดชั่วคราว (ว่าง = ค่าระบบ)"
-                  value={settingsData.customQuotaExceededMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })}
-                />
-              </div>
             </div>
           </div>
 
-          {/* Feature Toggle Messages */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-amber-500" />
-              ข้อความแจ้งเตือนเมื่อปิดระบบ
+          <div className="space-y-6">
+            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/10">
+                <FileCheck className="w-5 h-5" />
+              </div>
+              Audit Telemetry
             </h3>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="p-3 bg-white border border-slate-200 rounded-xl relative">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-slate-700">แจ้งเมื่อปิดบอท</span>
-                  <Select
-                    value={settingsData.sendMessageWhenBotDisabled}
-                    onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenBotDisabled: e.target.value })}
-                    className="w-32 h-8 text-xs py-0"
-                  >
-                    <option value="default">ค่าเริ่มต้น</option>
-                    <option value="true">แจ้งเตือน</option>
-                    <option value="false">ไม่แจ้ง</option>
-                  </Select>
+            <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner">
+              <div className="p-5 bg-emerald-500/[0.02] rounded-[1.5rem] border border-emerald-400/10 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-white uppercase tracking-tight">Audit Initialization Pulse</p>
+                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Send feedback during telemetry verification</p>
                 </div>
-                <Input
-                  placeholder="ข้อความแจ้งเตือนเมื่อบอทปิดใช้งาน"
-                  value={settingsData.customBotDisabledMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })}
-                  className="text-sm"
+                <Switch
+                  checked={settingsData.sendProcessingMessage}
+                  onChange={(checked) => setSettingsData({ ...settingsData, sendProcessingMessage: checked })}
                 />
               </div>
-              <div className="p-3 bg-white border border-slate-200 rounded-xl relative">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-slate-700">แจ้งเมื่อปิดระบบสลิป</span>
-                  <Select
-                    value={settingsData.sendMessageWhenSlipDisabled}
-                    onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenSlipDisabled: e.target.value })}
-                    className="w-32 h-8 text-xs py-0"
-                  >
-                    <option value="default">ค่าเริ่มต้น</option>
-                    <option value="true">แจ้งเตือน</option>
-                    <option value="false">ไม่แจ้ง</option>
-                  </Select>
-                </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Audit Initialization String</label>
                 <Input
-                  placeholder="ข้อความแจ้งเตือนเมื่อระบบตรวจสลิปปิดใช้งาน"
-                  value={settingsData.customSlipDisabledMessage}
-                  onChange={(e) => setSettingsData({ ...settingsData, customSlipDisabledMessage: e.target.value })}
-                  className="text-sm"
+                  value={settingsData.slipImmediateMessage}
+                  onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })}
+                  disabled={!settingsData.sendProcessingMessage}
+                  className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-white font-bold"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Verification Success</label>
+                  <Input
+                    placeholder="✅ DEPLOYMENT_SUCCESS"
+                    value={settingsData.customSlipSuccessMessage}
+                    onChange={(e) => setSettingsData({ ...settingsData, customSlipSuccessMessage: e.target.value })}
+                    className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-xs font-bold"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Redundancy Alert</label>
+                  <Input
+                    placeholder="⚠️ REDUNDANCY_DETECTED"
+                    value={settingsData.customDuplicateSlipMessage}
+                    onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })}
+                    className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-xs font-bold"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 flex gap-3 sticky bottom-0 bg-white z-10">
-            <Button variant="ghost" fullWidth onClick={() => setShowSettingsModal(false)}>
-              ยกเลิก
+          <div className="pt-8 flex gap-4 sticky bottom-0 bg-slate-950/80 backdrop-blur-xl px-1 py-4 border-t border-white/5 mt-auto">
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-white" onClick={() => setShowSettingsModal(false)}>
+              Discard
             </Button>
-            <Button variant="primary" fullWidth onClick={handleSaveSettings}>
-              บันทึกการตั้งค่า
+            <Button variant="primary" className="flex-[1.5] h-14 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20" onClick={handleSaveSettings}>
+              Commit Matrix Config
             </Button>
           </div>
         </div>

@@ -72,46 +72,45 @@ export default function AdminHistoryPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-6 md:space-y-8 lg:space-y-12 animate-fade max-w-[1500px] mx-auto pb-6 md:pb-12">
+      <div className="section-gap animate-fade pb-6 md:pb-12">
 
-        {/* Audit Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-6">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2 md:gap-3">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">System Audit Registry</h1>
-              <Badge variant="emerald" className="px-2 py-0.5 font-black text-[9px] md:text-[10px] uppercase tracking-widest">Live Trace</Badge>
-            </div>
-            <p className="text-slate-500 font-medium text-sm md:text-base lg:text-lg">Immutable chronological ledger of all organizational operations.</p>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              Audit <span className="text-emerald-400">Registry</span>
+            </h1>
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Immutable chronological ledger of operations
+            </p>
           </div>
           <Button
-            variant="outline"
-            className="w-full md:w-auto rounded-xl md:rounded-2xl border-slate-200 hover:bg-slate-50 font-black uppercase tracking-widest text-[10px] md:text-[11px] h-11 md:h-12 px-4 md:px-6"
+            variant="ghost"
+            className="w-full lg:w-auto h-12 px-6 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs border border-white/5 bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5 mt-4 lg:mt-0"
             onClick={fetchData}
             disabled={isLoading}
           >
-            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} <span className="hidden sm:inline">Refresh Ledger</span><span className="sm:hidden">Refresh</span>
+            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} <span className="hidden sm:inline">Refresh Matrix</span><span className="sm:hidden">Refresh</span>
           </Button>
         </div>
 
-        {/* Filters & Insight */}
-        <div className="flex flex-col xl:flex-row gap-3 md:gap-6">
-          <Card className="flex-1 p-3 md:p-4 bg-white/40 backdrop-blur-xl border-none shadow-premium-sm rounded-2xl md:rounded-3xl flex items-center gap-3 md:gap-4">
-            <div className="pl-2 md:pl-4 text-lg md:text-xl opacity-20">🔍</div>
+        <div className="flex flex-col xl:flex-row gap-4 sm:gap-6">
+          <Card variant="glass" className="flex-1 p-3 sm:p-4 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4 border-none shadow-premium-sm">
+            <div className="pl-2 sm:pl-4 text-lg sm:text-xl opacity-20">🔍</div>
             <input
-              className="bg-transparent border-none focus:ring-0 w-full text-sm md:text-lg font-medium placeholder:text-slate-300 text-slate-900"
-              placeholder="Search..."
+              className="bg-transparent border-none focus:ring-0 w-full text-sm sm:text-lg font-black uppercase tracking-widest placeholder:text-slate-600 text-white"
+              placeholder="Search Telemetry..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </Card>
-          <div className="flex gap-1 md:gap-2 p-1.5 md:p-2 bg-slate-100/50 backdrop-blur-md rounded-2xl md:rounded-3xl overflow-x-auto no-scrollbar">
+          <div className="flex gap-1 sm:gap-2 p-2 bg-white/[0.02] border border-white/5 backdrop-blur-md rounded-[1.5rem] sm:rounded-[2rem] overflow-x-auto no-scrollbar">
             {['all', 'system', 'admin', 'user'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={cn(
-                  "px-3 md:px-6 py-2 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                  selectedCategory === cat ? "bg-slate-900 text-white shadow-xl" : "text-slate-400 hover:bg-white hover:text-slate-600"
+                  "px-4 sm:px-8 py-2.5 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap",
+                  selectedCategory === cat ? "bg-emerald-500 text-slate-900 shadow-emerald-500/20 shadow-xl" : "text-slate-500 hover:text-white"
                 )}
               >
                 {cat}
@@ -120,20 +119,19 @@ export default function AdminHistoryPage() {
           </div>
         </div>
 
-        {/* Desktop Audit Table */}
-        <Card className="hidden md:block overflow-hidden p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-2xl md:rounded-[3.5rem]">
-          <div className="overflow-x-auto">
+        <Card className="hidden md:block overflow-hidden" variant="glass" padding="none">
+          <div className="table-responsive">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Timestamp</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Subject Actor</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Operation Type</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Target Entity</th>
-                  <th className="px-10 py-8 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Diagnostic Message</th>
+                <tr className="border-b border-white/5 bg-white/[0.02]">
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Temporal Index</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Origin Actor</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Protocol Layer</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Operation Target</th>
+                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Telemetry Payload</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-white/[0.02]">
                 {isLoading ? (
                   <tr>
                     <td colSpan={5} className="px-10 py-32">
@@ -158,49 +156,49 @@ export default function AdminHistoryPage() {
                       key={log._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="group hover:bg-slate-50/80 transition-all duration-300"
+                      className="group hover:bg-white/[0.01] transition-all duration-300"
                     >
                       <td className="px-10 py-8">
                         <div className="flex flex-col">
-                          <span className="text-xs font-black text-slate-900">{new Date(log.createdAt).toLocaleDateString('th-TH')}</span>
-                          <span className="text-[10px] font-bold text-slate-400">{new Date(log.createdAt).toLocaleTimeString('th-TH')}</span>
+                          <span className="text-xs font-black text-white">{new Date(log.createdAt).toLocaleDateString('th-TH')}</span>
+                          <span className="text-[10px] font-bold text-slate-600">{new Date(log.createdAt).toLocaleTimeString('th-TH')}</span>
                         </div>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-sm shadow-inner group-hover:scale-110 transition-transform">
+                          <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-sm shadow-inner group-hover:scale-110 transition-transform">
                             {getRoleIcon(log.actorRole)}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-slate-800 tracking-tight leading-none mb-1">
+                            <p className="text-sm font-black text-white tracking-tight leading-none mb-1">
                               {log.actorRole === 'system'
                                 ? 'SYSTEM_DAEMON'
                                 : userMap.get(log.actorUserId || '') || log.actorUserId || 'ANONYMOUS'}
                             </p>
-                            <Badge variant="outline" className="text-[8px] px-1.5 py-0 border-slate-200 text-slate-400 uppercase font-black tracking-widest">{log.actorRole}</Badge>
+                            <Badge variant="outline" className="text-[8px] px-1.5 py-0 border-white/10 text-slate-600 uppercase font-black tracking-widest">{log.actorRole}</Badge>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex flex-col gap-2">
                           {getActionBadge(log.action)}
-                          <span className="font-mono text-[10px] font-bold text-slate-500 opacity-60 uppercase">{log.action}</span>
+                          <span className="font-mono text-[9px] font-black text-slate-700 uppercase tracking-widest">{log.action}</span>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
-                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-1">{log.entityType || 'GLOBAL_SCOPE'}</p>
-                          <p className="font-mono text-[9px] text-slate-400 truncate max-w-[120px]">{log.entityId || '---'}</p>
+                        <div className="p-3 bg-white/[0.02] rounded-[1.5rem] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
+                          <p className="text-[10px] font-black text-white uppercase tracking-tight mb-1">{log.entityType || 'GLOBAL_SCOPE'}</p>
+                          <p className="font-mono text-[9px] text-slate-600 truncate max-w-[120px]">{log.entityId || '---'}</p>
                         </div>
                       </td>
                       <td className="px-10 py-8 max-w-md">
-                        <p className="text-xs font-medium text-slate-600 leading-relaxed group-hover:text-slate-900 transition-colors">
+                        <p className="text-xs font-bold text-slate-400 leading-relaxed group-hover:text-emerald-400 transition-colors">
                           {log.message || <span className="italic opacity-30 text-[10px]">NO_DIAGNOSTIC_DATA_PROVIDED</span>}
                         </p>
                         {log.subjectUserId && (
                           <div className="mt-2 flex items-center gap-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Subject:</span>
-                            <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg">{userMap.get(log.subjectUserId) || log.subjectUserId}</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Subject:</span>
+                            <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/10 uppercase tracking-widest">{userMap.get(log.subjectUserId) || log.subjectUserId}</span>
                           </div>
                         )}
                       </td>
@@ -213,12 +211,12 @@ export default function AdminHistoryPage() {
         </Card>
 
         {/* Mobile Card Layout */}
-        <div className="md:hidden space-y-3">
+        <div className="md:hidden space-y-4">
           {isLoading ? (
-            [1, 2, 3].map(i => <Card key={i} className="h-32 animate-pulse bg-white/50"><div /></Card>)
+            [1, 2, 3].map(i => <Card key={i} className="h-32 animate-pulse" variant="glass"><div /></Card>)
           ) : filtered.length === 0 ? (
-            <div className="py-16 text-center opacity-30">
-              <p className="font-black uppercase tracking-widest text-sm">No records found</p>
+            <div className="py-20 text-center opacity-30">
+              <p className="font-black uppercase tracking-widest text-sm text-white">No records found</p>
             </div>
           ) : (
             filtered.slice(0, 50).map((log) => (
@@ -227,29 +225,29 @@ export default function AdminHistoryPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card className="p-4 bg-white/80 backdrop-blur-xl border-none shadow-sm rounded-xl">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-sm">
+                <Card variant="glass" className="p-6 relative overflow-hidden group rounded-[2rem]">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-sm shadow-inner group-hover:scale-110 transition-transform">
                         {getRoleIcon(log.actorRole)}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-800">
+                        <p className="text-xs font-black text-white uppercase tracking-tight">
                           {log.actorRole === 'system' ? 'SYSTEM' : userMap.get(log.actorUserId || '') || 'Unknown'}
                         </p>
-                        <p className="text-[9px] text-slate-400">{log.actorRole}</p>
+                        <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{log.actorRole}</p>
                       </div>
                     </div>
                     {getActionBadge(log.action)}
                   </div>
-                  <p className="text-xs text-slate-600 line-clamp-2 mb-2">
+                  <p className="text-[11px] font-bold text-slate-400 line-clamp-2 mb-4 group-hover:text-emerald-400 transition-colors">
                     {log.message || log.action}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] text-slate-400 font-mono">
+                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                    <span className="text-[9px] text-slate-700 font-black uppercase tracking-widest">
                       {log.entityType || 'GLOBAL'}
                     </span>
-                    <span className="text-[9px] text-slate-400">
+                    <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
                       {new Date(log.createdAt).toLocaleString('th-TH')}
                     </span>
                   </div>
@@ -259,19 +257,18 @@ export default function AdminHistoryPage() {
           )}
         </div>
 
-        {/* Info Legend */}
-        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 opacity-60 grayscale hover:grayscale-0 transition-all duration-700">
-          <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:rounded-[2.5rem] border border-slate-100 flex items-center gap-3 md:gap-4">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl md:rounded-2xl shadow-premium-sm flex items-center justify-center text-lg">🏛️</div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Immutable Registry</p>
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40 hover:opacity-100 transition-opacity duration-700">
+          <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
+            <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">🏛️</div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Immutable Registry</p>
           </div>
-          <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:rounded-[2.5rem] border border-slate-100 flex items-center gap-3 md:gap-4">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl md:rounded-2xl shadow-premium-sm flex items-center justify-center text-lg">🔐</div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Admin Access Only</p>
+          <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
+            <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">🔐</div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Administrative Only</p>
           </div>
-          <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:rounded-[2.5rem] border border-slate-100 flex items-center gap-3 md:gap-4">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl md:rounded-2xl shadow-premium-sm flex items-center justify-center text-lg">⚛️</div>
-            <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">Atomic Trailing</p>
+          <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
+            <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">⚛️</div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Atomic Event Trailing</p>
           </div>
         </div>
       </div>

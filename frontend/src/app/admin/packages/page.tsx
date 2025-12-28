@@ -173,16 +173,14 @@ export default function AdminPackagesPage() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="space-y-10 animate-fade max-w-[1600px] mx-auto pb-10">
+      <div className="section-gap animate-fade pb-10">
 
-        {/* Neural Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 mb-4">
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-[-0.04em] uppercase">
-              Subscription <span className="text-emerald-500">Matrix</span>
+        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              Subscription <span className="text-emerald-400">Matrix</span>
             </h1>
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
-              <span className="w-8 h-[2px] bg-emerald-500/30"></span>
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
               Plan Logistics & Monetary Protocol
             </p>
           </div>
@@ -190,60 +188,45 @@ export default function AdminPackagesPage() {
             size="lg"
             variant="primary"
             onClick={() => { resetForm(); setShowModal(true); }}
-            className="h-16 px-10 rounded-[2rem] font-black uppercase tracking-widest text-[12px] shadow-emerald-500/20 shadow-2xl w-full md:w-auto"
-            leftIcon={
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mr-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-            }
+            className="w-full lg:w-auto h-12 sm:h-14 px-8 sm:px-12 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-emerald-500/20 shadow-2xl mt-4 lg:mt-0"
           >
-            Deploy New Plan
+            + <span className="hidden sm:inline">Deploy New Plan</span><span className="sm:hidden">New Plan</span>
           </Button>
         </div>
 
-        {/* Neural Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid-stats">
           <StatCard
             title="Total Indices"
             value={packages.length}
-            icon={<span className="text-2xl">💎</span>}
+            icon="💎"
             color="indigo"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            variant="glass"
           />
           <StatCard
             title="Active Layers"
             value={packages.filter(p => p.isActive).length}
-            icon={<span className="text-2xl">🟢</span>}
+            icon="🟢"
             color="emerald"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            variant="glass"
           />
           <StatCard
             title="Peak Demand"
             value={packages.length > 0 ? "PREMIUM" : "N/A"}
-            icon={<span className="text-2xl">🔥</span>}
+            icon="🔥"
             color="amber"
-            className="rounded-[2.5rem] p-8 border-none bg-white/60 backdrop-blur-3xl shadow-premium"
+            variant="glass"
           />
         </div>
 
-        {/* Packages Grid Matrix */}
         {packages.length === 0 ? (
           <EmptyState
-            icon={
-              <div className="w-24 h-24 rounded-full bg-slate-100/50 flex items-center justify-center text-slate-300">
-                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-            }
+            icon="💎"
             title="ZERO INDICES FOUND"
             description="The monetary protocol registry is currently empty. Initialize a new plan subscription to begin operations."
             action={<Button variant="primary" onClick={() => setShowModal(true)} className="h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">Initialize Protocol</Button>}
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10 pt-4">
             {packages.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((pkg) => (
               <motion.div
                 key={pkg._id}
@@ -256,9 +239,10 @@ export default function AdminPackagesPage() {
                 )}
               >
                 <Card
+                  variant="glass"
                   className={cn(
-                    "relative flex-1 flex flex-col p-10 border-none shadow-premium transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2 rounded-[3.5rem]",
-                    pkg.isActive ? "bg-white/90 backdrop-blur-3xl" : "bg-white/40 shadow-inner"
+                    "relative flex-1 flex flex-col p-8 sm:p-10 border-none transition-all duration-500 group-hover:-translate-y-2 rounded-[2.5rem] lg:rounded-[3.5rem]",
+                    !pkg.isActive && "bg-white/[0.02]"
                   )}
                   padding="none"
                 >
@@ -271,15 +255,14 @@ export default function AdminPackagesPage() {
                   <div className="relative z-10 flex flex-col h-full">
                     <div className="flex justify-between items-start mb-8">
                       <div className="space-y-1">
-                        <h3 className="text-3xl font-black text-slate-900 tracking-tight leading-tight uppercase group-hover:text-emerald-600 transition-colors">{pkg.name}</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
-                          <span className="w-5 h-[1px] bg-slate-200"></span>
+                        <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight uppercase group-hover:text-emerald-400 transition-colors">{pkg.name}</h3>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2">
                           {pkg.durationDays} Day Cycle
                         </p>
                       </div>
                       <div className={cn(
-                        "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-slate-100 shadow-sm",
-                        pkg.isActive ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400"
+                        "px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest border border-white/5 shadow-lg",
+                        pkg.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/20"
                       )}>
                         {pkg.isActive ? 'Protocol Active' : 'Index Halted'}
                       </div>
@@ -287,56 +270,57 @@ export default function AdminPackagesPage() {
 
                     <div className="mb-10">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-black text-slate-900 tracking-tighter">฿{pkg.price.toLocaleString()}</span>
-                        <span className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-widest opacity-60">/ {pkg.durationDays}D Protocol</span>
+                        <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter">฿{pkg.price.toLocaleString()}</span>
+                        <span className="text-[10px] font-black font-mono text-slate-600 uppercase tracking-widest opacity-60">/ {pkg.durationDays}D Protocol</span>
                       </div>
                       {(pkg.priceUsdt ?? 0) > 0 && (
-                        <div className="mt-3 flex items-center gap-2 bg-emerald-50 w-fit px-3 py-1 rounded-full border border-emerald-100/50">
+                        <div className="mt-3 flex items-center gap-2 bg-emerald-500/5 w-fit px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-emerald-500/10">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                          <p className="text-emerald-600 font-black font-mono text-[9px] uppercase tracking-widest">
+                          <p className="text-emerald-400 font-black font-mono text-[9px] uppercase tracking-widest">
                             {pkg.priceUsdt} USDT Matrix Access
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <div className="bg-slate-50/50 border border-slate-100/50 backdrop-blur-md p-8 mb-10 rounded-[2.5rem] flex items-center justify-between shadow-inner">
+                    <div className="bg-white/[0.02] border border-white/5 backdrop-blur-md p-6 sm:p-8 mb-10 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-between shadow-inner">
                       <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Protocol Quota</p>
-                        <p className="text-2xl font-black text-slate-900 leading-none tracking-tight">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 opacity-20">SLIPS</span></p>
+                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2 text-center">Protocol Quota</p>
+                        <p className="text-xl sm:text-2xl font-black text-white leading-none tracking-tight text-center">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 opacity-20">PAYLOADS</span></p>
                       </div>
-                      <div className="h-10 w-[1px] bg-slate-200/50 mx-6" />
-                      <div className="text-right">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Unit Logistics</p>
-                        <p className="text-lg font-black text-emerald-600 leading-none tracking-tight">฿{(pkg.price / pkg.slipQuota).toFixed(2)}<span className="text-[9px] ml-1 opacity-40">/UNIT</span></p>
+                      <div className="h-10 w-[1px] bg-white/5 mx-6" />
+                      <div className="text-center">
+                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2">Unit Logistics</p>
+                        <p className="text-lg font-black text-emerald-400 leading-none tracking-tight">฿{(pkg.price / pkg.slipQuota).toFixed(2)}<span className="text-[9px] ml-1 opacity-40">/UNIT</span></p>
                       </div>
                     </div>
 
                     <div className="space-y-5 mb-12 flex-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                        <span className="w-4 h-[1px] bg-slate-200"></span>
+                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3 justify-center">
+                        <span className="w-4 h-[1px] bg-white/10"></span>
                         Neural Capabilities
+                        <span className="w-4 h-[1px] bg-white/10"></span>
                       </p>
                       <ul className="space-y-4">
                         {pkg.features?.map((feature, i) => (
-                          <li key={i} className="flex items-start gap-4 text-slate-600 group/feature">
-                            <div className="w-6 h-6 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0 group-hover/feature:bg-emerald-500 group-hover/feature:text-white transition-all duration-300">
+                          <li key={i} className="flex items-start gap-4 text-slate-400 group/feature">
+                            <div className="w-6 h-6 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 group-hover/feature:bg-emerald-400 group-hover/feature:text-white transition-all duration-300">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
                               </svg>
                             </div>
-                            <span className="text-[13px] font-bold tracking-tight text-slate-700 leading-tight pt-0.5">{feature}</span>
+                            <span className="text-[13px] font-bold tracking-tight text-white/60 leading-tight pt-0.5">{feature}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-8 border-t border-slate-50">
+                    <div className="grid grid-cols-2 gap-4 pt-8 border-t border-white/5">
                       <Button
                         variant="ghost"
                         fullWidth
                         onClick={() => handleEdit(pkg)}
-                        className="h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
+                        className="h-12 sm:h-14 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-white hover:bg-white/5 transition-all"
                       >
                         Modify Plan
                       </Button>
@@ -345,8 +329,8 @@ export default function AdminPackagesPage() {
                         fullWidth
                         onClick={() => pkg.isActive ? handleDeleteClick(pkg) : handleActivate(pkg)}
                         className={cn(
-                          "h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all",
-                          pkg.isActive ? "text-rose-500 border-rose-100 hover:bg-rose-50 hover:border-rose-200" : "shadow-emerald-500/10 shadow-xl"
+                          "h-12 sm:h-14 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all",
+                          pkg.isActive ? "text-rose-400 border-rose-500/20 hover:bg-rose-500/10" : "shadow-emerald-500/20 shadow-2xl"
                         )}
                       >
                         {pkg.isActive ? 'Halt Protocol' : 'Deploy Index'}
@@ -360,14 +344,14 @@ export default function AdminPackagesPage() {
         )}
       </div>
 
-      {/* Modals */}
       <Modal
         isOpen={showModal}
         onClose={() => !isSubmitting && setShowModal(false)}
         title={editPackage ? 'PROTOCOL MODIFICATION' : 'NEW MATRIX DEPLOYMENT'}
+        subtitle="Configure computational resources and monetary value for this package"
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="p-2 space-y-10">
+        <form onSubmit={handleSubmit} className="p-2 space-y-10 focus-within:animate-pulse-slow">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-8">
               <Input
@@ -377,7 +361,7 @@ export default function AdminPackagesPage() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 error={formErrors.name}
                 required
-                className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs"
+                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
               />
               <div className="grid grid-cols-2 gap-5">
                 <Input
@@ -388,7 +372,7 @@ export default function AdminPackagesPage() {
                   error={formErrors.price}
                   min={0}
                   required
-                  className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
                 />
                 <Input
                   label="VALUATION (USDT)"
@@ -396,7 +380,7 @@ export default function AdminPackagesPage() {
                   value={formData.priceUsdt}
                   onChange={(e) => setFormData({ ...formData, priceUsdt: Number(e.target.value) })}
                   min={0}
-                  className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs opacity-70 focus:opacity-100"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs opacity-70 focus:opacity-100"
                 />
               </div>
               <div className="grid grid-cols-2 gap-5">
@@ -408,7 +392,7 @@ export default function AdminPackagesPage() {
                   error={formErrors.slipQuota}
                   min={0}
                   required
-                  className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
                 />
                 <Input
                   label="CYCLE DURATION"
@@ -418,7 +402,7 @@ export default function AdminPackagesPage() {
                   error={formErrors.durationDays}
                   min={1}
                   required
-                  className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
                 />
               </div>
               <Input
@@ -428,7 +412,7 @@ export default function AdminPackagesPage() {
                 onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
                 min={0}
                 hint="Priority hierarchy in the public manifest."
-                className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-[10px]"
+                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-[10px]"
               />
             </div>
 
@@ -439,7 +423,7 @@ export default function AdminPackagesPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs p-5"
+                className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
               />
               <TextArea
                 label="CAPABILITY MATRIX (ONE PER LINE)"
@@ -447,16 +431,16 @@ export default function AdminPackagesPage() {
                 value={formData.features}
                 onChange={(e) => setFormData({ ...formData, features: e.target.value })}
                 rows={8}
-                className="rounded-3xl bg-slate-50 border-none shadow-inner font-black text-[11px] p-6 leading-relaxed uppercase"
+                className="rounded-3xl bg-white/[0.03] border-white/10 text-white font-black text-[11px] p-6 leading-relaxed uppercase"
               />
             </div>
           </div>
 
-          <div className="flex gap-4 pt-8 border-t border-slate-50">
+          <div className="flex gap-4 pt-8">
             <Button
               type="button"
               variant="ghost"
-              className="flex-1 font-black text-[11px] uppercase tracking-widest text-slate-400 h-16 rounded-2xl hover:bg-slate-50"
+              className="flex-1 font-black text-[11px] uppercase tracking-widest text-slate-500 h-16 rounded-2xl hover:bg-white/5"
               onClick={() => { setShowModal(false); resetForm(); }}
               disabled={isSubmitting}
             >
@@ -464,7 +448,7 @@ export default function AdminPackagesPage() {
             </Button>
             <Button
               type="submit"
-              className="flex-[2] h-16 rounded-2xl font-black uppercase tracking-widest text-[12px] shadow-emerald-500/10 shadow-2xl"
+              className="flex-[2] h-16 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl"
               isLoading={isSubmitting}
             >
               {editPackage ? 'Commit Protocol' : 'Execute Deployment'}

@@ -54,76 +54,69 @@ export default function UserDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto pb-6 md:pb-10">
+      <div className="section-gap animate-fade pb-10">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8 relative z-10">
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl md:text-3xl lg:text-5xl font-black text-white tracking-tight leading-tight uppercase">
-              ระบบ<span className="text-emerald-400">แดชบอร์ด</span>
+        <div className="page-header relative z-10">
+          <div className="space-y-1 sm:space-y-2">
+            <h1 className="page-title-responsive">
+              Service <span className="text-emerald-400">Dashboard</span>
             </h1>
-            <p className="text-slate-400 font-bold text-xs md:text-sm lg:text-lg tracking-wide opacity-80 uppercase">
-              ภาพรวมการใช้งานและ <span className="text-white">โควต้าปัจจุบันของคุณ</span>
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Mission Control <span className="text-white">& Neural Resource Overview</span>
             </p>
           </div>
-          <Link href="/user/packages" className="w-full md:w-auto">
-            <Button size="lg" variant="primary" className="w-full h-12 md:h-16 px-6 md:px-10 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-1 animate-scale-in transition-all duration-300">
-              <span className="mr-2 md:mr-3 text-lg md:text-xl">💎</span>
-              <span className="hidden sm:inline">ซื้อแพ็คเกจ / เติมเงิน</span>
-              <span className="sm:hidden">ซื้อแพ็คเกจ</span>
+          <Link href="/user/packages" className="w-full sm:w-auto">
+            <Button size="lg" variant="primary" className="w-full h-11 sm:h-16 px-6 sm:px-10 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all">
+              <span className="mr-2 sm:mr-3 text-lg sm:text-xl">💎</span>
+              ซื้อแพ็คเกจ / เติมเงิน
             </Button>
           </Link>
         </div>
 
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+        <div className="grid-stats">
           <StatCard
-            title="บัญชีที่เชื่อมต่อ"
+            title="ACTIVE_NODES"
             value={lineAccounts.length}
-            icon="💬"
             color="emerald"
             variant="glass"
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             isLoading={isLoading}
-            className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm"
           />
           <StatCard
-            title="เครดิตคงเหลือ"
+            title="NEURAL_RESIDUE"
             value={quota?.remainingQuota?.toLocaleString() || 0}
-            icon="⚡"
             color={quota && quota.remainingQuota < 50 ? "rose" : "emerald"}
             variant="glass"
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             isLoading={isLoading}
-            className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm"
           />
           <StatCard
-            title="ยืนยันสำเร็จแล้ว"
+            title="TOTAL_VALIDATIONS"
             value={lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0), 0).toLocaleString()}
-            icon="✅"
-            color="indigo"
+            color="violet"
             variant="glass"
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             isLoading={isLoading}
-            className="rounded-xl md:rounded-[2.5rem] border-none shadow-premium-sm col-span-2 xl:col-span-1"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
-          {/* Main Quota Section */}
           <div className="lg:col-span-2">
-            <Card className="h-full bg-white/70 backdrop-blur-3xl border-none shadow-premium-lg overflow-hidden relative rounded-2xl md:rounded-[3.5rem]" padding="none">
+            <Card className="h-full relative overflow-hidden group" variant="glass" padding="none">
               <div className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-emerald-500/10 rounded-full blur-[80px] md:blur-[120px] -mr-20 md:-mr-40 -mt-20 md:-mt-40 pointer-events-none" />
               <div className="absolute bottom-0 left-0 w-[200px] md:w-[300px] h-[200px] md:h-[300px] bg-indigo-500/5 rounded-full blur-[60px] md:blur-[100px] -ml-10 md:-ml-20 -mb-10 md:-mb-20 pointer-events-none" />
 
               <div className="p-5 md:p-8 lg:p-12 flex flex-col h-full relative z-10">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-12">
                   <div className="space-y-1">
-                    <h2 className="text-lg md:text-2xl font-black text-slate-900 uppercase tracking-tight">
-                      สถานะ<span className="text-emerald-500">โควต้า</span>
+                    <h2 className="text-xl md:text-3xl font-black text-white uppercase tracking-tighter leading-none">
+                      Resource <span className="text-emerald-400">Matrix</span>
                     </h2>
-                    <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">ข้อมูลการประมวลผลสลิป</p>
+                    <p className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1 opacity-50">Real-time Quota Telemetry</p>
                   </div>
                   <Link href="/user/quota">
-                    <Button variant="ghost" size="sm" className="font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-500 hover:text-emerald-600 rounded-xl">
-                      ดูรายละเอียด <span className="ml-2">→</span>
+                    <Button variant="ghost" size="sm" className="font-black text-[9px] md:text-[10px] uppercase tracking-widest text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl">
+                      ดูรายละเอียด <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
                     </Button>
                   </Link>
                 </div>
@@ -136,12 +129,12 @@ export default function UserDashboard() {
                   <div className="flex flex-col lg:flex-row gap-6 md:gap-12 items-center lg:items-center flex-1">
                     {/* Animated Circle */}
                     <div className="relative w-36 h-36 md:w-56 md:h-56 flex-shrink-0 group">
-                      <div className="absolute inset-0 bg-white/50 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors duration-700" />
+                      <div className="absolute inset-0 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors duration-700" />
                       <svg className="w-full h-full transform -rotate-90 relative z-10">
                         <circle
                           cx="50%" cy="50%" r="40%"
                           fill="transparent"
-                          stroke="rgba(241, 245, 249, 1)"
+                          stroke="rgba(255, 255, 255, 0.05)"
                           strokeWidth="12"
                         />
                         <motion.circle
@@ -155,9 +148,9 @@ export default function UserDashboard() {
                           strokeDasharray="251"
                           strokeLinecap="round"
                           className={cn(
-                            "transition-colors duration-1000 shadow-2xl",
-                            quotaPercentage >= 90 ? "text-rose-500" :
-                              quotaPercentage >= 70 ? "text-amber-500" : "text-emerald-500"
+                            "transition-colors duration-1000",
+                            quotaPercentage >= 90 ? "text-rose-500 drop-shadow-[0_0_10px_rgba(244,63,94,0.3)]" :
+                              quotaPercentage >= 70 ? "text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                           )}
                         />
                       </svg>
@@ -165,36 +158,36 @@ export default function UserDashboard() {
                         <motion.span
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="text-3xl md:text-5xl font-black text-slate-900 text-shadow-sm"
+                          className="text-3xl md:text-5xl font-black text-white"
                         >
                           {100 - quotaPercentage}%
                         </motion.span>
-                        <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">คงเหลือ</span>
+                        <span className="text-[8px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1">คงเหลือ</span>
                       </div>
                     </div>
 
                     {/* Stats List */}
                     <div className="flex-1 w-full space-y-3 md:space-y-6">
-                      <div className="bg-slate-50/80 backdrop-blur-sm rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white flex justify-between items-center shadow-inner">
+                      <div className="bg-white/[0.02] backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-6 border border-white/[0.05] flex justify-between items-center group/item hover:bg-white/[0.05] transition-all">
                         <div className="flex flex-col">
-                          <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">เครดิตโควต้าทั้งหมด</span>
-                          <span className="text-xl md:text-3xl font-black text-slate-900 tracking-tighter">{quota.totalQuota.toLocaleString()}</span>
+                          <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 md:mb-2 opacity-50">โควต้าทั้งหมด</span>
+                          <span className="text-xl md:text-3xl font-black text-white tracking-tighter">{quota.totalQuota.toLocaleString()}</span>
                         </div>
-                        <div className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-sm">
+                        <div className="w-10 h-10 md:w-14 md:h-14 bg-white/[0.05] rounded-xl md:rounded-2xl flex items-center justify-center border border-white/5 shadow-sm group-hover/item:scale-110 transition-transform">
                           <span className="text-xl md:text-2xl">📦</span>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 md:gap-6">
-                        <div className="bg-emerald-50/80 backdrop-blur-sm rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white shadow-inner group overflow-hidden relative">
-                          <div className="absolute top-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-emerald-500/5 rounded-full -mr-8 md:-mr-10 -mt-8 md:-mt-10 blur-xl group-hover:bg-emerald-500/10 transition-colors" />
-                          <span className="text-[9px] md:text-[10px] font-black text-emerald-600/70 uppercase tracking-[0.2em] mb-1 md:mb-2 block">คงเหลือ</span>
-                          <p className="text-emerald-600 font-black text-xl md:text-3xl tracking-tighter relative z-10">{quota.remainingQuota.toLocaleString()}</p>
+                        <div className="bg-emerald-500/[0.03] backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-6 border border-emerald-500/10 group overflow-hidden relative hover:bg-emerald-500/[0.06] transition-all">
+                          <div className="absolute top-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-emerald-500/10 rounded-full -mr-8 md:-mr-10 -mt-8 md:-mt-10 blur-xl group-hover:bg-emerald-500/20 transition-colors" />
+                          <span className="text-[9px] md:text-[10px] font-black text-emerald-400/50 uppercase tracking-[0.2em] mb-1 md:mb-2 block">Available</span>
+                          <p className="text-emerald-400 font-black text-lg md:text-3xl tracking-tighter relative z-10 leading-none">{quota.remainingQuota.toLocaleString()}</p>
                         </div>
-                        <div className="bg-indigo-50/80 backdrop-blur-sm rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white shadow-inner group overflow-hidden relative">
-                          <div className="absolute top-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-indigo-500/5 rounded-full -mr-8 md:-mr-10 -mt-8 md:-mt-10 blur-xl group-hover:bg-indigo-500/10 transition-colors" />
-                          <span className="text-[9px] md:text-[10px] font-black text-indigo-600/70 uppercase tracking-[0.2em] mb-1 md:mb-2 block">ใช้งานแล้ว</span>
-                          <p className="text-indigo-600 font-black text-xl md:text-3xl tracking-tighter relative z-10">{quota.usedQuota.toLocaleString()}</p>
+                        <div className="bg-violet-500/[0.03] backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-6 border border-violet-500/10 group overflow-hidden relative hover:bg-violet-500/[0.06] transition-all">
+                          <div className="absolute top-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-violet-500/10 rounded-full -mr-8 md:-mr-10 -mt-8 md:-mt-10 blur-xl group-hover:bg-violet-500/20 transition-colors" />
+                          <span className="text-[9px] md:text-[10px] font-black text-violet-400/50 uppercase tracking-[0.2em] mb-1 md:mb-2 block">Processed</span>
+                          <p className="text-violet-400 font-black text-lg md:text-3xl tracking-tighter relative z-10 leading-none">{quota.usedQuota.toLocaleString()}</p>
                         </div>
                       </div>
 
@@ -202,12 +195,12 @@ export default function UserDashboard() {
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="p-5 bg-rose-50/80 backdrop-blur-sm rounded-2xl border border-rose-100/50 flex items-center gap-4 text-rose-700 shadow-sm"
+                          className="p-4 bg-rose-500/10 backdrop-blur-sm rounded-2xl border border-rose-500/20 flex items-center gap-4 text-rose-400 shadow-sm"
                         >
                           <span className="text-2xl animate-bounce">⚠️</span>
                           <div className="flex flex-col">
-                            <span className="font-black text-[10px] uppercase tracking-widest leading-none mb-1">แจ้งเตือนเครดิตต่ำ</span>
-                            <span className="font-bold text-sm text-slate-700">เหลือเพียง {quota.remainingQuota} เครดิต</span>
+                            <span className="font-black text-[10px] uppercase tracking-widest leading-none mb-1">เครดิตต่ำ</span>
+                            <span className="font-bold text-xs text-white opacity-80">เหลือเพียง {quota.remainingQuota} เครดิต กรุณาเติมเงิน</span>
                           </div>
                         </motion.div>
                       )}
@@ -228,53 +221,53 @@ export default function UserDashboard() {
           </div>
 
           {/* Quick Actions & Accounts */}
-          <div className="space-y-6">
-            <Card className="p-8 bg-slate-900 text-white relative overflow-hidden border-none shadow-premium-lg rounded-[3.5rem]" padding="none">
+          <div className="space-y-6 md:space-y-8">
+            <Card className="p-6 sm:p-8 relative overflow-hidden group" variant="glass" padding="none">
               <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/20 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none" />
               <div className="absolute bottom-0 left-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-[60px] -ml-10 -mb-10 pointer-events-none" />
 
-              <div className="flex items-center justify-between mb-8 relative z-10 px-2">
-                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
-                  <span className="w-1.5 h-8 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" /> บัญชีของคุณ
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight flex items-center gap-3 text-white">
+                  <span className="w-1.5 h-6 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.5)]" /> Account Nodes
                 </h3>
-                <Badge variant="emerald" className="bg-emerald-500/20 text-emerald-400 border-none font-black text-[9px] px-3 py-1 uppercase tracking-[0.2em] rounded-lg">ACTIVE</Badge>
+                <Badge variant="success" className="bg-emerald-500/10 text-emerald-400 border-white/5 font-black text-[8px] sm:text-[9px] px-3 py-1 uppercase tracking-[0.2em] rounded-lg">LIVE</Badge>
               </div>
 
               <div className="space-y-4 relative z-10">
                 {isLoading ? (
-                  Array(3).fill(0).map((_, i) => <div key={i} className="bg-white/5 h-16 rounded-2xl animate-pulse mx-2" />)
+                  Array(3).fill(0).map((_, i) => <div key={i} className="bg-white/5 h-16 rounded-2xl animate-pulse" />)
                 ) : lineAccounts.length > 0 ? (
                   <>
-                    <div className="space-y-3 mx-2">
+                    <div className="space-y-2.5 sm:space-y-3">
                       {lineAccounts.slice(0, 3).map(account => (
-                        <div key={account._id} className="p-4 bg-white/5 hover:bg-white/10 transition-all duration-300 rounded-2xl border border-white/5 flex items-center gap-4 group">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-lg transform group-hover:rotate-12 transition-transform">
+                        <div key={account._id} className="p-3.5 sm:p-4 bg-white/[0.02] hover:bg-white/[0.05] transition-all duration-300 rounded-2xl border border-white/[0.05] flex items-center gap-4 group/item">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-lg sm:text-xl shadow-lg transform group-hover/item:rotate-12 transition-transform">
                             {account.accountName.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-black text-sm truncate uppercase tracking-tight text-white/90">{account.accountName}</p>
+                            <p className="font-black text-xs sm:text-sm truncate uppercase tracking-tight text-white/90">{account.accountName}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px]", account.isActive ? "bg-emerald-500 shadow-emerald-500/50" : "bg-slate-500")} />
-                              <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{account.isActive ? 'เปิดสัญญาณ' : 'ปิดสัญญาณ'}</p>
+                              <p className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-widest">{account.isActive ? 'Active' : 'Offline'}</p>
                             </div>
                           </div>
                           <Link href={`/user/line-accounts?edit=${account._id}`}>
-                            <IconButton variant="ghost" size="sm" className="text-white/30 hover:text-white hover:bg-white/10 rounded-xl">✏️</IconButton>
+                            <IconButton variant="ghost" size="sm" className="text-slate-500 hover:text-white hover:bg-white/10 rounded-xl">✏️</IconButton>
                           </Link>
                         </div>
                       ))}
                     </div>
-                    <Link href="/user/line-accounts" className="block mt-4 px-2">
-                      <Button variant="ghost" fullWidth className="h-14 rounded-2xl text-emerald-400 hover:text-emerald-300 font-black uppercase tracking-[0.2em] text-[10px] bg-white/5 border border-white/5">
+                    <Link href="/user/line-accounts" className="block mt-4 sm:mt-6">
+                      <Button variant="ghost" fullWidth className="h-11 sm:h-14 rounded-2xl text-emerald-400 hover:text-emerald-300 font-black uppercase tracking-[0.2em] text-[10px] bg-white/[0.03] border border-white/5 hover:border-emerald-500/20 transition-all">
                         จัดการทั้งหมด ({lineAccounts.length})
                       </Button>
                     </Link>
                   </>
                 ) : (
-                  <div className="text-center py-10 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 mx-2">
-                    <p className="text-slate-400 font-bold text-xs mb-6 px-4">ยังไม่มีการเชื่อมต่อบัญชีเข้าสู่ระบบ</p>
+                  <div className="text-center py-10 bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
+                    <p className="text-slate-500 font-bold text-xs mb-6 px-4">ยังไม่มีการเชื่อมต่อบัญชี</p>
                     <Link href="/user/line-accounts">
-                      <Button variant="outline" size="md" className="border-white/20 text-white hover:bg-white shadow-none h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">
+                      <Button variant="outline" size="md" className="border-white/10 text-white hover:bg-white/5 h-11 px-8 rounded-xl font-black uppercase tracking-widest text-[9px]">
                         + เพิ่มบัญชีใหม่
                       </Button>
                     </Link>
@@ -283,17 +276,17 @@ export default function UserDashboard() {
               </div>
             </Card>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <Link href="/user/packages" className="group">
-                <div className="bg-white/60 backdrop-blur-3xl p-6 rounded-[2.5rem] border border-white shadow-premium-sm hover:shadow-premium-lg hover:border-emerald-200 transition-all duration-500 text-center h-full flex flex-col items-center justify-center gap-4 group">
-                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-[1.5rem] flex items-center justify-center text-3xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 shadow-inner">💎</div>
-                  <span className="font-black text-slate-900 uppercase tracking-widest text-[11px]">เติมเครดิต</span>
+                <div className="bg-white/[0.02] backdrop-blur-3xl p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-white/[0.05] hover:bg-white/[0.05] hover:border-emerald-500/20 transition-all duration-500 text-center h-full flex flex-col items-center justify-center gap-4 group">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 shadow-lg shadow-emerald-500/5">💎</div>
+                  <span className="font-black text-white uppercase tracking-widest text-[9px] sm:text-[11px] opacity-60">เติมเครดิต</span>
                 </div>
               </Link>
               <Link href="/user/line-accounts" className="group">
-                <div className="bg-white/60 backdrop-blur-3xl p-6 rounded-[2.5rem] border border-white shadow-premium-sm hover:shadow-premium-lg hover:border-indigo-200 transition-all duration-500 text-center h-full flex flex-col items-center justify-center gap-4 group">
-                  <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-[1.5rem] flex items-center justify-center text-3xl group-hover:scale-110 group-hover:-rotate-12 transition-all duration-500 shadow-inner">🤖</div>
-                  <span className="font-black text-slate-900 uppercase tracking-widest text-[11px]">ตั้งค่าบอท</span>
+                <div className="bg-white/[0.02] backdrop-blur-3xl p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-white/[0.05] hover:bg-white/[0.05] hover:border-violet-500/20 transition-all duration-500 text-center h-full flex flex-col items-center justify-center gap-4 group">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-violet-500/10 text-violet-400 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl group-hover:scale-110 group-hover:-rotate-12 transition-all duration-500 shadow-lg shadow-violet-500/5">🤖</div>
+                  <span className="font-black text-white uppercase tracking-widest text-[9px] sm:text-[11px] opacity-60">ตั้งค่าบอท</span>
                 </div>
               </Link>
             </div>
@@ -305,27 +298,27 @@ export default function UserDashboard() {
           <div className="pt-8 space-y-6 animate-fade-up">
             <div className="flex items-center justify-between px-2">
               <div className="space-y-1">
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">ธุรกรรมล่าสุด</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">รายการชำระเงินที่เพิ่งทำรายการ</p>
+                <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter">Settlement Ledger</h3>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-50">Recent Transaction Protocols</p>
               </div>
               <Link href="/user/payments">
-                <Button variant="ghost" size="sm" className="font-black text-[10px] uppercase tracking-widest text-slate-500">ดูทั้งหมด</Button>
+                <Button variant="ghost" size="sm" className="font-black text-[10px] uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/10">VIEW_ALL_LOGS</Button>
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {recentPayments.map((payment) => (
-                <div key={payment._id} className="p-6 bg-white/60 backdrop-blur-3xl rounded-[2.5rem] border border-white flex items-center justify-between hover:border-emerald-200 hover:shadow-premium-sm transition-all duration-500 group">
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                <div key={payment._id} className="p-5 sm:p-6 bg-white/[0.02] backdrop-blur-3xl rounded-3xl border border-white/[0.05] flex items-center justify-between hover:border-emerald-500/20 hover:bg-white/[0.05] transition-all duration-500 group">
+                  <div className="flex items-center gap-4 sm:gap-5">
+                    <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-white/[0.05] flex items-center justify-center text-xl sm:text-2xl shadow-inner group-hover:scale-110 transition-transform">
                       {payment.paymentType === 'bank_transfer' ? '🏦' : '🪙'}
                     </div>
                     <div>
-                      <p className="font-black text-slate-900 text-xl tracking-tight">฿{payment.amount.toLocaleString()}</p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{formatDate(payment.createdAt)}</p>
+                      <p className="font-black text-white text-lg sm:text-xl tracking-tight leading-none mb-1">฿{payment.amount.toLocaleString()}</p>
+                      <p className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">{formatDate(payment.createdAt)}</p>
                     </div>
                   </div>
-                  <StatusBadge status={payment.status} className="font-black uppercase tracking-widest text-[9px] px-3 py-1.5 rounded-xl shadow-sm" />
+                  <StatusBadge status={payment.status} className="font-black uppercase tracking-widest text-[8px] sm:text-[9px] px-3 py-1.5 rounded-xl" />
                 </div>
               ))}
             </div>

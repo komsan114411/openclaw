@@ -10,6 +10,7 @@ import { Card, StatCard, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Loading';
+import { cn } from '@/lib/utils';
 
 export default function UserQuotaPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -81,179 +82,165 @@ export default function UserQuotaPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 md:space-y-6 animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">โควต้าการใช้งาน</h1>
-            <p className="text-xs md:text-sm text-slate-500 font-medium">ติดตามการใช้งานโควต้าของคุณ</p>
+      <div className="section-gap animate-fade pb-10">
+        <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
+            <h1 className="page-title-responsive">
+              Operational <span className="text-emerald-400">Matrix</span>
+            </h1>
+            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
+              Neural Resource Allocation & Utilization Telemetry
+            </p>
           </div>
-          <Link href="/user/packages">
-            <Button variant="primary" size="sm" className="w-full sm:w-auto">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              เติมโควต้า
+          <Link href="/user/packages" className="w-full sm:w-auto">
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full sm:w-auto h-11 sm:h-14 px-8 rounded-2xl bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 font-black uppercase tracking-widest text-[10px]"
+            >
+              Initialize Top-Up
             </Button>
           </Link>
         </div>
 
-        {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between animate-slide-up">
+          <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-2 bg-rose-500/10 rounded-lg">
+                <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-red-700 font-medium">{error}</span>
+              <span className="text-rose-400 font-black text-[10px] uppercase tracking-widest">{error}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleRetry}>
-              ลองใหม่
+            <Button variant="ghost" size="sm" onClick={handleRetry} className="text-rose-400 hover:bg-rose-500/10">
+              RETRY
             </Button>
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+        <div className="grid-stats">
           <StatCard
-            title="โควต้าคงเหลือ"
+            title="REMAINING_QUOTA"
             value={(subscription?.remainingQuota || 0).toLocaleString()}
             color="emerald"
             variant="glass"
-            className="rounded-[2.5rem] shadow-premium-sm border-none"
-            icon={
-              <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="สลิปที่ตรวจสอบ"
+            title="SLIPS_VERIFIED"
             value={getTotalSlipsVerified().toLocaleString()}
             color="blue"
             variant="glass"
-            className="rounded-[2.5rem] shadow-premium-sm border-none"
-            icon={
-              <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            }
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="ข้อความทั้งหมด"
+            title="NEURAL_MESSAGES"
             value={getTotalMessages().toLocaleString()}
             color="violet"
             variant="glass"
-            className="rounded-[2.5rem] shadow-premium-sm border-none"
-            icon={
-              <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            }
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="เหลืออีก"
-            value={`${daysRemaining} วัน`}
+            title="TTL_RESIDUE"
+            value={`${daysRemaining} DAYS`}
             color={daysRemaining < 7 ? 'rose' : 'amber'}
             variant="glass"
-            className="rounded-[2.5rem] shadow-premium-sm border-none"
-            icon={
-              <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
         </div>
 
-        {/* Quota Progress */}
-        <Card className="rounded-[3rem] border-none shadow-premium-lg bg-white/70 backdrop-blur-3xl overflow-hidden relative p-8">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none" />
-          
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 relative z-10">
-            <div>
-              <h3 className="font-black text-slate-900 text-2xl tracking-tight uppercase">โควต้าสลิป</h3>
+        <Card className="rounded-[3rem] border border-white/5 shadow-2xl bg-black overflow-hidden relative p-8 sm:p-12 group">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -mr-64 -mt-64 group-hover:bg-emerald-500/10 transition-all duration-1000" />
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12 relative z-10">
+            <div className="space-y-2">
+              <h3 className="font-black text-white text-3xl tracking-tighter uppercase">Slip Quota Utilization</h3>
               {subscription && (
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">แพ็คเกจ: {subscription.packageName || 'Standard'}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Protocol: <span className="text-slate-300">{subscription.packageName || 'Standard Matrix'}</span></p>
+                </div>
               )}
             </div>
             {subscription && (
-              <Badge
-                variant={getQuotaPercentage() > 50 ? 'success' : getQuotaPercentage() > 20 ? 'warning' : 'error'}
-                className="text-[10px] px-4 py-1.5 font-black uppercase tracking-widest rounded-xl shadow-lg"
-              >
-                {getQuotaPercentage()}% คงเหลือ
-              </Badge>
+              <div className="px-6 py-3 bg-white/[0.03] border border-white/10 rounded-2xl">
+                <span className="text-xl font-black text-emerald-400 tracking-tighter">{getQuotaPercentage()}%</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-3">Residual</span>
+              </div>
             )}
           </div>
 
           {subscription ? (
-            <div className="relative z-10">
-              {/* Progress Bar */}
-              <div className="mb-10">
-                <div className="flex justify-between text-sm mb-3">
-                  <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">Usage Metric</span>
-                  <span className="font-black text-slate-900">
-                    {(subscription.remainingQuota || 0).toLocaleString()} <span className="text-slate-400 text-xs font-bold">/ {(subscription.quota || 0).toLocaleString()} SLIPS</span>
-                  </span>
+            <div className="relative z-10 space-y-12">
+              <div>
+                <div className="flex justify-between items-end mb-4">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Consumption Metric</p>
+                    <p className="text-2xl font-black text-white tracking-widest">
+                      {(subscription.remainingQuota || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Matrix Limit</p>
+                    <p className="text-sm font-black text-slate-400">{(subscription.quota || 0).toLocaleString()} Units</p>
+                  </div>
                 </div>
-                <div className="relative">
-                  <div className="h-6 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200/50">
+
+                <div className="relative pt-2">
+                  <div className="h-4 bg-white/[0.02] border border-white/5 rounded-full overflow-hidden shadow-2xl">
                     <div
-                      className={`h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r shadow-lg ${getQuotaColor()}`}
+                      className={cn(
+                        "h-full rounded-full transition-all duration-1000 ease-out relative shadow-[0_0_20px_rgba(52,211,153,0.3)]",
+                        getQuotaPercentage() > 50 ? 'bg-emerald-500' : getQuotaPercentage() > 20 ? 'bg-amber-500' : 'bg-rose-500'
+                      )}
                       style={{ width: `${Math.max(getQuotaPercentage(), 2)}%` }}
-                    />
+                    >
+                      <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-r from-transparent to-white/20" />
+                    </div>
                   </div>
                 </div>
-                <p className="text-[10px] font-bold text-slate-400 mt-2 text-right uppercase tracking-widest">
-                  Consumed: {usedQuota.toLocaleString()} units
-                </p>
               </div>
 
-              {/* Date Info */}
-              <div className="grid grid-cols-2 gap-4 pt-8 border-t border-slate-100">
-                <div className="p-5 bg-slate-50/50 rounded-[2rem] border border-slate-100 text-center">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Activation Date</p>
-                  <p className="font-black text-slate-900 text-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-8">
+                <div className="p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2.5rem] border border-white/5 transition-all duration-500 text-center group/card">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Activation Timestamp</p>
+                  <p className="font-black text-white text-xl uppercase tracking-widest font-mono">
                     {subscription.startDate
-                      ? new Date(subscription.startDate).toLocaleDateString('th-TH', {
+                      ? new Date(subscription.startDate).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
-                      })
-                      : '-'}
+                      }).toUpperCase()
+                      : '---'}
                   </p>
                 </div>
-                <div className="p-5 bg-slate-50/50 rounded-[2rem] border border-slate-100 text-center">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Expiration Date</p>
-                  <p className="font-black text-slate-900 text-lg">
+                <div className="p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2.5rem] border border-white/5 transition-all duration-500 text-center group/card">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Planned Expiration</p>
+                  <p className="font-black text-white text-xl uppercase tracking-widest font-mono">
                     {subscription.expiresAt
-                      ? new Date(subscription.expiresAt).toLocaleDateString('th-TH', {
+                      ? new Date(subscription.expiresAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
-                      })
-                      : '-'}
+                      }).toUpperCase()
+                      : 'PERPETUAL'}
                   </p>
                 </div>
               </div>
 
-              {/* Warning */}
               {getQuotaPercentage() < 20 && (
-                <div className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl flex items-center gap-4 shadow-sm">
-                  <div className="p-2.5 bg-white rounded-xl shadow-sm text-amber-500">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
+                <div className="p-8 bg-rose-500/5 border border-rose-500/20 rounded-[2.5rem] flex flex-col sm:flex-row items-center gap-6 animate-pulse">
+                  <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 text-3xl">
+                    ⚠️
                   </div>
-                  <div className="flex-1">
-                    <p className="font-black text-amber-800 uppercase tracking-tight text-sm">Critical Threshold Reached</p>
-                    <p className="text-xs font-bold text-amber-600/80">Recharge immediately to prevent service interruption.</p>
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="font-black text-white uppercase tracking-tight text-lg">CRITICAL_THRESHOLD_DETECTED</p>
+                    <p className="text-[10px] font-black text-rose-400/60 uppercase tracking-widest mt-1">Initialize protocol recharge to maintain neural integrity.</p>
                   </div>
-                  <Link href="/user/packages">
-                    <Button variant="warning" size="sm" className="rounded-xl font-black uppercase tracking-widest text-[10px] shadow-amber-500/20 shadow-lg">
-                      Top Up Now
+                  <Link href="/user/packages" className="w-full sm:w-auto">
+                    <Button variant="primary" className="h-14 px-10 rounded-2xl bg-rose-500 hover:bg-rose-400 shadow-lg shadow-rose-500/20 font-black uppercase tracking-widest text-[10px] w-full">
+                      RECHARGE_NOW
                     </Button>
                   </Link>
                 </div>
@@ -261,73 +248,70 @@ export default function UserQuotaPage() {
             </div>
           ) : (
             <EmptyState
-              icon={
-                <svg className="w-16 h-16 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              }
-              title="NO SUBSCRIPTION ACTIVE"
-              description="Initialize a package plan to activate neural services."
+              icon="🧊"
+              title="NO_ACTIVE_PROTOCOL"
+              description="Deploy a subscription matrix to unlock neural validation capabilities."
+              variant="glass"
+              className="py-20"
               action={
                 <Link href="/user/packages">
-                  <Button variant="primary" className="rounded-2xl font-black uppercase tracking-widest text-xs h-12 px-8 shadow-emerald-500/20 shadow-xl">View Protocol Plans</Button>
+                  <Button variant="primary" className="h-14 px-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-emerald-500/20">Initialize Matrix</Button>
                 </Link>
               }
             />
           )}
         </Card>
 
-        {/* Per Account Usage */}
         {accounts.length > 0 && (
-          <Card className="rounded-[3rem] border-none shadow-premium-lg bg-white/70 backdrop-blur-3xl overflow-hidden p-0">
-            <div className="p-8 pb-4">
-              <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Account Telemetry</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Real-time resource distribution across {accounts.length} nodes</p>
+          <Card variant="glass" className="rounded-[3rem] border border-white/5 shadow-2xl bg-white/[0.01] overflow-hidden p-0">
+            <div className="p-8 sm:p-10">
+              <h3 className="font-black text-white text-xl uppercase tracking-tight">Account Telemetry</h3>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Real-time resource distribution across {accounts.length} active nodes</p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Node Identity</th>
-                    <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Messages</th>
-                    <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Slips</th>
-                    <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hidden sm:table-cell">AI Responses</th>
-                    <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
+                  <tr className="bg-white/[0.02] border-y border-white/5">
+                    <th className="px-8 py-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Node Identity</th>
+                    <th className="px-8 py-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Messages</th>
+                    <th className="px-8 py-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Slips</th>
+                    <th className="px-8 py-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hidden sm:table-cell">AI Neural Load</th>
+                    <th className="px-8 py-5 text-right text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Protocol Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-white/5">
                   {accounts.map((account) => (
-                    <tr key={account._id} className="hover:bg-white transition-colors group">
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                    <tr key={account._id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-5">
+                          <div className="w-12 h-12 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-emerald-400 font-black text-lg shadow-2xl group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500">
                             {account.accountName?.charAt(0).toUpperCase() || 'L'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 text-sm truncate">{account.accountName}</p>
-                            <p className="text-[10px] font-mono font-bold text-slate-400 truncate bg-slate-100 px-1.5 py-0.5 rounded w-fit mt-0.5">{account.channelId}</p>
+                            <p className="font-black text-white uppercase tracking-tight truncate group-hover:text-emerald-400 transition-colors">{account.accountName}</p>
+                            <p className="text-[9px] font-mono font-black text-slate-500 truncate mt-1 tracking-widest">{account.channelId}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-5 text-center">
-                        <span className="font-black text-slate-700 text-sm">
+                      <td className="px-8 py-6 text-center">
+                        <span className="font-black text-slate-300 text-sm tracking-widest">
                           {(account.statistics?.totalMessages || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-8 py-5 text-center">
-                        <span className="font-black text-emerald-600 text-sm">
+                      <td className="px-8 py-6 text-center">
+                        <span className="font-black text-emerald-400 text-lg tracking-tighter">
                           {(account.statistics?.totalSlipsVerified || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-8 py-5 text-center hidden sm:table-cell">
-                        <span className="font-black text-indigo-600 text-sm">
+                      <td className="px-8 py-6 text-center hidden sm:table-cell">
+                        <span className="font-black text-indigo-400 text-sm tracking-widest">
                           {(account.statistics?.totalAiResponses || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-8 py-5 text-center">
-                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-                          {account.isActive ? 'ONLINE' : 'OFFLINE'}
+                      <td className="px-8 py-6 text-right">
+                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-black uppercase tracking-widest text-[9px] px-3 py-1 rounded-lg">
+                          {account.isActive ? 'OPERATIONAL' : 'HIBERNATED'}
                         </Badge>
                       </td>
                     </tr>
