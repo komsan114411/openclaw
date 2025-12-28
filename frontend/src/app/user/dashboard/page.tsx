@@ -54,15 +54,16 @@ export default function UserDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="section-gap animate-fade pb-10">
+      <div className="section-gap animate-fade pb-10 max-w-7xl mx-auto">
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+          <div className="absolute -top-10 -right-10 w-48 h-48 bg-[#06C755]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="space-y-1 sm:space-y-2 text-left flex-1">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
               แดชบอร์ด <span className="text-[#06C755]">LINE OA</span>
             </h1>
             <p className="text-slate-400 font-medium text-xs sm:text-sm">
-              ภาพรวมและวิเคราะห์ระบบบัญชีทางการ
+              ภาพรวมการใช้งาน • โควต้า • การตรวจสลิป • สถานะระบบ
             </p>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
@@ -79,8 +80,8 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-[#06C755]/20 transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-6">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-[#06C755]/20 transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/20">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center">
                 <span className="text-xl sm:text-2xl">💬</span>
@@ -90,7 +91,7 @@ export default function UserDashboard() {
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">บัญชีทั้งหมด</p>
             <p className="text-xl sm:text-2xl font-black text-white">{lineAccounts.length}</p>
           </Card>
-          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/20">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-amber-500/10 flex items-center justify-center">
                 <span className="text-xl sm:text-2xl">📄</span>
@@ -100,7 +101,7 @@ export default function UserDashboard() {
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">สลิปรอตรวจ</p>
             <p className="text-xl sm:text-2xl font-black text-white">{recentPayments.filter(p => p.status === 'pending').length}</p>
           </Card>
-          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/20">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-violet-500/10 flex items-center justify-center">
                 <span className="text-xl sm:text-2xl">🤖</span>
@@ -109,7 +110,7 @@ export default function UserDashboard() {
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">AI Bot</p>
             <p className="text-xl sm:text-2xl font-black text-white">98%</p>
           </Card>
-          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/20">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/10 flex items-center justify-center">
                 <span className="text-xl sm:text-2xl">👥</span>
@@ -125,7 +126,7 @@ export default function UserDashboard() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mt-4 sm:mt-6">
           <div className="lg:col-span-2">
             <Card className="h-full relative overflow-hidden group" variant="glass" padding="md">
               <div className="absolute top-0 right-0 w-[200px] sm:w-[300px] md:w-[500px] h-[200px] sm:h-[300px] md:h-[500px] bg-[#06C755]/10 rounded-full blur-[60px] sm:blur-[80px] md:blur-[120px] -mr-10 sm:-mr-20 md:-mr-40 -mt-10 sm:-mt-20 md:-mt-40 pointer-events-none" />
@@ -234,7 +235,7 @@ export default function UserDashboard() {
               </div>
             </Card>
 
-            <Card className="p-4 sm:p-6" variant="glass">
+            <Card className="p-4 sm:p-6 mt-4 sm:mt-6" variant="glass">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="text-base sm:text-lg font-black text-white tracking-tight">สถานะ AI Bot</h3>
                 <div className="flex items-center gap-2">
