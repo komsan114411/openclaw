@@ -222,14 +222,22 @@ export default function UserPackagesPage() {
   return (
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10">
-        <div className="page-header relative z-10">
-          <div className="space-y-1 sm:space-y-2">
+        <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
+          <div className="space-y-1 sm:space-y-2 text-left">
             <h1 className="page-title-responsive">
-              Subscription <span className="text-emerald-400">Matrix</span>
+              LINE OA <span className="text-[#06C755]">Dashboard</span>
             </h1>
             <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Scale Your Operational Capacity via Autonomous Protocols
+              Overview & Analytics for Official Account System
             </p>
+          </div>
+          <div className="flex gap-3 mt-6 sm:mt-0">
+            <Button variant="outline" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white">
+              Verify Slip
+            </Button>
+            <Button variant="primary" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]">
+              + New Broadcast
+            </Button>
           </div>
         </div>
 

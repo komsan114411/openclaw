@@ -47,20 +47,25 @@ export default function UserHistoryPage() {
         <div className="page-header relative z-10 flex-col sm:flex-row items-start sm:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
             <h1 className="page-title-responsive">
-              Operational <span className="text-emerald-400">Ledger</span>
+              LINE OA <span className="text-[#06C755]">Dashboard</span>
             </h1>
             <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Chronological Audit of Neural & Financial Transactions
+              Overview & Analytics for Official Account System
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={fetchLogs}
-            className="w-full sm:w-auto h-11 sm:h-14 px-8 rounded-2xl bg-white/[0.03] border border-white/5 text-slate-500 hover:text-white hover:bg-white/10 transition-all font-black uppercase tracking-widest text-[10px]"
-          >
-            Refresh Ledger
-          </Button>
+          <div className="flex gap-3 mt-6 sm:mt-0">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={fetchLogs}
+              className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white"
+            >
+              Filter View
+            </Button>
+            <Button variant="primary" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]">
+              + New Broadcast
+            </Button>
+          </div>
         </div>
 
         {error && (

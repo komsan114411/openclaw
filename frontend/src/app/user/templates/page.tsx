@@ -245,10 +245,10 @@ function TemplatesContent() {
               ← กลับ
             </Button>
             <div>
-              <h1 className="text-base md:text-xl lg:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tight">
-                🎨 Template Gallery
+              <h1 className="text-base md:text-xl lg:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tight">
+                LINE OA <span className="text-[#06C755]">Dashboard</span>
               </h1>
-              <p className="text-slate-500 text-[10px] md:text-sm mt-0.5 font-bold uppercase tracking-wider">Configure your verification response interface</p>
+              <p className="text-slate-400 text-[10px] md:text-sm mt-0.5 font-bold uppercase tracking-wider">Overview & Analytics for Official Account System</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
