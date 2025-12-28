@@ -369,11 +369,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 px-2 pb-safe">
         <div className="flex items-center justify-around h-16">
           {[
-            { href: user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard', icon: '🏠', label: 'Home' },
-            { href: user?.role === 'admin' ? '/admin/chat' : '/user/chat', icon: '💬', label: 'Chats' },
-            { href: user?.role === 'admin' ? '/admin/users' : '/user/line-accounts', icon: '👥', label: 'Users' },
-            { href: user?.role === 'admin' ? '/admin/payments' : '/user/payments', icon: '📄', label: 'Slips' },
-            { href: user?.role === 'admin' ? '/admin/settings' : '/user/quota', icon: '⚙️', label: 'Settings' },
+            { href: user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard', icon: '🏠', label: 'หน้าแรก' },
+            { href: user?.role === 'admin' ? '/admin/chat' : '/user/chat', icon: '💬', label: 'แชท' },
+            { href: user?.role === 'admin' ? '/admin/users' : '/user/line-accounts', icon: '👥', label: 'ผู้ใช้' },
+            { href: user?.role === 'admin' ? '/admin/payments' : '/user/payments', icon: '📄', label: 'สลิป' },
+            { href: user?.role === 'admin' ? '/admin/settings' : '/user/quota', icon: '⚙️', label: 'ตั้งค่า' },
           ].map((item) => (
             <Link
               key={item.href}

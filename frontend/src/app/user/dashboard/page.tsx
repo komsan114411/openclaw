@@ -58,23 +58,23 @@ export default function UserDashboard() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">Welcome back,</p>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">ยินดีต้อนรับ,</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
-              LINE OA <span className="text-[#06C755]">Dashboard</span>
+              ศูนย์<span className="text-[#06C755]">ควบคุม</span>
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm">
-              Your service overview and resources.
+              ภาพรวมบัญชีและทรัพยากรของคุณ
             </p>
           </div>
           <div className="flex gap-3">
             <Link href="/user/packages">
               <Button variant="primary" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20">
-                ➕ New Broadcast
+                💎 ซื้อแพ็คเกจ
               </Button>
             </Link>
             <Link href="/user/payments">
               <Button variant="outline" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] hover:bg-emerald-500/10 text-slate-400 hover:text-[#06C755]">
-                ✅ Verify Slip
+                ✅ ตรวจสลิป
               </Button>
             </Link>
           </div>
@@ -82,15 +82,15 @@ export default function UserDashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <StatCard
-            title="Total Followers"
+            title="ผู้ติดตามทั้งหมด"
             value={lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}
-            trend={{ value: '+5%', label: 'this week', isUp: true }}
+            trend={{ value: '+5%', label: 'สัปดาห์นี้', isUp: true }}
             color="emerald"
             variant="glass"
             isLoading={isLoading}
           />
           <StatCard
-            title="Messages"
+            title="ข้อความ"
             value={quota?.remainingQuota?.toLocaleString() || 0}
             trend={{ value: '/' + (quota?.totalQuota || 0), label: '', isUp: true }}
             color="blue"
@@ -98,14 +98,14 @@ export default function UserDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="Active Chats"
+            title="แชทที่ใช้งาน"
             value={lineAccounts.length}
             color="amber"
             variant="glass"
             isLoading={isLoading}
           />
           <StatCard
-            title="Slips Verified"
+            title="สลิปที่ตรวจสอบ"
             value={lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0), 0).toLocaleString()}
             color="violet"
             variant="glass"

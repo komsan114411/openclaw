@@ -122,12 +122,12 @@ export default function AdminDashboard() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">Good Morning,</p>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">สวัสดี,</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
-              Admin <span className="text-[#06C755]">Dashboard</span>
+              ศูนย์<span className="text-[#06C755]">ควบคุม</span>
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm">
-              Here is today's system overview.
+              ภาพรวมระบบวันนี้
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
@@ -141,11 +141,11 @@ export default function AdminDashboard() {
               <svg className="w-4 h-4 mr-2 text-slate-500 group-hover:text-[#06C755] group-hover:rotate-180 transition-all duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Refresh
+              รีเฟรช
             </Button>
             <Link href="/admin/settings" className="flex-1 sm:flex-none">
               <Button size="lg" variant="primary" className="w-full h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20">
-                ⚙️ Settings
+                ⚙️ ตั้งค่า
               </Button>
             </Link>
           </div>
@@ -154,9 +154,9 @@ export default function AdminDashboard() {
         {/* 1. Key Stats Grid */}
         <div className="grid-stats">
           <StatCard
-            title="Total OAs"
+            title="ผู้ใช้ทั้งหมด"
             value={stats?.totalUsers || 0}
-            trend={{ value: `+${stats?.activeUsers || 0}`, label: 'active', isUp: true }}
+            trend={{ value: `+${stats?.activeUsers || 0}`, label: 'ใช้งานอยู่', isUp: true }}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -167,9 +167,9 @@ export default function AdminDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="LINE Accounts"
+            title="บัญชี LINE"
             value={stats?.totalLineAccounts || 0}
-            trend={{ value: stats?.totalMessages || 0, label: 'messages', isUp: true }}
+            trend={{ value: stats?.totalMessages || 0, label: 'ข้อความ', isUp: true }}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -180,7 +180,7 @@ export default function AdminDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="Slips Verified"
+            title="สลิปที่ตรวจสอบ"
             value={(stats?.totalSlipsVerified || 0).toLocaleString()}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="Pending Slips"
+            title="รอตรวจสอบ"
             value={stats?.pendingPayments || 0}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
