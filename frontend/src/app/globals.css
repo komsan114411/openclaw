@@ -4,58 +4,62 @@
 
 @layer base {
   :root {
-    /* Premium Emerald & Slate Palette */
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Premium Dark Green Palette */
+    --background: 150 20% 4%;
+    --foreground: 150 10% 95%;
+    --card: 150 25% 6%;
+    --card-foreground: 150 10% 95%;
+    --popover: 150 25% 6%;
+    --popover-foreground: 150 10% 95%;
 
-    /* Emerald Main Brand */
-    --primary: 158 94% 30%;
-    --primary-foreground: 160 80% 98%;
+    /* LINE Green Main Brand */
+    --primary: 145 94% 39%;
+    --primary-foreground: 150 80% 98%;
 
-    /* Slate Secondary */
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Dark Green Secondary */
+    --secondary: 150 20% 12%;
+    --secondary-foreground: 150 10% 90%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 150 15% 15%;
+    --muted-foreground: 150 10% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 150 30% 15%;
+    --accent-foreground: 145 94% 50%;
 
     /* Vibrant Destructive */
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 150 10% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 158 94% 30%;
-    --radius: 0.75rem;
+    --border: 150 15% 15%;
+    --input: 150 15% 12%;
+    --ring: 145 94% 39%;
+    --radius: 1rem;
+
+    /* Custom LINE Colors */
+    --line-green: 145 94% 39%;
+    --deep-green: 150 30% 5%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 158 94% 40%;
-    --primary-foreground: 160 80% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 150 20% 4%;
+    --foreground: 150 10% 95%;
+    --card: 150 25% 6%;
+    --card-foreground: 150 10% 95%;
+    --popover: 150 25% 6%;
+    --popover-foreground: 150 10% 95%;
+    --primary: 145 94% 45%;
+    --primary-foreground: 150 80% 98%;
+    --secondary: 150 20% 12%;
+    --secondary-foreground: 150 10% 90%;
+    --muted: 150 15% 15%;
+    --muted-foreground: 150 10% 55%;
+    --accent: 150 30% 15%;
+    --accent-foreground: 145 94% 50%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 158 94% 40%;
+    --destructive-foreground: 150 10% 98%;
+    --border: 150 15% 15%;
+    --input: 150 15% 12%;
+    --ring: 145 94% 45%;
   }
 }
 
@@ -69,67 +73,113 @@
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-100;
+    @apply bg-[#0A0F0D] text-slate-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-100;
     background-image:
-      radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 100% 100%, rgba(20, 184, 166, 0.05) 0%, transparent 50%);
+      radial-gradient(ellipse at 0% 0%, rgba(6, 199, 85, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(6, 199, 85, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(6, 199, 85, 0.02) 0%, transparent 70%);
     background-attachment: fixed;
     min-height: 100vh;
   }
 
-  /* Custom Scrollbar - Dark Theme */
+  /* Custom Scrollbar - Dark Green Theme */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-slate-900;
+    @apply bg-[#0A0F0D];
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-700 rounded-full hover:bg-slate-600 transition-colors;
+    @apply bg-emerald-900/50 rounded-full hover:bg-emerald-800/60 transition-colors;
   }
 }
 
 @layer components {
 
-  /* Buttons */
+  /* Buttons - Pill Shape with LINE Green */
   .btn {
-    @apply inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-primary {
-    @apply bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-200;
+    @apply bg-[#06C755] text-white shadow-lg shadow-[#06C755]/30 hover:bg-[#05B54C] hover:shadow-xl hover:shadow-[#06C755]/40 transition-all duration-200;
   }
 
   .btn-secondary {
-    @apply bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all;
+    @apply bg-[#0F1A14] text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10 hover:border-emerald-500/40 shadow-sm transition-all;
   }
 
   .btn-danger {
-    @apply bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600 hover:shadow-xl hover:shadow-rose-500/30 transition-all duration-200;
+    @apply bg-rose-500/90 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-500 hover:shadow-xl hover:shadow-rose-500/30 transition-all duration-200;
   }
 
   .btn-ghost {
-    @apply bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+    @apply bg-transparent text-slate-400 hover:bg-white/5 hover:text-white;
   }
 
-  /* Cards & Glassmorphism - Premium Minimalist Style */
+  /* Cards - Dark Green with Glow */
   .card-premium {
-    @apply bg-white/[0.03] backdrop-blur-md border border-white/[0.08] rounded-[2rem] shadow-2xl shadow-black/20 p-6 md:p-8 transition-all duration-300 hover:bg-white/[0.05] hover:border-white/10;
+    @apply bg-[#0F1A14]/90 backdrop-blur-md border border-emerald-500/10 rounded-[1.5rem] shadow-2xl shadow-black/30 p-5 md:p-6 transition-all duration-300 hover:border-emerald-500/20 hover:shadow-emerald-500/5;
   }
 
   .glass-sidebar {
-    @apply bg-slate-950/80 backdrop-blur-2xl border-r border-white/5;
+    @apply bg-[#0A0F0D]/95 backdrop-blur-2xl border-r border-emerald-500/10;
   }
 
   .glass-navbar {
-    @apply bg-slate-950/60 backdrop-blur-xl border-b border-white/5;
+    @apply bg-[#0A0F0D]/80 backdrop-blur-xl border-b border-emerald-500/10;
   }
 
   .glass-card {
-    @apply bg-white/[0.02] backdrop-blur-lg border border-white/[0.05] rounded-3xl shadow-xl transition-all duration-300 hover:bg-white/[0.04] hover:border-white/[0.1];
+    @apply bg-[#0F1A14]/80 backdrop-blur-lg border border-emerald-500/10 rounded-2xl shadow-xl transition-all duration-300 hover:bg-[#0F1A14] hover:border-emerald-500/20;
+  }
+
+  /* Chart Card - For data visualization */
+  .chart-card {
+    @apply bg-[#0F1A14]/90 backdrop-blur-lg border border-emerald-500/10 rounded-2xl p-5 relative overflow-hidden;
+    background-image: linear-gradient(180deg, rgba(6, 199, 85, 0.02) 0%, transparent 100%);
+  }
+
+  /* Inputs - Dark with Green Focus */
+  .input {
+    @apply w-full rounded-xl border border-emerald-500/10 bg-[#0F1A14]/80 px-4 py-3 text-sm text-white transition-all duration-300 placeholder:text-slate-500 hover:border-emerald-500/30 focus:border-[#06C755] focus:bg-[#0F1A14] focus:outline-none focus:ring-2 focus:ring-[#06C755]/20 disabled:opacity-50;
+  }
+
+  .label {
+    @apply mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500;
+  }
+
+  /* Tables - Dark Theme */
+  .table-container {
+    @apply overflow-hidden rounded-2xl border border-emerald-500/10 bg-[#0F1A14]/50 backdrop-blur-sm shadow-sm;
+  }
+
+  .table-header {
+    @apply bg-[#0F1A14] border-b border-emerald-500/10;
+  }
+
+  .table-row {
+    @apply border-b border-emerald-500/5 last:border-0 hover:bg-emerald-500/5 transition-colors duration-200;
+  }
+
+  /* Badges - Green Variants */
+  .badge {
+    @apply inline-flex items-center px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full border;
+  }
+
+  .badge-success {
+    @apply bg-emerald-500/10 text-emerald-400 border-emerald-500/20;
+  }
+
+  .badge-warning {
+    @apply bg-amber-500/10 text-amber-400 border-amber-500/20;
+  }
+
+  .badge-danger {
+    @apply bg-rose-500/10 text-rose-400 border-rose-500/20;
   }
 
   /* Inputs */

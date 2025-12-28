@@ -58,44 +58,57 @@ export default function UserDashboard() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <h1 className="page-title-responsive">
-              Service <span className="text-emerald-400">Dashboard</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">Welcome back,</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              LINE OA <span className="text-[#06C755]">Dashboard</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              Mission Control <span className="text-white">& Neural Resource Overview</span>
+            <p className="text-slate-500 text-xs sm:text-sm">
+              Your service overview and resources.
             </p>
           </div>
-          <Link href="/user/packages" className="w-full sm:w-auto">
-            <Button size="lg" variant="primary" className="w-full h-11 sm:h-16 px-6 sm:px-10 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all">
-              <span className="mr-2 sm:mr-3 text-lg sm:text-xl">💎</span>
-              ซื้อแพ็คเกจ / เติมเงิน
-            </Button>
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/user/packages">
+              <Button variant="primary" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20">
+                ➕ New Broadcast
+              </Button>
+            </Link>
+            <Link href="/user/payments">
+              <Button variant="outline" className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] hover:bg-emerald-500/10 text-slate-400 hover:text-[#06C755]">
+                ✅ Verify Slip
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        <div className="grid-stats">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <StatCard
-            title="ACTIVE_NODES"
-            value={lineAccounts.length}
+            title="Total Followers"
+            value={lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}
+            trend={{ value: '+5%', label: 'this week', isUp: true }}
             color="emerald"
             variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             isLoading={isLoading}
           />
           <StatCard
-            title="NEURAL_RESIDUE"
+            title="Messages"
             value={quota?.remainingQuota?.toLocaleString() || 0}
-            color={quota && quota.remainingQuota < 50 ? "rose" : "emerald"}
+            trend={{ value: '/' + (quota?.totalQuota || 0), label: '', isUp: true }}
+            color="blue"
             variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             isLoading={isLoading}
           />
           <StatCard
-            title="TOTAL_VALIDATIONS"
+            title="Active Chats"
+            value={lineAccounts.length}
+            color="amber"
+            variant="glass"
+            isLoading={isLoading}
+          />
+          <StatCard
+            title="Slips Verified"
             value={lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0), 0).toLocaleString()}
             color="violet"
             variant="glass"
-            className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             isLoading={isLoading}
           />
         </div>

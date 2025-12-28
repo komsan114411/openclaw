@@ -13,7 +13,7 @@ interface CardProps {
   className?: string;
   padding?: 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   hover?: boolean;
-  variant?: 'white' | 'glass' | 'glass-dark' | 'outline' | 'ghost';
+  variant?: 'white' | 'glass' | 'glass-dark' | 'outline' | 'ghost' | 'chart';
   style?: React.CSSProperties;
   onClick?: () => void;
 }
@@ -37,11 +37,12 @@ export function Card({
   };
 
   const variantClasses = {
-    white: 'bg-white/[0.03] backdrop-blur-xl border-white/[0.08] shadow-2xl shadow-black/10',
+    white: 'bg-[#0F1A14]/90 backdrop-blur-xl border border-emerald-500/10 shadow-2xl shadow-black/20',
     glass: 'glass-card',
-    'glass-dark': 'bg-slate-900/60 backdrop-blur-2xl border-white/5 shadow-2xl',
-    outline: 'bg-transparent border border-white/10 shadow-none',
-    ghost: 'bg-white/5 border-transparent shadow-none hover:bg-white/10 transition-colors',
+    'glass-dark': 'bg-[#0A0F0D]/80 backdrop-blur-2xl border border-emerald-500/10 shadow-2xl',
+    outline: 'bg-transparent border border-emerald-500/20 shadow-none',
+    ghost: 'bg-emerald-500/5 border-transparent shadow-none hover:bg-emerald-500/10 transition-colors',
+    chart: 'chart-card',
   };
 
   return (
@@ -75,13 +76,13 @@ export function CardHeader({ title, subtitle, action, icon, className = '' }: Ca
     <div className={cn('flex items-center justify-between mb-6', className)}>
       <div className="flex items-center gap-4">
         {icon && (
-          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition-transform shadow-sm">
+          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/10">
             {icon}
           </div>
         )}
         <div>
-          <h3 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h3>
-          {subtitle && <p className="text-sm text-slate-500 font-medium mt-1">{subtitle}</p>}
+          <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
+          {subtitle && <p className="text-sm text-slate-500 font-medium mt-0.5">{subtitle}</p>}
         </div>
       </div>
       {action && <div className="animate-in fade-in slide-in-from-right-4 duration-500">{action}</div>}
@@ -116,46 +117,52 @@ export function StatCard({
 }: StatCardProps) {
   const colorConfigs = {
     emerald: {
-      bg: 'bg-emerald-50',
+      bg: 'bg-emerald-500/10',
       text: 'text-emerald-400',
       gradient: 'from-emerald-500 to-teal-600',
-      shadow: 'shadow-emerald-500/20',
-      iconBg: 'bg-emerald-500/20'
+      shadow: 'shadow-emerald-500/30',
+      iconBg: 'bg-emerald-500/15',
+      glow: 'shadow-[0_0_20px_rgba(6,199,85,0.15)]'
     },
     blue: {
-      bg: 'bg-blue-500/20',
+      bg: 'bg-blue-500/10',
       text: 'text-blue-400',
       gradient: 'from-blue-500 to-cyan-600',
-      shadow: 'shadow-blue-500/20',
-      iconBg: 'bg-blue-500/20'
+      shadow: 'shadow-blue-500/30',
+      iconBg: 'bg-blue-500/15',
+      glow: 'shadow-[0_0_20px_rgba(59,130,246,0.15)]'
     },
     amber: {
-      bg: 'bg-amber-500/20',
+      bg: 'bg-amber-500/10',
       text: 'text-amber-400',
       gradient: 'from-amber-500 to-orange-600',
-      shadow: 'shadow-amber-500/20',
-      iconBg: 'bg-amber-500/20'
+      shadow: 'shadow-amber-500/30',
+      iconBg: 'bg-amber-500/15',
+      glow: 'shadow-[0_0_20px_rgba(245,158,11,0.15)]'
     },
     rose: {
-      bg: 'bg-rose-500/20',
+      bg: 'bg-rose-500/10',
       text: 'text-rose-400',
       gradient: 'from-rose-500 to-pink-600',
-      shadow: 'shadow-rose-500/20',
-      iconBg: 'bg-rose-500/20'
+      shadow: 'shadow-rose-500/30',
+      iconBg: 'bg-rose-500/15',
+      glow: 'shadow-[0_0_20px_rgba(244,63,94,0.15)]'
     },
     indigo: {
-      bg: 'bg-indigo-500/20',
+      bg: 'bg-indigo-500/10',
       text: 'text-indigo-400',
       gradient: 'from-indigo-500 to-blue-600',
-      shadow: 'shadow-indigo-500/20',
-      iconBg: 'bg-indigo-500/20'
+      shadow: 'shadow-indigo-500/30',
+      iconBg: 'bg-indigo-500/15',
+      glow: 'shadow-[0_0_20px_rgba(99,102,241,0.15)]'
     },
     violet: {
-      bg: 'bg-violet-500/20',
+      bg: 'bg-violet-500/10',
       text: 'text-violet-400',
       gradient: 'from-violet-500 to-purple-600',
-      shadow: 'shadow-violet-500/20',
-      iconBg: 'bg-violet-500/20'
+      shadow: 'shadow-violet-500/30',
+      iconBg: 'bg-violet-500/15',
+      glow: 'shadow-[0_0_20px_rgba(139,92,246,0.15)]'
     },
   };
 
@@ -242,11 +249,11 @@ export function EmptyState({ icon, title, description, action, variant = 'white'
   return (
     <Card className={cn("text-center py-10 md:py-16 px-4 flex flex-col items-center justify-center animate-fade", className)} variant={variant}>
       {icon && (
-        <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-300 mb-6 group-hover:scale-110 transition-transform">
-          {icon}
+        <div className="w-20 h-20 bg-emerald-500/10 rounded-3xl flex items-center justify-center text-emerald-400 mb-6 group-hover:scale-110 transition-transform text-4xl">
+          {typeof icon === 'string' ? icon : icon}
         </div>
       )}
-      <h3 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h3>
+      <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
       {description && <p className="text-slate-500 mt-2 max-w-sm mx-auto font-medium leading-relaxed">{description}</p>}
       {action && <div className="mt-8">{action}</div>}
     </Card>

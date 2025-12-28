@@ -364,6 +364,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </>
         )}
       </AnimatePresence>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 px-2 pb-safe">
+        <div className="flex items-center justify-around h-16">
+          {[
+            { href: user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard', icon: '🏠', label: 'Home' },
+            { href: user?.role === 'admin' ? '/admin/chat' : '/user/chat', icon: '💬', label: 'Chats' },
+            { href: user?.role === 'admin' ? '/admin/users' : '/user/line-accounts', icon: '👥', label: 'Users' },
+            { href: user?.role === 'admin' ? '/admin/payments' : '/user/payments', icon: '📄', label: 'Slips' },
+            { href: user?.role === 'admin' ? '/admin/settings' : '/user/quota', icon: '⚙️', label: 'Settings' },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                'flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300',
+                pathname === item.href
+                  ? 'text-[#06C755] bg-[#06C755]/10'
+                  : 'text-slate-500 hover:text-white hover:bg-white/5'
+              )}
+            >
+              <span className="text-xl mb-0.5">{item.icon}</span>
+              <span className="text-[9px] font-semibold">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
     </>
   );
 }

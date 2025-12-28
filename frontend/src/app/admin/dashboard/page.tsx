@@ -122,29 +122,30 @@ export default function AdminDashboard() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <h1 className="page-title-responsive">
-              ศูนย์<span className="text-emerald-400">ควบคุม</span>
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">Good Morning,</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              Admin <span className="text-[#06C755]">Dashboard</span>
             </h1>
-            <p className="text-slate-400 font-bold text-[10px] sm:text-xs md:text-sm lg:text-lg tracking-[0.2em] opacity-60 uppercase">
-              ยินดีต้อนรับกลับ, <span className="text-white">ผู้ดูแลระบบ</span> 👋
+            <p className="text-slate-500 text-xs sm:text-sm">
+              Here is today's system overview.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
             <Button
               variant="outline"
               size="lg"
               onClick={() => { fetchStats(); fetchThunderQuota(); }}
-              className="group border-white/[0.05] bg-white/[0.02] backdrop-blur-xl hover:bg-white/[0.05] hover:border-emerald-500/20 text-slate-400 hover:text-emerald-400 rounded-2xl h-11 sm:h-14 px-4 sm:px-8 font-black uppercase tracking-widest text-[9px] sm:text-xs transition-all duration-300"
+              className="group border-emerald-500/20 bg-[#0F1A14] hover:bg-emerald-500/10 hover:border-emerald-500/40 text-slate-400 hover:text-[#06C755] rounded-full h-11 sm:h-12 px-5 sm:px-6 font-semibold text-xs transition-all duration-300"
               isLoading={isLoading || isLoadingQuota}
             >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 text-slate-500 group-hover:text-emerald-400 group-hover:rotate-180 transition-all duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg className="w-4 h-4 mr-2 text-slate-500 group-hover:text-[#06C755] group-hover:rotate-180 transition-all duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              รีเฟรชข้อมูล
+              Refresh
             </Button>
             <Link href="/admin/settings" className="flex-1 sm:flex-none">
-              <Button size="lg" variant="primary" className="w-full h-11 sm:h-14 px-4 sm:px-8 rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-xs shadow-emerald-500/20 shadow-2xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300">
-                ตั้งค่าระบบ
+              <Button size="lg" variant="primary" className="w-full h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20">
+                ⚙️ Settings
               </Button>
             </Link>
           </div>
@@ -153,11 +154,11 @@ export default function AdminDashboard() {
         {/* 1. Key Stats Grid */}
         <div className="grid-stats">
           <StatCard
-            title="ผู้ใช้ทั้งหมด"
+            title="Total OAs"
             value={stats?.totalUsers || 0}
-            trend={{ value: stats?.activeUsers || 0, label: 'กำลังใช้งาน', isUp: true }}
+            trend={{ value: `+${stats?.activeUsers || 0}`, label: 'active', isUp: true }}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             }
@@ -166,11 +167,11 @@ export default function AdminDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="บัญชี LINE"
+            title="LINE Accounts"
             value={stats?.totalLineAccounts || 0}
-            trend={{ value: stats?.totalMessages || 0, label: 'ข้อความ', isUp: true }}
+            trend={{ value: stats?.totalMessages || 0, label: 'messages', isUp: true }}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             }
@@ -179,10 +180,10 @@ export default function AdminDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="สลิปที่ตรวจสอบ"
+            title="Slips Verified"
             value={(stats?.totalSlipsVerified || 0).toLocaleString()}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             }
@@ -191,10 +192,10 @@ export default function AdminDashboard() {
             isLoading={isLoading}
           />
           <StatCard
-            title="รอตรวจสอบ"
+            title="Pending Slips"
             value={stats?.pendingPayments || 0}
             icon={
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             }
@@ -209,10 +210,10 @@ export default function AdminDashboard() {
 
           {/* Thunder API Quota - Modern Glassmorphism */}
           <div className="xl:col-span-8">
-            <Card className="h-full bg-slate-900 border-none relative overflow-hidden group">
+            <Card className="h-full bg-[#0F1A14] border border-emerald-500/10 relative overflow-hidden group">
               {/* Animated Background Gradients */}
-              <div className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-emerald-500/20 rounded-full blur-[80px] md:blur-[120px] -mr-24 md:-mr-48 -mt-24 md:-mt-48 animate-pulse duration-[10s]" />
-              <div className="absolute bottom-0 left-0 w-[200px] md:w-[400px] h-[200px] md:h-[400px] bg-blue-600/20 rounded-full blur-[60px] md:blur-[100px] -ml-16 md:-ml-32 -mb-16 md:-mb-32 animate-pulse duration-[7s]" />
+              <div className="absolute top-0 right-0 w-[300px] md:w-[400px] h-[300px] md:h-[400px] bg-[#06C755]/10 rounded-full blur-[100px] -mr-24 md:-mr-32 -mt-24 md:-mt-32" />
+              <div className="absolute bottom-0 left-0 w-[200px] md:w-[300px] h-[200px] md:h-[300px] bg-blue-600/10 rounded-full blur-[80px] -ml-16 md:-ml-24 -mb-16 md:-mb-24" />
 
               <div className="relative z-10 flex flex-col h-full">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 md:mb-12">
