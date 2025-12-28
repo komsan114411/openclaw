@@ -280,7 +280,6 @@ export default function UserQuotaPage() {
               />
             </Card>
           )}
-        </Card>
 
         {accounts.length > 0 && (
           <Card variant="glass" className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl bg-white/[0.01] overflow-hidden mt-4 sm:mt-6">
