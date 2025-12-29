@@ -546,7 +546,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
             error={formErrors.code}
             required
             disabled={saving || !!bank}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm"
+            className="h-14 rounded-2xl bg-slate-50 border-slate-200 shadow-inner font-bold text-sm text-slate-900 placeholder:text-slate-400"
           />
           <Input
             label="ชื่อย่อ"
@@ -554,7 +554,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
             value={formData.shortName}
             onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
             disabled={saving}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm"
+            className="h-14 rounded-2xl bg-slate-50 border-slate-200 shadow-inner font-bold text-sm text-slate-900 placeholder:text-slate-400"
           />
         </div>
 
@@ -567,7 +567,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
             error={formErrors.name}
             required
             disabled={saving}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm"
+            className="h-14 rounded-2xl bg-slate-50 border-slate-200 shadow-inner font-bold text-sm text-slate-900 placeholder:text-slate-400"
           />
 
           <Input
@@ -576,7 +576,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
             value={formData.nameEn}
             onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
             disabled={saving}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm opacity-70 focus:opacity-100"
+            className="h-14 rounded-2xl bg-slate-50 border-slate-200 shadow-inner font-bold text-sm text-slate-900 placeholder:text-slate-400"
           />
         </div>
 

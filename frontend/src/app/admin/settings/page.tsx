@@ -778,13 +778,13 @@ export default function SettingsPage() {
       <Modal
         isOpen={showBankModal}
         onClose={() => !isSaving && setShowBankModal(false)}
-        title="PROTOCOL DEPLOYMENT: BANK GATEWAY"
+        title="เพิ่มบัญชีธนาคาร"
         size="md"
       >
         <div className="space-y-8 p-1">
           <div className="space-y-6">
             <Select
-              label="Institution Identity"
+              label="เลือกธนาคาร"
               value={bankForm.bankCode || ''}
               onChange={(e) => {
                 const code = e.target.value;
@@ -795,9 +795,9 @@ export default function SettingsPage() {
                   bankName: bank?.nameTh || bank?.name || bankForm.bankName,
                 });
               }}
-              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+              className="h-14 rounded-2xl bg-slate-50 border-slate-200 text-slate-900 font-semibold text-sm"
             >
-              <option value="">SELECT CLEARING INSTITUTION</option>
+              <option value="">เลือกธนาคาร</option>
               {banks.map((b) => (
                 <option key={b._id} value={b.code}>
                   {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
@@ -806,33 +806,33 @@ export default function SettingsPage() {
             </Select>
 
             <Input
-              label="Account Serial Matrix"
+              label="เลขบัญชี"
               placeholder="xxx-x-xxxxx-x"
               value={bankForm.accountNumber}
               onChange={(e) => setBankForm({ ...bankForm, accountNumber: e.target.value })}
-              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono"
+              className="h-14 rounded-2xl bg-slate-50 border-slate-200 text-slate-900 font-mono text-sm placeholder:text-slate-400"
             />
 
             <Input
-              label="Legal Asset Holder"
-              placeholder="IDENTITY_STRING"
+              label="ชื่อบัญชี"
+              placeholder="ชื่อเจ้าของบัญชี"
               value={bankForm.accountName}
               onChange={(e) => setBankForm({ ...bankForm, accountName: e.target.value })}
-              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black"
+              className="h-14 rounded-2xl bg-slate-50 border-slate-200 text-slate-900 font-semibold text-sm placeholder:text-slate-400"
             />
           </div>
 
           <div className="flex gap-4 pt-6 border-t border-white/5">
-            <Button variant="ghost" className="flex-1 h-14 font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-white" onClick={() => setShowBankModal(false)} disabled={isSaving !== null}>
-              Abort
+            <Button variant="ghost" className="flex-1 h-14 font-semibold text-sm text-slate-400 hover:text-slate-600" onClick={() => setShowBankModal(false)} disabled={isSaving !== null}>
+              ยกเลิก
             </Button>
             <Button
               variant="primary"
-              className="flex-[2] h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-xl"
+              className="flex-[2] h-14 font-semibold text-sm shadow-emerald-500/20 shadow-xl"
               onClick={handleAddBankAccount}
               isLoading={isSaving === 'bank_add'}
             >
-              Authorize Node
+              เพิ่มบัญชี
             </Button>
           </div>
         </div>
