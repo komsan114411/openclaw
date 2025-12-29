@@ -152,57 +152,59 @@ export default function AdminDashboard() {
         </div>
 
         {/* 1. Key Stats Grid */}
-        <div className="grid-stats">
-          <StatCard
-            title="ผู้ใช้ทั้งหมด"
-            value={stats?.totalUsers || 0}
-            trend={{ value: `+${stats?.activeUsers || 0}`, label: 'ใช้งานอยู่', isUp: true }}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            }
-            color="emerald"
-            variant="glass"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="บัญชี LINE"
-            value={stats?.totalLineAccounts || 0}
-            trend={{ value: stats?.totalMessages || 0, label: 'ข้อความ', isUp: true }}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            }
-            color="blue"
-            variant="glass"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="สลิปที่ตรวจสอบ"
-            value={(stats?.totalSlipsVerified || 0).toLocaleString()}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
-            color="violet"
-            variant="glass"
-            isLoading={isLoading}
-          />
-          <StatCard
-            title="รอตรวจสอบ"
-            value={stats?.pendingPayments || 0}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-            color={stats?.pendingPayments ? "rose" : "amber"}
-            variant="glass"
-            isLoading={isLoading}
-          />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400">ผู้ใช้ทั้งหมด</p>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : stats?.totalUsers || 0}</p>
+            <p className="text-[9px] sm:text-[10px] text-emerald-400 font-medium">+{stats?.activeUsers || 0} ใช้งานอยู่</p>
+          </Card>
+
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400">บัญชี LINE</p>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : stats?.totalLineAccounts || 0}</p>
+            <p className="text-[9px] sm:text-[10px] text-blue-400 font-medium">+{stats?.totalMessages || 0} ข้อความ</p>
+          </Card>
+
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400">สลิปที่ตรวจสอบ</p>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : (stats?.totalSlipsVerified || 0).toLocaleString()}</p>
+          </Card>
+
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] sm:text-xs font-medium text-slate-400">รอตรวจสอบ</p>
+              <div className={cn(
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center",
+                stats?.pendingPayments ? "bg-amber-500/10" : "bg-slate-500/10"
+              )}>
+                <svg className={cn("w-4 h-4 sm:w-5 sm:h-5", stats?.pendingPayments ? "text-amber-400" : "text-slate-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : stats?.pendingPayments || 0}</p>
+          </Card>
         </div>
 
         {/* 2. Main Content Grid */}
@@ -446,23 +448,29 @@ export default function AdminDashboard() {
 
 function ActionTile({ title, desc, href, icon, color }: { title: string, desc: string, href: string, icon: string, color: 'blue' | 'emerald' | 'indigo' }) {
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-600 border-blue-100 hover:bg-white hover:shadow-blue-100",
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-white hover:shadow-emerald-100",
-    indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-white hover:shadow-indigo-100"
+    blue: "bg-blue-500/5 hover:bg-blue-500/10 border-blue-500/10 hover:border-blue-500/20",
+    emerald: "bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/10 hover:border-emerald-500/20",
+    indigo: "bg-indigo-500/5 hover:bg-indigo-500/10 border-indigo-500/10 hover:border-indigo-500/20"
+  };
+
+  const iconColorClasses = {
+    blue: "bg-blue-500/10 text-blue-400",
+    emerald: "bg-emerald-500/10 text-emerald-400",
+    indigo: "bg-indigo-500/10 text-indigo-400"
   };
 
   return (
     <Link href={href} className="group">
       <Card className={cn(
-        "h-full transition-all duration-300 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 hover:-translate-y-1",
+        "h-full transition-all duration-300 p-4 sm:p-6 flex items-center gap-3 sm:gap-4 hover:-translate-y-1 rounded-2xl border",
         colorClasses[color]
-      )} variant="white">
-        <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-xl sm:text-2xl shadow-inner bg-white/5 border border-white/10")}>
+      )} variant="glass">
+        <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-xl sm:text-2xl", iconColorClasses[color])}>
           {icon}
         </div>
         <div>
-          <h3 className="font-black text-white text-sm sm:text-lg leading-tight uppercase tracking-tight">{title}</h3>
-          <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-60 leading-none">{desc}</p>
+          <h3 className="font-bold text-white text-sm sm:text-base leading-tight">{title}</h3>
+          <p className="text-[9px] sm:text-[10px] font-medium text-slate-500 mt-1">{desc}</p>
         </div>
       </Card>
     </Link>
