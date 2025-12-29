@@ -246,14 +246,14 @@ export default function BanksManagementPage() {
                   variant="ghost"
                   size="sm"
                   onClick={handleInitDefaults}
-                  className="text-[10px] font-black text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 uppercase tracking-[0.2em] px-8 h-12 rounded-xl"
+                  className="text-xs font-semibold text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 px-6 h-12 rounded-xl"
                 >
-                  Factory Defaults
+                  รีเซ็ตค่าเริ่มต้น
                 </Button>
                 <div className="h-10 w-[1px] bg-white/5 hidden lg:block" />
                 <div className="px-6 py-3 bg-white/[0.03] border border-white/5 rounded-2xl">
-                  <span className="text-xl font-black text-emerald-400 tracking-tighter">{filteredBanks.length}</span>
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-3">Registries</span>
+                  <span className="text-xl font-bold text-emerald-400 tracking-tighter">{filteredBanks.length}</span>
+                  <span className="text-xs font-medium text-slate-400 ml-3">รายการ</span>
                 </div>
               </div>
             </div>
@@ -262,11 +262,11 @@ export default function BanksManagementPage() {
           {filteredBanks.length === 0 ? (
             <EmptyState
               icon="🏢"
-              title="NO_IDENTITY_FOUND"
-              description={searchQuery ? `Registry query for "${searchQuery}" returned zero matches.` : "The protocol registry is currently empty."}
+              title="ไม่พบธนาคาร"
+              description={searchQuery ? `ไม่พบธนาคารที่ตรงกับ "${searchQuery}"` : "ยังไม่มีธนาคารในระบบ"}
               variant="glass"
               className="py-24"
-              action={searchQuery ? <Button variant="ghost" onClick={() => setSearchQuery('')} className="rounded-xl font-black uppercase tracking-widest text-[10px] text-emerald-400 hover:bg-emerald-500/10">Wipe Query Cache</Button> : null}
+              action={searchQuery ? <Button variant="ghost" onClick={() => setSearchQuery('')} className="rounded-xl font-semibold text-xs text-emerald-400 hover:bg-emerald-500/10">ล้างคำค้นหา</Button> : null}
             />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
@@ -304,15 +304,15 @@ export default function BanksManagementPage() {
                   </div>
 
                   <div className="w-full space-y-4">
-                    <div className="flex gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         variant="ghost"
                         size="xs"
                         fullWidth
                         onClick={() => setEditingBank(bank)}
-                        className="h-11 rounded-xl font-black uppercase tracking-widest text-[9px] text-slate-400 hover:text-white hover:bg-white/5 border border-white/5 transition-all"
+                        className="h-10 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-white/5 border border-white/5 transition-all"
                       >
-                        Modify
+                        แก้ไข
                       </Button>
                       <Button
                         variant={bank.isActive ? "outline" : "primary"}
@@ -320,11 +320,11 @@ export default function BanksManagementPage() {
                         fullWidth
                         onClick={() => handleToggleActive(bank)}
                         className={cn(
-                          "h-11 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all",
+                          "h-10 rounded-xl font-semibold text-xs transition-all",
                           bank.isActive ? "text-rose-400 border-rose-500/20 hover:bg-rose-500/10" : "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20 shadow-lg text-white"
                         )}
                       >
-                        {bank.isActive ? 'Suspend' : 'Resume'}
+                        {bank.isActive ? 'ปิด' : 'เปิด'}
                       </Button>
                     </div>
 
@@ -332,10 +332,10 @@ export default function BanksManagementPage() {
                       variant="ghost"
                       size="xs"
                       fullWidth
-                      className="h-11 rounded-xl font-black uppercase tracking-widest text-[9px] text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/5 group/preview border border-transparent hover:border-indigo-500/20"
+                      className="h-10 rounded-xl font-semibold text-xs text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/5 group/preview border border-transparent hover:border-indigo-500/20"
                       onClick={() => router.push(`/admin/templates?bankId=${bank._id}`)}
                     >
-                      <span className="group-hover/preview:tracking-[0.2em] transition-all">Simulation Matrix</span>
+                      <span>จำลองสลิป</span>
                     </Button>
                   </div>
                 </Card>
@@ -485,19 +485,19 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
     <Modal
       isOpen={true}
       onClose={() => !saving && onClose()}
-      title={bank ? 'IDENTITY MODIFICATION' : 'NEW PROTOCOL REGISTRY'}
+      title={bank ? 'แก้ไขธนาคาร' : 'เพิ่มธนาคารใหม่'}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-8 p-2 animate-fade">
         {error && (
-          <div className="bg-rose-50/50 border border-rose-100 text-rose-600 px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-top-2">
-            ⚠️ SYSTEM ERROR: {error}
+          <div className="bg-rose-50/50 border border-rose-100 text-rose-600 px-6 py-4 rounded-2xl text-sm font-medium animate-in fade-in slide-in-from-top-2">
+            ⚠️ เกิดข้อผิดพลาด: {error}
           </div>
         )}
 
         {/* Logo Upload Zone */}
         <div className="flex flex-col items-center">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Identity Visualization</p>
+          <p className="text-[10px] font-semibold text-slate-400 mb-4">โลโก้ธนาคาร</p>
           <div
             className={cn(
               "relative group cursor-pointer rounded-[2.5rem] border-4 border-dashed transition-all duration-500 overflow-hidden w-40 h-40 flex flex-col items-center justify-center",
@@ -510,7 +510,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
                 <img src={logoPreview} alt="Preview" className="w-24 h-24 object-contain group-hover:scale-110 transition-transform duration-500" />
                 {!saving && (
                   <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Update Image</span>
+                    <span className="text-xs font-semibold text-white">เปลี่ยนรูป</span>
                   </div>
                 )}
               </>
@@ -521,7 +521,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Deploy Logo</p>
+                <p className="text-[10px] font-semibold text-slate-400">อัปโหลดโลโก้</p>
               </div>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={saving} />
@@ -530,53 +530,53 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handleRemoveLogo(); }}
-              className="mt-4 text-[9px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-[0.2em] transition-colors"
+              className="mt-4 text-xs font-medium text-rose-400 hover:text-rose-600 transition-colors"
             >
-              Purge Image
+              ลบรูปภาพ
             </button>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-6">
           <Input
-            label="PROTOCOL CODE"
-            placeholder="e.g., KBANK"
+            label="รหัสธนาคาร"
+            placeholder="เช่น KBANK"
             value={formData.code}
             onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
             error={formErrors.code}
             required
             disabled={saving || !!bank}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-xs"
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm"
           />
           <Input
-            label="IDENTITY ALIAS"
-            placeholder="e.g., K-Connect"
+            label="ชื่อย่อ"
+            placeholder="เช่น K-Connect"
             value={formData.shortName}
             onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
             disabled={saving}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs"
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm"
           />
         </div>
 
         <div className="space-y-4">
           <Input
-            label="NATIVE NOMENCLATURE (TH)"
+            label="ชื่อภาษาไทย"
             placeholder="ธนาคารกสิกรไทย"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             error={formErrors.name}
             required
             disabled={saving}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs"
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm"
           />
 
           <Input
-            label="GLOBAL NOMENCLATURE (EN)"
+            label="ชื่อภาษาอังกฤษ"
             placeholder="Kasikorn Bank PCL"
             value={formData.nameEn}
             onChange={(e) => setFormData({ ...formData, nameEn: e.target.value })}
             disabled={saving}
-            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-xs opacity-70 focus:opacity-100"
+            className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-bold text-sm opacity-70 focus:opacity-100"
           />
         </div>
 
@@ -584,18 +584,18 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
           <Button
             type="button"
             variant="ghost"
-            className="flex-1 font-black text-[10px] uppercase tracking-widest text-slate-400 h-14 rounded-2xl hover:bg-slate-50"
+            className="flex-1 font-semibold text-sm text-slate-400 h-14 rounded-2xl hover:bg-slate-50"
             onClick={onClose}
             disabled={saving}
           >
-            Abort
+            ยกเลิก
           </Button>
           <Button
             type="submit"
-            className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
+            className="flex-[2] h-14 rounded-2xl font-semibold text-sm shadow-emerald-500/10 shadow-xl"
             isLoading={saving || uploadingLogo}
           >
-            {bank ? 'Commit Changes' : 'Initialize Registry'}
+            {bank ? 'บันทึกการแก้ไข' : 'เพิ่มธนาคาร'}
           </Button>
         </div>
       </form>

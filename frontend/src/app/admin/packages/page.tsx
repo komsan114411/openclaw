@@ -277,8 +277,8 @@ export default function AdminPackagesPage() {
                       {(pkg.priceUsdt ?? 0) > 0 && (
                         <div className="mt-3 flex items-center gap-2 bg-emerald-500/5 w-fit px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-emerald-500/10">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                          <p className="text-emerald-400 font-black font-mono text-[9px] uppercase tracking-widest">
-                            {pkg.priceUsdt} USDT Matrix Access
+                          <p className="text-emerald-400 font-bold font-mono text-[9px]">
+                            {pkg.priceUsdt} USDT
                           </p>
                         </div>
                       )}
@@ -286,20 +286,20 @@ export default function AdminPackagesPage() {
 
                     <div className="bg-white/[0.02] border border-white/5 backdrop-blur-md p-6 sm:p-8 mb-10 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-between shadow-inner">
                       <div>
-                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2 text-center">Protocol Quota</p>
-                        <p className="text-xl sm:text-2xl font-black text-white leading-none tracking-tight text-center">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 opacity-20">PAYLOADS</span></p>
+                        <p className="text-[9px] font-semibold text-slate-500 mb-2 text-center">โควต้าสลิป</p>
+                        <p className="text-xl sm:text-2xl font-bold text-white leading-none tracking-tight text-center">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 opacity-40">รายการ</span></p>
                       </div>
                       <div className="h-10 w-[1px] bg-white/5 mx-6" />
                       <div className="text-center">
-                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2">Unit Logistics</p>
-                        <p className="text-lg font-black text-emerald-400 leading-none tracking-tight">฿{(pkg.price / pkg.slipQuota).toFixed(2)}<span className="text-[9px] ml-1 opacity-40">/UNIT</span></p>
+                        <p className="text-[9px] font-semibold text-slate-500 mb-2">ราคาต่อสลิป</p>
+                        <p className="text-lg font-bold text-emerald-400 leading-none tracking-tight">฿{(pkg.price / pkg.slipQuota).toFixed(2)}</p>
                       </div>
                     </div>
 
                     <div className="space-y-5 mb-12 flex-1">
-                      <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3 justify-center">
+                      <p className="text-[10px] font-semibold text-slate-500 flex items-center gap-3 justify-center">
                         <span className="w-4 h-[1px] bg-white/10"></span>
-                        Neural Capabilities
+                        คุณสมบัติ
                         <span className="w-4 h-[1px] bg-white/10"></span>
                       </p>
                       <ul className="space-y-4">
@@ -321,20 +321,20 @@ export default function AdminPackagesPage() {
                         variant="ghost"
                         fullWidth
                         onClick={() => handleEdit(pkg)}
-                        className="h-12 sm:h-14 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+                        className="h-12 sm:h-14 rounded-xl sm:rounded-2xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-all"
                       >
-                        Modify Plan
+                        แก้ไข
                       </Button>
                       <Button
                         variant={pkg.isActive ? "outline" : "primary"}
                         fullWidth
                         onClick={() => pkg.isActive ? handleDeleteClick(pkg) : handleActivate(pkg)}
                         className={cn(
-                          "h-12 sm:h-14 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all",
-                          pkg.isActive ? "text-rose-400 border-rose-500/20 hover:bg-rose-500/10" : "shadow-emerald-500/20 shadow-2xl"
+                          "h-12 sm:h-14 rounded-xl sm:rounded-2xl font-semibold text-xs transition-all",
+                          pkg.isActive ? "text-rose-400 border-rose-500/20 hover:bg-rose-500/10" : "shadow-emerald-500/20 shadow-xl"
                         )}
                       >
-                        {pkg.isActive ? 'Halt Protocol' : 'Deploy Index'}
+                        {pkg.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                       </Button>
                     </div>
                   </div>
