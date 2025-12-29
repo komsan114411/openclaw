@@ -452,11 +452,13 @@ export class PaymentsService {
       return { isDuplicate: false, duplicateCount: 0 };
     }
 
-    const count = await this.paymentModel.countDocuments({ 
+    // Only VERIFIED should be treated as "already used".
+    // PENDING may happen during re-upload or concurrent verification attempts.
+    const count = await this.paymentModel.countDocuments({
       transRef,
-      status: { $in: [PaymentStatus.VERIFIED, PaymentStatus.PENDING] },
+      status: PaymentStatus.VERIFIED,
     });
-    
+
     return {
       isDuplicate: count > 0,
       duplicateCount: count,

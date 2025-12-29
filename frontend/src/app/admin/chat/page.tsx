@@ -232,10 +232,10 @@ function AdminChatContent() {
               <div className="p-8 border-b border-slate-100/50 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Personnel Manifest</p>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Active Transmissions</h3>
+                    <p className="text-[10px] font-semibold text-slate-400 mb-1">รายชื่อผู้ใช้</p>
+                    <h3 className="text-sm font-bold text-slate-200">การสนทนาทั้งหมด</h3>
                   </div>
-                  <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] uppercase px-3 py-1 animate-pulse">Live Feed</Badge>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-none font-semibold text-[9px] px-3 py-1 animate-pulse">ออนไลน์</Badge>
                 </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-300 group-focus-within:text-emerald-500 transition-colors">
@@ -244,10 +244,10 @@ function AdminChatContent() {
                     </svg>
                   </div>
                   <Input
-                    placeholder="Search Signal Alias..."
+                    placeholder="ค้นหาผู้ใช้..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-slate-50/50 border-none rounded-2xl h-14 text-[13px] pl-12 font-bold focus:bg-white shadow-inner transition-all"
+                    className="bg-white/5 border-white/5 rounded-2xl h-14 text-[13px] pl-12 font-medium focus:bg-white/10 shadow-inner transition-all text-white placeholder:text-slate-500"
                   />
                 </div>
               </div>

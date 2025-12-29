@@ -192,12 +192,12 @@ export default function AdminPaymentsPage() {
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="bg-white/[0.02] border-b border-white/5">
-                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Temporal Index</th>
-                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Identity Matrix</th>
-                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Protocol Layer</th>
-                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Valuation</th>
-                  <th className="px-10 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Audit Status</th>
-                  <th className="px-10 py-8 text-right text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Operations</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">วันที่</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ใช้งาน</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">ประเภท</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">จำนวนเงิน</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">สถานะ</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-right text-[9px] sm:text-[10px] font-semibold text-slate-400">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">

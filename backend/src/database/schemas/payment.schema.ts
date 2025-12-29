@@ -59,4 +59,12 @@ export const PaymentSchema = SchemaFactory.createForClass(Payment);
 
 PaymentSchema.index({ userId: 1 });
 PaymentSchema.index({ status: 1 });
-PaymentSchema.index({ transRef: 1 });
+// Prevent duplicate slip usage once verified.
+// NOTE: We avoid blocking PENDING because slips may be re-uploaded / re-verified.
+PaymentSchema.index(
+  { transRef: 1 },
+  { unique: true, partialFilterExpression: { transRef: { $type: 'string' }, status: PaymentStatus.VERIFIED } },
+);
+
+// Useful for querying user's pending payments by package
+PaymentSchema.index({ userId: 1, packageId: 1, status: 1, createdAt: -1 });

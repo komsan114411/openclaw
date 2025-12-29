@@ -559,18 +559,18 @@ export default function AdminTemplatesPage() {
             <Button variant="outline" onClick={handleInitDefaults} isLoading={isProcessing} className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] text-slate-400 hover:text-[#06C755] hover:bg-emerald-500/10">
               รีเซ็ตเทมเพลต
             </Button>
-            <Button variant="primary" onClick={openCreateModal} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[9px] md:text-[10px] shadow-emerald-500/20 shadow-xl">
-              ➕ <span className="inline">Deployment Studio</span>
+            <Button variant="primary" onClick={openCreateModal} className="h-11 md:h-14 px-4 md:px-8 rounded-xl md:rounded-2xl font-semibold text-xs shadow-emerald-500/20 shadow-xl">
+              + สร้างเทมเพลตใหม่
             </Button>
           </div>
         </div>
 
         {/* Performance Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
-          <StatCard title="Total" value={templates.length} icon="🧩" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
-          <StatCard title="Success" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
-          <StatCard title="Security" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
-          <StatCard title="Default" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="ทั้งหมด" value={templates.length} icon="🧩" color="indigo" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="สำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="ซ้ำ" value={templates.filter(t => t.type === 'duplicate').length} icon="⚠️" color="amber" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
+          <StatCard title="เริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" className="rounded-xl md:rounded-[2.5rem] shadow-premium-sm" />
         </div>
 
         {/* Templates List */}

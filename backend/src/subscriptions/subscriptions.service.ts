@@ -87,19 +87,28 @@ export class SubscriptionsService {
     }
 
     // Use atomic findOneAndUpdate to prevent race conditions
-    const newEndDate = new Date();
-    newEndDate.setDate(newEndDate.getDate() + pkg.durationDays);
-
+    // IMPORTANT: extend from the CURRENT subscription endDate, not "now",
+    // otherwise you can unintentionally shorten a subscription when a user tops up early.
     const result = await this.subscriptionModel.findOneAndUpdate(
       {
         userId,
         status: SubscriptionStatus.ACTIVE,
         endDate: { $gt: new Date() },
       },
-      {
-        $inc: { slipsQuota: pkg.slipQuota },
-        $set: { endDate: newEndDate },
-      },
+      [
+        {
+          $set: {
+            slipsQuota: { $add: ['$slipsQuota', pkg.slipQuota] },
+            endDate: {
+              $dateAdd: {
+                startDate: '$endDate',
+                unit: 'day',
+                amount: pkg.durationDays,
+              },
+            },
+          },
+        },
+      ],
       { new: true },
     );
 
@@ -414,12 +423,23 @@ export class SubscriptionsService {
    * This handles cases where the process crashed before confirming/rolling back
    */
   async cleanupStaleReservations(maxAgeMinutes = 10): Promise<number> {
-    // For subscriptions with reservations, we'll reset them if they've been reserved too long
-    // This is a safety mechanism - in production, you might want to track reservation timestamps
+    // NOTE:
+    // We currently do NOT store a "reservedAt" timestamp, so we cannot reliably know the age
+    // of each reservation. To avoid accidentally releasing legitimate in-flight reservations,
+    // we keep this cleanup as a NO-OP unless maxAgeMinutes is explicitly set to 0.
+    //
+    // If you need real stale cleanup, add a reservation timestamp field (or a separate
+    // reservation collection) and filter by that timestamp.
+    if (maxAgeMinutes !== 0) {
+      this.logger.debug(
+        `cleanupStaleReservations skipped: no reservation timestamp available (maxAgeMinutes=${maxAgeMinutes})`,
+      );
+      return 0;
+    }
+
     const result = await this.subscriptionModel.updateMany(
       {
         slipsReserved: { $gt: 0 },
-        // Only cleanup if the subscription is still active
         status: SubscriptionStatus.ACTIVE,
       },
       {
@@ -428,7 +448,7 @@ export class SubscriptionsService {
     );
 
     if (result.modifiedCount > 0) {
-      this.logger.log(`Cleaned up ${result.modifiedCount} stale reservations`);
+      this.logger.log(`Force-cleaned ${result.modifiedCount} reservations (maxAgeMinutes=0)`);
     }
 
     return result.modifiedCount;

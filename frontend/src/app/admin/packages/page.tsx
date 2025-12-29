@@ -222,9 +222,9 @@ export default function AdminPackagesPage() {
         {packages.length === 0 ? (
           <EmptyState
             icon="💎"
-            title="ZERO INDICES FOUND"
-            description="The monetary protocol registry is currently empty. Initialize a new plan subscription to begin operations."
-            action={<Button variant="primary" onClick={() => setShowModal(true)} className="h-12 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">Initialize Protocol</Button>}
+            title="ยังไม่มีแพ็คเกจ"
+            description="กรุณาสร้างแพ็คเกจใหม่เพื่อเริ่มต้นใช้งาน"
+            action={<Button variant="primary" onClick={() => setShowModal(true)} className="h-12 px-8 rounded-xl font-semibold text-xs">สร้างแพ็คเกจใหม่</Button>}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10 pt-4">
@@ -262,10 +262,10 @@ export default function AdminPackagesPage() {
                         </p>
                       </div>
                       <div className={cn(
-                        "px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest border border-white/5 shadow-lg",
+                        "px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] font-semibold border border-white/5 shadow-lg",
                         pkg.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/20"
                       )}>
-                        {pkg.isActive ? 'Protocol Active' : 'Index Halted'}
+                        {pkg.isActive ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
                       </div>
                     </div>
 

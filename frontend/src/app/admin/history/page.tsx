@@ -98,8 +98,8 @@ export default function AdminHistoryPage() {
           <Card variant="glass" className="flex-1 p-3 sm:p-4 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4 border-none shadow-premium-sm">
             <div className="pl-2 sm:pl-4 text-lg sm:text-xl opacity-20">🔍</div>
             <input
-              className="bg-transparent border-none focus:ring-0 w-full text-sm sm:text-lg font-black uppercase tracking-widest placeholder:text-slate-600 text-white"
-              placeholder="Search Telemetry..."
+              className="bg-transparent border-none focus:ring-0 w-full text-sm sm:text-lg font-semibold placeholder:text-slate-500 text-white"
+              placeholder="ค้นหาประวัติ..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -125,11 +125,11 @@ export default function AdminHistoryPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Temporal Index</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Origin Actor</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Protocol Layer</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Operation Target</th>
-                  <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Telemetry Payload</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">วันที่และเวลา</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ดำเนินการ</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ประเภท</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">เป้าหมาย</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">รายละเอียด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">

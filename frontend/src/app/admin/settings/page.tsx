@@ -218,9 +218,9 @@ export default function SettingsPage() {
   }
 
   const tabs = [
-    { id: 'infrastructure', name: 'Core Infrastructure', icon: '⚡' },
-    { id: 'communication', name: 'Communication Strategy', icon: '💬' },
-    { id: 'financials', name: 'Financial Infrastructure', icon: '💳' },
+    { id: 'infrastructure', name: 'โครงสร้างหลัก', icon: '⚡' },
+    { id: 'communication', name: 'การสื่อสาร', icon: '💬' },
+    { id: 'financials', name: 'การเงิน', icon: '💳' },
   ] as const;
 
   return (

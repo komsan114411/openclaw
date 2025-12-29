@@ -201,21 +201,21 @@ export default function BanksManagementPage() {
         {/* Quick Stats Node */}
         <div className="grid-stats">
           <StatCard
-            title="TOTAL_ENTITIES"
+            title="ธนาคารทั้งหมด"
             value={stats.total}
             color="indigo"
             variant="glass"
             className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="ACTIVE_LAYERS"
+            title="ใช้งานอยู่"
             value={stats.active}
             color="emerald"
             variant="glass"
             className="rounded-[2.5rem] border border-white/5 shadow-2xl"
           />
           <StatCard
-            title="IDLE_PROFILES"
+            title="ปิดใช้งาน"
             value={stats.inactive}
             color="rose"
             variant="glass"
@@ -234,11 +234,11 @@ export default function BanksManagementPage() {
                   </svg>
                 </div>
                 <Input
-                  placeholder="QUERY_REGISTRY: Search by Name, Code, or Alias..."
+                  placeholder="ค้นหาธนาคาร ชื่อ หรือรหัส..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   containerClassName="!mb-0"
-                  className="pl-16 h-16 bg-white/[0.02] border-white/5 shadow-inner focus:bg-white/[0.05] rounded-2xl font-black text-sm uppercase tracking-widest text-white placeholder:text-slate-600"
+                  className="pl-16 h-16 bg-white/[0.02] border-white/5 shadow-inner focus:bg-white/[0.05] rounded-2xl font-semibold text-sm text-white placeholder:text-slate-500"
                 />
               </div>
               <div className="flex items-center gap-4 w-full lg:w-auto">

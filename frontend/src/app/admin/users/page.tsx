@@ -223,11 +223,11 @@ export default function UsersPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Identity Matrix</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Contact Vector</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Protocol Level</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">System Status</th>
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-right">Operations</th>
+                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ใช้งาน</th>
+                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">อีเมล</th>
+                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ระดับสิทธิ์</th>
+                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">สถานะ</th>
+                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400 text-right">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.02]">

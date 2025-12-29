@@ -147,12 +147,14 @@ export class TasksService {
    * Cleanup orphaned quota reservations (expired but not rolled back)
    */
   private async cleanupOrphanedQuotaReservations(): Promise<number> {
-    const expireTime = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
-    
+    // Use expiresAt directly; the record already stores the real expiry timestamp.
+    // The previous logic subtracted an extra 10 minutes which could delay cleanup unnecessarily.
+    const now = new Date();
+
     const result = await this.quotaReservationModel.updateMany(
       {
         status: QuotaReservationStatus.RESERVED,
-        expiresAt: { $lt: expireTime },
+        expiresAt: { $lt: now },
       },
       {
         $set: {
