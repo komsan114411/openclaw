@@ -404,22 +404,22 @@ export default function UsersPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => !isProcessing && setShowCreateModal(false)}
-        title="PROVISION NETWORK IDENTITY"
-        subtitle="Initialize new authenticated operative in the system registry"
+        title="สร้างผู้ใช้ใหม่"
+        subtitle="เพิ่มผู้ใช้ใหม่เข้าสู่ระบบ"
         size="md"
       >
         <div className="space-y-6 pt-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <Input
-              label="Operative Username"
-              placeholder="e.g. ALPHA_USER"
+              label="ชื่อผู้ใช้"
+              placeholder="เช่น john_doe"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             />
             <Input
               type="password"
-              label="Access Password"
+              label="รหัสผ่าน"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -428,33 +428,33 @@ export default function UsersPage() {
           </div>
 
           <Input
-            label="Communication Vector (Email)"
+            label="อีเมล"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="node@network.com"
+            placeholder="user@example.com"
             className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
 
           <Input
-            label="Designated Full Identity"
+            label="ชื่อ-นามสกุล"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-            placeholder="John Doe"
+            placeholder="ทดสอบ ใจดี"
             className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-end">
             <Select
-              label="Protocol Clearance"
+              label="สิทธิ์ผู้ใช้"
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             >
-              <option value="user" className="bg-slate-900">Standard Operative</option>
-              <option value="admin" className="bg-slate-900">High Administrator</option>
+              <option value="user" className="bg-slate-900">ผู้ใช้ทั่วไป</option>
+              <option value="admin" className="bg-slate-900">ผู้ดูแลระบบ</option>
             </Select>
             <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5 flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Rotate Password</span>
+              <span className="text-xs font-medium text-slate-400">บังคับเปลี่ยนรหัสผ่าน</span>
               <Switch
                 checked={formData.forcePasswordChange}
                 onChange={(checked) => setFormData({ ...formData, forcePasswordChange: checked })}
@@ -463,14 +463,14 @@ export default function UsersPage() {
           </div>
 
           <div className="flex gap-4 pt-8">
-            <Button variant="ghost" className="flex-1 font-black text-[10px] uppercase tracking-widest h-12 rounded-xl" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>Abort</Button>
+            <Button variant="ghost" className="flex-1 font-semibold text-sm h-12 rounded-xl" onClick={() => setShowCreateModal(false)} disabled={isProcessing}>ยกเลิก</Button>
             <Button
               variant="primary"
-              className="flex-[2] font-black tracking-widest uppercase shadow-emerald-500/20 shadow-premium h-12 rounded-xl text-[10px]"
+              className="flex-[2] font-semibold text-sm shadow-emerald-500/20 shadow-premium h-12 rounded-xl"
               onClick={handleCreateUser}
               isLoading={isProcessing}
             >
-              Initialize Provisioning
+              สร้างผู้ใช้
             </Button>
           </div>
         </div>
@@ -480,35 +480,35 @@ export default function UsersPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => !isProcessing && setShowEditModal(false)}
-        title={`${selectedUser?.username}`}
-        subtitle="Modify existing identity metadata and clearance levels"
+        title={`แก้ไขผู้ใช้: ${selectedUser?.username}`}
+        subtitle="แก้ไขข้อมูลโปรไฟล์และสิทธิ์การเข้าถึง"
         size="md"
       >
         <div className="space-y-6 pt-2">
           <Input
-            label="Operative Email"
+            label="อีเมล"
             value={editFormData.email}
             onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
             className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
           <Input
-            label="Operative Full Name"
+            label="ชื่อ-นามสกุล"
             value={editFormData.fullName}
             onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
             className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-end">
             <Select
-              label="Adjust Clearance"
+              label="สิทธิ์ผู้ใช้"
               value={editFormData.role}
               onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
               className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             >
-              <option value="user" className="bg-slate-900">Standard Operative</option>
-              <option value="admin" className="bg-slate-900">High Administrator</option>
+              <option value="user" className="bg-slate-900">ผู้ใช้ทั่วไป</option>
+              <option value="admin" className="bg-slate-900">ผู้ดูแลระบบ</option>
             </Select>
             <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5 flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Active Status</span>
+              <span className="text-xs font-medium text-slate-400">สถานะการใช้งาน</span>
               <Switch
                 checked={editFormData.isActive}
                 onChange={(checked) => setEditFormData({ ...editFormData, isActive: checked })}
@@ -517,8 +517,8 @@ export default function UsersPage() {
           </div>
 
           <div className="flex gap-4 pt-8">
-            <Button variant="ghost" className="flex-1 font-black text-[10px] tracking-widest uppercase h-12 rounded-xl" onClick={() => setShowEditModal(false)} disabled={isProcessing}>Cancel</Button>
-            <Button variant="primary" className="flex-[2] font-black tracking-widest uppercase h-12 rounded-xl text-[10px]" onClick={handleEditUser} isLoading={isProcessing}>Apply Modifications</Button>
+            <Button variant="ghost" className="flex-1 font-semibold text-sm h-12 rounded-xl" onClick={() => setShowEditModal(false)} disabled={isProcessing}>ยกเลิก</Button>
+            <Button variant="primary" className="flex-[2] font-semibold text-sm h-12 rounded-xl" onClick={handleEditUser} isLoading={isProcessing}>บันทึกการแก้ไข</Button>
           </div>
         </div>
       </Modal>
@@ -527,8 +527,8 @@ export default function UsersPage() {
       <Modal
         isOpen={showGrantModal}
         onClose={() => !isProcessing && setShowGrantModal(false)}
-        title="PROTOCOL ASSET INFUSION"
-        subtitle={`Injecting computational credits to index: ${selectedUser?.username}`}
+        title="ให้สิทธิ์แพ็คเกจ"
+        subtitle={`เพิ่มโควต้าให้กับผู้ใช้: ${selectedUser?.username}`}
         size="md"
       >
         <div className="space-y-10 pt-2 pb-2">
@@ -537,36 +537,36 @@ export default function UsersPage() {
 
             <div className="relative z-10 space-y-8">
               <Select
-                label="SELECT PROTOCOL PACKAGE"
+                label="เลือกแพ็คเกจ"
                 value={selectedPackageId}
                 onChange={(e) => setSelectedPackageId(e.target.value)}
-                className="bg-white/5 border-white/10 text-white h-14 rounded-2xl text-xs font-black uppercase tracking-widest"
+                className="bg-white/5 border-white/10 text-white h-14 rounded-2xl text-sm font-semibold"
               >
-                <option value="" className="bg-slate-900">Select Package Layer</option>
+                <option value="" className="bg-slate-900">เลือกแพ็คเกจ</option>
                 {packages.filter(p => p.isActive).map((pkg) => (
                   <option key={pkg._id} value={pkg._id} className="bg-slate-900">
-                    {pkg.name} | {pkg.slipQuota.toLocaleString()} PAYLOADS
+                    {pkg.name} | {pkg.slipQuota.toLocaleString()} สลิป
                   </option>
                 ))}
               </Select>
 
               <div className="p-5 bg-amber-500/5 rounded-2xl border border-amber-500/10">
-                <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.2em] leading-relaxed text-center">
-                  WARNING: THIS OPERATION BYPASSES FINANCIAL GATEWAYS. ASSETS WILL BE INJECTED IMMEDIATELY INTO THE OPERATIVE'S QUOTA.
+                <p className="text-xs font-medium text-amber-500 leading-relaxed text-center">
+                  คำเตือน: การดำเนินการนี้จะเพิ่มโควต้าให้ผู้ใช้ทันทีโดยไม่ผ่านระบบชำระเงิน
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex gap-4">
-            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>Abort Protocol</Button>
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-semibold text-sm text-slate-400" onClick={() => setShowGrantModal(false)} disabled={isProcessing}>ยกเลิก</Button>
             <Button
               variant="primary"
-              className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-2xl"
+              className="flex-[2] h-14 rounded-2xl font-semibold text-sm shadow-emerald-500/20 shadow-xl"
               onClick={handleGrantPackage}
               isLoading={isProcessing}
             >
-              Execute Asset Infusion
+              ให้สิทธิ์แพ็คเกจ
             </Button>
           </div>
         </div>
