@@ -258,7 +258,7 @@ export default function AdminPackagesPage() {
                       <div className="space-y-1">
                         <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight uppercase group-hover:text-emerald-400 transition-colors">{pkg.name}</h3>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2">
-                          {pkg.durationDays} Day Cycle
+                          {pkg.durationDays} วัน
                         </p>
                       </div>
                       <div className={cn(
@@ -348,91 +348,91 @@ export default function AdminPackagesPage() {
       <Modal
         isOpen={showModal}
         onClose={() => !isSubmitting && setShowModal(false)}
-        title={editPackage ? 'PROTOCOL MODIFICATION' : 'NEW MATRIX DEPLOYMENT'}
-        subtitle="Configure computational resources and monetary value for this package"
+        title={editPackage ? 'แก้ไขแพ็คเกจ' : 'สร้างแพ็คเกจใหม่'}
+        subtitle="กำหนดรายละเอียดแพ็คเกจและราคา"
         size="lg"
       >
         <form onSubmit={handleSubmit} className="p-2 space-y-10 focus-within:animate-pulse-slow">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-8">
               <Input
-                label="MATRIX INDEX NAME"
-                placeholder="e.g. PROFESSIONAL PROTOCOL"
+                label="ชื่อแพ็คเกจ"
+                placeholder="เช่น PREMIUM, STARTER, ENTERPRISE"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 error={formErrors.name}
                 required
-                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
               />
               <div className="grid grid-cols-2 gap-5">
                 <Input
-                  label="VALUATION (THB)"
+                  label="ราคา (บาท)"
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                   error={formErrors.price}
                   min={0}
                   required
-                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
                 <Input
-                  label="VALUATION (USDT)"
+                  label="ราคา (USDT)"
                   type="number"
                   value={formData.priceUsdt}
                   onChange={(e) => setFormData({ ...formData, priceUsdt: Number(e.target.value) })}
                   min={0}
-                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs opacity-70 focus:opacity-100"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm opacity-70 focus:opacity-100"
                 />
               </div>
               <div className="grid grid-cols-2 gap-5">
                 <Input
-                  label="QUOTA PAYLOAD"
+                  label="โควต้าสลิป"
                   type="number"
                   value={formData.slipQuota}
                   onChange={(e) => setFormData({ ...formData, slipQuota: Number(e.target.value) })}
                   error={formErrors.slipQuota}
                   min={0}
                   required
-                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
                 <Input
-                  label="CYCLE DURATION"
+                  label="ระยะเวลา (วัน)"
                   type="number"
                   value={formData.durationDays}
                   onChange={(e) => setFormData({ ...formData, durationDays: Number(e.target.value) })}
                   error={formErrors.durationDays}
                   min={1}
                   required
-                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
               </div>
               <Input
-                label="REGISTRY SORT ORDER"
+                label="ลำดับการแสดงผล"
                 type="number"
                 value={formData.sortOrder}
                 onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
                 min={0}
-                hint="Priority hierarchy in the public manifest."
-                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-[10px]"
+                hint="ลำดับการเรียงแพ็คเกจในรายการ (0 = แสดงก่อน)"
+                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
               />
             </div>
 
             <div className="space-y-8">
               <TextArea
-                label="CLIENT NOMENCLATURE"
-                placeholder="Marketing tagline for this protocol..."
+                label="คำอธิบาย"
+                placeholder="รายละเอียดแพ็คเกจ..."
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
+                className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-medium text-sm p-5"
               />
               <TextArea
-                label="CAPABILITY MATRIX (ONE PER LINE)"
-                placeholder="⚡ REAL-TIME VERIFICATION&#10;👑 PRIORITY UPLINK&#10;📈 ANALYTICS ENGINE"
+                label="คุณสมบัติ (บรรทัดละ 1 รายการ)"
+                placeholder="✅ ตรวจสอบสลิปอัตโนมัติ&#10;📈 รายงานวิเคราะห์&#10;💬 ตอบกลับอัตโนมัติ"
                 value={formData.features}
                 onChange={(e) => setFormData({ ...formData, features: e.target.value })}
                 rows={8}
-                className="rounded-3xl bg-white/[0.03] border-white/10 text-white font-black text-[11px] p-6 leading-relaxed uppercase"
+                className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-medium text-sm p-5 leading-relaxed"
               />
             </div>
           </div>
@@ -441,18 +441,18 @@ export default function AdminPackagesPage() {
             <Button
               type="button"
               variant="ghost"
-              className="flex-1 font-black text-[11px] uppercase tracking-widest text-slate-500 h-16 rounded-2xl hover:bg-white/5"
+              className="flex-1 font-semibold text-sm text-slate-400 h-14 rounded-2xl hover:bg-white/5"
               onClick={() => { setShowModal(false); resetForm(); }}
               disabled={isSubmitting}
             >
-              Abort
+              ยกเลิก
             </Button>
             <Button
               type="submit"
-              className="flex-[2] h-16 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-emerald-500/20 shadow-2xl"
+              className="flex-[2] h-14 rounded-2xl font-semibold text-sm shadow-emerald-500/20 shadow-xl"
               isLoading={isSubmitting}
             >
-              {editPackage ? 'Commit Protocol' : 'Execute Deployment'}
+              {editPackage ? 'บันทึกการแก้ไข' : 'สร้างแพ็คเกจ'}
             </Button>
           </div>
         </form>
@@ -462,9 +462,9 @@ export default function AdminPackagesPage() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
-        title="PROTOCOL HALT"
-        message={`Confirm deactivation of "${packageToDelete?.name}" matrix? Future subscriptions to this index will be restricted.`}
-        confirmText="Halt Protocol"
+        title="ปิดใช้งานแพ็คเกจ"
+        message={`ยืนยันการปิดใช้งานแพ็คเกจ "${packageToDelete?.name}" หรือไม่? ผู้ใช้ใหม่จะไม่สามารถสมัครแพ็คเกจนี้ได้`}
+        confirmText="ปิดใช้งาน"
         type="warning"
         isLoading={isSubmitting}
       />
