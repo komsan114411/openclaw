@@ -272,7 +272,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full glass-sidebar text-white w-72 relative overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-72 relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
       {/* Dynamic Background Effects */}
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[30%] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none" />
