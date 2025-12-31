@@ -48,7 +48,7 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
   }
 
   return (
-    <div className="flex min-h-screen relative overflow-hidden font-sans selection:bg-emerald-500/30 bg-[#0A0F0D]">
+    <div className="flex h-screen overflow-hidden font-sans selection:bg-emerald-500/30 bg-[#0A0F0D]">
       {/* Background gradient effects */}
       <div className="fixed inset-0 bg-[#0A0F0D] -z-20" />
       <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-[150px] -z-10 pointer-events-none" />
@@ -74,11 +74,12 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <main className="flex-1 overflow-auto relative z-10 no-scrollbar w-full flex flex-col items-center bg-[#0A0F0D]">
+      {/* Main content - independently scrollable */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative z-10 w-full bg-[#0A0F0D]">
         {/* Mobile Header Spacer */}
         <div className="md:hidden h-16" />
 
-        <div className="container-responsive w-full animate-fade">
+        <div className="container-responsive w-full animate-fade pb-20 md:pb-10">
           {children}
         </div>
       </main>

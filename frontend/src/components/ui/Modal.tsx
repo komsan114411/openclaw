@@ -78,18 +78,18 @@ export function Modal({
       {/* Modal Container */}
       <div
         className={cn(
-          'relative w-full overflow-hidden bg-white rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
+          'relative w-full overflow-hidden bg-white rounded-xl xs:rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
           sizeClasses[size],
-          'flex flex-col max-h-[85vh] sm:max-h-[90vh]'
+          'flex flex-col max-h-[95vh] xs:max-h-[90vh] sm:max-h-[90vh]'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-4 sm:py-6 border-b border-slate-50 bg-white sticky top-0 z-10">
-            <div className="space-y-1">
-              {title && <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{title}</h3>}
-              {subtitle && <p className="text-sm font-medium text-slate-500">{subtitle}</p>}
+          <div className="flex items-center justify-between px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6 border-b border-slate-50 bg-white sticky top-0 z-10">
+            <div className="space-y-0.5 xs:space-y-1">
+              {title && <h3 className="text-lg xs:text-xl font-extrabold text-slate-900 tracking-tight">{title}</h3>}
+              {subtitle && <p className="text-xs xs:text-sm font-medium text-slate-500">{subtitle}</p>}
             </div>
             {showCloseButton && (
               <IconButton

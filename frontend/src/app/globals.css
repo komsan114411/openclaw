@@ -187,18 +187,18 @@
     @apply min-h-[44px] min-w-[44px];
   }
 
-  /* Standard Container Padding */
+  /* Standard Container Padding - Enhanced for all screen sizes */
   .container-responsive {
-    @apply px-4 py-6 md:px-8 md:py-10 lg:px-12 xl:px-16 max-w-[1600px] mx-auto;
+    @apply px-3 py-4 xs:px-4 xs:py-6 md:px-8 md:py-10 lg:px-12 xl:px-16 max-w-[1600px] mx-auto;
   }
 
-  /* Responsive Spacing */
+  /* Responsive Spacing - Enhanced for small screens */
   .section-gap {
-    @apply space-y-8 md:space-y-12 lg:space-y-16;
+    @apply space-y-6 xs:space-y-8 md:space-y-12 lg:space-y-16;
   }
 
   .grid-responsive {
-    @apply grid gap-4 md:gap-6 lg:gap-8;
+    @apply grid gap-3 xs:gap-4 md:gap-6 lg:gap-8;
   }
 
   /* Responsive typography */
@@ -446,11 +446,11 @@
 
 /* Common page scaffolding (used by user pages) */
 .page-header {
-  @apply flex flex-col md:flex-row md:items-end md:justify-between gap-4;
+  @apply flex flex-col md:flex-row md:items-end md:justify-between gap-3 xs:gap-4;
 }
 
 .page-title {
-  @apply text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight;
+  @apply text-2xl xs:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight;
 }
 
 .page-subtitle {
@@ -458,10 +458,53 @@
 }
 
 .grid-stats {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+  @apply grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 xs:gap-4 md:gap-6;
 }
 
 /* Sidebar Specifics */
 .sidebar-link-active {
   @apply bg-white/10 text-white shadow-inner backdrop-blur-md;
+}
+
+/* Safe Area Utilities for notched devices (iPhone X+, etc.) */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
+.px-safe {
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+}
+
+/* Mobile Table Responsive */
+.table-responsive {
+  @apply w-full overflow-x-auto -mx-3 px-3 xs:-mx-4 xs:px-4;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  @apply bg-emerald-900/30 rounded-full;
+}
+
+/* Mobile Card Grid */
+.card-grid-mobile {
+  @apply grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 xs:gap-4;
+}
+
+/* Touch-friendly spacing for mobile actions */
+.action-bar-mobile {
+  @apply flex flex-col xs:flex-row gap-2 xs:gap-3 w-full xs:w-auto;
+}
+
+/* Bottom navigation safe area padding */
+.bottom-nav-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }

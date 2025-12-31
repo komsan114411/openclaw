@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -28,6 +28,8 @@ export interface AuthUser {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
@@ -51,10 +53,10 @@ export class AuthService {
           forcePasswordChange: true,
           isActive: true,
         });
-        console.log('✅ Default admin user created (username: admin, password: admin123)');
+        this.logger.log('✅ Default admin user created (username: admin, password: admin123)');
       }
     } catch (error) {
-      console.error('Error creating default admin:', error);
+      this.logger.error('Error creating default admin:', error);
     }
   }
 

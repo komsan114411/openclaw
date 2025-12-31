@@ -64,7 +64,7 @@ export class LineWebhookController {
         .digest('base64');
 
       if (!this.timingSafeEqualBase64(signature, expectedSignature)) {
-        console.error('Invalid LINE signature');
+        this.logger.warn('Invalid LINE signature');
         return { success: false };
       }
 
@@ -79,7 +79,7 @@ export class LineWebhookController {
 
       return { success: true };
     } catch (error) {
-      console.error('Webhook error:', error);
+      this.logger.error('Webhook error:', error);
       return { success: false };
     }
   }

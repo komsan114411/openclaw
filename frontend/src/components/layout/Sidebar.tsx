@@ -272,7 +272,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-72 relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
+    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-[85vw] xs:w-72 max-w-[288px] relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
       {/* Dynamic Background Effects */}
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[30%] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none" />
@@ -334,8 +334,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block h-full sticky top-0">
+      {/* Desktop Sidebar - Fixed, doesn't scroll with content */}
+      <div className="hidden md:block h-screen sticky top-0 flex-shrink-0">
         {sidebarContent}
       </div>
 
@@ -367,7 +367,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Mobile Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 px-2 pb-safe">
-        <div className="flex items-center justify-around h-16">
+        <div className="flex items-center justify-around h-14 xs:h-16">
           {[
             { href: user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard', icon: '🏠', label: 'หน้าแรก' },
             { href: user?.role === 'admin' ? '/admin/chat' : '/user/chat', icon: '💬', label: 'แชท' },
