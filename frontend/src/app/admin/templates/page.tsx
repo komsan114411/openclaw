@@ -168,7 +168,7 @@ const SAMPLE_DATA = {
   },
 };
 
-// Modern Toggle Switch Component
+// Responsive Toggle Switch Component
 const Toggle = memo(({ checked, onChange, label, description }: {
   checked: boolean;
   onChange: () => void;
@@ -179,7 +179,7 @@ const Toggle = memo(({ checked, onChange, label, description }: {
     type="button"
     onClick={onChange}
     className={cn(
-      "flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-all w-full text-left group",
+      "flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border transition-all w-full text-left group min-h-[48px]",
       checked
         ? "border-emerald-200 bg-emerald-50/50"
         : "border-slate-200 bg-white hover:border-slate-300"
@@ -187,29 +187,29 @@ const Toggle = memo(({ checked, onChange, label, description }: {
   >
     <div className="flex-1 min-w-0">
       <span className={cn(
-        "text-sm font-medium transition-colors block",
+        "text-xs sm:text-sm font-medium transition-colors block leading-tight",
         checked ? "text-emerald-700" : "text-slate-600 group-hover:text-slate-800"
       )}>
         {label}
       </span>
       {description && (
-        <span className="text-xs text-slate-400 mt-0.5 block">{description}</span>
+        <span className="text-[10px] sm:text-xs text-slate-400 mt-0.5 block leading-tight">{description}</span>
       )}
     </div>
     <div className={cn(
-      "w-11 h-6 rounded-full relative transition-all duration-200 flex-shrink-0",
+      "w-10 sm:w-11 h-5 sm:h-6 rounded-full relative transition-all duration-200 flex-shrink-0",
       checked ? "bg-emerald-500" : "bg-slate-300"
     )}>
       <div className={cn(
-        "absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200",
-        checked ? "left-6" : "left-1"
+        "absolute top-0.5 sm:top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200",
+        checked ? "left-5 sm:left-6" : "left-0.5 sm:left-1"
       )} />
     </div>
   </button>
 ));
 Toggle.displayName = 'Toggle';
 
-// Bank Selection Button
+// Responsive Bank Selection Button
 const BankButton = memo(({
   bank,
   isSelected,
@@ -226,28 +226,28 @@ const BankButton = memo(({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center p-2 sm:p-3 rounded-xl border-2 transition-all group relative",
+        "flex flex-col items-center p-1.5 sm:p-2 md:p-3 rounded-lg sm:rounded-xl border-2 transition-all group relative min-w-0",
         isSelected
           ? "border-emerald-500 bg-emerald-50 shadow-md"
           : "border-transparent bg-slate-50 hover:bg-white hover:border-slate-200"
       )}
     >
-      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-sm mb-1.5 group-hover:scale-105 transition-transform">
+      <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center overflow-hidden bg-white shadow-sm mb-1 group-hover:scale-105 transition-transform">
         {logo ? (
-          <img src={logo} alt={bank.shortName} className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+          <img src={logo} alt={bank.shortName} className="w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 object-contain" />
         ) : (
-          <span className="text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
+          <span className="text-[10px] sm:text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
         )}
       </div>
       <span className={cn(
-        "text-[10px] font-semibold text-center truncate w-full",
+        "text-[8px] sm:text-[10px] font-semibold text-center truncate w-full leading-tight",
         isSelected ? 'text-emerald-700' : 'text-slate-500'
       )}>
         {bank.shortName || bank.code}
       </span>
       {isSelected && (
-        <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-          <span className="text-white text-[10px]">✓</span>
+        <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-[8px] sm:text-[10px]">✓</span>
         </div>
       )}
     </button>
@@ -255,11 +255,12 @@ const BankButton = memo(({
 });
 BankButton.displayName = 'BankButton';
 
-// Live Preview Component (Thai)
-const SlipPreview = memo(({ config, senderBank, receiverBank }: {
+// Responsive Live Preview Component (Thai)
+const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }: {
   config: FormData;
   senderBank: Bank | null;
   receiverBank: Bank | null;
+  compact?: boolean;
 }) => {
   const isDuplicate = config.type === 'duplicate';
   const isError = config.type === 'error';
@@ -285,81 +286,84 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
   const receiverLogo = receiverBank?.logoBase64 || receiverBank?.logoUrl;
 
   return (
-    <div className="bg-slate-900 rounded-[2.5rem] p-4 sm:p-5 w-full max-w-[300px] mx-auto shadow-2xl border border-white/10 relative overflow-hidden">
+    <div className={cn(
+      "bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] p-3 sm:p-4 md:p-5 w-full mx-auto shadow-2xl border border-white/10 relative overflow-hidden",
+      compact ? "max-w-[260px]" : "max-w-[280px] sm:max-w-[300px]"
+    )}>
       {/* Decorative glow */}
       <div
-        className="absolute top-0 right-0 w-40 h-40 rounded-full blur-[50px] -mr-20 -mt-20 pointer-events-none opacity-30 transition-colors duration-300"
+        className="absolute top-0 right-0 w-32 sm:w-40 h-32 sm:h-40 rounded-full blur-[40px] sm:blur-[50px] -mr-16 sm:-mr-20 -mt-16 sm:-mt-20 pointer-events-none opacity-30 transition-colors duration-300"
         style={{ backgroundColor: mainColor }}
       />
 
       {/* Status Header */}
       <div
-        className="rounded-2xl p-3 sm:p-4 mb-3 flex items-center gap-3 border border-white/10 backdrop-blur-sm transition-colors duration-200"
+        className="rounded-xl sm:rounded-2xl p-2.5 sm:p-3 md:p-4 mb-2 sm:mb-3 flex items-center gap-2 sm:gap-3 border border-white/10 backdrop-blur-sm transition-colors duration-200"
         style={{ backgroundColor: `${mainColor}15` }}
       >
         <div
-          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg transition-colors duration-200"
+          className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-white text-xs sm:text-sm font-bold shadow-lg transition-colors duration-200 flex-shrink-0"
           style={{ backgroundColor: mainColor }}
         >
           {getStatusIcon()}
         </div>
         <div className="flex-1 min-w-0">
           <p
-            className="text-sm sm:text-[15px] font-bold leading-tight transition-colors duration-200"
+            className="text-xs sm:text-sm md:text-[15px] font-bold leading-tight transition-colors duration-200 truncate"
             style={{ color: mainColor }}
           >
             {getStatusText()}
           </p>
-          <p className="text-[9px] text-white/40 font-medium mt-0.5">ยืนยันการทำรายการแล้ว</p>
+          <p className="text-[8px] sm:text-[9px] text-white/40 font-medium mt-0.5">ยืนยันการทำรายการแล้ว</p>
         </div>
       </div>
 
       {/* Main Content Card */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 space-y-3 shadow-inner relative z-10">
+      <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 space-y-2 sm:space-y-3 shadow-inner relative z-10">
         {/* Amount Section */}
         {config.showAmount && (
-          <div className="text-center py-2 border-b border-slate-100">
-            <p className="text-[10px] text-slate-400 font-medium mb-1">จำนวนเงิน</p>
+          <div className="text-center py-1.5 sm:py-2 border-b border-slate-100">
+            <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium mb-0.5 sm:mb-1">จำนวนเงิน</p>
             <p
-              className="text-2xl sm:text-3xl font-bold transition-colors duration-200"
+              className="text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-200"
               style={{ color: mainColor }}
             >
               {SAMPLE_DATA.amount}
             </p>
-            <div className="flex items-center justify-center gap-2 mt-2">
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
               {config.showDate && (
-                <p className="text-[10px] text-slate-400">{SAMPLE_DATA.date}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400">{SAMPLE_DATA.date}</p>
               )}
               {config.showDate && config.showTime && (
                 <span className="w-1 h-1 rounded-full bg-slate-300" />
               )}
               {config.showTime && (
-                <p className="text-[10px] text-slate-400">{SAMPLE_DATA.time}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400">{SAMPLE_DATA.time}</p>
               )}
             </div>
           </div>
         )}
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {/* Sender */}
           {config.showSender && (
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-slate-50 rounded-lg sm:rounded-xl">
               {config.showBankLogo && (
-                <div className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
                   {senderLogo ? (
-                    <img src={senderLogo} alt="Bank" className="w-7 h-7 object-contain" />
+                    <img src={senderLogo} alt="Bank" className="w-5 h-5 sm:w-7 sm:h-7 object-contain" />
                   ) : (
-                    <span className="text-base">👤</span>
+                    <span className="text-sm sm:text-base">👤</span>
                   )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] text-slate-400 font-medium mb-0.5">ผู้โอน</p>
-                <p className="text-[11px] font-semibold text-slate-800 truncate">
+                <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium mb-0.5">ผู้โอน</p>
+                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-800 truncate">
                   {SAMPLE_DATA.sender.name}
                 </p>
                 {config.showSenderAccount && (
-                  <p className="text-[10px] text-slate-400 font-mono">
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
                     {SAMPLE_DATA.sender.account}
                   </p>
                 )}
@@ -369,9 +373,9 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
 
           {/* Arrow Divider */}
           {config.showSender && config.showReceiver && (
-            <div className="flex justify-center -my-1 relative z-10">
-              <div className="w-6 h-6 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shadow-sm">
-                <span className="text-slate-400 text-xs">↓</span>
+            <div className="flex justify-center -my-0.5 sm:-my-1 relative z-10">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shadow-sm">
+                <span className="text-slate-400 text-[10px] sm:text-xs">↓</span>
               </div>
             </div>
           )}
@@ -379,30 +383,30 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
           {/* Receiver */}
           {config.showReceiver && (
             <div
-              className="flex items-center gap-3 p-3 rounded-xl transition-colors duration-200"
+              className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl transition-colors duration-200"
               style={{ backgroundColor: `${mainColor}08` }}
             >
               {config.showBankLogo && (
-                <div className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
                   {receiverLogo ? (
-                    <img src={receiverLogo} alt="Bank" className="w-7 h-7 object-contain" />
+                    <img src={receiverLogo} alt="Bank" className="w-5 h-5 sm:w-7 sm:h-7 object-contain" />
                   ) : (
-                    <span className="text-base">🏦</span>
+                    <span className="text-sm sm:text-base">🏦</span>
                   )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
                 <p
-                  className="text-[9px] font-medium mb-0.5 transition-colors duration-200"
+                  className="text-[8px] sm:text-[9px] font-medium mb-0.5 transition-colors duration-200"
                   style={{ color: mainColor }}
                 >
                   ผู้รับ
                 </p>
-                <p className="text-[11px] font-semibold text-slate-800 truncate">
+                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-800 truncate">
                   {SAMPLE_DATA.receiver.name}
                 </p>
                 {config.showReceiverAccount && (
-                  <p className="text-[10px] text-slate-400 font-mono">
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
                     {SAMPLE_DATA.receiver.account}
                   </p>
                 )}
@@ -413,23 +417,23 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
 
         {/* Transaction Details */}
         {(config.showTransRef || config.showFee || config.showRefs) && (
-          <div className="pt-3 border-t border-dashed border-slate-200 space-y-1.5">
+          <div className="pt-2 sm:pt-3 border-t border-dashed border-slate-200 space-y-1 sm:space-y-1.5">
             {config.showTransRef && (
-              <div className="flex justify-between items-center text-[10px]">
+              <div className="flex justify-between items-center text-[9px] sm:text-[10px]">
                 <span className="text-slate-400">เลขอ้างอิง</span>
-                <span className="text-slate-700 font-mono font-medium">
-                  {SAMPLE_DATA.transRef.slice(0, 10)}...
+                <span className="text-slate-700 font-mono font-medium truncate ml-2">
+                  {SAMPLE_DATA.transRef.slice(0, 8)}...
                 </span>
               </div>
             )}
             {config.showFee && (
-              <div className="flex justify-between items-center text-[10px]">
+              <div className="flex justify-between items-center text-[9px] sm:text-[10px]">
                 <span className="text-slate-400">ค่าธรรมเนียม</span>
                 <span className="text-emerald-600 font-medium">ฟรี</span>
               </div>
             )}
             {config.showRefs && SAMPLE_DATA.ref1 && (
-              <div className="flex justify-between items-center text-[10px]">
+              <div className="flex justify-between items-center text-[9px] sm:text-[10px]">
                 <span className="text-slate-400">อ้างอิงเพิ่มเติม</span>
                 <span className="text-slate-700 font-mono">{SAMPLE_DATA.ref1}</span>
               </div>
@@ -439,15 +443,15 @@ const SlipPreview = memo(({ config, senderBank, receiverBank }: {
 
         {/* Footer Text */}
         {config.footerText && (
-          <div className="pt-3 border-t border-slate-100">
-            <p className="text-[9px] text-slate-400 text-center">{config.footerText}</p>
+          <div className="pt-2 sm:pt-3 border-t border-slate-100">
+            <p className="text-[8px] sm:text-[9px] text-slate-400 text-center leading-tight">{config.footerText}</p>
           </div>
         )}
       </div>
 
       {/* Bottom Branding */}
-      <div className="mt-4 flex justify-center">
-        <p className="text-[9px] text-white/20 font-medium">LINE OA System</p>
+      <div className="mt-3 sm:mt-4 flex justify-center">
+        <p className="text-[8px] sm:text-[9px] text-white/20 font-medium">LINE OA System</p>
       </div>
     </div>
   );
@@ -773,44 +777,48 @@ export default function AdminTemplatesPage() {
         )}
       </div>
 
-      {/* Studio Modal */}
+      {/* Studio Modal - Fully Responsive */}
       <Modal
         isOpen={showModal}
         onClose={() => !isProcessing && setShowModal(false)}
         title={selectedTemplate ? 'แก้ไขเทมเพลต' : 'สร้างเทมเพลตใหม่'}
         size="fullMobile"
       >
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          {/* Left: Form */}
-          <div className="flex-1 space-y-5">
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
-              {[
-                { id: 'basic', label: 'การตั้งค่าหลัก', icon: '⚙️' },
-                { id: 'display', label: 'เลเยอร์', icon: '👁️' },
-                { id: 'banks', label: 'ข้อมูลธนาคาร', icon: '🏦' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={cn(
-                    "flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all",
-                    activeTab === tab.id
-                      ? "bg-white shadow-sm text-emerald-600"
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  <span className="hidden sm:inline mr-1.5">{tab.icon}</span>
-                  {tab.label}
-                </button>
-              ))}
+        {/* Main Content - Stacked on mobile, side-by-side on desktop */}
+        <div className="flex flex-col xl:flex-row gap-5 sm:gap-6 xl:gap-8">
+          {/* Form Section (Top on mobile, Left on desktop) */}
+          <div className="flex-1 space-y-4 sm:space-y-5 order-1">
+            {/* Responsive Tabs - Scrollable on mobile */}
+            <div className="overflow-x-auto -mx-1 px-1 scrollbar-hide">
+              <div className="flex gap-1 p-1 bg-slate-100 rounded-xl min-w-max sm:min-w-0">
+                {[
+                  { id: 'basic', label: 'การตั้งค่าหลัก', shortLabel: 'ตั้งค่า', icon: '⚙️' },
+                  { id: 'display', label: 'เลเยอร์', shortLabel: 'เลเยอร์', icon: '👁️' },
+                  { id: 'banks', label: 'ข้อมูลธนาคาร', shortLabel: 'ธนาคาร', icon: '🏦' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={cn(
+                      "flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-[11px] sm:text-xs font-medium transition-all whitespace-nowrap min-w-[90px] sm:min-w-0",
+                      activeTab === tab.id
+                        ? "bg-white shadow-sm text-emerald-600"
+                        : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    <span className="mr-1 sm:mr-1.5">{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.shortLabel}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto">
+            {/* Tab Content - Scrollable */}
+            <div className="bg-slate-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 max-h-[40vh] sm:max-h-[45vh] xl:max-h-[55vh] overflow-y-auto">
               {/* Basic Tab */}
               {activeTab === 'basic' && (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
                     <Input
                       label="ชื่อเทมเพลต"
@@ -844,27 +852,27 @@ export default function AdminTemplatesPage() {
                     rows={2}
                   />
 
-                  {/* Color Picker */}
-                  <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200">
-                    <div className="flex items-center gap-3">
+                  {/* Color Picker - Responsive */}
+                  <div className="flex items-center justify-between p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <div
-                        className="w-10 h-10 rounded-lg shadow-inner"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg shadow-inner flex-shrink-0"
                         style={{ backgroundColor: formData.primaryColor }}
                       />
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">สีธีมหลัก</p>
-                        <p className="text-xs text-slate-400">{formData.primaryColor}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-slate-700">สีธีมหลัก</p>
+                        <p className="text-[10px] sm:text-xs text-slate-400 truncate">{formData.primaryColor}</p>
                       </div>
                     </div>
                     <input
                       type="color"
                       value={formData.primaryColor}
                       onChange={(e) => updateField('primaryColor', e.target.value)}
-                      className="w-10 h-10 rounded-lg border-2 border-white shadow cursor-pointer"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg border-2 border-white shadow cursor-pointer flex-shrink-0"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <Input
                       label="ข้อความหัวเรื่อง"
                       value={formData.headerText}
@@ -881,12 +889,12 @@ export default function AdminTemplatesPage() {
                 </div>
               )}
 
-              {/* Display Tab */}
+              {/* Display Tab - Responsive Grid */}
               {activeTab === 'display' && (
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-3">ข้อมูลการเงิน</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3">ข้อมูลการเงิน</p>
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                       <Toggle label="จำนวนเงิน" checked={formData.showAmount} onChange={() => updateField('showAmount', !formData.showAmount)} />
                       <Toggle label="เลขอ้างอิง" checked={formData.showTransRef} onChange={() => updateField('showTransRef', !formData.showTransRef)} />
                       <Toggle label="วันที่" checked={formData.showDate} onChange={() => updateField('showDate', !formData.showDate)} />
@@ -895,8 +903,8 @@ export default function AdminTemplatesPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-3">ข้อมูลผู้โอน</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3">ข้อมูลผู้โอน</p>
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                       <Toggle label="แสดงผู้โอน" checked={formData.showSender} onChange={() => updateField('showSender', !formData.showSender)} />
                       <Toggle label="เลขบัญชีผู้โอน" checked={formData.showSenderAccount} onChange={() => updateField('showSenderAccount', !formData.showSenderAccount)} />
                       <Toggle label="ชื่อภาษาอังกฤษ" checked={formData.showSenderNameEn} onChange={() => updateField('showSenderNameEn', !formData.showSenderNameEn)} />
@@ -905,8 +913,8 @@ export default function AdminTemplatesPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-3">ข้อมูลผู้รับ</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3">ข้อมูลผู้รับ</p>
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                       <Toggle label="แสดงผู้รับ" checked={formData.showReceiver} onChange={() => updateField('showReceiver', !formData.showReceiver)} />
                       <Toggle label="เลขบัญชีผู้รับ" checked={formData.showReceiverAccount} onChange={() => updateField('showReceiverAccount', !formData.showReceiverAccount)} />
                       <Toggle label="รหัสธนาคารผู้รับ" checked={formData.showReceiverBankId} onChange={() => updateField('showReceiverBankId', !formData.showReceiverBankId)} />
@@ -915,8 +923,8 @@ export default function AdminTemplatesPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-3">องค์ประกอบอื่นๆ</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3">องค์ประกอบอื่นๆ</p>
+                    <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                       <Toggle label="โลโก้ธนาคาร" checked={formData.showBankLogo} onChange={() => updateField('showBankLogo', !formData.showBankLogo)} />
                       <Toggle label="ค่าธรรมเนียม" checked={formData.showFee} onChange={() => updateField('showFee', !formData.showFee)} />
                       <Toggle label="อ้างอิงเพิ่มเติม" checked={formData.showRefs} onChange={() => updateField('showRefs', !formData.showRefs)} />
@@ -926,33 +934,34 @@ export default function AdminTemplatesPage() {
                 </div>
               )}
 
-              {/* Banks Tab */}
+              {/* Banks Tab - Highly Responsive Grid */}
               {activeTab === 'banks' && (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Sender Bank */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-base">👤</span>
-                      <span className="text-sm font-medium text-slate-700">ธนาคารผู้โอน (ตัวอย่าง)</span>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-wrap">
+                      <span className="text-sm sm:text-base">👤</span>
+                      <span className="text-xs sm:text-sm font-medium text-slate-700">ธนาคารผู้โอน</span>
                       {senderBank && (
-                        <Badge variant="success" size="sm">{senderBank.shortName}</Badge>
+                        <Badge variant="success" size="sm" className="text-[10px] sm:text-xs">{senderBank.shortName}</Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-3 bg-white rounded-xl border border-slate-200">
+                    {/* Bank Grid - Auto-wrap with minimum size */}
+                    <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-slate-200">
                       <button
                         type="button"
                         onClick={() => updateField('senderBankId', '')}
                         className={cn(
-                          "flex flex-col items-center p-2 rounded-lg border-2 transition-all",
+                          "flex flex-col items-center p-1.5 sm:p-2 rounded-lg border-2 transition-all",
                           !formData.senderBankId
                             ? "border-emerald-500 bg-emerald-50"
                             : "border-transparent bg-slate-50 hover:bg-white"
                         )}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1">
-                          <span className="text-base">🔄</span>
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1">
+                          <span className="text-sm sm:text-base">🔄</span>
                         </div>
-                        <span className="text-[10px] font-medium text-slate-500">อัตโนมัติ</span>
+                        <span className="text-[8px] sm:text-[10px] font-medium text-slate-500">อัตโนมัติ</span>
                       </button>
                       {activeBanks.slice(0, 11).map((bank) => (
                         <BankButton
@@ -967,28 +976,28 @@ export default function AdminTemplatesPage() {
 
                   {/* Receiver Bank */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-base">🏦</span>
-                      <span className="text-sm font-medium text-slate-700">ธนาคารผู้รับ (ตัวอย่าง)</span>
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-wrap">
+                      <span className="text-sm sm:text-base">🏦</span>
+                      <span className="text-xs sm:text-sm font-medium text-slate-700">ธนาคารผู้รับ</span>
                       {receiverBank && (
-                        <Badge variant="info" size="sm">{receiverBank.shortName}</Badge>
+                        <Badge variant="info" size="sm" className="text-[10px] sm:text-xs">{receiverBank.shortName}</Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-3 bg-white rounded-xl border border-slate-200">
+                    <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-slate-200">
                       <button
                         type="button"
                         onClick={() => updateField('receiverBankId', '')}
                         className={cn(
-                          "flex flex-col items-center p-2 rounded-lg border-2 transition-all",
+                          "flex flex-col items-center p-1.5 sm:p-2 rounded-lg border-2 transition-all",
                           !formData.receiverBankId
                             ? "border-blue-500 bg-blue-50"
                             : "border-transparent bg-slate-50 hover:bg-white"
                         )}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1">
-                          <span className="text-base">🔄</span>
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1">
+                          <span className="text-sm sm:text-base">🔄</span>
                         </div>
-                        <span className="text-[10px] font-medium text-slate-500">อัตโนมัติ</span>
+                        <span className="text-[8px] sm:text-[10px] font-medium text-slate-500">อัตโนมัติ</span>
                       </button>
                       {activeBanks.slice(0, 11).map((bank) => (
                         <BankButton
@@ -1001,60 +1010,44 @@ export default function AdminTemplatesPage() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                    <p className="text-xs text-blue-700">
-                      💡 <strong>คำแนะนำ:</strong> เลือกธนาคารเพื่อดูตัวอย่างการแสดงผล เมื่อใช้งานจริง ระบบจะดึงข้อมูลจากสลิปโดยอัตโนมัติ
+                  <div className="p-3 sm:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100">
+                    <p className="text-[10px] sm:text-xs text-blue-700 leading-relaxed">
+                      💡 <strong>คำแนะนำ:</strong> เลือกธนาคารเพื่อดูตัวอย่าง เมื่อใช้งานจริงระบบจะดึงข้อมูลจากสลิปอัตโนมัติ
                     </p>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Action Buttons - Mobile */}
-            <div className="flex gap-3 lg:hidden">
-              <Button
-                variant="outline"
-                fullWidth
-                onClick={() => setShowModal(false)}
-                disabled={isProcessing}
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={handleSubmit}
-                isLoading={isProcessing}
-              >
-                {selectedTemplate ? 'บันทึกการแก้ไข' : 'สร้างเทมเพลต'}
-              </Button>
-            </div>
           </div>
 
-          {/* Right: Live Preview */}
-          <div className="lg:w-[360px] flex flex-col">
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm lg:sticky lg:top-4">
-              <div className="text-center mb-5">
-                <h4 className="text-sm font-bold text-slate-800">ตัวอย่างการแสดงผล</h4>
-                <p className="text-xs text-slate-400 mt-1">อัปเดตตามการตั้งค่าแบบเรียลไทม์</p>
+          {/* Preview Section (Bottom on mobile, Right on desktop) */}
+          <div className="xl:w-[340px] 2xl:w-[380px] flex flex-col order-2">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm xl:sticky xl:top-4">
+              <div className="text-center mb-4 sm:mb-5">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-800">ตัวอย่างการแสดงผล</h4>
+                <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">อัปเดตตามการตั้งค่าแบบเรียลไทม์</p>
               </div>
 
+              {/* Preview - Scales down on mobile */}
               <div className="flex justify-center">
-                <SlipPreview
-                  config={formData}
-                  senderBank={senderBank}
-                  receiverBank={receiverBank}
-                />
+                <div className="transform scale-90 sm:scale-100 origin-top">
+                  <SlipPreview
+                    config={formData}
+                    senderBank={senderBank}
+                    receiverBank={receiverBank}
+                    compact={false}
+                  />
+                </div>
               </div>
 
-              {/* Action Buttons - Desktop */}
-              <div className="hidden lg:flex flex-col gap-2 mt-6 pt-5 border-t border-slate-100">
+              {/* Desktop Action Buttons */}
+              <div className="hidden xl:flex flex-col gap-2 mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-100">
                 <Button
                   variant="primary"
                   fullWidth
                   onClick={handleSubmit}
                   isLoading={isProcessing}
-                  className="h-12"
+                  className="h-11 sm:h-12"
                 >
                   {selectedTemplate ? '💾 บันทึกการแก้ไข' : '🚀 สร้างเทมเพลต'}
                 </Button>
@@ -1069,6 +1062,30 @@ export default function AdminTemplatesPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Mobile/Tablet Sticky Action Buttons */}
+        <div className="xl:hidden sticky bottom-0 left-0 right-0 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 sm:py-4 bg-white border-t border-slate-200 shadow-lg mt-4 sm:mt-6">
+          <div className="flex flex-col gap-2 sm:gap-3 max-w-lg mx-auto">
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={handleSubmit}
+              isLoading={isProcessing}
+              className="h-12 sm:h-14 text-sm sm:text-base font-semibold"
+            >
+              {selectedTemplate ? '💾 บันทึกการแก้ไข' : '🚀 สร้างเทมเพลต'}
+            </Button>
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => setShowModal(false)}
+              disabled={isProcessing}
+              className="h-10 sm:h-12 text-sm"
+            >
+              ยกเลิก
+            </Button>
           </div>
         </div>
       </Modal>
