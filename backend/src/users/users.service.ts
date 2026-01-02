@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -7,14 +7,41 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Session, SessionDocument } from '../database/schemas/session.schema';
 import { RedisService } from '../redis/redis.service';
+import { ActivityLogsService } from '../activity-logs/activity-logs.service';
+import { ActivityActorRole } from '../database/schemas/activity-log.schema';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     private redisService: RedisService,
+    private activityLogsService: ActivityLogsService,
   ) {}
+
+  /**
+   * Safe activity logging - never fails the main transaction
+   */
+  private async logActivity(params: {
+    actorUserId?: string;
+    actorRole: ActivityActorRole;
+    subjectUserId?: string;
+    action: string;
+    entityId?: string;
+    message?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    try {
+      await this.activityLogsService.log({
+        ...params,
+        entityType: 'user',
+      });
+    } catch (error) {
+      this.logger.error(`Failed to log activity: ${params.action}`, error);
+    }
+  }
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const existingUser = await this.userModel.findOne({ username: createUserDto.username });
@@ -47,7 +74,7 @@ export class UsersService {
     return this.userModel.findOne({ username }).exec();
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
+  async update(id: string, updateUserDto: UpdateUserDto, actorId?: string): Promise<UserDocument> {
     const user = await this.userModel.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -56,11 +83,41 @@ export class UsersService {
     // Don't allow password update through this method
     delete updateUserDto.password;
 
+    // Track changes for activity log
+    const changes: Record<string, { old: any; new: any }> = {};
+    for (const key of Object.keys(updateUserDto)) {
+      if (updateUserDto[key as keyof UpdateUserDto] !== undefined &&
+          user.get(key) !== updateUserDto[key as keyof UpdateUserDto]) {
+        changes[key] = {
+          old: user.get(key),
+          new: updateUserDto[key as keyof UpdateUserDto],
+        };
+      }
+    }
+
     Object.assign(user, updateUserDto);
-    return user.save();
+    const savedUser = await user.save();
+
+    // Log activity: USER_UPDATED
+    if (Object.keys(changes).length > 0) {
+      this.logActivity({
+        actorUserId: actorId,
+        actorRole: actorId ? ActivityActorRole.ADMIN : ActivityActorRole.USER,
+        subjectUserId: id,
+        action: 'USER_UPDATED',
+        entityId: id,
+        message: `อัปเดตข้อมูลผู้ใช้ (${Object.keys(changes).join(', ')})`,
+        metadata: {
+          changes,
+          updatedFields: Object.keys(changes),
+        },
+      });
+    }
+
+    return savedUser;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, actorId?: string): Promise<void> {
     const user = await this.userModel.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -69,9 +126,23 @@ export class UsersService {
     // Soft delete
     user.isActive = false;
     await user.save();
+
+    // Log activity: USER_DELETED
+    this.logActivity({
+      actorUserId: actorId,
+      actorRole: actorId ? ActivityActorRole.ADMIN : ActivityActorRole.SYSTEM,
+      subjectUserId: id,
+      action: 'USER_DELETED',
+      entityId: id,
+      message: 'ลบผู้ใช้ (Soft Delete)',
+      metadata: {
+        username: user.username,
+        deletedBy: actorId || 'system',
+      },
+    });
   }
 
-  async restore(id: string): Promise<void> {
+  async restore(id: string, actorId?: string): Promise<void> {
     const user = await this.userModel.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -79,6 +150,20 @@ export class UsersService {
 
     user.isActive = true;
     await user.save();
+
+    // Log activity: USER_RESTORED
+    this.logActivity({
+      actorUserId: actorId,
+      actorRole: actorId ? ActivityActorRole.ADMIN : ActivityActorRole.SYSTEM,
+      subjectUserId: id,
+      action: 'USER_RESTORED',
+      entityId: id,
+      message: 'กู้คืนผู้ใช้',
+      metadata: {
+        username: user.username,
+        restoredBy: actorId || 'system',
+      },
+    });
   }
 
   async blockUser(id: string, adminId: string, reason?: string): Promise<void> {
@@ -92,16 +177,50 @@ export class UsersService {
 
     // Invalidate all sessions for this user (force logout)
     await this.invalidateUserSessions(id);
+
+    // Log activity: USER_BLOCKED
+    this.logActivity({
+      actorUserId: adminId,
+      actorRole: ActivityActorRole.ADMIN,
+      subjectUserId: id,
+      action: 'USER_BLOCKED',
+      entityId: id,
+      message: `ระงับผู้ใช้${reason ? ': ' + reason : ''}`,
+      metadata: {
+        username: user.username,
+        reason: reason || 'ไม่ระบุเหตุผล',
+        blockedBy: adminId,
+        blockedAt: user.blockedAt,
+      },
+    });
   }
 
-  async unblockUser(id: string): Promise<void> {
+  async unblockUser(id: string, actorId?: string): Promise<void> {
     const user = await this.userModel.findById(id);
     if (!user) throw new NotFoundException('User not found');
+
+    const previousReason = user.blockedReason;
+
     user.isBlocked = false;
     user.blockedAt = undefined as any;
     user.blockedBy = undefined as any;
     user.blockedReason = undefined as any;
     await user.save();
+
+    // Log activity: USER_UNBLOCKED
+    this.logActivity({
+      actorUserId: actorId,
+      actorRole: actorId ? ActivityActorRole.ADMIN : ActivityActorRole.SYSTEM,
+      subjectUserId: id,
+      action: 'USER_UNBLOCKED',
+      entityId: id,
+      message: 'ปลดการระงับผู้ใช้',
+      metadata: {
+        username: user.username,
+        previousBlockReason: previousReason,
+        unblockedBy: actorId || 'system',
+      },
+    });
   }
 
   /**

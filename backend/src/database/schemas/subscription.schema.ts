@@ -37,9 +37,19 @@ export class Subscription {
 
   @Prop({ type: String, enum: SubscriptionStatus, default: SubscriptionStatus.ACTIVE })
   status: SubscriptionStatus;
+
+  /**
+   * Array of payment IDs that have been processed for this subscription.
+   * Used to prevent double-granting quota from the same payment.
+   * This is the source of truth for idempotency.
+   */
+  @Prop({ type: [String], default: [] })
+  processedPaymentIds: string[];
 }
 
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
 
 SubscriptionSchema.index({ userId: 1, status: 1 });
 SubscriptionSchema.index({ endDate: 1 });
+// Index for fast lookup of processed payments
+SubscriptionSchema.index({ processedPaymentIds: 1 });

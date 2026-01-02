@@ -59,15 +59,18 @@ export class SubscriptionsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Grant package to user (Admin only)' })
   async grantPackage(
+    @CurrentUser() admin: AuthUser,
     @Body() body: { userId: string; packageId: string },
   ) {
-    const success = await this.subscriptionsService.addQuotaToExisting(
+    const result = await this.subscriptionsService.grantFreeQuota(
       body.userId,
       body.packageId,
+      admin.userId,
     );
     return {
-      success,
-      message: success ? 'Package granted successfully' : 'Failed to grant package',
+      success: result.success,
+      message: result.success ? 'Package granted successfully' : 'Failed to grant package',
+      subscriptionId: result.subscriptionId,
     };
   }
 

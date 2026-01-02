@@ -76,7 +76,22 @@ export class SubscriptionsService {
     return subscription.save();
   }
 
-  async addQuotaToExisting(userId: string, packageId: string, paymentId?: string): Promise<boolean> {
+  /**
+   * Add quota to existing subscription or create new one.
+   * CRITICAL: This method is idempotent - calling it multiple times with the same paymentId
+   * will only add quota once. This prevents double-granting from race conditions.
+   *
+   * @returns Object with subscriptionId and whether the payment was already processed
+   */
+  async addQuotaToExisting(
+    userId: string,
+    packageId: string,
+    paymentId: string,
+  ): Promise<{ success: boolean; subscriptionId: string; alreadyProcessed: boolean }> {
+    if (!paymentId) {
+      throw new BadRequestException('Payment ID is required for quota tracking');
+    }
+
     if (!this.isValidObjectId(packageId)) {
       throw new BadRequestException('Invalid package ID format');
     }
@@ -86,14 +101,32 @@ export class SubscriptionsService {
       throw new NotFoundException('Package not found');
     }
 
-    // Use atomic findOneAndUpdate to prevent race conditions
-    // IMPORTANT: extend from the CURRENT subscription endDate, not "now",
-    // otherwise you can unintentionally shorten a subscription when a user tops up early.
+    // CRITICAL: First check if this payment was already processed (idempotency check)
+    // This is a fast check before attempting the atomic update
+    const existingProcessed = await this.subscriptionModel.findOne({
+      userId,
+      processedPaymentIds: paymentId,
+    });
+
+    if (existingProcessed) {
+      this.logger.warn(`Payment ${paymentId} already processed for user ${userId} - skipping duplicate`);
+      return {
+        success: true,
+        subscriptionId: existingProcessed._id.toString(),
+        alreadyProcessed: true,
+      };
+    }
+
+    // ATOMIC OPERATION: Update existing subscription with idempotency protection
+    // The key is using $nin in the query to ensure paymentId is NOT already processed
+    // AND using $addToSet to atomically add it (prevents duplicates even in race conditions)
     const result = await this.subscriptionModel.findOneAndUpdate(
       {
         userId,
         status: SubscriptionStatus.ACTIVE,
         endDate: { $gt: new Date() },
+        // CRITICAL: Only update if this payment hasn't been processed yet
+        processedPaymentIds: { $nin: [paymentId] },
       },
       [
         {
@@ -106,6 +139,14 @@ export class SubscriptionsService {
                 amount: pkg.durationDays,
               },
             },
+            // Add paymentId to processed list atomically
+            processedPaymentIds: {
+              $cond: {
+                if: { $in: [paymentId, { $ifNull: ['$processedPaymentIds', []] }] },
+                then: '$processedPaymentIds',
+                else: { $concatArrays: [{ $ifNull: ['$processedPaymentIds', []] }, [paymentId]] },
+              },
+            },
           },
         },
       ],
@@ -113,14 +154,98 @@ export class SubscriptionsService {
     );
 
     if (result) {
-      this.logger.log(`Added ${pkg.slipQuota} quota to existing subscription for user ${userId}`);
-      return true;
+      this.logger.log(
+        `Added ${pkg.slipQuota} quota and ${pkg.durationDays} days to subscription ${result._id} for user ${userId} (payment: ${paymentId})`,
+      );
+      return {
+        success: true,
+        subscriptionId: result._id.toString(),
+        alreadyProcessed: false,
+      };
     }
 
-    // No active subscription found, create new one
-    await this.createSubscription(userId, packageId, paymentId);
-    this.logger.log(`Created new subscription for user ${userId}`);
-    return true;
+    // Check if the reason for no result is that payment was already processed
+    // (race condition: another process added it between our check and update)
+    const recheck = await this.subscriptionModel.findOne({
+      userId,
+      processedPaymentIds: paymentId,
+    });
+
+    if (recheck) {
+      this.logger.warn(`Payment ${paymentId} was processed by another process - returning existing subscription`);
+      return {
+        success: true,
+        subscriptionId: recheck._id.toString(),
+        alreadyProcessed: true,
+      };
+    }
+
+    // No active subscription found, create new one with the paymentId tracked
+    const newSubscription = await this.createSubscriptionWithPayment(userId, packageId, paymentId);
+    this.logger.log(`Created new subscription ${newSubscription._id} for user ${userId} (payment: ${paymentId})`);
+    return {
+      success: true,
+      subscriptionId: newSubscription._id.toString(),
+      alreadyProcessed: false,
+    };
+  }
+
+  /**
+   * Grant free quota to a user (admin use only).
+   * Generates a unique grant ID for idempotency tracking.
+   *
+   * @param adminId - The admin granting the quota (for audit)
+   * @returns Object with subscriptionId
+   */
+  async grantFreeQuota(
+    userId: string,
+    packageId: string,
+    adminId: string,
+  ): Promise<{ success: boolean; subscriptionId: string }> {
+    // Generate a unique grant ID for idempotency
+    const grantId = `admin-grant-${adminId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    const result = await this.addQuotaToExisting(userId, packageId, grantId);
+
+    this.logger.log(`Admin ${adminId} granted package ${packageId} to user ${userId} (grant: ${grantId})`);
+
+    return {
+      success: result.success,
+      subscriptionId: result.subscriptionId,
+    };
+  }
+
+  /**
+   * Create a new subscription with payment tracking
+   */
+  private async createSubscriptionWithPayment(
+    userId: string,
+    packageId: string,
+    paymentId: string,
+  ): Promise<SubscriptionDocument> {
+    const pkg = await this.packagesService.findById(packageId);
+    if (!pkg) {
+      throw new NotFoundException('Package not found');
+    }
+
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + pkg.durationDays);
+
+    const subscription = new this.subscriptionModel({
+      userId,
+      packageId,
+      paymentId,
+      startDate,
+      endDate,
+      slipsQuota: pkg.slipQuota,
+      slipsUsed: 0,
+      slipsReserved: 0,
+      status: SubscriptionStatus.ACTIVE,
+      processedPaymentIds: [paymentId], // Track this payment immediately
+    });
+
+    return subscription.save();
   }
 
   async checkQuota(userId: string): Promise<QuotaInfo> {
