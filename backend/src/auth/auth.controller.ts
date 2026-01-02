@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -141,10 +142,7 @@ export class AuthController {
   async cleanupSessions(@CurrentUser() user: AuthUser) {
     // Only allow admin
     if (user.role !== 'admin') {
-      return {
-        success: false,
-        message: 'Admin access required',
-      };
+      throw new ForbiddenException('Admin access required');
     }
 
     const deletedCount = await this.authService.cleanupExpiredSessions();

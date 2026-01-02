@@ -8,6 +8,9 @@ import {
   Param,
   Query,
   UseGuards,
+  BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -130,16 +133,14 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete user (Admin only)' })
   async delete(
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthUser,
   ) {
     if (id === currentUser.userId) {
-      return {
-        success: false,
-        message: 'Cannot delete your own account',
-      };
+      throw new BadRequestException('Cannot delete your own account');
     }
     await this.usersService.delete(id);
     await this.activityLogsService.log({
@@ -179,6 +180,7 @@ export class UsersController {
 
   @Post(':id/block')
   @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Block user (Admin only)' })
   async block(
     @Param('id') id: string,
@@ -186,7 +188,7 @@ export class UsersController {
     @CurrentUser() admin: AuthUser,
   ) {
     if (id === admin.userId) {
-      return { success: false, message: 'Cannot block your own account' };
+      throw new BadRequestException('Cannot block your own account');
     }
     await this.usersService.blockUser(id, admin.userId, body?.reason);
     await this.activityLogsService.log({

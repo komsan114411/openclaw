@@ -155,7 +155,7 @@ export class UsersService {
       totalUsers: total,
       activeUsers: active,
       adminUsers: admins,
-      regularUsers: active - admins,
+      regularUsers: Math.max(0, active - admins),
     };
   }
 }

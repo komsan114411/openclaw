@@ -135,7 +135,6 @@ export default function LoginPage() {
                 สมัครสมาชิก
               </Button>
             </Link>
-            <p className="text-[10px] text-slate-600 mt-6 font-mono">Admin: admin / admin123</p>
           </div>
         </Card>
       </div>
