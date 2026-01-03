@@ -1,5 +1,5 @@
 # Build stage for Frontend (static export)
-FROM node:20-alpine AS frontend-builder
+FROM node:20-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -12,7 +12,7 @@ ENV NEXT_OUTPUT=export
 RUN npm run build
 
 # Build stage for Backend
-FROM node:20-alpine AS backend-builder
+FROM node:20-slim AS backend-builder
 
 WORKDIR /app/backend
 
@@ -23,7 +23,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Production stage - Single container
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
 WORKDIR /app
 
@@ -41,6 +41,6 @@ ENV PORT=4000
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
+  CMD node -e "const http = require('http'); http.get('http://localhost:4000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 CMD ["node", "dist/main.js"]
