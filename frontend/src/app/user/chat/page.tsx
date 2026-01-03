@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { chatMessagesApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -44,7 +45,62 @@ function UserChatContent() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showMobileChat, setShowMobileChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Real-time socket connection
+  useEffect(() => {
+    if (!accountId) return;
+
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const socket = io(`${backendUrl}/ws`, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      // Subscribe to this LINE account's chat room
+      socket.emit('subscribe_chat', { lineAccountId: accountId });
+    });
+
+    socket.on('message_received', (data: any) => {
+      // Only process messages for the current selected user
+      if (data.lineAccountId === accountId) {
+        setMessages((prev) => {
+          // Prevent duplicates by checking _id or messageId
+          const exists = prev.some(
+            (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
+          );
+          if (exists) return prev;
+
+          const newMessage: ChatMessage = {
+            _id: data._id,
+            messageId: data.messageId,
+            direction: data.direction,
+            messageType: data.messageType,
+            messageText: data.messageText,
+            createdAt: data.createdAt,
+            sentBy: data.sentBy,
+          };
+
+          return [...prev, newMessage];
+        });
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+    });
+
+    return () => {
+      socket.emit('unsubscribe_chat', { lineAccountId: accountId });
+      socket.disconnect();
+    };
+  }, [accountId]);
 
   const fetchUsers = useCallback(async () => {
     if (!accountId) {
@@ -165,47 +221,65 @@ function UserChatContent() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 min-h-0">
-          {/* Mobile User Selector */}
-          <div className="lg:hidden mb-4">
-            <Card className="p-3 sm:p-4" variant="glass">
-              <div className="flex items-center justify-between gap-2 sm:gap-3">
-                <div className="flex-1 min-w-0">
-                  {selectedUser ? (
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-10 h-10 rounded-lg sm:rounded-xl bg-white/5 border border-white/5 text-white flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {selectedUser.lineUserPicture ? (
-                          <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="font-black text-sm">{(selectedUser.lineUserName || '?').charAt(0)}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-white truncate text-xs sm:text-sm">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
-                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-semibold">{users.length} ผู้ใช้</p>
-                      </div>
+          {/* Mobile User List (show when no chat selected) */}
+          {!showMobileChat && (
+            <div className="lg:hidden">
+              <Card className="p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl" variant="glass">
+                <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                  <Input
+                    placeholder="ค้นหาผู้ใช้..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-white/[0.03] border-white/5 h-10 rounded-lg text-white text-sm font-medium placeholder:text-slate-500"
+                  />
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
+                  {loadingUsers ? (
+                    <div className="py-12 flex flex-col items-center gap-3">
+                      <Spinner size="lg" />
+                      <p className="text-[10px] font-semibold text-slate-400">กำลังโหลดข้อมูล...</p>
+                    </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="py-12 opacity-60">
+                      <EmptyState icon="🧊" title="ยังไม่มีแชท" description="รอข้อความจากลูกค้า" variant="glass" />
                     </div>
                   ) : (
-                    <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">กรุณาเลือกผู้ใช้...</p>
+                    filteredUsers.map((u) => (
+                      <button
+                        key={u.lineUserId}
+                        onClick={() => {
+                          setSelectedUser(u);
+                          setShowMobileChat(true);
+                        }}
+                        className="w-full text-left p-3 rounded-xl bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex-shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/5 overflow-hidden flex items-center justify-center">
+                              {u.lineUserPicture ? (
+                                <img src={u.lineUserPicture} alt={u.lineUserName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="font-black text-slate-500">{(u.lineUserName || '?').charAt(0)}</span>
+                              )}
+                            </div>
+                            {u.unreadCount > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-semibold rounded-full px-1.5 py-0.5">
+                                {u.unreadCount > 9 ? '9+' : u.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-white truncate text-sm">{u.lineUserName || 'ไม่ระบุชื่อ'}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{u.lastMessage || 'ไม่มีข้อความ'}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))
                   )}
                 </div>
-                <select
-                  value={selectedUser?.lineUserId || ''}
-                  onChange={(e) => {
-                    const user = users.find(u => u.lineUserId === e.target.value);
-                    if (user) setSelectedUser(user);
-                  }}
-                  className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white/[0.03] border border-white/5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold text-white focus:ring-1 focus:ring-[#06C755] transition-all outline-none flex-shrink-0"
-                >
-                  <option value="" className="bg-slate-900 text-slate-500">เลือกผู้ใช้...</option>
-                  {users.map(u => (
-                    <option key={u.lineUserId} value={u.lineUserId} className="bg-slate-900 text-white">
-                      {u.lineUserName || u.lineUserId} {u.unreadCount > 0 ? `[${u.unreadCount}]` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </Card>
-          </div>
+              </Card>
+            </div>
+          )}
 
           <Card className="hidden lg:block lg:col-span-4 p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl" variant="glass">
             <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02]">
@@ -288,11 +362,26 @@ function UserChatContent() {
             </div>
           </Card>
 
-          <Card className="lg:col-span-8 p-0 overflow-hidden flex flex-col bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl" variant="glass">
+          <Card className={cn(
+            "lg:col-span-8 p-0 overflow-hidden flex flex-col bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl",
+            showMobileChat ? "block" : "hidden lg:flex"
+          )} variant="glass">
             {selectedUser ? (
               <>
                 <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    {/* Mobile Back Button */}
+                    <button
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setShowMobileChat(false);
+                      }}
+                      className="lg:hidden w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-all flex-shrink-0"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
                     <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-white/5 border border-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {selectedUser.lineUserPicture ? (
                         <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />

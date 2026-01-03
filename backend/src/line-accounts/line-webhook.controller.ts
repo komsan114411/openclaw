@@ -18,6 +18,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { RedisService } from '../redis/redis.service';
 import { ConfigurableMessagesService } from '../common/configurable-messages.service';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 
 @ApiTags('LINE Webhook')
 @Controller('webhook/line')
@@ -31,6 +32,7 @@ export class LineWebhookController {
     private subscriptionsService: SubscriptionsService,
     private redisService: RedisService,
     private configurableMessagesService: ConfigurableMessagesService,
+    private websocketGateway: WebsocketGateway,
   ) {}
 
   @Post(':slug')
@@ -148,6 +150,23 @@ export class LineWebhookController {
         replyToken,
         event,
       );
+
+      // Emit real-time event to frontend
+      const messageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        direction: 'in',
+        messageType: 'text',
+        messageText: message.text,
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Emit to user room (owner of LINE account)
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', messageData);
+      // Emit to admins
+      this.websocketGateway.broadcastToAdmins('message_received', messageData);
 
       // Handle AI response if enabled
       if (account.settings?.enableAi) {
@@ -466,6 +485,20 @@ export class LineWebhookController {
         MessageType.TEXT,
         response,
       );
+
+      // Emit real-time event for outgoing message
+      const outMessageData = {
+        _id: `out_${Date.now()}`,
+        lineAccountId: accountId,
+        lineUserId,
+        direction: 'out',
+        messageType: 'text',
+        messageText: response,
+        sentBy: 'AI',
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', outMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', outMessageData);
 
       // Send response
       await this.lineAccountsService.sendPush(
