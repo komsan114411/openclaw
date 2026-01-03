@@ -30,7 +30,7 @@ export default function AdminHistoryPage() {
       setLogs(logsRes.data.logs || []);
       setUsers(usersRes.data.users || []);
     } catch (error) {
-      toast.error('Matrix history synchronization failure');
+      toast.error('ไม่สามารถโหลดประวัติได้');
     } finally {
       setIsLoading(false);
     }
@@ -42,14 +42,51 @@ export default function AdminHistoryPage() {
 
   const userMap = new Map(users.map((u) => [u._id, u.username]));
 
+  // Category definitions for admin view
+  const getCategoryForLog = (log: ActivityLog): string => {
+    const action = log.action.toLowerCase();
+    const entityType = (log.entityType || '').toLowerCase();
+
+    // System Config: settings, config, system operations
+    if (action.includes('setting') || action.includes('config') || entityType.includes('setting') || entityType.includes('config')) {
+      return 'system_config';
+    }
+    // User Management: user CRUD, role changes
+    if (action.includes('user') || entityType.includes('user') || action.includes('role') || action.includes('block')) {
+      return 'user_management';
+    }
+    // Payment Approval: payment, subscription, package
+    if (action.includes('payment') || action.includes('subscription') || action.includes('package') || entityType.includes('payment')) {
+      return 'payment_approval';
+    }
+    // Authentication: login, logout, register
+    if (action.includes('login') || action.includes('logout') || action.includes('register') || action.includes('auth')) {
+      return 'auth';
+    }
+    // LINE Account: LINE operations
+    if (action.includes('line') || entityType.includes('line')) {
+      return 'line_account';
+    }
+    return 'other';
+  };
+
   const filtered = logs.filter((l) => {
     const text = `${l.action} ${l.message || ''} ${l.entityType || ''} ${l.entityId || ''}`.toLowerCase();
     const matchesSearch = text.includes(search.toLowerCase());
 
     if (selectedCategory === 'all') return matchesSearch;
+
+    // Role-based filters
     if (selectedCategory === 'system') return matchesSearch && l.actorRole === 'system';
     if (selectedCategory === 'admin') return matchesSearch && l.actorRole === 'admin';
     if (selectedCategory === 'user') return matchesSearch && l.actorRole === 'user';
+
+    // Category-based filters
+    const logCategory = getCategoryForLog(l);
+    if (selectedCategory === 'system_config') return matchesSearch && logCategory === 'system_config';
+    if (selectedCategory === 'user_management') return matchesSearch && logCategory === 'user_management';
+    if (selectedCategory === 'payment_approval') return matchesSearch && logCategory === 'payment_approval';
+
     return matchesSearch;
   });
 
@@ -104,17 +141,26 @@ export default function AdminHistoryPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </Card>
-          <div className="flex gap-1 sm:gap-2 p-2 bg-white/[0.02] border border-white/5 backdrop-blur-md rounded-[1.5rem] sm:rounded-[2rem] overflow-x-auto no-scrollbar">
-            {['all', 'system', 'admin', 'user'].map((cat) => (
+          <div className="flex gap-1 sm:gap-2 p-2 bg-white/[0.02] border border-white/5 backdrop-blur-md rounded-2xl overflow-x-auto no-scrollbar">
+            {[
+              { key: 'all', label: 'ทั้งหมด', icon: '📋' },
+              { key: 'system_config', label: 'ตั้งค่าระบบ', icon: '⚙️' },
+              { key: 'user_management', label: 'จัดการผู้ใช้', icon: '👥' },
+              { key: 'payment_approval', label: 'การชำระเงิน', icon: '💳' },
+              { key: 'system', label: 'ระบบ', icon: '🤖' },
+              { key: 'admin', label: 'แอดมิน', icon: '⚡' },
+              { key: 'user', label: 'ผู้ใช้', icon: '👤' },
+            ].map((cat) => (
               <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                key={cat.key}
+                onClick={() => setSelectedCategory(cat.key)}
                 className={cn(
-                  "px-4 sm:px-8 py-2.5 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap",
-                  selectedCategory === cat ? "bg-emerald-500 text-slate-900 shadow-emerald-500/20 shadow-xl" : "text-slate-500 hover:text-white"
+                  "px-3 sm:px-5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5",
+                  selectedCategory === cat.key ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20" : "text-slate-500 hover:text-white hover:bg-white/5"
                 )}
               >
-                {cat}
+                <span>{cat.icon}</span>
+                <span className="hidden sm:inline">{cat.label}</span>
               </button>
             ))}
           </div>
@@ -138,16 +184,16 @@ export default function AdminHistoryPage() {
                     <td colSpan={5} className="px-10 py-32">
                       <div className="flex flex-col items-center gap-6 opacity-30">
                         <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.4em]">Decrypting Ledger...</p>
+                        <p className="text-sm font-semibold text-slate-400">กำลังโหลดข้อมูล...</p>
                       </div>
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-10 py-32 text-center">
-                      <div className="flex flex-col items-center gap-6 opacity-20">
-                        <div className="text-7xl">📜</div>
-                        <p className="text-sm font-black uppercase tracking-[0.4em]">No matching records found</p>
+                      <div className="flex flex-col items-center gap-6 opacity-40">
+                        <div className="text-6xl">📜</div>
+                        <p className="text-sm font-semibold text-slate-400">ไม่พบรายการที่ตรงกัน</p>
                       </div>
                     </td>
                   </tr>
@@ -216,8 +262,8 @@ export default function AdminHistoryPage() {
           {isLoading ? (
             [1, 2, 3].map(i => <Card key={i} className="h-32 animate-pulse" variant="glass"><div /></Card>)
           ) : filtered.length === 0 ? (
-            <div className="py-20 text-center opacity-30">
-              <p className="font-black uppercase tracking-widest text-sm text-white">No records found</p>
+            <div className="py-20 text-center opacity-40">
+              <p className="text-sm font-semibold text-slate-400">ไม่พบรายการที่ตรงกัน</p>
             </div>
           ) : (
             filtered.slice(0, 50).map((log) => (
