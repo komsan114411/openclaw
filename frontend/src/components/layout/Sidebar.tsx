@@ -318,7 +318,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[30%] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none" />
 
       {/* Logo */}
-      <div className="p-8 relative">
+      <div className="p-8 pb-4 relative">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,9 +328,44 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div>
             <h1 className="text-lg font-bold tracking-tight">LINE OA</h1>
             <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">
-              {isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
+              Management System
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Role Indicator Badge - Prominent visual feedback */}
+      <div className="px-6 pb-6 relative">
+        <div className={clsx(
+          "w-full py-3 px-4 rounded-xl border backdrop-blur-sm flex items-center justify-center gap-2 transition-all duration-300",
+          isAdmin
+            ? "bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 border-amber-500/30 shadow-lg shadow-amber-500/10"
+            : "bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
+        )}>
+          {/* Icon */}
+          {isAdmin ? (
+            <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.8 1.1 2.8 2.5V11c.6.3 1 .9 1 1.5v3c0 1-.8 1.5-1.5 1.5h-4.6c-.7 0-1.5-.5-1.5-1.5v-3c0-.6.4-1.2 1-1.5V9.5c0-1.4 1.4-2.5 2.8-2.5zm0 1.2c-.8 0-1.5.7-1.5 1.3v1.5h3V9.5c0-.6-.7-1.3-1.5-1.3z"/>
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          )}
+          {/* Badge Text */}
+          <span className={clsx(
+            "text-xs font-black tracking-[0.15em] uppercase",
+            isAdmin ? "text-amber-400" : "text-emerald-400"
+          )}>
+            {isAdmin ? 'ADMIN CONSOLE' : 'MEMBER ZONE'}
+          </span>
+          {/* Animated dot indicator */}
+          <div className={clsx(
+            "w-2 h-2 rounded-full animate-pulse",
+            isAdmin
+              ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+              : "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+          )} />
         </div>
       </div>
 
