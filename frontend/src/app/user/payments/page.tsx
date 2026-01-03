@@ -134,9 +134,8 @@ export default function UserPaymentsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-              ประวัติการ<span className="text-[#06C755]">ชำระเงิน</span>
+              ประวัติการชำระเงิน <span className="text-[#06C755]">(Payment History)</span>
             </h1>
-            <p className="text-slate-400 text-sm">Payment History</p>
           </div>
           <div className="flex gap-3">
             <Button

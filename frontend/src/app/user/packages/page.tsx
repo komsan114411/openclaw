@@ -189,13 +189,13 @@ export default function UserPackagesPage() {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">
-            เลือก<span className="text-[#06C755]">แพ็คเกจ</span>
+            เลือกแพ็กเกจ <span className="text-[#06C755]">(Select Package)</span>
           </h1>
           <p className="text-slate-400">เลือกแพ็คเกจที่เหมาะกับความต้องการของคุณ</p>
         </div>
 
-        {/* Packages Grid - Responsive: 1 col mobile, 2 col tablet, 3 col desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Packages Grid - Responsive: 1 col mobile, 3 col tablet+ */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {packages.map((pkg, index) => (
             <Card
               key={pkg._id}
@@ -271,7 +271,7 @@ export default function UserPackagesPage() {
                     : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
                 }`}
               >
-                {index === 1 ? '💎 ซื้อแพ็คเกจนี้' : 'ซื้อแพ็คเกจ'}
+                {index === 1 ? '💎 เลือกแพ็กเกจนี้ (Select)' : 'เลือกแพ็กเกจนี้'}
               </Button>
             </Card>
           ))}
