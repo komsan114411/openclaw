@@ -482,13 +482,13 @@ export default function UserLineAccountsPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editAccount ? 'IDENTITY MODIFICATION: NODE' : 'INITIAL DEPLOYMENT: NODE'}
-        subtitle="Authorize the neural bridge via LINE Messaging API credentials"
+        title={editAccount ? 'แก้ไขบัญชี LINE' : 'เพิ่มบัญชี LINE ใหม่'}
+        subtitle="กรอกข้อมูลจาก LINE Messaging API Console"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
-            label="Node Identity (Display Name)"
-            placeholder="PRIMARY_VECTA_01"
+            label="ชื่อบัญชี (Display Name)"
+            placeholder="เช่น ร้านค้าของฉัน"
             value={formData.accountName}
             onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
             required
@@ -498,7 +498,7 @@ export default function UserLineAccountsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Channel Access ID"
+              label="Channel ID"
               placeholder="1234567890"
               value={formData.channelId}
               onChange={(e) => setFormData({ ...formData, channelId: e.target.value })}
@@ -506,8 +506,8 @@ export default function UserLineAccountsPage() {
               className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
             />
             <Input
-              label="Secret Matrix"
-              placeholder="••••••••••••••••"
+              label="Channel Secret"
+              placeholder="กรอก Channel Secret"
               value={formData.channelSecret}
               onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })}
               required
@@ -517,8 +517,8 @@ export default function UserLineAccountsPage() {
           </div>
 
           <Textarea
-            label="Long-Term Access Token"
-            placeholder="eyJh....."
+            label="Channel Access Token"
+            placeholder="วาง Access Token ที่ได้จาก LINE Developers Console"
             value={formData.accessToken}
             onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
             required
@@ -526,19 +526,19 @@ export default function UserLineAccountsPage() {
           />
 
           <Input
-            label="Operational Meta (Description)"
-            placeholder="VIP_PROTOCOL_LOGISTICS"
+            label="คำอธิบาย (ไม่บังคับ)"
+            placeholder="เช่น บัญชีสำหรับร้านค้าสาขา 1"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
           />
 
           <div className="pt-6 flex gap-4">
-            <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>
-              Abort
+            <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>
+              ยกเลิก
             </Button>
-            <Button type="submit" variant="primary" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20">
-              {editAccount ? 'Update Matrix' : 'Deploy Node'}
+            <Button type="submit" variant="primary" className="flex-1 h-14 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20">
+              {editAccount ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มบัญชี'}
             </Button>
           </div>
         </form>
@@ -547,22 +547,22 @@ export default function UserLineAccountsPage() {
       <Modal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        title={`PROTOCOL CONFIG: ${selectedAccount?.accountName}`}
-        subtitle="Fine-tune autonomous logic and response parameters"
+        title={`ตั้งค่า: ${selectedAccount?.accountName}`}
+        subtitle="ปรับแต่งการตอบกลับอัตโนมัติและการตรวจสอบสลิป"
         size="lg"
       >
         <div className="space-y-12 pb-6">
           <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3">
+            <h3 className="text-sm font-bold text-white flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
                 <MessageSquare className="w-5 h-5" />
               </div>
-              Neural Architecture
+              ตั้งค่า AI Chatbot
             </h3>
 
             <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Cognitive Meta-Prompt</label>
+                <label className="text-xs font-semibold text-slate-400 ml-1">System Prompt (คำสั่งเริ่มต้นให้ AI)</label>
                 <Textarea
                   value={settingsData.aiSystemPrompt}
                   onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
@@ -574,7 +574,7 @@ export default function UserLineAccountsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-5">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Logic Variance (Temp)</label>
+                    <label className="text-xs font-semibold text-slate-400">Temperature (ความคิดสร้างสรรค์)</label>
                     <span className="text-[10px] font-mono font-black text-emerald-400 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/20">{settingsData.aiTemperature}</span>
                   </div>
                   <input
@@ -586,13 +586,13 @@ export default function UserLineAccountsPage() {
                     onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })}
                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                   />
-                  <div className="flex justify-between text-[8px] font-black text-slate-600 uppercase tracking-widest">
-                    <span>Precise Logic</span>
-                    <span>Neural Drift</span>
+                  <div className="flex justify-between text-[9px] font-semibold text-slate-500">
+                    <span>แม่นยำ</span>
+                    <span>สร้างสรรค์</span>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Circuit Breaker Message</label>
+                  <label className="text-xs font-semibold text-slate-400 ml-1">ข้อความเมื่อ AI ไม่ตอบ</label>
                   <Input
                     value={settingsData.aiFallbackMessage}
                     onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
@@ -604,17 +604,17 @@ export default function UserLineAccountsPage() {
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-3">
+            <h3 className="text-sm font-bold text-white flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/10">
                 <FileCheck className="w-5 h-5" />
               </div>
-              Audit Telemetry
+              ตั้งค่าการตรวจสอบสลิป
             </h3>
             <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner">
               <div className="p-5 bg-emerald-500/[0.02] rounded-[1.5rem] border border-emerald-400/10 flex items-center justify-between">
                 <div className="space-y-1">
-                  <p className="text-xs font-black text-white uppercase tracking-tight">Audit Initialization Pulse</p>
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Send feedback during telemetry verification</p>
+                  <p className="text-sm font-bold text-white">ส่งข้อความ "กำลังตรวจสอบ"</p>
+                  <p className="text-xs text-slate-400">แจ้งลูกค้าระหว่างรอตรวจสอบสลิป</p>
                 </div>
                 <Switch
                   checked={settingsData.sendProcessingMessage}
@@ -623,7 +623,7 @@ export default function UserLineAccountsPage() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Audit Initialization String</label>
+                <label className="text-xs font-semibold text-slate-400 ml-1">ข้อความกำลังตรวจสอบ</label>
                 <Input
                   value={settingsData.slipImmediateMessage}
                   onChange={(e) => setSettingsData({ ...settingsData, slipImmediateMessage: e.target.value })}
@@ -634,18 +634,18 @@ export default function UserLineAccountsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Verification Success</label>
+                  <label className="text-xs font-semibold text-slate-400 ml-1">ข้อความสลิปถูกต้อง</label>
                   <Input
-                    placeholder="✅ DEPLOYMENT_SUCCESS"
+                    placeholder="✅ สลิปถูกต้อง!"
                     value={settingsData.customSlipSuccessMessage}
                     onChange={(e) => setSettingsData({ ...settingsData, customSlipSuccessMessage: e.target.value })}
                     className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-xs font-bold"
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Redundancy Alert</label>
+                  <label className="text-xs font-semibold text-slate-400 ml-1">ข้อความสลิปซ้ำ</label>
                   <Input
-                    placeholder="⚠️ REDUNDANCY_DETECTED"
+                    placeholder="⚠️ สลิปนี้เคยใช้แล้ว"
                     value={settingsData.customDuplicateSlipMessage}
                     onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })}
                     className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-xs font-bold"
@@ -656,11 +656,11 @@ export default function UserLineAccountsPage() {
           </div>
 
           <div className="pt-8 flex gap-4 sticky bottom-0 bg-slate-950/80 backdrop-blur-xl px-1 py-4 border-t border-white/5 mt-auto">
-            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:text-white" onClick={() => setShowSettingsModal(false)}>
-              Discard
+            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm text-slate-500 hover:text-white" onClick={() => setShowSettingsModal(false)}>
+              ยกเลิก
             </Button>
-            <Button variant="primary" className="flex-[1.5] h-14 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-500/20" onClick={handleSaveSettings}>
-              Commit Matrix Config
+            <Button variant="primary" className="flex-[1.5] h-14 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20" onClick={handleSaveSettings}>
+              บันทึกการตั้งค่า
             </Button>
           </div>
         </div>

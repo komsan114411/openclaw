@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { paymentsApi, systemSettingsApi } from '@/lib/api';
+import { paymentsApi } from '@/lib/api';
 import { Payment } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
@@ -11,38 +11,18 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
 
-// Bank Account Type
-interface BankAccount {
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  bankCode?: string;
-  bank?: {
-    code: string;
-    name: string;
-    nameTh?: string;
-    logoUrl?: string;
-    logoBase64?: string;
-  };
-}
-
 export default function UserPaymentsPage() {
   // State
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null);
 
-  // Fetch data
+  // Fetch payment history
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [paymentsRes, settingsRes] = await Promise.all([
-        paymentsApi.getMy(),
-        systemSettingsApi.getPaymentInfo().catch(() => ({ data: { bankAccounts: [] } })),
-      ]);
+      const paymentsRes = await paymentsApi.getMy();
       setPayments(paymentsRes.data.payments || []);
-      setBankAccounts(settingsRes.data?.bankAccounts || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('ไม่สามารถโหลดข้อมูลได้');
@@ -54,12 +34,6 @@ export default function UserPaymentsPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Copy account number
-  const handleCopyAccount = (accountNumber: string) => {
-    navigator.clipboard.writeText(accountNumber);
-    toast.success('คัดลอกเลขบัญชีแล้ว!', { icon: '📋' });
-  };
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -155,71 +129,6 @@ export default function UserPaymentsPage() {
             </Link>
           </div>
         </div>
-
-        {/* Bank Accounts Section */}
-        {bankAccounts.length > 0 && (
-          <Card variant="glass" className="border border-white/10 p-6 rounded-xl mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-bold text-white">บัญชีธนาคารสำหรับชำระเงิน</h2>
-                <p className="text-xs text-slate-400 mt-1">คัดลอกเลขบัญชีเพื่อโอนเงิน</p>
-              </div>
-              <span className="px-3 py-1 text-xs font-semibold text-[#06C755] bg-[#06C755]/10 rounded-lg border border-[#06C755]/20">
-                {bankAccounts.length} บัญชี
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {bankAccounts.map((account, index) => (
-                <div
-                  key={index}
-                  className="p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Bank Logo */}
-                    <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {account.bank?.logoBase64 ? (
-                        <img
-                          src={account.bank.logoBase64}
-                          alt={account.bankName}
-                          className="w-8 h-8 object-contain"
-                        />
-                      ) : (
-                        <span className="text-2xl">🏦</span>
-                      )}
-                    </div>
-
-                    {/* Bank Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">
-                        {account.bank?.nameTh || account.bankName}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate mt-1">
-                        {account.accountName}
-                      </p>
-
-                      {/* Account Number with Copy */}
-                      <div className="flex items-center gap-2 mt-2">
-                        <p className="text-lg font-black text-[#06C755] font-mono tracking-wider">
-                          {account.accountNumber}
-                        </p>
-                        <button
-                          onClick={() => handleCopyAccount(account.accountNumber)}
-                          className="p-1.5 text-[#06C755] hover:bg-[#06C755]/20 rounded-lg transition-all"
-                          title="คัดลอก"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
         {/* Empty State */}
         {payments.length === 0 ? (

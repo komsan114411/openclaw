@@ -344,7 +344,7 @@ export default function UserPackagesPage() {
                 <div className="bg-black/50 rounded-xl p-4 border border-white/10">
                   <p className="text-xs text-slate-500 mb-2">เลขบัญชี</p>
                   <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-mono tracking-wider break-all">
+                    <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-mono tracking-wider break-all">
                       {bankAccount.accountNumber}
                     </p>
                     <button
