@@ -10,17 +10,25 @@ import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/ui/Card';
 import { PageLoading } from '@/components/ui/Loading';
 
-// Types for System Settings
-interface BankInfo {
+// Types for Bank Account from API
+interface BankAccount {
   bankName: string;
-  bankAccountName: string;
-  bankAccountNumber: string;
+  accountName: string;
+  accountNumber: string;
+  bankCode?: string;
+  bank?: {
+    code: string;
+    name: string;
+    nameTh?: string;
+    logoUrl?: string;
+    logoBase64?: string;
+  };
 }
 
 export default function UserPackagesPage() {
   // ===== STATE MANAGEMENT =====
   const [packages, setPackages] = useState<Package[]>([]);
-  const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
+  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,14 +53,24 @@ export default function UserPackagesPage() {
         const packagesData = packagesResponse.data.packages || [];
         setPackages(packagesData);
 
-        // Fetch bank info from /system-settings API
+        // Fetch bank info from /system-settings/payment-info API
+        // Response: { bankAccounts: [...], usdtWallet: {...} }
         const settingsResponse = await systemSettingsApi.getPaymentInfo();
-        const settings = settingsResponse.data || {};
-        setBankInfo({
-          bankName: settings.bankName || '',
-          bankAccountName: settings.bankAccountName || '',
-          bankAccountNumber: settings.bankAccountNumber || '',
-        });
+        const bankAccounts = settingsResponse.data?.bankAccounts || [];
+
+        // Pick the FIRST active bank account from the array
+        if (bankAccounts.length > 0) {
+          const firstBank = bankAccounts[0];
+          setBankAccount({
+            bankName: firstBank.bankName || firstBank.bank?.nameTh || firstBank.bank?.name || '',
+            accountName: firstBank.accountName || '',
+            accountNumber: firstBank.accountNumber || '',
+            bankCode: firstBank.bankCode,
+            bank: firstBank.bank,
+          });
+        } else {
+          setBankAccount(null);
+        }
 
       } catch (err: any) {
         console.error('Error fetching data:', err);
@@ -82,8 +100,8 @@ export default function UserPackagesPage() {
   };
 
   const handleCopyAccountNumber = () => {
-    if (bankInfo?.bankAccountNumber) {
-      navigator.clipboard.writeText(bankInfo.bankAccountNumber);
+    if (bankAccount?.accountNumber) {
+      navigator.clipboard.writeText(bankAccount.accountNumber);
       toast.success('คัดลอกเลขบัญชีแล้ว!', { icon: '📋' });
     }
   };
@@ -293,28 +311,41 @@ export default function UserPackagesPage() {
             </div>
 
             {/* Bank Information - CRITICAL SECTION */}
-            {bankInfo?.bankAccountNumber ? (
+            {bankAccount?.accountNumber ? (
               <div className="bg-slate-900 rounded-xl p-6 border border-[#06C755]/30">
                 <p className="text-sm text-slate-400 mb-4">ข้อมูลบัญชีธนาคาร</p>
 
-                {/* Bank Name */}
-                <div className="mb-4">
-                  <p className="text-xs text-slate-500 mb-1">ธนาคาร</p>
-                  <p className="text-lg font-bold text-white">{bankInfo.bankName}</p>
+                {/* Bank Name with Logo */}
+                <div className="mb-4 flex items-center gap-3">
+                  {bankAccount.bank?.logoBase64 ? (
+                    <img
+                      src={bankAccount.bank.logoBase64}
+                      alt={bankAccount.bankName}
+                      className="w-10 h-10 rounded-lg object-contain bg-white p-1"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-[#06C755]/20 flex items-center justify-center text-xl">
+                      🏦
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">ธนาคาร</p>
+                    <p className="text-lg font-bold text-white">{bankAccount.bankName}</p>
+                  </div>
                 </div>
 
                 {/* Account Name */}
                 <div className="mb-4">
                   <p className="text-xs text-slate-500 mb-1">ชื่อบัญชี</p>
-                  <p className="text-lg font-bold text-white">{bankInfo.bankAccountName}</p>
+                  <p className="text-lg font-bold text-white">{bankAccount.accountName}</p>
                 </div>
 
                 {/* Account Number - LARGE & BOLD with Copy Button */}
                 <div className="bg-black/50 rounded-xl p-4 border border-white/10">
                   <p className="text-xs text-slate-500 mb-2">เลขบัญชี</p>
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-mono tracking-wider">
-                      {bankInfo.bankAccountNumber}
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-mono tracking-wider break-all">
+                      {bankAccount.accountNumber}
                     </p>
                     <button
                       type="button"
@@ -339,7 +370,8 @@ export default function UserPackagesPage() {
               </div>
             ) : (
               <div className="bg-red-500/10 rounded-xl p-6 border border-red-500/30 text-center">
-                <p className="text-red-400">ไม่พบข้อมูลบัญชีธนาคาร กรุณาติดต่อผู้ดูแลระบบ</p>
+                <p className="text-red-400 font-medium">ไม่พบข้อมูลบัญชีธนาคาร</p>
+                <p className="text-red-400/70 text-sm mt-1">กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มบัญชีรับเงิน</p>
               </div>
             )}
 
