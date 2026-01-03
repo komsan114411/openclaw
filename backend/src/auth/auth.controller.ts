@@ -8,7 +8,6 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  ForbiddenException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -16,10 +15,13 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RegisterDto } from './dto/register.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { SessionAuthGuard } from './guards/session-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Roles } from './decorators/roles.decorator';
 import { AuthUser } from './auth.service';
+import { UserRole } from '../database/schemas/user.schema';
+import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -28,9 +30,12 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 5, windowSeconds: 60, keyPrefix: 'auth:login' }) // 5 attempts per minute
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -56,7 +61,11 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 3, windowSeconds: 300, keyPrefix: 'auth:register' }) // 3 attempts per 5 minutes
   @ApiOperation({ summary: 'User registration' })
+  @ApiResponse({ status: 201, description: 'Registration successful' })
+  @ApiResponse({ status: 429, description: 'Too many registration attempts' })
   async register(
     @Body() registerDto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -136,15 +145,13 @@ export class AuthController {
   }
 
   @Post('cleanup-sessions')
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cleanup expired sessions (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Sessions cleaned up successfully' })
+  @ApiResponse({ status: 403, description: 'Admin access required' })
   async cleanupSessions(@CurrentUser() user: AuthUser) {
-    // Only allow admin
-    if (user.role !== 'admin') {
-      throw new ForbiddenException('Admin access required');
-    }
-
     const deletedCount = await this.authService.cleanupExpiredSessions();
     return {
       success: true,

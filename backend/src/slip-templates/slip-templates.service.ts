@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -6,6 +6,8 @@ import {
   SlipTemplateDocument,
   TemplateType,
 } from '../database/schemas/slip-template.schema';
+import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
+import { UserRole } from '../database/schemas/user.schema';
 
 export interface CreateTemplateDto {
   lineAccountId?: string;
@@ -102,12 +104,67 @@ export class SlipTemplatesService {
 
   constructor(
     @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
+    @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
   ) {}
+
+  /**
+   * SECURITY: Verify user has access to the LINE account
+   * Admins can access any account, users can only access their own
+   */
+  async ensureAccountAccess(
+    lineAccountId: string,
+    user: { userId: string; role: UserRole },
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(lineAccountId)) {
+      throw new BadRequestException('Invalid LINE account ID');
+    }
+
+    const account = await this.lineAccountModel
+      .findById(lineAccountId)
+      .select({ ownerId: 1 })
+      .lean()
+      .exec();
+
+    if (!account) {
+      throw new NotFoundException('LINE Account not found');
+    }
+
+    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
+      throw new ForbiddenException('Access denied');
+    }
+  }
+
+  /**
+   * SECURITY: Validate footerLink URL to prevent phishing/XSS
+   * Only allows https:// and tel: protocols
+   */
+  validateFooterLink(link: string): void {
+    if (!link) return;
+
+    const trimmed = link.trim().toLowerCase();
+
+    // Only allow https:// and tel: protocols
+    if (!trimmed.startsWith('https://') && !trimmed.startsWith('tel:')) {
+      throw new BadRequestException(
+        'Invalid footer link. Only https:// and tel: protocols are allowed',
+      );
+    }
+
+    // Block javascript: and data: even if embedded
+    if (trimmed.includes('javascript:') || trimmed.includes('data:')) {
+      throw new BadRequestException('Invalid footer link: blocked protocol detected');
+    }
+  }
 
   /**
    * Create a new slip template
    */
   async create(dto: CreateTemplateDto): Promise<SlipTemplateDocument> {
+    // SECURITY: Validate footerLink before saving
+    if (dto.footerLink) {
+      this.validateFooterLink(dto.footerLink);
+    }
+
     // Extract variables from template
     const variables = this.extractVariables(dto.flexTemplate, dto.textTemplate);
 
@@ -263,6 +320,11 @@ export class SlipTemplatesService {
     templateId: string,
     updates: Partial<CreateTemplateDto>,
   ): Promise<SlipTemplateDocument> {
+    // SECURITY: Validate footerLink before saving
+    if (updates.footerLink) {
+      this.validateFooterLink(updates.footerLink);
+    }
+
     const template = await this.slipTemplateModel.findByIdAndUpdate(
       templateId,
       {

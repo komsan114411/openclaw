@@ -7,11 +7,12 @@ import {
   Param,
   Body,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { SlipTemplatesService, CreateTemplateDto } from './slip-templates.service';
 import { TemplateType } from '../database/schemas/slip-template.schema';
@@ -41,11 +42,11 @@ export class AdminSlipTemplatesController {
   @Roles(UserRole.ADMIN)
   async createGlobalTemplate(
     @Body() body: Omit<CreateTemplateDto, 'lineAccountId'>,
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
   ) {
     const template = await this.slipTemplatesService.createGlobalTemplate({
       ...body,
-      ownerId: req.user?.id,
+      ownerId: user.userId,
     });
     return { success: true, template };
   }
@@ -99,8 +100,8 @@ export class AdminSlipTemplatesController {
    */
   @Post('global/init-defaults')
   @Roles(UserRole.ADMIN)
-  async initGlobalDefaults(@Request() req: any) {
-    await this.slipTemplatesService.createDefaultGlobalTemplates(req.user?.id);
+  async initGlobalDefaults(@CurrentUser() user: AuthUser) {
+    await this.slipTemplatesService.createDefaultGlobalTemplates(user.userId);
     return { success: true, message: 'Default global templates created' };
   }
 }
@@ -117,7 +118,11 @@ export class SlipTemplatesController {
    * Get all templates for a LINE account
    */
   @Get(':accountId/slip-templates')
-  async getTemplates(@Param('accountId') accountId: string) {
+  async getTemplates(
+    @Param('accountId') accountId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const templates = await this.slipTemplatesService.getByLineAccount(accountId);
     return { success: true, templates };
   }
@@ -126,7 +131,11 @@ export class SlipTemplatesController {
    * Get template list (simplified)
    */
   @Get(':accountId/slip-templates-list')
-  async getTemplateList(@Param('accountId') accountId: string) {
+  async getTemplateList(
+    @Param('accountId') accountId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const templates = await this.slipTemplatesService.getByLineAccount(accountId);
     return {
       success: true,
@@ -147,12 +156,13 @@ export class SlipTemplatesController {
   async createTemplate(
     @Param('accountId') accountId: string,
     @Body() body: Omit<CreateTemplateDto, 'lineAccountId'>,
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const template = await this.slipTemplatesService.create({
       ...body,
       lineAccountId: accountId,
-      ownerId: req.user?.id,
+      ownerId: user.userId,
     });
     return { success: true, template };
   }
@@ -162,9 +172,12 @@ export class SlipTemplatesController {
    */
   @Put(':accountId/slip-templates/:templateId')
   async updateTemplate(
+    @Param('accountId') accountId: string,
     @Param('templateId') templateId: string,
     @Body() body: Partial<CreateTemplateDto>,
+    @CurrentUser() user: AuthUser,
   ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const template = await this.slipTemplatesService.update(templateId, body);
     return { success: true, template };
   }
@@ -173,7 +186,12 @@ export class SlipTemplatesController {
    * Delete template
    */
   @Delete(':accountId/slip-templates/:templateId')
-  async deleteTemplate(@Param('templateId') templateId: string) {
+  async deleteTemplate(
+    @Param('accountId') accountId: string,
+    @Param('templateId') templateId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     await this.slipTemplatesService.delete(templateId);
     return { success: true, message: 'Template deleted' };
   }
@@ -182,7 +200,12 @@ export class SlipTemplatesController {
    * Set template as default
    */
   @Put(':accountId/slip-templates/:templateId/default')
-  async setAsDefault(@Param('templateId') templateId: string) {
+  async setAsDefault(
+    @Param('accountId') accountId: string,
+    @Param('templateId') templateId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const template = await this.slipTemplatesService.setAsDefault(templateId);
     return { success: true, template };
   }
@@ -191,7 +214,12 @@ export class SlipTemplatesController {
    * Preview template
    */
   @Get(':accountId/slip-templates/:templateId/preview')
-  async previewTemplate(@Param('templateId') templateId: string) {
+  async previewTemplate(
+    @Param('accountId') accountId: string,
+    @Param('templateId') templateId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const template = await this.slipTemplatesService.getById(templateId);
     const preview = this.slipTemplatesService.preview(template);
     return { success: true, preview };
@@ -203,9 +231,10 @@ export class SlipTemplatesController {
   @Post(':accountId/slip-templates/init-defaults')
   async initDefaults(
     @Param('accountId') accountId: string,
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
   ) {
-    await this.slipTemplatesService.createDefaultTemplates(accountId, req.user?.id);
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
+    await this.slipTemplatesService.createDefaultTemplates(accountId, user.userId);
     return { success: true, message: 'Default templates created' };
   }
 }
