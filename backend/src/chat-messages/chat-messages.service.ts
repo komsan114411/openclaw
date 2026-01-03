@@ -10,6 +10,7 @@ import {
 } from '../database/schemas/chat-message.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { UserRole } from '../database/schemas/user.schema';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 
 export interface ChatUser {
   lineUserId: string;
@@ -26,6 +27,14 @@ export interface SendMessageResult {
   error?: string;
 }
 
+export interface BroadcastResult {
+  success: boolean;
+  totalUsers: number;
+  successCount: number;
+  failedCount: number;
+  failedUsers: { userId: string; error: string }[];
+}
+
 @Injectable()
 export class ChatMessagesService {
   private readonly logger = new Logger(ChatMessagesService.name);
@@ -33,6 +42,7 @@ export class ChatMessagesService {
   constructor(
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
+    private websocketGateway: WebsocketGateway,
   ) {}
 
   /**
@@ -63,7 +73,7 @@ export class ChatMessagesService {
   }
 
   /**
-   * Save incoming message from LINE webhook
+   * Save incoming message from LINE webhook and emit real-time event
    */
   async saveIncomingMessage(params: {
     lineAccountId: string;
@@ -77,7 +87,7 @@ export class ChatMessagesService {
     rawMessage?: Record<string, any>;
     content?: Record<string, any>;
   }): Promise<ChatMessageDocument> {
-    return this.chatMessageModel.create({
+    const message = await this.chatMessageModel.create({
       lineAccountId: new Types.ObjectId(params.lineAccountId),
       lineUserId: params.lineUserId,
       lineUserName: params.lineUserName,
@@ -91,10 +101,38 @@ export class ChatMessagesService {
       content: params.content,
       isRead: false,
     });
+
+    // Emit real-time event to all admins watching this account
+    try {
+      this.websocketGateway.broadcastToRoom(`chat:${params.lineAccountId}`, 'new_message', {
+        lineAccountId: params.lineAccountId,
+        lineUserId: params.lineUserId,
+        lineUserName: params.lineUserName,
+        lineUserPicture: params.lineUserPicture,
+        message: {
+          _id: message._id,
+          direction: MessageDirection.IN,
+          messageType: params.messageType,
+          messageText: params.messageText,
+          createdAt: message.createdAt,
+        },
+      });
+
+      // Also notify all admins of new unread message
+      this.websocketGateway.broadcastToAdmins('unread_message', {
+        lineAccountId: params.lineAccountId,
+        lineUserId: params.lineUserId,
+        lineUserName: params.lineUserName,
+      });
+    } catch (error) {
+      this.logger.warn('Failed to emit WebSocket event:', error);
+    }
+
+    return message;
   }
 
   /**
-   * Save outgoing message sent to LINE user
+   * Save outgoing message sent to LINE user and emit real-time event
    */
   async saveOutgoingMessage(params: {
     lineAccountId: string;
@@ -104,7 +142,7 @@ export class ChatMessagesService {
     content?: Record<string, any>;
     sentBy?: string;
   }): Promise<ChatMessageDocument> {
-    return this.chatMessageModel.create({
+    const message = await this.chatMessageModel.create({
       lineAccountId: new Types.ObjectId(params.lineAccountId),
       lineUserId: params.lineUserId,
       direction: MessageDirection.OUT,
@@ -114,6 +152,26 @@ export class ChatMessagesService {
       sentBy: params.sentBy,
       isRead: true,
     });
+
+    // Emit real-time event to all admins watching this chat
+    try {
+      this.websocketGateway.broadcastToRoom(`chat:${params.lineAccountId}`, 'message_sent', {
+        lineAccountId: params.lineAccountId,
+        lineUserId: params.lineUserId,
+        message: {
+          _id: message._id,
+          direction: MessageDirection.OUT,
+          messageType: params.messageType,
+          messageText: params.messageText,
+          sentBy: params.sentBy,
+          createdAt: message.createdAt,
+        },
+      });
+    } catch (error) {
+      this.logger.warn('Failed to emit WebSocket event:', error);
+    }
+
+    return message;
   }
 
   /**
@@ -396,5 +454,183 @@ export class ChatMessagesService {
       .limit(limit)
       .populate('lineAccountId', 'accountName channelId')
       .exec();
+  }
+
+  /**
+   * Send broadcast message to multiple users with batching and rate limiting.
+   * LINE API supports multicast for up to 500 users per request.
+   * Implements proper rate limiting to avoid API throttling.
+   *
+   * @param lineAccountId - The LINE account to send from
+   * @param userIds - Array of LINE user IDs to send to
+   * @param message - The message text to send
+   * @param sentBy - Who sent the message (for audit)
+   * @param onProgress - Optional callback for progress updates
+   */
+  async sendBroadcastMessage(
+    lineAccountId: string,
+    userIds: string[],
+    message: string,
+    sentBy?: string,
+    onProgress?: (progress: { sent: number; total: number; failed: number }) => void,
+  ): Promise<BroadcastResult> {
+    const lineAccount = await this.lineAccountModel.findById(lineAccountId);
+    if (!lineAccount) {
+      throw new NotFoundException('LINE Account not found');
+    }
+
+    if (!lineAccount.accessToken) {
+      throw new BadRequestException('LINE Channel Access Token not configured');
+    }
+
+    const BATCH_SIZE = 500; // LINE multicast limit
+    const DELAY_BETWEEN_BATCHES_MS = 100; // Rate limiting delay
+    const failedUsers: { userId: string; error: string }[] = [];
+    let successCount = 0;
+
+    // Split users into batches of 500
+    const batches: string[][] = [];
+    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+      batches.push(userIds.slice(i, i + BATCH_SIZE));
+    }
+
+    this.logger.log(`Broadcasting to ${userIds.length} users in ${batches.length} batches`);
+
+    // Process batches with rate limiting
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+
+      try {
+        // Use LINE multicast API for efficiency
+        await axios.post(
+          'https://api.line.me/v2/bot/message/multicast',
+          {
+            to: batch,
+            messages: [{ type: 'text', text: message }],
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${lineAccount.accessToken}`,
+            },
+          },
+        );
+
+        successCount += batch.length;
+        this.logger.log(`Batch ${batchIndex + 1}/${batches.length} sent successfully (${batch.length} users)`);
+      } catch (error: any) {
+        // If multicast fails, fall back to individual push for this batch
+        this.logger.warn(`Multicast failed for batch ${batchIndex + 1}, falling back to individual sends:`, error.message);
+
+        for (const userId of batch) {
+          try {
+            await axios.post(
+              'https://api.line.me/v2/bot/message/push',
+              {
+                to: userId,
+                messages: [{ type: 'text', text: message }],
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${lineAccount.accessToken}`,
+                },
+              },
+            );
+            successCount++;
+          } catch (pushError: any) {
+            failedUsers.push({
+              userId,
+              error: pushError.response?.data?.message || pushError.message,
+            });
+          }
+
+          // Small delay between individual sends to avoid rate limiting
+          await this.delay(10);
+        }
+      }
+
+      // Emit progress update via WebSocket
+      if (onProgress) {
+        onProgress({
+          sent: successCount,
+          total: userIds.length,
+          failed: failedUsers.length,
+        });
+      }
+
+      try {
+        this.websocketGateway.broadcastToAdmins('broadcast_progress', {
+          lineAccountId,
+          sent: successCount,
+          total: userIds.length,
+          failed: failedUsers.length,
+          batchNumber: batchIndex + 1,
+          totalBatches: batches.length,
+        });
+      } catch (wsError) {
+        // Ignore WebSocket errors
+      }
+
+      // Delay between batches to respect rate limits
+      if (batchIndex < batches.length - 1) {
+        await this.delay(DELAY_BETWEEN_BATCHES_MS);
+      }
+    }
+
+    // Save a single outgoing message record for the broadcast
+    await this.chatMessageModel.create({
+      lineAccountId: new Types.ObjectId(lineAccountId),
+      lineUserId: 'broadcast',
+      direction: MessageDirection.OUT,
+      messageType: MessageType.TEXT,
+      messageText: message,
+      sentBy,
+      isRead: true,
+      metadata: {
+        isBroadcast: true,
+        totalRecipients: userIds.length,
+        successCount,
+        failedCount: failedUsers.length,
+      },
+    });
+
+    // Emit completion event
+    try {
+      this.websocketGateway.broadcastToAdmins('broadcast_complete', {
+        lineAccountId,
+        totalUsers: userIds.length,
+        successCount,
+        failedCount: failedUsers.length,
+      });
+    } catch (wsError) {
+      // Ignore WebSocket errors
+    }
+
+    this.logger.log(
+      `Broadcast complete: ${successCount}/${userIds.length} successful, ${failedUsers.length} failed`,
+    );
+
+    return {
+      success: failedUsers.length < userIds.length,
+      totalUsers: userIds.length,
+      successCount,
+      failedCount: failedUsers.length,
+      failedUsers,
+    };
+  }
+
+  /**
+   * Get all users for a LINE account (for broadcast targeting)
+   */
+  async getAllChatUserIds(lineAccountId: string): Promise<string[]> {
+    const users = await this.chatMessageModel.distinct('lineUserId', {
+      lineAccountId: new Types.ObjectId(lineAccountId),
+    });
+    return users;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

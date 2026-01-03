@@ -60,6 +60,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @MessageBody() data: { channel: string },
   ) {
     client.join(data.channel);
+    this.logger.log(`Client ${client.id} subscribed to ${data.channel}`);
     return { success: true, channel: data.channel };
   }
 
@@ -69,7 +70,44 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @MessageBody() data: { channel: string },
   ) {
     client.leave(data.channel);
+    this.logger.log(`Client ${client.id} unsubscribed from ${data.channel}`);
     return { success: true, channel: data.channel };
+  }
+
+  /**
+   * Subscribe to a specific LINE account's chat for real-time updates
+   */
+  @SubscribeMessage('subscribe_chat')
+  handleSubscribeChat(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { lineAccountId: string },
+  ) {
+    const channel = `chat:${data.lineAccountId}`;
+    client.join(channel);
+    this.logger.log(`Client ${client.id} subscribed to chat: ${data.lineAccountId}`);
+    return { success: true, channel };
+  }
+
+  /**
+   * Unsubscribe from a specific LINE account's chat
+   */
+  @SubscribeMessage('unsubscribe_chat')
+  handleUnsubscribeChat(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { lineAccountId: string },
+  ) {
+    const channel = `chat:${data.lineAccountId}`;
+    client.leave(channel);
+    this.logger.log(`Client ${client.id} unsubscribed from chat: ${data.lineAccountId}`);
+    return { success: true, channel };
+  }
+
+  /**
+   * Ping/pong for connection health check
+   */
+  @SubscribeMessage('ping')
+  handlePing(@ConnectedSocket() client: Socket) {
+    return { event: 'pong', timestamp: Date.now() };
   }
 
   // Broadcast methods

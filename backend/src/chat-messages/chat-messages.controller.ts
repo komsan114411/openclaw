@@ -83,31 +83,72 @@ export class ChatMessagesController {
   }
 
   /**
-   * Send broadcast message to multiple users (future feature)
+   * Send broadcast message to multiple users with batching and rate limiting.
+   * Efficiently handles large user lists without timing out.
+   */
+  @Post(':accountId/broadcast')
+  async sendBroadcast(
+    @Param('accountId') accountId: string,
+    @Body() body: { userIds?: string[]; message: string; sendToAll?: boolean },
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
+
+    // Get user IDs - either from request or all users who have chatted
+    let userIds = body.userIds || [];
+    if (body.sendToAll) {
+      userIds = await this.chatMessagesService.getAllChatUserIds(accountId);
+    }
+
+    if (userIds.length === 0) {
+      return {
+        success: false,
+        message: 'No users to send to',
+        totalUsers: 0,
+      };
+    }
+
+    const result = await this.chatMessagesService.sendBroadcastMessage(
+      accountId,
+      userIds,
+      body.message,
+      user?.username,
+    );
+
+    return {
+      success: result.success,
+      message: `Broadcast sent to ${result.successCount}/${result.totalUsers} users`,
+      totalUsers: result.totalUsers,
+      successCount: result.successCount,
+      failedCount: result.failedCount,
+      failedUsers: result.failedUsers.length > 0 ? result.failedUsers.slice(0, 10) : [], // Limit failed users in response
+    };
+  }
+
+  /**
+   * Legacy endpoint - sends to specific users (kept for backward compatibility)
    */
   @Post(':accountId/send')
-  async sendBroadcast(
+  async sendToMultiple(
     @Param('accountId') accountId: string,
     @Body() body: { userIds: string[]; message: string },
     @CurrentUser() user: AuthUser,
   ) {
     await this.chatMessagesService.ensureAccountAccess(accountId, user);
-    const results = await Promise.all(
-      body.userIds.map((userId) =>
-        this.chatMessagesService.sendMessageToUser(
-          accountId,
-          userId,
-          body.message,
-          user?.username,
-        ),
-      ),
+
+    // For small lists, use the optimized broadcast
+    const result = await this.chatMessagesService.sendBroadcastMessage(
+      accountId,
+      body.userIds,
+      body.message,
+      user?.username,
     );
 
-    const successCount = results.filter((r) => r.success).length;
     return {
-      success: true,
-      message: `Sent to ${successCount}/${body.userIds.length} users`,
-      results,
+      success: result.success,
+      message: `Sent to ${result.successCount}/${result.totalUsers} users`,
+      successCount: result.successCount,
+      failedCount: result.failedCount,
     };
   }
 
