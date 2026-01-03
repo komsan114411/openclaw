@@ -179,93 +179,79 @@ export default function UserPackagesPage() {
   // ===== MAIN RENDER =====
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">
+      <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto">
+        {/* Page Header - Compact */}
+        <div className="mb-4">
+          <h1 className="text-xl sm:text-2xl font-black text-white mb-1">
             เลือกแพ็กเกจ <span className="text-[#06C755]">(Select Package)</span>
           </h1>
-          <p className="text-slate-400">เลือกแพ็คเกจที่เหมาะกับความต้องการของคุณ</p>
+          <p className="text-slate-400 text-xs sm:text-sm">เลือกแพ็คเกจที่เหมาะกับความต้องการของคุณ</p>
         </div>
 
-        {/* Packages Grid - Responsive: 1 col mobile, 3 col tablet+ */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Packages Grid - Compact: 1 col mobile, 3 col tablet+ */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           {packages.map((pkg, index) => (
             <Card
               key={pkg._id}
               variant="glass"
-              className={`relative p-6 border border-white/10 rounded-2xl transition-all duration-300 hover:border-[#06C755]/50 hover:shadow-lg hover:shadow-[#06C755]/10 ${
-                index === 1 ? 'ring-2 ring-[#06C755] scale-[1.02]' : ''
+              className={`relative p-3 sm:p-4 border border-white/10 rounded-xl transition-all duration-300 hover:border-[#06C755]/50 h-full flex flex-col ${
+                index === 1 ? 'ring-2 ring-[#06C755]' : ''
               }`}
             >
               {/* Best Value Badge */}
               {index === 1 && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="px-4 py-1 bg-[#06C755] text-white text-xs font-bold rounded-full">
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                  <span className="px-3 py-0.5 bg-[#06C755] text-white text-[10px] font-bold rounded-full">
                     แนะนำ
                   </span>
                 </div>
               )}
 
-              {/* Package Name - Bold */}
-              <h2 className="text-2xl font-black text-white mb-2 mt-2">
-                {pkg.name}
-              </h2>
-
-              <p className="text-slate-400 text-sm mb-6">
-                {pkg.description || 'แพ็คเกจสำหรับตรวจสอบสลิป'}
-              </p>
-
-              {/* Price - Large Text */}
-              <div className="mb-6">
-                <span className="text-4xl sm:text-5xl font-black text-white">
-                  ฿{pkg.price.toLocaleString()}
-                </span>
-                <span className="text-slate-400 text-sm ml-2">
-                  / {pkg.durationDays} วัน
-                </span>
-              </div>
-
-              {/* Quota */}
-              <div className="bg-white/5 rounded-xl p-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#06C755]/20 rounded-lg flex items-center justify-center">
-                    <span className="text-[#06C755] text-xl">📄</span>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-black text-white">
-                      {pkg.slipQuota.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-slate-400">สลิปที่ตรวจสอบได้</p>
-                  </div>
+              {/* Package Name + Price Row */}
+              <div className="flex items-start justify-between gap-2 mb-2 mt-1">
+                <h2 className="text-lg font-black text-white">{pkg.name}</h2>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xl sm:text-2xl font-black text-[#06C755]">฿{pkg.price.toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-500">/ {pkg.durationDays} วัน</p>
                 </div>
               </div>
 
-              {/* Features */}
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-center gap-2 text-sm text-slate-300">
-                  <span className="text-[#06C755]">✓</span> ตรวจสอบสลิปแบบเรียลไทม์
+              {/* Quota - Compact */}
+              <div className="bg-white/5 rounded-lg p-2 mb-3 flex items-center gap-2">
+                <div className="w-8 h-8 bg-[#06C755]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-[#06C755] text-sm">📄</span>
+                </div>
+                <div>
+                  <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-400">สลิป</p>
+                </div>
+              </div>
+
+              {/* Features - Compact */}
+              <ul className="space-y-1 mb-3 flex-1">
+                <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                  <span className="text-[#06C755] text-[10px]">✓</span> ตรวจสลิปแบบเรียลไทม์
                 </li>
-                <li className="flex items-center gap-2 text-sm text-slate-300">
-                  <span className="text-[#06C755]">✓</span> รองรับทุกธนาคาร
+                <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                  <span className="text-[#06C755] text-[10px]">✓</span> รองรับทุกธนาคาร
                 </li>
-                <li className="flex items-center gap-2 text-sm text-slate-300">
-                  <span className="text-[#06C755]">✓</span> แจ้งเตือนอัตโนมัติ
+                <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                  <span className="text-[#06C755] text-[10px]">✓</span> แจ้งเตือนอัตโนมัติ
                 </li>
               </ul>
 
-              {/* Buy Button */}
+              {/* Buy Button - Compact */}
               <Button
                 variant={index === 1 ? 'primary' : 'outline'}
                 fullWidth
                 onClick={() => handleBuyClick(pkg)}
-                className={`h-14 rounded-xl font-bold text-base ${
+                className={`h-10 rounded-lg font-bold text-sm mt-auto ${
                   index === 1
-                    ? 'bg-[#06C755] hover:bg-[#05a347] text-white shadow-lg shadow-[#06C755]/30'
+                    ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
                     : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
                 }`}
               >
-                {index === 1 ? '💎 เลือกแพ็กเกจนี้ (Select)' : 'เลือกแพ็กเกจนี้'}
+                {index === 1 ? '💎 เลือก' : 'เลือก'}
               </Button>
             </Card>
           ))}
@@ -273,182 +259,121 @@ export default function UserPackagesPage() {
 
         {/* Empty State */}
         {packages.length === 0 && (
-          <div className="text-center py-20">
-            <p className="text-slate-400 text-lg">ไม่พบแพ็คเกจ</p>
+          <div className="text-center py-12">
+            <p className="text-slate-400 text-sm">ไม่พบแพ็คเกจ</p>
           </div>
         )}
       </div>
 
-      {/* ===== PAYMENT MODAL ===== */}
+      {/* ===== PAYMENT MODAL - COMPACT SINGLE-SCREEN ===== */}
       <Modal
         isOpen={showModal}
         onClose={handleCloseModal}
         title="ชำระเงิน"
-        size="lg"
+        size="md"
       >
         {selectedPackage && (
-          <div className="space-y-6 p-2">
-            {/* Selected Package Info */}
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <p className="text-sm text-slate-400 mb-1">แพ็คเกจที่เลือก</p>
+          <div className="flex flex-col h-full max-h-[80vh]">
+            {/* Header - Package Info + Amount */}
+            <div className="bg-[#06C755]/10 rounded-lg p-3 border border-[#06C755]/20 mb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-xl font-bold text-white">{selectedPackage.name}</p>
-                  <p className="text-sm text-slate-400">
-                    {selectedPackage.slipQuota.toLocaleString()} สลิป / {selectedPackage.durationDays} วัน
-                  </p>
+                  <p className="text-sm font-bold text-white">{selectedPackage.name}</p>
+                  <p className="text-[10px] text-slate-400">{selectedPackage.slipQuota.toLocaleString()} สลิป / {selectedPackage.durationDays} วัน</p>
                 </div>
-                <p className="text-3xl font-black text-[#06C755]">
-                  ฿{selectedPackage.price.toLocaleString()}
-                </p>
+                <p className="text-2xl font-black text-[#06C755]">฿{selectedPackage.price.toLocaleString()}</p>
               </div>
             </div>
 
-            {/* Bank Information - ALL ACCOUNTS GRID */}
+            {/* Bank List - Condensed with internal scroll */}
             {bankAccounts.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-400">บัญชีธนาคารที่รองรับ ({bankAccounts.length} บัญชี)</p>
-                </div>
-
-                {/* Amount to Pay - Show at top */}
-                <div className="p-4 bg-[#06C755]/10 rounded-xl border border-[#06C755]/20">
-                  <p className="text-xs text-[#06C755] mb-1">จำนวนเงินที่ต้องโอน</p>
-                  <p className="text-3xl font-black text-[#06C755]">
-                    ฿{selectedPackage.price.toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Bank Accounts Grid */}
-                <div className="grid grid-cols-1 gap-4 max-h-[400px] overflow-y-auto pr-1">
+              <div className="mb-3">
+                <p className="text-xs text-slate-400 mb-2">โอนเงินไปที่บัญชี ({bankAccounts.length})</p>
+                <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1">
                   {bankAccounts.map((account, index) => (
                     <div
                       key={index}
-                      className="bg-slate-900 rounded-xl p-4 border border-white/10 hover:border-[#06C755]/50 transition-all"
+                      className="bg-slate-900/80 rounded-lg p-2 border border-white/10 flex items-center gap-2"
                     >
-                      {/* Bank Header */}
-                      <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/10">
-                        {account.bank?.logoBase64 ? (
-                          <img
-                            src={account.bank.logoBase64}
-                            alt={account.bankName}
-                            className="w-10 h-10 rounded-lg object-contain bg-white p-1"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-[#06C755]/20 flex items-center justify-center text-xl">
-                            🏦
-                          </div>
-                        )}
-                        <div>
-                          <p className="text-sm font-bold text-white">{account.bankName}</p>
-                          <p className="text-xs text-slate-400">{account.accountName}</p>
-                        </div>
+                      {/* Bank Logo - Small */}
+                      {account.bank?.logoBase64 ? (
+                        <img src={account.bank.logoBase64} alt={account.bankName} className="w-8 h-8 rounded object-contain bg-white p-0.5 flex-shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-[#06C755]/20 flex items-center justify-center text-sm flex-shrink-0">🏦</div>
+                      )}
+                      {/* Bank Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-slate-400 truncate">{account.bankName} • {account.accountName}</p>
+                        <p className="text-base sm:text-lg font-black text-white font-mono tracking-wide">{account.accountNumber}</p>
                       </div>
-
-                      {/* Account Number - LARGE */}
-                      <div className="bg-black/50 rounded-lg p-3">
-                        <p className="text-xs text-slate-500 mb-1">เลขบัญชี</p>
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-mono tracking-wider">
-                            {account.accountNumber}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyAccountNumber(account.accountNumber)}
-                            className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[#06C755] hover:bg-[#05a347] text-white rounded-lg font-semibold text-xs transition-all"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            คัดลอก
-                          </button>
-                        </div>
-                      </div>
+                      {/* Copy Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAccountNumber(account.accountNumber)}
+                        className="px-2 py-1 bg-[#06C755] hover:bg-[#05a347] text-white rounded text-[10px] font-semibold flex-shrink-0"
+                      >
+                        คัดลอก
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="bg-red-500/10 rounded-xl p-6 border border-red-500/30 text-center">
-                <p className="text-red-400 font-medium">ไม่พบข้อมูลบัญชีธนาคาร</p>
-                <p className="text-red-400/70 text-sm mt-1">กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มบัญชีรับเงิน</p>
+              <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/30 text-center mb-3">
+                <p className="text-red-400 text-sm font-medium">ไม่พบบัญชีธนาคาร</p>
               </div>
             )}
 
-            {/* Slip Upload */}
-            <div>
-              <p className="text-sm text-slate-400 mb-3">อัปโหลดสลิปการโอนเงิน</p>
+            {/* Upload Section - Fixed at bottom */}
+            <div className="mt-auto pt-2 border-t border-white/10">
+              <p className="text-xs text-slate-400 mb-2">อัปโหลดสลิป</p>
               <div className="relative">
-                <input
-                  type="file"
-                  id="slip-upload"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  disabled={isSubmitting}
-                />
+                <input type="file" id="slip-upload" accept="image/*" onChange={handleFileChange} className="hidden" disabled={isSubmitting} />
                 <label
                   htmlFor="slip-upload"
-                  className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                    slipPreview
-                      ? 'border-[#06C755] bg-[#06C755]/5'
-                      : 'border-white/20 hover:border-white/40 bg-white/5'
+                  className={`flex items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                    slipPreview ? 'border-[#06C755] bg-[#06C755]/5' : 'border-white/20 hover:border-white/40 bg-white/5'
                   }`}
                 >
                   {slipPreview ? (
-                    <div className="relative w-full h-full p-2">
-                      <img
-                        src={slipPreview}
-                        alt="Slip Preview"
-                        className="w-full h-full object-contain rounded-lg"
-                      />
+                    <div className="relative w-full h-full p-1">
+                      <img src={slipPreview} alt="Slip" className="w-full h-full object-contain rounded" />
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSlipFile(null);
-                          setSlipPreview(null);
-                        }}
-                        className="absolute top-4 right-4 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        onClick={(e) => { e.preventDefault(); setSlipFile(null); setSlipPreview(null); }}
+                        className="absolute top-2 right-2 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <svg className="w-10 h-10 text-slate-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-6 h-6 text-slate-500 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <p className="text-sm text-slate-400">คลิกเพื่ออัปโหลดสลิป</p>
-                      <p className="text-xs text-slate-500 mt-1">JPG, PNG (สูงสุด 5MB)</p>
+                      <p className="text-xs text-slate-400">คลิกอัปโหลดสลิป (JPG, PNG)</p>
                     </div>
                   )}
                 </label>
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="ghost"
-                fullWidth
-                onClick={handleCloseModal}
-                disabled={isSubmitting}
-                className="h-12"
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={handleSubmitPayment}
-                disabled={isSubmitting || !slipFile}
-                className="h-12 bg-[#06C755] hover:bg-[#05a347]"
-              >
-                {isSubmitting ? 'กำลังส่ง...' : 'ยืนยันการชำระเงิน'}
-              </Button>
+              {/* Action Buttons - Side by Side */}
+              <div className="flex gap-2 mt-3">
+                <Button variant="ghost" fullWidth onClick={handleCloseModal} disabled={isSubmitting} className="h-10 text-sm">
+                  ยกเลิก
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handleSubmitPayment}
+                  disabled={isSubmitting || !slipFile}
+                  className="h-10 text-sm bg-[#06C755] hover:bg-[#05a347]"
+                >
+                  {isSubmitting ? 'กำลังส่ง...' : 'ยืนยัน'}
+                </Button>
+              </div>
             </div>
           </div>
         )}
