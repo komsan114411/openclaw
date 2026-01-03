@@ -28,7 +28,7 @@ interface BankAccount {
 export default function UserPackagesPage() {
   // ===== STATE MANAGEMENT =====
   const [packages, setPackages] = useState<Package[]>([]);
-  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,21 +56,17 @@ export default function UserPackagesPage() {
         // Fetch bank info from /system-settings/payment-info API
         // Response: { bankAccounts: [...], usdtWallet: {...} }
         const settingsResponse = await systemSettingsApi.getPaymentInfo();
-        const bankAccounts = settingsResponse.data?.bankAccounts || [];
+        const bankAccountsData = settingsResponse.data?.bankAccounts || [];
 
-        // Pick the FIRST active bank account from the array
-        if (bankAccounts.length > 0) {
-          const firstBank = bankAccounts[0];
-          setBankAccount({
-            bankName: firstBank.bankName || firstBank.bank?.nameTh || firstBank.bank?.name || '',
-            accountName: firstBank.accountName || '',
-            accountNumber: firstBank.accountNumber || '',
-            bankCode: firstBank.bankCode,
-            bank: firstBank.bank,
-          });
-        } else {
-          setBankAccount(null);
-        }
+        // Store ALL bank accounts (not just the first one)
+        const mappedAccounts: BankAccount[] = bankAccountsData.map((acc: any) => ({
+          bankName: acc.bankName || acc.bank?.nameTh || acc.bank?.name || '',
+          accountName: acc.accountName || '',
+          accountNumber: acc.accountNumber || '',
+          bankCode: acc.bankCode,
+          bank: acc.bank,
+        }));
+        setBankAccounts(mappedAccounts);
 
       } catch (err: any) {
         console.error('Error fetching data:', err);
@@ -99,11 +95,9 @@ export default function UserPackagesPage() {
     setSlipPreview(null);
   };
 
-  const handleCopyAccountNumber = () => {
-    if (bankAccount?.accountNumber) {
-      navigator.clipboard.writeText(bankAccount.accountNumber);
-      toast.success('คัดลอกเลขบัญชีแล้ว!', { icon: '📋' });
-    }
+  const handleCopyAccountNumber = (accountNumber: string) => {
+    navigator.clipboard.writeText(accountNumber);
+    toast.success('คัดลอกเลขบัญชีแล้ว!', { icon: '📋' });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,62 +304,68 @@ export default function UserPackagesPage() {
               </div>
             </div>
 
-            {/* Bank Information - CRITICAL SECTION */}
-            {bankAccount?.accountNumber ? (
-              <div className="bg-slate-900 rounded-xl p-6 border border-[#06C755]/30">
-                <p className="text-sm text-slate-400 mb-4">ข้อมูลบัญชีธนาคาร</p>
-
-                {/* Bank Name with Logo */}
-                <div className="mb-4 flex items-center gap-3">
-                  {bankAccount.bank?.logoBase64 ? (
-                    <img
-                      src={bankAccount.bank.logoBase64}
-                      alt={bankAccount.bankName}
-                      className="w-10 h-10 rounded-lg object-contain bg-white p-1"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-[#06C755]/20 flex items-center justify-center text-xl">
-                      🏦
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">ธนาคาร</p>
-                    <p className="text-lg font-bold text-white">{bankAccount.bankName}</p>
-                  </div>
+            {/* Bank Information - ALL ACCOUNTS GRID */}
+            {bankAccounts.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-400">บัญชีธนาคารที่รองรับ ({bankAccounts.length} บัญชี)</p>
                 </div>
 
-                {/* Account Name */}
-                <div className="mb-4">
-                  <p className="text-xs text-slate-500 mb-1">ชื่อบัญชี</p>
-                  <p className="text-lg font-bold text-white">{bankAccount.accountName}</p>
-                </div>
-
-                {/* Account Number - LARGE & BOLD with Copy Button */}
-                <div className="bg-black/50 rounded-xl p-4 border border-white/10">
-                  <p className="text-xs text-slate-500 mb-2">เลขบัญชี</p>
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-mono tracking-wider break-all">
-                      {bankAccount.accountNumber}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleCopyAccountNumber}
-                      className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-[#06C755] hover:bg-[#05a347] text-white rounded-lg font-semibold text-sm transition-all"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      คัดลอก
-                    </button>
-                  </div>
-                </div>
-
-                {/* Amount to Pay */}
-                <div className="mt-4 p-3 bg-[#06C755]/10 rounded-lg border border-[#06C755]/20">
+                {/* Amount to Pay - Show at top */}
+                <div className="p-4 bg-[#06C755]/10 rounded-xl border border-[#06C755]/20">
                   <p className="text-xs text-[#06C755] mb-1">จำนวนเงินที่ต้องโอน</p>
-                  <p className="text-2xl font-black text-[#06C755]">
+                  <p className="text-3xl font-black text-[#06C755]">
                     ฿{selectedPackage.price.toLocaleString()}
                   </p>
+                </div>
+
+                {/* Bank Accounts Grid */}
+                <div className="grid grid-cols-1 gap-4 max-h-[400px] overflow-y-auto pr-1">
+                  {bankAccounts.map((account, index) => (
+                    <div
+                      key={index}
+                      className="bg-slate-900 rounded-xl p-4 border border-white/10 hover:border-[#06C755]/50 transition-all"
+                    >
+                      {/* Bank Header */}
+                      <div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/10">
+                        {account.bank?.logoBase64 ? (
+                          <img
+                            src={account.bank.logoBase64}
+                            alt={account.bankName}
+                            className="w-10 h-10 rounded-lg object-contain bg-white p-1"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-[#06C755]/20 flex items-center justify-center text-xl">
+                            🏦
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-bold text-white">{account.bankName}</p>
+                          <p className="text-xs text-slate-400">{account.accountName}</p>
+                        </div>
+                      </div>
+
+                      {/* Account Number - LARGE */}
+                      <div className="bg-black/50 rounded-lg p-3">
+                        <p className="text-xs text-slate-500 mb-1">เลขบัญชี</p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-white font-mono tracking-wider">
+                            {account.accountNumber}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyAccountNumber(account.accountNumber)}
+                            className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-[#06C755] hover:bg-[#05a347] text-white rounded-lg font-semibold text-xs transition-all"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            คัดลอก
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : (
