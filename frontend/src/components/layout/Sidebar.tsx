@@ -6,15 +6,22 @@ import { useAuthStore } from '@/store/auth';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface NavItem {
+// =============================================================================
+// MENU ITEM TYPE DEFINITION
+// =============================================================================
+interface MenuItem {
   name: string;
   href: string;
   icon: React.ReactNode;
   badge?: string;
-  group?: 'management' | 'system' | 'logs';
+  group: 'management' | 'system' | 'logs';
 }
 
-const adminNavItems: NavItem[] = [
+// =============================================================================
+// ADMIN MENU ITEMS - ONLY RENDERED FOR ADMIN USERS
+// =============================================================================
+const ADMIN_MENU_ITEMS: MenuItem[] = [
+  // Management Group
   {
     group: 'management',
     name: 'ศูนย์ควบคุม',
@@ -55,6 +62,7 @@ const adminNavItems: NavItem[] = [
       </svg>
     ),
   },
+  // System Group
   {
     group: 'system',
     name: 'เทมเพลตสลิป',
@@ -62,6 +70,16 @@ const adminNavItems: NavItem[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+      </svg>
+    ),
+  },
+  {
+    group: 'system',
+    name: 'ข้อความตอบกลับ',
+    href: '/admin/system-responses',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
     ),
   },
@@ -96,16 +114,7 @@ const adminNavItems: NavItem[] = [
       </svg>
     ),
   },
-  {
-    group: 'system',
-    name: 'ข้อความตอบกลับ',
-    href: '/admin/system-responses',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-      </svg>
-    ),
-  },
+  // Logs Group
   {
     group: 'logs',
     name: 'การชำระเงิน',
@@ -128,7 +137,11 @@ const adminNavItems: NavItem[] = [
   },
 ];
 
-const userNavItems: NavItem[] = [
+// =============================================================================
+// USER MENU ITEMS - ONLY RENDERED FOR REGULAR USERS
+// =============================================================================
+const USER_MENU_ITEMS: MenuItem[] = [
+  // Management Group
   {
     group: 'management',
     name: 'แดชบอร์ด',
@@ -158,18 +171,8 @@ const userNavItems: NavItem[] = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
     ),
-    badge: 'ใหม่',
   },
-  {
-    group: 'system',
-    name: 'เทมเพลตสลิป',
-    href: '/user/templates',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-      </svg>
-    ),
-  },
+  // System Group
   {
     group: 'system',
     name: 'ซื้อแพ็คเกจ',
@@ -180,6 +183,17 @@ const userNavItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    group: 'system',
+    name: 'เทมเพลตของฉัน',
+    href: '/user/templates',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+      </svg>
+    ),
+  },
+  // Logs Group
   {
     group: 'logs',
     name: 'โควต้าของฉัน',
@@ -212,6 +226,28 @@ const userNavItems: NavItem[] = [
   },
 ];
 
+// =============================================================================
+// MOBILE BOTTOM NAVIGATION ITEMS
+// =============================================================================
+const ADMIN_MOBILE_NAV = [
+  { href: '/admin/dashboard', icon: '🏠', label: 'หน้าแรก' },
+  { href: '/admin/chat', icon: '💬', label: 'แชท' },
+  { href: '/admin/users', icon: '👥', label: 'ผู้ใช้' },
+  { href: '/admin/payments', icon: '📄', label: 'สลิป' },
+  { href: '/admin/settings', icon: '⚙️', label: 'ตั้งค่า' },
+];
+
+const USER_MOBILE_NAV = [
+  { href: '/user/dashboard', icon: '🏠', label: 'หน้าแรก' },
+  { href: '/user/chat', icon: '💬', label: 'แชท' },
+  { href: '/user/line-accounts', icon: '💼', label: 'บัญชี' },
+  { href: '/user/payments', icon: '📄', label: 'ชำระเงิน' },
+  { href: '/user/packages', icon: '📦', label: 'แพ็คเกจ' },
+];
+
+// =============================================================================
+// SIDEBAR COMPONENT
+// =============================================================================
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -221,10 +257,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
 
-  const navItems = user?.role === 'admin' ? adminNavItems : userNavItems;
+  // STRICT ROLE CHECK: Determine which menu to render based on user role
+  const isAdmin = user?.role === 'admin';
+  const menuItems = isAdmin ? ADMIN_MENU_ITEMS : USER_MENU_ITEMS;
+  const mobileNavItems = isAdmin ? ADMIN_MOBILE_NAV : USER_MOBILE_NAV;
 
+  // Group rendering function
   const renderGroup = (group: 'management' | 'system' | 'logs', title: string) => {
-    const items = navItems.filter(item => item.group === group);
+    const items = menuItems.filter(item => item.group === group);
     if (items.length === 0) return null;
 
     return (
@@ -287,12 +327,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight">LINE OA</h1>
-            <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">ระบบจัดการมืออาชีพ</p>
+            <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">
+              {isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation - Renders ONLY the appropriate menu based on role */}
       <nav className="flex-1 px-4 overflow-y-auto no-scrollbar relative">
         {renderGroup('management', 'การจัดการ')}
         {renderGroup('system', 'ระบบ')}
@@ -311,9 +353,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="min-w-0 flex-1">
               <p className="font-bold text-sm truncate text-white group-hover:text-emerald-400 transition-colors">{user?.username}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                <div className={clsx(
+                  "w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_5px]",
+                  isAdmin ? "bg-rose-500 shadow-rose-500/50" : "bg-emerald-500 shadow-emerald-500/50"
+                )} />
                 <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                  {user?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
+                  {isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
                 </p>
               </div>
             </div>
@@ -365,22 +410,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - Role-specific items */}
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 px-2 pb-safe">
         <div className="flex items-center justify-around h-14 xs:h-16">
-          {[
-            { href: user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard', icon: '🏠', label: 'หน้าแรก' },
-            { href: user?.role === 'admin' ? '/admin/chat' : '/user/chat', icon: '💬', label: 'แชท' },
-            { href: user?.role === 'admin' ? '/admin/users' : '/user/line-accounts', icon: '👥', label: 'ผู้ใช้' },
-            { href: user?.role === 'admin' ? '/admin/payments' : '/user/payments', icon: '📄', label: 'สลิป' },
-            { href: user?.role === 'admin' ? '/admin/settings' : '/user/quota', icon: '⚙️', label: 'ตั้งค่า' },
-          ].map((item) => (
+          {mobileNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={clsx(
                 'flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300',
-                pathname === item.href
+                pathname === item.href || pathname.startsWith(item.href + '/')
                   ? 'text-[#06C755] bg-[#06C755]/10'
                   : 'text-slate-500 hover:text-white hover:bg-white/5'
               )}

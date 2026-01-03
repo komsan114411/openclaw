@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Sidebar from './Sidebar';
 import { motion } from 'framer-motion';
@@ -13,12 +13,49 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, requiredRole }: DashboardLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isLoading, checkAuth } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      const isAdmin = user.role === 'admin';
+      const isAdminRoute = pathname.startsWith('/admin');
+      const isUserRoute = pathname.startsWith('/user');
+
+      // STRICT ROUTE PROTECTION:
+      // - Regular users can ONLY access /user/* routes
+      // - Admin users can ONLY access /admin/* routes
+      if (!isAdmin && isAdminRoute) {
+        // Regular user trying to access admin route → redirect to user dashboard
+        router.replace('/user/dashboard');
+        setIsAuthorized(false);
+        return;
+      }
+
+      if (isAdmin && isUserRoute) {
+        // Admin trying to access user route → redirect to admin dashboard
+        router.replace('/admin/dashboard');
+        setIsAuthorized(false);
+        return;
+      }
+
+      // Additional check: if requiredRole is specified and doesn't match
+      if (requiredRole && user.role !== requiredRole) {
+        const redirectPath = isAdmin ? '/admin/dashboard' : '/user/dashboard';
+        router.replace(redirectPath);
+        setIsAuthorized(false);
+        return;
+      }
+
+      setIsAuthorized(true);
+    }
+  }, [user, isLoading, pathname, requiredRole, router]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -26,11 +63,9 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
         router.push('/login');
       } else if (user.forcePasswordChange) {
         router.push('/change-password');
-      } else if (requiredRole && user.role !== requiredRole && user.role !== 'admin') {
-        router.push('/');
       }
     }
-  }, [user, isLoading, requiredRole, router]);
+  }, [user, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -43,8 +78,16 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
     );
   }
 
-  if (!user) {
-    return null;
+  if (!user || !isAuthorized) {
+    // Show loading state while checking authorization or redirecting
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="relative">
+          <div className="h-16 w-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+          <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-transparent border-b-teal-500 animate-spin-slow"></div>
+        </div>
+      </div>
+    );
   }
 
   return (
