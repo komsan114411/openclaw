@@ -78,7 +78,7 @@ export function Modal({
       {/* Modal Container */}
       <div
         className={cn(
-          'relative w-full overflow-hidden bg-white rounded-xl xs:rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
+          'relative w-full overflow-hidden bg-[#0F1A14]/95 backdrop-blur-2xl border border-emerald-500/20 rounded-xl xs:rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
           sizeClasses[size],
           'flex flex-col max-h-[95vh] xs:max-h-[90vh] sm:max-h-[90vh]'
         )}
@@ -86,10 +86,10 @@ export function Modal({
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6 border-b border-slate-50 bg-white sticky top-0 z-10">
+          <div className="flex items-center justify-between px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6 border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-10">
             <div className="space-y-0.5 xs:space-y-1">
-              {title && <h3 className="text-lg xs:text-xl font-extrabold text-slate-900 tracking-tight">{title}</h3>}
-              {subtitle && <p className="text-xs xs:text-sm font-medium text-slate-500">{subtitle}</p>}
+              {title && <h3 className="text-lg xs:text-xl font-extrabold text-white tracking-tight">{title}</h3>}
+              {subtitle && <p className="text-xs xs:text-sm font-medium text-emerald-500/70">{subtitle}</p>}
             </div>
             {showCloseButton && (
               <IconButton
@@ -113,7 +113,7 @@ export function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 bg-slate-50 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 sticky bottom-0 z-10">
+          <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 bg-white/5 border-t border-white/5 backdrop-blur-md flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 sticky bottom-0 z-10">
             {footer}
           </div>
         )}
@@ -192,15 +192,15 @@ export function ConfirmModal({
       <div className="flex flex-col items-center text-center">
         <div className={cn(
           'w-20 h-20 rounded-3xl flex items-center justify-center mb-6 animate-bounce-slow',
-          type === 'danger' ? 'bg-rose-50 text-rose-500' :
-            type === 'warning' ? 'bg-amber-50 text-amber-500' :
-              type === 'success' ? 'bg-emerald-50 text-emerald-500' :
-                'bg-blue-50 text-blue-500'
+          type === 'danger' ? 'bg-rose-500/10 text-rose-400' :
+            type === 'warning' ? 'bg-amber-500/10 text-amber-400' :
+              type === 'success' ? 'bg-emerald-500/10 text-emerald-400' :
+                'bg-blue-500/10 text-blue-400'
         )}>
           {config.icon}
         </div>
-        <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">{title}</h3>
-        <p className="mt-3 text-slate-500 font-medium leading-relaxed">{message}</p>
+        <h3 className="text-2xl font-extrabold text-white tracking-tight">{title}</h3>
+        <p className="mt-3 text-slate-400 font-medium leading-relaxed">{message}</p>
 
         <div className="mt-10 flex flex-col w-full gap-3">
           <Button
@@ -218,7 +218,7 @@ export function ConfirmModal({
             variant="ghost"
             size="lg"
             fullWidth
-            className="text-slate-400 font-bold hover:text-slate-600"
+            className="text-slate-500 font-bold hover:text-white"
           >
             {cancelText}
           </Button>
