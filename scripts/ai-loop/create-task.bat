@@ -17,27 +17,27 @@ del "%HANDOFF_DIR%\APPROVED.md" 2>nul
 echo # 📋 New Task
 echo.
 echo ## 🎯 Objective
-echo [อธิบายเป้าหมาย]
+echo [Describe objective]
 echo.
 echo ## 📝 Requirements
-echo 1. [ข้อกำหนด 1]
-echo 2. [ข้อกำหนด 2]
-echo 3. [ข้อกำหนด 3]
+echo 1. [Requirement 1]
+echo 2. [Requirement 2]
+echo 3. [Requirement 3]
 echo.
 echo ## 📁 Files to Modify
 echo - [ ] path/to/file1.ts
 echo - [ ] path/to/file2.ts
 echo.
 echo ## 🧪 Acceptance Criteria
-echo - [ ] [เงื่อนไขที่ต้องผ่าน 1]
-echo - [ ] [เงื่อนไขที่ต้องผ่าน 2]
+echo - [ ] [Acceptance criteria 1]
+echo - [ ] [Acceptance criteria 2]
 echo.
 echo ## ⏰ Created
 echo %date% %time%
 ) > "%HANDOFF_DIR%\TASK.md"
 
 echo ✅ Created: %HANDOFF_DIR%\TASK.md
-echo 📝 กรุณาแก้ไขไฟล์แล้วสั่ง Developer AI เริ่มงาน
+echo 📝 Edit the file then run Developer AI to start
 echo.
 
 :: Open in notepad
