@@ -134,7 +134,7 @@
   }
 
   .glass-card {
-    @apply bg-[#0F1A14]/80 backdrop-blur-lg border border-emerald-500/10 rounded-2xl shadow-xl transition-all duration-300 hover:bg-[#0F1A14] hover:border-emerald-500/20;
+    @apply bg-[#0F1A14]/80 backdrop-blur-lg border border-emerald-500/20 rounded-2xl shadow-xl transition-all duration-300 hover:bg-[#0F1A14] hover:border-emerald-500/30;
   }
 
   /* Chart Card - For data visualization */
@@ -145,7 +145,7 @@
 
   /* Inputs - Dark with Green Focus */
   .input {
-    @apply w-full rounded-xl border border-emerald-500/10 bg-[#0F1A14]/80 px-4 py-3 text-sm text-white transition-all duration-300 placeholder:text-slate-500 hover:border-emerald-500/30 focus:border-[#06C755] focus:bg-[#0F1A14] focus:outline-none focus:ring-2 focus:ring-[#06C755]/20 disabled:opacity-50;
+    @apply w-full rounded-xl border border-emerald-500/20 bg-[#0F1A14]/80 px-4 py-3 text-sm text-white transition-all duration-300 placeholder:text-slate-500 hover:border-emerald-500/40 focus:border-[#06C755] focus:bg-[#0F1A14] focus:outline-none focus:ring-2 focus:ring-[#06C755]/20 disabled:opacity-50;
   }
 
   .label {

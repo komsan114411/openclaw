@@ -71,7 +71,7 @@ export function Modal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-all duration-500 animate-fade"
+        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-all duration-500 animate-fade"
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
 

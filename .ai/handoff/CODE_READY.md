@@ -1,78 +1,72 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Fix Template Loading, Bot Toggle, and Settings UI Visibility
+**Task:** Fix Settings UI Visibility, Popups, and Functional Bugs
 
 ## Implementation Summary
 
-### 1. Fix Template Loading (frontend/src/app/user/templates/page.tsx)
+### 1. Enhanced Input Visibility (frontend/src/app/globals.css)
 
-**Problem:** Templates not showing - API path mismatch
-
-**Root Cause:** The templates page was calling `/line-accounts/${accountId}/slip-templates` but the correct path is `/user/line-accounts/${accountId}/slip-templates`
+**Problem:** Input borders were too subtle (10% opacity), making them hard to see against the dark background.
 
 **Fix:**
-- Changed import from `api` to `slipTemplatesApi`
-- Updated `fetchTemplates()` to use `slipTemplatesApi.getAll(accountId)` instead of direct API call
-- Fixed `err: any` to proper TypeScript error typing
+- Changed `.input` border from `border-emerald-500/10` to `border-emerald-500/20` (doubled visibility)
+- Changed hover border from `hover:border-emerald-500/30` to `hover:border-emerald-500/40`
 
-### 2. Fix Bot Toggle (frontend/src/app/user/line-accounts/page.tsx)
+### 2. Enhanced Glass Card Visibility (frontend/src/app/globals.css)
 
-**Problem:** Bot toggle On/Off switch was unresponsive - no click handler
-
-**Root Cause:** The custom toggle UI (lines 486-494) was purely visual with no onClick handler attached
+**Problem:** Glass card borders were too subtle, reducing section distinction.
 
 **Fix:**
-- Wrapped the toggle in a `<button>` element
-- Added `onClick={() => handleUpdateSettings(account._id, { enableBot: !account.settings?.enableBot })}`
-- Added hover feedback with `hover:opacity-80 transition-opacity`
+- Changed `.glass-card` border from `border-emerald-500/10` to `border-emerald-500/20`
+- Changed hover border from `hover:border-emerald-500/20` to `hover:border-emerald-500/30`
 
-### 3. Fix Settings UI & any Types (frontend/src/app/admin/settings/page.tsx)
+### 3. Fixed Modal Overlay Contrast (frontend/src/components/ui/Modal.tsx)
 
-**Problem:** Multiple `any` types violating CLAUDE.md rules
+**Problem:** Modal overlay was not dark enough (`bg-slate-900/60`), making modal content harder to focus on.
 
-**Fixes:**
-- Added `SystemSettings` interface with proper typing
-- Added `BankAccountInfo` interface
-- Changed `useState<any>(null)` to `useState<SystemSettings | null>(null)`
-- Changed `payload: any` to `payload: Record<string, unknown>`
-- Fixed all `error: any` catches to use proper TypeScript error typing
-- Fixed `quotaExceededResponseType` cast from `as any` to `as 'text' | 'flex'`
-- Replaced dynamic `(messageSettings as any)[key]` with explicit field access
-- Fixed bank account mapping from `account: any` to `account: BankAccountInfo`
+**Fix:**
+- Changed overlay from `bg-slate-900/60` to `bg-black/70` for better contrast
+- Modal now clearly stands out against the page behind it
+
+### 4. Z-Index Already Correct
+
+**Verified:** Modal already uses `z-[100]` which is sufficient for proper layering above all other elements including sidebar (z-30 to z-50).
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `frontend/src/app/user/templates/page.tsx` | Fixed API path, error typing |
-| `frontend/src/app/user/line-accounts/page.tsx` | Added bot toggle click handler |
-| `frontend/src/app/admin/settings/page.tsx` | Fixed all `any` types, added proper interfaces |
+| `frontend/src/app/globals.css` | Enhanced input and glass-card border visibility |
+| `frontend/src/components/ui/Modal.tsx` | Darker overlay for better modal contrast |
 
 ## Testing Performed
 - TypeScript Frontend: PASSED
 - TypeScript Backend: PASSED
-- No new `any` types introduced
-- Proper error handling with typed errors
+- No breaking changes introduced
 
 ## Notes for Tester
 
-### 1. Template Loading
-- Navigate to `/user/templates?accountId=<valid_id>`
-- Verify templates load and display correctly
-- Check console for any API errors
-
-### 2. Bot Toggle
-- Go to `/user/line-accounts`
-- Click the On/Off toggle for AI Bot status
-- Verify the toggle changes visually AND updates in the database
-- Check toast notification for success/error
-
-### 3. Settings UI
+### 1. Input Visibility
 - Go to `/admin/settings`
-- Verify all sections render correctly
-- Test the quota warning switch and message settings
-- Verify bank accounts display properly
+- Verify input fields have visible borders (emerald green tint)
+- Verify inputs are clearly distinguishable from background
+
+### 2. Card/Section Visibility
+- Verify glass cards have visible borders
+- Verify sections are clearly separated from each other
+
+### 3. Modal/Popup Visibility
+- Click "+" button to add a bank account
+- Verify the modal overlay is dark (bg-black/70)
+- Verify the modal content is clearly visible and focused
+- Verify the Select dropdown for bank selection works properly
+- Test closing the modal with Escape key or clicking outside
+
+### 4. Native Select Dropdowns
+- Native HTML `<select>` elements render their dropdowns outside the DOM
+- These should work correctly regardless of overflow settings
+- Test the bank selection dropdown in the modal
 
 ---
 **Created:** 2026-01-04
