@@ -342,6 +342,169 @@ export class SlipTemplatesService {
   }
 
   /**
+   * Get count of LINE accounts using this template
+   */
+  async getTemplateUsageCount(templateId: string): Promise<{
+    count: number;
+    accounts: Array<{ _id: string; name: string }>;
+  }> {
+    if (!Types.ObjectId.isValid(templateId)) {
+      throw new BadRequestException('Invalid template ID');
+    }
+
+    const accounts = await this.lineAccountModel.find({
+      $or: [
+        { 'settings.slipTemplateId': templateId },
+        { 'settings.slipTemplateIds.success': templateId },
+        { 'settings.slipTemplateIds.duplicate': templateId },
+        { 'settings.slipTemplateIds.error': templateId },
+        { 'settings.slipTemplateIds.not_found': templateId },
+      ],
+    }).select({ _id: 1, name: 1 }).lean().exec();
+
+    return {
+      count: accounts.length,
+      accounts: accounts.map((a) => ({
+        _id: a._id.toString(),
+        name: a.accountName || 'Unnamed Account',
+      })),
+    };
+  }
+
+  /**
+   * Check if template can be safely deleted
+   */
+  async checkTemplateUsage(templateId: string): Promise<{
+    canDelete: boolean;
+    isDefault: boolean;
+    usageCount: number;
+    accounts: Array<{ _id: string; name: string }>;
+    warningMessage?: string;
+  }> {
+    const template = await this.slipTemplateModel.findById(templateId);
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    const usage = await this.getTemplateUsageCount(templateId);
+
+    let warningMessage: string | undefined;
+    if (template.isDefault) {
+      warningMessage = 'ไม่สามารถลบเทมเพลตค่าเริ่มต้นได้';
+    } else if (usage.count > 0) {
+      warningMessage = `เทมเพลตนี้กำลังถูกใช้งานโดย ${usage.count} บัญชี หากลบจะมีผลกระทบทันที`;
+    }
+
+    return {
+      canDelete: !template.isDefault,
+      isDefault: template.isDefault,
+      usageCount: usage.count,
+      accounts: usage.accounts,
+      warningMessage,
+    };
+  }
+
+  /**
+   * Safe delete template with usage check
+   */
+  async safeDelete(
+    templateId: string,
+    confirmationText?: string,
+  ): Promise<{ success: boolean; affectedAccounts: number }> {
+    const template = await this.slipTemplateModel.findById(templateId);
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    if (template.isDefault) {
+      throw new BadRequestException('ไม่สามารถลบเทมเพลตค่าเริ่มต้นได้');
+    }
+
+    const usage = await this.getTemplateUsageCount(templateId);
+
+    if (usage.count > 0) {
+      if (!confirmationText) {
+        throw new BadRequestException(
+          `เทมเพลตนี้กำลังถูกใช้งานโดย ${usage.count} บัญชี กรุณายืนยันการลบ`,
+        );
+      }
+
+      const validConfirmations = ['DELETE', template.name.toUpperCase()];
+      if (!validConfirmations.includes(confirmationText.toUpperCase())) {
+        throw new BadRequestException(
+          'กรุณาพิมพ์ "DELETE" หรือชื่อเทมเพลตเพื่อยืนยันการลบ',
+        );
+      }
+
+      this.logger.warn(
+        `Template "${template.name}" (${templateId}) deleted while in use by ${usage.count} accounts`,
+      );
+
+      await this.lineAccountModel.updateMany(
+        { 'settings.slipTemplateId': templateId },
+        { $unset: { 'settings.slipTemplateId': '' } },
+      );
+
+      for (const type of ['success', 'duplicate', 'error', 'not_found']) {
+        await this.lineAccountModel.updateMany(
+          { [`settings.slipTemplateIds.${type}`]: templateId },
+          { $unset: { [`settings.slipTemplateIds.${type}`]: '' } },
+        );
+      }
+    }
+
+    await this.slipTemplateModel.findByIdAndDelete(templateId);
+
+    return { success: true, affectedAccounts: usage.count };
+  }
+
+  /**
+   * Get template with fallback to global default
+   */
+  async getTemplateWithFallback(
+    lineAccountId: string,
+    type: TemplateType,
+    selectedTemplateId?: string,
+  ): Promise<{ template: SlipTemplateDocument | null; usedFallback: boolean; reason?: string }> {
+    if (selectedTemplateId && Types.ObjectId.isValid(selectedTemplateId)) {
+      const selectedTemplate = await this.slipTemplateModel.findOne({
+        _id: new Types.ObjectId(selectedTemplateId),
+        type,
+        isActive: true,
+      });
+
+      if (selectedTemplate) {
+        return { template: selectedTemplate, usedFallback: false };
+      }
+
+      this.logger.warn(
+        `Selected template ${selectedTemplateId} not found for account ${lineAccountId}, using fallback`,
+      );
+    }
+
+    const accountDefault = await this.getDefaultTemplate(lineAccountId, type);
+    if (accountDefault) {
+      return {
+        template: accountDefault,
+        usedFallback: !!selectedTemplateId,
+        reason: selectedTemplateId ? 'selected_template_deleted' : undefined,
+      };
+    }
+
+    const globalDefault = await this.getGlobalDefaultTemplate(type);
+    if (globalDefault) {
+      return {
+        template: globalDefault,
+        usedFallback: true,
+        reason: selectedTemplateId ? 'selected_template_deleted' : 'no_account_default',
+      };
+    }
+
+    this.logger.error(`No template found for type ${type} (account: ${lineAccountId})`);
+    return { template: null, usedFallback: true, reason: 'no_template_available' };
+  }
+
+  /**
    * Delete template
    */
   async delete(templateId: string): Promise<void> {

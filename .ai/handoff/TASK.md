@@ -1,35 +1,127 @@
-# Task: Fix Admin Chat Loading Issue & Harden Security
+คำสั่งงาน: พัฒนาระบบป้องกันการลบเทมเพลต (Safe Delete) และรับประกันการส่งข้อความ
 
-## Context
-The Admin Chat interface is failing to load messages, while the User Chat works correctly. We need to fix this bug, ensure feature parity between Admin and User chat, and implement strict security measures.
+วัตถุประสงค์หลัก
 
-## Relevant Files
-Please analyze and edit the following files:
-- **Target Frontend (Broken):** `frontend/src/app/admin/chat/page.tsx`
-- **Reference Frontend (Working):** `frontend/src/app/user/chat/page.tsx`
-- **Backend Controller:** `backend/src/chat-messages/chat-messages.controller.ts`
-- **Backend Service:** `backend/src/chat-messages/chat-messages.service.ts`
+พัฒนาฟีเจอร์ "การลบเทมเพลตอย่างปลอดภัย" โดยระบบต้องตรวจสอบและแจ้งเตือนผู้ใช้หากเทมเพลตนั้นกำลังถูกใช้งานอยู่ และต้องวางระบบให้ "Service การส่งข้อความ (Message Sender)" ทำงานต่อไปได้ถูกต้องโดยอัตโนมัติ แม้ว่าเทมเพลตที่ลูกค้าคนนั้นใช้อยู่จะถูกลบไปแล้วก็ตาม
 
-## Objectives
 
-### 1. Fix Message Loading (Priority)
-- Analyze `frontend/src/app/admin/chat/page.tsx`. It likely has state management or API integration errors preventing messages from rendering.
-- Compare it with `frontend/src/app/user/chat/page.tsx` to identify missing logic or incorrect hooks.
-- Ensure the API endpoint called by the Admin page exists and returns the expected data structure.
 
-### 2. Backend Security & Reliability
-- **Endpoint Verification:** Check `chat-messages.controller.ts`. Ensure the endpoint for admin message retrieval handles pagination and filtering correctly.
-- **Authorization (Crucial):**
-    - Verify that the endpoint is protected by `RolesGuard` and restricted to Admin users only.
-    - **Anti-IDOR:** Ensure that even an Admin provides a valid `userId` or `chatId` and that the system validates the existence of that chat session before returning data.
-- **Sanitization:** Implement input validation (DTOs) and output sanitization to prevent Stored XSS attacks in the chat.
+1. ลอจิกการลบเทมเพลต (Safe Deletion Logic)
 
-### 3. Error Handling
-- Implement try-catch blocks in the Frontend to handle API failures gracefully (e.g., show a "Retry" button instead of a blank screen).
-- Ensure the Backend returns standard HTTP error codes (403 for Forbidden, 404 for Not Found).
+ก่อนที่จะทำการลบเทมเพลตใดๆ ออกจากระบบ (Soft Delete หรือ Hard Delete) ต้องมีกระบวนการดังนี้:
 
-## Acceptance Criteria
-- [ ] Admin Chat loads historical messages immediately upon opening.
-- [ ] No console errors (red text) in the browser Developer Tools.
-- [ ] An Admin cannot access a chat session that doesn't exist (returns 404).
-- [ ] XSS attempts (e.g., `<script>alert(1)</script>`) are rendered as plain text, not executed.
+
+
+ขั้นตอนที่ 1: ตรวจสอบการใช้งาน (Usage Check):
+
+ระบบต้อง Query ตรวจสอบว่ามี "บัญชี LINE (Line Accounts)" จำนวนกี่บัญชีที่กำลังผูก (binding) อยู่กับเทมเพลตนี้
+
+ขั้นตอนที่ 2: การแสดงผลและการยืนยัน (UI Warning & Confirmation):
+
+หาก Count > 0: ให้แสดง Modal สีแดงแจ้งเตือนว่า "เทมเพลตนี้กำลังถูกใช้งานโดยผู้ใช้จำนวน X คน หากลบ จะมีผลกระทบทันที"
+
+Require Input: บังคับให้ผู้ใช้พิมพ์คำว่า "DELETE" หรือชื่อเทมเพลตนั้นๆ ในช่อง Input เพื่อยืนยันการลบ (ป้องกันการกดผิด)
+
+หาก Count = 0: สามารถลบได้ตามปกติโดยไม่ต้องพิมพ์ยืนยัน (หรือถาม Confirm ธรรมดา)
+
+2. การจัดการข้อมูลเมื่อถูกลบ (Data Integrity & Fallback)
+
+เมื่อเทมเพลตถูกลบสำเร็จ ระบบต้องจัดการกับบัญชี LINE ที่เคยผูกกับเทมเพลตนั้นอย่างไร:
+
+
+
+Database Level: อนุญาตให้ค่า template_id ในตารางบัญชี LINE ยังคงเดิม หรือ set เป็น NULL ก็ได้ (ขึ้นอยู่กับ Design) แต่สิ่งสำคัญคือ...
+
+Application Level (สำคัญที่สุด):
+
+ในฟังก์ชันส่งข้อความ (sendMessageService) เมื่อถึงเวลาต้องส่งสลิป ให้ระบบตรวจสอบว่า template_id ที่บัญชีนั้นถืออยู่ "ยังมีอยู่ในระบบและสถานะ Active หรือไม่"
+
+Scenario: นาย A ใช้ Template ID: 99 -> แอดมินลบ Template ID: 99 ทิ้ง -> เมื่อนาย A ส่งสลิปเข้ามา -> ระบบหา ID: 99 ไม่เจอ
+
+Action: ระบบต้อง ห้าม Error แต่ให้ Auto-switch ไปใช้ "เทมเพลตค่าเริ่มต้น (System Default)" ส่งให้นาย A แทนทันที พร้อมบันทึก Log เตือนไว้
+
+3. การส่งข้อความไปยังลูกค้า (Contextual Messaging)
+
+ต้องมั่นใจว่าลูกค้าได้รับข้อความที่ถูกต้องที่สุดเท่าที่เป็นไปได้:
+
+
+
+Priority 1: หากเทมเพลตส่วนตัวยังอยู่ -> ส่งเทมเพลตส่วนตัว
+
+Priority 2: หากเทมเพลตส่วนตัวถูกลบ/ปิดใช้งาน -> ส่งเทมเพลตค่าเริ่มต้น (Default)
+
+Variable Replacement: ไม่ว่าจะใช้เทมเพลตตัวไหน ตัวแปรต่างๆ เช่น {{customer_name}}, {{amount}}, {{date}} ต้องถูกแทนค่าให้ถูกต้องตามข้อมูลจริงของสลิปนั้นๆนี่คือ Prompt (คำสั่งงาน) ที่เน้น "Logic, Behavior และ System Analysis" ตามที่คุณต้องการครับ ออกแบบมาเพื่อให้ AI หรือ Developer เข้าใจเงื่อนไขที่ซับซ้อนของการ "เลือกเทมเพลต" และ "ระบบป้องกันความผิดพลาด (Fallback)" โดยเฉพาะ
+
+คุณสามารถก๊อปปี้ข้อความในกล่องนี้ไปสั่งงานต่อได้เลยครับ
+
+คำสั่งงาน: พัฒนาระบบเลือกเทมเพลตตอบกลับสลิป (Slip Response Selection) และป้องกันข้อผิดพลาด
+
+วัตถุประสงค์หลัก
+
+พัฒนาฟีเจอร์ให้เจ้าของบัญชี LINE (LINE Account) สามารถ "เลือก" รูปแบบข้อความตอบกลับสลิป (Slip Template) ได้ด้วยตนเอง โดยระบบต้องมีความยืดหยุ่น รองรับทั้งการกำหนดค่าเองและการใช้ค่าเริ่มต้น (Default) จากแอดมิน พร้อมทั้งวางระบบป้องกันความผิดพลาดกรณีข้อมูลไม่สมบูรณ์
+
+
+
+1. ลอจิกการทำงานและลำดับความสำคัญ (Priority Logic)
+
+ระบบจะต้องตัดสินใจเลือกข้อความตอบกลับตามลำดับขั้นตอน (Waterfall) ดังนี้ เมื่อมีการตรวจสอบสลิปสำเร็จ:
+
+
+
+ตรวจสอบการตั้งค่าเฉพาะ (Specific Override):
+
+ให้ระบบตรวจสอบที่ "บัญชี LINE" นั้นๆ ก่อนว่ามีการระบุ Template ID ไว้เจาะจงหรือไม่?
+
+หาก "มี" และเทมเพลตนั้น "ยังใช้งานได้ (Active)" -> ให้ใช้เทมเพลตนั้นตอบกลับทันที
+
+ตรวจสอบค่าเริ่มต้น (System Default):
+
+หากบัญชี LINE นั้น "ไม่ได้เลือก" (ค่าเป็น Null)
+
+หรือ เลือกไว้แต่เทมเพลตนั้น "ถูกลบไปแล้ว" (Broken Reference)
+
+-> ให้ระบบถอยกลับไปใช้ "เทมเพลตค่าเริ่มต้น (Global Default)" ของระบบทันที
+
+กรณีฉุกเฉิน (Hard Fallback):
+
+หากไม่พบทั้งเทมเพลตเฉพาะ และไม่พบเทมเพลตค่าเริ่มต้น -> ให้ส่งข้อความแจ้งเตือนพื้นฐาน (Hardcoded Message) ว่า "ตรวจสอบสลิปสำเร็จ" เพื่อไม่ให้ระบบเงียบหาย
+
+2. หน้าตาและการใช้งาน (UI/UX Requirements)
+
+ในหน้า "ตั้งค่าบัญชี LINE" (LINE Account Settings) ให้ปรับปรุงดังนี้:
+
+
+
+ตัวเลือกเทมเพลต (Template Selector):
+
+เพิ่ม Dropdown หรือ Modal สำหรับเลือกเทมเพลต
+
+ตัวเลือกแรกสุด: ต้องเขียนว่า "ใช้ค่าเริ่มต้นของระบบ (Use System Default)"
+
+ตัวเลือกถัดไป: แสดงรายชื่อเทมเพลตทั้งหมดที่ผู้ใช้สร้างไว้
+
+การแสดงตัวอย่าง (Preview Interaction):
+
+เมื่อผู้ใช้เลือกเทมเพลตใน Dropdown ให้แสดงข้อความตัวอย่าง (Preview) ของเทมเพลตนั้นทันทีข้างๆ หรือด้านล่าง เพื่อให้ผู้ใช้มั่นใจก่อนกดบันทึก
+
+การแจ้งเตือน:
+
+หากเทมเพลตที่เลือกไว้เดิม "ถูกลบ" ให้แสดงคำเตือนสีเหลือง/แดง ในหน้านี้ว่า "เทมเพลตเดิมไม่พบ ระบบกำลังใช้ค่าเริ่มต้น"
+
+3. การวิเคราะห์และป้องกันบั๊ก (System Robustness & Analysis)
+
+เพื่อให้ระบบทำงานร่วมกันได้ดีและปิดช่องโหว่:
+
+
+
+ระบบจัดการความสัมพันธ์ข้อมูล (Integrity Check):
+
+วิเคราะห์ว่าจะทำอย่างไรเมื่อผู้ใช้กด "ลบเทมเพลต" ที่กำลังถูกใช้งานอยู่?
+
+ทางเลือก A: ห้ามลบ จนกว่าจะปลดการใช้งาน
+
+ทางเลือก B (แนะนำ): อนุญาตให้ลบได้ แต่ระบบต้องฉลาดพอที่จะ Auto-fallback ไปใช้ค่า Default โดยไม่ทำให้โค้ดพัง (Crash)
+
+การจัดการ Cache: หากมีการใช้ Redis หรือ Caching ระบบต้องมั่นใจว่าเมื่อผู้ใช้เปลี่ยนเทมเพลต การตอบกลับครั้งถัดไปต้องเป็นแบบใหม่ทันที (Cache Invalidation)
+
+Validation: ตรวจสอบว่าผู้ใช้เลือกเทมเพลตที่เป็นของตัวเองเท่านั้น ห้ามข้ามไปเลือกเทมเพลตของ User อื่น (Permission Check)
