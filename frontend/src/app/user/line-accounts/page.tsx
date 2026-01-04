@@ -238,17 +238,17 @@ export default function UserLineAccountsPage() {
       aiTemperature: s.aiTemperature ?? 0.7,
       aiFallbackMessage: s.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
       slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
-      customQuotaExceededMessage: (s as any).customQuotaExceededMessage || '',
-      customBotDisabledMessage: (s as any).customBotDisabledMessage || '',
-      customSlipDisabledMessage: (s as any).customSlipDisabledMessage || '',
-      customAiDisabledMessage: (s as any).customAiDisabledMessage || '',
-      customDuplicateSlipMessage: (s as any).customDuplicateSlipMessage || '',
-      customSlipErrorMessage: (s as any).customSlipErrorMessage || '',
-      customSlipSuccessMessage: (s as any).customSlipSuccessMessage || '',
-      sendMessageWhenBotDisabled: boolToString((s as any).sendMessageWhenBotDisabled),
-      sendMessageWhenSlipDisabled: boolToString((s as any).sendMessageWhenSlipDisabled),
-      sendMessageWhenAiDisabled: boolToString((s as any).sendMessageWhenAiDisabled),
-      sendProcessingMessage: (s as any).sendProcessingMessage ?? true,
+      customQuotaExceededMessage: s.customQuotaExceededMessage || '',
+      customBotDisabledMessage: s.customBotDisabledMessage || '',
+      customSlipDisabledMessage: s.customSlipDisabledMessage || '',
+      customAiDisabledMessage: s.customAiDisabledMessage || '',
+      customDuplicateSlipMessage: s.customDuplicateSlipMessage || '',
+      customSlipErrorMessage: s.customSlipErrorMessage || '',
+      customSlipSuccessMessage: s.customSlipSuccessMessage || '',
+      sendMessageWhenBotDisabled: boolToString(s.sendMessageWhenBotDisabled),
+      sendMessageWhenSlipDisabled: boolToString(s.sendMessageWhenSlipDisabled),
+      sendMessageWhenAiDisabled: boolToString(s.sendMessageWhenAiDisabled),
+      sendProcessingMessage: s.sendProcessingMessage ?? true,
     });
     setShowSettingsModal(true);
   };
@@ -484,14 +484,18 @@ export default function UserLineAccountsPage() {
                             <p className="text-[8px] sm:text-[9px] font-semibold text-slate-400">อัตราการตอบกลับ 98%</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateSettings(account._id, { enableBot: !account.settings?.enableBot })}
+                          className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        >
                           <div className={`w-10 sm:w-12 h-5 sm:h-6 rounded-full relative transition-all ${account.settings?.enableBot ? 'bg-[#06C755]' : 'bg-white/10'}`}>
                             <div className={`absolute right-0.5 sm:right-1 top-0.5 sm:top-1 w-3.5 sm:w-4 h-3.5 sm:h-4 bg-white rounded-full transition-all ${account.settings?.enableBot ? '' : 'translate-x-[-1.25rem] sm:translate-x-[-1.5rem]'}`}></div>
                           </div>
                           <span className={`text-[8px] sm:text-[10px] font-semibold hidden sm:inline ${account.settings?.enableBot ? 'text-[#06C755]' : 'text-slate-500'}`}>
                             {account.settings?.enableBot ? 'เปิด' : 'ปิด'}
                           </span>
-                        </div>
+                        </button>
                       </div>
                     </div>
 

@@ -1,65 +1,64 @@
- Task: Enable User Template Selection & Improve LINE Account Onboarding
-
+Task: Fix Template Loading, Bot Toggle, and Settings UI Visibility
 Context
+The user is reporting three specific issues that need immediate resolution:
 
-Currently, users cannot assign a specific "Slip Template" to their LINE accounts (the feature exists in the database but not in the UI). Additionally, users are confused when adding a new LINE account because there are no instructions on where to get the "Channel Token" or where to paste the "Webhook URL".🎯 Objectives
+Templates not showing: The Template list is empty or fails to render.
 
-1. Fix: User Template Selection (Frontend & Backend)
+Bot Toggle broken: Clicking the "On/Off" switch for the Line Bot does nothing.
 
-The Problem: Users can create templates, but they cannot "Apply" them to a specific LINE Account.
+Settings UI Visibility: The Settings page is "too white," making it hard to distinguish sections or read input fields.
 
+📂 Relevant Files
+Templates: frontend/src/app/user/templates/page.tsx
 
+Line Accounts (Bot Toggle): frontend/src/app/user/line-accounts/page.tsx
 
-Requirement (Frontend):
+Settings UI: frontend/src/app/admin/settings/page.tsx (and src/app/user/settings/page.tsx if exists)
 
-In the "Add/Edit LINE Account" Modal, add a new field: "Slip Template" (Dropdown).
+🎯 Objectives & Fixes
+1. Fix Template Loading Logic
+Problem: The API call to fetch templates might be failing, or the data mapping in the UI is incorrect. Action:
 
-Dropdown Logic:
+Inspect: frontend/src/app/user/templates/page.tsx.
 
-Option 1 (Default): "Use System Default" (Value: null).
+Fix Data Fetching: Ensure the useEffect hook calls the correct endpoint (likely GET /api/slip-templates).
 
-Other Options: Fetch and list all Active templates created by this user.
+Fix Rendering: Check if the variable being mapped (e.g., templates.map(...)) exists. Add a check if (!templates || templates.length === 0) to show a "No templates found" message instead of a blank screen.
 
-Preview: If possible, show a small text preview of the selected template below the dropdown.
+Debug: Add console.log('Fetched Templates:', data) to verify the API response structure.
 
-Requirement (Backend):
+2. Fix Line Bot Toggle (On/Off)
+Problem: The Switch component for enabling/disabling the bot is unresponsive. Action:
 
-Ensure the CreateLineAccountDto and UpdateLineAccountDto accept an optional template_id.
+Inspect: frontend/src/app/user/line-accounts/page.tsx.
 
-Validate that the template_id actually belongs to the user (security check).
+Fix Handler: Ensure the Switch component has an onChange or onClick event handler attached.
 
-2. UX Improvement: LINE Account Setup Guide
+API Connection: The handler must call the update endpoint (e.g., PATCH /api/line-accounts/:id) with the payload { is_active: boolean }.
 
-The Problem: Users don't know where to find "Channel Access Token" or what to do with the Webhook URL.
+State Update: After the API call succeeds, update the local state immediately so the UI reflects the change (Toggle flips visually).
 
+3. Improve Settings Page UI (Visibility)
+Problem: The page is "too white" (Low contrast), making inputs and sections blend into the background. Action:
 
+Inspect: frontend/src/app/admin/settings/page.tsx.
 
-Requirement: Enhance the "Add LINE Account" form with Helper Text and Links:
+Add Container Contrast: Wrap the main settings form in a Card or a div with these classes:
 
-Step 1: Get Credentials:
+TypeScript
 
-Add a link: "Go to LINE Developers Console to get your Channel Secret & Access Token."
+<div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+  {/* Settings Content */}
+</div>
+Fix Input Fields: Ensure all <Input /> fields have a visible border (border-gray-300) and distinct background (bg-gray-50 or bg-white).
 
-Add a small tooltip/icon next to the inputs explaining where to look.
+Add Section Headers: Use clear headings with darker text (text-gray-800) to separate "General Settings", "API Keys", etc.
 
-Step 2: Webhook Setup (Crucial):
-
-Display the Webhook URL: The system must generate and display the callback URL that the user needs (e.g., https://your-domain.com/api/line-webhook/{line_account_id}).
-
-Note: Since the ID might not exist yet during creation, display the base URL and instruct them: "After saving, copy the Webhook URL from the list and paste it into LINE Console."
-
-Instruction Text: "Copy this URL -> Paste in LINE Console -> Enable Webhook."
-
-3. Validation & Feedback
-
-Test Connection: Implement the logic for the "Test Connection" button (if not already working) to verify the token is valid before saving.
+Background: Ensure the main page background is slightly off-white (bg-gray-50 or bg-gray-100) so the white content cards pop out.
 
 ✅ Acceptance Criteria
+Templates: The template list loads and displays items from the database.
 
-Template Selection: I can open the "Edit LINE Account" modal, select one of my custom templates, save it, and when I re-open the modal, that template is still selected.
+Bot Toggle: Clicking the toggle updates the status in the database AND visually changes the switch state.
 
-Database: The line_accounts table correctly updates the template_id column.
-
-Guidance: The "Add Account" form clearly shows a link to LINE Developers.
-
-Webhook: The user can easily copy the correct Webhook URL from the dashboard to paste into LINE.
+UI: The Settings page has clear borders, shadows, and contrast. It is easy to read.

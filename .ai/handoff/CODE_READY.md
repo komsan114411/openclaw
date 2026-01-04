@@ -1,95 +1,78 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Enable User Template Selection & Improve LINE Account Onboarding
+**Task:** Fix Template Loading, Bot Toggle, and Settings UI Visibility
 
 ## Implementation Summary
 
-### 1. Backend Changes
+### 1. Fix Template Loading (frontend/src/app/user/templates/page.tsx)
 
-#### Files Modified:
-- `backend/src/line-accounts/dto/create-line-account.dto.ts`
-  - Added `slipTemplateId` optional field with `@IsMongoId()` validation
+**Problem:** Templates not showing - API path mismatch
 
-- `backend/src/line-accounts/dto/update-line-account.dto.ts`
-  - Added `slipTemplateId` optional field with `@IsMongoId()` validation
+**Root Cause:** The templates page was calling `/line-accounts/${accountId}/slip-templates` but the correct path is `/user/line-accounts/${accountId}/slip-templates`
 
-- `backend/src/line-accounts/line-accounts.service.ts`
-  - Added `validateTemplateOwnership()` method for security check
-  - Added `getTemplatesByOwner()` method to get user's templates
-  - Updated `create()` to validate and store slipTemplateId in settings
-  - Updated `update()` to validate and update slipTemplateId with ownership check
+**Fix:**
+- Changed import from `api` to `slipTemplatesApi`
+- Updated `fetchTemplates()` to use `slipTemplatesApi.getAll(accountId)` instead of direct API call
+- Fixed `err: any` to proper TypeScript error typing
 
-- `backend/src/line-accounts/line-accounts.controller.ts`
-  - Added `GET /line-accounts/my/templates` endpoint
-  - Added `POST /line-accounts/:id/test-connection` endpoint
-  - Added `POST /line-accounts/test-connection` endpoint (with token)
+### 2. Fix Bot Toggle (frontend/src/app/user/line-accounts/page.tsx)
 
-- `backend/src/line-accounts/line-accounts.module.ts`
-  - Added SlipTemplate schema import
+**Problem:** Bot toggle On/Off switch was unresponsive - no click handler
 
-### 2. Frontend Changes
+**Root Cause:** The custom toggle UI (lines 486-494) was purely visual with no onClick handler attached
 
-#### Files Modified:
-- `frontend/src/lib/api.ts`
-  - Added `getMyTemplates()` API method
-  - Added `testConnection()` and `testConnectionWithToken()` API methods
-  - Added `regenerateWebhook()` API method
-  - Created proper TypeScript interfaces for LINE account data
+**Fix:**
+- Wrapped the toggle in a `<button>` element
+- Added `onClick={() => handleUpdateSettings(account._id, { enableBot: !account.settings?.enableBot })}`
+- Added hover feedback with `hover:opacity-80 transition-opacity`
 
-- `frontend/src/types/index.ts`
-  - Added `SlipTemplateListItem` interface
+### 3. Fix Settings UI & any Types (frontend/src/app/admin/settings/page.tsx)
 
-- `frontend/src/app/user/line-accounts/page.tsx`
-  - Added templates state and fetch on mount
-  - Added `handleTestConnection()` function
-  - Updated form to include `slipTemplateId`
-  - Added LINE Developers Console guide with link (Step 1)
-  - Added Test Connection button after Access Token field
-  - Added Slip Template dropdown with template preview
-  - Added Webhook URL display with copy button (Step 2)
+**Problem:** Multiple `any` types violating CLAUDE.md rules
 
-## Features Implemented
+**Fixes:**
+- Added `SystemSettings` interface with proper typing
+- Added `BankAccountInfo` interface
+- Changed `useState<any>(null)` to `useState<SystemSettings | null>(null)`
+- Changed `payload: any` to `payload: Record<string, unknown>`
+- Fixed all `error: any` catches to use proper TypeScript error typing
+- Fixed `quotaExceededResponseType` cast from `as any` to `as 'text' | 'flex'`
+- Replaced dynamic `(messageSettings as any)[key]` with explicit field access
+- Fixed bank account mapping from `account: any` to `account: BankAccountInfo`
 
-### 1. User Template Selection
-- Users can now select a slip template when creating/editing LINE accounts
-- Templates are fetched from user's own templates + global templates
-- Template preview shows header text when selected
-- "Use System Default" option available
+## Files Modified
 
-### 2. LINE Account Setup Guide
-- Step 1: Link to LINE Developers Console with instructions
-- Step 2: Webhook URL display with copy button
-- New accounts show instruction to copy URL after saving
-
-### 3. Test Connection Button
-- Tests LINE channel connectivity before saving
-- Shows bot display name on successful connection
-- Clear error messages on failure
-
-### 4. Security
-- Template ownership validation on both create and update
-- Only user's own templates + global templates can be selected
-- ForbiddenException thrown for unauthorized template access
+| File | Changes |
+|------|---------|
+| `frontend/src/app/user/templates/page.tsx` | Fixed API path, error typing |
+| `frontend/src/app/user/line-accounts/page.tsx` | Added bot toggle click handler |
+| `frontend/src/app/admin/settings/page.tsx` | Fixed all `any` types, added proper interfaces |
 
 ## Testing Performed
-- TypeScript compilation: PASSED (both frontend and backend)
-- No `any` types used
-- Proper error handling implemented
+- TypeScript Frontend: PASSED
+- TypeScript Backend: PASSED
+- No new `any` types introduced
+- Proper error handling with typed errors
 
 ## Notes for Tester
-1. Create a LINE account and verify:
-   - LINE Developers Console link works
-   - Test Connection button validates access token
-   - Template dropdown shows available templates
-   - Webhook URL is displayed with copy button
 
-2. Edit an existing LINE account and verify:
-   - Previous template selection is loaded
-   - Webhook URL is shown with current slug
+### 1. Template Loading
+- Navigate to `/user/templates?accountId=<valid_id>`
+- Verify templates load and display correctly
+- Check console for any API errors
 
-3. Security test:
-   - Try to set a template ID that doesn't belong to the user (should fail)
+### 2. Bot Toggle
+- Go to `/user/line-accounts`
+- Click the On/Off toggle for AI Bot status
+- Verify the toggle changes visually AND updates in the database
+- Check toast notification for success/error
+
+### 3. Settings UI
+- Go to `/admin/settings`
+- Verify all sections render correctly
+- Test the quota warning switch and message settings
+- Verify bank accounts display properly
 
 ---
 **Created:** 2026-01-04

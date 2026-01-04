@@ -16,8 +16,47 @@ import { cn } from '@/lib/utils';
 
 type TabType = 'infrastructure' | 'communication' | 'financials';
 
+interface SystemSettings {
+  publicBaseUrl?: string;
+  slipApiKeyPreview?: string;
+  aiApiKeyPreview?: string;
+  usdtEnabled?: boolean;
+  usdtNetwork?: string;
+  usdtWalletAddress?: string;
+  quotaExceededMessage?: string;
+  quotaExceededResponseType?: 'text' | 'flex';
+  quotaWarningEnabled?: boolean;
+  quotaWarningThreshold?: number;
+  quotaLowWarningMessage?: string;
+  botDisabledSendMessage?: boolean;
+  botDisabledMessage?: string;
+  slipDisabledSendMessage?: boolean;
+  slipDisabledMessage?: string;
+  aiDisabledSendMessage?: boolean;
+  aiDisabledMessage?: string;
+  duplicateRefundEnabled?: boolean;
+  duplicateSlipMessage?: string;
+  slipErrorMessage?: string;
+  imageDownloadErrorMessage?: string;
+  invalidImageMessage?: string;
+  slipProcessingMessage?: string;
+  showSlipProcessingMessage?: boolean;
+  maxRetryAttempts?: number;
+  retryDelayMs?: number;
+  contactAdminLine?: string;
+  contactAdminEmail?: string;
+  bankAccounts?: BankAccountInfo[];
+}
+
+interface BankAccountInfo {
+  bankCode?: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('infrastructure');
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -126,7 +165,7 @@ export default function SettingsPage() {
     fetchBanks();
   }, [fetchSettings, fetchBanks]);
 
-  const handleUpdate = async (section: string, payload: any) => {
+  const handleUpdate = async (section: string, payload: Record<string, unknown>) => {
     setIsSaving(section);
     try {
       const response = await systemSettingsApi.update(payload);
@@ -136,8 +175,9 @@ export default function SettingsPage() {
       } else {
         toast.error(response.data.message || 'บันทึกไม่สำเร็จ');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการบันทึก');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการบันทึก');
     } finally {
       setIsSaving(null);
     }
@@ -152,8 +192,9 @@ export default function SettingsPage() {
       } else {
         toast.error(response.data.message || 'เชื่อมต่อกับ Thunder API ไม่สำเร็จ');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
     } finally {
       setTestingSlip(false);
     }
@@ -168,8 +209,9 @@ export default function SettingsPage() {
       } else {
         toast.error(response.data.message || 'เชื่อมต่อกับ AI API ไม่สำเร็จ');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
     } finally {
       setTestingAi(false);
     }
@@ -190,8 +232,9 @@ export default function SettingsPage() {
         setBankForm({ bankCode: '', bankName: '', accountNumber: '', accountName: '' });
         fetchSettings();
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsSaving(null);
     }
@@ -446,7 +489,7 @@ export default function SettingsPage() {
                       <Select
                         label="รูปแบบการตอบกลับ"
                         value={messageSettings.quotaExceededResponseType}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value as any })}
+                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value as 'text' | 'flex' })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
                       >
                         <option value="text">ข้อความธรรมดา</option>
@@ -580,30 +623,63 @@ export default function SettingsPage() {
                         <div className="space-y-4">
                           <p className="text-xs font-black text-rose-400 uppercase tracking-[0.2em]">การแจ้งเตือนอัตโนมัติ</p>
                           <div className="space-y-3">
-                            {[
-                              { label: "บอทปิดให้บริการ", key: "botDisabledSendMessage", msg: "botDisabledMessage" },
-                              { label: "ตรวจสอบสลิปปิดให้บริการ", key: "slipDisabledSendMessage", msg: "slipDisabledMessage" },
-                              { label: "AI ตอบกลับปิดให้บริการ", key: "aiDisabledSendMessage", msg: "aiDisabledMessage" }
-                            ].map((item) => (
-                              <div key={item.key} className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-bold">{item.label}</span>
-                                  <Switch
-                                    checked={(messageSettings as any)[item.key]}
-                                    onChange={() => setMessageSettings({ ...messageSettings, [item.key]: !(messageSettings as any)[item.key] })}
-                                  />
-                                </div>
-                                {(messageSettings as any)[item.key] && (
-                                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <input
-                                      className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
-                                      value={(messageSettings as any)[item.msg]}
-                                      onChange={(e) => setMessageSettings({ ...messageSettings, [item.msg]: e.target.value })}
-                                    />
-                                  </motion.div>
-                                )}
+                            {/* Bot Disabled */}
+                            <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-bold">บอทปิดให้บริการ</span>
+                                <Switch
+                                  checked={messageSettings.botDisabledSendMessage}
+                                  onChange={() => setMessageSettings({ ...messageSettings, botDisabledSendMessage: !messageSettings.botDisabledSendMessage })}
+                                />
                               </div>
-                            ))}
+                              {messageSettings.botDisabledSendMessage && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                  <input
+                                    className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
+                                    value={messageSettings.botDisabledMessage}
+                                    onChange={(e) => setMessageSettings({ ...messageSettings, botDisabledMessage: e.target.value })}
+                                  />
+                                </motion.div>
+                              )}
+                            </div>
+                            {/* Slip Disabled */}
+                            <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-bold">ตรวจสอบสลิปปิดให้บริการ</span>
+                                <Switch
+                                  checked={messageSettings.slipDisabledSendMessage}
+                                  onChange={() => setMessageSettings({ ...messageSettings, slipDisabledSendMessage: !messageSettings.slipDisabledSendMessage })}
+                                />
+                              </div>
+                              {messageSettings.slipDisabledSendMessage && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                  <input
+                                    className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
+                                    value={messageSettings.slipDisabledMessage}
+                                    onChange={(e) => setMessageSettings({ ...messageSettings, slipDisabledMessage: e.target.value })}
+                                  />
+                                </motion.div>
+                              )}
+                            </div>
+                            {/* AI Disabled */}
+                            <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-bold">AI ตอบกลับปิดให้บริการ</span>
+                                <Switch
+                                  checked={messageSettings.aiDisabledSendMessage}
+                                  onChange={() => setMessageSettings({ ...messageSettings, aiDisabledSendMessage: !messageSettings.aiDisabledSendMessage })}
+                                />
+                              </div>
+                              {messageSettings.aiDisabledSendMessage && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                  <input
+                                    className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
+                                    value={messageSettings.aiDisabledMessage}
+                                    onChange={(e) => setMessageSettings({ ...messageSettings, aiDisabledMessage: e.target.value })}
+                                  />
+                                </motion.div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -655,8 +731,8 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex-1 space-y-4">
-                      {settings?.bankAccounts?.length > 0 ? (
-                        settings.bankAccounts.map((account: any, index: number) => (
+                      {settings?.bankAccounts?.length ? (
+                        settings.bankAccounts.map((account: BankAccountInfo, index: number) => (
                           (() => {
                             const bankCode = (account.bankCode || '').toString().toUpperCase();
                             const bank = bankCode ? banks.find(b => b.code === bankCode) : undefined;

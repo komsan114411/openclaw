@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense, useMemo, memo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api, lineAccountsApi } from '@/lib/api';
+import { lineAccountsApi, slipTemplatesApi } from '@/lib/api';
 import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, EmptyState, StatCard } from '@/components/ui/Card';
@@ -129,8 +129,8 @@ function TemplatesContent() {
       return;
     }
     try {
-      // Fetch templates
-      const response = await api.get(`/line-accounts/${accountId}/slip-templates`);
+      // Fetch templates using correct API path
+      const response = await slipTemplatesApi.getAll(accountId);
       if (response.data.success) {
         setTemplates(response.data.templates || []);
       }
@@ -144,7 +144,8 @@ function TemplatesContent() {
       // Fetch all accounts for navigation
       const allAccountsRes = await lineAccountsApi.getMyAccounts();
       setAllAccounts(allAccountsRes.data?.accounts || []);
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้');
     } finally {
       setLoading(false);
@@ -162,7 +163,8 @@ function TemplatesContent() {
       await lineAccountsApi.updateSettings(accountId, { slipTemplateIds: next });
       setSelectedTemplateIds(next);
       toast.success('เลือก Template สำเร็จ');
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || 'ไม่สามารถเลือก Template ได้');
     } finally {
       setUpdatingType(null);

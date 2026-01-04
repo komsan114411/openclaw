@@ -65,6 +65,19 @@ export interface LineAccountSettings {
   slipTemplateIds?: Partial<Record<'success' | 'duplicate' | 'error' | 'not_found', string>>;
   autoReplyEnabled?: boolean;
   webhookEnabled?: boolean;
+  // Custom messages per account
+  customQuotaExceededMessage?: string;
+  customBotDisabledMessage?: string;
+  customSlipDisabledMessage?: string;
+  customAiDisabledMessage?: string;
+  customDuplicateSlipMessage?: string;
+  customSlipErrorMessage?: string;
+  customSlipSuccessMessage?: string;
+  // Message sending options
+  sendMessageWhenBotDisabled?: boolean | null;
+  sendMessageWhenSlipDisabled?: boolean | null;
+  sendMessageWhenAiDisabled?: boolean | null;
+  sendProcessingMessage?: boolean;
 }
 
 export interface Package {
