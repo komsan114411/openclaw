@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api, lineAccountsApi, chatMessagesApi } from '@/lib/api';
+import { lineAccountsApi, chatMessagesApi } from '@/lib/api';
+import { io, Socket } from 'socket.io-client';
+import { AxiosError } from 'axios';
 import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -69,12 +71,12 @@ function AdminChatContent() {
     }
     setLoading(true);
     try {
-      const response = await api.get(`/chat-messages/${selectedAccountId}/users`);
+      const response = await chatMessagesApi.getUsers(selectedAccountId);
       if (response.data.success) {
         setUsers(response.data.users || []);
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถโหลดรายชื่อผู้ใช้ได้');
+    } catch (err) {
+      toast.error((err as AxiosError<{message?: string}>).response?.data?.message || 'ไม่สามารถโหลดรายชื่อผู้ใช้ได้');
     } finally {
       setLoading(false);
     }
@@ -84,12 +86,12 @@ function AdminChatContent() {
     if (!selectedAccountId) return;
     setLoadingMessages(true);
     try {
-      const response = await api.get(`/chat-messages/${selectedAccountId}/${userId}`);
+      const response = await chatMessagesApi.getMessages(selectedAccountId, userId);
       if (response.data.success) {
         setMessages(response.data.messages || []);
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถโหลดข้อความได้');
+    } catch (err) {
+      toast.error((err as AxiosError<{message?: string}>).response?.data?.message || 'ไม่สามารถโหลดข้อความได้');
     } finally {
       setLoadingMessages(false);
     }
@@ -132,10 +134,7 @@ function AdminChatContent() {
 
     setSending(true);
     try {
-      const response = await api.post(
-        `/chat-messages/${selectedAccountId}/${selectedUser.lineUserId}/send`,
-        { message: newMessage }
-      );
+      const response = await chatMessagesApi.sendMessage(selectedAccountId, selectedUser.lineUserId, newMessage);
 
       if (response.data.success) {
         setNewMessage('');
@@ -143,8 +142,8 @@ function AdminChatContent() {
       } else {
         toast.error(response.data.error || 'ไม่สามารถส่งข้อความได้');
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถส่งข้อความได้');
+    } catch (err) {
+      toast.error((err as AxiosError<{message?: string}>).response?.data?.message || 'ไม่สามารถส่งข้อความได้');
     } finally {
       setSending(false);
     }

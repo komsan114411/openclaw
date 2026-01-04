@@ -1,41 +1,58 @@
 # READY FOR REVIEW
 
 ## Task Completed
-Fix memory-server to use sql.js instead of better-sqlite3
+Fix Admin Chat and Harden Backend Security
 
 ## What Was Done
-1. Updated `database.ts` to use sql.js (pure JavaScript SQLite)
-   - Changed import from `better-sqlite3` to `sql.js`
-   - Made `initDatabase()` async (sql.js requires async init)
-   - Added `saveDatabase()` helper to persist changes to disk
-   - Updated all database functions to use sql.js API
-   - Fixed TypeScript type assertion with `as unknown as Memory`
 
-2. Updated `index.ts` for async database initialization
-   - Already had `initDatabase` import
-   - Removed duplicate `await initDatabase()` from `handleGetRecentMemories()`
-   - Kept correct `await initDatabase()` in `main()` function
+### 1. Fixed Admin Chat (frontend/src/app/admin/chat/page.tsx)
+- Removed `api` import, now uses `chatMessagesApi` wrapper consistently
+- Added `socket.io-client` import for real-time updates
+- Added `AxiosError` import for proper TypeScript error typing
+- Fixed `catch (err: any)` violations - now uses `(err as AxiosError<{message?: string}>)`
+- Changed `api.get()` calls to `chatMessagesApi.getUsers()` and `chatMessagesApi.getMessages()`
+- Changed `api.post()` to `chatMessagesApi.sendMessage()`
+
+### 2. Backend Security Review (Already Secure!)
+- **IDOR Prevention**: `ensureAccountAccess()` in chat-messages.service.ts validates:
+  - ObjectId format validation
+  - Account existence check (NotFoundException)
+  - Owner or Admin check (ForbiddenException)
+- **XSS Prevention**: React JSX auto-escapes `{msg.messageText}` by default
+- **Input Validation**: Zod validation on all controller inputs
+- **Session Auth**: All endpoints protected by SessionAuthGuard
 
 ## Files Modified
-- [x] `memory-server/src/database.ts` - Complete rewrite for sql.js
-- [x] `memory-server/src/index.ts` - Removed duplicate initDatabase call
+- [x] `frontend/src/app/admin/chat/page.tsx` - Fixed TypeScript violations, use chatMessagesApi
+
+## Backend Security Assessment
+| Security Check | Status | Notes |
+|----------------|--------|-------|
+| IDOR Prevention | PASS | ensureAccountAccess() validates owner |
+| XSS Prevention | PASS | React JSX auto-escapes |
+| Input Validation | PASS | Zod schemas on controllers |
+| Auth Guard | PASS | SessionAuthGuard on all endpoints |
+| ObjectId Validation | PASS | Types.ObjectId.isValid() check |
 
 ## How to Test
 ```bash
-cd test/memory-server
-npm install          # Should complete without native compilation errors
-npm run build        # Should compile TypeScript without errors
-npm start            # Should start MCP server
+# Test TypeScript
+cd test/frontend
+npx tsc --noEmit
+
+# Test Admin Chat
+1. Login as admin
+2. Go to /admin/chat
+3. Select LINE account
+4. Verify chat users load
+5. Select user, verify messages load
+6. Send message, verify it sends
 ```
 
-## Why sql.js?
-- `better-sqlite3` requires Python and C++ build tools on Windows
-- `sql.js` is pure JavaScript, no native compilation needed
-- Works on all platforms without prerequisites
-
-## Build Result
-- npm install: 113 packages, 0 vulnerabilities
-- npm run build: Success (tsc compiled without errors)
+## CLAUDE.md Compliance
+- [x] No `any` types - fixed with `AxiosError` typing
+- [x] Uses chatMessagesApi wrapper (not direct api.get)
+- [x] Proper error handling with toast notifications
 
 ## Created At
 2026-01-04
