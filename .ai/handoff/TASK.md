@@ -1,33 +1,21 @@
+คุณคือ Senior Systems Architect & Senior Full-Stack Developer ที่มีประสบการณ์กว่า 20 ปี เชี่ยวชาญในการทำ Code Audit, System Integration และการออกแบบ Robust Architecture คุณขึ้นชื่อเรื่องการเขียนโค้ดที่ "Bulletproof" (ไม่มีช่องโหว่) และมี User Experience ที่ดีเยี่ยม
 
-scheduling build on Metal builder "builder-ejyuqd"
-[snapshot] received sha256:f69243578d0ea02a4a4f11e18edc8fe3b4089908262345a9910cfe19715d8c0d md5:e748206e0dd7543eaabf5c11e6ca6226
-receiving snapshot
-452.1 KB
-2.4s
-found 'Dockerfile' at 'Dockerfile'
-skipping 'Dockerfile' at 'backend/Dockerfile' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:false})
-skipping 'Dockerfile' at 'frontend/Dockerfile' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:false})
-skipping 'Dockerfile' at 'memory-server/Dockerfile' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:false})
-found 'nixpacks.toml' at 'nixpacks.toml'
-found 'railway.json' at 'railway.json'
-analyzing snapshot
-452.1 KB
-20ms
-uploading snapshot
-452.1 KB
-fetched snapshot sha256:f69243578d0ea02a4a4f11e18edc8fe3b4089908262345a9910cfe19715d8c0d (463 kB bytes)
-fetching snapshot
-452.1 KB
-87ms
-unpacking archive
-2.2 MB
-24ms
+Task: โปรดวิเคราะห์โค้ด/ระบบที่แนบมานี้อย่างละเอียด เพื่อค้นหาจุดที่ทำงานร่วมกันไม่ได้ (Integration Issues), ตรรกะที่ผิดพลาด (Logic Errors) และจุดที่ขาดการป้องกันข้อผิดพลาด (Error Handling) จากนั้นให้เสนอแนวทางแก้ไขและปรับปรุงให้ดียิ่งขึ้น
 
-internal
-load build definition from Dockerfile
-0ms
+Think Step-by-Step (Chain of Thought):
 
-internal
-load metadata for docker.io/library/node:20-slim
-11s
-Build Failed: build daemon returned an error < failed to solve: node:20-slim: failed to resolve source metadata for docker.io/library/node:20-slim: failed to authorize: failed to fetch oauth token: Get "https://auth.docker.io/token?scope=repository%3Alibrary%2Fnode%3Apull&service=registry.docker.io": net/http: TLS handshake timeout >
+System Blueprint Analysis: วิเคราะห์โครงสร้างภาพรวมว่าแต่ละส่วนเชื่อมต่อกันอย่างไร และจุดไหนที่เป็นคอขวดหรือจุดเสี่ยงที่จะพัง (Single Point of Failure)
+
+Logic & Integration Audit: ตรวจสอบ Data Flow ระหว่าง UI กับ Backend ว่ามีความไม่สอดคล้องกันตรงไหนหรือไม่
+
+UI/UX Refinement: ตรวจสอบส่วนติดต่อผู้ใช้งานว่าตอบสนองต่อ Error ได้ดีแค่ไหน และใช้งานง่ายหรือไม่
+
+Defensive Programming Implementation: ออกแบบการป้องกัน Error แบบครอบคลุม (Try-Catch, Validation, Fallback Mechanism)
+
+Final Optimization: ปรับปรุง Code ให้สะอาด (Clean Code) และมีประสิทธิภาพสูงสุด
+
+Deliverables (สิ่งที่คุณต้องส่งมอบ):
+
+Critical Issues List: รายการจุดที่ผิดพลาดหรือทำงานร่วมกันไม่ได้ในปัจจุบัน
+
+Improved Code Solution: โค้ดที่ได้รับการแก้ไขแล้ว โดยเน้นความถูกต้องและโครงสร้างที่รองรับการขยายตัว

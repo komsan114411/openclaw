@@ -26,7 +26,14 @@ export default function UsersPage() {
   const [selectedPackageId, setSelectedPackageId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    username: string;
+    password: string;
+    email: string;
+    fullName: string;
+    role: 'admin' | 'user';
+    forcePasswordChange: boolean;
+  }>({
     username: '',
     password: '',
     email: '',
@@ -35,7 +42,12 @@ export default function UsersPage() {
     forcePasswordChange: true,
   });
 
-  const [editFormData, setEditFormData] = useState({
+  const [editFormData, setEditFormData] = useState<{
+    email: string;
+    fullName: string;
+    role: 'admin' | 'user';
+    isActive: boolean;
+  }>({
     email: '',
     fullName: '',
     role: 'user',
@@ -447,7 +459,7 @@ export default function UsersPage() {
             <Select
               label="สิทธิ์ผู้ใช้"
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'user' })}
               className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             >
               <option value="user" className="bg-slate-900">ผู้ใช้ทั่วไป</option>
@@ -501,7 +513,7 @@ export default function UsersPage() {
             <Select
               label="สิทธิ์ผู้ใช้"
               value={editFormData.role}
-              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as 'admin' | 'user' })}
               className="bg-white/[0.03] border-white/10 text-white h-12 rounded-xl"
             >
               <option value="user" className="bg-slate-900">ผู้ใช้ทั่วไป</option>

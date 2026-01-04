@@ -24,7 +24,7 @@ export interface ActivityLog {
   entityType?: string;
   entityId?: string;
   message?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -111,6 +111,22 @@ export interface Subscription {
   status?: 'active' | 'expired' | 'cancelled';
 }
 
+export interface SlipVerificationResult {
+  success?: boolean;
+  data?: {
+    sendingBank?: string;
+    receivingBank?: string;
+    sendingAccountName?: string;
+    receivingAccountName?: string;
+    amount?: number;
+    transRef?: string;
+    date?: string;
+    time?: string;
+  };
+  error?: string;
+  message?: string;
+}
+
 export interface Payment {
   _id: string;
   userId: string;
@@ -121,7 +137,7 @@ export interface Payment {
   transRef?: string;
   slipImageUrl?: string;
   transactionHash?: string;
-  verificationResult?: any;
+  verificationResult?: SlipVerificationResult;
   adminNotes?: string;
   notes?: string;
   rejectionReason?: string;

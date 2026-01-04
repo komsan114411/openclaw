@@ -53,12 +53,29 @@ export const authApi = {
     api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 
+// User data types
+interface CreateUserData {
+  username: string;
+  password: string;
+  email?: string;
+  fullName?: string;
+  role?: 'admin' | 'user';
+}
+
+interface UpdateUserData {
+  username?: string;
+  email?: string;
+  fullName?: string;
+  role?: 'admin' | 'user';
+  isActive?: boolean;
+}
+
 // Users API
 export const usersApi = {
   getAll: () => api.get('/users'),
   getById: (id: string) => api.get(`/users/${id}`),
-  create: (data: any) => api.post('/users', data),
-  update: (id: string, data: any) => api.put(`/users/${id}`, data),
+  create: (data: CreateUserData) => api.post('/users', data),
+  update: (id: string, data: UpdateUserData) => api.put(`/users/${id}`, data),
   delete: (id: string) => api.delete(`/users/${id}`),
   block: (id: string, reason?: string) => api.post(`/users/${id}/block`, { reason }),
   unblock: (id: string) => api.post(`/users/${id}/unblock`),
@@ -119,13 +136,40 @@ export const lineAccountsApi = {
   regenerateWebhook: (id: string) => api.post(`/line-accounts/${id}/regenerate-webhook`),
 };
 
+// Package data types
+interface CreatePackageData {
+  name: string;
+  price: number;
+  priceUsdt?: number;
+  slipQuota: number;
+  durationDays: number;
+  description?: string;
+  features?: string[];
+  isFreeStarter?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+interface UpdatePackageData {
+  name?: string;
+  price?: number;
+  priceUsdt?: number;
+  slipQuota?: number;
+  durationDays?: number;
+  description?: string;
+  features?: string[];
+  isFreeStarter?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
 // Packages API
 export const packagesApi = {
   getAll: (includeInactive?: boolean) =>
     api.get('/packages', { params: { includeInactive } }),
   getById: (id: string) => api.get(`/packages/${id}`),
-  create: (data: any) => api.post('/packages', data),
-  update: (id: string, data: any) => api.put(`/packages/${id}`, data),
+  create: (data: CreatePackageData) => api.post('/packages', data),
+  update: (id: string, data: UpdatePackageData) => api.put(`/packages/${id}`, data),
   delete: (id: string) => api.delete(`/packages/${id}`),
   activate: (id: string) => api.post(`/packages/${id}/activate`),
 };
@@ -162,22 +206,78 @@ export const paymentsApi = {
     api.post(`/payments/${id}/reject`, { notes }),
 };
 
+// Bank data types
+interface CreateBankData {
+  code: string;
+  name: string;
+  nameTh?: string;
+  nameEn?: string;
+  shortName?: string;
+  color?: string;
+  logoUrl?: string;
+  logoBase64?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+interface UpdateBankData {
+  code?: string;
+  name?: string;
+  nameTh?: string;
+  nameEn?: string;
+  shortName?: string;
+  color?: string;
+  logoUrl?: string;
+  logoBase64?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
 // Banks API
 export const banksApi = {
   getAll: () => api.get('/banks'),
   getById: (id: string) => api.get(`/banks/${id}`),
-  create: (data: any) => api.post('/banks', data),
-  update: (id: string, data: any) => api.put(`/banks/${id}`, data),
+  create: (data: CreateBankData) => api.post('/banks', data),
+  update: (id: string, data: UpdateBankData) => api.put(`/banks/${id}`, data),
   delete: (id: string) => api.delete(`/banks/${id}`),
   toggleActive: (id: string) => api.post(`/banks/${id}/toggle-active`),
   syncFromThunder: () => api.post('/admin/banks/sync-from-thunder'),
 };
 
+// System Settings data types
+interface UpdateSystemSettingsData {
+  slipApiKey?: string;
+  aiApiKey?: string;
+  publicBaseUrl?: string;
+  slipApiProvider?: string;
+  aiModel?: string;
+  usdtEnabled?: boolean;
+  usdtNetwork?: string;
+  usdtWalletAddress?: string;
+  usdtQrImage?: string;
+  usdtDisabledMessage?: string;
+  quotaExceededResponseType?: string;
+  quotaExceededMessage?: string;
+  quotaWarningThreshold?: number;
+  quotaWarningEnabled?: boolean;
+  duplicateRefundEnabled?: boolean;
+  contactAdminUrl?: string;
+  contactAdminLine?: string;
+  contactAdminEmail?: string;
+}
+
+interface AddBankAccountData {
+  bankCode?: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
 // System Settings API
 export const systemSettingsApi = {
   get: () => api.get('/system-settings'),
-  update: (data: any) => api.put('/system-settings', data),
-  addBankAccount: (data: any) => api.post('/system-settings/bank-accounts', data),
+  update: (data: UpdateSystemSettingsData) => api.put('/system-settings', data),
+  addBankAccount: (data: AddBankAccountData) => api.post('/system-settings/bank-accounts', data),
   removeBankAccount: (index: number) =>
     api.delete(`/system-settings/bank-accounts/${index}`),
   getApiStatus: () => api.get('/system-settings/api-status'),
@@ -223,15 +323,38 @@ export const chatMessagesApi = {
     api.get(`/chat-messages/${accountId}/profile/${userId}`),
 };
 
+// Slip Template data types
+interface CreateSlipTemplateData {
+  name: string;
+  type: 'success' | 'duplicate' | 'error' | 'not_found';
+  description?: string;
+  headerText?: string;
+  headerColor?: string;
+  bodyText?: string;
+  footerText?: string;
+  isDefault?: boolean;
+}
+
+interface UpdateSlipTemplateData {
+  name?: string;
+  type?: 'success' | 'duplicate' | 'error' | 'not_found';
+  description?: string;
+  headerText?: string;
+  headerColor?: string;
+  bodyText?: string;
+  footerText?: string;
+  isDefault?: boolean;
+}
+
 // Slip Templates API
 export const slipTemplatesApi = {
   getAll: (accountId: string) =>
     api.get(`/user/line-accounts/${accountId}/slip-templates`),
   getList: (accountId: string) =>
     api.get(`/user/line-accounts/${accountId}/slip-templates-list`),
-  create: (accountId: string, data: any) =>
+  create: (accountId: string, data: CreateSlipTemplateData) =>
     api.post(`/user/line-accounts/${accountId}/slip-templates`, data),
-  update: (accountId: string, templateId: string, data: any) =>
+  update: (accountId: string, templateId: string, data: UpdateSlipTemplateData) =>
     api.put(`/user/line-accounts/${accountId}/slip-templates/${templateId}`, data),
   delete: (accountId: string, templateId: string) =>
     api.delete(`/user/line-accounts/${accountId}/slip-templates/${templateId}`),
@@ -258,13 +381,21 @@ export const thunderApi = {
     api.get('/thunder/health', { params: customToken ? { token: customToken } : {} }),
 };
 
+// System Response Template data types
+interface UpdateSystemResponseTemplateData {
+  message?: string;
+  altText?: string;
+  flexJson?: string;
+  isActive?: boolean;
+}
+
 // System Response Templates API (Admin Only)
 export const systemResponseTemplatesApi = {
   getAll: () => api.get('/admin/system-response-templates'),
   getByType: (type: string) => api.get(`/admin/system-response-templates/${type}`),
-  update: (type: string, data: any) => api.put(`/admin/system-response-templates/${type}`, data),
+  update: (type: string, data: UpdateSystemResponseTemplateData) => api.put(`/admin/system-response-templates/${type}`, data),
   reset: (type: string) => api.post(`/admin/system-response-templates/${type}/reset`),
   resetAll: () => api.post('/admin/system-response-templates/reset-all'),
-  preview: (type: string, variables?: Record<string, string>) => 
+  preview: (type: string, variables?: Record<string, string>) =>
     api.post(`/admin/system-response-templates/${type}/preview`, { variables }),
 };
