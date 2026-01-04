@@ -188,3 +188,13 @@ export interface Bank {
   isActive: boolean;
   sortOrder: number;
 }
+
+export interface SlipTemplateListItem {
+  _id: string;
+  name: string;
+  type: 'success' | 'duplicate' | 'error' | 'not_found';
+  isDefault?: boolean;
+  isGlobal?: boolean;
+  description?: string;
+  headerText?: string;
+}

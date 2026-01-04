@@ -1,7 +1,7 @@
 # ALL TESTS PASSED
 
 ## Task
-Critical Fixes & UI Improvements - Part 1
+Enable User Template Selection & Improve LINE Account Onboarding
 
 ## Test Results
 
@@ -9,36 +9,51 @@ Critical Fixes & UI Improvements - Part 1
 |------|--------|
 | TypeScript Frontend | PASS |
 | TypeScript Backend | PASS |
-| Date Logic | PASS |
-| UI Text Changes | PASS |
+| Functionality | PASS |
+| Error Handling | PASS |
+| Security | PASS |
+| Code Quality | PASS |
 
 ## Changes Verified
 
-### 1. Date Calculation Fix (user/quota/page.tsx)
-- Added `isExpired` boolean: `new Date(expiresAt).getTime() < Date.now()`
-- When expired: Shows "หมดอายุแล้ว" in rose-500 (red)
-- When not expired: Shows "X วัน" in white
-- Uses `cn()` for conditional styling
+### 1. Backend Changes
+- **DTOs**: Added `slipTemplateId` field with `@IsMongoId()` validation
+- **Security**: `validateTemplateOwnership()` method validates ownership
+- **New Endpoints**:
+  - `GET /line-accounts/my/templates` - Get user's templates
+  - `POST /line-accounts/:id/test-connection` - Test connection
+  - `POST /line-accounts/test-connection` - Test with token
 
-### 2. Sci-Fi Jargon Removal (admin/dashboard/page.tsx)
-| Before | After |
-|--------|-------|
-| Verification Layer Matrix | ระบบตรวจสอบสลิป |
-| Pending Protocols | รอดำเนินการ |
-| No pending protocols | ไม่มีรายการรอดำเนินการ |
-| Protocols (desc) | จัดการ |
-| Channels (desc) | บัญชี |
-| Assets (desc) | จัดการ |
+### 2. Frontend Changes
+- **Template Dropdown**: Shows user's + global templates
+- **LINE Developers Guide**: Step 1 with link to console
+- **Test Connection Button**: Validates access token before saving
+- **Webhook URL Display**: Shows URL with copy button (Step 2)
 
 ## Security Review
-- Pure UI/text changes - no security implications
-- No API changes
-- No data handling changes
+- [x] Template ownership validated on create/update
+- [x] Global templates allowed for all users
+- [x] ForbiddenException thrown for unauthorized access
+- [x] ObjectId validation before database queries
+- [x] Access control on test-connection endpoint
 
 ## CLAUDE.md Compliance
-- [x] No `any` types
-- [x] No hardcoded URLs
-- [x] Thai language for user-facing text
+- [x] No new `any` types in added code
+- [x] MongoDB + Mongoose only
+- [x] Proper TypeScript interfaces defined
+- [x] Error handling with appropriate exceptions
+- [x] API paths follow existing patterns
+
+## Files Modified
+| File | Changes |
+|------|---------|
+| `backend/src/line-accounts/dto/*.dto.ts` | Added slipTemplateId |
+| `backend/src/line-accounts/line-accounts.service.ts` | Template validation, new methods |
+| `backend/src/line-accounts/line-accounts.controller.ts` | New endpoints |
+| `backend/src/line-accounts/line-accounts.module.ts` | SlipTemplate import |
+| `frontend/src/lib/api.ts` | New API methods, interfaces |
+| `frontend/src/types/index.ts` | SlipTemplateListItem type |
+| `frontend/src/app/user/line-accounts/page.tsx` | UI improvements |
 
 ## Tester
 AI Tester (2026-01-04)

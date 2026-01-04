@@ -77,19 +77,46 @@ export const activityLogsApi = {
   getMy: (limit?: number) => api.get('/activity-logs/my', { params: { limit } }),
 };
 
+// LINE Account types
+interface CreateLineAccountData {
+  accountName: string;
+  channelId: string;
+  channelSecret: string;
+  accessToken: string;
+  description?: string;
+  slipTemplateId?: string;
+  ownerId?: string;
+}
+
+interface UpdateLineAccountData {
+  accountName?: string;
+  channelSecret?: string;
+  accessToken?: string;
+  description?: string;
+  slipTemplateId?: string;
+  isActive?: boolean;
+}
+
 // LINE Accounts API
 export const lineAccountsApi = {
   getAll: () => api.get('/line-accounts'),
   getMyAccounts: () => api.get('/line-accounts/my'),
+  getMyTemplates: () => api.get('/line-accounts/my/templates'),
   getById: (id: string) => api.get(`/line-accounts/${id}`),
-  create: (data: any) => api.post('/line-accounts', data),
-  update: (id: string, data: any) => api.put(`/line-accounts/${id}`, data),
-  updateSettings: (id: string, settings: any) =>
+  create: (data: CreateLineAccountData) =>
+    api.post('/line-accounts', data),
+  update: (id: string, data: UpdateLineAccountData) =>
+    api.put(`/line-accounts/${id}`, data),
+  updateSettings: (id: string, settings: Record<string, unknown>) =>
     api.put(`/line-accounts/${id}/settings`, settings),
   delete: (id: string) => api.delete(`/line-accounts/${id}`),
   getChatHistory: (id: string, userId?: string, limit?: number) =>
     api.get(`/line-accounts/${id}/chat-history`, { params: { userId, limit } }),
   getStatistics: () => api.get('/line-accounts/statistics'),
+  testConnection: (id: string) => api.post(`/line-accounts/${id}/test-connection`),
+  testConnectionWithToken: (accessToken: string) =>
+    api.post('/line-accounts/test-connection', { accessToken }),
+  regenerateWebhook: (id: string) => api.post(`/line-accounts/${id}/regenerate-webhook`),
 };
 
 // Packages API

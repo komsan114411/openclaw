@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, systemSettingsApi } from '@/lib/api';
-import { LineAccount } from '@/types';
+import { LineAccount, SlipTemplateListItem } from '@/types';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardHeader, EmptyState } from '@/components/ui/Card';
-import { SectionHeader, StatCardMini } from '@/components/ui';
+import { motion } from 'framer-motion';
+import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input, Textarea, Select, Switch } from '@/components/ui/Input';
@@ -18,22 +17,22 @@ import {
   MessageSquare,
   FileCheck,
   Bot,
-  Settings,
   Plus,
   Trash2,
   Edit,
-  Copy,
   ExternalLink,
-  Smartphone,
   CheckCircle2,
   XCircle,
-  MoreVertical,
-  Activity
+  Activity,
+  HelpCircle,
+  Loader2,
 } from 'lucide-react';
 
 export default function UserLineAccountsPage() {
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
+  const [templates, setTemplates] = useState<SlipTemplateListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTesting, setIsTesting] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -49,6 +48,7 @@ export default function UserLineAccountsPage() {
     channelSecret: '',
     accessToken: '',
     description: '',
+    slipTemplateId: '' as string,
   });
 
   const [settingsData, setSettingsData] = useState({
@@ -77,6 +77,7 @@ export default function UserLineAccountsPage() {
   useEffect(() => {
     fetchAccounts();
     fetchPublicBaseUrl();
+    fetchTemplates();
   }, []);
 
   const fetchPublicBaseUrl = async () => {
@@ -85,6 +86,39 @@ export default function UserLineAccountsPage() {
       setPublicBaseUrl(res.data.publicBaseUrl || '');
     } catch {
       setPublicBaseUrl('');
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await lineAccountsApi.getMyTemplates();
+      setTemplates(response.data.templates || []);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!formData.accessToken) {
+      toast.error('กรุณากรอก Access Token ก่อน');
+      return;
+    }
+    setIsTesting(true);
+    try {
+      const response = await lineAccountsApi.testConnectionWithToken(formData.accessToken);
+      if (response.data.success) {
+        toast.success(response.data.message || 'เชื่อมต่อสำเร็จ');
+        if (response.data.botInfo?.displayName) {
+          toast.success(`ชื่อบอท: ${response.data.botInfo.displayName}`);
+        }
+      } else {
+        toast.error(response.data.message || 'การเชื่อมต่อล้มเหลว');
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'ไม่สามารถทดสอบการเชื่อมต่อได้');
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -118,6 +152,7 @@ export default function UserLineAccountsPage() {
       channelSecret: '',
       accessToken: '',
       description: '',
+      slipTemplateId: '',
     });
     setEditAccount(null);
   };
@@ -125,18 +160,23 @@ export default function UserLineAccountsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const dataToSubmit = {
+        ...formData,
+        slipTemplateId: formData.slipTemplateId || undefined,
+      };
       if (editAccount) {
-        await lineAccountsApi.update(editAccount._id, formData);
+        await lineAccountsApi.update(editAccount._id, dataToSubmit);
         toast.success('อัปเดตบัญชีสำเร็จ');
       } else {
-        await lineAccountsApi.create(formData);
+        await lineAccountsApi.create(dataToSubmit);
         toast.success('เพิ่มบัญชีสำเร็จ');
       }
       setShowModal(false);
       resetForm();
       fetchAccounts();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
     }
   };
 
@@ -148,6 +188,7 @@ export default function UserLineAccountsPage() {
       channelSecret: account.channelSecret,
       accessToken: account.accessToken,
       description: account.description || '',
+      slipTemplateId: account.settings?.slipTemplateId || '',
     });
     setShowModal(true);
   };
@@ -171,14 +212,13 @@ export default function UserLineAccountsPage() {
     }
   };
 
-  const handleUpdateSettings = async (id: string, settings: Partial<LineAccount['settings']>) => {
+  const handleUpdateSettings = async (id: string, settings: Record<string, unknown>) => {
     try {
       await lineAccountsApi.updateSettings(id, settings);
       toast.success('อัปเดตสถานะสำเร็จ');
       fetchAccounts();
-    } catch (error) {
+    } catch {
       toast.error('ไม่สามารถอัปเดตได้');
-      // Revert state optimization would go here if needed
     }
   };
 
@@ -486,6 +526,28 @@ export default function UserLineAccountsPage() {
         subtitle="กรอกข้อมูลจาก LINE Messaging API Console"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* LINE Developers Guide */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-blue-400">ขั้นตอนที่ 1: รับข้อมูลจาก LINE</p>
+                <p className="text-xs text-slate-400">
+                  ไปที่ LINE Developers Console เพื่อรับ Channel ID, Channel Secret และ Access Token
+                </p>
+                <a
+                  href="https://developers.line.biz/console/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  เปิด LINE Developers Console
+                </a>
+              </div>
+            </div>
+          </div>
+
           <Input
             label="ชื่อบัญชี (Display Name)"
             placeholder="เช่น ร้านค้าของฉัน"
@@ -516,14 +578,66 @@ export default function UserLineAccountsPage() {
             />
           </div>
 
-          <Textarea
-            label="Channel Access Token"
-            placeholder="วาง Access Token ที่ได้จาก LINE Developers Console"
-            value={formData.accessToken}
-            onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
-            required
-            className="font-mono text-[10px] min-h-[140px] bg-white/[0.03] border-white/10 text-white rounded-[2rem] p-6"
-          />
+          <div className="space-y-3">
+            <Textarea
+              label="Channel Access Token"
+              placeholder="วาง Access Token ที่ได้จาก LINE Developers Console"
+              value={formData.accessToken}
+              onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
+              required
+              className="font-mono text-[10px] min-h-[140px] bg-white/[0.03] border-white/10 text-white rounded-[2rem] p-6"
+            />
+            {/* Test Connection Button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestConnection}
+              disabled={isTesting || !formData.accessToken}
+              className="w-full h-10 rounded-xl border-white/10 text-white hover:bg-white/5"
+            >
+              {isTesting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  กำลังทดสอบ...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  ทดสอบการเชื่อมต่อ
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Slip Template Selection */}
+          <div className="space-y-3">
+            <label className="text-xs font-semibold text-slate-400 ml-1 flex items-center gap-2">
+              เทมเพลตสลิป
+              <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ)</span>
+            </label>
+            <select
+              value={formData.slipTemplateId}
+              onChange={(e) => setFormData({ ...formData, slipTemplateId: e.target.value })}
+              className="w-full h-14 px-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755]/50"
+            >
+              <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+              {templates.filter(t => t.type === 'success').length > 0 && (
+                <optgroup label="เทมเพลตสลิปถูกต้อง">
+                  {templates.filter(t => t.type === 'success').map((t) => (
+                    <option key={t._id} value={t._id}>
+                      {t.isGlobal ? '🌐 ' : ''}{t.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {formData.slipTemplateId && (
+              <p className="text-xs text-slate-500 ml-1">
+                {templates.find(t => t._id === formData.slipTemplateId)?.headerText || 'เทมเพลตที่เลือก'}
+              </p>
+            )}
+          </div>
 
           <Input
             label="คำอธิบาย (ไม่บังคับ)"
@@ -532,6 +646,39 @@ export default function UserLineAccountsPage() {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
           />
+
+          {/* Webhook URL Section (shown for edit mode or after creation instruction) */}
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <Activity className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-amber-400">ขั้นตอนที่ 2: ตั้งค่า Webhook URL</p>
+                {editAccount ? (
+                  <>
+                    <p className="text-xs text-slate-400">
+                      คัดลอก URL ด้านล่างและวางใน LINE Console {'->'} Messaging API {'->'} Webhook URL
+                    </p>
+                    <div className="bg-black/40 px-3 py-2 rounded-lg border border-white/5 flex items-center justify-between gap-2">
+                      <code className="text-[10px] text-slate-300 font-mono break-all">
+                        {getWebhookUrl(editAccount)}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copyWebhookUrl(editAccount)}
+                        className="text-[10px] font-semibold text-[#06C755] hover:text-[#05B048] px-2 py-1 rounded bg-[#06C755]/10 hover:bg-[#06C755]/20 flex-shrink-0"
+                      >
+                        คัดลอก
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    หลังจากบันทึก จะได้ Webhook URL เพื่อนำไปวางใน LINE Console {'->'} Messaging API {'->'} Webhook URL
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="pt-6 flex gap-4">
             <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>

@@ -66,6 +66,24 @@ export class LineAccountsController {
     };
   }
 
+  @Get('my/templates')
+  @ApiOperation({ summary: 'Get all templates owned by current user' })
+  async getMyTemplates(@CurrentUser() user: AuthUser) {
+    const templates = await this.lineAccountsService.getTemplatesByOwner(user.userId);
+    return {
+      success: true,
+      templates: templates.map((t) => ({
+        _id: t._id,
+        name: t.name,
+        type: t.type,
+        isDefault: t.isDefault,
+        isGlobal: t.isGlobal,
+        description: t.description,
+        headerText: t.headerText,
+      })),
+    };
+  }
+
   @Get('statistics')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -117,7 +135,7 @@ export class LineAccountsController {
       return { success: false, message: 'Access denied' };
     }
 
-    const updated = await this.lineAccountsService.update(id, dto);
+    const updated = await this.lineAccountsService.update(id, dto, user.userId);
     return {
       success: true,
       message: 'อัปเดตบัญชีสำเร็จ',
@@ -214,6 +232,42 @@ export class LineAccountsController {
     return {
       success: true,
       messages,
+    };
+  }
+
+  @Post(':id/test-connection')
+  @ApiOperation({ summary: 'Test LINE channel connection' })
+  async testConnection(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const account = await this.lineAccountsService.findById(id);
+    if (!account) {
+      return { success: false, message: 'Account not found' };
+    }
+
+    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
+      return { success: false, message: 'Access denied' };
+    }
+
+    const result = await this.lineAccountsService.testConnection(account.accessToken);
+    return {
+      ...result,
+    };
+  }
+
+  @Post('test-connection')
+  @ApiOperation({ summary: 'Test LINE channel connection with access token' })
+  async testConnectionWithToken(
+    @Body() body: { accessToken: string },
+  ) {
+    if (!body.accessToken) {
+      return { success: false, message: 'Access token is required' };
+    }
+
+    const result = await this.lineAccountsService.testConnection(body.accessToken);
+    return {
+      ...result,
     };
   }
 }

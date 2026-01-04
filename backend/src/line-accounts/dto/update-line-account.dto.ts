@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsMongoId } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateLineAccountDto {
@@ -26,4 +26,9 @@ export class UpdateLineAccountDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'ID of slip template to use (null = system default)' })
+  @IsOptional()
+  @IsMongoId()
+  slipTemplateId?: string;
 }

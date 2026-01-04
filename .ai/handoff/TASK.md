@@ -1,94 +1,65 @@
-Master Task: System Overhaul - Logic Integration & UI Redesign
+ Task: Enable User Template Selection & Improve LINE Account Onboarding
+
 Context
-The system requires a comprehensive update to ensure seamless integration between features. Specifically, the Auto-Response System must intelligently handle various scenarios (Quota limits, Invalid slips, Template selection) without conflict. We also need to fix critical bugs and modernize the UI.
 
-🚩 Part 1: Critical Logic & Reliability (Priority: Highest)
-Core business logic must be robust and handle all edge cases.
+Currently, users cannot assign a specific "Slip Template" to their LINE accounts (the feature exists in the database but not in the UI). Additionally, users are confused when adding a new LINE account because there are no instructions on where to get the "Channel Token" or where to paste the "Webhook URL".🎯 Objectives
 
-1.1 Centralized Response Logic (The "Brain")
-Objective: The system must follow a strict Priority Waterfall when a user sends an image/slip. It must not verify the slip if the quota is already zero.
+1. Fix: User Template Selection (Frontend & Backend)
 
-Required Flow:
+The Problem: Users can create templates, but they cannot "Apply" them to a specific LINE Account.
 
-Check Subscription/Quota:
 
-IF Quota <= 0 OR Subscription == Expired:
 
-ACTION: Stop processing immediately.
+Requirement (Frontend):
 
-REPLY: Send the "Quota Exceeded" system template.
+In the "Add/Edit LINE Account" Modal, add a new field: "Slip Template" (Dropdown).
 
-DO NOT call the external Bank API (save costs).
+Dropdown Logic:
 
-Verify Slip (External API):
+Option 1 (Default): "Use System Default" (Value: null).
 
-IF Slip == Invalid OR Not Found:
+Other Options: Fetch and list all Active templates created by this user.
 
-ACTION: Stop processing.
+Preview: If possible, show a small text preview of the selected template below the dropdown.
 
-REPLY: Send the "Slip Not Found / Invalid" system template.
+Requirement (Backend):
 
-Success Processing:
+Ensure the CreateLineAccountDto and UpdateLineAccountDto accept an optional template_id.
 
-IF Slip == Valid:
+Validate that the template_id actually belongs to the user (security check).
 
-ACTION: Deduct Quota (-1).
+2. UX Improvement: LINE Account Setup Guide
 
-REPLY: Determine which template to use (User's Custom Template VS System Default) based on the logic defined in previous tasks.
+The Problem: Users don't know where to find "Channel Access Token" or what to do with the Webhook URL.
 
-1.2 System Template Management
-Requirement: Admin must be able to configure specific messages for these error states in Admin > System Responses:
 
-TEMPLATE_QUOTA_EXCEEDED (e.g., "แพ็กเกจของคุณหมด กรุณาเติมเงิน...")
 
-TEMPLATE_SLIP_INVALID (e.g., "ไม่พบข้อมูลสลิป หรือสลิปซ้ำ...")
+Requirement: Enhance the "Add LINE Account" form with Helper Text and Links:
 
-TEMPLATE_SYSTEM_ERROR (Fallback when server crashes).
+Step 1: Get Credentials:
 
-1.3 Fix API & Dashboard Logic
-Date Bug: Fix Dashboard logic where expired dates show "0 days left" incorrectly.
+Add a link: "Go to LINE Developers Console to get your Channel Secret & Access Token."
 
-Connection Test: Add a "Test Connection" button in Settings to verify API Keys and Webhooks instantly.
+Add a small tooltip/icon next to the inputs explaining where to look.
 
-🎨 Part 2: UI/UX & Terminology Overhaul (Priority: Medium)
-Make the system user-friendly and professional.
+Step 2: Webhook Setup (Crucial):
 
-2.1 Remove "Sci-Fi" Jargon
-Replace all technical terms with business terms:
+Display the Webhook URL: The system must generate and display the callback URL that the user needs (e.g., https://your-domain.com/api/line-webhook/{line_account_id}).
 
-"Neural Flex" ➡️ "System Status"
+Note: Since the ID might not exist yet during creation, display the base URL and instruct them: "After saving, copy the Webhook URL from the list and paste it into LINE Console."
 
-"Signal Cipher" ➡️ "API Health"
+Instruction Text: "Copy this URL -> Paste in LINE Console -> Enable Webhook."
 
-"Matrix Connectivity" ➡️ "Connection"
+3. Validation & Feedback
 
-2.2 UI Improvements
-Settings: Move "Branding/Color Picker" to the top.
-
-Loading States: Add Spinners/Skeletons to all async data tables (Chats, Payments).
-
-Feedback: Implement Global Toast Notifications (Success/Error) for every action.
-
-✨ Part 3: Missing Features & Enhancements (Priority: Low)
-Fill the functional gaps.
-
-3.1 Advanced Auto-Response Features
-Live Preview: When editing templates, show a "Phone Mockup" side-by-side that updates in real-time.
-
-Fallback Mechanism: If a user's selected template is deleted, the system MUST automatically fallback to the System Default template without crashing.
-
-3.2 Payment & Package Management
-Bulk Actions: Allow selecting multiple slips to "Approve" at once.
-
-Comparison: Add a comparison table for Packages.
-
-Slip Modal: Click on a slip thumbnail to view the full image in a popup.
+Test Connection: Implement the logic for the "Test Connection" button (if not already working) to verify the token is valid before saving.
 
 ✅ Acceptance Criteria
-Flow Test: Sending a slip with 0 Quota triggers the "Quota Message" immediately (no API call to bank).
 
-Error Test: Sending a fake/invalid slip triggers the "Invalid Slip Message".
+Template Selection: I can open the "Edit LINE Account" modal, select one of my custom templates, save it, and when I re-open the modal, that template is still selected.
 
-Integration: Deleting a user's active template causes the system to switch to the Default template automatically on the next message.
+Database: The line_accounts table correctly updates the template_id column.
 
-UI: No console errors, and all "Sci-Fi" text is removed.
+Guidance: The "Add Account" form clearly shows a link to LINE Developers.
+
+Webhook: The user can easily copy the correct Webhook URL from the dashboard to paste into LINE.

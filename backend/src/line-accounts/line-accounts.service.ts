@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import axios, { AxiosError } from 'axios';
 import { randomUUID } from 'crypto';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { ChatMessage, ChatMessageDocument, MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
+import { SlipTemplate, SlipTemplateDocument } from '../database/schemas/slip-template.schema';
 import { CreateLineAccountDto } from './dto/create-line-account.dto';
 import { UpdateLineAccountDto } from './dto/update-line-account.dto';
 import { RedisService } from '../redis/redis.service';
@@ -16,6 +17,7 @@ export class LineAccountsService {
   constructor(
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
+    @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
     private redisService: RedisService,
   ) {}
 
@@ -34,6 +36,41 @@ export class LineAccountsService {
     return randomUUID().replace(/-/g, '').substring(0, 12);
   }
 
+  /**
+   * Validate that a template belongs to the user (security check)
+   * Returns true if template belongs to user or is a global template
+   */
+  async validateTemplateOwnership(templateId: string, userId: string): Promise<boolean> {
+    if (!templateId || !this.isValidObjectId(templateId)) {
+      return false;
+    }
+
+    const template = await this.slipTemplateModel.findById(templateId).select({ ownerId: 1, isGlobal: 1 }).lean().exec();
+    if (!template) {
+      return false;
+    }
+
+    // Allow global templates to be used by anyone
+    if (template.isGlobal) {
+      return true;
+    }
+
+    // Check if template belongs to user
+    return template.ownerId?.toString() === userId;
+  }
+
+  /**
+   * Get all templates owned by a user (across all LINE accounts)
+   */
+  async getTemplatesByOwner(ownerId: string): Promise<SlipTemplateDocument[]> {
+    return this.slipTemplateModel.find({
+      $or: [
+        { ownerId: new Types.ObjectId(ownerId), isActive: true },
+        { isGlobal: true, isActive: true },
+      ],
+    }).sort({ isGlobal: 1, type: 1, name: 1 }).exec();
+  }
+
   async create(ownerId: string, dto: CreateLineAccountDto): Promise<LineAccountDocument> {
     // Check if channel ID already exists
     const existing = await this.lineAccountModel.findOne({ channelId: dto.channelId });
@@ -41,9 +78,17 @@ export class LineAccountsService {
       throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว');
     }
 
+    // Validate template ownership if provided
+    if (dto.slipTemplateId) {
+      const isValid = await this.validateTemplateOwnership(dto.slipTemplateId, ownerId);
+      if (!isValid) {
+        throw new ForbiddenException('เทมเพลตนี้ไม่ใช่ของคุณหรือไม่มีอยู่ในระบบ');
+      }
+    }
+
     // Generate unique webhook slug
     let webhookSlug = this.generateWebhookSlug();
-    
+
     // ตรวจสอบว่า slug ซ้ำหรือไม่ (แม้จะหายากมาก)
     let attempts = 0;
     while (await this.lineAccountModel.findOne({ webhookSlug })) {
@@ -54,11 +99,15 @@ export class LineAccountsService {
       }
     }
 
+    // Extract slipTemplateId from dto and put it in settings
+    const { slipTemplateId, ...restDto } = dto;
+
     const account = new this.lineAccountModel({
-      ...dto,
+      ...restDto,
       ownerId,
       webhookSlug,
       isActive: true,
+      settings: slipTemplateId ? { slipTemplateId } : {},
     });
 
     return account.save();
@@ -134,18 +183,36 @@ export class LineAccountsService {
     return updated;
   }
 
-  async update(id: string, dto: UpdateLineAccountDto): Promise<LineAccountDocument> {
+  async update(id: string, dto: UpdateLineAccountDto, ownerId?: string): Promise<LineAccountDocument> {
     const account = await this.lineAccountModel.findById(id);
     if (!account) {
       throw new NotFoundException('LINE account not found');
     }
 
-    Object.assign(account, dto);
+    // Validate template ownership if slipTemplateId is provided
+    if (dto.slipTemplateId !== undefined) {
+      const userIdToCheck = ownerId || account.ownerId;
+      if (dto.slipTemplateId) {
+        const isValid = await this.validateTemplateOwnership(dto.slipTemplateId, userIdToCheck);
+        if (!isValid) {
+          throw new ForbiddenException('เทมเพลตนี้ไม่ใช่ของคุณหรือไม่มีอยู่ในระบบ');
+        }
+        // Update settings.slipTemplateId
+        account.settings = { ...account.settings, slipTemplateId: dto.slipTemplateId };
+      } else {
+        // If null/empty is passed, clear the template selection
+        account.settings = { ...account.settings, slipTemplateId: '' };
+      }
+    }
+
+    // Remove slipTemplateId from dto before assigning (it's handled in settings)
+    const { slipTemplateId, ...restDto } = dto;
+    Object.assign(account, restDto);
     await account.save();
-    
+
     // Invalidate cache
     await this.redisService.invalidateCache(`line-account:${id}`);
-    
+
     return account;
   }
 
