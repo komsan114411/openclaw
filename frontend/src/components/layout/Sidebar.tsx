@@ -328,7 +328,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div>
             <h1 className="text-lg font-bold tracking-tight">LINE OA</h1>
             <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">
-              Management System
+              ระบบจัดการ
             </p>
           </div>
         </div>
@@ -345,11 +345,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Icon */}
           {isAdmin ? (
             <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.8 1.1 2.8 2.5V11c.6.3 1 .9 1 1.5v3c0 1-.8 1.5-1.5 1.5h-4.6c-.7 0-1.5-.5-1.5-1.5v-3c0-.6.4-1.2 1-1.5V9.5c0-1.4 1.4-2.5 2.8-2.5zm0 1.2c-.8 0-1.5.7-1.5 1.3v1.5h3V9.5c0-.6-.7-1.3-1.5-1.3z"/>
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.8 1.1 2.8 2.5V11c.6.3 1 .9 1 1.5v3c0 1-.8 1.5-1.5 1.5h-4.6c-.7 0-1.5-.5-1.5-1.5v-3c0-.6.4-1.2 1-1.5V9.5c0-1.4 1.4-2.5 2.8-2.5zm0 1.2c-.8 0-1.5.7-1.5 1.3v1.5h3V9.5c0-.6-.7-1.3-1.5-1.3z" />
             </svg>
           ) : (
             <svg className="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
           )}
           {/* Badge Text */}
@@ -357,7 +357,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             "text-xs font-black tracking-[0.15em] uppercase",
             isAdmin ? "text-amber-400" : "text-emerald-400"
           )}>
-            {isAdmin ? 'ADMIN CONSOLE' : 'MEMBER ZONE'}
+            {isAdmin ? 'คอนโซลผู้ดูแล' : 'โซนสมาชิก'}
           </span>
           {/* Animated dot indicator */}
           <div className={clsx(

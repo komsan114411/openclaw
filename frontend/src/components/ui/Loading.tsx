@@ -80,7 +80,7 @@ export function LoadingOverlay({
         </div>
         <div className="flex flex-col items-center gap-1">
           <p className="text-slate-900 font-bold text-xl tracking-tight">{message}</p>
-          <p className="text-slate-400 text-sm font-medium animate-pulse uppercase tracking-widest">Please Wait</p>
+          <p className="text-slate-400 text-sm font-medium animate-pulse uppercase tracking-widest">กรุณารอสักครู่</p>
         </div>
       </div>
     </div>
@@ -161,7 +161,7 @@ export function PageLoading({ message = 'กำลังโหลดข้อม
       </div>
       <div className="flex flex-col items-center gap-2">
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{message}</h2>
-        <p className="text-slate-400 font-medium uppercase tracking-[0.2em] text-xs">Initializing Secure Environment</p>
+        <p className="text-slate-400 font-medium uppercase tracking-[0.2em] text-xs">กำลังเตรียมระบบ</p>
       </div>
     </div>
   );

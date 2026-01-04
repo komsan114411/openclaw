@@ -121,7 +121,7 @@ export default function ChangePasswordPage() {
               size="lg"
               className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-orange-500/20 shadow-2xl hover:scale-[1.02] transition-transform bg-gradient-to-r from-amber-500 to-orange-600 border-none mt-4"
               isLoading={isSubmitting}
-              loadingText="UPDATING CREDENTIALS..."
+              loadingText="กำลังอัพเดทรหัสผ่าน..."
             >
               เปลี่ยนรหัสผ่าน
             </Button>

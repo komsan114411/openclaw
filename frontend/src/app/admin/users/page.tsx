@@ -269,7 +269,7 @@ export default function UsersPage() {
                           </div>
                         </td>
                         <p className="font-mono text-xs font-black text-slate-500 lowercase mb-1">{user.email || 'no-email@system.com'}</p>
-                        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Matrix Connectivity: Optimized</p>
+                        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">การเชื่อมต่อระบบ: สมบูรณ์</p>
                         <td className="px-10 py-8">
                           <Badge
                             variant={user.role === 'admin' ? 'purple' : 'emerald'}
@@ -283,12 +283,12 @@ export default function UsersPage() {
                             <div className="flex items-center gap-2.5">
                               <div className={cn("w-2 h-2 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]", user.isActive ? "bg-emerald-500 animate-pulse" : "bg-white/10")} />
                               <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", user.isActive ? "text-emerald-400" : "text-white/20")}>
-                                {user.isActive ? 'Network Active' : 'System Offline'}
+                                {user.isActive ? 'ออนไลน์' : 'ออฟไลน์'}
                               </span>
                             </div>
                             {user.isBlocked && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/10">Blacklisted</span>
+                                <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/10">ถูกระงับ</span>
                               </div>
                             )}
                           </div>
@@ -350,7 +350,7 @@ export default function UsersPage() {
             ) : users.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center opacity-30 py-20">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl mb-4">👥</div>
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white">No Users Found</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white">ไม่พบผู้ใช้</p>
               </div>
             ) : (
               users.map((user) => (
@@ -364,7 +364,7 @@ export default function UsersPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-black text-white truncate uppercase tracking-tight text-lg leading-none mb-1">{user.username}</h3>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate leading-none">{user.fullName || 'No Identified Name'}</p>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate leading-none">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                     </div>
                     <Badge
                       variant={user.role === 'admin' ? 'purple' : 'emerald'}
@@ -376,7 +376,7 @@ export default function UsersPage() {
 
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">System Connectivity</span>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">สถานะการเชื่อมต่อ</span>
                       <div className="flex items-center gap-2">
                         <div className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-white/10")} />
                         <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", user.isActive ? "text-emerald-400" : "text-slate-600")}>

@@ -238,7 +238,7 @@ export default function SettingsPage() {
             </p>
           </div>
           <Badge variant="emerald" className="px-4 py-1.5 font-semibold text-xs rounded-full mt-4 lg:mt-0">
-            Production
+            ปรอดักชัน
           </Badge>
         </div>
 
@@ -283,8 +283,8 @@ export default function SettingsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
                     <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🌐</div>
                     <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">External Interface</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">Public access points for core webhooks</p>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">URL ระบบ</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตั้งค่า URL หลักของระบบ</p>
                     </div>
                   </div>
 
@@ -296,7 +296,7 @@ export default function SettingsPage() {
                         value={publicBaseUrl}
                         onChange={(e) => setPublicBaseUrl(e.target.value)}
                         className="font-black text-emerald-400 h-14 rounded-2xl bg-white/[0.03] border-white/10"
-                        hint="Automated webhook endpoint derivation master."
+                        hint="URL สำหรับ Webhook"
                       />
                     </div>
                     <div className="flex items-end">
@@ -307,7 +307,7 @@ export default function SettingsPage() {
                         onClick={() => handleUpdate('base_url', { publicBaseUrl })}
                         isLoading={isSaving === 'base_url'}
                       >
-                        Commit URL
+                        บันทึก URL
                       </Button>
                     </div>
                   </div>
@@ -320,19 +320,19 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">⚡</div>
                         <div>
-                          <h2 className="text-lg font-black text-white uppercase tracking-tight">Thunder Verification</h2>
-                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">Slip Audit Engine</p>
+                          <h2 className="text-lg font-black text-white uppercase tracking-tight">Thunder API</h2>
+                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">ตรวจสอบสลิป</p>
                         </div>
                       </div>
                       <Badge variant={settings?.slipApiKeyPreview ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-                        {settings?.slipApiKeyPreview ? "Operational" : "Offline"}
+                        {settings?.slipApiKeyPreview ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
                       </Badge>
                     </div>
 
                     <div className="space-y-6">
                       <Input
                         type="password"
-                        label="New API Access Key"
+                        label="API Key ใหม่"
                         placeholder="••••••••••••••••"
                         value={slipApiKey}
                         onChange={(e) => setSlipApiKey(e.target.value)}
@@ -345,7 +345,7 @@ export default function SettingsPage() {
                           onClick={() => handleUpdate('slip_api', { slipApiKey })}
                           isLoading={isSaving === 'slip_api'}
                         >
-                          Commit Key
+                          บันทึก
                         </Button>
                         <Button
                           variant="ghost"
@@ -353,11 +353,11 @@ export default function SettingsPage() {
                           onClick={handleTestSlipApi}
                           isLoading={testingSlip}
                         >
-                          Diagnostic Test
+                          ทดสอบ
                         </Button>
                       </div>
                       <p className="text-[10px] text-slate-400 font-medium text-center italic">
-                        Access dashboard at <a href="https://thunder.in.th" target="_blank" className="text-indigo-500 font-black hover:underline">thunder.in.th</a>
+                        เข้าสู่หน้าตั้งค่าได้ที่ <a href="https://thunder.in.th" target="_blank" className="text-indigo-500 font-black hover:underline">thunder.in.th</a>
                       </p>
                     </div>
                   </Card>
@@ -368,12 +368,12 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">🤖</div>
                         <div>
-                          <h2 className="text-lg font-black text-white uppercase tracking-tight">Cognitive Services</h2>
-                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">OpenAI Integration</p>
+                          <h2 className="text-lg font-black text-white uppercase tracking-tight">AI ตอบกลับ</h2>
+                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">ระบบ AI ตอบกลับ</p>
                         </div>
                       </div>
                       <Badge variant={settings?.aiApiKeyPreview ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-                        {settings?.aiApiKeyPreview ? "Linked" : "Disconnected"}
+                        {settings?.aiApiKeyPreview ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
                       </Badge>
                     </div>
 
@@ -381,7 +381,7 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-1 gap-4">
                         <Input
                           type="password"
-                          label="OpenAI Private Key"
+                          label="OpenAI API Key"
                           placeholder="sk-••••••••••••••••"
                           value={aiApiKey}
                           onChange={(e) => setAiApiKey(e.target.value)}
@@ -395,7 +395,7 @@ export default function SettingsPage() {
                           onClick={() => handleUpdate('ai_api', { aiApiKey })}
                           isLoading={isSaving === 'ai_api'}
                         >
-                          Synchronize
+                          บันทึก
                         </Button>
                         <Button
                           variant="ghost"
@@ -403,7 +403,7 @@ export default function SettingsPage() {
                           onClick={handleTestAiApi}
                           isLoading={testingAi}
                         >
-                          Verify Logic
+                          ทดสอบ
                         </Button>
                       </div>
                     </div>
@@ -422,41 +422,41 @@ export default function SettingsPage() {
               >
                 {/* Communication Policy Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                  <StatCard title="Auto-Retries" value={messageSettings.maxRetryAttempts} icon="🔄" color="blue" variant="glass" />
-                  <StatCard title="Retry Delay" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="indigo" variant="glass" />
-                  <StatCard title="Threshold Alert" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
+                  <StatCard title="จำนวนลองซ้ำ" value={messageSettings.maxRetryAttempts} icon="🔄" color="blue" variant="glass" />
+                  <StatCard title="ระยะห่างลอง" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="indigo" variant="glass" />
+                  <StatCard title="เกณฑ์แจ้งเตือน" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Quota & Operational Messages */}
+                  {/* Quota & เชื่อมต่อแล้ว Messages */}
                   <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] space-y-8">
                     <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">Resource Thresholds</h3>
-                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Messages triggered by resource exhaustion</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">การจัดการโควต้า</h3>
+                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ข้อความเมื่อโควต้าหมดหรือเหลือน้อย</p>
                     </div>
 
                     <div className="space-y-6">
                       <TextArea
-                        label="Quota Depleted Message"
+                        label="ข้อความเมื่อโควต้าหมด"
                         value={messageSettings.quotaExceededMessage}
                         onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededMessage: e.target.value })}
                         rows={2}
                         className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                       />
                       <Select
-                        label="Depletion Response Protocol"
+                        label="รูปแบบการตอบกลับ"
                         value={messageSettings.quotaExceededResponseType}
                         onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value as any })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
                       >
-                        <option value="text">Standard Plaintext</option>
-                        <option value="flex">Rich Flex Interface</option>
+                        <option value="text">ข้อความธรรมดา</option>
+                        <option value="flex">Flex Message</option>
                       </Select>
 
                       <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-white uppercase tracking-tight text-xs">Critical Resource Alert</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Enforce preemptive warnings</p>
+                          <p className="font-bold text-white uppercase tracking-tight text-xs">แจ้งเตือนโควต้าเหลือน้อย</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">เปิดใช้การแจ้งเตือนล่วงหน้า</p>
                         </div>
                         <Switch
                           checked={messageSettings.quotaWarningEnabled}
@@ -472,16 +472,16 @@ export default function SettingsPage() {
                         >
                           <Input
                             type="number"
-                            label="Warning Threshold (Transaction Unit)"
+                            label="เกณฑ์แจ้งเตือน (จำนวนสลิป)"
                             value={messageSettings.quotaWarningThreshold}
                             onChange={(e) => setMessageSettings({ ...messageSettings, quotaWarningThreshold: parseInt(e.target.value) || 10 })}
                             className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
                           />
                           <TextArea
-                            label="Warning Template"
+                            label="ข้อความแจ้งเตือน"
                             value={messageSettings.quotaLowWarningMessage}
                             onChange={(e) => setMessageSettings({ ...messageSettings, quotaLowWarningMessage: e.target.value })}
-                            hint="Use {threshold} or {remaining} as variables."
+                            hint="ใช้ {threshold} หรือ {remaining} เป็นตัวแปร"
                             className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                           />
                         </motion.div>
@@ -492,14 +492,14 @@ export default function SettingsPage() {
                   {/* Slip Verification Logic */}
                   <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] space-y-8">
                     <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">Audit Responses</h3>
-                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Real-time telemetry feedback</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">การตอบกลับสลิป</h3>
+                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ข้อความตอบกลับในสถานการณ์ต่างๆ</p>
                     </div>
 
                     <div className="space-y-6">
                       <div className="p-6 bg-emerald-500/5 rounded-3xl border border-emerald-500/10 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-white uppercase tracking-tight text-xs">Initialization Feedback</p>
+                          <p className="font-bold text-white uppercase tracking-tight text-xs">แสดงข้อความกำลังตรวจสอบ</p>
                           <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">&quot;กำลังตรวจสอบสลิป...&quot;</p>
                         </div>
                         <Switch
@@ -509,7 +509,7 @@ export default function SettingsPage() {
                       </div>
 
                       <Input
-                        label="Audit In-Progress"
+                        label="ข้อความกำลังตรวจสอบ"
                         value={messageSettings.slipProcessingMessage}
                         onChange={(e) => setMessageSettings({ ...messageSettings, slipProcessingMessage: e.target.value })}
                         disabled={!messageSettings.showSlipProcessingMessage}
@@ -518,14 +518,14 @@ export default function SettingsPage() {
 
                       <div className="grid grid-cols-1 gap-6 pt-6 border-t border-white/5">
                         <TextArea
-                          label="Redundancy Detected (Duplicate Slip)"
+                          label="สลิปซ้ำ"
                           value={messageSettings.duplicateSlipMessage}
                           onChange={(e) => setMessageSettings({ ...messageSettings, duplicateSlipMessage: e.target.value })}
                           rows={2}
                           className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
                         />
                         <div className="flex items-center justify-between px-2">
-                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Refund internal quota on redundancy?</p>
+                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">คืนโควต้าเมื่อสลิปซ้ำ?</p>
                           <Switch
                             checked={messageSettings.duplicateRefundEnabled}
                             onChange={() => setMessageSettings({ ...messageSettings, duplicateRefundEnabled: !messageSettings.duplicateRefundEnabled })}
@@ -534,7 +534,7 @@ export default function SettingsPage() {
                       </div>
 
                       <TextArea
-                        label="General Audit Failure"
+                        label="ข้อผิดพลาดตรวจสอบสลิป"
                         value={messageSettings.slipErrorMessage}
                         onChange={(e) => setMessageSettings({ ...messageSettings, slipErrorMessage: e.target.value })}
                         rows={2}
@@ -543,31 +543,31 @@ export default function SettingsPage() {
                     </div>
                   </Card>
 
-                  {/* Operational Status (Switches) */}
+                  {/* เชื่อมต่อแล้ว Status (Switches) */}
                   <Card className="lg:col-span-2 p-10 bg-slate-900 border border-white/5 shadow-2xl rounded-[3rem]">
                     <div className="flex items-center gap-6 mb-10">
                       <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner">⚡</div>
                       <div>
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">Protocol Resilience</h2>
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Retry logic and operational safety margins</p>
+                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">การลองใหม่อัตโนมัติ</h2>
+                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ตั้งค่าการลองใหม่เมื่อเกิดข้อผิดพลาด</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
                       <div className="md:col-span-2 space-y-8">
                         <div className="p-6 bg-white/5 rounded-3xl space-y-4">
-                          <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">Retry Architecture</p>
+                          <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">ตั้งค่าการลองใหม่</p>
                           <div className="grid grid-cols-2 gap-6">
                             <Input
                               type="number"
-                              label="Max Attempts"
+                              label="จำนวนครั้งสูงสุด"
                               value={messageSettings.maxRetryAttempts}
                               onChange={(e) => setMessageSettings({ ...messageSettings, maxRetryAttempts: parseInt(e.target.value) || 3 })}
                               className="bg-white/5 border-white/10 text-white"
                             />
                             <Input
                               type="number"
-                              label="Delay (ms)"
+                              label="หน่วงเวลา (ms)"
                               value={messageSettings.retryDelayMs}
                               onChange={(e) => setMessageSettings({ ...messageSettings, retryDelayMs: parseInt(e.target.value) || 1000 })}
                               className="bg-white/5 border-white/10 text-white"
@@ -578,12 +578,12 @@ export default function SettingsPage() {
 
                       <div className="md:col-span-2 flex flex-col justify-between pt-2">
                         <div className="space-y-4">
-                          <p className="text-xs font-black text-rose-400 uppercase tracking-[0.2em]">Automatic Notification Policies</p>
+                          <p className="text-xs font-black text-rose-400 uppercase tracking-[0.2em]">การแจ้งเตือนอัตโนมัติ</p>
                           <div className="space-y-3">
                             {[
-                              { label: "Bot Outage Notification", key: "botDisabledSendMessage", msg: "botDisabledMessage" },
-                              { label: "Verification Outage Alert", key: "slipDisabledSendMessage", msg: "slipDisabledMessage" },
-                              { label: "AI Services Interruption", key: "aiDisabledSendMessage", msg: "aiDisabledMessage" }
+                              { label: "บอทปิดให้บริการ", key: "botDisabledSendMessage", msg: "botDisabledMessage" },
+                              { label: "ตรวจสอบสลิปปิดให้บริการ", key: "slipDisabledSendMessage", msg: "slipDisabledMessage" },
+                              { label: "AI ตอบกลับปิดให้บริการ", key: "aiDisabledSendMessage", msg: "aiDisabledMessage" }
                             ].map((item) => (
                               <div key={item.key} className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
                                 <div className="flex items-center justify-between">
@@ -617,7 +617,7 @@ export default function SettingsPage() {
                         onClick={() => handleUpdate('messages', messageSettings)}
                         isLoading={isSaving === 'messages'}
                       >
-                        Commit Deployment Config
+                        บันทึกการตั้งค่า
                       </Button>
                     </div>
                   </Card>
@@ -640,8 +640,8 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl">🏦</div>
                         <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight text-white">Fiat Gateways</h2>
-                          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Traditional settlement endpoints</p>
+                          <h2 className="text-2xl font-black uppercase tracking-tight text-white">บัญชีธนาคาร</h2>
+                          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">บัญชีสำหรับรับชำระเงิน</p>
                         </div>
                       </div>
                       <IconButton
@@ -694,7 +694,7 @@ export default function SettingsPage() {
                         ))
                       ) : (
                         <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[2.5rem]">
-                          <p className="text-slate-700 font-black uppercase tracking-widest text-[10px]">No Fiat Gateways Active</p>
+                          <p className="text-slate-700 font-black uppercase tracking-widest text-[10px]">ยังไม่มีบัญชีธนาคาร</p>
                         </div>
                       )}
                     </div>
@@ -706,8 +706,8 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner shadow-emerald-400/5">💎</div>
                         <div>
-                          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Digital Assets</h2>
-                          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">Cryptographic settlement nodes</p>
+                          <h2 className="text-2xl font-black text-white uppercase tracking-tight">USDT</h2>
+                          <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">กระเป๋าเงินคริปโต</p>
                         </div>
                       </div>
                       <Switch
@@ -718,7 +718,7 @@ export default function SettingsPage() {
 
                     <div className="space-y-8">
                       <Select
-                        label="Blockchain Protocol"
+                        label="เครือข่าย"
                         value={usdtSettings.usdtNetwork}
                         onChange={(e) => setUsdtSettings({ ...usdtSettings, usdtNetwork: e.target.value })}
                         className="bg-white/5 border-white/10 text-white"
@@ -729,7 +729,7 @@ export default function SettingsPage() {
                       </Select>
 
                       <Input
-                        label="Public Wallet Key"
+                        label="ที่อยู่กระเป๋า"
                         variant="glass"
                         value={usdtSettings.usdtWalletAddress}
                         onChange={(e) => setUsdtSettings({ ...usdtSettings, usdtWalletAddress: e.target.value })}
@@ -746,7 +746,7 @@ export default function SettingsPage() {
                           onClick={() => handleUpdate('usdt', usdtSettings)}
                           isLoading={isSaving === 'usdt'}
                         >
-                          Configure Crypto Node
+                          บันทึกการตั้งค่า USDT
                         </Button>
                       </div>
                     </div>
@@ -756,16 +756,16 @@ export default function SettingsPage() {
                 {/* System Contacts */}
                 <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] border border-white/5">
                   <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-10 text-center">
-                    <span className="px-4">Internal Support Metadata</span>
+                    <span className="px-4">ช่องทางติดต่อ</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     <div className="space-y-1 text-center md:text-left">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">ADMIN LINE COORDINATES</p>
-                      <p className="text-3xl font-black text-emerald-400">@{settings?.contactAdminLine || 'UNDEFINED'}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">LINE แอดมิน</p>
+                      <p className="text-3xl font-black text-emerald-400">@{settings?.contactAdminLine || 'ไม่ระบุ'}</p>
                     </div>
                     <div className="space-y-1 text-center md:text-right">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">PRIMARY CONTACT CHANNEL</p>
-                      <p className="text-xl sm:text-2xl font-black text-white font-mono uppercase tracking-tight">{settings?.contactAdminEmail || 'NO_VECTOR_FOUND'}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">อีเมลติดต่อ</p>
+                      <p className="text-xl sm:text-2xl font-black text-white font-mono uppercase tracking-tight">{settings?.contactAdminEmail || 'ไม่ระบุ'}</p>
                     </div>
                   </div>
                 </Card>

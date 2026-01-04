@@ -1,100 +1,94 @@
-🚩 Part 1: Critical Fixes & Stability (Priority: High)
-Must be fixed first to ensure system reliability.
+Master Task: System Overhaul - Logic Integration & UI Redesign
+Context
+The system requires a comprehensive update to ensure seamless integration between features. Specifically, the Auto-Response System must intelligently handle various scenarios (Quota limits, Invalid slips, Template selection) without conflict. We also need to fix critical bugs and modernize the UI.
 
-1.1 API & Dashboard Logic
-Date Calculation Bug: In Dashboard and Statistics components, expired dates (e.g., Jan 2, 2029) are showing as "0 days left" or incorrect values.
+🚩 Part 1: Critical Logic & Reliability (Priority: Highest)
+Core business logic must be robust and handle all edge cases.
 
-Fix: Refactor date logic to correctly calculate diffs. Past dates must show as "Expired" (Red badge).
+1.1 Centralized Response Logic (The "Brain")
+Objective: The system must follow a strict Priority Waterfall when a user sends an image/slip. It must not verify the slip if the quota is already zero.
 
-API Key Visibility: API Keys in Settings currently show as dots (....).
+Required Flow:
 
-Fix: Add a "Show/Hide" toggle button.
+Check Subscription/Quota:
 
-Fix: Add a "Test Connection" button to ping the API and verify validity immediately.
+IF Quota <= 0 OR Subscription == Expired:
 
-URL Validation: Add Regex validation for all URL inputs (must start with http:// or https://).
+ACTION: Stop processing immediately.
 
-1.2 Admin Chat System
-Bug: Messages fail to load or load inconsistently compared to the User chat.
+REPLY: Send the "Quota Exceeded" system template.
 
-Fix: Refactor frontend/src/app/admin/chat/page.tsx to match the stability of the User chat. Ensure useEffect fetches data reliably.
+DO NOT call the external Bank API (save costs).
 
-Empty State: Replace the plain empty state with a helpful prompt (e.g., "Select a user to view conversation").
+Verify Slip (External API):
 
-1.3 Global Error Handling
-Issue: Failed API calls result in silent failures or white screens.
+IF Slip == Invalid OR Not Found:
 
-Fix: Implement a Global Toast Notification system.
+ACTION: Stop processing.
 
-200 OK -> Green Success Toast.
+REPLY: Send the "Slip Not Found / Invalid" system template.
 
-400/500 Errors -> Red Error Toast with a clear message.
+Success Processing:
+
+IF Slip == Valid:
+
+ACTION: Deduct Quota (-1).
+
+REPLY: Determine which template to use (User's Custom Template VS System Default) based on the logic defined in previous tasks.
+
+1.2 System Template Management
+Requirement: Admin must be able to configure specific messages for these error states in Admin > System Responses:
+
+TEMPLATE_QUOTA_EXCEEDED (e.g., "แพ็กเกจของคุณหมด กรุณาเติมเงิน...")
+
+TEMPLATE_SLIP_INVALID (e.g., "ไม่พบข้อมูลสลิป หรือสลิปซ้ำ...")
+
+TEMPLATE_SYSTEM_ERROR (Fallback when server crashes).
+
+1.3 Fix API & Dashboard Logic
+Date Bug: Fix Dashboard logic where expired dates show "0 days left" incorrectly.
+
+Connection Test: Add a "Test Connection" button in Settings to verify API Keys and Webhooks instantly.
 
 🎨 Part 2: UI/UX & Terminology Overhaul (Priority: Medium)
-Simplify the interface and make it professional.
+Make the system user-friendly and professional.
 
 2.1 Remove "Sci-Fi" Jargon
-Requirement: Replace all technical/fantasy terms with standard SaaS terminology:
+Replace all technical terms with business terms:
 
-"Neural Flex" / "Signal Cipher" ➡️ "System Status" or "Service Health"
+"Neural Flex" ➡️ "System Status"
 
-"Matrix Connectivity" ➡️ "Connection Status"
+"Signal Cipher" ➡️ "API Health"
 
-"Deployment Format" ➡️ "Settings" or "Configuration"
+"Matrix Connectivity" ➡️ "Connection"
 
-Goal: The UI must be understandable by a non-technical admin.
+2.2 UI Improvements
+Settings: Move "Branding/Color Picker" to the top.
 
-2.2 Layout & Navigation Improvements
-Settings Page: Move the "Color Picker" / Branding section to the TOP of the page (currently at the bottom).
+Loading States: Add Spinners/Skeletons to all async data tables (Chats, Payments).
 
-User Management Table:
-
-Merge Columns: Combine "Name" and "Email" into a "User Profile" column to save space.
-
-Clean Actions: Replace the 4 separate buttons with a single "..." (Meatball Menu) Dropdown.
-
-Statistics Cards: Clarify labels (e.g., change "+3 Active" to "Active Users: 3").
-
-2.3 Visual Feedback
-Loading States: Add Spinners or Skeleton Loaders to:
-
-Chat message list.
-
-Payment verification tables.
-
-Dashboard stats.
+Feedback: Implement Global Toast Notifications (Success/Error) for every action.
 
 ✨ Part 3: Missing Features & Enhancements (Priority: Low)
-Add functionality to make the system usable.
+Fill the functional gaps.
 
-3.1 Payment & Slip Verification
-Bulk Actions: Add checkboxes to the Payment Table. Allow "Approve Selected" or "Reject Selected".
+3.1 Advanced Auto-Response Features
+Live Preview: When editing templates, show a "Phone Mockup" side-by-side that updates in real-time.
 
-Slip Preview: Add a thumbnail column. Clicking it opens a Modal to view the full slip image without leaving the page.
+Fallback Mechanism: If a user's selected template is deleted, the system MUST automatically fallback to the System Default template without crashing.
 
-Filters: Add Date Range and Amount filters to the table header.
+3.2 Payment & Package Management
+Bulk Actions: Allow selecting multiple slips to "Approve" at once.
 
-Status Renaming: Change "VERIFICATION" to "Pending Review" for clarity.
+Comparison: Add a comparison table for Packages.
 
-3.2 Package Management
-Comparison: Create a "Comparison Table" view to show package features side-by-side.
+Slip Modal: Click on a slip thumbnail to view the full image in a popup.
 
-Price Calculation: Fix the logic: Price / Quantity = Cost per slip. (Currently incorrect).
+✅ Acceptance Criteria
+Flow Test: Sending a slip with 0 Quota triggers the "Quota Message" immediately (no API call to bank).
 
-ROI Info: Add a section showing "Worthiness" or "Save %" to encourage upgrades.
+Error Test: Sending a fake/invalid slip triggers the "Invalid Slip Message".
 
-3.3 Auto-Response Templates
-Live Preview: Split the screen (Left: Edit Form, Right: Phone Mockup).
+Integration: Deleting a user's active template causes the system to switch to the Default template automatically on the next message.
 
-As the user types, the Phone Mockup must update in real-time to show exactly what the customer will see.
-
-✅ Acceptance Criteria (Definition of Done)
-Zero Console Errors: The browser console must be clean of red errors.
-
-No Sci-Fi Terms: All text is standard English/Thai business terms.
-
-Functional Critical Path: API Keys can be tested, Dates are correct, and Chat loads instantly.
-
-Bulk Operations: Admin can approve at least 5 slips at once using the new bulk action feature.
-
-Responsive Feedback: Every button click triggers a loading state or a toast notification.
+UI: No console errors, and all "Sci-Fi" text is removed.

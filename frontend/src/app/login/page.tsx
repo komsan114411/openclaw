@@ -65,14 +65,14 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight uppercase">LINE OA System</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight uppercase">ระบบ LINE OA</h1>
             <p className="text-slate-400 mt-3 font-bold text-sm tracking-wide">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <Input
               label="ชื่อผู้ใช้"
-              placeholder="ระบุ Username"
+              placeholder="ระบุชื่อผู้ใช้"
               {...register('username', { required: 'กรุณากรอกชื่อผู้ใช้' })}
               error={errors.username?.message}
               autoComplete="username"
@@ -94,7 +94,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="p-2 rounded-xl hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                 >
                   {showPassword ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

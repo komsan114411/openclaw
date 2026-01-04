@@ -54,7 +54,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden font-sans">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.1),transparent_55%),radial-gradient(circle_at_80%_60%,rgba(59,130,246,0.1),transparent_55%)]" />
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[120px] -z-10 pointer-events-none animate-pulse duration-[10s]" />
-      
+
       <div className="relative w-full max-w-md">
         <Card className="border-none shadow-2xl shadow-emerald-900/20 bg-white/10 backdrop-blur-2xl rounded-[3rem] p-8 md:p-10 border-white/10">
           <div className="text-center mb-10">
@@ -71,7 +71,7 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <Input
                 label="ชื่อผู้ใช้"
-                placeholder="ระบุ Username"
+                placeholder="ระบุชื่อผู้ใช้"
                 {...register('username', { required: 'กรุณากรอกชื่อผู้ใช้' })}
                 error={errors.username?.message}
                 autoComplete="username"
@@ -101,7 +101,7 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <Input
                 label="อีเมล (ไม่บังคับ)"
-                placeholder="name@example.com"
+                placeholder="อีเมลของคุณ"
                 type="email"
                 {...register('email')}
                 autoComplete="email"
@@ -134,7 +134,7 @@ export default function RegisterPage() {
               size="lg"
               className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl hover:scale-[1.02] transition-transform bg-gradient-to-r from-emerald-500 to-teal-600 border-none"
               isLoading={isSubmitting || isLoading}
-              loadingText="CREATING ACCOUNT..."
+              loadingText="กำลังสร้างบัญชี..."
             >
               ยืนยันการสมัคร
             </Button>

@@ -282,7 +282,7 @@ export default function UserLineAccountsPage() {
             </Link>
           </div>
         </div>
-        
+
         <div className="mb-4 sm:mb-6">
           <div className="relative">
             <input
@@ -295,7 +295,7 @@ export default function UserLineAccountsPage() {
             </svg>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
           <Card variant="glass" className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
@@ -330,7 +330,7 @@ export default function UserLineAccountsPage() {
             </div>
           </Card>
         </div>
-        
+
 
         <div className="grid gap-6 md:gap-10">
           {isLoading ? (
@@ -566,7 +566,7 @@ export default function UserLineAccountsPage() {
                 <Textarea
                   value={settingsData.aiSystemPrompt}
                   onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
-                  placeholder="Define behavior, tone, and operational boundaries..."
+                  placeholder="ระบุคำสั่งและพฤติกรรมของ AI..."
                   className="bg-slate-950/50 border-white/10 text-white min-h-[140px] rounded-[1.5rem] text-sm p-6"
                 />
               </div>
