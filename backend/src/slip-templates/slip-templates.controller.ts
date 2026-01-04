@@ -65,6 +65,29 @@ export class AdminSlipTemplatesController {
   }
 
   /**
+   * Check template usage before delete (Admin only)
+   */
+  @Get('global/:templateId/usage')
+  @Roles(UserRole.ADMIN)
+  async checkGlobalTemplateUsage(@Param('templateId') templateId: string) {
+    const usage = await this.slipTemplatesService.checkTemplateUsage(templateId);
+    return { success: true, ...usage };
+  }
+
+  /**
+   * Safe delete a global template (Admin only)
+   */
+  @Delete('global/:templateId/safe-delete')
+  @Roles(UserRole.ADMIN)
+  async safeDeleteGlobalTemplate(
+    @Param('templateId') templateId: string,
+    @Body() body: { confirmationText?: string },
+  ) {
+    const result = await this.slipTemplatesService.safeDelete(templateId, body.confirmationText);
+    return { ...result, message: 'Template deleted' };
+  }
+
+  /**
    * Delete a global template (Admin only)
    */
   @Delete('global/:templateId')
@@ -180,6 +203,35 @@ export class SlipTemplatesController {
     await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const template = await this.slipTemplatesService.update(templateId, body);
     return { success: true, template };
+  }
+
+  /**
+   * Check template usage before delete
+   */
+  @Get(':accountId/slip-templates/:templateId/usage')
+  async checkTemplateUsage(
+    @Param('accountId') accountId: string,
+    @Param('templateId') templateId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
+    const usage = await this.slipTemplatesService.checkTemplateUsage(templateId);
+    return { success: true, ...usage };
+  }
+
+  /**
+   * Safe delete template with confirmation
+   */
+  @Delete(':accountId/slip-templates/:templateId/safe-delete')
+  async safeDeleteTemplate(
+    @Param('accountId') accountId: string,
+    @Param('templateId') templateId: string,
+    @Body() body: { confirmationText?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
+    const result = await this.slipTemplatesService.safeDelete(templateId, body.confirmationText);
+    return { ...result, message: 'Template deleted' };
   }
 
   /**

@@ -214,6 +214,13 @@ export const slipTemplatesApi = {
     api.get(`/user/line-accounts/${accountId}/slip-templates/${templateId}/preview`),
   initDefaults: (accountId: string) =>
     api.post(`/user/line-accounts/${accountId}/slip-templates/init-defaults`),
+  // Safe delete with usage check
+  checkUsage: (accountId: string, templateId: string) =>
+    api.get(`/user/line-accounts/${accountId}/slip-templates/${templateId}/usage`),
+  safeDelete: (accountId: string, templateId: string, confirmationText?: string) =>
+    api.delete(`/user/line-accounts/${accountId}/slip-templates/${templateId}/safe-delete`, {
+      data: { confirmationText },
+    }),
 };
 
 // Thunder API (Slip Verification Service)
