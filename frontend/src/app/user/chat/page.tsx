@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { chatMessagesApi } from '@/lib/api';
+import { chatMessagesApi, lineAccountsApi } from '@/lib/api';
+import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { Card, EmptyState } from '@/components/ui/Card';
@@ -35,7 +36,12 @@ interface ChatMessage {
 function UserChatContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const accountId = searchParams.get('accountId') || '';
+  const accountIdFromUrl = searchParams.get('accountId') || '';
+
+  // Smart Account Selector state
+  const [allAccounts, setAllAccounts] = useState<LineAccount[]>([]);
+  const [activeAccountId, setActiveAccountId] = useState<string>(accountIdFromUrl);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
 
   const [users, setUsers] = useState<ChatUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
@@ -49,9 +55,47 @@ function UserChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
+  // Fetch all LINE accounts on mount
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      setLoadingAccounts(true);
+      try {
+        const res = await lineAccountsApi.getMyAccounts();
+        const accounts = res.data?.accounts || res.data || [];
+        setAllAccounts(accounts);
+
+        // Auto-select first account if no accountId in URL
+        if (!accountIdFromUrl && accounts.length > 0) {
+          const firstAccountId = accounts[0]._id;
+          setActiveAccountId(firstAccountId);
+          // Update URL silently
+          router.replace(`/user/chat?accountId=${firstAccountId}`);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch LINE accounts:', err);
+        toast.error('ไม่สามารถโหลดรายชื่อบัญชี LINE ได้');
+      } finally {
+        setLoadingAccounts(false);
+      }
+    };
+    fetchAccounts();
+  }, [accountIdFromUrl, router]);
+
+  // Handle account switch
+  const handleAccountSwitch = (newAccountId: string) => {
+    setActiveAccountId(newAccountId);
+    setSelectedUser(null);
+    setMessages([]);
+    setUsers([]);
+    router.replace(`/user/chat?accountId=${newAccountId}`);
+  };
+
+  // Get active account object
+  const activeAccount = allAccounts.find(acc => acc._id === activeAccountId);
+
   // Real-time socket connection
   useEffect(() => {
-    if (!accountId) return;
+    if (!activeAccountId) return;
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const socket = io(`${backendUrl}/ws`, {
@@ -64,12 +108,12 @@ function UserChatContent() {
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
       // Subscribe to this LINE account's chat room
-      socket.emit('subscribe_chat', { lineAccountId: accountId });
+      socket.emit('subscribe_chat', { lineAccountId: activeAccountId });
     });
 
     socket.on('message_received', (data: any) => {
       // Only process messages for the current selected user
-      if (data.lineAccountId === accountId) {
+      if (data.lineAccountId === activeAccountId) {
         setMessages((prev) => {
           // Prevent duplicates by checking _id or messageId
           const exists = prev.some(
@@ -97,20 +141,20 @@ function UserChatContent() {
     });
 
     return () => {
-      socket.emit('unsubscribe_chat', { lineAccountId: accountId });
+      socket.emit('unsubscribe_chat', { lineAccountId: activeAccountId });
       socket.disconnect();
     };
-  }, [accountId]);
+  }, [activeAccountId]);
 
   const fetchUsers = useCallback(async () => {
-    if (!accountId) {
+    if (!activeAccountId) {
       setUsers([]);
       setLoadingUsers(false);
       return;
     }
     setLoadingUsers(true);
     try {
-      const res = await chatMessagesApi.getUsers(accountId);
+      const res = await chatMessagesApi.getUsers(activeAccountId);
       if (res.data?.success) {
         setUsers(res.data.users || []);
       } else {
@@ -121,13 +165,13 @@ function UserChatContent() {
     } finally {
       setLoadingUsers(false);
     }
-  }, [accountId]);
+  }, [activeAccountId]);
 
   const fetchMessages = useCallback(async (userId: string) => {
-    if (!accountId) return;
+    if (!activeAccountId) return;
     setLoadingMessages(true);
     try {
-      const res = await chatMessagesApi.getMessages(accountId, userId);
+      const res = await chatMessagesApi.getMessages(activeAccountId, userId);
       if (res.data?.success) {
         setMessages(res.data.messages || []);
       } else {
@@ -138,7 +182,7 @@ function UserChatContent() {
     } finally {
       setLoadingMessages(false);
     }
-  }, [accountId]);
+  }, [activeAccountId]);
 
   useEffect(() => {
     fetchUsers();
@@ -157,10 +201,10 @@ function UserChatContent() {
   }, [messages, loadingMessages]);
 
   const handleSendMessage = async () => {
-    if (!accountId || !selectedUser || !newMessage.trim() || sending) return;
+    if (!activeAccountId || !selectedUser || !newMessage.trim() || sending) return;
     setSending(true);
     try {
-      const res = await chatMessagesApi.sendMessage(accountId, selectedUser.lineUserId, newMessage.trim());
+      const res = await chatMessagesApi.sendMessage(activeAccountId, selectedUser.lineUserId, newMessage.trim());
       if (res.data?.success) {
         setNewMessage('');
         await fetchMessages(selectedUser.lineUserId);
@@ -184,16 +228,26 @@ function UserChatContent() {
     return hay.includes(searchTerm.toLowerCase());
   });
 
-  if (!accountId) {
+  // Loading state while fetching accounts
+  if (loadingAccounts) {
+    return (
+      <DashboardLayout>
+        <PageLoading message="กำลังโหลดบัญชี LINE..." />
+      </DashboardLayout>
+    );
+  }
+
+  // No accounts found
+  if (!loadingAccounts && allAccounts.length === 0) {
     return (
       <DashboardLayout>
         <EmptyState
           icon="💬"
-          title="ไม่พบ Account ID"
-          description="กรุณาเลือกบัญชี LINE จากหน้า LINE Accounts ก่อน"
+          title="ยังไม่มีบัญชี LINE"
+          description="กรุณาเพิ่มบัญชี LINE OA ก่อนเพื่อเริ่มใช้งานแชท"
           action={
             <Button variant="primary" onClick={() => router.push('/user/line-accounts')}>
-              ไปหน้า LINE Accounts
+              เพิ่มบัญชี LINE
             </Button>
           }
         />
@@ -221,6 +275,82 @@ function UserChatContent() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 min-h-0">
+          {/* Col 1: Account Switcher (Desktop) */}
+          <div className="hidden lg:block lg:col-span-2">
+            <Card className="p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl h-full" variant="glass">
+              <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">บัญชี LINE ({allAccounts.length})</p>
+              </div>
+              <div className="p-2 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
+                {allAccounts.map((acc) => {
+                  const isActive = acc._id === activeAccountId;
+                  return (
+                    <button
+                      key={acc._id}
+                      onClick={() => handleAccountSwitch(acc._id)}
+                      className={cn(
+                        'w-full p-3 rounded-xl transition-all duration-300 border text-left',
+                        isActive
+                          ? 'bg-[#06C755]/10 border-[#06C755]/30 shadow-[#06C755]/10'
+                          : 'bg-white/[0.01] hover:bg-white/[0.03] border-white/5'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          'w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all',
+                          isActive ? 'bg-[#06C755]/20' : 'bg-white/5'
+                        )}>
+                          💬
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            'text-xs font-bold truncate',
+                            isActive ? 'text-[#06C755]' : 'text-white'
+                          )}>
+                            {acc.accountName || 'บัญชี LINE'}
+                          </p>
+                          <p className="text-[8px] text-slate-500 truncate font-mono">
+                            {acc.channelId?.slice(0, 10)}...
+                          </p>
+                        </div>
+                        {isActive && (
+                          <div className="w-2 h-2 rounded-full bg-[#06C755] animate-pulse" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+
+          {/* Mobile Account Switcher */}
+          {!showMobileChat && allAccounts.length > 1 && (
+            <div className="lg:hidden">
+              <Card className="p-3 overflow-hidden bg-black/40 border border-white/5 rounded-xl" variant="glass">
+                <p className="text-[9px] font-semibold text-slate-400 mb-2">เลือกบัญชี LINE</p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {allAccounts.map((acc) => {
+                    const isActive = acc._id === activeAccountId;
+                    return (
+                      <button
+                        key={acc._id}
+                        onClick={() => handleAccountSwitch(acc._id)}
+                        className={cn(
+                          'flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-all border whitespace-nowrap',
+                          isActive
+                            ? 'bg-[#06C755] text-white border-[#06C755]'
+                            : 'bg-white/[0.02] text-slate-400 border-white/10 hover:bg-white/[0.05]'
+                        )}
+                      >
+                        💬 {acc.accountName || 'บัญชี'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+          )}
           {/* Mobile User List (show when no chat selected) */}
           {!showMobileChat && (
             <div className="lg:hidden">
@@ -281,7 +411,8 @@ function UserChatContent() {
             </div>
           )}
 
-          <Card className="hidden lg:block lg:col-span-4 p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl" variant="glass">
+          {/* Col 2: Chat List */}
+          <Card className="hidden lg:block lg:col-span-3 p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl" variant="glass">
             <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02]">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">รายชื่อผู้ใช้</p>
@@ -362,8 +493,9 @@ function UserChatContent() {
             </div>
           </Card>
 
+          {/* Col 3: Chat Area */}
           <Card className={cn(
-            "lg:col-span-8 p-0 overflow-hidden flex flex-col bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl",
+            "lg:col-span-7 p-0 overflow-hidden flex flex-col bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl",
             showMobileChat ? "block" : "hidden lg:flex"
           )} variant="glass">
             {selectedUser ? (
@@ -426,7 +558,7 @@ function UserChatContent() {
                         const isOut = msg.direction === 'out';
                         const imageUrl =
                           msg.messageType === 'image' && msg.messageId
-                            ? chatMessagesApi.getImage(accountId, msg.messageId)
+                            ? chatMessagesApi.getImage(activeAccountId, msg.messageId)
                             : null;
 
                         return (
