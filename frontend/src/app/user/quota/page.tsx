@@ -68,6 +68,7 @@ export default function UserQuotaPage() {
   const usedQuota = subscription ? (subscription.quota || 0) - (subscription.remainingQuota || 0) : 0;
 
   // คำนวณวันที่เหลือ
+  const isExpired = subscription?.expiresAt ? new Date(subscription.expiresAt).getTime() < Date.now() : false;
   const daysRemaining = subscription?.expiresAt
     ? Math.max(0, Math.ceil((new Date(subscription.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
@@ -161,7 +162,7 @@ export default function UserQuotaPage() {
               </div>
             </div>
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">วันคงเหลือ</p>
-            <p className="text-xl sm:text-2xl font-black text-white">{daysRemaining}</p>
+            <p className={cn("text-xl sm:text-2xl font-black", isExpired ? "text-rose-500" : "text-white")}>{isExpired ? "หมดอายุแล้ว" : daysRemaining + " วัน"}</p>
           </Card>
         </div>
 

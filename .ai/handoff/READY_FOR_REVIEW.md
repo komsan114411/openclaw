@@ -1,119 +1,52 @@
-# READY FOR REVIEW
+# Developer Report
 
-## Task Completed
-Safe Delete Templates and Template Selection with Fallback
+## Task
+Critical Fixes & UI Improvements (Part 1 of TASK.md)
 
-## What Was Done
+## Files Changed
+| File | Action | Description |
+|------|--------|-------------|
+| frontend/src/app/admin/dashboard/page.tsx | Modified | Removed sci-fi jargon |
+| frontend/src/app/user/quota/page.tsx | Modified | Fixed date calculation bug |
 
-### 1. Backend: slip-templates.service.ts
+## Changes Made
 
-Added 4 new methods:
+### 1. Removed Sci-Fi Jargon (Admin Dashboard)
+- "Verification Layer Matrix" -> "ระบบตรวจสอบสลิป"
+- "Pending Protocols" -> "รอดำเนินการ"
+- "No pending protocols" -> "ไม่มีรายการรอดำเนินการ"
+- ActionTile descriptions: "Protocols" -> "จัดการ", "Channels" -> "บัญชี", "Assets" -> "จัดการ", "Maintenance" -> "ดูแลระบบ"
 
-1. **getTemplateUsageCount(templateId)**
-   - Queries LINE accounts to count how many are using the template
-   - Checks `settings.slipTemplateId` and `settings.slipTemplateIds.*`
-   - Returns count and list of affected accounts
+### 2. Fixed Date Calculation Bug (User Quota Page)
+- Added `isExpired` boolean to detect past dates
+- When `expiresAt < now`: Shows "หมดอายุแล้ว" in RED text
+- When not expired: Shows "X วัน" normally
+- Used `cn()` for conditional styling
 
-2. **checkTemplateUsage(templateId)**
-   - Pre-delete check returning:
-     - `canDelete`: boolean (false if isDefault)
-     - `isDefault`: boolean
-     - `usageCount`: number
-     - `accounts`: array of affected accounts
-     - `warningMessage`: Thai language warning if in use
+## Testing Done
+- [x] TypeScript check passed (`npx tsc --noEmit`)
+- [ ] Manual test pending
 
-3. **safeDelete(templateId, confirmationText?)**
-   - If template is default: throws BadRequestException
-   - If `usageCount > 0`:
-     - Requires confirmation text ("DELETE" or template name)
-     - Clears template references from all affected LINE accounts
-     - Logs warning for audit
-   - Deletes template
-   - Returns `{ success: true, affectedAccounts: number }`
+## Remaining Items from TASK.md
+- [ ] API Key Show/Hide toggle
+- [ ] API Test Connection button  
+- [ ] Admin Chat loading fix
+- [ ] Global Toast Notifications
+- [ ] More sci-fi jargon removal in other pages
+- [ ] Layout & Navigation improvements
+- [ ] Payment bulk actions
+- [ ] Auto-response template preview
 
-4. **getTemplateWithFallback(lineAccountId, type, selectedTemplateId?)**
-   - Priority 1: Use selected template if active
-   - Priority 2: Fall back to account default
-   - Priority 3: Fall back to global default
-   - Logs warnings when fallback is used
-   - Returns `{ template, usedFallback, reason }`
+## Notes
+Part 1 tasks partially complete. High priority items addressed:
+1. Date calculation - DONE
+2. Sci-fi jargon (admin dashboard) - DONE
 
-### 2. Backend: slip-templates.controller.ts
+## Round
+1
 
-Added endpoints for both Admin and User:
-
-**Admin Controller:**
-- `GET /slip-templates/global/:templateId/usage` - Check usage before delete
-- `DELETE /slip-templates/global/:templateId/safe-delete` - Safe delete with confirmation
-
-**User Controller:**
-- `GET /line-accounts/:accountId/slip-templates/:templateId/usage` - Check usage
-- `DELETE /line-accounts/:accountId/slip-templates/:templateId/safe-delete` - Safe delete
-
-### 3. Frontend: api.ts
-
-Added new API methods:
-```typescript
-slipTemplatesApi.checkUsage(accountId, templateId)
-slipTemplatesApi.safeDelete(accountId, templateId, confirmationText?)
-```
-
-## Files Modified
-
-- [x] `backend/src/slip-templates/slip-templates.service.ts` - Added 4 new methods
-- [x] `backend/src/slip-templates/slip-templates.controller.ts` - Added 4 new endpoints
-- [x] `frontend/src/lib/api.ts` - Added 2 new API methods
-
-## Remaining Work (Frontend UI)
-
-The following UI changes are documented but not implemented:
-
-1. **Delete Confirmation Modal**
-   - Red warning modal when `usageCount > 0`
-   - Input field requiring "DELETE" or template name
-   - Show affected accounts list
-
-2. **Template Selector Enhancement**
-   - Dropdown with "Use System Default" as first option
-   - Preview on selection
-   - Warning if selected template was deleted
-
-## How to Test
-
-```bash
-# Test TypeScript
-cd test/backend
-npx tsc --noEmit
-
-# Test API Endpoints
-# 1. Create a template
-POST /user/line-accounts/{accountId}/slip-templates
-
-# 2. Check usage
-GET /user/line-accounts/{accountId}/slip-templates/{templateId}/usage
-
-# 3. Safe delete (no confirmation needed if not in use)
-DELETE /user/line-accounts/{accountId}/slip-templates/{templateId}/safe-delete
-
-# 4. Safe delete (with confirmation if in use)
-DELETE /user/line-accounts/{accountId}/slip-templates/{templateId}/safe-delete
-Body: { "confirmationText": "DELETE" }
-```
-
-## Security Considerations
-
-- ensureAccountAccess() verifies owner before any operation
-- Admin endpoints require ADMIN role
-- Confirmation required for templates in use
-- Audit logging when deleting in-use templates
-
-## CLAUDE.md Compliance
-
-- [x] Uses MongoDB + Mongoose only
-- [x] No `any` types in new code
-- [x] Proper error handling with exceptions
-- [x] Thai language messages for user-facing errors
-- [x] ObjectId validation before database queries
-
-## Created At
+## Timestamp
 2026-01-04
+
+## Status
+READY_FOR_REVIEW

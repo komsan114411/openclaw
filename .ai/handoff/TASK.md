@@ -1,127 +1,100 @@
-คำสั่งงาน: พัฒนาระบบป้องกันการลบเทมเพลต (Safe Delete) และรับประกันการส่งข้อความ
+🚩 Part 1: Critical Fixes & Stability (Priority: High)
+Must be fixed first to ensure system reliability.
 
-วัตถุประสงค์หลัก
+1.1 API & Dashboard Logic
+Date Calculation Bug: In Dashboard and Statistics components, expired dates (e.g., Jan 2, 2029) are showing as "0 days left" or incorrect values.
 
-พัฒนาฟีเจอร์ "การลบเทมเพลตอย่างปลอดภัย" โดยระบบต้องตรวจสอบและแจ้งเตือนผู้ใช้หากเทมเพลตนั้นกำลังถูกใช้งานอยู่ และต้องวางระบบให้ "Service การส่งข้อความ (Message Sender)" ทำงานต่อไปได้ถูกต้องโดยอัตโนมัติ แม้ว่าเทมเพลตที่ลูกค้าคนนั้นใช้อยู่จะถูกลบไปแล้วก็ตาม
+Fix: Refactor date logic to correctly calculate diffs. Past dates must show as "Expired" (Red badge).
 
+API Key Visibility: API Keys in Settings currently show as dots (....).
 
+Fix: Add a "Show/Hide" toggle button.
 
-1. ลอจิกการลบเทมเพลต (Safe Deletion Logic)
+Fix: Add a "Test Connection" button to ping the API and verify validity immediately.
 
-ก่อนที่จะทำการลบเทมเพลตใดๆ ออกจากระบบ (Soft Delete หรือ Hard Delete) ต้องมีกระบวนการดังนี้:
+URL Validation: Add Regex validation for all URL inputs (must start with http:// or https://).
 
+1.2 Admin Chat System
+Bug: Messages fail to load or load inconsistently compared to the User chat.
 
+Fix: Refactor frontend/src/app/admin/chat/page.tsx to match the stability of the User chat. Ensure useEffect fetches data reliably.
 
-ขั้นตอนที่ 1: ตรวจสอบการใช้งาน (Usage Check):
+Empty State: Replace the plain empty state with a helpful prompt (e.g., "Select a user to view conversation").
 
-ระบบต้อง Query ตรวจสอบว่ามี "บัญชี LINE (Line Accounts)" จำนวนกี่บัญชีที่กำลังผูก (binding) อยู่กับเทมเพลตนี้
+1.3 Global Error Handling
+Issue: Failed API calls result in silent failures or white screens.
 
-ขั้นตอนที่ 2: การแสดงผลและการยืนยัน (UI Warning & Confirmation):
+Fix: Implement a Global Toast Notification system.
 
-หาก Count > 0: ให้แสดง Modal สีแดงแจ้งเตือนว่า "เทมเพลตนี้กำลังถูกใช้งานโดยผู้ใช้จำนวน X คน หากลบ จะมีผลกระทบทันที"
+200 OK -> Green Success Toast.
 
-Require Input: บังคับให้ผู้ใช้พิมพ์คำว่า "DELETE" หรือชื่อเทมเพลตนั้นๆ ในช่อง Input เพื่อยืนยันการลบ (ป้องกันการกดผิด)
+400/500 Errors -> Red Error Toast with a clear message.
 
-หาก Count = 0: สามารถลบได้ตามปกติโดยไม่ต้องพิมพ์ยืนยัน (หรือถาม Confirm ธรรมดา)
+🎨 Part 2: UI/UX & Terminology Overhaul (Priority: Medium)
+Simplify the interface and make it professional.
 
-2. การจัดการข้อมูลเมื่อถูกลบ (Data Integrity & Fallback)
+2.1 Remove "Sci-Fi" Jargon
+Requirement: Replace all technical/fantasy terms with standard SaaS terminology:
 
-เมื่อเทมเพลตถูกลบสำเร็จ ระบบต้องจัดการกับบัญชี LINE ที่เคยผูกกับเทมเพลตนั้นอย่างไร:
+"Neural Flex" / "Signal Cipher" ➡️ "System Status" or "Service Health"
 
+"Matrix Connectivity" ➡️ "Connection Status"
 
+"Deployment Format" ➡️ "Settings" or "Configuration"
 
-Database Level: อนุญาตให้ค่า template_id ในตารางบัญชี LINE ยังคงเดิม หรือ set เป็น NULL ก็ได้ (ขึ้นอยู่กับ Design) แต่สิ่งสำคัญคือ...
+Goal: The UI must be understandable by a non-technical admin.
 
-Application Level (สำคัญที่สุด):
+2.2 Layout & Navigation Improvements
+Settings Page: Move the "Color Picker" / Branding section to the TOP of the page (currently at the bottom).
 
-ในฟังก์ชันส่งข้อความ (sendMessageService) เมื่อถึงเวลาต้องส่งสลิป ให้ระบบตรวจสอบว่า template_id ที่บัญชีนั้นถืออยู่ "ยังมีอยู่ในระบบและสถานะ Active หรือไม่"
+User Management Table:
 
-Scenario: นาย A ใช้ Template ID: 99 -> แอดมินลบ Template ID: 99 ทิ้ง -> เมื่อนาย A ส่งสลิปเข้ามา -> ระบบหา ID: 99 ไม่เจอ
+Merge Columns: Combine "Name" and "Email" into a "User Profile" column to save space.
 
-Action: ระบบต้อง ห้าม Error แต่ให้ Auto-switch ไปใช้ "เทมเพลตค่าเริ่มต้น (System Default)" ส่งให้นาย A แทนทันที พร้อมบันทึก Log เตือนไว้
+Clean Actions: Replace the 4 separate buttons with a single "..." (Meatball Menu) Dropdown.
 
-3. การส่งข้อความไปยังลูกค้า (Contextual Messaging)
+Statistics Cards: Clarify labels (e.g., change "+3 Active" to "Active Users: 3").
 
-ต้องมั่นใจว่าลูกค้าได้รับข้อความที่ถูกต้องที่สุดเท่าที่เป็นไปได้:
+2.3 Visual Feedback
+Loading States: Add Spinners or Skeleton Loaders to:
 
+Chat message list.
 
+Payment verification tables.
 
-Priority 1: หากเทมเพลตส่วนตัวยังอยู่ -> ส่งเทมเพลตส่วนตัว
+Dashboard stats.
 
-Priority 2: หากเทมเพลตส่วนตัวถูกลบ/ปิดใช้งาน -> ส่งเทมเพลตค่าเริ่มต้น (Default)
+✨ Part 3: Missing Features & Enhancements (Priority: Low)
+Add functionality to make the system usable.
 
-Variable Replacement: ไม่ว่าจะใช้เทมเพลตตัวไหน ตัวแปรต่างๆ เช่น {{customer_name}}, {{amount}}, {{date}} ต้องถูกแทนค่าให้ถูกต้องตามข้อมูลจริงของสลิปนั้นๆนี่คือ Prompt (คำสั่งงาน) ที่เน้น "Logic, Behavior และ System Analysis" ตามที่คุณต้องการครับ ออกแบบมาเพื่อให้ AI หรือ Developer เข้าใจเงื่อนไขที่ซับซ้อนของการ "เลือกเทมเพลต" และ "ระบบป้องกันความผิดพลาด (Fallback)" โดยเฉพาะ
+3.1 Payment & Slip Verification
+Bulk Actions: Add checkboxes to the Payment Table. Allow "Approve Selected" or "Reject Selected".
 
-คุณสามารถก๊อปปี้ข้อความในกล่องนี้ไปสั่งงานต่อได้เลยครับ
+Slip Preview: Add a thumbnail column. Clicking it opens a Modal to view the full slip image without leaving the page.
 
-คำสั่งงาน: พัฒนาระบบเลือกเทมเพลตตอบกลับสลิป (Slip Response Selection) และป้องกันข้อผิดพลาด
+Filters: Add Date Range and Amount filters to the table header.
 
-วัตถุประสงค์หลัก
+Status Renaming: Change "VERIFICATION" to "Pending Review" for clarity.
 
-พัฒนาฟีเจอร์ให้เจ้าของบัญชี LINE (LINE Account) สามารถ "เลือก" รูปแบบข้อความตอบกลับสลิป (Slip Template) ได้ด้วยตนเอง โดยระบบต้องมีความยืดหยุ่น รองรับทั้งการกำหนดค่าเองและการใช้ค่าเริ่มต้น (Default) จากแอดมิน พร้อมทั้งวางระบบป้องกันความผิดพลาดกรณีข้อมูลไม่สมบูรณ์
+3.2 Package Management
+Comparison: Create a "Comparison Table" view to show package features side-by-side.
 
+Price Calculation: Fix the logic: Price / Quantity = Cost per slip. (Currently incorrect).
 
+ROI Info: Add a section showing "Worthiness" or "Save %" to encourage upgrades.
 
-1. ลอจิกการทำงานและลำดับความสำคัญ (Priority Logic)
+3.3 Auto-Response Templates
+Live Preview: Split the screen (Left: Edit Form, Right: Phone Mockup).
 
-ระบบจะต้องตัดสินใจเลือกข้อความตอบกลับตามลำดับขั้นตอน (Waterfall) ดังนี้ เมื่อมีการตรวจสอบสลิปสำเร็จ:
+As the user types, the Phone Mockup must update in real-time to show exactly what the customer will see.
 
+✅ Acceptance Criteria (Definition of Done)
+Zero Console Errors: The browser console must be clean of red errors.
 
+No Sci-Fi Terms: All text is standard English/Thai business terms.
 
-ตรวจสอบการตั้งค่าเฉพาะ (Specific Override):
+Functional Critical Path: API Keys can be tested, Dates are correct, and Chat loads instantly.
 
-ให้ระบบตรวจสอบที่ "บัญชี LINE" นั้นๆ ก่อนว่ามีการระบุ Template ID ไว้เจาะจงหรือไม่?
+Bulk Operations: Admin can approve at least 5 slips at once using the new bulk action feature.
 
-หาก "มี" และเทมเพลตนั้น "ยังใช้งานได้ (Active)" -> ให้ใช้เทมเพลตนั้นตอบกลับทันที
-
-ตรวจสอบค่าเริ่มต้น (System Default):
-
-หากบัญชี LINE นั้น "ไม่ได้เลือก" (ค่าเป็น Null)
-
-หรือ เลือกไว้แต่เทมเพลตนั้น "ถูกลบไปแล้ว" (Broken Reference)
-
--> ให้ระบบถอยกลับไปใช้ "เทมเพลตค่าเริ่มต้น (Global Default)" ของระบบทันที
-
-กรณีฉุกเฉิน (Hard Fallback):
-
-หากไม่พบทั้งเทมเพลตเฉพาะ และไม่พบเทมเพลตค่าเริ่มต้น -> ให้ส่งข้อความแจ้งเตือนพื้นฐาน (Hardcoded Message) ว่า "ตรวจสอบสลิปสำเร็จ" เพื่อไม่ให้ระบบเงียบหาย
-
-2. หน้าตาและการใช้งาน (UI/UX Requirements)
-
-ในหน้า "ตั้งค่าบัญชี LINE" (LINE Account Settings) ให้ปรับปรุงดังนี้:
-
-
-
-ตัวเลือกเทมเพลต (Template Selector):
-
-เพิ่ม Dropdown หรือ Modal สำหรับเลือกเทมเพลต
-
-ตัวเลือกแรกสุด: ต้องเขียนว่า "ใช้ค่าเริ่มต้นของระบบ (Use System Default)"
-
-ตัวเลือกถัดไป: แสดงรายชื่อเทมเพลตทั้งหมดที่ผู้ใช้สร้างไว้
-
-การแสดงตัวอย่าง (Preview Interaction):
-
-เมื่อผู้ใช้เลือกเทมเพลตใน Dropdown ให้แสดงข้อความตัวอย่าง (Preview) ของเทมเพลตนั้นทันทีข้างๆ หรือด้านล่าง เพื่อให้ผู้ใช้มั่นใจก่อนกดบันทึก
-
-การแจ้งเตือน:
-
-หากเทมเพลตที่เลือกไว้เดิม "ถูกลบ" ให้แสดงคำเตือนสีเหลือง/แดง ในหน้านี้ว่า "เทมเพลตเดิมไม่พบ ระบบกำลังใช้ค่าเริ่มต้น"
-
-3. การวิเคราะห์และป้องกันบั๊ก (System Robustness & Analysis)
-
-เพื่อให้ระบบทำงานร่วมกันได้ดีและปิดช่องโหว่:
-
-
-
-ระบบจัดการความสัมพันธ์ข้อมูล (Integrity Check):
-
-วิเคราะห์ว่าจะทำอย่างไรเมื่อผู้ใช้กด "ลบเทมเพลต" ที่กำลังถูกใช้งานอยู่?
-
-ทางเลือก A: ห้ามลบ จนกว่าจะปลดการใช้งาน
-
-ทางเลือก B (แนะนำ): อนุญาตให้ลบได้ แต่ระบบต้องฉลาดพอที่จะ Auto-fallback ไปใช้ค่า Default โดยไม่ทำให้โค้ดพัง (Crash)
-
-การจัดการ Cache: หากมีการใช้ Redis หรือ Caching ระบบต้องมั่นใจว่าเมื่อผู้ใช้เปลี่ยนเทมเพลต การตอบกลับครั้งถัดไปต้องเป็นแบบใหม่ทันที (Cache Invalidation)
-
-Validation: ตรวจสอบว่าผู้ใช้เลือกเทมเพลตที่เป็นของตัวเองเท่านั้น ห้ามข้ามไปเลือกเทมเพลตของ User อื่น (Permission Check)
+Responsive Feedback: Every button click triggers a loading state or a toast notification.

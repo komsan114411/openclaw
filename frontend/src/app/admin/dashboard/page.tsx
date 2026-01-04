@@ -227,7 +227,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">Thunder API</h2>
-                      <p className="text-slate-400 font-bold text-[9px] md:text-xs tracking-[0.3em] uppercase opacity-40 mt-1 md:mt-2 text-gradient">Verification Layer Matrix</p>
+                      <p className="text-slate-400 font-bold text-[9px] md:text-xs tracking-[0.3em] uppercase opacity-40 mt-1 md:mt-2 text-gradient">ระบบตรวจสอบสลิป</p>
                     </div>
                   </div>
                   <IconButton
@@ -343,7 +343,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-6 md:mb-8">
                 <div className="space-y-1">
                   <h2 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none uppercase">กิจกรรมล่าสุด</h2>
-                  <p className="text-emerald-400/40 font-black text-[9px] uppercase tracking-[0.2em] leading-none mt-1">Pending Protocols</p>
+                  <p className="text-emerald-400/40 font-black text-[9px] uppercase tracking-[0.2em] leading-none mt-1">รอดำเนินการ</p>
                 </div>
                 <Link href="/admin/payments">
                   <Button variant="ghost" size="sm" className="text-emerald-400 font-black tracking-widest text-[9px] uppercase hover:bg-emerald-500/10">
@@ -387,7 +387,7 @@ export default function AdminDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                       </svg>
                     </div>
-                    <p className="font-black text-slate-500 uppercase tracking-widest text-[9px]">No pending protocols</p>
+                    <p className="font-black text-slate-500 uppercase tracking-widest text-[9px]">ไม่มีรายการรอดำเนินการ</p>
                   </div>
                 )}
               </div>
@@ -398,21 +398,21 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           <ActionTile
             title="จัดการผู้ใช้"
-            desc="Protocols"
+            desc="จัดการ"
             href="/admin/users"
             icon="👥"
             color="blue"
           />
           <ActionTile
             title="บัญชี LINE"
-            desc="Channels"
+            desc="บัญชี"
             href="/admin/line-accounts"
             icon="🟢"
             color="emerald"
           />
           <ActionTile
             title="ธนาคาร"
-            desc="Assets"
+            desc="จัดการ"
             href="/admin/banks"
             icon="🏦"
             color="indigo"
