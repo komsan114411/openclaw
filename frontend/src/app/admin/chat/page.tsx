@@ -76,7 +76,7 @@ function AdminChatContent() {
         setUsers(response.data.users || []);
       }
     } catch (err) {
-      toast.error((err as AxiosError<{message?: string}>).response?.data?.message || 'ไม่สามารถโหลดรายชื่อผู้ใช้ได้');
+      toast.error((err as AxiosError<{ message?: string }>).response?.data?.message || 'ไม่สามารถโหลดรายชื่อผู้ใช้ได้');
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ function AdminChatContent() {
         setMessages(response.data.messages || []);
       }
     } catch (err) {
-      toast.error((err as AxiosError<{message?: string}>).response?.data?.message || 'ไม่สามารถโหลดข้อความได้');
+      toast.error((err as AxiosError<{ message?: string }>).response?.data?.message || 'ไม่สามารถโหลดข้อความได้');
     } finally {
       setLoadingMessages(false);
     }
@@ -143,7 +143,7 @@ function AdminChatContent() {
         toast.error(response.data.error || 'ไม่สามารถส่งข้อความได้');
       }
     } catch (err) {
-      toast.error((err as AxiosError<{message?: string}>).response?.data?.message || 'ไม่สามารถส่งข้อความได้');
+      toast.error((err as AxiosError<{ message?: string }>).response?.data?.message || 'ไม่สามารถส่งข้อความได้');
     } finally {
       setSending(false);
     }
@@ -255,11 +255,11 @@ function AdminChatContent() {
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-24 gap-6">
                     <Spinner size="lg" className="text-emerald-500" />
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] animate-pulse">Syncing Manifest...</p>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] animate-pulse">กำลังโหลดรายชื่อ...</p>
                   </div>
                 ) : filteredUsers.length === 0 ? (
                   <div className="text-center py-24 opacity-30">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Zero Signals Detected</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">ไม่พบข้อความ</p>
                   </div>
                 ) : (
                   <AnimatePresence mode="popLayout">
@@ -308,7 +308,7 @@ function AdminChatContent() {
                               "text-xs font-medium truncate opacity-40 transition-all",
                               selectedUser?.lineUserId === user.lineUserId ? "opacity-80 font-bold" : "group-hover:opacity-60"
                             )}>
-                              {user.lastMessage || 'Signal Initialized'}
+                              {user.lastMessage || 'ไม่มีข้อความใหม่'}
                             </p>
                           </div>
                           <div className={cn(
@@ -346,10 +346,10 @@ function AdminChatContent() {
                           <h2 className="text-3xl font-black text-slate-900 tracking-[-0.04em] uppercase">{selectedUser.lineUserName}</h2>
                           <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Active Link</span>
+                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">ออนไลน์</span>
                           </div>
                         </div>
-                        <p className="text-[10px] font-mono font-black text-slate-400 tracking-[0.2em] uppercase opacity-70">Registry ID: {selectedUser.lineUserId}</p>
+                        <p className="text-[10px] font-mono font-black text-slate-400 tracking-[0.2em] uppercase opacity-70">ID ผู้ใช้: {selectedUser.lineUserId}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -375,12 +375,12 @@ function AdminChatContent() {
                     {loadingMessages ? (
                       <div className="flex flex-col items-center justify-center py-24 gap-6 animate-fade">
                         <div className="w-16 h-16 rounded-full border-4 border-emerald-500/10 border-t-emerald-500 animate-spin" />
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] animate-pulse">Retrieving Encrypted Feed...</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] animate-pulse">กำลังโหลดข้อความ...</p>
                       </div>
                     ) : messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-32 opacity-20">
                         <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-4xl mb-6">🧊</div>
-                        <p className="text-xs font-black uppercase tracking-[0.6em] text-slate-400">Zero Transmissions</p>
+                        <p className="text-xs font-black uppercase tracking-[0.6em] text-slate-400">ไม่มีประวัติการแชท</p>
                       </div>
                     ) : (
                       <div className="relative z-10 space-y-8">
@@ -414,7 +414,7 @@ function AdminChatContent() {
                                       <div className="p-10 bg-slate-100 rounded-[2rem] text-slate-400 text-xs font-black uppercase tracking-widest">[Image Data Corrupted]</div>
                                     )}
                                     <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 transition-all duration-500 flex items-center justify-center backdrop-blur-sm">
-                                      <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] font-mono">Expand Identity Visualization</span>
+                                      <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] font-mono">ขยายรูปภาพ</span>
                                     </div>
                                   </div>
                                 ) : (
@@ -453,7 +453,7 @@ function AdminChatContent() {
                             handleSendMessage();
                           }
                         }}
-                        placeholder="Transmit response protocol..."
+                        placeholder="พิมพ์ข้อความตอบกลับ..."
                         disabled={sending}
                         className="flex-1 bg-transparent border-none focus:ring-0 text-[14px] font-bold text-slate-900 placeholder:text-slate-300 custom-scrollbar py-4 px-8 h-14 max-h-40 min-h-14 resize-none"
                         rows={1}
@@ -466,18 +466,18 @@ function AdminChatContent() {
                         disabled={sending || !newMessage.trim()}
                         isLoading={sending}
                       >
-                        Launch
+                        ส่ง
                       </Button>
                     </div>
                     <div className="mt-4 flex justify-between items-center px-8">
                       <div className="flex gap-6">
                         <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/30" />
-                          Secure Uplink Established
+                          เชื่อมต่อปลอดภัย
                         </p>
-                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] opacity-40">MIME-Ready Matrix</p>
+                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] opacity-40">รองรับมัลติมีเดีย</p>
                       </div>
-                      <p className="text-[9px] font-black text-slate-200 uppercase tracking-widest italic">V2.0 Neural Routing Active</p>
+                      <p className="text-[9px] font-black text-slate-200 uppercase tracking-widest italic">ระบบ AI พร้อมใช้งาน</p>
                     </div>
                   </div>
                 </>
@@ -486,8 +486,8 @@ function AdminChatContent() {
                   <div className="w-40 h-40 bg-slate-50 rounded-[4rem] flex items-center justify-center text-6xl shadow-inner mb-10 group hover:scale-110 transition-transform duration-700">
                     <span className="grayscale opacity-20 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700">💬</span>
                   </div>
-                  <h4 className="text-3xl font-black text-slate-900 uppercase tracking-[0.3em] mb-4">Neural Standby</h4>
-                  <p className="text-[10px] font-black text-slate-400 text-center max-w-sm leading-loose uppercase tracking-[0.25em]">Initialize communication by selecting a verified personnel signal from the manifest.</p>
+                  <h4 className="text-3xl font-black text-slate-900 uppercase tracking-[0.3em] mb-4">เลือกแชทเพื่อเริ่มสนทนา</h4>
+                  <p className="text-[10px] font-black text-slate-400 text-center max-w-sm leading-loose uppercase tracking-[0.25em]">เลือกรายชื่อผู้ใช้จากรายการด้านซ้ายเพื่อเริ่มการสนทนา</p>
                 </div>
               )}
             </Card>

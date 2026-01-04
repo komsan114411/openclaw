@@ -32,6 +32,9 @@ export default function UserPackagesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // View Mode State
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);

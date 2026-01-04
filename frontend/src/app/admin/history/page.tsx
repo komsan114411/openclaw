@@ -92,11 +92,11 @@ export default function AdminHistoryPage() {
 
   const getActionBadge = (action: string) => {
     const act = action.toLowerCase();
-    if (act.includes('create') || act.includes('add')) return <Badge variant="emerald" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">Create</Badge>;
-    if (act.includes('update') || act.includes('edit')) return <Badge variant="indigo" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">Update</Badge>;
-    if (act.includes('delete') || act.includes('remove')) return <Badge variant="rose" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">Delete</Badge>;
-    if (act.includes('auth') || act.includes('login')) return <Badge variant="purple" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">Auth</Badge>;
-    return <Badge variant="slate" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">Action</Badge>;
+    if (act.includes('create') || act.includes('add')) return <Badge variant="emerald" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">สร้าง</Badge>;
+    if (act.includes('update') || act.includes('edit')) return <Badge variant="indigo" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">แก้ไข</Badge>;
+    if (act.includes('delete') || act.includes('remove')) return <Badge variant="rose" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">ลบ</Badge>;
+    if (act.includes('auth') || act.includes('login')) return <Badge variant="purple" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">ยืนยันตัวตน</Badge>;
+    return <Badge variant="slate" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">จัดการ</Badge>;
   };
 
   const getRoleIcon = (role: string) => {
@@ -219,8 +219,8 @@ export default function AdminHistoryPage() {
                           <div>
                             <p className="text-sm font-black text-white tracking-tight leading-none mb-1">
                               {log.actorRole === 'system'
-                                ? 'SYSTEM_DAEMON'
-                                : userMap.get(log.actorUserId || '') || log.actorUserId || 'ANONYMOUS'}
+                                ? 'ระบบอัตโนมัติ'
+                                : userMap.get(log.actorUserId || '') || log.actorUserId || 'ผู้เยี่ยมชม'}
                             </p>
                             <Badge variant="outline" className="text-[8px] px-1.5 py-0 border-white/10 text-slate-600 uppercase font-black tracking-widest">{log.actorRole}</Badge>
                           </div>
@@ -234,13 +234,13 @@ export default function AdminHistoryPage() {
                       </td>
                       <td className="px-10 py-8">
                         <div className="p-3 bg-white/[0.02] rounded-[1.5rem] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
-                          <p className="text-[10px] font-black text-white uppercase tracking-tight mb-1">{log.entityType || 'GLOBAL_SCOPE'}</p>
+                          <p className="text-[10px] font-black text-white uppercase tracking-tight mb-1">{log.entityType || 'ภาพรวมระบบ'}</p>
                           <p className="font-mono text-[9px] text-slate-600 truncate max-w-[120px]">{log.entityId || '---'}</p>
                         </div>
                       </td>
                       <td className="px-10 py-8 max-w-md">
                         <p className="text-xs font-bold text-slate-400 leading-relaxed group-hover:text-emerald-400 transition-colors">
-                          {log.message || <span className="italic opacity-30 text-[10px]">NO_DIAGNOSTIC_DATA_PROVIDED</span>}
+                          {log.message || <span className="italic opacity-30 text-[10px]">ไม่มีข้อมูลเพิ่มเติม</span>}
                         </p>
                         {log.subjectUserId && (
                           <div className="mt-2 flex items-center gap-2">
@@ -307,15 +307,15 @@ export default function AdminHistoryPage() {
         <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40 hover:opacity-100 transition-opacity duration-700">
           <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
             <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">🏛️</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Immutable Registry</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">บันทึกถาวร</p>
           </div>
           <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
             <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">🔐</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Administrative Only</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">สำหรับผู้ดูแลระบบ</p>
           </div>
           <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
             <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">⚛️</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Atomic Event Trailing</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">ติดตามกิจกรรมเรียลไทม์</p>
           </div>
         </div>
       </div>

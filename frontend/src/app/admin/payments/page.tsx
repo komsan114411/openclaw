@@ -207,7 +207,7 @@ export default function AdminPaymentsPage() {
                       <td colSpan={6} className="px-10 py-32 text-center">
                         <div className="flex flex-col items-center justify-center opacity-30">
                           <div className="w-20 h-20 rounded-[2rem] bg-slate-100 flex items-center justify-center text-4xl mb-6">📉</div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.5em]">Zero Transactions Logged</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.5em]">ไม่พบประวัติการชำระเงิน</p>
                         </div>
                       </td>
                     </tr>
@@ -251,7 +251,7 @@ export default function AdminPaymentsPage() {
                             <p className="text-[11px] font-black text-white leading-none uppercase tracking-widest">{payment.package?.name || '-'}</p>
                             <div className="flex items-center gap-1.5">
                               <Badge variant="outline" size="xs" className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-black text-[8px] px-2 py-0.5 tracking-widest uppercase rounded-lg">
-                                {payment.package?.slipQuota?.toLocaleString() || '-'} PAYLOAD
+                                {payment.package?.slipQuota?.toLocaleString() || '-'} รายการ
                               </Badge>
                             </div>
                           </div>
@@ -262,7 +262,7 @@ export default function AdminPaymentsPage() {
                             <div className="flex items-center gap-2">
                               <div className={cn("w-1.5 h-1.5 rounded-full", payment.paymentType === 'usdt' ? "bg-emerald-500" : "bg-indigo-500")} />
                               <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">
-                                {payment.paymentType === 'usdt' ? 'USDT MATRIX' : 'FIAT GATEWAY'}
+                                {payment.paymentType === 'usdt' ? 'โอนผ่าน USDT' : 'โอนผ่านธนาคาร'}
                               </p>
                             </div>
                           </div>
@@ -274,8 +274,8 @@ export default function AdminPaymentsPage() {
                               payment.status === 'pending' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                                 "bg-rose-500/10 text-rose-400 border-rose-500/20"
                           )}>
-                            {payment.status === 'verified' ? 'Authorized' :
-                              payment.status === 'pending' ? 'Verification' : 'Rejected'}
+                            {payment.status === 'verified' ? 'อนุมัติแล้ว' :
+                              payment.status === 'pending' ? 'รอตรวจสอบ' : 'ปฏิเสธ'}
                           </div>
                         </td>
                         <td className="px-10 py-8 text-right" onClick={(e) => e.stopPropagation()}>
@@ -390,13 +390,13 @@ export default function AdminPaymentsPage() {
             ))
           )}
         </div>
-      </div>
+      </div >
 
       <Modal
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
-        title="TRANSACTION INTELLIGENCE"
-        subtitle="Detailed analysis of financial verification payload"
+        title="ข้อมูลการชำระเงิน"
+        subtitle="รายละเอียดการตรวจสอบและยืนยันการชำระเงิน"
         size="lg"
       >
         {selectedPayment && (
@@ -406,11 +406,11 @@ export default function AdminPaymentsPage() {
             <div className="flex flex-col lg:flex-row items-center justify-between p-8 sm:p-12 bg-slate-950 rounded-[2.5rem] sm:rounded-[3.5rem] relative overflow-hidden border border-white/5">
               <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.03] blur-[120px] rounded-full" />
               <div className="relative z-10 text-center lg:text-left mb-8 lg:mb-0">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4">Verification Amount</p>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4">ยอดเงินที่ตรวจสอบ</p>
                 <p className="text-4xl sm:text-6xl font-black text-white tracking-tighter leading-none">฿{selectedPayment.amount.toLocaleString()}</p>
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8">
                   <div className="px-4 py-2 rounded-xl bg-white/[0.03] text-white/40 font-black text-[8px] uppercase tracking-widest border border-white/10">
-                    {selectedPayment.paymentType} Protocol
+                    โหมด {selectedPayment.paymentType}
                   </div>
                   <div className={cn(
                     "px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border shadow-2xl",
@@ -418,8 +418,8 @@ export default function AdminPaymentsPage() {
                       selectedPayment.status === 'pending' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                         "bg-rose-500/10 text-rose-400 border-rose-500/20"
                   )}>
-                    {selectedPayment.status === 'verified' ? 'Authorized Access' :
-                      selectedPayment.status === 'pending' ? 'Audit Required' : 'Signal Denied'}
+                    {selectedPayment.status === 'verified' ? 'อนุมัติการเข้าถึง' :
+                      selectedPayment.status === 'pending' ? 'รอการตรวจสอบ' : 'การเชื่อมต่อถูกปฏิเสธ'}
                   </div>
                 </div>
               </div>
@@ -441,7 +441,7 @@ export default function AdminPaymentsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10 px-4 sm:px-8">
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Identity Matrix</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">ข้อมูลผู้ใช้</p>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center font-black text-emerald-400 border border-white/5">
                     {selectedPayment.user?.username?.charAt(0).toUpperCase()}
@@ -453,29 +453,29 @@ export default function AdminPaymentsPage() {
                 </div>
               </div>
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Protocol Layer</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">ข้อมูลแพ็คเกจ</p>
                 <p className="text-base font-black text-white tracking-tight uppercase">{selectedPayment.package?.name || 'Manual Index'}</p>
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                  <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} Credits Applied</p>
+                  <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} เครดิต (เพิ่มเข้าสู่ระบบ)</p>
                 </div>
               </div>
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Temporal Marker (UTC)</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">วันและเวลา (UTC)</p>
                 <p className="text-sm font-black text-white tracking-tight flex items-center gap-2">
                   <svg className="w-4 h-4 text-emerald-500/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   {new Date(selectedPayment.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                 </p>
               </div>
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">Manifest Reference</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">เลขอ้างอิงรายการ</p>
                 <p className="text-[10px] font-mono font-bold text-slate-600 break-all select-all hover:text-emerald-400 transition-colors uppercase">{selectedPayment._id}</p>
               </div>
             </div>
 
             {selectedPayment.slipImageUrl && (
               <div className="space-y-6 pt-8">
-                <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] text-center">Receipt Metadata Visualization</p>
+                <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] text-center">หลักฐานสลิปการโอนเงิน</p>
                 <div className="p-2 sm:p-4 bg-slate-950 rounded-3xl sm:rounded-[4rem] border border-white/5 relative group">
                   <div className="overflow-hidden rounded-2xl sm:rounded-[3.2rem]">
                     <img
@@ -497,8 +497,8 @@ export default function AdminPaymentsPage() {
                   className="h-16 sm:h-20 rounded-2xl sm:rounded-3xl font-black text-base sm:text-lg uppercase tracking-widest shadow-emerald-500/20 shadow-2xl flex flex-col items-center justify-center gap-0.5"
                   onClick={() => handleApproveClick(selectedPayment)}
                 >
-                  Confirm Protocol
-                  <span className="text-[8px] opacity-40 font-bold uppercase tracking-[0.3em]">Authorize Injection</span>
+                  ยืนยันรายการ
+                  <span className="text-[8px] opacity-40 font-bold uppercase tracking-[0.3em]">อนุมัติโควต้า</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -506,8 +506,8 @@ export default function AdminPaymentsPage() {
                   className="h-16 sm:h-20 rounded-2xl sm:rounded-3xl font-black text-base sm:text-lg uppercase tracking-widest text-rose-500 bg-white/[0.04] border border-white/5 hover:bg-rose-500 hover:text-white transition-all flex flex-col items-center justify-center gap-0.5"
                   onClick={() => handleRejectClick(selectedPayment)}
                 >
-                  Deny Protocol
-                  <span className="text-[8px] opacity-40 font-bold uppercase tracking-[0.3em]">Reject Access</span>
+                  ปฏิเสธรายการ
+                  <span className="text-[8px] opacity-40 font-bold uppercase tracking-[0.3em]">ระงับรายการนี้</span>
                 </Button>
               </div>
             )}
@@ -520,9 +520,9 @@ export default function AdminPaymentsPage() {
         isOpen={showConfirmApprove}
         onClose={() => setShowConfirmApprove(false)}
         onConfirm={handleApprove}
-        title="AUTHORIZE CREDIT INJECTION"
-        message={`Authorize immediate transmission of ${selectedPayment?.package?.slipQuota?.toLocaleString()} credits to index "${selectedPayment?.user?.username}"? This protocol is irreversible.`}
-        confirmText="Authorize Transmission"
+        title="ยืนยันการอนุมัติโควต้า"
+        message={`ต้องการอนุมัติ ${selectedPayment?.package?.slipQuota?.toLocaleString()} เครดิต ให้แก่ผู้ใช้ "${selectedPayment?.user?.username}" หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้`}
+        confirmText="ยืนยันการอนุมัติ"
         type="success"
         isLoading={isProcessing}
       />
@@ -530,14 +530,14 @@ export default function AdminPaymentsPage() {
       <Modal
         isOpen={showRejectModal}
         onClose={() => !isProcessing && setShowRejectModal(false)}
-        title="TRANSACTION DENIAL PROTOCOL"
-        subtitle="Execute high-priority rejection of financial signal"
+        title="ยืนยันการปฏิเสธรายการ"
+        subtitle="ระบุเหตุผลที่ปฏิเสธรายการชำระเงินนี้"
         size="md"
       >
         <div className="space-y-8 p-2">
           <div className="p-8 bg-rose-500/[0.03] rounded-3xl border border-rose-500/20 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-rose-500/[0.02] to-transparent" />
-            <p className="text-[10px] font-black text-rose-400/60 uppercase tracking-[0.4em] mb-4">Target Identity Matrix</p>
+            <p className="text-[10px] font-black text-rose-400/60 uppercase tracking-[0.4em] mb-4">ข้อมูลผู้ใช้</p>
             <p className="text-2xl font-black text-white tracking-tight uppercase leading-none">
               {selectedPayment?.user?.username}
             </p>
@@ -545,8 +545,8 @@ export default function AdminPaymentsPage() {
           </div>
 
           <TextArea
-            label="DENIAL RATIONALE & FEEDBACK"
-            placeholder="e.g. VISUAL RESOLUTION INSUFFICIENT, METADATA MISMATCH DETECTED..."
+            label="เหตุผลในการปฏิเสธรายการ"
+            placeholder="เช่น สลิปไม่ชัดเจน, ยอดเงินไม่ตรง, หรือข้อมูลไม่ถูกต้อง..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={4}
@@ -561,7 +561,7 @@ export default function AdminPaymentsPage() {
               onClick={() => setShowRejectModal(false)}
               disabled={isProcessing}
             >
-              Abort Operation
+              ยกเลิก
             </Button>
             <Button
               variant="danger"
@@ -569,11 +569,11 @@ export default function AdminPaymentsPage() {
               onClick={handleReject}
               isLoading={isProcessing}
             >
-              Confirm Denial Signal
+              ยืนยันการปฏิเสธ
             </Button>
           </div>
         </div>
       </Modal>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

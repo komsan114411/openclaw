@@ -264,7 +264,7 @@ export default function UsersPage() {
                             </div>
                             <div>
                               <p className="font-black text-white leading-none mb-1.5 group-hover:text-emerald-400 transition-colors uppercase tracking-tight text-lg">{user.username}</p>
-                              <p className="text-[10px] text-slate-600 font-bold tracking-widest uppercase opacity-70">{user.fullName || 'Unidentified Personnel'}</p>
+                              <p className="text-[10px] text-slate-600 font-bold tracking-widest uppercase opacity-70">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                             </div>
                           </div>
                         </td>
@@ -275,7 +275,7 @@ export default function UsersPage() {
                             variant={user.role === 'admin' ? 'purple' : 'emerald'}
                             className="font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl text-[9px] shadow-lg"
                           >
-                            {user.role}
+                            {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}
                           </Badge>
                         </td>
                         <td className="px-10 py-8">
@@ -370,7 +370,7 @@ export default function UsersPage() {
                       variant={user.role === 'admin' ? 'purple' : 'emerald'}
                       className="font-black uppercase tracking-widest text-[8px] px-3 py-1 shadow-lg"
                     >
-                      {user.role}
+                      {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}
                     </Badge>
                   </div>
 
@@ -380,7 +380,7 @@ export default function UsersPage() {
                       <div className="flex items-center gap-2">
                         <div className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-white/10")} />
                         <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", user.isActive ? "text-emerald-400" : "text-slate-600")}>
-                          {user.isActive ? 'Active' : 'Offline'}
+                          {user.isActive ? 'ออนไลน์' : 'ออฟไลน์'}
                         </span>
                       </div>
                     </div>

@@ -400,11 +400,11 @@ export default function AdminLineAccountsPage() {
                         <div className="flex items-center justify-center gap-8">
                           <div className="text-center group-hover:scale-105 transition-transform">
                             <p className="text-base font-black text-white tracking-tighter">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
-                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Messages</p>
+                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">ข้อความ</p>
                           </div>
                           <div className="text-center group-hover:scale-105 transition-transform">
                             <p className="text-base font-black text-emerald-400 tracking-tighter">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
-                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Verified</p>
+                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">ตรวจสอบแล้ว</p>
                           </div>
                         </div>
                       </td>
@@ -413,7 +413,7 @@ export default function AdminLineAccountsPage() {
                           <div className="flex items-center gap-2.5">
                             <div className={cn("w-2.5 h-2.5 rounded-full shadow-lg", account.isActive ? "bg-emerald-500 shadow-emerald-500/30 animate-pulse" : "bg-slate-700")} />
                             <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", account.isActive ? "text-emerald-400" : "text-slate-600")}>
-                              {account.isActive ? 'Active' : 'Disabled'}
+                              {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                             </span>
                           </div>
                           <div className="flex gap-1 mt-1">
@@ -468,12 +468,12 @@ export default function AdminLineAccountsPage() {
                 <div className="space-y-4 mb-8">
                   <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
                     <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Messages</span>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">ข้อความ</span>
                       <p className="font-black text-white text-sm">{(account.statistics?.totalMessages || 0).toLocaleString()}</p>
                     </div>
                     <div className="w-px h-6 bg-white/5" />
                     <div className="flex flex-col text-right">
-                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">Verified</span>
+                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">ตรวจสอบแล้ว</span>
                       <p className="font-black text-emerald-400 text-sm">{(account.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
                     </div>
                   </div>
@@ -532,7 +532,7 @@ export default function AdminLineAccountsPage() {
 
           <div className="flex gap-4 pt-8 border-t border-slate-100 px-2">
             <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setShowAddModal(false)} disabled={isProcessing}>ยกเลิก</Button>
-            <Button variant="primary" className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl" onClick={handleAddAccount} isLoading={isProcessing}>Initialize Account</Button>
+            <Button variant="primary" className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-emerald-500/20 shadow-xl" onClick={handleAddAccount} isLoading={isProcessing}>เริ่มสร้างบัญชี</Button>
           </div>
         </div>
       </Modal>
@@ -606,24 +606,24 @@ export default function AdminLineAccountsPage() {
                 <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none group-hover:bg-indigo-500/20 transition-colors duration-1000" />
                 <div className="flex items-center justify-between mb-4 relative z-10">
                   <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-4 text-indigo-400">
-                    <span className="w-1.5 h-8 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)]" /> Neural Engine Parameters
+                    <span className="w-1.5 h-8 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)]" /> การตั้งค่าขุมพลัง AI
                   </h3>
                   <Badge className="bg-white/10 text-white border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg">GEN-2 AI</Badge>
                 </div>
 
                 <div className="space-y-6 relative z-10">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Core System Directive (AI Instructions)</label>
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ระบุกระบวนการทำงานของ AI (คำสั่งพื้นฐาน)</label>
                     <Textarea variant="glass" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบทบาท, เงื่อนไข และพฤติกรรมของ AI..." rows={6} className="bg-white/5 border-white/10 text-white p-8 rounded-[2rem] font-medium leading-relaxed" />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Creativity Temperature (0.0 - 1.0)</label>
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ความสร้างสรรค์ของ AI (โหมดสุ่มเนื้อหา)</label>
                       <Input variant="glass" type="number" step="0.1" min="0" max="1" value={settingsData.aiTemperature} onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Emergency Fallback Response</label>
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ข้อความตอบรับเมื่อระบบขัดข้อง</label>
                       <Input variant="glass" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl" />
                     </div>
                   </div>
@@ -635,7 +635,7 @@ export default function AdminLineAccountsPage() {
           {/* Protocol Message Overrides */}
           <div className="space-y-8 px-2">
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
-              <span className="w-8 h-px bg-slate-200" /> UI / UX Customizations <span className="flex-1 h-px bg-slate-200" />
+              <span className="w-8 h-px bg-slate-200" /> การปรับแต่งหน้าตาการใช้งาน <span className="flex-1 h-px bg-slate-200" />
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
@@ -671,7 +671,7 @@ export default function AdminLineAccountsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               <div className="space-y-6">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Core Configuration
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> การตั้งค่าหลัก
                 </h3>
                 <div className="p-8 bg-slate-50/50 rounded-[3rem] border border-white shadow-inner space-y-6">
                   <div>
@@ -697,12 +697,12 @@ export default function AdminLineAccountsPage() {
 
               <div className="space-y-6">
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" /> Node Connectivity
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" /> สถานะการเชื่อมต่อ
                 </h3>
                 <div className="p-8 h-full bg-slate-900 text-white rounded-[3rem] shadow-premium-lg flex flex-col justify-between relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[60px] -mr-32 -mt-32 pointer-events-none" />
                   <div className="relative z-10">
-                    <p className="text-[10px] font-black text-emerald-400 mb-4 uppercase tracking-[0.2em]">Live Webhook Endpoint</p>
+                    <p className="text-[10px] font-black text-emerald-400 mb-4 uppercase tracking-[0.2em]">ลิงก์รับข้อมูล Webhook</p>
                     <div className="p-6 bg-white/5 border border-white/10 rounded-[2rem] font-mono text-sm text-white/80 break-all leading-relaxed mb-8">
                       {getWebhookUrl(selectedAccount)}
                     </div>
@@ -716,23 +716,23 @@ export default function AdminLineAccountsPage() {
 
             <div className="space-y-6">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Real-time Node Analytics
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> สถิติวิเคราะห์เรียลไทม์
               </h3>
               <div className="grid grid-cols-3 gap-6">
                 <Card variant="glass" className="p-8 text-center rounded-[2.5rem] border-slate-100 hover:scale-105 transition-transform">
-                  <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">Network Traffic</p>
+                  <p className="text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">ปริมาณข้อมูลเครือข่าย</p>
                   <p className="text-3xl font-black text-slate-900 tracking-tighter">{(selectedAccount.statistics?.totalMessages || 0).toLocaleString()}</p>
-                  <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Processed Messages</p>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">จำนวนข้อความที่ประมวลผล</p>
                 </Card>
                 <Card variant="glass" className="p-8 text-center rounded-[2.5rem] border-emerald-100 bg-emerald-50/20 hover:scale-105 transition-transform">
-                  <p className="text-[10px] font-black text-emerald-600 mb-3 uppercase tracking-widest">Efficiency</p>
+                  <p className="text-[10px] font-black text-emerald-600 mb-3 uppercase tracking-widest">ประสิทธิภาพสูง</p>
                   <p className="text-3xl font-black text-emerald-600 tracking-tighter">{(selectedAccount.statistics?.totalSlipsVerified || 0).toLocaleString()}</p>
-                  <p className="text-[8px] font-bold text-emerald-500/60 uppercase mt-1">Validated Slips</p>
+                  <p className="text-[8px] font-bold text-emerald-500/60 uppercase mt-1">สลิปที่ถูกต้อง</p>
                 </Card>
                 <Card variant="glass" className="p-8 text-center rounded-[2.5rem] border-rose-100 bg-rose-50/20 hover:scale-105 transition-transform">
-                  <p className="text-[10px] font-black text-rose-600 mb-3 uppercase tracking-widest">System Errors</p>
+                  <p className="text-[10px] font-black text-rose-600 mb-3 uppercase tracking-widest">ข้อผิดพลาดของระบบ</p>
                   <p className="text-3xl font-black text-rose-600 tracking-tighter">{(selectedAccount.statistics?.totalSlipErrors || 0).toLocaleString()}</p>
-                  <p className="text-[8px] font-bold text-rose-500/60 uppercase mt-1">Validation Failures</p>
+                  <p className="text-[8px] font-bold text-rose-500/60 uppercase mt-1">สลิปที่ไม่ถูกต้อง</p>
                 </Card>
               </div>
             </div>

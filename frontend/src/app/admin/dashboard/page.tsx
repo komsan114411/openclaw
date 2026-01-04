@@ -176,7 +176,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : stats?.totalLineAccounts || 0}</p>
-            <p className="text-[9px] sm:text-[10px] text-blue-400 font-medium">+{stats?.totalMessages || 0} ข้อความ</p>
+            <p className="text-[9px] sm:text-[10px] text-blue-400 font-medium">{stats?.totalMessages || 0} ข้อความ</p>
           </Card>
 
           <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
@@ -347,7 +347,7 @@ export default function AdminDashboard() {
                 </div>
                 <Link href="/admin/payments">
                   <Button variant="ghost" size="sm" className="text-emerald-400 font-black tracking-widest text-[9px] uppercase hover:bg-emerald-500/10">
-                    View All
+                    ดูทั้งหมด
                   </Button>
                 </Link>
               </div>
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <p className="text-base sm:text-xl font-black text-white leading-none mb-1">฿{payment.amount?.toLocaleString()}</p>
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em]">{payment.paymentType === 'bank_transfer' ? 'Bank Transfer' : 'Crypto / USDT'}</p>
+                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em]">{payment.paymentType === 'bank_transfer' ? 'โอนผ่านธนาคาร' : 'คริปโต / USDT'}</p>
                           </div>
                         </div>
                         <StatusBadge status="pending" className="px-3 text-[8px] sm:text-[9px] h-6" />
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="font-black text-white text-sm sm:text-base leading-tight uppercase tracking-tight">ล้างระบบ</h3>
-                  <p className="text-[8px] sm:text-[10px] font-black text-rose-500/40 uppercase tracking-widest mt-1">Maintenance</p>
+                  <p className="text-[8px] sm:text-[10px] font-black text-rose-500/40 uppercase tracking-widest mt-1">การบำรุงรักษา</p>
                 </div>
               </div>
               <Button
@@ -436,7 +436,7 @@ export default function AdminDashboard() {
                 onClick={runCleanupSessions}
                 isLoading={isRunningMaintenance === 'sessions'}
               >
-                Launch
+                ดำเนินการ
               </Button>
             </Card>
           </div>

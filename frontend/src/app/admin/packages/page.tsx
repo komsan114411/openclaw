@@ -272,7 +272,7 @@ export default function AdminPackagesPage() {
                     <div className="mb-10">
                       <div className="flex items-baseline gap-2">
                         <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter">฿{pkg.price.toLocaleString()}</span>
-                        <span className="text-[10px] font-black font-mono text-slate-600 uppercase tracking-widest opacity-60">/ {pkg.durationDays}D Protocol</span>
+                        <span className="text-[10px] font-black font-mono text-slate-600 uppercase tracking-widest opacity-60">/ ระบบ {pkg.durationDays} วัน</span>
                       </div>
                       {(pkg.priceUsdt ?? 0) > 0 && (
                         <div className="mt-3 flex items-center gap-2 bg-emerald-500/5 w-fit px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-emerald-500/10">

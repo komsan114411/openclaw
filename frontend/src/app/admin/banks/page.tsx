@@ -74,7 +74,7 @@ export default function BanksManagementPage() {
         setBanks(response.data.banks);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load banks');
+      setError(err.response?.data?.message || 'ไม่สามารถโหลดข้อมูลธนาคารได้');
       toast.error('ไม่สามารถโหลดข้อมูลธนาคารได้');
     } finally {
       setLoading(false);
@@ -94,7 +94,7 @@ export default function BanksManagementPage() {
         toast.success(response.data.message || 'นำเข้าธนาคารเริ่มต้นสำเร็จ', { icon: '🏦' });
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to initialize banks');
+      setError(err.response?.data?.message || 'ไม่สามารถนำเข้าข้อมูลเริ่มต้นได้');
       toast.error('ไม่สามารถนำเข้าธนาคารเริ่มต้นได้');
     } finally {
       setLoading(false);

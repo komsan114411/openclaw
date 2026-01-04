@@ -16,18 +16,18 @@ import { systemResponseTemplatesApi } from '@/lib/api';
 // [NOTE] REDUNDANT SLIPS UTILIZE SLIP TEMPLATES; LOW QUOTA SIGNALS ARE INJECTED INTO SLIP PAYLOADS
 const RESPONSE_CATEGORIES = {
   main: {
-    label: 'CORE PROTOCOLS',
-    description: 'ESSENTIAL INTERACTION SIGNALS',
+    label: 'ข้อความหลัก',
+    description: 'ข้อความพื้นฐานของระบบ',
     types: ['quota_exhausted', 'package_expired', 'slip_not_found', 'system_error'],
   },
   optional: {
-    label: 'EXTENDED LOGIC',
-    description: 'OPTIONAL COMMUNICATION LAYERS',
+    label: 'ข้อความเพิ่มเติม',
+    description: 'การตอบกลับในสถานการณ์เสริม',
     types: ['bot_disabled', 'processing'],
   },
   extra: {
-    label: 'ANCILLARY DATA',
-    description: 'SUPPLEMENTARY TELEMETRY',
+    label: 'ข้อมูลโควต้า',
+    description: 'การแจ้งเตือนทรัพยากร',
     types: ['quota_low'],
   },
 };
@@ -35,15 +35,15 @@ const RESPONSE_CATEGORIES = {
 // INTERACTION PROTOCOL DEFINITIONS
 const RESPONSE_TYPES: Record<string, { label: string; icon: string; description: string; color: string; userConfigurable?: boolean }> = {
   // CORE
-  quota_exhausted: { label: 'QUOTA EXHAUSTED', icon: '🔴', description: 'CREDIT PAYLOAD DEPLETED', color: '#DC2626' },
-  package_expired: { label: 'PACKAGE EXPIRED', icon: '⏰', description: 'SUBSCRIPTION CYCLE TERMINATED', color: '#F59E0B' },
-  slip_not_found: { label: 'SLIP DATA NOT FOUND', icon: '❌', description: 'VERIFICATION REGISTRY MISMATCH', color: '#EF4444' },
-  system_error: { label: 'SYSTEM CRITICAL ERROR', icon: '⚠️', description: 'INTERNAL PROTOCOL FAILURE', color: '#F97316' },
+  quota_exhausted: { label: 'โควต้าหมด', icon: '🔴', description: 'จำนวนโควต้าของคุณหมดลงแล้ว', color: '#DC2626' },
+  package_expired: { label: 'แพ็กเกจหมดอายุ', icon: '⏰', description: 'รอบการใช้งานแพ็กเกจสิ้นสุดลงแล้ว', color: '#F59E0B' },
+  slip_not_found: { label: 'ไม่พบข้อมูลสลิป', icon: '❌', description: 'ไม่พบข้อมูลการโอนเงินในระบบธนาคาร', color: '#EF4444' },
+  system_error: { label: 'ระบบขัดข้อง', icon: '⚠️', description: 'เกิดข้อผิดพลาดภายในระบบ', color: '#F97316' },
   // OPTIONAL
-  bot_disabled: { label: 'BOT DISCONNECTED', icon: '📵', description: 'NEURAL INTERFACE INACTIVE', color: '#64748B', userConfigurable: true },
-  processing: { label: 'SIGNAL PROCESSING', icon: '⏳', description: 'METADATA VALIDATION ACTIVE', color: '#0EA5E9', userConfigurable: true },
+  bot_disabled: { label: 'บอทถูกปิด', icon: '📵', description: 'ระบบการตอบกลับถูกปิดโดยผู้ใช้', color: '#64748B', userConfigurable: true },
+  processing: { label: 'กำลังดำเนินการ', icon: '⏳', description: 'ระบบกำลังตรวจสอบข้อมูลสลิป', color: '#0EA5E9', userConfigurable: true },
   // EXTRA
-  quota_low: { label: 'QUOTA LOW THRESHOLD', icon: '⚠️', description: 'CREDIT RESERVES CRITICAL', color: '#EAB308' },
+  quota_low: { label: 'โควต้าเหลือน้อย', icon: '⚠️', description: 'โควต้าคงเหลือถึงเกณฑ์แจ้งเตือน', color: '#EAB308' },
 };
 
 // Color presets for quick selection
@@ -93,10 +93,10 @@ const DEFAULT_STYLING: ResponseStyling = {
   icon: '⚡',
   showIcon: true,
   showContactButton: true,
-  contactButtonText: 'UPLINK OPERATOR',
+  contactButtonText: 'ติดต่อสอบถาม',
   contactButtonUrl: '',
   showRetryButton: true,
-  retryButtonText: 'RETRY PROTOCOL',
+  retryButtonText: 'ลองใหม่อีกครั้ง',
 };
 
 export default function SystemResponsesPage() {
@@ -125,11 +125,11 @@ export default function SystemResponsesPage() {
         }
       } else {
         // No templates found - might need to create them
-        toast.error('MATRIX REGISTRY EMPTY: PLEASE INITIALIZE SYSTEM CONFIGURATION');
+        toast.error('ไม่พบข้อมูล: กรุณาตั้งค่าระบบเริ่มต้น');
       }
     } catch (error: any) {
       console.error('Failed to fetch templates:', error);
-      toast.error(error.response?.data?.message || 'SIGNAL ACQUISITION FAILED: MATRIX UNREACHABLE');
+      toast.error(error.response?.data?.message || 'การเรียกข้อมูลล้มเหลว: ไม่สามารถเชื่อมต่อระบบได้');
     } finally {
       setLoading(false);
     }
@@ -154,13 +154,13 @@ export default function SystemResponsesPage() {
       setSaving(true);
       const res = await systemResponseTemplatesApi.update(selectedType, formData);
       if (res.data.success) {
-        toast.success('PROTOCOL COMMITTED SUCCESSFULLY');
+        toast.success('บันทึกข้อมูลสำเร็จ');
         fetchTemplates();
       } else {
-        toast.error(res.data.error || 'PROTOCOL COMMIT FAILED');
+        toast.error(res.data.error || 'บันทึกข้อมูลล้มเหลว');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'SIGNAL TRANSMISSION ERROR');
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล');
     } finally {
       setSaving(false);
     }
@@ -168,20 +168,20 @@ export default function SystemResponsesPage() {
 
   const handleReset = async () => {
     if (!selectedType) return;
-    if (!confirm('WARNING: RESETTING DOMAIN WILL REVERT ALL PARAMETERS. PROCEED?')) return;
+    if (!confirm('คำเตือน: การรีเซ็ตจะคืนค่าทั้งหมดเป็นค่าเริ่มต้น คุณต้องการดำเนินการต่อหรือไม่?')) return;
 
     try {
       setSaving(true);
       const res = await systemResponseTemplatesApi.reset(selectedType);
       if (res.data.success) {
-        toast.success('DOMAIN PARAMETERS RESET');
+        toast.success('รีเซ็ตค่าเริ่มต้นสำเร็จ');
         setFormData({ ...res.data.data, styling: { ...DEFAULT_STYLING, ...res.data.data.styling } });
         fetchTemplates();
       } else {
-        toast.error(res.data.error || 'RESET PROTOCOL FAILED');
+        toast.error(res.data.error || 'รีเซ็ตล้มเหลว');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'SIGNAL TRANSMISSION ERROR');
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล');
     } finally {
       setSaving(false);
     }
@@ -222,7 +222,7 @@ export default function SystemResponsesPage() {
     return result;
   }, [templates, activeCategory, searchQuery]);
 
-  if (loading) return <DashboardLayout requiredRole="admin"><PageLoading message="LOGGING INTO INTERACTION MATRIX..." /></DashboardLayout>;
+  if (loading) return <DashboardLayout requiredRole="admin"><PageLoading message="กำลังโหลดข้อมูลระบบ..." /></DashboardLayout>;
 
   return (
     <DashboardLayout requiredRole="admin">
@@ -264,17 +264,17 @@ export default function SystemResponsesPage() {
           <div className="flex flex-wrap items-center gap-8 justify-center">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xl border border-white/5">01</div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Signal</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">ได้รับสัญญาณ</p>
             </div>
             <div className="w-10 h-[1px] bg-white/5" />
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xl">02</div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Verify</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">ตรวจสอบ</p>
             </div>
             <div className="w-10 h-[1px] bg-white/5" />
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center font-black text-xs shadow-xl">03</div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Transmit</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">ส่งคำตอบ</p>
             </div>
           </div>
         </Card>
@@ -328,7 +328,7 @@ export default function SystemResponsesPage() {
               <div className="p-3 space-y-2 max-h-[55vh] overflow-y-auto custom-scrollbar">
                 {filteredTemplates.length === 0 ? (
                   <div className="text-center py-16 opacity-30">
-                    <p className="text-[10px] font-black uppercase tracking-widest">Zero Signals Filtered</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest">ไม่พบข้อมูลที่ค้นหา</p>
                   </div>
                 ) : filteredTemplates.map((template) => {
                   const typeInfo = RESPONSE_TYPES[template.type];
@@ -388,10 +388,10 @@ export default function SystemResponsesPage() {
                 <div>
                   <p className="font-bold text-emerald-400 text-sm">OPERATIONAL_PROTOCOL</p>
                   <ul className="text-[10px] text-slate-500 mt-2 space-y-1 font-bold uppercase tracking-widest">
-                    <li>• SIGNAL_RECEPTION_ACTIVE</li>
-                    <li>• QUOTA_VALIDATION_MATRIX</li>
-                    <li>• AUTOMATED_RESPONSE_PIPELINE</li>
-                    <li>• MULTI_NODE_ORCHESTRATION</li>
+                    <li>• เครื่องมือจัดการการรับสัญญาณ</li>
+                    <li>• ระบบตรวจสอบข้อมูลสลิป</li>
+                    <li>• ระบบส่งข้อความอัตโนมัติ</li>
+                    <li>• การจัดการร่วมหลากหลายจุด</li>
                   </ul>
                 </div>
               </div>
@@ -427,7 +427,7 @@ export default function SystemResponsesPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-white/5 border border-white/5 shadow-inner">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">PROTOCOL_ACTIVE</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">เปิดใช้ข้อความนี้</span>
                         <Switch
                           checked={formData.isActive ?? true}
                           onChange={(checked) => updateFormData('isActive', checked)}
@@ -441,8 +441,8 @@ export default function SystemResponsesPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl shadow-inner text-indigo-400">🛰️</div>
                       <div>
-                        <h3 className="text-lg font-black text-white uppercase tracking-tight">Deployment Format</h3>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Select interaction layer architecture</p>
+                        <h3 className="text-lg font-black text-white uppercase tracking-tight">รูปแบบการแสดงผล</h3>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">เลือกรูปแบบการตอบกลับ (Flex หรือ Text)</p>
                       </div>
                     </div>
 
@@ -458,8 +458,8 @@ export default function SystemResponsesPage() {
                         )}
                       >
                         <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">💎</div>
-                        <p className="font-black text-[13px] text-white uppercase tracking-tight mb-1">Neural Flex</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">High-fidelity visual matrix</p>
+                        <p className="font-black text-[13px] text-white uppercase tracking-tight mb-1">Flex Message</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">การแสดงผลแบบกราฟิกสวยงาม</p>
                         {formData.responseFormat === 'flex' && (
                           <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                         )}
@@ -475,8 +475,8 @@ export default function SystemResponsesPage() {
                         )}
                       >
                         <div className="text-3xl mb-4 group-hover:scale-110 transition-transform">⌨️</div>
-                        <p className="font-black text-[13px] text-white uppercase tracking-tight mb-1">Standard Cipher</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Clean terminal-style response</p>
+                        <p className="font-black text-[13px] text-white uppercase tracking-tight mb-1">ข้อความธรรมดา</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">การแสดงผลแบบตัวอักษรปกติ</p>
                         {formData.responseFormat === 'text' && (
                           <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                         )}
@@ -484,11 +484,11 @@ export default function SystemResponsesPage() {
                     </div>
 
                     <Textarea
-                      label="NOMINAL CLI FALLBACK"
+                      label="ข้อความสำรอง (Text Mode)"
                       value={formData.textMessage || ''}
                       onChange={(e) => updateFormData('textMessage', e.target.value)}
                       rows={3}
-                      placeholder="ENTER FALLBACK SIGNAL CIPHER..."
+                      placeholder="กรอกข้อความสำรองของคุณที่นี่..."
                       className="rounded-[2rem] bg-white/[0.02] border border-white/5 shadow-inner font-black text-[11px] p-6 leading-relaxed uppercase text-white placeholder:text-slate-600 focus:bg-white/[0.05]"
                     />
                   </Card>
@@ -506,32 +506,32 @@ export default function SystemResponsesPage() {
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl shadow-inner text-emerald-400">📡</div>
                             <div>
-                              <h3 className="text-lg font-black text-white uppercase tracking-tight">Signal Parameters</h3>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Define the core interaction payload</p>
+                              <h3 className="text-lg font-black text-white uppercase tracking-tight">เนื้อหาข้อความ</h3>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">กำหนดหัวข้อและเนื้อหาหลัก</p>
                             </div>
                           </div>
 
                           <div className="space-y-6">
                             <Input
-                              label="PRIMARY NOMENCLATURE (TITLE)"
+                              label="หัวข้อหลัก (TITLE)"
                               value={formData.title || ''}
                               onChange={(e) => updateFormData('title', e.target.value)}
-                              placeholder="e.g. QUOTA DEPLETED..."
+                              placeholder="เช่น โควต้าของคุณหมดแล้ว..."
                               className="h-14 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner font-black text-[11px] px-6 uppercase tracking-widest text-white placeholder:text-slate-600 focus:bg-white/[0.05]"
                             />
                             <Input
-                              label="CORE TRANSMISSION (MAIN MESSAGE)"
+                              label="เนื้อหาหลัก (MAIN MESSAGE)"
                               value={formData.mainMessage || ''}
                               onChange={(e) => updateFormData('mainMessage', e.target.value)}
-                              placeholder="e.g. YOUR ACCOUNT HAS REACHED ZERO CREDITS..."
+                              placeholder="เช่น ยอดโควต้าคงเหลือของคุณไม่เพียงพอสำหรับการใช้งาน..."
                               className="h-14 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner font-black text-[11px] px-6 uppercase tracking-widest text-white placeholder:text-slate-600 focus:bg-white/[0.05]"
                             />
                             <Textarea
-                              label="ANCILLARY TELEMETRY (SUB MESSAGE)"
+                              label="เนื้อหารอง (SUB MESSAGE)"
                               value={formData.subMessage || ''}
                               onChange={(e) => updateFormData('subMessage', e.target.value)}
                               rows={3}
-                              placeholder="e.g. PLEASE REFUND TO CONTINUE AUTOMATED SERVICES..."
+                              placeholder="เช่น กรุณาเติมโควต้าเพื่อใช้งานระบบตรวจสอบสลิปต่อ..."
                               className="rounded-[2rem] bg-white/[0.02] border border-white/5 shadow-inner font-black text-[11px] p-6 leading-relaxed uppercase text-white placeholder:text-slate-600 focus:bg-white/[0.05]"
                             />
                           </div>
@@ -542,14 +542,14 @@ export default function SystemResponsesPage() {
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl shadow-inner text-pink-400">🎨</div>
                             <div>
-                              <h3 className="text-lg font-black text-white uppercase tracking-tight">Visual Matrix</h3>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Configure chromatic deployment parameters</p>
+                              <h3 className="text-lg font-black text-white uppercase tracking-tight">การปรับแต่งความสวยงาม</h3>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ตั้งค่าสีและไอคอนสำหรับการแสดงผล</p>
                             </div>
                           </div>
 
                           <div className="space-y-6">
                             <div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Neural Chromatic Presets</p>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">ชุดสีแนะนำ</p>
                               <div className="flex flex-wrap gap-3">
                                 {COLOR_PRESETS.map((preset) => (
                                   <button
@@ -566,7 +566,7 @@ export default function SystemResponsesPage() {
 
                             <div className="grid grid-cols-2 gap-6">
                               <div className="space-y-3">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Primary Frequency</p>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">สีหลัก</p>
                                 <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
                                   <input
                                     type="color"
@@ -578,7 +578,7 @@ export default function SystemResponsesPage() {
                                 </div>
                               </div>
                               <div className="space-y-3">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Background Void</p>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">สีพื้นหลัง</p>
                                 <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
                                   <input
                                     type="color"
@@ -598,8 +598,8 @@ export default function SystemResponsesPage() {
                                   onChange={(checked) => updateStyling('showIcon', checked)}
                                 />
                                 <div>
-                                  <p className="text-[11px] font-black text-white uppercase tracking-tight">Signal Marker</p>
-                                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Visual identifier toggle</p>
+                                  <p className="text-[11px] font-black text-white uppercase tracking-tight">ไอคอนประกอบ</p>
+                                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">เลือกเปิด/ปิดไอคอน</p>
                                 </div>
                               </div>
                               {formData.styling?.showIcon && (
@@ -618,8 +618,8 @@ export default function SystemResponsesPage() {
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl shadow-inner text-blue-400">🔘</div>
                             <div>
-                              <h3 className="text-lg font-black text-white uppercase tracking-tight">Control Interface</h3>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Manage interaction triggers & links</p>
+                              <h3 className="text-lg font-black text-white uppercase tracking-tight">ปุ่มและการนำทาง</h3>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">จัดการปุ่มกดและลิงก์เชื่อมต่อ</p>
                             </div>
                           </div>
 
@@ -632,17 +632,17 @@ export default function SystemResponsesPage() {
                                     onChange={(checked) => updateStyling('showRetryButton', checked)}
                                   />
                                   <div>
-                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">Retry Protocol</p>
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Re-initiation trigger</p>
+                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">ปุ่มลองใหม่</p>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">ปุ่มสำหรับให้ผู้ใช้กดตรวจสอบอีกครั้ง</p>
                                   </div>
                                 </div>
                               </div>
                               {formData.styling?.showRetryButton && (
                                 <Input
-                                  label="RETRY TRIGGER NOMENCLATURE"
+                                  label="ชื่อบนปุ่มลองใหม่"
                                   value={formData.styling?.retryButtonText || ''}
                                   onChange={(e) => updateStyling('retryButtonText', e.target.value)}
-                                  placeholder="e.g. RE-TRANSMIT PROTOCOL..."
+                                  placeholder="เช่น ลองพยายามตรวจสอบอีกครั้ง..."
                                   className="h-14 rounded-2xl bg-white/5 border border-white/10 shadow-2xl font-black text-[11px] px-6 uppercase tracking-widest text-white placeholder:text-slate-600 focus:bg-white/[0.1]"
                                 />
                               )}
@@ -656,22 +656,22 @@ export default function SystemResponsesPage() {
                                     onChange={(checked) => updateStyling('showContactButton', checked)}
                                   />
                                   <div>
-                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">Uplink Contact</p>
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Operator communication conduit</p>
+                                    <p className="text-[11px] font-black text-white uppercase tracking-tight">ปุ่มติดต่อเรา</p>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">ปุ่มสำหรับลิงก์ไปยังช่องแชทแอดมิน</p>
                                   </div>
                                 </div>
                               </div>
                               {formData.styling?.showContactButton && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <Input
-                                    label="UPLINK LABEL"
+                                    label="ชื่อบนปุ่มติดต่อ"
                                     value={formData.styling?.contactButtonText || ''}
                                     onChange={(e) => updateStyling('contactButtonText', e.target.value)}
-                                    placeholder="e.g. UPLINK TO OPERATOR..."
+                                    placeholder="เช่น ติดต่อแอดมินเพื่อขอความช่วยเหลือ..."
                                     className="h-14 rounded-2xl bg-white/5 border border-white/10 shadow-2xl font-black text-[11px] px-6 uppercase tracking-widest text-white placeholder:text-slate-600 focus:bg-white/[0.1]"
                                   />
                                   <Input
-                                    label="CONDUIT URI (LINK)"
+                                    label="ลิงก์ติดต่อ (URL)"
                                     value={formData.styling?.contactButtonUrl || ''}
                                     onChange={(e) => updateStyling('contactButtonUrl', e.target.value)}
                                     placeholder="https://..."
@@ -694,7 +694,7 @@ export default function SystemResponsesPage() {
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
                       <p className="text-[10px] font-black text-white/40 mb-8 text-center uppercase tracking-[0.4em] flex items-center justify-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Neural Interface Preview
+                        ตัวอย่างการแสดงผล
                       </p>
 
                       <div className="bg-slate-800/50 rounded-[2.8rem] p-6 min-h-[450px] flex flex-col items-center justify-center border border-white/5 relative shadow-inner">
@@ -715,7 +715,7 @@ export default function SystemResponsesPage() {
                               <span className="text-xl drop-shadow-md">{formData.styling?.icon || '⚡'}</span>
                             )}
                             <span className="font-black text-[12px] text-white uppercase tracking-widest drop-shadow-sm">
-                              {formData.title || 'PROTOCOL TITLE'}
+                              {formData.title || 'หัวข้อ'}
                             </span>
                           </div>
 
@@ -725,7 +725,7 @@ export default function SystemResponsesPage() {
                             style={{ backgroundColor: formData.styling?.backgroundColor || '#f8fafc' }}
                           >
                             <p className="font-black text-slate-900 text-[13px] leading-tight uppercase tracking-tight">
-                              {formData.mainMessage || 'MAIN PAYLOAD MESSAGE'}
+                              {formData.mainMessage || 'เนื้อหาหลัก'}
                             </p>
                             {formData.subMessage && (
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">{formData.subMessage}</p>
@@ -740,12 +740,12 @@ export default function SystemResponsesPage() {
                                   className="w-full h-12 flex items-center justify-center text-[10px] font-black text-white rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-emerald-500/10"
                                   style={{ backgroundColor: formData.styling?.primaryColor || '#10b981' }}
                                 >
-                                  {formData.styling?.retryButtonText || 'RETRY PROTOCOL'}
+                                  {formData.styling?.retryButtonText || 'ลองใหม่อีกครั้ง'}
                                 </div>
                               )}
                               {formData.styling?.showContactButton && (
                                 <div className="w-full h-12 flex items-center justify-center text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-100/50 rounded-2xl uppercase tracking-[0.2em]">
-                                  {formData.styling?.contactButtonText || 'UPLINK OPERATOR'}
+                                  {formData.styling?.contactButtonText || 'ติดต่อแอดมิน'}
                                 </div>
                               )}
                             </div>
@@ -765,7 +765,7 @@ export default function SystemResponsesPage() {
                       <div className="flex items-start gap-4">
                         <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl shadow-lg">⚡</div>
                         <div>
-                          <p className="font-black text-emerald-900 text-xs uppercase tracking-widest mb-1">Activation Trigger</p>
+                          <p className="font-black text-emerald-900 text-xs uppercase tracking-widest mb-1">เงื่อนไขการส่ง</p>
                           <p className="text-[10px] font-bold text-emerald-700/60 leading-relaxed uppercase">
                             {RESPONSE_TYPES[selectedType || '']?.description}
                           </p>
@@ -783,7 +783,7 @@ export default function SystemResponsesPage() {
                         disabled={saving}
                         className="rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-400"
                       >
-                        Reset Domain
+                        รีเซ็ตค่าพื้นฐาน
                       </Button>
                       <Button
                         variant="primary"
@@ -793,7 +793,7 @@ export default function SystemResponsesPage() {
                         isLoading={saving}
                         className="rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-emerald-500/20"
                       >
-                        Deploy Signal
+                        บันทึกการตั้งค่า
                       </Button>
                     </div>
                   </div>
@@ -802,9 +802,9 @@ export default function SystemResponsesPage() {
             ) : (
               <Card className="p-20 text-center bg-black/40 backdrop-blur-3xl border border-white/5 shadow-inner rounded-[4rem] flex flex-col items-center justify-center space-y-6">
                 <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-[2.5rem] flex items-center justify-center text-4xl shadow-2xl animate-bounce">👈</div>
-                <div className="space-y-2">
-                  <h4 className="text-2xl font-black text-white uppercase tracking-tighter">Initialize Control</h4>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Select an Interaction Protocol from the manifest</p>
+                <div className="text-center space-y-4">
+                  <h4 className="text-2xl font-black text-white uppercase tracking-tighter">เริ่มตั้งค่า</h4>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">เลือกหัวข้อที่ต้องการแก้ไขจากรายการด้านซ้าย</p>
                 </div>
               </Card>
             )}
