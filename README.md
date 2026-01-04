@@ -208,6 +208,39 @@ npm run start
 
 MIT License
 
+## 🤖 AI Development System
+
+โปรเจกต์นี้มีระบบช่วย AI ในการพัฒนา:
+
+### Getting Started (AI Agents)
+1. **อ่าน `CLAUDE.md`** - กฎและ coding standards
+2. **อ่าน `.ai/CURRENT_CONTEXT.md`** - สถานะปัจจุบัน
+3. **ดู `docs/`** - เอกสาร API และคู่มือ
+
+### Automation Scripts
+```bash
+./scripts/safe-push.sh "message"    # Lint + Commit + Push
+./scripts/health-check.sh           # ตรวจสอบสถานะระบบ
+./scripts/check-api-paths.sh        # หา API path ผิด
+./scripts/dev-start.sh              # เริ่ม dev environment
+```
+
+### MCP Memory Server
+```bash
+cd memory-server
+npm install && npm run build
+npm start
+```
+
+เชื่อมต่อกับ Claude Desktop เพื่อจดจำความรู้ข้ามเซสชัน
+
+### Before Ending Session
+1. สร้าง handoff: `./scripts/new-session.sh`
+2. อัปเดต `.ai/CURRENT_CONTEXT.md`
+3. Commit และ push
+
+---
+
 ## 👨‍💻 Development
 
 Created with ❤️ using NestJS, Next.js, and modern web technologies.
