@@ -1,0 +1,10 @@
+{
+  "project_name": "LINE OA Management",
+  "handoff_dir": ".ai/handoff",
+  "sessions_dir": ".ai/sessions",
+  "check_interval_seconds": 10,
+  "max_review_rounds": 5,
+  "auto_commit": false,
+  "rules_file": "CLAUDE.md",
+  "context_file": ".ai/CURRENT_CONTEXT.md"
+}
