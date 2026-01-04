@@ -14,6 +14,7 @@ import * as path from 'path';
 
 import { TOOLS } from './tools.js';
 import {
+  initDatabase,
   insertMemory,
   searchMemories,
   getRecentMemories,
@@ -157,6 +158,7 @@ function handleGetRecentMemories(args: unknown): string {
     tags: m.tags ? m.tags.split(',').filter(Boolean) : [],
     created_at: m.created_at,
   }));
+
 
   const stats = getStats();
 
@@ -311,6 +313,8 @@ async function main() {
   console.error('║     🧠 MCP Memory Server v1.0.0        ║');
   console.error('╚════════════════════════════════════════╝');
   console.error('');
+
+  await initDatabase();
 
   const stats = getStats();
   console.error(`[Memory] Total memories: ${stats.total}`);

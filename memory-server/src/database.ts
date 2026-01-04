@@ -1,172 +1,131 @@
 // =============================================================================
-// database.ts - SQLite Database Connection & Operations
+// database.ts - SQLite Database Connection & Operations (sql.js)
 // =============================================================================
 
-import Database from 'better-sqlite3';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import * as fs from 'fs';
 import * as path from 'path';
 import { Memory, MemoryInput, SearchParams, UpdateParams } from './types.js';
 
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'brain.db');
 
-// Initialize database
-const db = new Database(DB_PATH);
+let db: SqlJsDatabase | null = null;
 
-// Create schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS memories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category TEXT NOT NULL,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    tags TEXT,
-    project TEXT DEFAULT 'line-oa',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+function saveDatabase(): void {
+  if (db) {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+  }
+}
 
-  CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
-  CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project);
-  CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at);
-`);
+export async function initDatabase(): Promise<void> {
+  const SQL = await initSqlJs();
+  if (fs.existsSync(DB_PATH)) {
+    const fileBuffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(fileBuffer);
+    console.error('[Database] Loaded from: ' + DB_PATH);
+  } else {
+    db = new SQL.Database();
+    console.error('[Database] Created new at: ' + DB_PATH);
+  }
+  db.run('CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, tags TEXT, project TEXT DEFAULT \'line-oa\', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)');
+  saveDatabase();
+}
 
-console.error(`[Database] Initialized at: ${DB_PATH}`);
+function getDb(): SqlJsDatabase {
+  if (!db) throw new Error('Database not initialized');
+  return db;
+}
 
-// =============================================================================
-// CRUD Operations
-// =============================================================================
+function rowsToMemories(result: ReturnType<SqlJsDatabase['exec']>): Memory[] {
+  if (!result[0]) return [];
+  const columns = result[0].columns;
+  return result[0].values.map(row => {
+    const obj: Record<string, unknown> = {};
+    columns.forEach((col, i) => { obj[col] = row[i]; });
+    return obj as unknown as Memory;
+  });
+}
 
 export function insertMemory(input: MemoryInput): number {
-  const stmt = db.prepare(`
-    INSERT INTO memories (category, title, content, tags, project)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const result = stmt.run(
-    input.category,
-    input.title,
-    input.content,
-    input.tags ? input.tags.join(',') : null,
-    input.project || 'line-oa'
-  );
-
-  return result.lastInsertRowid as number;
+  const database = getDb();
+  database.run('INSERT INTO memories (category, title, content, tags, project) VALUES (?, ?, ?, ?, ?)',
+    [input.category, input.title, input.content, input.tags ? input.tags.join(',') : null, input.project || 'line-oa']);
+  const result = database.exec('SELECT last_insert_rowid() as id');
+  const id = (result[0]?.values[0]?.[0] as number) || 0;
+  saveDatabase();
+  return id;
 }
 
 export function searchMemories(params: SearchParams): Memory[] {
+  const database = getDb();
   const { query, category, limit = 5 } = params;
-
-  // Build WHERE clause
+  const values: (string | number | null)[] = [];
+  let sql = 'SELECT * FROM memories';
   const conditions: string[] = [];
-  const values: (string | number)[] = [];
-
-  // Fuzzy search in title and content
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (searchTerms.length > 0) {
-    const termConditions = searchTerms.map(() =>
-      `(LOWER(title) LIKE ? OR LOWER(content) LIKE ? OR LOWER(tags) LIKE ?)`
-    );
-    conditions.push(`(${termConditions.join(' AND ')})`);
-    searchTerms.forEach(term => {
-      const pattern = `%${term}%`;
-      values.push(pattern, pattern, pattern);
-    });
+    conditions.push('(LOWER(title) LIKE ? OR LOWER(content) LIKE ?)');
+    values.push('%' + searchTerms[0] + '%', '%' + searchTerms[0] + '%');
   }
-
-  // Category filter
-  if (category) {
-    conditions.push('category = ?');
-    values.push(category);
-  }
-
-  const whereClause = conditions.length > 0
-    ? `WHERE ${conditions.join(' AND ')}`
-    : '';
-
-  const sql = `
-    SELECT * FROM memories
-    ${whereClause}
-    ORDER BY
-      CASE WHEN LOWER(title) LIKE ? THEN 0 ELSE 1 END,
-      created_at DESC
-    LIMIT ?
-  `;
-
-  const firstTerm = searchTerms[0] ? `%${searchTerms[0].toLowerCase()}%` : '%';
-  values.push(firstTerm, limit);
-
-  const stmt = db.prepare(sql);
-  return stmt.all(...values) as Memory[];
+  if (category) { conditions.push('category = ?'); values.push(category); }
+  if (conditions.length > 0) sql += ' WHERE ' + conditions.join(' AND ');
+  sql += ' ORDER BY created_at DESC LIMIT ?';
+  values.push(limit);
+  return rowsToMemories(database.exec(sql, values));
 }
 
 export function getRecentMemories(limit: number = 10, category?: string): Memory[] {
+  const database = getDb();
   let sql = 'SELECT * FROM memories';
   const values: (string | number)[] = [];
-
-  if (category) {
-    sql += ' WHERE category = ?';
-    values.push(category);
-  }
-
+  if (category) { sql += ' WHERE category = ?'; values.push(category); }
   sql += ' ORDER BY created_at DESC LIMIT ?';
   values.push(limit);
-
-  const stmt = db.prepare(sql);
-  return stmt.all(...values) as Memory[];
+  return rowsToMemories(database.exec(sql, values));
 }
 
 export function getMemoryById(id: number): Memory | null {
-  const stmt = db.prepare('SELECT * FROM memories WHERE id = ?');
-  return (stmt.get(id) as Memory) || null;
+  const database = getDb();
+  const result = database.exec('SELECT * FROM memories WHERE id = ?', [id]);
+  const memories = rowsToMemories(result);
+  return memories[0] || null;
 }
 
 export function updateMemory(params: UpdateParams): boolean {
+  const database = getDb();
   const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
   const values: (string | number)[] = [];
-
-  if (params.content !== undefined) {
-    updates.push('content = ?');
-    values.push(params.content);
-  }
-
-  if (params.tags !== undefined) {
-    updates.push('tags = ?');
-    values.push(params.tags.join(','));
-  }
-
-  if (updates.length === 1) {
-    return false; // Nothing to update
-  }
-
+  if (params.content !== undefined) { updates.push('content = ?'); values.push(params.content); }
+  if (params.tags !== undefined) { updates.push('tags = ?'); values.push(params.tags.join(',')); }
+  if (updates.length === 1) return false;
   values.push(params.id);
-
-  const sql = `UPDATE memories SET ${updates.join(', ')} WHERE id = ?`;
-  const stmt = db.prepare(sql);
-  const result = stmt.run(...values);
-
-  return result.changes > 0;
+  database.run('UPDATE memories SET ' + updates.join(', ') + ' WHERE id = ?', values);
+  const changes = database.getRowsModified();
+  if (changes > 0) saveDatabase();
+  return changes > 0;
 }
 
 export function deleteMemory(id: number): boolean {
-  const stmt = db.prepare('DELETE FROM memories WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+  const database = getDb();
+  database.run('DELETE FROM memories WHERE id = ?', [id]);
+  const changes = database.getRowsModified();
+  if (changes > 0) saveDatabase();
+  return changes > 0;
 }
 
 export function getStats(): { total: number; byCategory: Record<string, number> } {
-  const totalStmt = db.prepare('SELECT COUNT(*) as count FROM memories');
-  const total = (totalStmt.get() as { count: number }).count;
-
-  const categoryStmt = db.prepare(`
-    SELECT category, COUNT(*) as count
-    FROM memories
-    GROUP BY category
-  `);
-  const categories = categoryStmt.all() as { category: string; count: number }[];
-
+  const database = getDb();
+  const totalResult = database.exec('SELECT COUNT(*) as count FROM memories');
+  const total = (totalResult[0]?.values[0]?.[0] as number) || 0;
+  const categoryResult = database.exec('SELECT category, COUNT(*) as count FROM memories GROUP BY category');
   const byCategory: Record<string, number> = {};
-  categories.forEach(row => {
-    byCategory[row.category] = row.count;
-  });
-
+  if (categoryResult[0]) {
+    categoryResult[0].values.forEach(row => { byCategory[row[0] as string] = row[1] as number; });
+  }
   return { total, byCategory };
 }
