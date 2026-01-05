@@ -55,6 +55,101 @@ const SAMPLE_SLIP_DATA = {
   transRef: '68370160657749I...',
 };
 
+// Mock templates for fallback when API fails
+const MOCK_TEMPLATES: SlipTemplate[] = [
+  {
+    _id: 'mock-success-1',
+    name: 'Standard Success',
+    description: 'เทมเพลตมาตรฐานสำหรับการตรวจสอบสำเร็จ',
+    type: 'success',
+    isDefault: true,
+    isActive: true,
+    isGlobal: true,
+    primaryColor: '#10b981',
+    headerText: 'ตรวจสอบสำเร็จ',
+    showAmount: true,
+    showSender: true,
+    showReceiver: true,
+    showDate: true,
+    showTime: true,
+    showTransRef: true,
+    showBankLogo: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock-success-2',
+    name: 'Minimal Success',
+    description: 'แสดงเฉพาะข้อมูลสำคัญ',
+    type: 'success',
+    isDefault: false,
+    isActive: true,
+    isGlobal: true,
+    primaryColor: '#06C755',
+    headerText: 'โอนสำเร็จ',
+    showAmount: true,
+    showSender: false,
+    showReceiver: true,
+    showDate: false,
+    showTime: false,
+    showTransRef: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock-duplicate-1',
+    name: 'Duplicate Warning',
+    description: 'แจ้งเตือนสลิปที่เคยใช้แล้ว',
+    type: 'duplicate',
+    isDefault: true,
+    isActive: true,
+    isGlobal: true,
+    primaryColor: '#f59e0b',
+    headerText: 'สลิปซ้ำ',
+    showAmount: true,
+    showSender: true,
+    showReceiver: true,
+    showDate: true,
+    showTime: true,
+    showTransRef: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock-error-1',
+    name: 'Error Template',
+    description: 'แสดงเมื่อเกิดข้อผิดพลาด',
+    type: 'error',
+    isDefault: true,
+    isActive: true,
+    isGlobal: true,
+    primaryColor: '#ef4444',
+    headerText: 'เกิดข้อผิดพลาด',
+    showAmount: false,
+    showSender: false,
+    showReceiver: false,
+    showDate: false,
+    showTime: false,
+    showTransRef: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    _id: 'mock-not-found-1',
+    name: 'Not Found Template',
+    description: 'แสดงเมื่อไม่พบข้อมูลสลิป',
+    type: 'not_found',
+    isDefault: true,
+    isActive: true,
+    isGlobal: true,
+    primaryColor: '#64748b',
+    headerText: 'ไม่พบข้อมูล',
+    showAmount: false,
+    showSender: false,
+    showReceiver: false,
+    showDate: false,
+    showTime: false,
+    showTransRef: true,
+    createdAt: new Date().toISOString(),
+  },
+];
+
 // Mini Slip Preview Component
 const MiniSlipPreview = memo(({ template }: { template: SlipTemplate }) => {
   const isDuplicate = template.type === 'duplicate';
@@ -122,6 +217,7 @@ function TemplatesContent() {
   const [updatingType, setUpdatingType] = useState<string | null>(null);
   const [currentAccount, setCurrentAccount] = useState<LineAccount | null>(null);
   const [allAccounts, setAllAccounts] = useState<LineAccount[]>([]);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const fetchTemplates = useCallback(async () => {
     if (!accountId) {
@@ -146,7 +242,10 @@ function TemplatesContent() {
       setAllAccounts(allAccountsRes.data?.accounts || []);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้');
+      toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้ - กำลังแสดงตัวอย่าง');
+      // Fallback to mock data when API fails
+      setTemplates(MOCK_TEMPLATES);
+      setUsingMockData(true);
     } finally {
       setLoading(false);
     }
@@ -264,6 +363,21 @@ function TemplatesContent() {
             )}
           </div>
         </div>
+
+        {/* Mock Data Notice */}
+        {usingMockData && (
+          <Card className="p-3 sm:p-4 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border-amber-500/20 mb-4 sm:mb-6" variant="glass">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-xl flex-shrink-0">
+                🎨
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-amber-400 text-sm">โหมดตัวอย่าง (Preview Mode)</h4>
+                <p className="text-xs text-slate-400 mt-0.5">กำลังแสดงเทมเพลตตัวอย่าง เนื่องจากไม่สามารถเชื่อมต่อ API ได้ เมื่อ API พร้อมใช้งาน จะแสดงเทมเพลตจริงอัตโนมัติ</p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Current LINE Account Info Card */}
         {currentAccount && (

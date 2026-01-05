@@ -1,97 +1,82 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Code Audit - Fix TypeScript `any` Type Violations
+**Task:** Improve User Templates Page - Add Mock Data Fallback
 
-## Critical Issues Found & Fixed
+## Summary
 
-### 1. API Client Type Safety (frontend/src/lib/api.ts)
+The user templates page already had most requirements implemented:
+- Grid Card display for templates
+- MiniSlipPreview component for visual previews
+- Only "Select/Use" button (no Edit/Delete admin buttons)
 
-**Problem:** Multiple API functions used `data: any` parameters, violating CLAUDE.md TypeScript rules.
+The missing feature was **mock data fallback when API fails**.
 
-**Fixes:**
-- Added `CreateUserData` and `UpdateUserData` interfaces for usersApi
-- Added `CreatePackageData` and `UpdatePackageData` interfaces for packagesApi
-- Added `CreateBankData` and `UpdateBankData` interfaces for banksApi
-- Added `UpdateSystemSettingsData` and `AddBankAccountData` interfaces for systemSettingsApi
-- Added `CreateSlipTemplateData` and `UpdateSlipTemplateData` interfaces for slipTemplatesApi
-- Added `UpdateSystemResponseTemplateData` interface for systemResponseTemplatesApi
+## Changes Made
 
-### 2. Core Type Definitions (frontend/src/types/index.ts)
+### File Modified: `frontend/src/app/user/templates/page.tsx`
 
-**Problem:** `ActivityLog.metadata` and `Payment.verificationResult` used `any` type.
+#### 1. Added Mock Templates Data (Lines 58-151)
+Added `MOCK_TEMPLATES` constant with 5 sample templates covering all types:
+- **Standard Success** - Full template with all fields
+- **Minimal Success** - Compact template with essential fields only
+- **Duplicate Warning** - Warning template for duplicate slips
+- **Error Template** - Error state template
+- **Not Found Template** - Template for not found cases
 
-**Fixes:**
-- Changed `ActivityLog.metadata` from `any` to `Record<string, unknown>`
-- Added `SlipVerificationResult` interface with proper typing
-- Changed `Payment.verificationResult` to use `SlipVerificationResult`
+#### 2. Added State for Mock Data Tracking (Line 220)
+```typescript
+const [usingMockData, setUsingMockData] = useState(false);
+```
 
-### 3. Admin Line Accounts Page (frontend/src/app/admin/line-accounts/page.tsx)
+#### 3. Updated Error Handler with Fallback (Lines 243-248)
+```typescript
+catch (error: unknown) {
+  const err = error as { response?: { data?: { message?: string } } };
+  toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้ - กำลังแสดงตัวอย่าง');
+  // Fallback to mock data when API fails
+  setTemplates(MOCK_TEMPLATES);
+  setUsingMockData(true);
+}
+```
 
-**Problem:** 10 instances of `(s as any)` casts for custom message fields.
+#### 4. Added Visual Notice Banner (Lines 367-380)
+When using mock data, a yellow notice banner appears:
+- Icon: Paint palette emoji
+- Title: "โหมดตัวอย่าง (Preview Mode)"
+- Description: Explains that mock templates are shown due to API connection issues
 
-**Fix:** Removed all `as any` casts since `LineAccountSettings` interface already has these fields defined.
+## Verification Completed
 
-### 4. Admin Users Page (frontend/src/app/admin/users/page.tsx)
+| Check | Status |
+|-------|--------|
+| Grid Card display | Already implemented |
+| MiniSlipPreview component | Already implemented |
+| No Edit/Delete buttons | Verified - Only "Select/Use" |
+| Mock data fallback | Newly implemented |
+| TypeScript Frontend | PASSED |
+| TypeScript Backend | PASSED |
 
-**Problem:** Form state used implicit `string` type for `role` field.
+## Test Plan for Tester
 
-**Fixes:**
-- Added explicit type annotation `role: 'admin' | 'user'` to formData state
-- Added explicit type annotation to editFormData state
-- Added type assertions in Select onChange handlers
+### 1. Normal Flow (API Working)
+- Navigate to User Templates page with a valid accountId
+- Verify templates load from API
+- Verify mock data notice does NOT appear
+- Verify "Select/Use" button works
 
-## Files Modified
+### 2. Mock Data Fallback (API Fails)
+- Disconnect backend or use invalid accountId
+- Page should show mock templates instead of empty state
+- Yellow "Preview Mode" notice banner should appear
+- Grid cards should display with MiniSlipPreview
 
-| File | Changes |
-|------|---------|
-| `frontend/src/lib/api.ts` | Added 11 TypeScript interfaces, replaced `any` with proper types |
-| `frontend/src/types/index.ts` | Fixed `metadata` and `verificationResult` types, added `SlipVerificationResult` |
-| `frontend/src/app/admin/line-accounts/page.tsx` | Removed 10 `as any` casts |
-| `frontend/src/app/admin/users/page.tsx` | Added type annotations to form states |
-
-## Audit Summary
-
-### Before Audit
-- 50+ `any` type violations across the codebase
-- Multiple API functions accepting untyped data
-- Type-unsafe form state management
-
-### After Fixes
-- Reduced `any` violations from 50+ to 42
-- All API client functions now have proper TypeScript interfaces
-- Core type definitions are now type-safe
-- Admin pages using proper type annotations
-
-### Remaining `any` Types (42 instances)
-Most remaining instances are `error: any` in catch blocks, which is a common TypeScript pattern. These are lower priority and can be addressed in future iterations by using typed error handling patterns.
-
-## Testing Performed
-- TypeScript Frontend: PASSED
-- TypeScript Backend: PASSED
-- No breaking changes introduced
-- All modified files compile without errors
-
-## Notes for Tester
-
-### 1. API Client
-- Test user creation/update flows
-- Test package creation/update flows
-- Test bank account management
-- Test slip template creation/update
-- Verify all CRUD operations work correctly
-
-### 2. Admin Line Accounts
-- Open settings modal for any LINE account
-- Verify custom message fields load correctly
-- Save settings and verify they persist
-
-### 3. Admin Users
-- Create a new user with admin/user role
-- Edit an existing user and change role
-- Verify role changes persist correctly
+### 3. UI Elements
+- Verify NO Edit/Delete buttons exist
+- Only "Select/Use" button should be available
+- Template cards show preview correctly
 
 ---
-**Created:** 2026-01-04
+**Created:** 2026-01-05
 **Developer Session:** Claude Code (Opus 4.5)
-**Audit Type:** Code Quality & TypeScript Compliance
+**Task Type:** UI Enhancement - Mock Data Fallback
