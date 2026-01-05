@@ -3,8 +3,8 @@
 import { useEffect, useState, memo } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, systemSettingsApi } from '@/lib/api';
-import { LineAccount, SlipTemplateListItem } from '@/types';
+import { lineAccountsApi, systemSettingsApi, banksApi } from '@/lib/api';
+import { LineAccount, SlipTemplateListItem, Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { Card, EmptyState } from '@/components/ui/Card';
@@ -56,16 +56,14 @@ const SAMPLE_DATA = {
   time: '14:32',
   transRef: '69010516324789A123456B78',
   sender: {
-    name: 'นาย สมชาย ใจดี',
+    name: 'นาย ธันเดอร์ มานะ',
     account: '1234xxxx5678',
-    bankShort: 'KBANK',
-    bankColor: '#138f2d',
+    bankId: '004', // KBANK
   },
   receiver: {
-    name: 'นางสาว สมหญิง รักดี',
+    name: 'นาย ธันเดอร์ มานะ',
     account: '9876xxxx4321',
-    bankShort: 'SCB',
-    bankColor: '#4e2a82',
+    bankId: '014', // SCB
   },
 };
 
@@ -89,8 +87,12 @@ const DEFAULT_PREVIEW_TEMPLATE: SlipTemplateForPreview = {
   showReceiverAccount: true,
 };
 
-// SlipPreview Component (Admin-style design)
-const SlipPreview = memo(({ template }: { template: SlipTemplateForPreview }) => {
+// SlipPreview Component (Admin-style design with real bank logos)
+const SlipPreview = memo(({ template, senderBank, receiverBank }: {
+  template: SlipTemplateForPreview;
+  senderBank?: Bank | null;
+  receiverBank?: Bank | null;
+}) => {
   const isDuplicate = template.type === 'duplicate';
   const isError = template.type === 'error';
   const isNotFound = template.type === 'not_found';
@@ -110,6 +112,10 @@ const SlipPreview = memo(({ template }: { template: SlipTemplateForPreview }) =>
     if (isNotFound) return 'ไม่พบข้อมูลสลิปนี้';
     return 'ตรวจสอบสลิปสำเร็จ';
   };
+
+  // Get bank logos
+  const senderLogo = senderBank?.logoBase64 || senderBank?.logoUrl;
+  const receiverLogo = receiverBank?.logoBase64 || receiverBank?.logoUrl;
 
   return (
     <div className="bg-slate-900 rounded-[1.5rem] p-3 w-full max-w-[200px] mx-auto shadow-2xl border border-white/10 relative overflow-hidden">
@@ -163,11 +169,12 @@ const SlipPreview = memo(({ template }: { template: SlipTemplateForPreview }) =>
           {template.showSender && (
             <div className="flex items-center gap-1.5 p-1.5 bg-slate-50 rounded-lg">
               {template.showBankLogo && (
-                <div
-                  className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white text-[7px] font-bold"
-                  style={{ backgroundColor: SAMPLE_DATA.sender.bankColor }}
-                >
-                  {SAMPLE_DATA.sender.bankShort.slice(0, 1)}
+                <div className="w-6 h-6 rounded-md bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                  {senderLogo ? (
+                    <img src={senderLogo} alt={senderBank?.name || 'Bank'} className="w-4 h-4 object-contain" />
+                  ) : (
+                    <span className="text-[8px]">👤</span>
+                  )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -191,11 +198,12 @@ const SlipPreview = memo(({ template }: { template: SlipTemplateForPreview }) =>
           {template.showReceiver && (
             <div className="flex items-center gap-1.5 p-1.5 rounded-lg transition-colors duration-200" style={{ backgroundColor: `${mainColor}10` }}>
               {template.showBankLogo && (
-                <div
-                  className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white text-[7px] font-bold"
-                  style={{ backgroundColor: SAMPLE_DATA.receiver.bankColor }}
-                >
-                  {SAMPLE_DATA.receiver.bankShort.slice(0, 1)}
+                <div className="w-6 h-6 rounded-md bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                  {receiverLogo ? (
+                    <img src={receiverLogo} alt={receiverBank?.name || 'Bank'} className="w-4 h-4 object-contain" />
+                  ) : (
+                    <span className="text-[8px]">🏦</span>
+                  )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -245,6 +253,7 @@ SlipPreview.displayName = 'SlipPreview';
 export default function UserLineAccountsPage() {
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
   const [templates, setTemplates] = useState<SlipTemplateListItem[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
@@ -292,6 +301,7 @@ export default function UserLineAccountsPage() {
     fetchAccounts();
     fetchPublicBaseUrl();
     fetchTemplates();
+    fetchBanks();
   }, []);
 
   const fetchPublicBaseUrl = async () => {
@@ -309,6 +319,15 @@ export default function UserLineAccountsPage() {
       setTemplates(response.data.templates || []);
     } catch (error) {
       console.error('Error fetching templates:', error);
+    }
+  };
+
+  const fetchBanks = async () => {
+    try {
+      const response = await banksApi.getAll();
+      setBanks(response.data.banks || []);
+    } catch (error) {
+      console.error('Error fetching banks:', error);
     }
   };
 
@@ -937,9 +956,12 @@ export default function UserLineAccountsPage() {
 
               {/* Preview Container */}
               <div className="bg-gradient-to-b from-white/[0.02] to-white/[0.05] rounded-2xl p-6 border border-white/5">
-                {formData.slipTemplateId ? (
-                  // Show preview based on selected template
-                  (() => {
+                {(() => {
+                  // Find sender and receiver banks from API data
+                  const senderBank = banks.find(b => b.code === SAMPLE_DATA.sender.bankId) || null;
+                  const receiverBank = banks.find(b => b.code === SAMPLE_DATA.receiver.bankId) || null;
+
+                  if (formData.slipTemplateId) {
                     const selectedTemplate = templates.find(t => t._id === formData.slipTemplateId);
                     if (selectedTemplate) {
                       // Create preview template with defaults for missing fields
@@ -965,21 +987,23 @@ export default function UserLineAccountsPage() {
                       };
                       return (
                         <div className="transform hover:scale-105 transition-transform duration-500">
-                          <SlipPreview template={previewTemplate} />
+                          <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} />
                         </div>
                       );
                     }
                     return null;
-                  })()
-                ) : (
+                  }
+
                   // Show default preview or placeholder
-                  <div className="space-y-4">
-                    <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} />
-                    <p className="text-[10px] text-slate-500 text-center">
-                      กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง
-                    </p>
-                  </div>
-                )}
+                  return (
+                    <div className="space-y-4">
+                      <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} senderBank={senderBank} receiverBank={receiverBank} />
+                      <p className="text-[10px] text-slate-500 text-center">
+                        กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Selected Template Info */}

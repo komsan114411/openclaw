@@ -1,91 +1,73 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Add Template Selection with Real-time Preview to Line Accounts Page
+**Task:** Update SlipPreview to use real bank logos from API (like Admin page)
 
 ## Summary
 
-Added a real-time slip preview feature to the Line Account add/edit modal, allowing users to see how their selected template will look before saving.
+Updated the SlipPreview component in both Line Accounts and Templates pages to fetch and display real bank logos from the API, matching the Admin page design.
 
 ## Changes Made
 
 ### File Modified: `frontend/src/app/user/line-accounts/page.tsx`
 
-#### 1. Added SlipPreview Component
-New Admin-style SlipPreview component with:
-- **Phone frame design** with dark background
-- **Decorative glow effect** matching template theme color
-- **Status header** with dynamic icon and color
-- **Amount section** with date/time
-- **Sender/Receiver info** with bank logo simulation
-- **Transaction details** (reference, fee)
+#### 1. Updated Imports
+- Added `banksApi` from `@/lib/api`
+- Added `Bank` type from `@/types`
 
-#### 2. Added Supporting Types and Data
+#### 2. Updated SlipPreview Component
+- Added `senderBank` and `receiverBank` props
+- Uses `bank.logoBase64` or `bank.logoUrl` for real logos
+- Falls back to emoji icons when no logo available
+
+#### 3. Added Banks State and Fetch
 ```typescript
-interface SlipTemplateForPreview {
-  _id: string;
-  name: string;
-  type: 'success' | 'duplicate' | 'error' | 'not_found';
-  primaryColor?: string;
-  headerText?: string;
-  footerText?: string;
-  showAmount: boolean;
-  // ... other display options
-}
+const [banks, setBanks] = useState<Bank[]>([]);
 
-const SAMPLE_DATA = {
-  amount: '1,500.00',
-  sender: { name: 'นาย สมชาย ใจดี', bankShort: 'KBANK', bankColor: '#138f2d' },
-  receiver: { name: 'นางสาว สมหญิง รักดี', bankShort: 'SCB', bankColor: '#4e2a82' },
-  // ...
-};
-
-const DEFAULT_PREVIEW_TEMPLATE: SlipTemplateForPreview = {
-  // Default template shown when no template selected
+const fetchBanks = async () => {
+  const response = await banksApi.getAll();
+  setBanks(response.data.banks || []);
 };
 ```
 
-#### 3. 2-Column Modal Layout
-- **Left Column (3/5):** Form inputs (Account Name, Channel ID/Secret, Access Token, Template Dropdown, Description)
-- **Right Column (2/5):** Real-time SlipPreview component
-- Responsive: Single column on mobile, 2-column on desktop (lg breakpoint)
+#### 4. Updated Sample Data
+```typescript
+const SAMPLE_DATA = {
+  sender: {
+    name: 'นาย ธันเดอร์ มานะ',
+    bankId: '004', // KBANK
+  },
+  receiver: {
+    name: 'นาย ธันเดอร์ มานะ',
+    bankId: '014', // SCB
+  },
+};
+```
 
-#### 4. Dynamic Preview Features
-- Shows default preview when no template selected with message "กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง"
-- Updates preview in real-time when template is selected from dropdown
-- Shows selected template info badge below preview
-- Preview color changes based on template type (success=green, duplicate=amber, error=red, not_found=gray)
+### File Modified: `frontend/src/app/user/templates/page.tsx`
+
+Same changes applied:
+- Added `banksApi` and `Bank` imports
+- Updated SlipPreview to accept bank props
+- Added banks state with useMemo for senderBank/receiverBank
+- Updated sample data with bankId references
+
+## Visual Changes
+
+| Before | After |
+|--------|-------|
+| Colored initials (K, S) | Real bank logos from API |
+| Hardcoded colors | Dynamic from bank data |
+| Static names | Configurable from Admin |
 
 ## Requirements Verification
 
 | Requirement | Status |
 |-------------|--------|
-| Dynamic Data Fetching (API) | COMPLETE - Uses `fetchTemplates()` API |
-| Real-time Preview | COMPLETE - Updates on dropdown change |
-| Form Integration (templateId) | COMPLETE - Sends with form submission |
-| 2-Column Layout | COMPLETE - lg:grid-cols-5 (3+2) |
-| Theme Color Support | COMPLETE - Dynamic based on type |
-| TypeScript Strict Mode | VERIFIED - No errors |
-
-## Visual Layout
-
-```
-+----------------------------------+
-|  Modal Title                      |
-+----------------------------------+
-|                    |             |
-|   [Form]           | [Preview]   |
-|                    |             |
-|   - Account Name   | +--------+  |
-|   - Channel ID     | | Slip   |  |
-|   - Access Token   | | Preview|  |
-|   - Template       | |        |  |
-|   - Description    | +--------+  |
-|                    |             |
-|   [Cancel] [Save]  | Selected:   |
-|                    | Template X  |
-+----------------------------------+
-```
+| Bank logos from API | COMPLETE |
+| Same as Admin page | COMPLETE |
+| TypeScript strict mode | VERIFIED |
+| No hardcoded URLs | VERIFIED |
 
 ## TypeScript Check
 - Frontend: PASSED (no errors)
@@ -94,4 +76,4 @@ const DEFAULT_PREVIEW_TEMPLATE: SlipTemplateForPreview = {
 ---
 **Created:** 2026-01-05
 **Developer Session:** Claude Code (Opus 4.5)
-**Task Type:** Feature Implementation
+**Task Type:** Feature Enhancement

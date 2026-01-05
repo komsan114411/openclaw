@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, Suspense, useMemo, memo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, slipTemplatesApi } from '@/lib/api';
-import { LineAccount } from '@/types';
+import { lineAccountsApi, slipTemplatesApi, banksApi } from '@/lib/api';
+import { LineAccount, Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -53,18 +53,14 @@ const SAMPLE_DATA = {
   time: '14:32',
   transRef: '69010516324789A123456B78',
   sender: {
-    name: 'นาย สมชาย ใจดี',
+    name: 'นาย ธันเดอร์ มานะ',
     account: '1234xxxx5678',
-    bankName: 'กสิกรไทย',
-    bankShort: 'KBANK',
-    bankColor: '#138f2d',
+    bankId: '004', // KBANK
   },
   receiver: {
-    name: 'นางสาว สมหญิง รักดี',
+    name: 'นาย ธันเดอร์ มานะ',
     account: '9876xxxx4321',
-    bankName: 'ไทยพาณิชย์',
-    bankShort: 'SCB',
-    bankColor: '#4e2a82',
+    bankId: '014', // SCB
   },
 };
 
@@ -192,8 +188,12 @@ const MOCK_TEMPLATES: SlipTemplate[] = [
   },
 ];
 
-// Realistic Bank Slip Preview Component (Admin-style)
-const SlipPreview = memo(({ template }: { template: SlipTemplate }) => {
+// Realistic Bank Slip Preview Component (Admin-style with real bank logos)
+const SlipPreview = memo(({ template, senderBank, receiverBank }: {
+  template: SlipTemplate;
+  senderBank?: Bank | null;
+  receiverBank?: Bank | null;
+}) => {
   const isDuplicate = template.type === 'duplicate';
   const isError = template.type === 'error';
   const isNotFound = template.type === 'not_found';
@@ -213,6 +213,10 @@ const SlipPreview = memo(({ template }: { template: SlipTemplate }) => {
     if (isNotFound) return 'ไม่พบข้อมูลสลิปนี้';
     return 'ตรวจสอบสลิปสำเร็จ';
   };
+
+  // Get bank logos
+  const senderLogo = senderBank?.logoBase64 || senderBank?.logoUrl;
+  const receiverLogo = receiverBank?.logoBase64 || receiverBank?.logoUrl;
 
   return (
     <div className="bg-slate-900 rounded-[1.5rem] p-3 w-full max-w-[220px] mx-auto shadow-2xl border border-white/10 relative overflow-hidden">
@@ -275,11 +279,12 @@ const SlipPreview = memo(({ template }: { template: SlipTemplate }) => {
           {template.showSender && (
             <div className="flex items-center gap-2 p-1.5 bg-slate-50 rounded-lg">
               {template.showBankLogo && (
-                <div
-                  className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-white text-[8px] font-bold"
-                  style={{ backgroundColor: SAMPLE_DATA.sender.bankColor }}
-                >
-                  {SAMPLE_DATA.sender.bankShort.slice(0, 1)}
+                <div className="w-7 h-7 rounded-md bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                  {senderLogo ? (
+                    <img src={senderLogo} alt={senderBank?.name || 'Bank'} className="w-5 h-5 object-contain" />
+                  ) : (
+                    <span className="text-[9px]">👤</span>
+                  )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -312,11 +317,12 @@ const SlipPreview = memo(({ template }: { template: SlipTemplate }) => {
               style={{ backgroundColor: `${mainColor}10` }}
             >
               {template.showBankLogo && (
-                <div
-                  className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-white text-[8px] font-bold"
-                  style={{ backgroundColor: SAMPLE_DATA.receiver.bankColor }}
-                >
-                  {SAMPLE_DATA.receiver.bankShort.slice(0, 1)}
+                <div className="w-7 h-7 rounded-md bg-white shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-100">
+                  {receiverLogo ? (
+                    <img src={receiverLogo} alt={receiverBank?.name || 'Bank'} className="w-5 h-5 object-contain" />
+                  ) : (
+                    <span className="text-[9px]">🏦</span>
+                  )}
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -382,12 +388,30 @@ function TemplatesContent() {
   const accountId = searchParams.get('accountId') || '';
 
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<Partial<Record<SlipTemplate['type'], string>>>({});
   const [updatingType, setUpdatingType] = useState<string | null>(null);
   const [currentAccount, setCurrentAccount] = useState<LineAccount | null>(null);
   const [allAccounts, setAllAccounts] = useState<LineAccount[]>([]);
   const [usingMockData, setUsingMockData] = useState(false);
+
+  // Get sender and receiver banks from API data
+  const senderBank = useMemo(() => banks.find(b => b.code === SAMPLE_DATA.sender.bankId) || null, [banks]);
+  const receiverBank = useMemo(() => banks.find(b => b.code === SAMPLE_DATA.receiver.bankId) || null, [banks]);
+
+  // Fetch banks on mount
+  useEffect(() => {
+    const fetchBanks = async () => {
+      try {
+        const response = await banksApi.getAll();
+        setBanks(response.data.banks || []);
+      } catch (error) {
+        console.error('Error fetching banks:', error);
+      }
+    };
+    fetchBanks();
+  }, []);
 
   const fetchTemplates = useCallback(async () => {
     // If no accountId, show mock templates in preview mode
@@ -607,7 +631,7 @@ function TemplatesContent() {
                       {/* Preview Section */}
                       <div className="p-4 sm:p-5 bg-gradient-to-b from-white/[0.02] to-white/[0.05] flex justify-center">
                         <div className="transform hover:scale-105 transition-transform duration-500">
-                          <SlipPreview template={template} />
+                          <SlipPreview template={template} senderBank={senderBank} receiverBank={receiverBank} />
                         </div>
                       </div>
 
