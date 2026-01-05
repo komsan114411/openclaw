@@ -72,6 +72,12 @@ export class SystemSettingsController {
       safeSettings.contactAdminUrl = settings.contactAdminUrl;
       safeSettings.contactAdminLine = settings.contactAdminLine;
       safeSettings.contactAdminEmail = settings.contactAdminEmail;
+      // Preview settings
+      safeSettings.previewSenderName = settings.previewSenderName || 'นาย ธันเดอร์ มานะ';
+      safeSettings.previewReceiverName = settings.previewReceiverName || 'นาย ธันเดอร์ มานะ';
+      safeSettings.previewSenderBankCode = settings.previewSenderBankCode || '004';
+      safeSettings.previewReceiverBankCode = settings.previewReceiverBankCode || '014';
+      safeSettings.previewAmount = settings.previewAmount || '1,000.00';
     }
 
     return {
@@ -293,13 +299,31 @@ export class SystemSettingsController {
   @ApiOperation({ summary: 'Get contact information' })
   async getContactInfo() {
     const settings = await this.settingsService.getSettings();
-    
+
     return {
       success: true,
       contact: {
         url: settings?.contactAdminUrl || '',
         line: settings?.contactAdminLine || '',
         email: settings?.contactAdminEmail || '',
+      },
+    };
+  }
+
+  @Get('preview-config')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Get slip preview configuration (for authenticated users)' })
+  async getPreviewConfig() {
+    const settings = await this.settingsService.getSettings();
+
+    return {
+      success: true,
+      previewConfig: {
+        senderName: settings?.previewSenderName || 'นาย ธันเดอร์ มานะ',
+        receiverName: settings?.previewReceiverName || 'นาย ธันเดอร์ มานะ',
+        senderBankCode: settings?.previewSenderBankCode || '004',
+        receiverBankCode: settings?.previewReceiverBankCode || '014',
+        amount: settings?.previewAmount || '1,000.00',
       },
     };
   }

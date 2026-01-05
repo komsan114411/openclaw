@@ -282,6 +282,7 @@ export const systemSettingsApi = {
     api.delete(`/system-settings/bank-accounts/${index}`),
   getApiStatus: () => api.get('/system-settings/api-status'),
   getPaymentInfo: () => api.get('/system-settings/payment-info'),
+  getPreviewConfig: () => api.get('/system-settings/preview-config'),
 };
 
 // Slip Verification API

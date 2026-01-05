@@ -46,6 +46,12 @@ interface SystemSettings {
   contactAdminLine?: string;
   contactAdminEmail?: string;
   bankAccounts?: BankAccountInfo[];
+  // Preview settings
+  previewSenderName?: string;
+  previewReceiverName?: string;
+  previewSenderBankCode?: string;
+  previewReceiverBankCode?: string;
+  previewAmount?: string;
 }
 
 interface BankAccountInfo {
@@ -109,6 +115,15 @@ export default function SettingsPage() {
     retryDelayMs: 1000,
   });
 
+  // Preview Settings
+  const [previewSettings, setPreviewSettings] = useState({
+    previewSenderName: 'นาย ธันเดอร์ มานะ',
+    previewReceiverName: 'นาย ธันเดอร์ มานะ',
+    previewSenderBankCode: '004',
+    previewReceiverBankCode: '014',
+    previewAmount: '1,000.00',
+  });
+
   const fetchSettings = useCallback(async () => {
     try {
       const response = await systemSettingsApi.get();
@@ -141,6 +156,13 @@ export default function SettingsPage() {
         showSlipProcessingMessage: data.showSlipProcessingMessage ?? true,
         maxRetryAttempts: data.maxRetryAttempts || 3,
         retryDelayMs: data.retryDelayMs || 1000,
+      });
+      setPreviewSettings({
+        previewSenderName: data.previewSenderName || 'นาย ธันเดอร์ มานะ',
+        previewReceiverName: data.previewReceiverName || 'นาย ธันเดอร์ มานะ',
+        previewSenderBankCode: data.previewSenderBankCode || '004',
+        previewReceiverBankCode: data.previewReceiverBankCode || '014',
+        previewAmount: data.previewAmount || '1,000.00',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -452,6 +474,93 @@ export default function SettingsPage() {
                     </div>
                   </Card>
                 </div>
+
+                {/* Slip Preview Sample Data Settings */}
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🧾</div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ตัวอย่างสลิป</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตั้งค่าข้อมูลตัวอย่างสำหรับแสดงผลสลิป</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                    {/* Sender Info */}
+                    <div className="space-y-4">
+                      <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">ข้อมูลผู้โอน</p>
+                      <Input
+                        label="ชื่อผู้โอน"
+                        placeholder="นาย ธันเดอร์ มานะ"
+                        value={previewSettings.previewSenderName}
+                        onChange={(e) => setPreviewSettings({ ...previewSettings, previewSenderName: e.target.value })}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                      />
+                      <Select
+                        label="ธนาคารผู้โอน"
+                        value={previewSettings.previewSenderBankCode}
+                        onChange={(e) => setPreviewSettings({ ...previewSettings, previewSenderBankCode: e.target.value })}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                      >
+                        <option value="">เลือกธนาคาร</option>
+                        {banks.map((b) => (
+                          <option key={b._id} value={b.code}>
+                            {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    {/* Receiver Info */}
+                    <div className="space-y-4">
+                      <p className="text-xs font-black text-blue-400 uppercase tracking-[0.2em]">ข้อมูลผู้รับ</p>
+                      <Input
+                        label="ชื่อผู้รับ"
+                        placeholder="นาย ธันเดอร์ มานะ"
+                        value={previewSettings.previewReceiverName}
+                        onChange={(e) => setPreviewSettings({ ...previewSettings, previewReceiverName: e.target.value })}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                      />
+                      <Select
+                        label="ธนาคารผู้รับ"
+                        value={previewSettings.previewReceiverBankCode}
+                        onChange={(e) => setPreviewSettings({ ...previewSettings, previewReceiverBankCode: e.target.value })}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                      >
+                        <option value="">เลือกธนาคาร</option>
+                        {banks.map((b) => (
+                          <option key={b._id} value={b.code}>
+                            {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    {/* Amount */}
+                    <div className="lg:col-span-2 space-y-4">
+                      <Input
+                        label="จำนวนเงินตัวอย่าง"
+                        placeholder="1,000.00"
+                        value={previewSettings.previewAmount}
+                        onChange={(e) => setPreviewSettings({ ...previewSettings, previewAmount: e.target.value })}
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        hint="รูปแบบ: 1,000.00"
+                      />
+                    </div>
+
+                    <div className="lg:col-span-2 pt-6 border-t border-white/5">
+                      <Button
+                        fullWidth
+                        size="lg"
+                        className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
+                        onClick={() => handleUpdate('preview', previewSettings)}
+                        isLoading={isSaving === 'preview'}
+                      >
+                        บันทึกการตั้งค่าตัวอย่าง
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
               </motion.div>
             )}
 

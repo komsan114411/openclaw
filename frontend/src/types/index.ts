@@ -186,6 +186,12 @@ export interface SystemSettings {
   contactAdminUrl: string;
   contactAdminLine: string;
   contactAdminEmail: string;
+  // Slip Preview Sample Data Settings
+  previewSenderName?: string;
+  previewReceiverName?: string;
+  previewSenderBankCode?: string;
+  previewReceiverBankCode?: string;
+  previewAmount?: string;
 }
 
 export interface BankAccount {

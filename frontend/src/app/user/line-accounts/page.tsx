@@ -48,8 +48,8 @@ interface SlipTemplateForPreview {
   showReceiverAccount?: boolean;
 }
 
-// Sample data for realistic preview (Thai)
-const SAMPLE_DATA = {
+// Default sample data for realistic preview (Thai) - will be overridden by API config
+const DEFAULT_SAMPLE_DATA = {
   amount: '฿1,500.00',
   fee: '฿0',
   date: '5 ม.ค. 2569',
@@ -87,11 +87,23 @@ const DEFAULT_PREVIEW_TEMPLATE: SlipTemplateForPreview = {
   showReceiverAccount: true,
 };
 
+// Sample data type
+interface SampleData {
+  amount: string;
+  fee: string;
+  date: string;
+  time: string;
+  transRef: string;
+  sender: { name: string; account: string; bankId: string };
+  receiver: { name: string; account: string; bankId: string };
+}
+
 // SlipPreview Component (Admin-style design with real bank logos)
-const SlipPreview = memo(({ template, senderBank, receiverBank }: {
+const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEFAULT_SAMPLE_DATA }: {
   template: SlipTemplateForPreview;
   senderBank?: Bank | null;
   receiverBank?: Bank | null;
+  sampleData?: SampleData;
 }) => {
   const isDuplicate = template.type === 'duplicate';
   const isError = template.type === 'error';
@@ -154,12 +166,12 @@ const SlipPreview = memo(({ template, senderBank, receiverBank }: {
           <div className="text-center py-1 border-b border-slate-100">
             <p className="text-[6px] text-slate-400 font-medium mb-0.5">จำนวนเงิน</p>
             <p className="text-base font-bold transition-colors duration-200" style={{ color: mainColor }}>
-              {SAMPLE_DATA.amount}
+              {sampleData.amount}
             </p>
             <div className="flex items-center justify-center gap-1 mt-0.5">
-              {template.showDate && <p className="text-[6px] text-slate-400">{SAMPLE_DATA.date}</p>}
+              {template.showDate && <p className="text-[6px] text-slate-400">{sampleData.date}</p>}
               {template.showDate && template.showTime && <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />}
-              {template.showTime && <p className="text-[6px] text-slate-400">{SAMPLE_DATA.time}</p>}
+              {template.showTime && <p className="text-[6px] text-slate-400">{sampleData.time}</p>}
             </div>
           </div>
         )}
@@ -179,8 +191,8 @@ const SlipPreview = memo(({ template, senderBank, receiverBank }: {
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-[6px] text-slate-400 font-medium">ผู้โอน</p>
-                <p className="text-[8px] font-semibold text-slate-800 truncate">{SAMPLE_DATA.sender.name}</p>
-                {template.showSenderAccount && <p className="text-[6px] text-slate-400 font-mono">{SAMPLE_DATA.sender.account}</p>}
+                <p className="text-[8px] font-semibold text-slate-800 truncate">{sampleData.sender.name}</p>
+                {template.showSenderAccount && <p className="text-[6px] text-slate-400 font-mono">{sampleData.sender.account}</p>}
               </div>
             </div>
           )}
@@ -208,8 +220,8 @@ const SlipPreview = memo(({ template, senderBank, receiverBank }: {
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-[6px] font-medium transition-colors duration-200" style={{ color: mainColor }}>ผู้รับ</p>
-                <p className="text-[8px] font-semibold text-slate-800 truncate">{SAMPLE_DATA.receiver.name}</p>
-                {template.showReceiverAccount && <p className="text-[6px] text-slate-400 font-mono">{SAMPLE_DATA.receiver.account}</p>}
+                <p className="text-[8px] font-semibold text-slate-800 truncate">{sampleData.receiver.name}</p>
+                {template.showReceiverAccount && <p className="text-[6px] text-slate-400 font-mono">{sampleData.receiver.account}</p>}
               </div>
             </div>
           )}
@@ -221,13 +233,13 @@ const SlipPreview = memo(({ template, senderBank, receiverBank }: {
             {template.showTransRef && (
               <div className="flex justify-between items-center text-[6px]">
                 <span className="text-slate-400">เลขอ้างอิง</span>
-                <span className="text-slate-700 font-mono font-medium truncate ml-1">{SAMPLE_DATA.transRef.slice(0, 10)}...</span>
+                <span className="text-slate-700 font-mono font-medium truncate ml-1">{sampleData.transRef.slice(0, 10)}...</span>
               </div>
             )}
             {template.showFee && (
               <div className="flex justify-between items-center text-[6px]">
                 <span className="text-slate-400">ค่าธรรมเนียม</span>
-                <span className="text-emerald-600 font-medium">ฟรี</span>
+                <span className="text-emerald-600 font-medium">{sampleData.fee}</span>
               </div>
             )}
           </div>
@@ -254,6 +266,7 @@ export default function UserLineAccountsPage() {
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
   const [templates, setTemplates] = useState<SlipTemplateListItem[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [sampleData, setSampleData] = useState<SampleData>(DEFAULT_SAMPLE_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
@@ -302,7 +315,34 @@ export default function UserLineAccountsPage() {
     fetchPublicBaseUrl();
     fetchTemplates();
     fetchBanks();
+    fetchPreviewConfig();
   }, []);
+
+  const fetchPreviewConfig = async () => {
+    try {
+      const response = await systemSettingsApi.getPreviewConfig();
+      const config = response.data.previewConfig;
+      if (config) {
+        setSampleData({
+          ...DEFAULT_SAMPLE_DATA,
+          amount: config.amount ? `฿${config.amount}` : DEFAULT_SAMPLE_DATA.amount,
+          sender: {
+            ...DEFAULT_SAMPLE_DATA.sender,
+            name: config.senderName || DEFAULT_SAMPLE_DATA.sender.name,
+            bankId: config.senderBankCode || DEFAULT_SAMPLE_DATA.sender.bankId,
+          },
+          receiver: {
+            ...DEFAULT_SAMPLE_DATA.receiver,
+            name: config.receiverName || DEFAULT_SAMPLE_DATA.receiver.name,
+            bankId: config.receiverBankCode || DEFAULT_SAMPLE_DATA.receiver.bankId,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching preview config:', error);
+      // Keep default sample data on error
+    }
+  };
 
   const fetchPublicBaseUrl = async () => {
     try {
@@ -957,9 +997,9 @@ export default function UserLineAccountsPage() {
               {/* Preview Container */}
               <div className="bg-gradient-to-b from-white/[0.02] to-white/[0.05] rounded-2xl p-6 border border-white/5">
                 {(() => {
-                  // Find sender and receiver banks from API data
-                  const senderBank = banks.find(b => b.code === SAMPLE_DATA.sender.bankId) || null;
-                  const receiverBank = banks.find(b => b.code === SAMPLE_DATA.receiver.bankId) || null;
+                  // Find sender and receiver banks from API data using configurable sample data
+                  const senderBank = banks.find(b => b.code === sampleData.sender.bankId) || null;
+                  const receiverBank = banks.find(b => b.code === sampleData.receiver.bankId) || null;
 
                   if (formData.slipTemplateId) {
                     const selectedTemplate = templates.find(t => t._id === formData.slipTemplateId);
@@ -987,7 +1027,7 @@ export default function UserLineAccountsPage() {
                       };
                       return (
                         <div className="transform hover:scale-105 transition-transform duration-500">
-                          <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} />
+                          <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
                         </div>
                       );
                     }
@@ -997,7 +1037,7 @@ export default function UserLineAccountsPage() {
                   // Show default preview or placeholder
                   return (
                     <div className="space-y-4">
-                      <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} senderBank={senderBank} receiverBank={receiverBank} />
+                      <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
                       <p className="text-[10px] text-slate-500 text-center">
                         กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง
                       </p>

@@ -152,6 +152,22 @@ export class SystemSettings {
   @Prop()
   contactAdminEmail: string;
 
+  // Slip Preview Sample Data Settings (configurable by admin)
+  @Prop({ default: 'นาย ธันเดอร์ มานะ' })
+  previewSenderName: string;
+
+  @Prop({ default: 'นาย ธันเดอร์ มานะ' })
+  previewReceiverName: string;
+
+  @Prop({ default: '004' })
+  previewSenderBankCode: string;
+
+  @Prop({ default: '014' })
+  previewReceiverBankCode: string;
+
+  @Prop({ default: '1,000.00' })
+  previewAmount: string;
+
   @Prop()
   updatedBy: string;
 }
