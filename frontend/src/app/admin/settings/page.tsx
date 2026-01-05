@@ -485,6 +485,17 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Info Box */}
+                  <div className="mb-8 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                    <div className="flex items-start gap-3">
+                      <span className="text-blue-400 text-lg">💡</span>
+                      <div>
+                        <p className="text-sm font-semibold text-blue-400">คำแนะนำ</p>
+                        <p className="text-xs text-slate-400 mt-1">ข้อมูลนี้จะแสดงในหน้าตัวอย่างสลิปของผู้ใช้งาน ช่วยให้เห็นภาพรวมของเทมเพลตก่อนเลือกใช้</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                     {/* Sender Info */}
                     <div className="space-y-4">
@@ -495,20 +506,48 @@ export default function SettingsPage() {
                         value={previewSettings.previewSenderName}
                         onChange={(e) => setPreviewSettings({ ...previewSettings, previewSenderName: e.target.value })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        error={!previewSettings.previewSenderName ? 'กรุณากรอกชื่อผู้โอน' : undefined}
                       />
                       <Select
                         label="ธนาคารผู้โอน"
                         value={previewSettings.previewSenderBankCode}
                         onChange={(e) => setPreviewSettings({ ...previewSettings, previewSenderBankCode: e.target.value })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                        error={!previewSettings.previewSenderBankCode ? 'กรุณาเลือกธนาคาร' : undefined}
                       >
                         <option value="">เลือกธนาคาร</option>
-                        {banks.map((b) => (
-                          <option key={b._id} value={b.code}>
-                            {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
-                          </option>
-                        ))}
+                        {banks.length === 0 ? (
+                          <option value="" disabled>กำลังโหลดข้อมูลธนาคาร...</option>
+                        ) : (
+                          banks.map((b) => (
+                            <option key={b._id} value={b.code}>
+                              {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
+                            </option>
+                          ))
+                        )}
                       </Select>
+                      {/* Sender Bank Preview */}
+                      {previewSettings.previewSenderBankCode && banks.length > 0 && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                          {(() => {
+                            const bank = banks.find(b => b.code === previewSettings.previewSenderBankCode);
+                            const logo = bank?.logoBase64 || bank?.logoUrl;
+                            return (
+                              <>
+                                {logo ? (
+                                  <img src={logo} alt={bank?.name || 'Bank'} className="w-8 h-8 object-contain rounded-lg bg-white p-1" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs">🏦</div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-emerald-400 truncate">{bank?.nameTh || bank?.name || 'ไม่พบธนาคาร'}</p>
+                                  <p className="text-[10px] text-slate-400">รหัส: {previewSettings.previewSenderBankCode}</p>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
 
                     {/* Receiver Info */}
@@ -520,20 +559,48 @@ export default function SettingsPage() {
                         value={previewSettings.previewReceiverName}
                         onChange={(e) => setPreviewSettings({ ...previewSettings, previewReceiverName: e.target.value })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        error={!previewSettings.previewReceiverName ? 'กรุณากรอกชื่อผู้รับ' : undefined}
                       />
                       <Select
                         label="ธนาคารผู้รับ"
                         value={previewSettings.previewReceiverBankCode}
                         onChange={(e) => setPreviewSettings({ ...previewSettings, previewReceiverBankCode: e.target.value })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
+                        error={!previewSettings.previewReceiverBankCode ? 'กรุณาเลือกธนาคาร' : undefined}
                       >
                         <option value="">เลือกธนาคาร</option>
-                        {banks.map((b) => (
-                          <option key={b._id} value={b.code}>
-                            {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
-                          </option>
-                        ))}
+                        {banks.length === 0 ? (
+                          <option value="" disabled>กำลังโหลดข้อมูลธนาคาร...</option>
+                        ) : (
+                          banks.map((b) => (
+                            <option key={b._id} value={b.code}>
+                              {b.shortName ? `${b.shortName} • ` : ''}{b.nameTh || b.name}
+                            </option>
+                          ))
+                        )}
                       </Select>
+                      {/* Receiver Bank Preview */}
+                      {previewSettings.previewReceiverBankCode && banks.length > 0 && (
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                          {(() => {
+                            const bank = banks.find(b => b.code === previewSettings.previewReceiverBankCode);
+                            const logo = bank?.logoBase64 || bank?.logoUrl;
+                            return (
+                              <>
+                                {logo ? (
+                                  <img src={logo} alt={bank?.name || 'Bank'} className="w-8 h-8 object-contain rounded-lg bg-white p-1" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs">🏦</div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-blue-400 truncate">{bank?.nameTh || bank?.name || 'ไม่พบธนาคาร'}</p>
+                                  <p className="text-[10px] text-slate-400">รหัส: {previewSettings.previewReceiverBankCode}</p>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
 
                     {/* Amount */}
@@ -542,19 +609,57 @@ export default function SettingsPage() {
                         label="จำนวนเงินตัวอย่าง"
                         placeholder="1,000.00"
                         value={previewSettings.previewAmount}
-                        onChange={(e) => setPreviewSettings({ ...previewSettings, previewAmount: e.target.value })}
+                        onChange={(e) => {
+                          // Allow only numbers, commas, and dots
+                          const value = e.target.value.replace(/[^0-9,.]/g, '');
+                          setPreviewSettings({ ...previewSettings, previewAmount: value });
+                        }}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
-                        hint="รูปแบบ: 1,000.00"
+                        hint="รูปแบบ: 1,000.00 (ตัวเลขเท่านั้น)"
+                        error={!previewSettings.previewAmount ? 'กรุณากรอกจำนวนเงิน' : undefined}
                       />
                     </div>
+
+                    {/* Validation Summary */}
+                    {(!previewSettings.previewSenderName || !previewSettings.previewReceiverName ||
+                      !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
+                      !previewSettings.previewAmount) && (
+                      <div className="lg:col-span-2 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                        <div className="flex items-start gap-3">
+                          <span className="text-amber-400 text-lg">⚠️</span>
+                          <div>
+                            <p className="text-sm font-semibold text-amber-400">กรุณากรอกข้อมูลให้ครบถ้วน</p>
+                            <ul className="text-xs text-slate-400 mt-1 space-y-0.5">
+                              {!previewSettings.previewSenderName && <li>• ชื่อผู้โอน</li>}
+                              {!previewSettings.previewSenderBankCode && <li>• ธนาคารผู้โอน</li>}
+                              {!previewSettings.previewReceiverName && <li>• ชื่อผู้รับ</li>}
+                              {!previewSettings.previewReceiverBankCode && <li>• ธนาคารผู้รับ</li>}
+                              {!previewSettings.previewAmount && <li>• จำนวนเงิน</li>}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="lg:col-span-2 pt-6 border-t border-white/5">
                       <Button
                         fullWidth
                         size="lg"
                         className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
-                        onClick={() => handleUpdate('preview', previewSettings)}
+                        onClick={() => {
+                          // Validate before saving
+                          if (!previewSettings.previewSenderName || !previewSettings.previewReceiverName ||
+                              !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
+                              !previewSettings.previewAmount) {
+                            toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+                            return;
+                          }
+                          handleUpdate('preview', previewSettings);
+                        }}
                         isLoading={isSaving === 'preview'}
+                        disabled={!previewSettings.previewSenderName || !previewSettings.previewReceiverName ||
+                                  !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
+                                  !previewSettings.previewAmount}
                       >
                         บันทึกการตั้งค่าตัวอย่าง
                       </Button>

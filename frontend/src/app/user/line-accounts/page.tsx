@@ -323,24 +323,38 @@ export default function UserLineAccountsPage() {
       const response = await systemSettingsApi.getPreviewConfig();
       const config = response.data.previewConfig;
       if (config) {
+        // Validate and sanitize data before setting
+        const sanitizedAmount = config.amount && /^[\d,\.]+$/.test(config.amount)
+          ? `฿${config.amount}`
+          : DEFAULT_SAMPLE_DATA.amount;
+
+        const sanitizedSenderBankId = config.senderBankCode && config.senderBankCode.length <= 10
+          ? config.senderBankCode
+          : DEFAULT_SAMPLE_DATA.sender.bankId;
+
+        const sanitizedReceiverBankId = config.receiverBankCode && config.receiverBankCode.length <= 10
+          ? config.receiverBankCode
+          : DEFAULT_SAMPLE_DATA.receiver.bankId;
+
         setSampleData({
           ...DEFAULT_SAMPLE_DATA,
-          amount: config.amount ? `฿${config.amount}` : DEFAULT_SAMPLE_DATA.amount,
+          amount: sanitizedAmount,
           sender: {
             ...DEFAULT_SAMPLE_DATA.sender,
-            name: config.senderName || DEFAULT_SAMPLE_DATA.sender.name,
-            bankId: config.senderBankCode || DEFAULT_SAMPLE_DATA.sender.bankId,
+            name: config.senderName?.trim() || DEFAULT_SAMPLE_DATA.sender.name,
+            bankId: sanitizedSenderBankId,
           },
           receiver: {
             ...DEFAULT_SAMPLE_DATA.receiver,
-            name: config.receiverName || DEFAULT_SAMPLE_DATA.receiver.name,
-            bankId: config.receiverBankCode || DEFAULT_SAMPLE_DATA.receiver.bankId,
+            name: config.receiverName?.trim() || DEFAULT_SAMPLE_DATA.receiver.name,
+            bankId: sanitizedReceiverBankId,
           },
         });
       }
-    } catch (error) {
-      console.error('Error fetching preview config:', error);
-      // Keep default sample data on error
+    } catch (error: unknown) {
+      // Silently fallback to default sample data
+      console.warn('Using default preview config (API unavailable)');
+      setSampleData(DEFAULT_SAMPLE_DATA);
     }
   };
 
