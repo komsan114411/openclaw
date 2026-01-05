@@ -51,6 +51,12 @@ interface SlipTemplate {
   bankId?: string;
   senderBankId?: string;
   receiverBankId?: string;
+  // Preview sample data
+  previewSenderName?: string;
+  previewReceiverName?: string;
+  previewSenderBankId?: string;
+  previewReceiverBankId?: string;
+  previewAmount?: string;
   createdAt: string;
 }
 
@@ -87,6 +93,10 @@ interface FormData {
   bankId: string;
   senderBankId: string;
   receiverBankId: string;
+  // Preview sample data
+  previewSenderName: string;
+  previewReceiverName: string;
+  previewAmount: string;
 }
 
 interface FormErrors {
@@ -135,6 +145,10 @@ const DEFAULT_FORM_DATA: FormData = {
   bankId: '',
   senderBankId: '',
   receiverBankId: '',
+  // Preview sample data
+  previewSenderName: 'นาย ธันเดอร์ มานะ',
+  previewReceiverName: 'นาย ธันเดอร์ มานะ',
+  previewAmount: '1,000.00',
 };
 
 // Sample data for preview (Thai)
@@ -328,7 +342,7 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
               className="text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-200"
               style={{ color: mainColor }}
             >
-              {SAMPLE_DATA.amount}
+              ฿{config.previewAmount || SAMPLE_DATA.amount}
             </p>
             <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
               {config.showDate && (
@@ -360,7 +374,7 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
               <div className="flex-1 min-w-0">
                 <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium mb-0.5">ผู้โอน</p>
                 <p className="text-[10px] sm:text-[11px] font-semibold text-slate-800 truncate">
-                  {SAMPLE_DATA.sender.name}
+                  {config.previewSenderName || SAMPLE_DATA.sender.name}
                 </p>
                 {config.showSenderAccount && (
                   <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
@@ -403,7 +417,7 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
                   ผู้รับ
                 </p>
                 <p className="text-[10px] sm:text-[11px] font-semibold text-slate-800 truncate">
-                  {SAMPLE_DATA.receiver.name}
+                  {config.previewReceiverName || SAMPLE_DATA.receiver.name}
                 </p>
                 {config.showReceiverAccount && (
                   <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
@@ -558,6 +572,10 @@ export default function AdminTemplatesPage() {
       bankId: template.bankId || '',
       senderBankId: template.senderBankId || '',
       receiverBankId: template.receiverBankId || '',
+      // Preview sample data
+      previewSenderName: template.previewSenderName || 'นาย ธันเดอร์ มานะ',
+      previewReceiverName: template.previewReceiverName || 'นาย ธันเดอร์ มานะ',
+      previewAmount: template.previewAmount || '1,000.00',
     });
     setFormErrors({});
     setActiveTab('basic');
@@ -581,7 +599,8 @@ export default function AdminTemplatesPage() {
       }
       setShowModal(false);
       fetchData();
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsProcessing(false);
@@ -597,7 +616,8 @@ export default function AdminTemplatesPage() {
       setShowDeleteConfirm(false);
       setSelectedTemplate(null);
       fetchData();
-    } catch (err: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || 'ไม่สามารถลบได้');
     } finally {
       setIsProcessing(false);
@@ -627,7 +647,7 @@ export default function AdminTemplatesPage() {
     }
   };
 
-  const updateField = (field: keyof FormData, value: any) => {
+  const updateField = (field: keyof FormData, value: string | boolean | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user types
     if (formErrors[field as keyof FormErrors]) {
@@ -937,6 +957,43 @@ export default function AdminTemplatesPage() {
               {/* Banks Tab - Highly Responsive Grid */}
               {activeTab === 'banks' && (
                 <div className="space-y-4 sm:space-y-6">
+                  {/* Preview Sample Data Section */}
+                  <div className="p-3 sm:p-4 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl border border-emerald-100">
+                    <p className="text-xs sm:text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                      <span>🎨</span>
+                      ข้อมูลตัวอย่างสำหรับ Preview
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Input
+                        label="ชื่อผู้โอน"
+                        value={formData.previewSenderName}
+                        onChange={(e) => updateField('previewSenderName', e.target.value)}
+                        placeholder="นาย ธันเดอร์ มานะ"
+                        className="text-sm"
+                      />
+                      <Input
+                        label="ชื่อผู้รับ"
+                        value={formData.previewReceiverName}
+                        onChange={(e) => updateField('previewReceiverName', e.target.value)}
+                        placeholder="นาย ธันเดอร์ มานะ"
+                        className="text-sm"
+                      />
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="จำนวนเงินตัวอย่าง"
+                          value={formData.previewAmount}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^0-9,.]/g, '');
+                            updateField('previewAmount', value);
+                          }}
+                          placeholder="1,000.00"
+                          className="text-sm"
+                          hint="รูปแบบ: 1,000.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Sender Bank */}
                   <div>
                     <div className="flex items-center gap-2 mb-2 sm:mb-3 flex-wrap">

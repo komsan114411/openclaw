@@ -144,6 +144,22 @@ export class SlipTemplate {
   @Prop({ default: false })
   showLocalAmount: boolean; // Show local currency amount
 
+  // Preview sample data - admin configurable per template
+  @Prop({ default: 'นาย ธันเดอร์ มานะ' })
+  previewSenderName?: string;
+
+  @Prop({ default: 'นาย ธันเดอร์ มานะ' })
+  previewReceiverName?: string;
+
+  @Prop()
+  previewSenderBankId?: string;
+
+  @Prop()
+  previewReceiverBankId?: string;
+
+  @Prop({ default: '1,000.00' })
+  previewAmount?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

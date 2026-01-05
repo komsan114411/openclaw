@@ -1,77 +1,87 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Update SlipPreview to use real bank logos from API (like Admin page)
+**Task:** Slip Template System Enhancement - Admin Configurable Preview Data
 
 ## Summary
 
-Updated the SlipPreview component in both Line Accounts and Templates pages to fetch and display real bank logos from the API, matching the Admin page design.
+Enhanced the slip template system to allow admins to configure preview sender/receiver names and amounts directly from the template creation/editing form.
 
 ## Changes Made
 
-### File Modified: `frontend/src/app/user/line-accounts/page.tsx`
+### 1. Backend Schema Updated
+**File:** `backend/src/database/schemas/slip-template.schema.ts`
 
-#### 1. Updated Imports
-- Added `banksApi` from `@/lib/api`
-- Added `Bank` type from `@/types`
-
-#### 2. Updated SlipPreview Component
-- Added `senderBank` and `receiverBank` props
-- Uses `bank.logoBase64` or `bank.logoUrl` for real logos
-- Falls back to emoji icons when no logo available
-
-#### 3. Added Banks State and Fetch
+Added new fields for configurable preview data:
 ```typescript
-const [banks, setBanks] = useState<Bank[]>([]);
+// Preview sample data - admin configurable per template
+@Prop({ default: 'นาย ธันเดอร์ มานะ' })
+previewSenderName?: string;
 
-const fetchBanks = async () => {
-  const response = await banksApi.getAll();
-  setBanks(response.data.banks || []);
-};
+@Prop({ default: 'นาย ธันเดอร์ มานะ' })
+previewReceiverName?: string;
+
+@Prop()
+previewSenderBankId?: string;
+
+@Prop()
+previewReceiverBankId?: string;
+
+@Prop({ default: '1,000.00' })
+previewAmount?: string;
 ```
 
-#### 4. Updated Sample Data
-```typescript
-const SAMPLE_DATA = {
-  sender: {
-    name: 'นาย ธันเดอร์ มานะ',
-    bankId: '004', // KBANK
-  },
-  receiver: {
-    name: 'นาย ธันเดอร์ มานะ',
-    bankId: '014', // SCB
-  },
-};
-```
+### 2. Frontend Admin Templates Page Updated
+**File:** `frontend/src/app/admin/templates/page.tsx`
 
-### File Modified: `frontend/src/app/user/templates/page.tsx`
+#### Interface Updates:
+- Added `previewSenderName`, `previewReceiverName`, `previewAmount` to `SlipTemplate` interface
+- Added corresponding fields to `FormData` interface
+- Updated `DEFAULT_FORM_DATA` with default preview values
 
-Same changes applied:
-- Added `banksApi` and `Bank` imports
-- Updated SlipPreview to accept bank props
-- Added banks state with useMemo for senderBank/receiverBank
-- Updated sample data with bankId references
+#### Form Updates:
+- Added new "Preview Sample Data" section in Banks tab with:
+  - Input for sender name
+  - Input for receiver name
+  - Input for preview amount (with number validation)
+
+#### Preview Component Updates:
+- `SlipPreview` now uses `config.previewSenderName`, `config.previewReceiverName`, and `config.previewAmount`
+- Falls back to SAMPLE_DATA if not configured
+
+#### Code Quality Fixes:
+- Fixed `any` types in error handling (changed to `error: unknown` with proper type assertion)
+- Fixed `any` type in `updateField` function (changed to `string | boolean | number`)
 
 ## Visual Changes
 
 | Before | After |
 |--------|-------|
-| Colored initials (K, S) | Real bank logos from API |
-| Hardcoded colors | Dynamic from bank data |
-| Static names | Configurable from Admin |
+| Hardcoded preview names | Admin-configurable names per template |
+| Static preview amount | Configurable amount in form |
+| N/A | New "Preview Sample Data" section in Banks tab |
 
 ## Requirements Verification
 
 | Requirement | Status |
 |-------------|--------|
-| Bank logos from API | COMPLETE |
-| Same as Admin page | COMPLETE |
-| TypeScript strict mode | VERIFIED |
-| No hardcoded URLs | VERIFIED |
+| ชื่อผู้รับ/ผู้โอน: แอดมินตั้งค่าได้จากหน้าเทมเพลตสลิป | COMPLETE |
+| รูปธนาคาร: ดึงโลโก้ธนาคารมาแสดง (existing) | VERIFIED |
+| TypeScript strict mode (no `any`) | COMPLETE |
+| Error handling | VERIFIED |
+| Thai language support | VERIFIED |
 
 ## TypeScript Check
-- Frontend: PASSED (no errors)
-- Backend: PASSED (no errors)
+- Frontend: `npx tsc --noEmit` - PASSED (no errors)
+- Backend: `npx tsc --noEmit` - PASSED (no errors)
+
+## Files Modified
+1. `backend/src/database/schemas/slip-template.schema.ts` - Added preview fields
+2. `frontend/src/app/admin/templates/page.tsx` - Added form inputs and preview logic
+
+## Notes
+- The "รวมฟีเจอร์" requirement was already satisfied - there's no separate slip settings page, everything is in the templates page
+- Bank logo display was already implemented in previous sessions
 
 ---
 **Created:** 2026-01-05
