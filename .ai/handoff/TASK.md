@@ -1,14 +1,17 @@
-จงสวมบทบาทเป็น Senior Frontend Developer ที่เชี่ยวชาญ Next.js และ UX/UI Design
+Help me fix the **"User Slip Templates" page** in this project.
 
-**ปัญหาที่พบ:**
-ในหน้าแสดงรายการเทมเพลตสลิปของผู้ใช้งานทั่วไป (User Role) ระบบยังไม่แสดงผลตัวอย่าง (Preview) ของเทมเพลต และยังคงติด UI การตั้งค่าแบบแอดมิน (เช่น ปุ่ม Edit/Delete) ซึ่งผู้ใช้ทั่วไปไม่ควรเห็น
+**Current Status:**
+The page is currently incomplete. It might be empty, broken, or showing Admin controls (like Edit/Delete) that a regular User shouldn't see.
 
-**สิ่งที่ต้องการให้ทำ:**
-ช่วยเขียนโค้ดปรับปรุงหน้านี้ให้สมบูรณ์ โดยมีข้อกำหนดดังนี้:
-1.  **การแสดงผล:** ให้แสดงรายการเทมเพลตทั้งหมดในรูปแบบ Grid Card ที่สวยงาม
-2.  **Preview:** ในการ์ดแต่ละใบ ต้องมีส่วนแสดงตัวอย่าง (Mock Preview) ของสลิป เพื่อให้ผู้ใช้เห็นภาพว่าถ้าเลือกเทมเพลตนี้ หน้าตาสลิปจะเป็นอย่างไร (ให้จำลอง HTML/CSS ภายในโค้ดหน้านี้เลย)
-3.  **User Actions:** ตัดปุ่มแก้ไข/ลบออกทั้งหมด ให้เหลือแค่ปุ่ม "เลือกใช้งาน" (Select/Use) เท่านั้น
-4.  **Data Handling:** ให้เตรียมโครงสร้างสำหรับดึงข้อมูลจาก API ไว้ แต่ถ้ายังดึงไม่ได้ ให้มี Mock Data แสดงขึ้นมาทันทีเพื่อให้เห็น UI ก่อน
+**Your Task:**
+Please rewrite the code for this page completely. You need to identify the correct file path yourself based on the project structure (look for the user-facing templates page).
 
-**รูปแบบคำตอบ:**
-ขอโค้ดฉบับเต็มของหน้านี้ (Page Component) ที่นำไปวางทับของเดิมแล้วใช้งานได้ทันที พร้อมคำอธิบายสั้นๆ ว่าปรับปรุงอะไรไปบ้าง
+**Requirements:**
+1.  **Visual Preview (Most Important):** The user needs to see what the slip looks like. Create a **Mock UI** inside each card that simulates a real bank transfer slip (using HTML/Tailwind) based on the template's theme.
+2.  **Grid Layout:** Display all templates in a responsive grid.
+3.  **No Admin Controls:** Remove all "Edit", "Delete", or "Create" buttons. Users can only **"Select"** or **"Preview"**.
+4.  **Mock Data:** Since the API might not be ready, hardcode an array of mock templates (e.g., 'Blue Theme', 'Dark Theme', 'Minimal') so the UI renders immediately.
+5.  **Interaction:** When clicking "Select", just show a success toast for now.
+
+**Output:**
+Provide the full, ready-to-use code for the page component.
