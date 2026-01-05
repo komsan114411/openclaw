@@ -220,7 +220,10 @@ function TemplatesContent() {
   const [usingMockData, setUsingMockData] = useState(false);
 
   const fetchTemplates = useCallback(async () => {
+    // If no accountId, show mock templates in preview mode
     if (!accountId) {
+      setTemplates(MOCK_TEMPLATES);
+      setUsingMockData(true);
       setLoading(false);
       return;
     }
@@ -228,7 +231,15 @@ function TemplatesContent() {
       // Fetch templates using correct API path
       const response = await slipTemplatesApi.getAll(accountId);
       if (response.data.success) {
-        setTemplates(response.data.templates || []);
+        const apiTemplates = response.data.templates || [];
+        // If API returns empty, use mock templates
+        if (apiTemplates.length === 0) {
+          setTemplates(MOCK_TEMPLATES);
+          setUsingMockData(true);
+        } else {
+          setTemplates(apiTemplates);
+          setUsingMockData(false);
+        }
       }
 
       // Fetch current account info
@@ -287,29 +298,6 @@ function TemplatesContent() {
   const globalTemplates = templates.filter(t => t.isGlobal);
   const accountTemplates = templates.filter(t => !t.isGlobal);
 
-  if (!accountId) {
-    return (
-      <DashboardLayout>
-        <Card className="p-12">
-          <EmptyState
-            icon={
-              <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-3xl">
-                🎨
-              </div>
-            }
-            title="ไม่พบ Account ID"
-            description="กรุณาเลือกบัญชี LINE จากหน้า LINE Accounts"
-            action={
-              <Button variant="primary" onClick={() => router.push('/user/line-accounts')}>
-                ไปหน้า LINE Accounts
-              </Button>
-            }
-          />
-        </Card>
-      </DashboardLayout>
-    );
-  }
-
   if (loading) {
     return (
       <DashboardLayout>
@@ -367,14 +355,28 @@ function TemplatesContent() {
         {/* Mock Data Notice */}
         {usingMockData && (
           <Card className="p-3 sm:p-4 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border-amber-500/20 mb-4 sm:mb-6" variant="glass">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-xl flex-shrink-0">
                 🎨
               </div>
               <div className="flex-1">
                 <h4 className="font-bold text-amber-400 text-sm">โหมดตัวอย่าง (Preview Mode)</h4>
-                <p className="text-xs text-slate-400 mt-0.5">กำลังแสดงเทมเพลตตัวอย่าง เนื่องจากไม่สามารถเชื่อมต่อ API ได้ เมื่อ API พร้อมใช้งาน จะแสดงเทมเพลตจริงอัตโนมัติ</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {!accountId
+                    ? 'กำลังแสดงเทมเพลตตัวอย่าง กรุณาเลือกบัญชี LINE เพื่อใช้งานจริง'
+                    : 'กำลังแสดงเทมเพลตตัวอย่าง เนื่องจากไม่สามารถเชื่อมต่อ API ได้'}
+                </p>
               </div>
+              {!accountId && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => router.push('/user/line-accounts')}
+                  className="bg-amber-500 hover:bg-amber-600 text-white text-xs"
+                >
+                  เลือกบัญชี LINE
+                </Button>
+              )}
             </div>
           </Card>
         )}
@@ -570,10 +572,15 @@ function TemplatesContent() {
 
                         {/* Action */}
                         <div className="pt-2">
-                          {isSelected ? (
+                          {isSelected && accountId ? (
                             <div className="flex items-center justify-center gap-2 py-2 sm:py-3 px-3 sm:px-4 bg-[#06C755]/10 text-[#06C755] rounded-lg sm:rounded-xl border border-[#06C755]/20">
                               <span className="text-sm">✓</span>
                               <span className="text-[9px] sm:text-[10px] font-semibold">Template ที่ใช้งาน</span>
+                            </div>
+                          ) : !accountId ? (
+                            <div className="flex items-center justify-center gap-2 py-2 sm:py-3 px-3 sm:px-4 bg-slate-500/10 text-slate-400 rounded-lg sm:rounded-xl border border-slate-500/20">
+                              <span className="text-sm">👁️</span>
+                              <span className="text-[9px] sm:text-[10px] font-semibold">ตัวอย่าง</span>
                             </div>
                           ) : (
                             <Button
