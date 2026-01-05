@@ -1,6 +1,6 @@
 # ALL_TESTS_PASSED.md
 
-## Task: Fix User Slip Templates Page
+## Task: Refactor User Templates Page with Admin-style SlipPreview
 
 ## Test Summary
 
@@ -21,35 +21,33 @@
 
 ### 2. Functionality Tests
 
-#### Visual Preview (MiniSlipPreview)
-- Component renders bank slip simulation with:
-  - Header with status icon
-  - Amount display
-  - Sender/Receiver info
-  - Transaction reference
-- Located at lines 154-207
-
-#### Grid Layout
-- Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
-- Proper gap spacing at all breakpoints
+#### SlipPreview Component (Admin-style)
+- Phone frame design with dark background
+- Decorative glow effect matching theme color
+- Status header with icon (✓, !, ✕, ?)
+- Amount section with date/time
+- Sender/Receiver info with bank logo simulation
+- Transaction details and footer
 
 #### Mock Data
-- 5 templates in MOCK_TEMPLATES array (lines 59-151):
-  - Standard Success (green)
-  - Minimal Success (LINE green)
-  - Duplicate Warning (amber)
-  - Error Template (red)
-  - Not Found Template (slate)
+- 6 templates covering all types:
+  - มาตรฐาน (Standard) - success
+  - กะทัดรัด (Compact) - success
+  - โมเดิร์น (Modern) - success
+  - แจ้งเตือนสลิปซ้ำ - duplicate
+  - ข้อผิดพลาดระบบ - error
+  - ไม่พบข้อมูลสลิป - not_found
 
-#### User Actions
-- Only "Select/Use" button available
-- `handleSetDefault()` shows toast on success (line 264)
+#### User Interactions
+- `handleSelectTemplate()` with toast notifications
+- "✓ ใช้งาน" badge on selected template
+- Disabled state when selected
 
 ### 3. Error Handling Tests
-- Proper `catch (error: unknown)` blocks (lines 243, 265)
+- Proper `catch (error: unknown)` blocks (lines 424, 454)
 - Typed error handling with explicit type assertions
-- Fallback to MOCK_TEMPLATES when API fails
 - Toast notifications for user feedback
+- Fallback to mock data when API fails
 
 ### 4. Security Tests
 - No hardcoded URLs (uses api.ts abstraction)
@@ -59,24 +57,31 @@
 
 ### 5. Code Quality (CLAUDE.md Compliance)
 - No `any` types found
-- Proper TypeScript interfaces (`SlipTemplate`)
+- Proper TypeScript interfaces
 - Uses API client from `@/lib/api`
-- No Edit/Delete/Create buttons (admin-only)
-- memo() optimization on MiniSlipPreview
+- No Edit/Delete/Create buttons (verified - only description text mentions "สร้าง")
+- Only "เลือกใช้งาน" (Select) button
+- memo() optimization on SlipPreview
 
 ## Requirements Verification
 
 | Requirement | Verified |
 |-------------|----------|
-| Visual Preview (Mock UI) | YES - MiniSlipPreview component |
-| Grid Layout | YES - Responsive 4-column grid |
-| No Admin Controls | YES - No Edit/Delete found |
-| Mock Data | YES - 5 templates hardcoded |
-| Select shows toast | YES - toast.success() |
+| Visual Fidelity (Admin-like) | YES |
+| Bank Logo simulation | YES |
+| Amount prominent | YES |
+| Sender/Receiver info | YES |
+| Theme color support | YES |
+| NO Edit/Delete/Create buttons | YES |
+| Only Select button | YES |
+| Toast on select | YES |
+| Active badge | YES |
+| Disabled when selected | YES |
+| Mock data (6 templates) | YES |
 
 ## Conclusion
 
-All tests passed. The User Slip Templates page is complete and ready for production.
+All tests passed. User Templates page refactor is ready for production.
 
 ---
 **Tested:** 2026-01-05

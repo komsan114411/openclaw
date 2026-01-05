@@ -1,63 +1,88 @@
 # CODE_READY.md
 
-## Task: Fix User Slip Templates Page
+## Task Completed
+**Task:** Refactor User Templates Page with Admin-style SlipPreview
 
-## Status: ALREADY COMPLETE
+## Summary
 
-This task was already completed in the previous development cycle. All requirements from TASK.md are met.
+Complete refactor of the User Templates page to show realistic slip previews identical to Admin view, while maintaining User role constraints (no Edit/Delete/Create buttons).
+
+## Changes Made
+
+### File Modified: `frontend/src/app/user/templates/page.tsx`
+
+#### 1. New SlipPreview Component (Admin-style)
+Replaced simple `MiniSlipPreview` with sophisticated `SlipPreview` component featuring:
+- **Phone frame design** with dark background and rounded corners
+- **Decorative glow effect** matching template theme color
+- **Status header** with icon (✓, !, ✕, ?) and status text
+- **Amount section** with large text and date/time
+- **Sender info** with bank logo simulation (colored icon with initial)
+- **Arrow divider** between sender and receiver
+- **Receiver info** with bank logo simulation
+- **Transaction details** (reference number, fee)
+- **Footer text** and branding
+
+#### 2. Enhanced Mock Data
+Added more realistic sample data:
+```typescript
+const SAMPLE_DATA = {
+  amount: '฿1,500.00',
+  sender: { name: 'นาย สมชาย ใจดี', bankShort: 'KBANK', bankColor: '#138f2d' },
+  receiver: { name: 'นางสาว สมหญิง รักดี', bankShort: 'SCB', bankColor: '#4e2a82' },
+  // ...
+};
+```
+
+#### 3. Expanded Mock Templates (6 templates)
+- `มาตรฐาน (Standard)` - Full info display
+- `กะทัดรัด (Compact)` - Essential info only
+- `โมเดิร์น (Modern)` - Blue theme, modern design
+- `แจ้งเตือนสลิปซ้ำ` - Duplicate warning
+- `ข้อผิดพลาดระบบ` - Error template
+- `ไม่พบข้อมูลสลิป` - Not found template
+
+#### 4. Role-Based Constraints (Verified)
+- **NO** Edit button
+- **NO** Delete button
+- **NO** Create button
+- **ONLY** "เลือกใช้งาน" (Select) button
+
+#### 5. Interaction Logic
+- Toast notification on select
+- "✓ ใช้งาน" badge on selected template
+- "กำลังใช้งาน Template นี้" disabled state when selected
+- Preview mode allows visual selection without API save
+
+## Visual Changes
+
+| Before | After |
+|--------|-------|
+| Simple box preview | Phone frame with glow effect |
+| Basic text display | Bank logo simulation with colors |
+| Minimal styling | Full Admin-style design |
+| 5 mock templates | 6 mock templates with more variety |
 
 ## Requirements Verification
 
-| Requirement | Status | Implementation |
-|-------------|--------|----------------|
-| Visual Preview (Mock UI) | COMPLETE | `MiniSlipPreview` component (lines 153-206) simulates bank slip |
-| Grid Layout | COMPLETE | Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4` |
-| No Admin Controls | COMPLETE | No Edit/Delete/Create buttons found |
-| Mock Data | COMPLETE | `MOCK_TEMPLATES` array with 5 templates (lines 58-151) |
-| Select shows toast | COMPLETE | `toast.success('เลือก Template สำเร็จ')` (line 264) |
-
-## Implementation Details
-
-### 1. Visual Preview Component (MiniSlipPreview)
-```typescript
-const MiniSlipPreview = memo(({ template }: { template: SlipTemplate }) => {
-  // Renders a mini bank slip preview with:
-  // - Header with status icon (✓, !, ✕, ?)
-  // - Amount display (฿1,000.00)
-  // - Sender info
-  // - Receiver info
-  // - Transaction reference
-});
-```
-
-### 2. Mock Templates Data
-5 templates covering all types:
-- `mock-success-1` - Standard Success (green theme)
-- `mock-success-2` - Minimal Success (LINE green theme)
-- `mock-duplicate-1` - Duplicate Warning (amber theme)
-- `mock-error-1` - Error Template (red theme)
-- `mock-not-found-1` - Not Found Template (slate theme)
-
-### 3. Grid Layout
-```tsx
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-```
-
-### 4. User Actions
-- Only "เลือกใช้ Template นี้" (Select/Use) button available
-- Shows toast on successful selection
-- No Edit/Delete/Create buttons
-
-## File Location
-`frontend/src/app/user/templates/page.tsx`
+| Requirement | Status |
+|-------------|--------|
+| Visual Fidelity (Admin-like) | COMPLETE |
+| Bank Logo display | COMPLETE (simulated with colored icons) |
+| Amount prominent | COMPLETE (large colored text) |
+| Sender/Receiver info | COMPLETE (with account numbers) |
+| Theme color support | COMPLETE (dynamic colors) |
+| NO Edit/Delete/Create | VERIFIED |
+| Only Select button | VERIFIED |
+| Toast on select | COMPLETE |
+| Active badge | COMPLETE |
+| Disabled when selected | COMPLETE |
+| Mock data | COMPLETE (6 templates) |
 
 ## TypeScript Check
 - Frontend: PASSED (no errors)
 
-## Previous Commit
-`31057bc feat: Add mock data fallback to User Templates page`
-
 ---
 **Created:** 2026-01-05
 **Developer Session:** Claude Code (Opus 4.5)
-**Note:** Task requirements were already fulfilled by previous implementation
+**Task Type:** Major UI Refactor
