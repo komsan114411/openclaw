@@ -1,24 +1,22 @@
-จงสวมบทบาทเป็น **Senior Frontend Developer** และแก้ไขหน้า `frontend/src/app/user/templates/page.tsx` ใหม่ทั้งหมด
+จงสวมบทบาทเป็น **Senior Full Stack Developer** และแก้ไขหน้า `frontend/src/app/user/line-accounts/page.tsx` (หรือไฟล์ Component ที่เกี่ยวข้องกับการตั้งค่า Line Account)
 
-**ปัญหาปัจจุบัน (Current Issue):**
-หน้าเลือกเทมเพลตของผู้ใช้ทั่วไป (User) แสดงผลไม่เหมือนกับหน้าของ Admin (UI Inconsistency) ทำให้ผู้ใช้ไม่เห็นรายละเอียดที่สำคัญ เช่น โลโก้ธนาคาร, การจัดวางข้อมูล, หรือตัวอย่างสลิปที่แท้จริง ทำให้ไม่กล้าเลือกใช้งาน
+**ปัญหาปัจจุบัน:**
+ในฟอร์มเพิ่ม/แก้ไขบัญชี LINE การเลือก "รูปแบบสลิป (Template)" ยังเป็นแบบ Hardcode หรือยังไม่มีฟังก์ชันเลือก และไม่มีการแสดงตัวอย่าง (Preview) ทำให้ผู้ใช้ไม่รู้ว่าเลือกแบบไหนไป
 
-**ภารกิจของคุณ (Your Task):**
-ทำการ Refactor หน้านี้ให้แสดงผล **"Slip Preview"** ให้เหมือนกับที่ Admin เห็น 100% โดยมีข้อกำหนดดังนี้:
+**สิ่งที่คุณต้องทำ (Requirements):**
+1.  **Dynamic Data Fetching:**
+    * ให้เขียนฟังก์ชันดึงข้อมูล Template ทั้งหมดจาก API (เช่น `GET /slip-templates` หรือ endpoint ที่ถูกต้อง) มาแสดงใน Dropdown เลือก
+    * **ห้าม** Hardcode ข้อมูล Template เอง ข้อมูลต้องมาจาก Admin ที่สร้างไว้ในระบบเท่านั้น
 
-1.  **Visual Fidelity (ความสมจริง):**
-    * ดึง Logic การแสดงผลสลิป (HTML/CSS Layout) มาจากหน้า Admin หรือสร้าง Component `SlipPreview` ที่จำลองสลิปธนาคารจริงๆ
-    * ต้องแสดง Element ครบถ้วน: โลโก้ธนาคาร (Bank Icon), ยอดเงินตัวใหญ่, ชื่อผู้โอน-ผู้รับ (Mockup), วันที่เวลา, และ QR Code (ถ้ามีในเทมเพลต)
-    * ใช้สี (`themeColor`) และการจัดวาง (`alignment`) ตาม config ของเทมเพลตนั้นๆ
+2.  **Real-time Preview:**
+    * เมื่อผู้ใช้เลือก Template ใน Dropdown ให้แสดง Component **"SlipPreview"** (จำลองหน้าตาสลิป) ขึ้นมาทันที
+    * หากยังไม่ได้เลือก ให้แสดงข้อความว่า "กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง"
 
-2.  **Role-Based Constraints (ข้อจำกัดสิทธิ์):**
-    * **ห้าม** มีปุ่มแก้ไข (Edit), ลบ (Delete) หรือสร้างใหม่ (Create) เด็ดขาด
-    * มีได้เฉพาะปุ่ม **"เลือกใช้งาน" (Select / Activate)** เท่านั้น
+3.  **Form Integration:**
+    * ให้เชื่อมต่อค่า `templateId` ที่เลือก เข้ากับ Form State ของ Line Account
+    * เมื่อกดบันทึก (Save/Update) ให้ส่ง `templateId` ไปยัง API (`POST` หรือ `PATCH /line-accounts`) อย่างถูกต้อง
 
-3.  **Interaction Logic:**
-    * เมื่อกด "เลือกใช้งาน" ให้จำลองการส่ง API ไปบันทึกค่า (และแสดง Toast success)
-    * แสดงสถานะ **"Active"** (เครื่องหมายถูก หรือ Badge สีเขียว) บนเทมเพลตที่ผู้ใช้เลือกใช้อยู่ปัจจุบัน
-    * หาก Template ไหนถูกเลือกอยู่ ปุ่มกดต้องเป็นสถานะ Disabled (Selected)
+4.  **UI/UX:**
+    * ใช้ Layout แบบ 2 Columns: ด้านซ้ายเป็นฟอร์มตั้งค่า (Token, Name, Template Select), ด้านขวาเป็นส่วนแสดงตัวอย่าง (Preview)
+    * หาก Template นั้นมีธีมสี (themeColor) ให้ Preview แสดงผลตามสีนั้นๆ
 
-4.  **Data Simulation:**
-    * ให้ใส่ Mock Data (Array ของ Templates) ที่มีโครงสร้างข้อมูลครบถ้วนเหมือนมาจาก Database จริงๆ เพื่อให้ UI แสดงผลได้สมบูรณ์ทันทีโดยไม่ต้องรอ Backend

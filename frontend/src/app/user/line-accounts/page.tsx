@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, systemSettingsApi } from '@/lib/api';
@@ -27,6 +27,220 @@ import {
   HelpCircle,
   Loader2,
 } from 'lucide-react';
+
+// Extended SlipTemplate interface for preview
+interface SlipTemplateForPreview {
+  _id: string;
+  name: string;
+  type: 'success' | 'duplicate' | 'error' | 'not_found';
+  primaryColor?: string;
+  headerText?: string;
+  footerText?: string;
+  showAmount: boolean;
+  showSender: boolean;
+  showReceiver: boolean;
+  showDate: boolean;
+  showTime: boolean;
+  showTransRef: boolean;
+  showBankLogo?: boolean;
+  showFee?: boolean;
+  showSenderAccount?: boolean;
+  showReceiverAccount?: boolean;
+}
+
+// Sample data for realistic preview (Thai)
+const SAMPLE_DATA = {
+  amount: '฿1,500.00',
+  fee: '฿0',
+  date: '5 ม.ค. 2569',
+  time: '14:32',
+  transRef: '69010516324789A123456B78',
+  sender: {
+    name: 'นาย สมชาย ใจดี',
+    account: '1234xxxx5678',
+    bankShort: 'KBANK',
+    bankColor: '#138f2d',
+  },
+  receiver: {
+    name: 'นางสาว สมหญิง รักดี',
+    account: '9876xxxx4321',
+    bankShort: 'SCB',
+    bankColor: '#4e2a82',
+  },
+};
+
+// Default template for preview when none selected
+const DEFAULT_PREVIEW_TEMPLATE: SlipTemplateForPreview = {
+  _id: 'default',
+  name: 'ค่าเริ่มต้น',
+  type: 'success',
+  primaryColor: '#10b981',
+  headerText: 'ตรวจสอบสลิปสำเร็จ',
+  footerText: 'ขอบคุณที่ใช้บริการ',
+  showAmount: true,
+  showSender: true,
+  showReceiver: true,
+  showDate: true,
+  showTime: true,
+  showTransRef: true,
+  showBankLogo: true,
+  showFee: true,
+  showSenderAccount: true,
+  showReceiverAccount: true,
+};
+
+// SlipPreview Component (Admin-style design)
+const SlipPreview = memo(({ template }: { template: SlipTemplateForPreview }) => {
+  const isDuplicate = template.type === 'duplicate';
+  const isError = template.type === 'error';
+  const isNotFound = template.type === 'not_found';
+  const mainColor = isDuplicate ? '#f59e0b' : isError ? '#ef4444' : isNotFound ? '#64748b' : template.primaryColor || '#10b981';
+
+  const getStatusIcon = () => {
+    if (isDuplicate) return '!';
+    if (isError) return '✕';
+    if (isNotFound) return '?';
+    return '✓';
+  };
+
+  const getStatusText = () => {
+    if (template.headerText) return template.headerText;
+    if (isDuplicate) return 'ตรวจพบสลิปซ้ำในระบบ';
+    if (isError) return 'ระบบขัดข้อง กรุณาลองใหม่';
+    if (isNotFound) return 'ไม่พบข้อมูลสลิปนี้';
+    return 'ตรวจสอบสลิปสำเร็จ';
+  };
+
+  return (
+    <div className="bg-slate-900 rounded-[1.5rem] p-3 w-full max-w-[200px] mx-auto shadow-2xl border border-white/10 relative overflow-hidden">
+      {/* Decorative glow */}
+      <div
+        className="absolute top-0 right-0 w-20 h-20 rounded-full blur-[25px] -mr-10 -mt-10 pointer-events-none opacity-40 transition-colors duration-300"
+        style={{ backgroundColor: mainColor }}
+      />
+
+      {/* Status Header */}
+      <div
+        className="rounded-xl p-2 mb-2 flex items-center gap-2 border border-white/10 backdrop-blur-sm transition-colors duration-200"
+        style={{ backgroundColor: `${mainColor}20` }}
+      >
+        <div
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shadow-lg transition-colors duration-200 flex-shrink-0"
+          style={{ backgroundColor: mainColor }}
+        >
+          {getStatusIcon()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-[9px] font-bold leading-tight transition-colors duration-200 truncate"
+            style={{ color: mainColor }}
+          >
+            {getStatusText()}
+          </p>
+          <p className="text-[6px] text-white/40 font-medium">ยืนยันการทำรายการแล้ว</p>
+        </div>
+      </div>
+
+      {/* Main Content Card */}
+      <div className="bg-white rounded-xl p-2 space-y-1.5 shadow-inner relative z-10">
+        {/* Amount Section */}
+        {template.showAmount && (
+          <div className="text-center py-1 border-b border-slate-100">
+            <p className="text-[6px] text-slate-400 font-medium mb-0.5">จำนวนเงิน</p>
+            <p className="text-base font-bold transition-colors duration-200" style={{ color: mainColor }}>
+              {SAMPLE_DATA.amount}
+            </p>
+            <div className="flex items-center justify-center gap-1 mt-0.5">
+              {template.showDate && <p className="text-[6px] text-slate-400">{SAMPLE_DATA.date}</p>}
+              {template.showDate && template.showTime && <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />}
+              {template.showTime && <p className="text-[6px] text-slate-400">{SAMPLE_DATA.time}</p>}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-1">
+          {/* Sender */}
+          {template.showSender && (
+            <div className="flex items-center gap-1.5 p-1.5 bg-slate-50 rounded-lg">
+              {template.showBankLogo && (
+                <div
+                  className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white text-[7px] font-bold"
+                  style={{ backgroundColor: SAMPLE_DATA.sender.bankColor }}
+                >
+                  {SAMPLE_DATA.sender.bankShort.slice(0, 1)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[6px] text-slate-400 font-medium">ผู้โอน</p>
+                <p className="text-[8px] font-semibold text-slate-800 truncate">{SAMPLE_DATA.sender.name}</p>
+                {template.showSenderAccount && <p className="text-[6px] text-slate-400 font-mono">{SAMPLE_DATA.sender.account}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Arrow Divider */}
+          {template.showSender && template.showReceiver && (
+            <div className="flex justify-center -my-0.5 relative z-10">
+              <div className="w-3.5 h-3.5 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                <span className="text-slate-400 text-[7px]">↓</span>
+              </div>
+            </div>
+          )}
+
+          {/* Receiver */}
+          {template.showReceiver && (
+            <div className="flex items-center gap-1.5 p-1.5 rounded-lg transition-colors duration-200" style={{ backgroundColor: `${mainColor}10` }}>
+              {template.showBankLogo && (
+                <div
+                  className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white text-[7px] font-bold"
+                  style={{ backgroundColor: SAMPLE_DATA.receiver.bankColor }}
+                >
+                  {SAMPLE_DATA.receiver.bankShort.slice(0, 1)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[6px] font-medium transition-colors duration-200" style={{ color: mainColor }}>ผู้รับ</p>
+                <p className="text-[8px] font-semibold text-slate-800 truncate">{SAMPLE_DATA.receiver.name}</p>
+                {template.showReceiverAccount && <p className="text-[6px] text-slate-400 font-mono">{SAMPLE_DATA.receiver.account}</p>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Transaction Details */}
+        {(template.showTransRef || template.showFee) && (
+          <div className="pt-1 border-t border-dashed border-slate-200 space-y-0.5">
+            {template.showTransRef && (
+              <div className="flex justify-between items-center text-[6px]">
+                <span className="text-slate-400">เลขอ้างอิง</span>
+                <span className="text-slate-700 font-mono font-medium truncate ml-1">{SAMPLE_DATA.transRef.slice(0, 10)}...</span>
+              </div>
+            )}
+            {template.showFee && (
+              <div className="flex justify-between items-center text-[6px]">
+                <span className="text-slate-400">ค่าธรรมเนียม</span>
+                <span className="text-emerald-600 font-medium">ฟรี</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer Text */}
+        {template.footerText && (
+          <div className="pt-1 border-t border-slate-100">
+            <p className="text-[5px] text-slate-400 text-center leading-tight">{template.footerText}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Branding */}
+      <div className="mt-1.5 flex justify-center">
+        <p className="text-[5px] text-white/20 font-medium">LINE OA System</p>
+      </div>
+    </div>
+  );
+});
+SlipPreview.displayName = 'SlipPreview';
 
 export default function UserLineAccountsPage() {
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
@@ -528,171 +742,265 @@ export default function UserLineAccountsPage() {
         onClose={() => setShowModal(false)}
         title={editAccount ? 'แก้ไขบัญชี LINE' : 'เพิ่มบัญชี LINE ใหม่'}
         subtitle="กรอกข้อมูลจาก LINE Messaging API Console"
+        size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* LINE Developers Guide */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-blue-400">ขั้นตอนที่ 1: รับข้อมูลจาก LINE</p>
-                <p className="text-xs text-slate-400">
-                  ไปที่ LINE Developers Console เพื่อรับ Channel ID, Channel Secret และ Access Token
-                </p>
-                <a
-                  href="https://developers.line.biz/console/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  เปิด LINE Developers Console
-                </a>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Left Column - Form (3/5 width on desktop) */}
+          <form onSubmit={handleSubmit} className="lg:col-span-3 space-y-5">
+            {/* LINE Developers Guide */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
+              <div className="flex items-start gap-3">
+                <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-blue-400">ขั้นตอนที่ 1: รับข้อมูลจาก LINE</p>
+                  <p className="text-xs text-slate-400">
+                    ไปที่ LINE Developers Console เพื่อรับ Channel ID, Channel Secret และ Access Token
+                  </p>
+                  <a
+                    href="https://developers.line.biz/console/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    เปิด LINE Developers Console
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
 
-          <Input
-            label="ชื่อบัญชี (Display Name)"
-            placeholder="เช่น ร้านค้าของฉัน"
-            value={formData.accountName}
-            onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-            required
-            leftIcon={<Bot className="w-5 h-5 text-emerald-400" />}
-            className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Channel ID"
-              placeholder="1234567890"
-              value={formData.channelId}
-              onChange={(e) => setFormData({ ...formData, channelId: e.target.value })}
+              label="ชื่อบัญชี (Display Name)"
+              placeholder="เช่น ร้านค้าของฉัน"
+              value={formData.accountName}
+              onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
               required
-              className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
+              leftIcon={<Bot className="w-5 h-5 text-emerald-400" />}
+              className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
             />
-            <Input
-              label="Channel Secret"
-              placeholder="กรอก Channel Secret"
-              value={formData.channelSecret}
-              onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })}
-              required
-              type="password"
-              className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
-            />
-          </div>
 
-          <div className="space-y-3">
-            <Textarea
-              label="Channel Access Token"
-              placeholder="วาง Access Token ที่ได้จาก LINE Developers Console"
-              value={formData.accessToken}
-              onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
-              required
-              className="font-mono text-[10px] min-h-[140px] bg-white/[0.03] border-white/10 text-white rounded-[2rem] p-6"
-            />
-            {/* Test Connection Button */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleTestConnection}
-              disabled={isTesting || !formData.accessToken}
-              className="w-full h-10 rounded-xl border-white/10 text-white hover:bg-white/5"
-            >
-              {isTesting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  กำลังทดสอบ...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  ทดสอบการเชื่อมต่อ
-                </>
-              )}
-            </Button>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Channel ID"
+                placeholder="1234567890"
+                value={formData.channelId}
+                onChange={(e) => setFormData({ ...formData, channelId: e.target.value })}
+                required
+                className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
+              />
+              <Input
+                label="Channel Secret"
+                placeholder="กรอก Channel Secret"
+                value={formData.channelSecret}
+                onChange={(e) => setFormData({ ...formData, channelSecret: e.target.value })}
+                required
+                type="password"
+                className="font-mono bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
+              />
+            </div>
 
-          {/* Slip Template Selection */}
-          <div className="space-y-3">
-            <label className="text-xs font-semibold text-slate-400 ml-1 flex items-center gap-2">
-              เทมเพลตสลิป
-              <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ)</span>
-            </label>
-            <select
-              value={formData.slipTemplateId}
-              onChange={(e) => setFormData({ ...formData, slipTemplateId: e.target.value })}
-              className="w-full h-14 px-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755]/50"
-            >
-              <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
-              {templates.filter(t => t.type === 'success').length > 0 && (
-                <optgroup label="เทมเพลตสลิปถูกต้อง">
-                  {templates.filter(t => t.type === 'success').map((t) => (
-                    <option key={t._id} value={t._id}>
-                      {t.isGlobal ? '🌐 ' : ''}{t.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            {formData.slipTemplateId && (
-              <p className="text-xs text-slate-500 ml-1">
-                {templates.find(t => t._id === formData.slipTemplateId)?.headerText || 'เทมเพลตที่เลือก'}
-              </p>
-            )}
-          </div>
-
-          <Input
-            label="คำอธิบาย (ไม่บังคับ)"
-            placeholder="เช่น บัญชีสำหรับร้านค้าสาขา 1"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
-          />
-
-          {/* Webhook URL Section (shown for edit mode or after creation instruction) */}
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <Activity className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-amber-400">ขั้นตอนที่ 2: ตั้งค่า Webhook URL</p>
-                {editAccount ? (
+            <div className="space-y-3">
+              <Textarea
+                label="Channel Access Token"
+                placeholder="วาง Access Token ที่ได้จาก LINE Developers Console"
+                value={formData.accessToken}
+                onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
+                required
+                className="font-mono text-[10px] min-h-[100px] bg-white/[0.03] border-white/10 text-white rounded-[2rem] p-6"
+              />
+              {/* Test Connection Button */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestConnection}
+                disabled={isTesting || !formData.accessToken}
+                className="w-full h-10 rounded-xl border-white/10 text-white hover:bg-white/5"
+              >
+                {isTesting ? (
                   <>
-                    <p className="text-xs text-slate-400">
-                      คัดลอก URL ด้านล่างและวางใน LINE Console {'->'} Messaging API {'->'} Webhook URL
-                    </p>
-                    <div className="bg-black/40 px-3 py-2 rounded-lg border border-white/5 flex items-center justify-between gap-2">
-                      <code className="text-[10px] text-slate-300 font-mono break-all">
-                        {getWebhookUrl(editAccount)}
-                      </code>
-                      <button
-                        type="button"
-                        onClick={() => copyWebhookUrl(editAccount)}
-                        className="text-[10px] font-semibold text-[#06C755] hover:text-[#05B048] px-2 py-1 rounded bg-[#06C755]/10 hover:bg-[#06C755]/20 flex-shrink-0"
-                      >
-                        คัดลอก
-                      </button>
-                    </div>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    กำลังทดสอบ...
                   </>
                 ) : (
-                  <p className="text-xs text-slate-400">
-                    หลังจากบันทึก จะได้ Webhook URL เพื่อนำไปวางใน LINE Console {'->'} Messaging API {'->'} Webhook URL
-                  </p>
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    ทดสอบการเชื่อมต่อ
+                  </>
                 )}
+              </Button>
+            </div>
+
+            {/* Slip Template Selection */}
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-slate-400 ml-1 flex items-center gap-2">
+                รูปแบบสลิป (Template)
+                <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ)</span>
+              </label>
+              <select
+                value={formData.slipTemplateId}
+                onChange={(e) => setFormData({ ...formData, slipTemplateId: e.target.value })}
+                className="w-full h-14 px-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755]/50"
+              >
+                <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                {templates.filter(t => t.type === 'success').length > 0 && (
+                  <optgroup label="เทมเพลตสลิปถูกต้อง">
+                    {templates.filter(t => t.type === 'success').map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.isGlobal ? '🌐 ' : ''}{t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {templates.filter(t => t.type === 'duplicate').length > 0 && (
+                  <optgroup label="เทมเพลตสลิปซ้ำ">
+                    {templates.filter(t => t.type === 'duplicate').map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.isGlobal ? '🌐 ' : ''}{t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              {formData.slipTemplateId && (
+                <p className="text-xs text-[#06C755] ml-1 flex items-center gap-1">
+                  <span>✓</span>
+                  {templates.find(t => t._id === formData.slipTemplateId)?.name || 'เทมเพลตที่เลือก'}
+                </p>
+              )}
+            </div>
+
+            <Input
+              label="คำอธิบาย (ไม่บังคับ)"
+              placeholder="เช่น บัญชีสำหรับร้านค้าสาขา 1"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="bg-white/[0.03] border-white/10 text-white h-14 rounded-2xl"
+            />
+
+            {/* Webhook URL Section (shown for edit mode or after creation instruction) */}
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+              <div className="flex items-start gap-3">
+                <Activity className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-amber-400">ขั้นตอนที่ 2: ตั้งค่า Webhook URL</p>
+                  {editAccount ? (
+                    <>
+                      <p className="text-xs text-slate-400">
+                        คัดลอก URL ด้านล่างและวางใน LINE Console {'->'} Messaging API {'->'} Webhook URL
+                      </p>
+                      <div className="bg-black/40 px-3 py-2 rounded-lg border border-white/5 flex items-center justify-between gap-2">
+                        <code className="text-[10px] text-slate-300 font-mono break-all">
+                          {getWebhookUrl(editAccount)}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyWebhookUrl(editAccount)}
+                          className="text-[10px] font-semibold text-[#06C755] hover:text-[#05B048] px-2 py-1 rounded bg-[#06C755]/10 hover:bg-[#06C755]/20 flex-shrink-0"
+                        >
+                          คัดลอก
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      หลังจากบันทึก จะได้ Webhook URL เพื่อนำไปวางใน LINE Console {'->'} Messaging API {'->'} Webhook URL
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="pt-6 flex gap-4">
-            <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>
-              ยกเลิก
-            </Button>
-            <Button type="submit" variant="primary" className="flex-1 h-14 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20">
-              {editAccount ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มบัญชี'}
-            </Button>
+            <div className="pt-4 flex gap-4">
+              <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>
+                ยกเลิก
+              </Button>
+              <Button type="submit" variant="primary" className="flex-1 h-14 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20">
+                {editAccount ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มบัญชี'}
+              </Button>
+            </div>
+          </form>
+
+          {/* Right Column - Preview (2/5 width on desktop) */}
+          <div className="lg:col-span-2">
+            <div className="sticky top-0 space-y-4">
+              {/* Preview Header */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg bg-[#06C755]/10 flex items-center justify-center">
+                  <FileCheck className="w-4 h-4 text-[#06C755]" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">ตัวอย่างสลิป</h4>
+                  <p className="text-[10px] text-slate-400">รูปแบบการแสดงผลเมื่อตรวจสอบสำเร็จ</p>
+                </div>
+              </div>
+
+              {/* Preview Container */}
+              <div className="bg-gradient-to-b from-white/[0.02] to-white/[0.05] rounded-2xl p-6 border border-white/5">
+                {formData.slipTemplateId ? (
+                  // Show preview based on selected template
+                  (() => {
+                    const selectedTemplate = templates.find(t => t._id === formData.slipTemplateId);
+                    if (selectedTemplate) {
+                      // Create preview template with defaults for missing fields
+                      const previewTemplate: SlipTemplateForPreview = {
+                        _id: selectedTemplate._id,
+                        name: selectedTemplate.name,
+                        type: selectedTemplate.type || 'success',
+                        primaryColor: selectedTemplate.type === 'duplicate' ? '#f59e0b' :
+                                      selectedTemplate.type === 'error' ? '#ef4444' :
+                                      selectedTemplate.type === 'not_found' ? '#64748b' : '#10b981',
+                        headerText: selectedTemplate.headerText,
+                        footerText: 'ขอบคุณที่ใช้บริการ',
+                        showAmount: true,
+                        showSender: true,
+                        showReceiver: true,
+                        showDate: true,
+                        showTime: true,
+                        showTransRef: true,
+                        showBankLogo: true,
+                        showFee: true,
+                        showSenderAccount: true,
+                        showReceiverAccount: true,
+                      };
+                      return (
+                        <div className="transform hover:scale-105 transition-transform duration-500">
+                          <SlipPreview template={previewTemplate} />
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()
+                ) : (
+                  // Show default preview or placeholder
+                  <div className="space-y-4">
+                    <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} />
+                    <p className="text-[10px] text-slate-500 text-center">
+                      กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Template Info */}
+              {formData.slipTemplateId && (
+                <div className="bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-[#06C755] flex items-center justify-center text-white text-xs font-bold">
+                      ✓
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-[#06C755] truncate">
+                        {templates.find(t => t._id === formData.slipTemplateId)?.name}
+                      </p>
+                      <p className="text-[9px] text-slate-400">เลือกใช้งานเทมเพลตนี้</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </form>
+        </div>
       </Modal>
 
       <Modal

@@ -1,88 +1,97 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Refactor User Templates Page with Admin-style SlipPreview
+**Task:** Add Template Selection with Real-time Preview to Line Accounts Page
 
 ## Summary
 
-Complete refactor of the User Templates page to show realistic slip previews identical to Admin view, while maintaining User role constraints (no Edit/Delete/Create buttons).
+Added a real-time slip preview feature to the Line Account add/edit modal, allowing users to see how their selected template will look before saving.
 
 ## Changes Made
 
-### File Modified: `frontend/src/app/user/templates/page.tsx`
+### File Modified: `frontend/src/app/user/line-accounts/page.tsx`
 
-#### 1. New SlipPreview Component (Admin-style)
-Replaced simple `MiniSlipPreview` with sophisticated `SlipPreview` component featuring:
-- **Phone frame design** with dark background and rounded corners
+#### 1. Added SlipPreview Component
+New Admin-style SlipPreview component with:
+- **Phone frame design** with dark background
 - **Decorative glow effect** matching template theme color
-- **Status header** with icon (✓, !, ✕, ?) and status text
-- **Amount section** with large text and date/time
-- **Sender info** with bank logo simulation (colored icon with initial)
-- **Arrow divider** between sender and receiver
-- **Receiver info** with bank logo simulation
-- **Transaction details** (reference number, fee)
-- **Footer text** and branding
+- **Status header** with dynamic icon and color
+- **Amount section** with date/time
+- **Sender/Receiver info** with bank logo simulation
+- **Transaction details** (reference, fee)
 
-#### 2. Enhanced Mock Data
-Added more realistic sample data:
+#### 2. Added Supporting Types and Data
 ```typescript
+interface SlipTemplateForPreview {
+  _id: string;
+  name: string;
+  type: 'success' | 'duplicate' | 'error' | 'not_found';
+  primaryColor?: string;
+  headerText?: string;
+  footerText?: string;
+  showAmount: boolean;
+  // ... other display options
+}
+
 const SAMPLE_DATA = {
-  amount: '฿1,500.00',
+  amount: '1,500.00',
   sender: { name: 'นาย สมชาย ใจดี', bankShort: 'KBANK', bankColor: '#138f2d' },
   receiver: { name: 'นางสาว สมหญิง รักดี', bankShort: 'SCB', bankColor: '#4e2a82' },
   // ...
 };
+
+const DEFAULT_PREVIEW_TEMPLATE: SlipTemplateForPreview = {
+  // Default template shown when no template selected
+};
 ```
 
-#### 3. Expanded Mock Templates (6 templates)
-- `มาตรฐาน (Standard)` - Full info display
-- `กะทัดรัด (Compact)` - Essential info only
-- `โมเดิร์น (Modern)` - Blue theme, modern design
-- `แจ้งเตือนสลิปซ้ำ` - Duplicate warning
-- `ข้อผิดพลาดระบบ` - Error template
-- `ไม่พบข้อมูลสลิป` - Not found template
+#### 3. 2-Column Modal Layout
+- **Left Column (3/5):** Form inputs (Account Name, Channel ID/Secret, Access Token, Template Dropdown, Description)
+- **Right Column (2/5):** Real-time SlipPreview component
+- Responsive: Single column on mobile, 2-column on desktop (lg breakpoint)
 
-#### 4. Role-Based Constraints (Verified)
-- **NO** Edit button
-- **NO** Delete button
-- **NO** Create button
-- **ONLY** "เลือกใช้งาน" (Select) button
-
-#### 5. Interaction Logic
-- Toast notification on select
-- "✓ ใช้งาน" badge on selected template
-- "กำลังใช้งาน Template นี้" disabled state when selected
-- Preview mode allows visual selection without API save
-
-## Visual Changes
-
-| Before | After |
-|--------|-------|
-| Simple box preview | Phone frame with glow effect |
-| Basic text display | Bank logo simulation with colors |
-| Minimal styling | Full Admin-style design |
-| 5 mock templates | 6 mock templates with more variety |
+#### 4. Dynamic Preview Features
+- Shows default preview when no template selected with message "กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง"
+- Updates preview in real-time when template is selected from dropdown
+- Shows selected template info badge below preview
+- Preview color changes based on template type (success=green, duplicate=amber, error=red, not_found=gray)
 
 ## Requirements Verification
 
 | Requirement | Status |
 |-------------|--------|
-| Visual Fidelity (Admin-like) | COMPLETE |
-| Bank Logo display | COMPLETE (simulated with colored icons) |
-| Amount prominent | COMPLETE (large colored text) |
-| Sender/Receiver info | COMPLETE (with account numbers) |
-| Theme color support | COMPLETE (dynamic colors) |
-| NO Edit/Delete/Create | VERIFIED |
-| Only Select button | VERIFIED |
-| Toast on select | COMPLETE |
-| Active badge | COMPLETE |
-| Disabled when selected | COMPLETE |
-| Mock data | COMPLETE (6 templates) |
+| Dynamic Data Fetching (API) | COMPLETE - Uses `fetchTemplates()` API |
+| Real-time Preview | COMPLETE - Updates on dropdown change |
+| Form Integration (templateId) | COMPLETE - Sends with form submission |
+| 2-Column Layout | COMPLETE - lg:grid-cols-5 (3+2) |
+| Theme Color Support | COMPLETE - Dynamic based on type |
+| TypeScript Strict Mode | VERIFIED - No errors |
+
+## Visual Layout
+
+```
++----------------------------------+
+|  Modal Title                      |
++----------------------------------+
+|                    |             |
+|   [Form]           | [Preview]   |
+|                    |             |
+|   - Account Name   | +--------+  |
+|   - Channel ID     | | Slip   |  |
+|   - Access Token   | | Preview|  |
+|   - Template       | |        |  |
+|   - Description    | +--------+  |
+|                    |             |
+|   [Cancel] [Save]  | Selected:   |
+|                    | Template X  |
++----------------------------------+
+```
 
 ## TypeScript Check
 - Frontend: PASSED (no errors)
+- Backend: PASSED (no errors)
 
 ---
 **Created:** 2026-01-05
 **Developer Session:** Claude Code (Opus 4.5)
-**Task Type:** Major UI Refactor
+**Task Type:** Feature Implementation

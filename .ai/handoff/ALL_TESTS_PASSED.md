@@ -1,6 +1,6 @@
 # ALL_TESTS_PASSED.md
 
-## Task: Refactor User Templates Page with Admin-style SlipPreview
+## Task: Add Template Selection with Real-time Preview to Line Accounts Page
 
 ## Test Summary
 
@@ -21,67 +21,59 @@
 
 ### 2. Functionality Tests
 
-#### SlipPreview Component (Admin-style)
+#### SlipPreview Component
 - Phone frame design with dark background
 - Decorative glow effect matching theme color
-- Status header with icon (✓, !, ✕, ?)
-- Amount section with date/time
+- Status header with icon (checkmark, !, X, ?)
+- Amount section with date/time display
 - Sender/Receiver info with bank logo simulation
-- Transaction details and footer
+- Transaction details (reference, fee)
+- Footer text support
 
-#### Mock Data
-- 6 templates covering all types:
-  - มาตรฐาน (Standard) - success
-  - กะทัดรัด (Compact) - success
-  - โมเดิร์น (Modern) - success
-  - แจ้งเตือนสลิปซ้ำ - duplicate
-  - ข้อผิดพลาดระบบ - error
-  - ไม่พบข้อมูลสลิป - not_found
+#### 2-Column Modal Layout
+- Left column (3/5): Form inputs
+- Right column (2/5): Real-time preview
+- Responsive: Single column on mobile, 2-column on lg breakpoint
 
-#### User Interactions
-- `handleSelectTemplate()` with toast notifications
-- "✓ ใช้งาน" badge on selected template
-- Disabled state when selected
+#### Real-time Preview
+- Default preview shown when no template selected
+- Preview updates immediately on template selection
+- Selected template info badge displayed
+- Theme colors change based on template type
 
 ### 3. Error Handling Tests
-- Proper `catch (error: unknown)` blocks (lines 424, 454)
-- Typed error handling with explicit type assertions
+- Proper `catch (error: unknown)` blocks with typed assertions
 - Toast notifications for user feedback
-- Fallback to mock data when API fails
+- API error handling with fallback messages
+- Form validation (Access Token required for test)
 
 ### 4. Security Tests
-- No hardcoded URLs (uses api.ts abstraction)
-- No `localhost` or `127.0.0.1` references
+- No hardcoded URLs (localhost/127.0.0.1) - VERIFIED
 - No exposed credentials
-- API calls through proper client library
+- Uses API client from `@/lib/api`
+- No dangerous patterns detected
 
 ### 5. Code Quality (CLAUDE.md Compliance)
 - No `any` types found
-- Proper TypeScript interfaces
-- Uses API client from `@/lib/api`
-- No Edit/Delete/Create buttons (verified - only description text mentions "สร้าง")
-- Only "เลือกใช้งาน" (Select) button
-- memo() optimization on SlipPreview
+- Proper TypeScript interfaces defined
+- Uses API client abstraction
+- memo() optimization on SlipPreview component
+- Follows project structure conventions
 
 ## Requirements Verification
 
 | Requirement | Verified |
 |-------------|----------|
-| Visual Fidelity (Admin-like) | YES |
-| Bank Logo simulation | YES |
-| Amount prominent | YES |
-| Sender/Receiver info | YES |
-| Theme color support | YES |
-| NO Edit/Delete/Create buttons | YES |
-| Only Select button | YES |
-| Toast on select | YES |
-| Active badge | YES |
-| Disabled when selected | YES |
-| Mock data (6 templates) | YES |
+| Dynamic Data Fetching (API) | YES |
+| Real-time Preview | YES |
+| Form Integration (templateId) | YES |
+| 2-Column Layout | YES |
+| Theme Color Support | YES |
+| TypeScript Strict Mode | YES |
 
 ## Conclusion
 
-All tests passed. User Templates page refactor is ready for production.
+All tests passed. Feature implementation is ready for production.
 
 ---
 **Tested:** 2026-01-05
