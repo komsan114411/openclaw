@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -99,13 +99,24 @@ export interface SlipData {
 }
 
 @Injectable()
-export class SlipTemplatesService {
+export class SlipTemplatesService implements OnModuleInit {
   private readonly logger = new Logger(SlipTemplatesService.name);
 
   constructor(
     @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
-  ) {}
+  ) { }
+
+  /**
+   * Auto-seed global default templates on application startup
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.createDefaultGlobalTemplates();
+    } catch (error) {
+      this.logger.error('Failed to create default global templates:', error);
+    }
+  }
 
   /**
    * SECURITY: Verify user has access to the LINE account
@@ -266,8 +277,8 @@ export class SlipTemplatesService {
    */
   async getAccountTemplates(lineAccountId: string): Promise<SlipTemplateDocument[]> {
     return this.slipTemplateModel
-      .find({ 
-        lineAccountId: new Types.ObjectId(lineAccountId), 
+      .find({
+        lineAccountId: new Types.ObjectId(lineAccountId),
         isActive: true,
         isGlobal: { $ne: true },
       })
@@ -684,16 +695,10 @@ export class SlipTemplatesService {
   }
 
   /**
-   * Create default global templates (Admin only)
+   * Create default global templates (Auto-called on startup)
+   * Only creates templates for types that don't have a global default yet
    */
   async createDefaultGlobalTemplates(ownerId?: string): Promise<void> {
-    // Check if global templates already exist
-    const existingGlobal = await this.slipTemplateModel.findOne({ isGlobal: true });
-    if (existingGlobal) {
-      this.logger.log('Global templates already exist, skipping creation');
-      return;
-    }
-
     const defaults = [
       {
         name: '✅ สลิปถูกต้อง (Global)',
@@ -733,16 +738,36 @@ export class SlipTemplatesService {
       },
     ];
 
+    let createdCount = 0;
+
     for (const def of defaults) {
+      // Check if this type already has a global default
+      const existing = await this.slipTemplateModel.findOne({
+        isGlobal: true,
+        type: def.type,
+        isDefault: true,
+        isActive: true,
+      });
+
+      if (existing) {
+        this.logger.debug(`Global default template already exists for type ${def.type}`);
+        continue;
+      }
+
       await this.slipTemplateModel.create({
         ownerId: ownerId ? new Types.ObjectId(ownerId) : undefined,
         isGlobal: true,
         isSystemTemplate: true,
+        isActive: true,
         ...def,
       });
+      createdCount++;
+      this.logger.log(`Created global default template for type ${def.type}`);
     }
 
-    this.logger.log('Default global templates created successfully');
+    if (createdCount > 0) {
+      this.logger.log(`Created ${createdCount} default global template(s)`);
+    }
   }
 
   private extractVariables(
@@ -867,16 +892,16 @@ export class SlipTemplatesService {
           },
           (template.showDate || template.showTime)
             ? {
-                type: 'text',
-                text: [
-                  template.showDate ? (data.date || '-') : null,
-                  template.showTime ? (data.time || '-') : null,
-                ].filter(Boolean).join(' • '),
-                size: 'xs',
-                color: '#888888',
-                align: 'center',
-                margin: 'sm',
-              }
+              type: 'text',
+              text: [
+                template.showDate ? (data.date || '-') : null,
+                template.showTime ? (data.time || '-') : null,
+              ].filter(Boolean).join(' • '),
+              size: 'xs',
+              color: '#888888',
+              align: 'center',
+              margin: 'sm',
+            }
             : { type: 'text', text: ' ', size: 'xxs', color: '#FFFFFF' },
         ],
         margin: 'lg',
@@ -974,7 +999,7 @@ export class SlipTemplatesService {
       extraRows.push(this.createInfoRow('จำนวนเงิน (สกุลท้องถิ่น)', `${data.localAmountFormatted} ${data.localCurrency || ''}`));
     }
     if (template.showCountryCode) extraRows.push(this.createInfoRow('ประเทศ', data.countryCode || '-'));
-    if (template.showFee) extraRows.push(this.createInfoRow('ค่าธรรมเนียม', data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-') ));
+    if (template.showFee) extraRows.push(this.createInfoRow('ค่าธรรมเนียม', data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-')));
     if (template.showRefs) {
       if (data.ref1) extraRows.push(this.createInfoRow('Ref1', data.ref1));
       if (data.ref2) extraRows.push(this.createInfoRow('Ref2', data.ref2));

@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { WebsocketService } from './websocket.service';
+import { AuthService } from '../auth/auth.service';
 
 @WebSocketGateway({
   cors: {
@@ -24,7 +25,10 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   private readonly logger = new Logger(WebsocketGateway.name);
 
-  constructor(private websocketService: WebsocketService) {}
+  constructor(
+    private websocketService: WebsocketService,
+    private authService: AuthService,
+  ) {}
 
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);

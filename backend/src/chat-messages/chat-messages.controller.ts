@@ -37,13 +37,11 @@ export class ChatMessagesController {
   async getChatHistory(
     @Param('accountId') accountId: string,
     @Param('userId') userId: string,
+    @CurrentUser() user: AuthUser,
     @Query('limit') limit?: string,
     @Query('before') before?: string,
-    @CurrentUser() user?: AuthUser,
   ) {
-    if (user) {
-      await this.chatMessagesService.ensureAccountAccess(accountId, user);
-    }
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const messages = await this.chatMessagesService.getChatHistory(
       accountId,
       userId,

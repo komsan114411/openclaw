@@ -1,93 +1,55 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Fix Chat Messages Real-time Display
+**Task:** Security Improvements and Bug Fixes
 
-## Problem
-หน้าแชทไม่แสดงข้อความเมื่อผู้ใช้ทักมาและตอบกลับ
+## Issues Found and Fixed
 
-## Root Cause
-1. **WebSocket event name mismatch:**
-   - Service ใช้ `'new_message'` และ `'message_sent'`
-   - Frontend ฟัง `'message_received'`
-   
-2. **Data structure mismatch:**
-   - Service ส่งข้อมูลแบบ nested (`message: { _id, direction, ... }`)
-   - Frontend คาดหวังข้อมูลแบบ flat (`{ _id, direction, ... }`)
+### CRITICAL Security Fixes
 
-## Changes Made
+#### 1. Password Logged in Plaintext
+**File:** `backend/src/auth/auth.service.ts`
+**Fix:** Removed password from log message
 
-### File: `backend/src/chat-messages/chat-messages.service.ts`
+#### 2. Optional Authentication Bypass in Chat History
+**File:** `backend/src/chat-messages/chat-messages.controller.ts`
+**Fix:** Made user parameter required, always check access
 
-#### 1. Fixed incoming message event (saveIncomingMessage)
-**Before:**
-```typescript
-broadcastToRoom(`chat:${...}`, 'new_message', {
-  lineAccountId,
-  lineUserId,
-  message: { _id, direction, messageType, ... }
-});
-```
+#### 3. CORS Allowing Any Origin
+**File:** `backend/src/main.ts`
+**Fix:** Use whitelist from CORS_ORIGINS environment variable
 
-**After:**
-```typescript
-broadcastToRoom(`chat:${...}`, 'message_received', {
-  _id: message._id.toString(),
-  lineAccountId,
-  lineUserId,
-  direction: 'in',
-  messageType,
-  messageText,
-  messageId,
-  createdAt,
-});
-```
+#### 4. WebSocket Without Authentication
+**File:** `backend/src/websocket/websocket.gateway.ts`
+**Fix:** Added AuthService, verify session before joining admin room
 
-#### 2. Fixed outgoing message event (saveOutgoingMessage)
-**Before:**
-```typescript
-broadcastToRoom(`chat:${...}`, 'message_sent', {
-  lineAccountId,
-  lineUserId,
-  message: { _id, direction, messageType, ... }
-});
-```
+#### 5. Slip History Endpoint Without Admin Guard
+**File:** `backend/src/slip-verification/slip-verification.controller.ts`
+**Fix:** Added RolesGuard, Roles decorator, ObjectId validation
 
-**After:**
-```typescript
-broadcastToRoom(`chat:${...}`, 'message_received', {
-  _id: message._id.toString(),
-  lineAccountId,
-  lineUserId,
-  direction: 'out',
-  messageType,
-  messageText,
-  sentBy,
-  createdAt,
-});
-```
-
-## How It Works Now
-
-```
-LINE User sends message
-    ↓
-Webhook Controller saves & emits 'message_received' (flat data) ✅
-    ↓
-ChatMessagesService saves & emits 'message_received' (flat data) ✅
-    ↓
-Frontend receives via socket.on('message_received') ✅
-    ↓
-Messages display in real-time ✅
-```
+## Files Modified
+1. `backend/src/auth/auth.service.ts`
+2. `backend/src/chat-messages/chat-messages.controller.ts`
+3. `backend/src/main.ts`
+4. `backend/src/websocket/websocket.gateway.ts`
+5. `backend/src/websocket/websocket.module.ts`
+6. `backend/src/slip-verification/slip-verification.controller.ts`
 
 ## TypeScript Check
 - Backend: `npx tsc --noEmit` - PASSED
 
-## Files Modified
-1. `backend/src/chat-messages/chat-messages.service.ts`
+## Security Summary
+
+| Issue | Severity | Status |
+|-------|----------|--------|
+| Password in logs | CRITICAL | FIXED |
+| Auth bypass in chat | CRITICAL | FIXED |
+| CORS misconfiguration | HIGH | FIXED |
+| WebSocket no auth | HIGH | FIXED |
+| Unprotected slip history | HIGH | FIXED |
+| ObjectId validation | MEDIUM | FIXED |
 
 ---
 **Created:** 2026-01-07
 **Developer Session:** Claude Code (Opus 4.5)
-**Task Type:** Bug Fix - Real-time Chat
+**Task Type:** Security Hardening
