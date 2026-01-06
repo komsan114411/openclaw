@@ -335,6 +335,29 @@ export default function UserLineAccountsPage() {
     fetchPreviewConfig();
   }, []);
 
+  // Auto-check all connections when accounts are loaded
+  useEffect(() => {
+    if (accounts.length > 0 && !isLoading && Object.keys(connectionStatus).length === 0) {
+      // Check all connections automatically on load (without showing toast)
+      const autoCheckConnections = async () => {
+        setIsCheckingAll(true);
+        const checkingStatus: Record<string, ConnectionStatusInfo> = {};
+        accounts.forEach(acc => {
+          checkingStatus[acc._id] = { status: 'checking' };
+        });
+        setConnectionStatus(checkingStatus);
+
+        for (const account of accounts) {
+          await checkSingleConnection(account._id);
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        setIsCheckingAll(false);
+      };
+      autoCheckConnections();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts, isLoading]);
+
   const fetchPreviewConfig = async () => {
     try {
       const response = await systemSettingsApi.getPreviewConfig();

@@ -31,7 +31,11 @@ import {
   ExternalLink,
   Power,
   Eye,
-  MoreVertical
+  MoreVertical,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  Loader2
 } from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
@@ -39,6 +43,16 @@ interface ExtendedLineAccount extends LineAccount {
     username: string;
     email?: string;
   };
+}
+
+// Connection status type
+type ConnectionStatusType = 'connected' | 'disconnected' | 'checking' | 'unknown';
+
+interface ConnectionStatusInfo {
+  status: ConnectionStatusType;
+  lastChecked?: Date;
+  errorMessage?: string;
+  botName?: string;
 }
 
 export default function AdminLineAccountsPage() {
@@ -55,6 +69,10 @@ export default function AdminLineAccountsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
+  const [isCheckingAll, setIsCheckingAll] = useState(false);
+
+  // Connection status tracking
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatusInfo>>({});
 
   const [formData, setFormData] = useState({
     accountName: '',
@@ -134,6 +152,90 @@ export default function AdminLineAccountsPage() {
     fetchData();
     fetchPublicBaseUrl();
   }, [fetchData]);
+
+  // Check connection for a single account
+  const checkSingleConnection = async (accountId: string) => {
+    setConnectionStatus(prev => ({
+      ...prev,
+      [accountId]: { status: 'checking' }
+    }));
+
+    try {
+      const response = await lineAccountsApi.testConnection(accountId);
+      if (response.data.success) {
+        setConnectionStatus(prev => ({
+          ...prev,
+          [accountId]: {
+            status: 'connected',
+            lastChecked: new Date(),
+            botName: response.data.botInfo?.displayName || undefined,
+          }
+        }));
+      } else {
+        setConnectionStatus(prev => ({
+          ...prev,
+          [accountId]: {
+            status: 'disconnected',
+            lastChecked: new Date(),
+            errorMessage: response.data.message || 'การเชื่อมต่อล้มเหลว',
+          }
+        }));
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setConnectionStatus(prev => ({
+        ...prev,
+        [accountId]: {
+          status: 'disconnected',
+          lastChecked: new Date(),
+          errorMessage: err.response?.data?.message || 'ไม่สามารถเชื่อมต่อได้',
+        }
+      }));
+    }
+  };
+
+  // Check all account connections
+  const checkAllConnections = async () => {
+    if (accounts.length === 0) return;
+
+    setIsCheckingAll(true);
+
+    const checkingStatus: Record<string, ConnectionStatusInfo> = {};
+    accounts.forEach(acc => {
+      checkingStatus[acc._id] = { status: 'checking' };
+    });
+    setConnectionStatus(checkingStatus);
+
+    for (const account of accounts) {
+      await checkSingleConnection(account._id);
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    setIsCheckingAll(false);
+    toast.success('ตรวจสอบการเชื่อมต่อเสร็จสิ้น');
+  };
+
+  // Auto-check all connections when accounts are loaded
+  useEffect(() => {
+    if (accounts.length > 0 && !isLoading && Object.keys(connectionStatus).length === 0) {
+      const autoCheckConnections = async () => {
+        setIsCheckingAll(true);
+        const checkingStatus: Record<string, ConnectionStatusInfo> = {};
+        accounts.forEach(acc => {
+          checkingStatus[acc._id] = { status: 'checking' };
+        });
+        setConnectionStatus(checkingStatus);
+
+        for (const account of accounts) {
+          await checkSingleConnection(account._id);
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        setIsCheckingAll(false);
+      };
+      autoCheckConnections();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts, isLoading]);
 
   const handleAddAccount = async () => {
     if (!formData.accountName || !formData.channelId || !formData.channelSecret || !formData.accessToken) {
@@ -303,15 +405,27 @@ export default function AdminLineAccountsPage() {
               ศูนย์ควบคุมบัญชี Official Account ทั้งหมด
             </p>
           </div>
-          <Button
-            onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
-            size="lg"
-            variant="primary"
-            leftIcon={<Plus className="w-4 h-4" />}
-            className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20"
-          >
-            เพิ่มบัญชีใหม่
-          </Button>
+          <div className="flex gap-2 sm:gap-3 flex-wrap">
+            <Button
+              onClick={checkAllConnections}
+              size="lg"
+              variant="outline"
+              disabled={isCheckingAll || accounts.length === 0}
+              leftIcon={isCheckingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              className="h-11 sm:h-12 px-4 sm:px-5 rounded-full font-semibold text-xs border-white/10 bg-white/[0.03] hover:bg-white/5 text-white"
+            >
+              {isCheckingAll ? 'กำลังตรวจ...' : 'ตรวจสอบ API'}
+            </Button>
+            <Button
+              onClick={() => { setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' }); setShowAddModal(true); }}
+              size="lg"
+              variant="primary"
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20"
+            >
+              เพิ่มบัญชีใหม่
+            </Button>
+          </div>
         </div>
 
         <div className="grid-stats">
@@ -416,6 +530,31 @@ export default function AdminLineAccountsPage() {
                               {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                             </span>
                           </div>
+                          {/* Connection Status Badge */}
+                          <button
+                            onClick={() => checkSingleConnection(account._id)}
+                            disabled={connectionStatus[account._id]?.status === 'checking'}
+                            className={cn(
+                              "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer hover:opacity-80 border",
+                              connectionStatus[account._id]?.status === 'connected' && 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+                              connectionStatus[account._id]?.status === 'disconnected' && 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+                              connectionStatus[account._id]?.status === 'checking' && 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                              (!connectionStatus[account._id] || connectionStatus[account._id]?.status === 'unknown') && 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                            )}
+                          >
+                            {connectionStatus[account._id]?.status === 'connected' && (
+                              <><Wifi className="w-3 h-3" /> API ✓</>
+                            )}
+                            {connectionStatus[account._id]?.status === 'disconnected' && (
+                              <><WifiOff className="w-3 h-3" /> โหลด</>
+                            )}
+                            {connectionStatus[account._id]?.status === 'checking' && (
+                              <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
+                            )}
+                            {(!connectionStatus[account._id] || connectionStatus[account._id]?.status === 'unknown') && (
+                              <><RefreshCw className="w-3 h-3" /> ตรวจ</>
+                            )}
+                          </button>
                           <div className="flex gap-1 mt-1">
                             <div className={cn("px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-white/5 bg-white/5 text-slate-600")}>Bot</div>
                             <div className={cn("px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-400" : "border-white/5 bg-white/5 text-slate-600")}>AI</div>
@@ -479,6 +618,23 @@ export default function AdminLineAccountsPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {/* Connection Status Badge */}
+                    <button
+                      onClick={() => checkSingleConnection(account._id)}
+                      disabled={connectionStatus[account._id]?.status === 'checking'}
+                      className={cn(
+                        "px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border flex items-center gap-1 cursor-pointer hover:opacity-80 transition-all",
+                        connectionStatus[account._id]?.status === 'connected' && 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+                        connectionStatus[account._id]?.status === 'disconnected' && 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+                        connectionStatus[account._id]?.status === 'checking' && 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                        (!connectionStatus[account._id] || connectionStatus[account._id]?.status === 'unknown') && 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                      )}
+                    >
+                      {connectionStatus[account._id]?.status === 'connected' && <><Wifi className="w-3 h-3" /> API</>}
+                      {connectionStatus[account._id]?.status === 'disconnected' && <><WifiOff className="w-3 h-3" /> ERR</>}
+                      {connectionStatus[account._id]?.status === 'checking' && <><Loader2 className="w-3 h-3 animate-spin" /></>}
+                      {(!connectionStatus[account._id] || connectionStatus[account._id]?.status === 'unknown') && <><RefreshCw className="w-3 h-3" /></>}
+                    </button>
                     <div className={cn("px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border", account.settings?.enableBot ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-white/5 bg-white/5 text-slate-600")}>Bot</div>
                     <div className={cn("px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border", account.settings?.enableAi ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-400" : "border-white/5 bg-white/5 text-slate-600")}>AI</div>
                     <div className={cn("px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest border", account.settings?.enableSlipVerification ? "border-amber-500/20 bg-amber-500/10 text-amber-400" : "border-white/5 bg-white/5 text-slate-600")}>Slip</div>
