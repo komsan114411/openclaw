@@ -108,8 +108,10 @@ export class LineWebhookController {
       }
     };
 
-    // Check if webhook is enabled
-    if (!account.settings?.webhookEnabled) return;
+    // Check if webhook is enabled (default to true if not explicitly set)
+    // This ensures existing accounts without this setting still work
+    const webhookEnabled = account.settings?.webhookEnabled ?? true;
+    if (!webhookEnabled) return;
 
     // ============================================
     // ALWAYS save incoming messages FIRST (before any bot checks)
