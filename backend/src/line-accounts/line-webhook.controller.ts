@@ -406,6 +406,8 @@ export class LineWebhookController {
       });
 
       // Phase 4: Finalize quota (commit or rollback)
+      this.logger.log(`Slip verification completed: status=${result.status}, message=${result.message}`);
+
       // ตรวจสอบโควต้าเหลือน้อย (จะแสดงในบล็อกผลสลิปเลย)
       let quotaRemaining: number | undefined;
 
