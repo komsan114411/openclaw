@@ -26,6 +26,9 @@ import {
   Activity,
   HelpCircle,
   Loader2,
+  RefreshCw,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 
 // Extended SlipTemplate interface for preview
@@ -96,6 +99,16 @@ interface SampleData {
   transRef: string;
   sender: { name: string; account: string; bankId: string };
   receiver: { name: string; account: string; bankId: string };
+}
+
+// Connection status type
+type ConnectionStatusType = 'connected' | 'disconnected' | 'checking' | 'unknown';
+
+interface ConnectionStatusInfo {
+  status: ConnectionStatusType;
+  lastChecked?: Date;
+  errorMessage?: string;
+  botName?: string;
 }
 
 // SlipPreview Component (Admin-style design with real bank logos)
@@ -269,11 +282,15 @@ export default function UserLineAccountsPage() {
   const [sampleData, setSampleData] = useState<SampleData>(DEFAULT_SAMPLE_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
+  const [isCheckingAll, setIsCheckingAll] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+
+  // Connection status tracking
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatusInfo>>({});
 
   const [editAccount, setEditAccount] = useState<LineAccount | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<LineAccount | null>(null);
@@ -432,6 +449,70 @@ export default function UserLineAccountsPage() {
     }
   };
 
+  // Check connection for a single account
+  const checkSingleConnection = async (accountId: string) => {
+    setConnectionStatus(prev => ({
+      ...prev,
+      [accountId]: { status: 'checking' }
+    }));
+
+    try {
+      const response = await lineAccountsApi.testConnection(accountId);
+      if (response.data.success) {
+        setConnectionStatus(prev => ({
+          ...prev,
+          [accountId]: {
+            status: 'connected',
+            lastChecked: new Date(),
+            botName: response.data.botInfo?.displayName || undefined,
+          }
+        }));
+      } else {
+        setConnectionStatus(prev => ({
+          ...prev,
+          [accountId]: {
+            status: 'disconnected',
+            lastChecked: new Date(),
+            errorMessage: response.data.message || 'การเชื่อมต่อล้มเหลว',
+          }
+        }));
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setConnectionStatus(prev => ({
+        ...prev,
+        [accountId]: {
+          status: 'disconnected',
+          lastChecked: new Date(),
+          errorMessage: err.response?.data?.message || 'ไม่สามารถเชื่อมต่อได้',
+        }
+      }));
+    }
+  };
+
+  // Check all account connections
+  const checkAllConnections = async () => {
+    if (accounts.length === 0) return;
+
+    setIsCheckingAll(true);
+
+    // Set all to checking state
+    const checkingStatus: Record<string, ConnectionStatusInfo> = {};
+    accounts.forEach(acc => {
+      checkingStatus[acc._id] = { status: 'checking' };
+    });
+    setConnectionStatus(checkingStatus);
+
+    // Check each account (with slight delay to avoid rate limiting)
+    for (const account of accounts) {
+      await checkSingleConnection(account._id);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    setIsCheckingAll(false);
+    toast.success('ตรวจสอบการเชื่อมต่อเสร็จสิ้น');
+  };
+
   const resetForm = () => {
     setFormData({
       accountName: '',
@@ -588,6 +669,16 @@ export default function UserLineAccountsPage() {
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
             <Button
+              onClick={checkAllConnections}
+              size="lg"
+              variant="outline"
+              disabled={isCheckingAll || accounts.length === 0}
+              leftIcon={isCheckingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              className="w-full sm:w-auto h-11 sm:h-12 px-4 sm:px-6 rounded-full font-semibold text-xs sm:text-sm border-white/10 bg-white/[0.03] hover:bg-white/5 text-white transition-all"
+            >
+              {isCheckingAll ? 'กำลังตรวจสอบ...' : 'ตรวจสอบการเชื่อมต่อ'}
+            </Button>
+            <Button
               onClick={() => {
                 resetForm();
                 setShowModal(true);
@@ -707,7 +798,63 @@ export default function UserLineAccountsPage() {
                             <div className={cn("px-2 py-0.5 rounded-lg text-[8px] sm:text-[9px] font-semibold", account.isActive ? 'bg-[#06C755]/10 text-[#06C755]' : 'bg-white/5 text-slate-500')}>
                               {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                             </div>
+                            {/* Connection Status Badge */}
+                            {connectionStatus[account._id] && (
+                              <button
+                                onClick={() => checkSingleConnection(account._id)}
+                                disabled={connectionStatus[account._id]?.status === 'checking'}
+                                className={cn(
+                                  "px-2 py-0.5 rounded-lg text-[8px] sm:text-[9px] font-semibold flex items-center gap-1 transition-all cursor-pointer hover:opacity-80",
+                                  connectionStatus[account._id]?.status === 'connected' && 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+                                  connectionStatus[account._id]?.status === 'disconnected' && 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+                                  connectionStatus[account._id]?.status === 'checking' && 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+                                  connectionStatus[account._id]?.status === 'unknown' && 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                                )}
+                              >
+                                {connectionStatus[account._id]?.status === 'connected' && (
+                                  <>
+                                    <Wifi className="w-3 h-3" />
+                                    <span className="hidden sm:inline">เชื่อมต่อแล้ว</span>
+                                    <span className="sm:hidden">✓</span>
+                                  </>
+                                )}
+                                {connectionStatus[account._id]?.status === 'disconnected' && (
+                                  <>
+                                    <WifiOff className="w-3 h-3" />
+                                    <span className="hidden sm:inline">ไม่เชื่อมต่อ</span>
+                                    <span className="sm:hidden">✕</span>
+                                  </>
+                                )}
+                                {connectionStatus[account._id]?.status === 'checking' && (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span className="hidden sm:inline">กำลังตรวจ...</span>
+                                  </>
+                                )}
+                                {connectionStatus[account._id]?.status === 'unknown' && (
+                                  <>
+                                    <RefreshCw className="w-3 h-3" />
+                                    <span className="hidden sm:inline">ยังไม่ตรวจ</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            {!connectionStatus[account._id] && (
+                              <button
+                                onClick={() => checkSingleConnection(account._id)}
+                                className="px-2 py-0.5 rounded-lg text-[8px] sm:text-[9px] font-semibold flex items-center gap-1 bg-slate-500/10 text-slate-400 border border-slate-500/20 cursor-pointer hover:bg-slate-500/20 transition-all"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                <span className="hidden sm:inline">ตรวจสอบ</span>
+                              </button>
+                            )}
                           </div>
+                          {/* Show error message if disconnected */}
+                          {connectionStatus[account._id]?.status === 'disconnected' && connectionStatus[account._id]?.errorMessage && (
+                            <p className="text-[8px] text-rose-400/70 mt-1 truncate" title={connectionStatus[account._id]?.errorMessage}>
+                              {connectionStatus[account._id]?.errorMessage}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
@@ -1024,8 +1171,8 @@ export default function UserLineAccountsPage() {
                         name: selectedTemplate.name,
                         type: selectedTemplate.type || 'success',
                         primaryColor: selectedTemplate.type === 'duplicate' ? '#f59e0b' :
-                                      selectedTemplate.type === 'error' ? '#ef4444' :
-                                      selectedTemplate.type === 'not_found' ? '#64748b' : '#10b981',
+                          selectedTemplate.type === 'error' ? '#ef4444' :
+                            selectedTemplate.type === 'not_found' ? '#64748b' : '#10b981',
                         headerText: selectedTemplate.headerText,
                         footerText: 'ขอบคุณที่ใช้บริการ',
                         showAmount: true,

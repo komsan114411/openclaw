@@ -235,13 +235,21 @@ interface UpdateBankData {
 
 // Banks API
 export const banksApi = {
+  // Public endpoints
   getAll: () => api.get('/banks'),
-  getById: (id: string) => api.get(`/banks/${id}`),
-  create: (data: CreateBankData) => api.post('/banks', data),
-  update: (id: string, data: UpdateBankData) => api.put(`/banks/${id}`, data),
-  delete: (id: string) => api.delete(`/banks/${id}`),
-  toggleActive: (id: string) => api.post(`/banks/${id}/toggle-active`),
+  search: (query: string) => api.get('/banks/search', { params: { q: query } }),
+  // Admin endpoints
+  getAllAdmin: () => api.get('/admin/banks'),
+  create: (data: CreateBankData) => api.post('/admin/banks', data),
+  update: (id: string, data: UpdateBankData) => api.put(`/admin/banks/${id}`, data),
+  uploadLogo: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return api.post(`/admin/banks/${id}/logo`, formData);
+  },
+  initDefaults: () => api.post('/admin/banks/init-defaults'),
   syncFromThunder: () => api.post('/admin/banks/sync-from-thunder'),
+  initThunderBanks: (apiKey: string) => api.post('/admin/banks/init-thunder-banks', { apiKey }),
 };
 
 // System Settings data types
@@ -350,26 +358,26 @@ interface UpdateSlipTemplateData {
 // Slip Templates API
 export const slipTemplatesApi = {
   getAll: (accountId: string) =>
-    api.get(`/user/line-accounts/${accountId}/slip-templates`),
+    api.get(`/line-accounts/${accountId}/slip-templates`),
   getList: (accountId: string) =>
-    api.get(`/user/line-accounts/${accountId}/slip-templates-list`),
+    api.get(`/line-accounts/${accountId}/slip-templates-list`),
   create: (accountId: string, data: CreateSlipTemplateData) =>
-    api.post(`/user/line-accounts/${accountId}/slip-templates`, data),
+    api.post(`/line-accounts/${accountId}/slip-templates`, data),
   update: (accountId: string, templateId: string, data: UpdateSlipTemplateData) =>
-    api.put(`/user/line-accounts/${accountId}/slip-templates/${templateId}`, data),
+    api.put(`/line-accounts/${accountId}/slip-templates/${templateId}`, data),
   delete: (accountId: string, templateId: string) =>
-    api.delete(`/user/line-accounts/${accountId}/slip-templates/${templateId}`),
+    api.delete(`/line-accounts/${accountId}/slip-templates/${templateId}`),
   setDefault: (accountId: string, templateId: string) =>
-    api.put(`/user/line-accounts/${accountId}/slip-templates/${templateId}/default`),
+    api.put(`/line-accounts/${accountId}/slip-templates/${templateId}/default`),
   preview: (accountId: string, templateId: string) =>
-    api.get(`/user/line-accounts/${accountId}/slip-templates/${templateId}/preview`),
+    api.get(`/line-accounts/${accountId}/slip-templates/${templateId}/preview`),
   initDefaults: (accountId: string) =>
-    api.post(`/user/line-accounts/${accountId}/slip-templates/init-defaults`),
+    api.post(`/line-accounts/${accountId}/slip-templates/init-defaults`),
   // Safe delete with usage check
   checkUsage: (accountId: string, templateId: string) =>
-    api.get(`/user/line-accounts/${accountId}/slip-templates/${templateId}/usage`),
+    api.get(`/line-accounts/${accountId}/slip-templates/${templateId}/usage`),
   safeDelete: (accountId: string, templateId: string, confirmationText?: string) =>
-    api.delete(`/user/line-accounts/${accountId}/slip-templates/${templateId}/safe-delete`, {
+    api.delete(`/line-accounts/${accountId}/slip-templates/${templateId}/safe-delete`, {
       data: { confirmationText },
     }),
 };
