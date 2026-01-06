@@ -53,6 +53,101 @@ function AdminChatContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Real-time WebSocket connection
+  useEffect(() => {
+    if (!selectedAccountId) return;
+
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const socket = io(`${backendUrl}/ws`, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Admin socket connected:', socket.id);
+      // Subscribe to this LINE account's chat room
+      socket.emit('subscribe_chat', { lineAccountId: selectedAccountId });
+      // Join admin room for global notifications
+      socket.emit('join', { userId: 'admin', role: 'admin' });
+    });
+
+    socket.on('message_received', (data: any) => {
+      // Only process messages for the current selected account
+      if (data.lineAccountId === selectedAccountId) {
+        // Update messages if viewing this user's chat
+        if (selectedUser && data.lineUserId === selectedUser.lineUserId) {
+          setMessages((prev) => {
+            // Prevent duplicates
+            const exists = prev.some(
+              (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
+            );
+            if (exists) return prev;
+
+            const newMessage: ChatMessage = {
+              _id: data._id,
+              messageId: data.messageId,
+              direction: data.direction,
+              messageType: data.messageType,
+              messageText: data.messageText,
+              createdAt: data.createdAt,
+              lineUserName: data.lineUserName,
+              sentBy: data.sentBy,
+            };
+
+            return [...prev, newMessage];
+          });
+        }
+
+        // Update user list (new message notification)
+        setUsers((prev) => {
+          const userIndex = prev.findIndex((u) => u.lineUserId === data.lineUserId);
+          if (userIndex === -1) {
+            // New user - add to list
+            return [
+              {
+                lineUserId: data.lineUserId,
+                lineUserName: data.lineUserName || 'Unknown User',
+                lineUserPicture: data.lineUserPicture,
+                lastMessage: data.messageText,
+                lastMessageTime: data.createdAt,
+                unreadCount: data.direction === 'in' ? 1 : 0,
+              },
+              ...prev,
+            ];
+          }
+
+          // Existing user - update last message
+          const updated = [...prev];
+          updated[userIndex] = {
+            ...updated[userIndex],
+            lastMessage: data.messageText,
+            lastMessageTime: data.createdAt,
+            unreadCount:
+              data.direction === 'in' && selectedUser?.lineUserId !== data.lineUserId
+                ? (updated[userIndex].unreadCount || 0) + 1
+                : updated[userIndex].unreadCount,
+          };
+
+          // Move to top of list
+          const [user] = updated.splice(userIndex, 1);
+          return [user, ...updated];
+        });
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Admin socket disconnected');
+    });
+
+    return () => {
+      socket.emit('unsubscribe_chat', { lineAccountId: selectedAccountId });
+      socket.disconnect();
+    };
+  }, [selectedAccountId, selectedUser]);
 
   const fetchAccounts = useCallback(async () => {
     try {
