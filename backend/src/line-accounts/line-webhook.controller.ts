@@ -33,7 +33,7 @@ export class LineWebhookController {
     private redisService: RedisService,
     private configurableMessagesService: ConfigurableMessagesService,
     private websocketGateway: WebsocketGateway,
-  ) {}
+  ) { }
 
   @Post(':slug')
   @HttpCode(HttpStatus.OK)
@@ -51,7 +51,7 @@ export class LineWebhookController {
         // Fallback: try finding by channelId for old webhook URLs
         account = await this.lineAccountsService.findByChannelId(slug);
       }
-      
+
       if (!account) {
         this.logger.warn(`LINE account not found for slug/channelId: ${slug}`);
         return { success: false };
@@ -111,35 +111,11 @@ export class LineWebhookController {
     // Check if webhook is enabled
     if (!account.settings?.webhookEnabled) return;
 
-    // Check if bot is enabled (ผู้ใช้เลือกได้ว่าจะส่งข้อความหรือไม่)
-    if (!account.settings?.enableBot) {
-      const disabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
-      if (disabledMsg) {
-        try {
-          if (replyToken) {
-            await this.lineAccountsService.sendReply(replyToken, [disabledMsg], accessToken);
-          }
-        } catch (error) {
-          this.logger.error('Failed to send bot disabled reply:', error);
-        }
-      }
-      return;
-    }
-
-    // Handle different message types
-    if (message.type === 'image') {
-      // Handle image - slip verification
-      if (account.settings?.enableSlipVerification) {
-        await this.handleSlipVerification(account, event);
-      } else {
-        // Send slip disabled message if configured (ผู้ใช้เลือกได้ว่าจะส่งหรือไม่)
-        const slipDisabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
-        if (slipDisabledMsg) {
-          await safeSendReply(typeof slipDisabledMsg === 'string' ? slipDisabledMsg : slipDisabledMsg.text || '');
-        }
-      }
-    } else if (message.type === 'text') {
-      // Save message
+    // ============================================
+    // ALWAYS save incoming messages FIRST (before any bot checks)
+    // This ensures all messages appear in chat UI regardless of settings
+    // ============================================
+    if (message.type === 'text') {
       await this.lineAccountsService.saveChatMessage(
         accountId,
         lineUserId,
@@ -167,7 +143,62 @@ export class LineWebhookController {
       this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', messageData);
       // Emit to admins
       this.websocketGateway.broadcastToAdmins('message_received', messageData);
+    } else if (message.type === 'image') {
+      // Also save image messages
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.IMAGE,
+        '[รูปภาพ]',
+        message.id,
+        replyToken,
+        event,
+      );
 
+      // Emit real-time event for image
+      const imageMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        direction: 'in',
+        messageType: 'image',
+        messageText: '[รูปภาพ]',
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', imageMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', imageMessageData);
+    }
+
+    // Check if bot is enabled (ผู้ใช้เลือกได้ว่าจะส่งข้อความหรือไม่)
+    if (!account.settings?.enableBot) {
+      const disabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
+      if (disabledMsg) {
+        try {
+          if (replyToken) {
+            await this.lineAccountsService.sendReply(replyToken, [disabledMsg], accessToken);
+          }
+        } catch (error) {
+          this.logger.error('Failed to send bot disabled reply:', error);
+        }
+      }
+      return;
+    }
+
+    // Handle different message types (bot is enabled at this point)
+    if (message.type === 'image') {
+      // Handle image - slip verification
+      if (account.settings?.enableSlipVerification) {
+        await this.handleSlipVerification(account, event);
+      } else {
+        // Send slip disabled message if configured (ผู้ใช้เลือกได้ว่าจะส่งหรือไม่)
+        const slipDisabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
+        if (slipDisabledMsg) {
+          await safeSendReply(typeof slipDisabledMsg === 'string' ? slipDisabledMsg : slipDisabledMsg.text || '');
+        }
+      }
+    } else if (message.type === 'text') {
       // Handle AI response if enabled
       if (account.settings?.enableAi) {
         await this.handleAIResponse(account, event);
@@ -243,21 +274,21 @@ export class LineWebhookController {
       // ตรวจสอบโควต้าก่อนส่งตรวจสอบสลิป (ใช้ logic ใหม่ที่เรียบง่าย)
       // ============================================
       const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
-      
+
       // สถานะ: no_subscription หรือ quota_exhausted = ใช้ template โควต้าหมด
       if (ownerQuotaDetail.status === 'no_subscription' || ownerQuotaDetail.status === 'quota_exhausted') {
         const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
         await safeSendMessage([quotaMsg], true);
         return;
       }
-      
+
       // สถานะ: package_expired = ใช้ template แพ็คเกจหมดอายุ
       if (ownerQuotaDetail.status === 'package_expired') {
         const expiredMsg = await this.configurableMessagesService.formatPackageExpiredResponse({ account });
         await safeSendMessage([expiredMsg], true);
         return;
       }
-      
+
       // status is 'has_quota' - proceed with verification
       const ownerQuota = ownerQuotaDetail;
 
@@ -348,7 +379,7 @@ export class LineWebhookController {
       // Phase 4: Finalize quota (commit or rollback)
       // ตรวจสอบโควต้าเหลือน้อย (จะแสดงในบล็อกผลสลิปเลย)
       let quotaRemaining: number | undefined;
-      
+
       if (result.status === 'success') {
         await this.subscriptionsService.confirmReservation(subscriptionId, 1);
         await this.slipVerificationService.confirmReservation(reservationId);
@@ -365,17 +396,17 @@ export class LineWebhookController {
           await this.subscriptionsService.confirmReservation(subscriptionId, 1);
           await this.slipVerificationService.confirmReservation(reservationId);
         }
-        
+
         // ตรวจสอบโควต้าเหลือน้อย (แสดงในบล็อกเดียวกับสลิปซ้ำ)
         const newQuota = await this.subscriptionsService.checkQuota(ownerId);
-        
+
         // ใช้ Slip Template สำหรับสลิปซ้ำ (ส่ง quota info ไปด้วย)
         const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
-          result, 
+          result,
           { account, quotaRemaining: newQuota.remainingQuota }
         );
         await safeSendMessage([duplicateMsg]);
-        
+
         // Increment slip count and return early
         await this.lineAccountsService.incrementStatistics(accountId, 'totalSlipsVerified');
         return;
@@ -390,7 +421,7 @@ export class LineWebhookController {
 
       // Send result message (รวมบล็อกเตือนโควต้าถ้าเหลือน้อย)
       const responseMessage = await this.slipVerificationService.formatSlipResponseWithConfig(
-        result, 
+        result,
         { account, quotaRemaining }
       );
       await safeSendMessage([responseMessage]);

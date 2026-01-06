@@ -57,6 +57,8 @@ interface SlipTemplate {
   previewSenderBankId?: string;
   previewReceiverBankId?: string;
   previewAmount?: string;
+  previewSenderAccount?: string;
+  previewReceiverAccount?: string;
   createdAt: string;
 }
 
@@ -97,6 +99,8 @@ interface FormData {
   previewSenderName: string;
   previewReceiverName: string;
   previewAmount: string;
+  previewSenderAccount: string;
+  previewReceiverAccount: string;
 }
 
 interface FormErrors {
@@ -149,6 +153,8 @@ const DEFAULT_FORM_DATA: FormData = {
   previewSenderName: 'นาย ธันเดอร์ มานะ',
   previewReceiverName: 'นาย ธันเดอร์ มานะ',
   previewAmount: '1,000.00',
+  previewSenderAccount: '1234xxxx5678',
+  previewReceiverAccount: '12xxxx3456',
 };
 
 // Sample data for preview (Thai)
@@ -378,7 +384,7 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
                 </p>
                 {config.showSenderAccount && (
                   <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
-                    {SAMPLE_DATA.sender.account}
+                    {config.previewSenderAccount || SAMPLE_DATA.sender.account}
                   </p>
                 )}
               </div>
@@ -421,7 +427,7 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
                 </p>
                 {config.showReceiverAccount && (
                   <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">
-                    {SAMPLE_DATA.receiver.account}
+                    {config.previewReceiverAccount || SAMPLE_DATA.receiver.account}
                   </p>
                 )}
               </div>
@@ -576,6 +582,8 @@ export default function AdminTemplatesPage() {
       previewSenderName: template.previewSenderName || 'นาย ธันเดอร์ มานะ',
       previewReceiverName: template.previewReceiverName || 'นาย ธันเดอร์ มานะ',
       previewAmount: template.previewAmount || '1,000.00',
+      previewSenderAccount: template.previewSenderAccount || '1234xxxx5678',
+      previewReceiverAccount: template.previewReceiverAccount || '12xxxx3456',
     });
     setFormErrors({});
     setActiveTab('basic');
@@ -972,10 +980,38 @@ export default function AdminTemplatesPage() {
                         className="text-sm"
                       />
                       <Input
+                        label="เลขบัญชีผู้โอน"
+                        value={formData.previewSenderAccount}
+                        onChange={(e) => updateField('previewSenderAccount', e.target.value)}
+                        placeholder="1234xxxx5678"
+                        className="text-sm"
+                      />
+                      <Input
+                        label="เลขบัญชีผู้รับ"
+                        value={formData.previewReceiverAccount}
+                        onChange={(e) => updateField('previewReceiverAccount', e.target.value)}
+                        placeholder="12xxxx3456"
+                        className="text-sm"
+                      />
+                      <Input
                         label="ชื่อผู้รับ"
                         value={formData.previewReceiverName}
                         onChange={(e) => updateField('previewReceiverName', e.target.value)}
                         placeholder="นาย ธันเดอร์ มานะ"
+                        className="text-sm"
+                      />
+                      <Input
+                        label="เลขบัญชีผู้โอน"
+                        value={formData.previewSenderAccount}
+                        onChange={(e) => updateField('previewSenderAccount', e.target.value)}
+                        placeholder="1234xxxx5678"
+                        className="text-sm"
+                      />
+                      <Input
+                        label="เลขบัญชีผู้รับ"
+                        value={formData.previewReceiverAccount}
+                        onChange={(e) => updateField('previewReceiverAccount', e.target.value)}
+                        placeholder="12xxxx3456"
                         className="text-sm"
                       />
                       <div className="sm:col-span-2">

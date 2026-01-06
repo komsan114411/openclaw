@@ -160,6 +160,12 @@ export class SlipTemplate {
   @Prop({ default: '1,000.00' })
   previewAmount?: string;
 
+  @Prop({ default: '1234xxxx5678' })
+  previewSenderAccount?: string;
+
+  @Prop({ default: '12xxxx3456' })
+  previewReceiverAccount?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
