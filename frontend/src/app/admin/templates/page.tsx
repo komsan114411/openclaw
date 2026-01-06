@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api, banksApi } from '@/lib/api';
+import { api, banksApi, systemSettingsApi } from '@/lib/api';
 import { Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, StatCard } from '@/components/ui/Card';
@@ -106,6 +106,21 @@ interface FormData {
 interface FormErrors {
   name?: string;
   type?: string;
+}
+
+// Global Preview Config from System Settings
+interface PreviewConfig {
+  senderName: string;
+  receiverName: string;
+  senderBankCode: string;
+  receiverBankCode: string;
+  amount: string;
+}
+
+interface PreviewSettingsErrors {
+  senderName?: string;
+  receiverName?: string;
+  amount?: string;
 }
 
 // Thai localized type options
@@ -478,6 +493,15 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
 });
 SlipPreview.displayName = 'SlipPreview';
 
+// Default preview config values
+const DEFAULT_PREVIEW_CONFIG: PreviewConfig = {
+  senderName: 'นาย ธันเดอร์ มานะ',
+  receiverName: 'นาย ธันเดอร์ มานะ',
+  senderBankCode: '004',
+  receiverBankCode: '014',
+  amount: '1,000.00',
+};
+
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<SlipTemplate[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -490,15 +514,37 @@ export default function AdminTemplatesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'display' | 'banks'>('basic');
 
+  // Global Preview Settings state
+  const [pageTab, setPageTab] = useState<'templates' | 'preview-settings'>('templates');
+  const [previewConfig, setPreviewConfig] = useState<PreviewConfig>(DEFAULT_PREVIEW_CONFIG);
+  const [previewSettingsForm, setPreviewSettingsForm] = useState<PreviewConfig>(DEFAULT_PREVIEW_CONFIG);
+  const [previewSettingsErrors, setPreviewSettingsErrors] = useState<PreviewSettingsErrors>({});
+  const [isSavingPreviewSettings, setIsSavingPreviewSettings] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [templatesRes, banksRes] = await Promise.all([
+      const [templatesRes, banksRes, previewConfigRes] = await Promise.all([
         api.get('/slip-templates/global'),
-        banksApi.getAll()
+        banksApi.getAll(),
+        systemSettingsApi.getPreviewConfig()
       ]);
       setTemplates(templatesRes.data.templates || []);
       setBanks(banksRes.data.banks || []);
+
+      // Set preview config from API
+      const config = previewConfigRes.data.previewConfig;
+      if (config) {
+        const loadedConfig: PreviewConfig = {
+          senderName: config.senderName || DEFAULT_PREVIEW_CONFIG.senderName,
+          receiverName: config.receiverName || DEFAULT_PREVIEW_CONFIG.receiverName,
+          senderBankCode: config.senderBankCode || DEFAULT_PREVIEW_CONFIG.senderBankCode,
+          receiverBankCode: config.receiverBankCode || DEFAULT_PREVIEW_CONFIG.receiverBankCode,
+          amount: config.amount || DEFAULT_PREVIEW_CONFIG.amount,
+        };
+        setPreviewConfig(loadedConfig);
+        setPreviewSettingsForm(loadedConfig);
+      }
     } catch (err) {
       toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
@@ -509,6 +555,72 @@ export default function AdminTemplatesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const activeBanks = useMemo(() => banks.filter(b => b.isActive), [banks]);
+
+  // Helper to find bank by code
+  const getBankByCode = useCallback((code: string) => {
+    return banks.find(b => b.code === code) || null;
+  }, [banks]);
+
+  // Preview settings bank references
+  const previewSenderBank = useMemo(() => getBankByCode(previewSettingsForm.senderBankCode), [getBankByCode, previewSettingsForm.senderBankCode]);
+  const previewReceiverBank = useMemo(() => getBankByCode(previewSettingsForm.receiverBankCode), [getBankByCode, previewSettingsForm.receiverBankCode]);
+
+  // Validate preview settings form
+  const validatePreviewSettings = (): boolean => {
+    const errors: PreviewSettingsErrors = {};
+
+    if (!previewSettingsForm.senderName.trim()) {
+      errors.senderName = 'กรุณากรอกชื่อผู้โอน';
+    }
+
+    if (!previewSettingsForm.receiverName.trim()) {
+      errors.receiverName = 'กรุณากรอกชื่อผู้รับ';
+    }
+
+    if (!previewSettingsForm.amount.trim()) {
+      errors.amount = 'กรุณากรอกจำนวนเงิน';
+    } else if (!/^[\d,]+\.?\d*$/.test(previewSettingsForm.amount)) {
+      errors.amount = 'รูปแบบจำนวนเงินไม่ถูกต้อง (เช่น 1,000.00)';
+    }
+
+    setPreviewSettingsErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Save preview settings to system settings
+  const handleSavePreviewSettings = async () => {
+    if (!validatePreviewSettings()) {
+      toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+
+    setIsSavingPreviewSettings(true);
+    try {
+      await systemSettingsApi.update({
+        previewSenderName: previewSettingsForm.senderName,
+        previewReceiverName: previewSettingsForm.receiverName,
+        previewSenderBankCode: previewSettingsForm.senderBankCode,
+        previewReceiverBankCode: previewSettingsForm.receiverBankCode,
+        previewAmount: previewSettingsForm.amount,
+      });
+      setPreviewConfig(previewSettingsForm);
+      toast.success('บันทึกการตั้งค่าตัวอย่างสำเร็จ');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'ไม่สามารถบันทึกได้');
+    } finally {
+      setIsSavingPreviewSettings(false);
+    }
+  };
+
+  // Update preview settings field
+  const updatePreviewSettingsField = (field: keyof PreviewConfig, value: string) => {
+    setPreviewSettingsForm(prev => ({ ...prev, [field]: value }));
+    // Clear error when user types
+    if (previewSettingsErrors[field as keyof PreviewSettingsErrors]) {
+      setPreviewSettingsErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
 
   const senderBank = useMemo(() => {
     if (formData.senderBankId) {
@@ -685,32 +797,65 @@ export default function AdminTemplatesPage() {
             </h1>
             <p className="text-slate-400 text-sm mt-1">ออกแบบและจัดการเทมเพลตการตอบกลับสลิป</p>
           </div>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              onClick={handleInitDefaults}
-              isLoading={isProcessing}
-              className="flex-1 sm:flex-none"
-            >
-              รีเซ็ตค่าเริ่มต้น
-            </Button>
-            <Button
-              variant="primary"
-              onClick={openCreateModal}
-              className="flex-1 sm:flex-none"
-            >
-              + สร้างเทมเพลตใหม่
-            </Button>
-          </div>
+          {pageTab === 'templates' && (
+            <div className="flex gap-3 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={handleInitDefaults}
+                isLoading={isProcessing}
+                className="flex-1 sm:flex-none"
+              >
+                รีเซ็ตค่าเริ่มต้น
+              </Button>
+              <Button
+                variant="primary"
+                onClick={openCreateModal}
+                className="flex-1 sm:flex-none"
+              >
+                + สร้างเทมเพลตใหม่
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard title="ทั้งหมด" value={templates.length} icon="🎨" color="indigo" variant="glass" />
-          <StatCard title="สำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
-          <StatCard title="ซ้ำ/ผิดพลาด" value={templates.filter(t => t.type === 'duplicate' || t.type === 'error').length} icon="⚠️" color="amber" variant="glass" />
-          <StatCard title="ค่าเริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" />
+        {/* Page-level Tabs */}
+        <div className="flex gap-2 p-1 bg-white/5 rounded-xl w-fit">
+          <button
+            onClick={() => setPageTab('templates')}
+            className={cn(
+              "px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+              pageTab === 'templates'
+                ? "bg-[#06C755] text-white shadow-lg"
+                : "text-slate-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <span className="mr-2">🎨</span>
+            จัดการเทมเพลต
+          </button>
+          <button
+            onClick={() => setPageTab('preview-settings')}
+            className={cn(
+              "px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+              pageTab === 'preview-settings'
+                ? "bg-[#06C755] text-white shadow-lg"
+                : "text-slate-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <span className="mr-2">⚙️</span>
+            ตั้งค่าข้อมูลตัวอย่าง
+          </button>
         </div>
+
+        {/* Templates Tab Content */}
+        {pageTab === 'templates' && (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <StatCard title="ทั้งหมด" value={templates.length} icon="🎨" color="indigo" variant="glass" />
+              <StatCard title="สำเร็จ" value={templates.filter(t => t.type === 'success').length} icon="✅" color="emerald" variant="glass" />
+              <StatCard title="ซ้ำ/ผิดพลาด" value={templates.filter(t => t.type === 'duplicate' || t.type === 'error').length} icon="⚠️" color="amber" variant="glass" />
+              <StatCard title="ค่าเริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" />
+            </div>
 
         {/* Templates List */}
         {templates.length === 0 ? (
@@ -801,6 +946,214 @@ export default function AdminTemplatesPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+          </>
+        )}
+
+        {/* Preview Settings Tab Content */}
+        {pageTab === 'preview-settings' && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Form Section */}
+            <Card variant="glass" className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                  <span className="text-lg">⚙️</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">ตั้งค่าข้อมูลตัวอย่าง</h2>
+                  <p className="text-sm text-slate-400">ข้อมูลที่จะแสดงในตัวอย่างสลิป (Global)</p>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                {/* Sender Info */}
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-4">
+                  <h3 className="text-sm font-semibold text-emerald-400 flex items-center gap-2">
+                    <span>👤</span> ข้อมูลผู้โอน
+                  </h3>
+                  <Input
+                    label="ชื่อผู้โอน"
+                    value={previewSettingsForm.senderName}
+                    onChange={(e) => updatePreviewSettingsField('senderName', e.target.value)}
+                    placeholder="นาย ธันเดอร์ มานะ"
+                    error={previewSettingsErrors.senderName}
+                  />
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">ธนาคารผู้โอน</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-3 bg-black/20 rounded-xl border border-white/10">
+                      {activeBanks.slice(0, 12).map((bank) => {
+                        const logo = bank.logoBase64 || bank.logoUrl;
+                        const isSelected = previewSettingsForm.senderBankCode === bank.code;
+                        return (
+                          <button
+                            key={bank._id}
+                            type="button"
+                            onClick={() => updatePreviewSettingsField('senderBankCode', bank.code || '')}
+                            className={cn(
+                              "flex flex-col items-center p-2 rounded-lg border-2 transition-all",
+                              isSelected
+                                ? "border-emerald-500 bg-emerald-500/20"
+                                : "border-transparent bg-white/5 hover:bg-white/10"
+                            )}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center mb-1 overflow-hidden">
+                              {logo ? (
+                                <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" />
+                              ) : (
+                                <span className="text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
+                              )}
+                            </div>
+                            <span className={cn(
+                              "text-[9px] font-medium truncate w-full text-center",
+                              isSelected ? 'text-emerald-400' : 'text-slate-400'
+                            )}>
+                              {bank.shortName || bank.code}
+                            </span>
+                            {isSelected && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-[8px]">✓</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {previewSenderBank && (
+                      <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+                        <span>✓</span> เลือก: {previewSenderBank.nameTh || previewSenderBank.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Receiver Info */}
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-4">
+                  <h3 className="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                    <span>🏦</span> ข้อมูลผู้รับ
+                  </h3>
+                  <Input
+                    label="ชื่อผู้รับ"
+                    value={previewSettingsForm.receiverName}
+                    onChange={(e) => updatePreviewSettingsField('receiverName', e.target.value)}
+                    placeholder="นาย ธันเดอร์ มานะ"
+                    error={previewSettingsErrors.receiverName}
+                  />
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">ธนาคารผู้รับ</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-3 bg-black/20 rounded-xl border border-white/10">
+                      {activeBanks.slice(0, 12).map((bank) => {
+                        const logo = bank.logoBase64 || bank.logoUrl;
+                        const isSelected = previewSettingsForm.receiverBankCode === bank.code;
+                        return (
+                          <button
+                            key={bank._id}
+                            type="button"
+                            onClick={() => updatePreviewSettingsField('receiverBankCode', bank.code || '')}
+                            className={cn(
+                              "flex flex-col items-center p-2 rounded-lg border-2 transition-all",
+                              isSelected
+                                ? "border-blue-500 bg-blue-500/20"
+                                : "border-transparent bg-white/5 hover:bg-white/10"
+                            )}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center mb-1 overflow-hidden">
+                              {logo ? (
+                                <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" />
+                              ) : (
+                                <span className="text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
+                              )}
+                            </div>
+                            <span className={cn(
+                              "text-[9px] font-medium truncate w-full text-center",
+                              isSelected ? 'text-blue-400' : 'text-slate-400'
+                            )}>
+                              {bank.shortName || bank.code}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {previewReceiverBank && (
+                      <p className="text-xs text-blue-400 mt-2 flex items-center gap-1">
+                        <span>✓</span> เลือก: {previewReceiverBank.nameTh || previewReceiverBank.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Amount */}
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                  <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-4">
+                    <span>💰</span> จำนวนเงิน
+                  </h3>
+                  <Input
+                    label="จำนวนเงินตัวอย่าง"
+                    value={previewSettingsForm.amount}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9,.]/g, '');
+                      updatePreviewSettingsField('amount', value);
+                    }}
+                    placeholder="1,000.00"
+                    error={previewSettingsErrors.amount}
+                    hint="รูปแบบ: 1,000.00"
+                  />
+                </div>
+
+                {/* Save Button */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPreviewSettingsForm(previewConfig)}
+                    disabled={isSavingPreviewSettings}
+                    className="flex-1"
+                  >
+                    รีเซ็ต
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleSavePreviewSettings}
+                    isLoading={isSavingPreviewSettings}
+                    className="flex-1"
+                  >
+                    💾 บันทึกการตั้งค่า
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            {/* Live Preview Section */}
+            <Card variant="glass" className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                  <span className="text-lg">👁️</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">ตัวอย่างการแสดงผล</h2>
+                  <p className="text-sm text-slate-400">อัปเดตตามการตั้งค่าแบบเรียลไทม์</p>
+                </div>
+              </div>
+
+              <div className="flex justify-center py-6">
+                <SlipPreview
+                  config={{
+                    ...DEFAULT_FORM_DATA,
+                    previewSenderName: previewSettingsForm.senderName,
+                    previewReceiverName: previewSettingsForm.receiverName,
+                    previewAmount: previewSettingsForm.amount,
+                  }}
+                  senderBank={previewSenderBank}
+                  receiverBank={previewReceiverBank}
+                />
+              </div>
+
+              <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 mt-4">
+                <p className="text-xs text-blue-300 leading-relaxed">
+                  💡 <strong>หมายเหตุ:</strong> การตั้งค่านี้จะถูกใช้เป็นค่าเริ่มต้นสำหรับการแสดงตัวอย่างสลิปในทุกเทมเพลต
+                  ข้อมูลนี้ใช้สำหรับการ Preview เท่านั้น ไม่มีผลกับข้อมูลจริงจากสลิป
+                </p>
+              </div>
+            </Card>
           </div>
         )}
       </div>

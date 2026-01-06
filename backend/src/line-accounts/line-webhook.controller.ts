@@ -430,11 +430,20 @@ export class LineWebhookController {
         const newQuota = await this.subscriptionsService.checkQuota(ownerId);
 
         // ใช้ Slip Template สำหรับสลิปซ้ำ (ส่ง quota info ไปด้วย)
-        const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
-          result,
-          { account, quotaRemaining: newQuota.remainingQuota }
-        );
-        await safeSendMessage([duplicateMsg]);
+        try {
+          const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
+            result,
+            { account, quotaRemaining: newQuota.remainingQuota }
+          );
+          if (!duplicateMsg) {
+            await safeSendMessage([{ type: 'text', text: '⚠️ สลิปนี้เคยถูกใช้แล้ว' }]);
+          } else {
+            await safeSendMessage([duplicateMsg]);
+          }
+        } catch (formatError) {
+          this.logger.error('Error formatting duplicate slip response, sending fallback:', formatError);
+          await safeSendMessage([{ type: 'text', text: '⚠️ สลิปนี้เคยถูกใช้แล้ว' }]);
+        }
 
         // Increment slip count and return early
         await this.lineAccountsService.incrementStatistics(accountId, 'totalSlipsVerified');
@@ -449,11 +458,27 @@ export class LineWebhookController {
       }
 
       // Send result message (รวมบล็อกเตือนโควต้าถ้าเหลือน้อย)
-      const responseMessage = await this.slipVerificationService.formatSlipResponseWithConfig(
-        result,
-        { account, quotaRemaining }
-      );
-      await safeSendMessage([responseMessage]);
+      try {
+        const responseMessage = await this.slipVerificationService.formatSlipResponseWithConfig(
+          result,
+          { account, quotaRemaining }
+        );
+
+        // Ensure we have a valid message
+        if (!responseMessage) {
+          this.logger.error('formatSlipResponseWithConfig returned null/undefined');
+          await safeSendMessage([{ type: 'text', text: `${result.status === 'success' ? '✅' : '❌'} ${result.message || 'ตรวจสอบสลิปเรียบร้อย'}` }]);
+        } else {
+          await safeSendMessage([responseMessage]);
+        }
+      } catch (formatError) {
+        this.logger.error('Error formatting slip response, sending fallback:', formatError);
+        // Send fallback message (note: duplicate already returns early, so only success/error/not_found)
+        const fallbackText = result.status === 'success'
+          ? '✅ ตรวจสอบสลิปสำเร็จ'
+          : `❌ ${result.message || 'เกิดข้อผิดพลาดในการตรวจสอบสลิป'}`;
+        await safeSendMessage([{ type: 'text', text: fallbackText }]);
+      }
 
       // Increment slip count
       if (result.status === 'success') {

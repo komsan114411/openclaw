@@ -104,18 +104,17 @@ export class ChatMessagesService {
 
     // Emit real-time event to all admins watching this account
     try {
-      this.websocketGateway.broadcastToRoom(`chat:${params.lineAccountId}`, 'new_message', {
+      this.websocketGateway.broadcastToRoom(`chat:${params.lineAccountId}`, 'message_received', {
+        _id: message._id.toString(),
         lineAccountId: params.lineAccountId,
         lineUserId: params.lineUserId,
         lineUserName: params.lineUserName,
         lineUserPicture: params.lineUserPicture,
-        message: {
-          _id: message._id,
-          direction: MessageDirection.IN,
-          messageType: params.messageType,
-          messageText: params.messageText,
-          createdAt: message.createdAt,
-        },
+        direction: 'in',
+        messageType: params.messageType,
+        messageText: params.messageText,
+        messageId: params.messageId,
+        createdAt: message.createdAt,
       });
 
       // Also notify all admins of new unread message
@@ -155,17 +154,15 @@ export class ChatMessagesService {
 
     // Emit real-time event to all admins watching this chat
     try {
-      this.websocketGateway.broadcastToRoom(`chat:${params.lineAccountId}`, 'message_sent', {
+      this.websocketGateway.broadcastToRoom(`chat:${params.lineAccountId}`, 'message_received', {
+        _id: message._id.toString(),
         lineAccountId: params.lineAccountId,
         lineUserId: params.lineUserId,
-        message: {
-          _id: message._id,
-          direction: MessageDirection.OUT,
-          messageType: params.messageType,
-          messageText: params.messageText,
-          sentBy: params.sentBy,
-          createdAt: message.createdAt,
-        },
+        direction: 'out',
+        messageType: params.messageType,
+        messageText: params.messageText,
+        sentBy: params.sentBy,
+        createdAt: message.createdAt,
       });
     } catch (error) {
       this.logger.warn('Failed to emit WebSocket event:', error);

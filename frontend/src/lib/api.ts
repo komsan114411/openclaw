@@ -272,6 +272,12 @@ interface UpdateSystemSettingsData {
   contactAdminUrl?: string;
   contactAdminLine?: string;
   contactAdminEmail?: string;
+  // Preview Settings
+  previewSenderName?: string;
+  previewReceiverName?: string;
+  previewSenderBankCode?: string;
+  previewReceiverBankCode?: string;
+  previewAmount?: string;
 }
 
 interface AddBankAccountData {
