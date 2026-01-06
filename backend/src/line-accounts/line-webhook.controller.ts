@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import * as crypto from 'crypto';
+import axios from 'axios';
 import { LineAccountsService } from './line-accounts.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
@@ -117,6 +118,24 @@ export class LineWebhookController {
     // ALWAYS save incoming messages FIRST (before any bot checks)
     // This ensures all messages appear in chat UI regardless of settings
     // ============================================
+
+    // Fetch LINE user profile for display in chat UI
+    let lineUserName: string | undefined;
+    let lineUserPicture: string | undefined;
+    try {
+      const profileResponse = await axios.get(
+        `https://api.line.me/v2/bot/profile/${lineUserId}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 5000,
+        }
+      );
+      lineUserName = profileResponse.data.displayName;
+      lineUserPicture = profileResponse.data.pictureUrl;
+    } catch (profileError) {
+      this.logger.debug(`Could not fetch user profile: ${lineUserId}`);
+    }
+
     if (message.type === 'text') {
       await this.lineAccountsService.saveChatMessage(
         accountId,
@@ -127,6 +146,8 @@ export class LineWebhookController {
         message.id,
         replyToken,
         event,
+        lineUserName,
+        lineUserPicture,
       );
 
       // Emit real-time event to frontend
@@ -134,6 +155,8 @@ export class LineWebhookController {
         _id: message.id,
         lineAccountId: accountId,
         lineUserId,
+        lineUserName,
+        lineUserPicture,
         direction: 'in',
         messageType: 'text',
         messageText: message.text,
@@ -156,6 +179,8 @@ export class LineWebhookController {
         message.id,
         replyToken,
         event,
+        lineUserName,
+        lineUserPicture,
       );
 
       // Emit real-time event for image
@@ -163,6 +188,8 @@ export class LineWebhookController {
         _id: message.id,
         lineAccountId: accountId,
         lineUserId,
+        lineUserName,
+        lineUserPicture,
         direction: 'in',
         messageType: 'image',
         messageText: '[รูปภาพ]',

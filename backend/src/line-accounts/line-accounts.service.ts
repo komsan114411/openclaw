@@ -19,7 +19,7 @@ export class LineAccountsService {
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
     private redisService: RedisService,
-  ) {}
+  ) { }
 
   /**
    * Validate ObjectId format
@@ -224,7 +224,7 @@ export class LineAccountsService {
 
     account.settings = { ...account.settings, ...settings };
     await account.save();
-    
+
     await this.redisService.invalidateCache(`line-account:${id}`);
   }
 
@@ -236,7 +236,7 @@ export class LineAccountsService {
 
     account.isActive = false;
     await account.save();
-    
+
     await this.redisService.invalidateCache(`line-account:${id}`);
   }
 
@@ -375,16 +375,21 @@ export class LineAccountsService {
     messageId?: string,
     replyToken?: string,
     rawMessage?: any,
+    lineUserName?: string,
+    lineUserPicture?: string,
   ): Promise<void> {
     await this.chatMessageModel.create({
       lineAccountId,
       lineUserId,
+      lineUserName,
+      lineUserPicture,
       direction,
       messageType,
       messageText,
       messageId,
       replyToken,
       rawMessage,
+      isRead: false,
     });
   }
 
@@ -397,7 +402,7 @@ export class LineAccountsService {
     if (lineUserId) {
       query.lineUserId = lineUserId;
     }
-    
+
     return this.chatMessageModel
       .find(query)
       .sort({ createdAt: -1 })
@@ -412,12 +417,12 @@ export class LineAccountsService {
     totalSlipsVerified: number;
   }> {
     const accounts = await this.lineAccountModel.find({ isActive: true }).exec();
-    
+
     const totalMessages = accounts.reduce(
       (sum, acc) => sum + (acc.statistics?.totalMessages || 0),
       0,
     );
-    
+
     const totalSlipsVerified = accounts.reduce(
       (sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0),
       0,
