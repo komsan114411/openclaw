@@ -48,7 +48,7 @@ export class SlipVerificationService {
     private systemResponseTemplatesService: SystemResponseTemplatesService,
     private slipTemplatesService: SlipTemplatesService,
     private banksService: BanksService,
-  ) {}
+  ) { }
 
   validateSlipImage(imageData: Buffer): { ok: boolean; message?: string } {
     if (!imageData || imageData.length === 0) {
@@ -511,7 +511,7 @@ export class SlipVerificationService {
    * รวมบล็อกเตือนโควต้าใกล้หมดด้วย (ถ้ามี)
    */
   async formatSlipResponseWithConfig(
-    result: SlipVerificationResult, 
+    result: SlipVerificationResult,
     context?: { account?: any; quotaRemaining?: number }
   ): Promise<any> {
     const accountSettings = context?.account?.settings || {};
@@ -594,14 +594,14 @@ export class SlipVerificationService {
     // ฟังก์ชันเพิ่มบล็อกเตือนเข้าไปใน flex message
     const addWarningToFlexMessage = (flexMsg: any): any => {
       if (!showQuotaWarning || !flexMsg) return flexMsg;
-      
+
       const warningBlock = createQuotaWarningBlock();
       if (!warningBlock) return flexMsg;
-      
+
       // ถ้าเป็น flex message bubble ให้เพิ่ม warning block ที่ footer
       if (flexMsg.type === 'flex' && flexMsg.contents?.type === 'bubble') {
         const bubble = flexMsg.contents;
-        
+
         // เพิ่ม warning ใน body ถ้ามี
         if (bubble.body?.contents) {
           bubble.body.contents.push(warningBlock);
@@ -613,10 +613,10 @@ export class SlipVerificationService {
             contents: [warningBlock],
           };
         }
-        
+
         return flexMsg;
       }
-      
+
       return flexMsg;
     };
 
@@ -658,7 +658,7 @@ export class SlipVerificationService {
 
       // Check for custom success message
       const customSuccessMessage = accountSettings.customSlipSuccessMessage;
-      
+
       // Build default flex message (รวมบล็อกเตือนโควต้า)
       const bodyContents: any[] = [
         {
@@ -689,11 +689,11 @@ export class SlipVerificationService {
           ],
         },
       ];
-      
+
       // เพิ่มบล็อกเตือนโควต้าถ้าเหลือน้อย
       const warningBlock = createQuotaWarningBlock();
       if (warningBlock) bodyContents.push(warningBlock);
-      
+
       return {
         type: 'flex',
         altText: 'ผลการตรวจสอบสลิป',
@@ -713,15 +713,18 @@ export class SlipVerificationService {
         return addWarningToFlexMessage(customTemplate);
       }
 
-      if (result.data) {
-        const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, result.data);
-        if (templated) return templated; // already has warning added
+      // Try to use slip template (even without result.data for duplicates)
+      const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, result.data || {});
+      if (templated) {
+        this.logger.debug('Using slip template for duplicate');
+        return templated;
       }
+      this.logger.debug('No template found for duplicate, using fallback');
 
       // Fallback: สร้าง flex message สำหรับสลิปซ้ำ (รวมบล็อกเตือน)
       const duplicateMessage = accountSettings.customDuplicateSlipMessage ||
         settings?.duplicateSlipMessage || 'สลิปนี้เคยถูกใช้แล้ว';
-      
+
       const bodyContents: any[] = [
         {
           type: 'box',
@@ -761,11 +764,11 @@ export class SlipVerificationService {
           ],
         },
       ];
-      
+
       // เพิ่มบล็อกเตือนโควต้าถ้าเหลือน้อย
       const warningBlock = createQuotaWarningBlock();
       if (warningBlock) bodyContents.push(warningBlock);
-      
+
       return {
         type: 'flex',
         altText: 'สลิปซ้ำ',
@@ -809,7 +812,7 @@ export class SlipVerificationService {
       }
       return match;
     });
-    
+
     try {
       return JSON.parse(replacedString);
     } catch {

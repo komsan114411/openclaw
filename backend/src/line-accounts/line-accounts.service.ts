@@ -379,7 +379,7 @@ export class LineAccountsService {
     lineUserPicture?: string,
   ): Promise<void> {
     await this.chatMessageModel.create({
-      lineAccountId,
+      lineAccountId: new Types.ObjectId(lineAccountId), // Convert to ObjectId for proper query matching
       lineUserId,
       lineUserName,
       lineUserPicture,
