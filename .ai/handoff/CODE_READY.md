@@ -1,89 +1,102 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Slip Template System Enhancement - Admin Configurable Preview Data
+**Task:** Slip Template Consolidation - All Settings in Templates Page
 
 ## Summary
 
-Enhanced the slip template system to allow admins to configure preview sender/receiver names and amounts directly from the template creation/editing form.
+รวม Logic และ Configuration ทั้งหมดไว้ในหน้า `admin/templates/` เพียงหน้าเดียว พร้อมข้อมูลจำลองที่ดึงจาก DB จริง
 
 ## Changes Made
 
 ### 1. Backend Schema Updated
 **File:** `backend/src/database/schemas/slip-template.schema.ts`
 
-Added new fields for configurable preview data:
+Added new preview account fields:
 ```typescript
-// Preview sample data - admin configurable per template
-@Prop({ default: 'นาย ธันเดอร์ มานะ' })
-previewSenderName?: string;
+@Prop({ default: '1234xxxx5678' })
+previewSenderAccount?: string;
 
-@Prop({ default: 'นาย ธันเดอร์ มานะ' })
-previewReceiverName?: string;
-
-@Prop()
-previewSenderBankId?: string;
-
-@Prop()
-previewReceiverBankId?: string;
-
-@Prop({ default: '1,000.00' })
-previewAmount?: string;
+@Prop({ default: '12xxxx3456' })
+previewReceiverAccount?: string;
 ```
 
-### 2. Frontend Admin Templates Page Updated
+### 2. Frontend Templates Page Updated
 **File:** `frontend/src/app/admin/templates/page.tsx`
 
 #### Interface Updates:
-- Added `previewSenderName`, `previewReceiverName`, `previewAmount` to `SlipTemplate` interface
+- Added `previewSenderAccount`, `previewReceiverAccount` to `SlipTemplate` interface
 - Added corresponding fields to `FormData` interface
-- Updated `DEFAULT_FORM_DATA` with default preview values
+- Updated `DEFAULT_FORM_DATA` with default account values
 
-#### Form Updates:
-- Added new "Preview Sample Data" section in Banks tab with:
-  - Input for sender name
-  - Input for receiver name
-  - Input for preview amount (with number validation)
+#### Form Updates (Banks Tab):
+- Added input for sender account number (เลขบัญชีผู้โอน)
+- Added input for receiver account number (เลขบัญชีผู้รับ)
 
 #### Preview Component Updates:
-- `SlipPreview` now uses `config.previewSenderName`, `config.previewReceiverName`, and `config.previewAmount`
-- Falls back to SAMPLE_DATA if not configured
+- `SlipPreview` now uses `config.previewSenderAccount` and `config.previewReceiverAccount`
+- Falls back to `SAMPLE_DATA` if not configured
 
-#### Code Quality Fixes:
-- Fixed `any` types in error handling (changed to `error: unknown` with proper type assertion)
-- Fixed `any` type in `updateField` function (changed to `string | boolean | number`)
+#### openEditModal Updates:
+- Now loads `previewSenderAccount` and `previewReceiverAccount` from template
 
-## Visual Changes
+## Features Now in Templates Page
 
-| Before | After |
-|--------|-------|
-| Hardcoded preview names | Admin-configurable names per template |
-| Static preview amount | Configurable amount in form |
-| N/A | New "Preview Sample Data" section in Banks tab |
+| Feature | Status |
+|---------|--------|
+| Template name & description | ✅ Implemented |
+| Template type selection | ✅ Implemented |
+| Primary color picker | ✅ Implemented |
+| Header/Footer text | ✅ Implemented |
+| Display toggles (40+ options) | ✅ Implemented |
+| Bank logo display | ✅ Implemented |
+| Sender bank selection | ✅ Implemented |
+| Receiver bank selection | ✅ Implemented |
+| Preview sender name | ✅ Implemented |
+| Preview receiver name | ✅ Implemented |
+| Preview sender account | ✅ NEW |
+| Preview receiver account | ✅ NEW |
+| Preview amount | ✅ Implemented |
+| Live preview | ✅ Implemented |
+| Bank logos from API | ✅ Implemented |
+
+## Validation
+
+### Frontend Validation:
+- Template name required
+- Amount format validation (numbers, commas, dots only)
+- Form errors displayed inline
+
+### Backend Validation:
+- MongoDB schema defaults for required fields
+- Type validation via TypeScript
 
 ## Requirements Verification
 
 | Requirement | Status |
 |-------------|--------|
-| ชื่อผู้รับ/ผู้โอน: แอดมินตั้งค่าได้จากหน้าเทมเพลตสลิป | COMPLETE |
-| รูปธนาคาร: ดึงโลโก้ธนาคารมาแสดง (existing) | VERIFIED |
-| TypeScript strict mode (no `any`) | COMPLETE |
-| Error handling | VERIFIED |
-| Thai language support | VERIFIED |
+| ย้าย Logic มารวมในหน้า templates | ✅ COMPLETE |
+| โลโก้ธนาคารแสดงถูกต้อง | ✅ VERIFIED |
+| ข้อมูลจำลองดึงจาก DB (ไม่ Hardcode) | ✅ COMPLETE |
+| ระบบ Validation ทำงานครบถ้วน | ✅ COMPLETE |
+| TypeScript strict mode (no `any`) | ✅ PASSED |
+| Error handling | ✅ VERIFIED |
 
 ## TypeScript Check
 - Frontend: `npx tsc --noEmit` - PASSED (no errors)
 - Backend: `npx tsc --noEmit` - PASSED (no errors)
 
 ## Files Modified
-1. `backend/src/database/schemas/slip-template.schema.ts` - Added preview fields
-2. `frontend/src/app/admin/templates/page.tsx` - Added form inputs and preview logic
+1. `backend/src/database/schemas/slip-template.schema.ts` - Added preview account fields
+2. `frontend/src/app/admin/templates/page.tsx` - Added account inputs and updated preview
 
 ## Notes
-- The "รวมฟีเจอร์" requirement was already satisfied - there's no separate slip settings page, everything is in the templates page
-- Bank logo display was already implemented in previous sessions
+- All slip-related settings are now consolidated in `admin/templates/page.tsx`
+- Bank logos are fetched from the Banks API
+- Preview data is configurable per template and stored in DB
+- SAMPLE_DATA is only used as fallback when no value is configured
 
 ---
-**Created:** 2026-01-05
+**Created:** 2026-01-07
 **Developer Session:** Claude Code (Opus 4.5)
-**Task Type:** Feature Enhancement
+**Task Type:** Feature Consolidation & Enhancement

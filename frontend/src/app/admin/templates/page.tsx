@@ -1000,20 +1000,6 @@ export default function AdminTemplatesPage() {
                         placeholder="นาย ธันเดอร์ มานะ"
                         className="text-sm"
                       />
-                      <Input
-                        label="เลขบัญชีผู้โอน"
-                        value={formData.previewSenderAccount}
-                        onChange={(e) => updateField('previewSenderAccount', e.target.value)}
-                        placeholder="1234xxxx5678"
-                        className="text-sm"
-                      />
-                      <Input
-                        label="เลขบัญชีผู้รับ"
-                        value={formData.previewReceiverAccount}
-                        onChange={(e) => updateField('previewReceiverAccount', e.target.value)}
-                        placeholder="12xxxx3456"
-                        className="text-sm"
-                      />
                       <div className="sm:col-span-2">
                         <Input
                           label="จำนวนเงินตัวอย่าง"
