@@ -382,11 +382,14 @@ function AdminChatContent() {
               className="w-60 border-none shadow-none bg-transparent font-semibold text-xs focus:ring-0 cursor-pointer text-white rounded-full px-4"
             >
               <option value="" className="bg-[#0A0F0D]">เลือกบัญชี LINE</option>
-              {accounts.map((account) => (
-                <option key={account._id} value={account._id} className="bg-[#0A0F0D]">
-                  {account.accountName}
-                </option>
-              ))}
+              {accounts.map((account) => {
+                const ownerName = account.owner?.fullName || account.owner?.username || 'Unknown';
+                return (
+                  <option key={account._id} value={account._id} className="bg-[#0A0F0D]">
+                    {account.accountName} ({ownerName})
+                  </option>
+                );
+              })}
             </Select>
             {selectedAccountId && (
               <IconButton
@@ -399,6 +402,14 @@ function AdminChatContent() {
               </IconButton>
             )}
           </div>
+
+          {/* Owner Info Badge */}
+          {selectedAccount?.owner && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5 backdrop-blur-sm self-end">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">เจ้าของบัญชี:</span>
+              <span className="text-xs text-emerald-400 font-bold">{selectedAccount.owner.fullName || selectedAccount.owner.username}</span>
+            </div>
+          )}
         </div>
 
         {!selectedAccountId ? (

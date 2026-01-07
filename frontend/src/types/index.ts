@@ -36,6 +36,13 @@ export interface LineAccount {
   channelSecret: string;
   accessToken: string;
   ownerId: string;
+  owner?: {
+    _id: string;
+    username: string;
+    email?: string;
+    fullName?: string;
+    lineUserPicture?: string;
+  };
   description?: string;
   settings?: LineAccountSettings;
   isActive: boolean;

@@ -52,6 +52,13 @@ interface SystemSettings {
   previewSenderBankCode?: string;
   previewReceiverBankCode?: string;
   previewAmount?: string;
+  // Rate Limiter settings
+  webhookRateLimitEnabled?: boolean;
+  webhookRateLimitPerAccountPerSecond?: number;
+  webhookRateLimitPerAccountPerMinute?: number;
+  webhookRateLimitGlobalPerSecond?: number;
+  webhookRateLimitGlobalPerMinute?: number;
+  webhookRateLimitMessage?: string;
 }
 
 interface BankAccountInfo {
@@ -124,6 +131,16 @@ export default function SettingsPage() {
     previewAmount: '1,000.00',
   });
 
+  // Rate Limiter Settings
+  const [rateLimitSettings, setRateLimitSettings] = useState({
+    webhookRateLimitEnabled: true,
+    webhookRateLimitPerAccountPerSecond: 10,
+    webhookRateLimitPerAccountPerMinute: 100,
+    webhookRateLimitGlobalPerSecond: 100,
+    webhookRateLimitGlobalPerMinute: 1000,
+    webhookRateLimitMessage: 'Too many requests, please try again later',
+  });
+
   const fetchSettings = useCallback(async () => {
     try {
       const response = await systemSettingsApi.get();
@@ -163,6 +180,14 @@ export default function SettingsPage() {
         previewSenderBankCode: data.previewSenderBankCode || '004',
         previewReceiverBankCode: data.previewReceiverBankCode || '014',
         previewAmount: data.previewAmount || '1,000.00',
+      });
+      setRateLimitSettings({
+        webhookRateLimitEnabled: data.webhookRateLimitEnabled ?? true,
+        webhookRateLimitPerAccountPerSecond: data.webhookRateLimitPerAccountPerSecond ?? 10,
+        webhookRateLimitPerAccountPerMinute: data.webhookRateLimitPerAccountPerMinute ?? 100,
+        webhookRateLimitGlobalPerSecond: data.webhookRateLimitGlobalPerSecond ?? 100,
+        webhookRateLimitGlobalPerMinute: data.webhookRateLimitGlobalPerMinute ?? 1000,
+        webhookRateLimitMessage: data.webhookRateLimitMessage || 'Too many requests, please try again later',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -664,6 +689,127 @@ export default function SettingsPage() {
                         บันทึกการตั้งค่าตัวอย่าง
                       </Button>
                     </div>
+                  </div>
+                </Card>
+
+                {/* Webhook Rate Limiter Settings */}
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🛡️</div>
+                    <div className="flex-1">
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Rate Limiter</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ป้องกัน DDoS Attack สำหรับ Webhook</p>
+                    </div>
+                    <Switch
+                      checked={rateLimitSettings.webhookRateLimitEnabled}
+                      onChange={() => setRateLimitSettings({ ...rateLimitSettings, webhookRateLimitEnabled: !rateLimitSettings.webhookRateLimitEnabled })}
+                    />
+                  </div>
+
+                  {rateLimitSettings.webhookRateLimitEnabled && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="space-y-8"
+                    >
+                      {/* Info Box */}
+                      <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                        <div className="flex items-start gap-3">
+                          <span className="text-rose-400 text-lg">⚠️</span>
+                          <div>
+                            <p className="text-sm font-semibold text-rose-400">การป้องกัน DDoS</p>
+                            <p className="text-xs text-slate-400 mt-1">จำกัดจำนวน request ที่เข้ามาทาง Webhook เพื่อป้องกันการโจมตีแบบ DDoS</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        {/* Per Account Limits */}
+                        <div className="space-y-4 p-6 bg-white/[0.02] rounded-3xl border border-white/5">
+                          <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">ต่อ LINE Account</p>
+                          <Input
+                            type="number"
+                            label="จำนวน/วินาที"
+                            value={rateLimitSettings.webhookRateLimitPerAccountPerSecond}
+                            onChange={(e) => setRateLimitSettings({ ...rateLimitSettings, webhookRateLimitPerAccountPerSecond: parseInt(e.target.value) || 10 })}
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                            hint="จำนวน request สูงสุดต่อวินาที"
+                          />
+                          <Input
+                            type="number"
+                            label="จำนวน/นาที"
+                            value={rateLimitSettings.webhookRateLimitPerAccountPerMinute}
+                            onChange={(e) => setRateLimitSettings({ ...rateLimitSettings, webhookRateLimitPerAccountPerMinute: parseInt(e.target.value) || 100 })}
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                            hint="จำนวน request สูงสุดต่อนาที"
+                          />
+                        </div>
+
+                        {/* Global Limits */}
+                        <div className="space-y-4 p-6 bg-white/[0.02] rounded-3xl border border-white/5">
+                          <p className="text-xs font-black text-blue-400 uppercase tracking-[0.2em]">ทั้งระบบ (Global)</p>
+                          <Input
+                            type="number"
+                            label="จำนวน/วินาที"
+                            value={rateLimitSettings.webhookRateLimitGlobalPerSecond}
+                            onChange={(e) => setRateLimitSettings({ ...rateLimitSettings, webhookRateLimitGlobalPerSecond: parseInt(e.target.value) || 100 })}
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                            hint="จำนวน request สูงสุดต่อวินาที (ทุก account รวมกัน)"
+                          />
+                          <Input
+                            type="number"
+                            label="จำนวน/นาที"
+                            value={rateLimitSettings.webhookRateLimitGlobalPerMinute}
+                            onChange={(e) => setRateLimitSettings({ ...rateLimitSettings, webhookRateLimitGlobalPerMinute: parseInt(e.target.value) || 1000 })}
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                            hint="จำนวน request สูงสุดต่อนาที (ทุก account รวมกัน)"
+                          />
+                        </div>
+
+                        {/* Rate Limit Message */}
+                        <div className="lg:col-span-2 space-y-4">
+                          <Input
+                            label="ข้อความเมื่อถูกบล็อก (HTTP 429)"
+                            value={rateLimitSettings.webhookRateLimitMessage}
+                            onChange={(e) => setRateLimitSettings({ ...rateLimitSettings, webhookRateLimitMessage: e.target.value })}
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                            hint="ข้อความที่ส่งกลับเมื่อ request เกินกำหนด"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Current Settings Summary */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-white/5">
+                        <div className="text-center p-4 bg-emerald-500/10 rounded-2xl">
+                          <p className="text-2xl font-black text-emerald-400">{rateLimitSettings.webhookRateLimitPerAccountPerSecond}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/s per account</p>
+                        </div>
+                        <div className="text-center p-4 bg-emerald-500/10 rounded-2xl">
+                          <p className="text-2xl font-black text-emerald-400">{rateLimitSettings.webhookRateLimitPerAccountPerMinute}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/m per account</p>
+                        </div>
+                        <div className="text-center p-4 bg-blue-500/10 rounded-2xl">
+                          <p className="text-2xl font-black text-blue-400">{rateLimitSettings.webhookRateLimitGlobalPerSecond}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/s global</p>
+                        </div>
+                        <div className="text-center p-4 bg-blue-500/10 rounded-2xl">
+                          <p className="text-2xl font-black text-blue-400">{rateLimitSettings.webhookRateLimitGlobalPerMinute}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/m global</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <div className="pt-6 border-t border-white/5 mt-8">
+                    <Button
+                      fullWidth
+                      size="lg"
+                      className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
+                      onClick={() => handleUpdate('rate_limit', rateLimitSettings)}
+                      isLoading={isSaving === 'rate_limit'}
+                    >
+                      บันทึกการตั้งค่า Rate Limiter
+                    </Button>
                   </div>
                 </Card>
               </motion.div>

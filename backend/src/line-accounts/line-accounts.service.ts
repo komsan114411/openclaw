@@ -113,9 +113,39 @@ export class LineAccountsService {
     return account.save();
   }
 
-  async findAll(includeInactive = false): Promise<LineAccountDocument[]> {
+  async findAll(includeInactive = false): Promise<any[]> {
     const query = includeInactive ? {} : { isActive: true };
-    return this.lineAccountModel.find(query).exec();
+
+    return this.lineAccountModel.aggregate([
+      { $match: query },
+      {
+        $addFields: {
+          ownerIdObj: { $toObjectId: '$ownerId' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'ownerIdObj',
+          foreignField: '_id',
+          as: 'owner'
+        }
+      },
+      {
+        $unwind: {
+          path: '$owner',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          ownerIdObj: 0,
+          'owner.password': 0,
+          'owner.role': 0,
+          'owner.sessions': 0
+        }
+      }
+    ]).exec();
   }
 
   async findByOwner(ownerId: string): Promise<LineAccountDocument[]> {
