@@ -133,15 +133,45 @@ export class WalletService {
                 }
 
                 // Check if receiver account matches configured bank accounts
-                const receiverAccount = result.data.receiverAccountNumber || result.data.receiverAccount;
-                const matchedAccount = bankAccounts.find(
-                    (acc: any) => acc.accountNumber.replace(/[-\s]/g, '') === receiverAccount?.replace(/[-\s]/g, ''),
-                );
+                const receiverAccount = result.data.receiverAccountNumber || result.data.receiverAccount || '';
+                const receiverAccountNorm = receiverAccount.replace(/[-\s]/g, '').trim();
+
+                // Log for debugging
+                this.logger.log(`Deposit verification - Receiver account from slip: "${receiverAccount}" (normalized: "${receiverAccountNorm}")`);
+                this.logger.log(`Configured bank accounts: ${JSON.stringify(bankAccounts.map((a: any) => a.accountNumber))}`);
+
+                // Flexible matching: exact, contains, or last 6 digits match
+                const matchedAccount = bankAccounts.find((acc: any) => {
+                    const configuredNorm = (acc.accountNumber || '').replace(/[-\s]/g, '').trim();
+
+                    // Exact match
+                    if (configuredNorm === receiverAccountNorm) {
+                        this.logger.log(`Account matched exactly: ${configuredNorm}`);
+                        return true;
+                    }
+
+                    // Contains match (slip may have partial account number)
+                    if (configuredNorm.includes(receiverAccountNorm) || receiverAccountNorm.includes(configuredNorm)) {
+                        this.logger.log(`Account matched by contains: configured="${configuredNorm}", received="${receiverAccountNorm}"`);
+                        return true;
+                    }
+
+                    // Last 6 digits match (common in slip parsing)
+                    const configLast6 = configuredNorm.slice(-6);
+                    const receiverLast6 = receiverAccountNorm.slice(-6);
+                    if (configLast6.length >= 6 && receiverLast6.length >= 6 && configLast6 === receiverLast6) {
+                        this.logger.log(`Account matched by last 6 digits: ${configLast6}`);
+                        return true;
+                    }
+
+                    return false;
+                });
 
                 if (!matchedAccount) {
+                    this.logger.warn(`Account mismatch - Received: "${receiverAccountNorm}", Expected one of: ${bankAccounts.map((a: any) => a.accountNumber.replace(/[-\s]/g, '')).join(', ')}`);
                     await this.transactionModel.findByIdAndUpdate(transaction._id, {
                         status: TransactionStatus.REJECTED,
-                        adminNotes: `บัญชีผู้รับไม่ถูกต้อง (ได้รับ: ${receiverAccount})`,
+                        adminNotes: `บัญชีผู้รับไม่ถูกต้อง (ได้รับ: ${receiverAccount}, คาดหวัง: ${bankAccounts.map((a: any) => a.accountNumber).join(' หรือ ')})`,
                         verificationResult: result.data,
                     });
                     return {
