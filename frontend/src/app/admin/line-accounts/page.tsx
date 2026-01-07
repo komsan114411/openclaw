@@ -39,10 +39,7 @@ import {
 } from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
-  owner?: {
-    username: string;
-    email?: string;
-  };
+  // owner property is now inherited from LineAccount
 }
 
 // Connection status type
