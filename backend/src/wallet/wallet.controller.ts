@@ -6,7 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { CreditTransactionDocument } from '../database/schemas/credit-transaction.schema';
 
-@Controller('api/wallet')
+@Controller('wallet')
 export class WalletController {
     constructor(private readonly walletService: WalletService) { }
 
