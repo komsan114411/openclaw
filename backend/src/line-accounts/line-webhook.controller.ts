@@ -254,17 +254,35 @@ export class LineWebhookController {
     let reservationId: string | null = null;
     let replyTokenUsed = false;
 
-    // Helper to safely send message (handles reply token expiration)
+    // Helper to safely send message (handles reply token expiration and Flex fallback)
     const safeSendMessage = async (messages: any[], useReply = false) => {
-      try {
+      const sendMessages = async (msgs: any[]) => {
         if (useReply && replyToken && !replyTokenUsed) {
-          await this.lineAccountsService.sendReply(replyToken, messages, accessToken);
+          await this.lineAccountsService.sendReply(replyToken, msgs, accessToken);
           replyTokenUsed = true;
         } else {
-          await this.lineAccountsService.sendPush(lineUserId, messages, accessToken);
+          await this.lineAccountsService.sendPush(lineUserId, msgs, accessToken);
         }
-      } catch (sendError) {
+      };
+
+      try {
+        await sendMessages(messages);
+      } catch (sendError: any) {
         this.logger.error('Failed to send LINE message:', sendError);
+
+        // If sending fails (e.g. invalid Flex format), try fallback to text message
+        if (sendError?.response?.status === 400) {
+          this.logger.warn('[SLIP] Flex message failed, trying text fallback...');
+          try {
+            // Extract text from first message's altText or use default
+            const firstMsg = messages[0];
+            const fallbackText = firstMsg?.altText || firstMsg?.text || 'ระบบตรวจสอบสลิปเรียบร้อยแล้ว';
+            await sendMessages([{ type: 'text', text: fallbackText }]);
+            this.logger.log('[SLIP] Text fallback sent successfully');
+          } catch (fallbackError) {
+            this.logger.error('[SLIP] Text fallback also failed:', fallbackError);
+          }
+        }
       }
     };
 
