@@ -1,93 +1,148 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Webhook Rate Limiter - Admin UI Settings
+**Task:** Event-Driven Architecture & Event Bus
 **Date:** 2026-01-08
 
 ## Problem Solved
 
-Previously, the Rate Limiter was implemented in backend but:
-- No UI in Admin Panel to configure rate limit settings
-- Admin had to change values directly in database
-- No visual feedback of current rate limit configuration
+Previously, modules had circular dependencies:
+- Wallet imports Subscriptions, Subscriptions imports Packages, Packages imports Wallet
+- Used `forwardRef()` to break cycles (NestJS workaround)
+- Modules still tightly coupled via direct imports
+- Hard to test individual modules in isolation
 
 ## Solution Implemented
 
-Added **Rate Limiter Settings UI** in Admin Settings page (Infrastructure tab).
+Created **Event Bus Architecture** for decoupled, event-driven communication.
 
-### UI Features
+### Architecture
 
 ```
-Admin Panel → Settings → Infrastructure → Rate Limiter
-              ↓
-         ┌────────────────────────────┐
-         │ [Switch] Enable/Disable    │
-         └────────────┬───────────────┘
-                      ↓
-         ┌────────────────────────────┐
-         │ Per Account Settings       │
-         │ - Requests per second      │
-         │ - Requests per minute      │
-         └────────────┬───────────────┘
-                      ↓
-         ┌────────────────────────────┐
-         │ Global Settings            │
-         │ - Requests per second      │
-         │ - Requests per minute      │
-         └────────────┬───────────────┘
-                      ↓
-         ┌────────────────────────────┐
-         │ Custom Error Message       │
-         └────────────┬───────────────┘
-                      ↓
-         [Save Button] → systemSettingsApi.update()
+BEFORE (Direct Calls - Circular):
+┌─────────────────────────────────────────────────────────────┐
+│  PaymentService                                             │
+│  ├── import MemberService     ─┐                            │
+│  ├── import NotificationService│  CIRCULAR DEPENDENCIES!    │
+│  └── Direct method calls      ─┘                            │
+└─────────────────────────────────────────────────────────────┘
+
+AFTER (Event-Driven - Decoupled):
+┌─────────────────────────────────────────────────────────────┐
+│                         APP MODULE                          │
+│                             │                               │
+│         ┌───────────────────┼───────────────────┐          │
+│         ▼                   ▼                   ▼          │
+│   ┌──────────┐       ┌──────────┐       ┌──────────┐       │
+│   │ Payment  │       │  Member  │       │  Notif   │       │
+│   │ Service  │       │ Handler  │       │ Handler  │       │
+│   └────┬─────┘       └────┬─────┘       └────┬─────┘       │
+│        │ publish          │ subscribe       │ subscribe    │
+│        ▼                  ▼                 ▼              │
+│   ┌─────────────────────────────────────────────────┐      │
+│   │              EVENT BUS (Global)                  │      │
+│   │  Events: payment.completed, wallet.credited, ... │      │
+│   └─────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `core/events/event-bus.service.ts` | Central Event Bus service |
+| `core/events/event-bus.module.ts` | Global module (auto-available) |
+| `core/events/domain-events.ts` | All domain event interfaces |
+| `core/events/index.ts` | Barrel export |
+| `core/events/event-handlers.example.ts` | Example handlers with documentation |
 
 ### Files Modified
 
 | File | Changes |
 |------|---------|
-| `frontend/src/app/admin/settings/page.tsx` | Added Rate Limiter UI section |
+| `app.module.ts` | Added EventBusModule import |
 
-### Changes Made
+### Domain Events Defined
 
-1. **Added SystemSettings interface fields**
-   - `webhookRateLimitEnabled`
-   - `webhookRateLimitPerAccountPerSecond`
-   - `webhookRateLimitPerAccountPerMinute`
-   - `webhookRateLimitGlobalPerSecond`
-   - `webhookRateLimitGlobalPerMinute`
-   - `webhookRateLimitMessage`
+| Category | Events |
+|----------|--------|
+| User | `user.registered`, `user.login` |
+| Payment | `payment.completed`, `payment.failed` |
+| Wallet | `wallet.debited`, `wallet.credited`, `wallet.deposit.approved` |
+| Subscription | `subscription.activated`, `subscription.expired`, `subscription.quota.exhausted`, `subscription.quota.used` |
+| LINE | `line.account.created`, `line.webhook.received` |
+| Slip | `slip.verified` |
 
-2. **Added State Management**
-   - `rateLimitSettings` state with default values
-   - Fetches settings from API on load
-   - Updates via `handleUpdate('rate_limit', rateLimitSettings)`
+### Usage Example
 
-3. **Added UI Components**
-   - Toggle switch to enable/disable
-   - Per-account limits section (req/second, req/minute)
-   - Global limits section (req/second, req/minute)
-   - Custom error message input
-   - Visual summary of current settings
-   - Save button with loading state
+**Publishing Events (No imports needed):**
+```typescript
+// payment.service.ts
+import { EventBusService, EventNames, PaymentCompletedEvent } from '../core/events';
 
-### UI Location
+@Injectable()
+export class PaymentService {
+  constructor(private eventBus: EventBusService) {}
 
+  async processPayment(data) {
+    // Process payment...
+
+    // Publish event - no direct module imports!
+    await this.eventBus.publish<PaymentCompletedEvent>({
+      eventName: EventNames.PAYMENT_COMPLETED,
+      occurredAt: new Date(),
+      paymentId: data.id,
+      userId: data.userId,
+      amount: data.amount,
+      packageId: data.packageId,
+      paymentMethod: 'bank_transfer',
+    });
+  }
+}
 ```
-Admin Panel
-└── Settings (ตั้งค่าระบบ)
-    └── Infrastructure Tab (โครงสร้างหลัก)
-        ├── URL ระบบ
-        ├── Thunder API
-        ├── AI ตอบกลับ
-        ├── ตัวอย่างสลิป
-        └── Rate Limiter ← NEW
+
+**Subscribing to Events:**
+```typescript
+// member.handler.ts
+@Injectable()
+export class MemberEventHandler implements OnModuleInit {
+  constructor(
+    private eventBus: EventBusService,
+    private subscriptionService: SubscriptionService,
+  ) {}
+
+  onModuleInit() {
+    this.eventBus.subscribe<PaymentCompletedEvent>(
+      EventNames.PAYMENT_COMPLETED,
+      async (event) => {
+        await this.subscriptionService.activate(event.userId, event.packageId);
+      },
+    );
+  }
+}
 ```
 
-### TypeScript Check
+### Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| **Decoupling** | Modules don't import each other directly |
+| **Testability** | Can test modules in isolation by mocking events |
+| **Extensibility** | Add new handlers without modifying publishers |
+| **Audit Trail** | Easy to log all events centrally |
+| **Error Isolation** | One handler error doesn't affect others |
+
+### Best Practices Included
+
+1. **Domain Events** - Immutable data structures with clear names
+2. **Event Constants** - `EventNames` object prevents typos
+3. **Type Safety** - Full TypeScript interfaces for all events
+4. **Error Handling** - Handlers wrapped in try/catch
+5. **Wildcard Subscribe** - Listen to all events with `'*'`
+6. **Cleanup** - Proper memory cleanup on module destroy
+
+## TypeScript Check
 - Backend: `npx tsc --noEmit` - **PASSED**
-- Frontend: `npx tsc --noEmit` - **PASSED**
 
 ---
 **Created:** 2026-01-08

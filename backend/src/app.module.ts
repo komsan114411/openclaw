@@ -26,9 +26,13 @@ import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 import { ThunderApiModule } from './thunder-api/thunder-api.module';
 import { SystemResponseTemplatesModule } from './system-response-templates/system-response-templates.module';
 import { WalletModule } from './wallet/wallet.module';
+import { EventBusModule } from './core/events';
 
 @Module({
   imports: [
+    // Core modules (Event Bus - Global)
+    EventBusModule,
+
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
