@@ -22,9 +22,20 @@ export default function UserPackagesPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // ===== FETCH DATA =====
+  const fetchBalance = async () => {
+    try {
+      const balanceRes = await walletApi.getBalance();
+      setBalance(balanceRes.data.balance || 0);
+      return balanceRes.data.balance || 0;
+    } catch {
+      return balance;
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -49,10 +60,15 @@ export default function UserPackagesPage() {
   }, []);
 
   // ===== HANDLERS =====
-  const handleBuyClick = (pkg: Package) => {
+  const handleBuyClick = async (pkg: Package) => {
     setSelectedPackage(pkg);
     setPurchaseResult(null);
+    setIsLoadingBalance(true);
     setShowModal(true);
+
+    // Fetch fresh balance when opening modal
+    await fetchBalance();
+    setIsLoadingBalance(false);
   };
 
   const handleCloseModal = () => {
@@ -65,11 +81,20 @@ export default function UserPackagesPage() {
   const handlePurchase = async () => {
     if (!selectedPackage) return;
 
+    // Double-check balance is sufficient before purchase
+    const currentBalance = await fetchBalance();
+    if (currentBalance < selectedPackage.price) {
+      setPurchaseResult({
+        success: false,
+        message: `เครดิตไม่เพียงพอ (มี ฿${currentBalance} ต้องการ ฿${selectedPackage.price})`
+      });
+      return;
+    }
+
     setIsPurchasing(true);
     setPurchaseResult(null);
 
     try {
-      // Call API to purchase package with credits
       const response = await fetch(`/api/packages/${selectedPackage._id}/purchase`, {
         method: 'POST',
         credentials: 'include',
@@ -80,15 +105,15 @@ export default function UserPackagesPage() {
 
       if (data.success) {
         setPurchaseResult({ success: true, message: data.message || 'ซื้อแพ็คเกจสำเร็จ!' });
-        // Update balance
-        setBalance(data.balance || balance - selectedPackage.price);
-        // Close modal after success
+        setBalance(data.balance ?? currentBalance - selectedPackage.price);
         setTimeout(() => {
           handleCloseModal();
-          window.location.reload(); // Refresh to show new quota
+          window.location.reload();
         }, 2000);
       } else {
         setPurchaseResult({ success: false, message: data.message || 'เกิดข้อผิดพลาด' });
+        // Refresh balance in case it changed
+        await fetchBalance();
       }
     } catch (err: any) {
       setPurchaseResult({ success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' });
@@ -97,7 +122,7 @@ export default function UserPackagesPage() {
     }
   };
 
-  const hasEnoughBalance = selectedPackage ? balance >= selectedPackage.price : false;
+  const hasEnoughBalance = selectedPackage && !isLoadingBalance ? balance >= selectedPackage.price : true;
 
   // ===== LOADING =====
   if (isLoading) {
@@ -205,19 +230,17 @@ export default function UserPackagesPage() {
 
                 {/* Buy Button */}
                 <Button
-                  variant={canAfford ? (index === 1 ? 'primary' : 'outline') : 'ghost'}
+                  variant={index === 1 ? 'primary' : 'outline'}
                   fullWidth
                   onClick={() => handleBuyClick(pkg)}
                   className={cn(
                     'h-10 rounded-lg font-bold text-sm mt-auto',
-                    canAfford
-                      ? index === 1
-                        ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
-                        : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                    index === 1
+                      ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
+                      : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
                   )}
                 >
-                  {canAfford ? (index === 1 ? '💎 ซื้อเลย' : 'ซื้อ') : '💰 เครดิตไม่พอ'}
+                  {index === 1 ? '💎 ซื้อเลย' : 'ซื้อ'}
                 </Button>
               </Card>
             );
@@ -248,35 +271,45 @@ export default function UserPackagesPage() {
             </div>
 
             {/* Balance Info */}
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-white/10">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-slate-400">เครดิตคงเหลือ</span>
-                <span className={cn(
-                  "text-lg font-bold",
-                  hasEnoughBalance ? "text-emerald-400" : "text-rose-400"
-                )}>
-                  ฿{balance.toLocaleString()}
-                </span>
+            {isLoadingBalance ? (
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-white/10 text-center">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-slate-700 rounded w-32 mx-auto mb-2"></div>
+                  <div className="h-6 bg-slate-700 rounded w-20 mx-auto"></div>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">กำลังโหลดยอดเครดิต...</p>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-400">ราคาแพ็คเกจ</span>
-                <span className="text-lg font-bold text-white">-฿{selectedPackage.price.toLocaleString()}</span>
-              </div>
-              <div className="border-t border-white/10 mt-2 pt-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">คงเหลือหลังซื้อ</span>
+            ) : (
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-white/10">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-400">เครดิตคงเหลือ</span>
                   <span className={cn(
                     "text-lg font-bold",
                     hasEnoughBalance ? "text-emerald-400" : "text-rose-400"
                   )}>
-                    ฿{(balance - selectedPackage.price).toLocaleString()}
+                    ฿{balance.toLocaleString()}
                   </span>
                 </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-400">ราคาแพ็คเกจ</span>
+                  <span className="text-lg font-bold text-white">-฿{selectedPackage.price.toLocaleString()}</span>
+                </div>
+                <div className="border-t border-white/10 mt-2 pt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-400">คงเหลือหลังซื้อ</span>
+                    <span className={cn(
+                      "text-lg font-bold",
+                      hasEnoughBalance ? "text-emerald-400" : "text-rose-400"
+                    )}>
+                      ฿{(balance - selectedPackage.price).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Insufficient Balance Warning */}
-            {!hasEnoughBalance && (
+            {!isLoadingBalance && !hasEnoughBalance && (
               <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">⚠️</span>
@@ -325,13 +358,24 @@ export default function UserPackagesPage() {
                 variant="primary"
                 fullWidth
                 onClick={handlePurchase}
-                disabled={isPurchasing || !hasEnoughBalance || purchaseResult?.success}
+                disabled={isPurchasing || isLoadingBalance || !hasEnoughBalance || purchaseResult?.success}
                 className={cn(
                   "h-10",
-                  hasEnoughBalance ? "bg-[#06C755] hover:bg-[#05a347]" : "bg-slate-600"
+                  hasEnoughBalance && !isLoadingBalance ? "bg-[#06C755] hover:bg-[#05a347]" : "bg-slate-600"
                 )}
               >
-                {isPurchasing ? 'กำลังซื้อ...' : hasEnoughBalance ? '✅ ยืนยันซื้อ' : 'เครดิตไม่พอ'}
+                {isPurchasing ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    กำลังซื้อ...
+                  </span>
+                ) : isLoadingBalance ? (
+                  'กำลังตรวจสอบ...'
+                ) : hasEnoughBalance ? (
+                  '✅ ยืนยันซื้อ'
+                ) : (
+                  'เครดิตไม่พอ'
+                )}
               </Button>
             </div>
           </div>
