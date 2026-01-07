@@ -21,7 +21,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { WalletService } from '../wallet/wallet.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Packages')
 @ApiBearerAuth()
@@ -103,7 +102,7 @@ export class PackagesController {
   }
 
   @Post(':id/purchase')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Purchase package with wallet credits' })
   async purchaseWithCredits(@Param('id') id: string, @Request() req: any) {
