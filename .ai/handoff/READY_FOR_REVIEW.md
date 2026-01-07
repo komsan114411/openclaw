@@ -1,85 +1,74 @@
-# Developer Report
+# 🔨 Developer Report
 
-## Task
-Part 3: Missing Features & Enhancements (TASK.md)
+## 📋 Task
+1. Fix Flex Message Error: แก้ไขปัญหา status code 400 และ invalid uri
+2. Dynamic Template: ตรวจสอบว่าระบบดึง Template จาก DB
+3. Validation Logic: ตรวจสอบ duplicate slip Flex Message
 
-## Status Summary
+## 📁 Files Changed
+| File | Action | Description |
+|------|--------|-------------|
+| slip-templates/slip-templates.service.ts | Modified | เพิ่ม URI validation ใน generateDefaultFlexMessage ก่อนเพิ่ม action uri |
+| system-response-templates/system-response-templates.service.ts | Modified | เพิ่ม URI validation สำหรับ contactButtonUrl |
 
-### Completed Features
-| Feature | Status | Notes |
-|---------|--------|-------|
-| 3.1 Fallback Mechanism | ✅ ALREADY EXISTS | `getTemplateWithFallback()` in slip-templates.service.ts |
-| 3.2 Slip Modal | ✅ ALREADY EXISTS | Click slip image opens in new tab (acceptable UX) |
-| 3.2 Package Comparison | ⚠️ PARTIAL | viewMode state added, needs UI toggle buttons |
+## 🔧 Changes Made
 
-### Blocked by File Sync Issues
-| Feature | Status | Issue |
-|---------|--------|-------|
-| 3.2 Bulk Actions | ❌ BLOCKED | File modification detected errors during edits |
-| 3.1 Live Preview | ❌ NOT STARTED | Complex feature, needs more time |
-
-## Changes Made
-
-### user/packages/page.tsx
-- Added `viewMode` state for grid/table toggle (line 36)
+### 1. Flex Message URI Validation (slip-templates.service.ts)
+**Before:**
 ```typescript
-const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+if (template.footerLink && template.footerLinkText) {
+  footerContents.push({
+    action: { type: 'uri', uri: template.footerLink }
+  });
+}
 ```
 
-### What Needs Manual Implementation
-
-#### 1. Package Comparison Toggle (user/packages/page.tsx)
-Add toggle buttons in header:
-```tsx
-<div className="flex gap-2">
-  <button onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'active' : ''}>
-    กริด
-  </button>
-  <button onClick={() => setViewMode('table')} className={viewMode === 'table' ? 'active' : ''}>
-    เปรียบเทียบ
-  </button>
-</div>
+**After:**
+```typescript
+if (template.footerLink && template.footerLinkText) {
+  const trimmedLink = template.footerLink.trim();
+  // Only add action if URI is valid (starts with https:// or tel:)
+  if (trimmedLink && (trimmedLink.startsWith('https://') || trimmedLink.startsWith('tel:'))) {
+    footerContents.push({
+      action: { type: 'uri', uri: trimmedLink }
+    });
+  }
+}
 ```
 
-#### 2. Comparison Table View
-Wrap grid in conditional:
-```tsx
-{viewMode === 'grid' ? (
-  // existing grid
-) : (
-  // comparison table
-  <table>...</table>
-)}
-```
+### 2. System Response Templates URI Validation
+- Added validation for contactButtonUrl before using in URI action
+- Falls back to message action if URL is invalid
 
-#### 3. Bulk Actions (admin/payments/page.tsx)
-- Add `selectedIds` state
-- Add checkbox column
-- Add bulk approve button
-- Add bulk confirm modal
+### 3. Dynamic Template Verification
+The system already correctly:
+- Fetches templates by ID from account settings
+- Falls back to global default templates
+- Uses `generateFlexMessage()` to render from DB templates
+- Handles DUPLICATE template type properly
 
-#### 4. Live Preview (templates page)
-- Add phone mockup component
-- Real-time update on template changes
+### 4. Duplicate Slip Handling Verification
+The code at lines 726-738 correctly:
+- Tries custom template from accountSettings first
+- Falls back to slip template from DB using `tryUseSlipTemplate(TemplateType.DUPLICATE, ...)`
+- Uses hardcoded fallback only if no DB template found
 
-## Testing Done
-- [x] TypeScript check passed
+## 🧪 Testing Done
+- [x] TypeScript check: `npx tsc --noEmit` - PASSED
+- [x] Code review: URI validation added at render time
+- [x] Verified dynamic template logic uses DB
+- [x] Verified duplicate handling uses DB templates
 
-## Technical Issues Encountered
-- Edit tool failed repeatedly with "File has been unexpectedly modified"
-- Complex sed commands failed due to special characters
-- File appears to have an active watcher/linter causing sync issues
+## 💭 Notes
+- URI validation now happens at render time (not just save time)
+- Empty or invalid URIs will show text without action instead of causing 400 error
+- No changes needed for dynamic template or duplicate handling - already working correctly
 
-## Recommendations
-1. Disable file watchers before editing
-2. Consider implementing remaining features in separate session
-3. The existing features (fallback, slip modal) already satisfy TASK.md requirements
+## 🔄 Round
+1
 
-## Round
-3
+## ⏰ Timestamp
+2026-01-07
 
-## Timestamp
-2026-01-04
-
-## Status
-READY_FOR_REVIEW (Partial Completion)
+## 📌 Status
+🟡 READY_FOR_REVIEW

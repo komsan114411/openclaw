@@ -1086,19 +1086,34 @@ export class SlipTemplatesService implements OnModuleInit {
         });
       }
 
+      // SECURITY: Validate URI at render time to prevent invalid Flex Message
       if (template.footerLink && template.footerLinkText) {
-        footerContents.push({
-          type: 'text',
-          text: template.footerLinkText,
-          size: 'xxs',
-          color: '#0066CC',
-          align: 'center',
-          margin: template.footerText ? 'sm' : 'none',
-          action: {
-            type: 'uri',
-            uri: template.footerLink,
-          },
-        });
+        const trimmedLink = template.footerLink.trim();
+        // Only add action if URI is valid (starts with https:// or tel:)
+        if (trimmedLink && (trimmedLink.startsWith('https://') || trimmedLink.startsWith('tel:'))) {
+          footerContents.push({
+            type: 'text',
+            text: template.footerLinkText,
+            size: 'xxs',
+            color: '#0066CC',
+            align: 'center',
+            margin: template.footerText ? 'sm' : 'none',
+            action: {
+              type: 'uri',
+              uri: trimmedLink,
+            },
+          });
+        } else if (template.footerLinkText) {
+          // Show link text without action if URI is invalid
+          footerContents.push({
+            type: 'text',
+            text: template.footerLinkText,
+            size: 'xxs',
+            color: '#888888',
+            align: 'center',
+            margin: template.footerText ? 'sm' : 'none',
+          });
+        }
       }
 
       contents.push({

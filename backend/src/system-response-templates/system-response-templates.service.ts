@@ -359,13 +359,15 @@ export class SystemResponseTemplatesService {
     }
 
     if (styling.showContactButton && styling.contactButtonText) {
-      if (styling.contactButtonUrl) {
+      const contactUrl = styling.contactButtonUrl?.trim();
+      // Only use URI action if URL is valid (starts with https:// or tel:)
+      if (contactUrl && (contactUrl.startsWith('https://') || contactUrl.startsWith('tel:') )) {
         footerContents.push({
           type: 'button',
           action: {
             type: 'uri',
             label: styling.contactButtonText,
-            uri: styling.contactButtonUrl,
+            uri: contactUrl,
           },
           style: 'secondary',
           height: 'sm',
