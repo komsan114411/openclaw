@@ -1,79 +1,45 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { packagesApi, paymentsApi, systemSettingsApi } from '@/lib/api';
+import { packagesApi, walletApi } from '@/lib/api';
 import { Package } from '@/types';
-import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/ui/Card';
 import { PageLoading } from '@/components/ui/Loading';
-
-// Types for Bank Account from API
-interface BankAccount {
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  bankCode?: string;
-  bank?: {
-    code: string;
-    name: string;
-    nameTh?: string;
-    logoUrl?: string;
-    logoBase64?: string;
-  };
-}
+import { cn } from '@/lib/utils';
 
 export default function UserPackagesPage() {
-  // ===== STATE MANAGEMENT =====
+  // ===== STATE =====
   const [packages, setPackages] = useState<Package[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [balance, setBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // View Mode State
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseResult, setPurchaseResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Upload State
-  const [slipFile, setSlipFile] = useState<File | null>(null);
-  const [slipPreview, setSlipPreview] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // ===== FETCH REAL DATA FROM API =====
+  // ===== FETCH DATA =====
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Fetch packages from /packages API
-        const packagesResponse = await packagesApi.getAll();
-        const packagesData = packagesResponse.data.packages || [];
-        setPackages(packagesData);
-
-        // Fetch bank info from /system-settings/payment-info API
-        // Response: { bankAccounts: [...], usdtWallet: {...} }
-        const settingsResponse = await systemSettingsApi.getPaymentInfo();
-        const bankAccountsData = settingsResponse.data?.bankAccounts || [];
-
-        // Store ALL bank accounts (not just the first one)
-        const mappedAccounts: BankAccount[] = bankAccountsData.map((acc: any) => ({
-          bankName: acc.bankName || acc.bank?.nameTh || acc.bank?.name || '',
-          accountName: acc.accountName || '',
-          accountNumber: acc.accountNumber || '',
-          bankCode: acc.bankCode,
-          bank: acc.bank,
-        }));
-        setBankAccounts(mappedAccounts);
-
+        const [packagesRes, balanceRes] = await Promise.all([
+          packagesApi.getAll(),
+          walletApi.getBalance().catch(() => ({ data: { balance: 0 } })),
+        ]);
+        setPackages(packagesRes.data.packages || []);
+        setBalance(balanceRes.data.balance || 0);
       } catch (err: any) {
         console.error('Error fetching data:', err);
-        setError('ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่');
+        setError('ไม่สามารถโหลดข้อมูลได้');
       } finally {
         setIsLoading(false);
       }
@@ -85,80 +51,55 @@ export default function UserPackagesPage() {
   // ===== HANDLERS =====
   const handleBuyClick = (pkg: Package) => {
     setSelectedPackage(pkg);
-    setSlipFile(null);
-    setSlipPreview(null);
+    setPurchaseResult(null);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
-    if (isSubmitting) return;
+    if (isPurchasing) return;
     setShowModal(false);
     setSelectedPackage(null);
-    setSlipFile(null);
-    setSlipPreview(null);
+    setPurchaseResult(null);
   };
 
-  const handleCopyAccountNumber = (accountNumber: string) => {
-    navigator.clipboard.writeText(accountNumber);
-    toast.success('คัดลอกเลขบัญชีแล้ว!', { icon: '📋' });
-  };
+  const handlePurchase = async () => {
+    if (!selectedPackage) return;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
-      return;
-    }
-
-    // Validate file size (max 5MB per security spec)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('ไฟล์ใหญ่เกินไป (สูงสุด 5MB)');
-      return;
-    }
-
-    setSlipFile(file);
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setSlipPreview(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmitPayment = async () => {
-    if (!selectedPackage || !slipFile) {
-      toast.error('กรุณาอัปโหลดสลิปการโอนเงิน');
-      return;
-    }
-
-    setIsSubmitting(true);
+    setIsPurchasing(true);
+    setPurchaseResult(null);
 
     try {
-      const response = await paymentsApi.submitSlip({
-        packageId: selectedPackage._id,
-        slipFile: slipFile,
+      // Call API to purchase package with credits
+      const response = await fetch(`/api/packages/${selectedPackage._id}/purchase`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      if (response.data.success) {
-        toast.success('ส่งสลิปสำเร็จ! รอการตรวจสอบ', { icon: '🎉', duration: 5000 });
-      } else {
-        toast.success(response.data.message || 'ส่งสลิปสำเร็จ รอตรวจสอบ');
-      }
+      const data = await response.json();
 
-      handleCloseModal();
+      if (data.success) {
+        setPurchaseResult({ success: true, message: data.message || 'ซื้อแพ็คเกจสำเร็จ!' });
+        // Update balance
+        setBalance(data.balance || balance - selectedPackage.price);
+        // Close modal after success
+        setTimeout(() => {
+          handleCloseModal();
+          window.location.reload(); // Refresh to show new quota
+        }, 2000);
+      } else {
+        setPurchaseResult({ success: false, message: data.message || 'เกิดข้อผิดพลาด' });
+      }
     } catch (err: any) {
-      const message = err.response?.data?.message || 'เกิดข้อผิดพลาด';
-      toast.error(message);
+      setPurchaseResult({ success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' });
     } finally {
-      setIsSubmitting(false);
+      setIsPurchasing(false);
     }
   };
 
-  // ===== LOADING STATE =====
+  const hasEnoughBalance = selectedPackage ? balance >= selectedPackage.price : false;
+
+  // ===== LOADING =====
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -167,7 +108,7 @@ export default function UserPackagesPage() {
     );
   }
 
-  // ===== ERROR STATE =====
+  // ===== ERROR =====
   if (error) {
     return (
       <DashboardLayout>
@@ -179,85 +120,108 @@ export default function UserPackagesPage() {
     );
   }
 
-  // ===== MAIN RENDER =====
+  // ===== MAIN =====
   return (
     <DashboardLayout>
       <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto">
-        {/* Page Header - Compact */}
-        <div className="mb-4">
-          <h1 className="text-xl sm:text-2xl font-black text-white mb-1">
-            เลือกแพ็กเกจ <span className="text-[#06C755]">(Select Package)</span>
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm">เลือกแพ็คเกจที่เหมาะกับความต้องการของคุณ</p>
+        {/* Header with Balance */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-white mb-1">
+              เลือกแพ็กเกจ <span className="text-[#06C755]">(Select Package)</span>
+            </h1>
+            <p className="text-slate-400 text-xs sm:text-sm">ซื้อแพ็คเกจด้วยเครดิตของคุณ</p>
+          </div>
+
+          {/* Balance Display */}
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-2">
+              <p className="text-[10px] text-slate-400">เครดิตคงเหลือ</p>
+              <p className="text-lg font-black text-emerald-400">฿{balance.toLocaleString()}</p>
+            </div>
+            <Link href="/user/wallet">
+              <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600 h-10">
+                💰 เติมเครดิต
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* Packages Grid - Compact: 1 col mobile, 3 col tablet+ */}
+        {/* Packages Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          {packages.map((pkg, index) => (
-            <Card
-              key={pkg._id}
-              variant="glass"
-              className={`relative p-3 sm:p-4 border border-white/10 rounded-xl transition-all duration-300 hover:border-[#06C755]/50 h-full flex flex-col ${
-                index === 1 ? 'ring-2 ring-[#06C755]' : ''
-              }`}
-            >
-              {/* Best Value Badge */}
-              {index === 1 && (
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                  <span className="px-3 py-0.5 bg-[#06C755] text-white text-[10px] font-bold rounded-full">
-                    แนะนำ
-                  </span>
-                </div>
-              )}
+          {packages.map((pkg, index) => {
+            const canAfford = balance >= pkg.price;
 
-              {/* Package Name + Price Row */}
-              <div className="flex items-start justify-between gap-2 mb-2 mt-1">
-                <h2 className="text-lg font-black text-white">{pkg.name}</h2>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xl sm:text-2xl font-black text-[#06C755]">฿{pkg.price.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500">/ {pkg.durationDays} วัน</p>
-                </div>
-              </div>
-
-              {/* Quota - Compact */}
-              <div className="bg-white/5 rounded-lg p-2 mb-3 flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#06C755]/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#06C755] text-sm">📄</span>
-                </div>
-                <div>
-                  <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-400">สลิป</p>
-                </div>
-              </div>
-
-              {/* Features - Compact */}
-              <ul className="space-y-1 mb-3 flex-1">
-                <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                  <span className="text-[#06C755] text-[10px]">✓</span> ตรวจสลิปแบบเรียลไทม์
-                </li>
-                <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                  <span className="text-[#06C755] text-[10px]">✓</span> รองรับทุกธนาคาร
-                </li>
-                <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                  <span className="text-[#06C755] text-[10px]">✓</span> แจ้งเตือนอัตโนมัติ
-                </li>
-              </ul>
-
-              {/* Buy Button - Compact */}
-              <Button
-                variant={index === 1 ? 'primary' : 'outline'}
-                fullWidth
-                onClick={() => handleBuyClick(pkg)}
-                className={`h-10 rounded-lg font-bold text-sm mt-auto ${
-                  index === 1
-                    ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
-                    : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
-                }`}
+            return (
+              <Card
+                key={pkg._id}
+                variant="glass"
+                className={cn(
+                  'relative p-3 sm:p-4 border rounded-xl transition-all duration-300 h-full flex flex-col',
+                  index === 1 ? 'ring-2 ring-[#06C755] border-[#06C755]/50' : 'border-white/10 hover:border-[#06C755]/50'
+                )}
               >
-                {index === 1 ? '💎 เลือก' : 'เลือก'}
-              </Button>
-            </Card>
-          ))}
+                {/* Best Value Badge */}
+                {index === 1 && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                    <span className="px-3 py-0.5 bg-[#06C755] text-white text-[10px] font-bold rounded-full">
+                      แนะนำ
+                    </span>
+                  </div>
+                )}
+
+                {/* Package Name + Price */}
+                <div className="flex items-start justify-between gap-2 mb-2 mt-1">
+                  <h2 className="text-lg font-black text-white">{pkg.name}</h2>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xl sm:text-2xl font-black text-[#06C755]">฿{pkg.price.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-500">/ {pkg.durationDays} วัน</p>
+                  </div>
+                </div>
+
+                {/* Quota */}
+                <div className="bg-white/5 rounded-lg p-2 mb-3 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-[#06C755]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <span className="text-[#06C755] text-sm">📄</span>
+                  </div>
+                  <div>
+                    <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-400">สลิป</p>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <ul className="space-y-1 mb-3 flex-1">
+                  <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                    <span className="text-[#06C755] text-[10px]">✓</span> ตรวจสลิปแบบเรียลไทม์
+                  </li>
+                  <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                    <span className="text-[#06C755] text-[10px]">✓</span> รองรับทุกธนาคาร
+                  </li>
+                  <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                    <span className="text-[#06C755] text-[10px]">✓</span> แจ้งเตือนอัตโนมัติ
+                  </li>
+                </ul>
+
+                {/* Buy Button */}
+                <Button
+                  variant={canAfford ? (index === 1 ? 'primary' : 'outline') : 'ghost'}
+                  fullWidth
+                  onClick={() => handleBuyClick(pkg)}
+                  className={cn(
+                    'h-10 rounded-lg font-bold text-sm mt-auto',
+                    canAfford
+                      ? index === 1
+                        ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
+                        : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  )}
+                >
+                  {canAfford ? (index === 1 ? '💎 ซื้อเลย' : 'ซื้อ') : '💰 เครดิตไม่พอ'}
+                </Button>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Empty State */}
@@ -268,115 +232,107 @@ export default function UserPackagesPage() {
         )}
       </div>
 
-      {/* ===== PAYMENT MODAL - COMPACT SINGLE-SCREEN ===== */}
-      <Modal
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        title="ชำระเงิน"
-        size="md"
-      >
+      {/* ===== PURCHASE MODAL ===== */}
+      <Modal isOpen={showModal} onClose={handleCloseModal} title="ยืนยันการซื้อ" size="sm">
         {selectedPackage && (
-          <div className="flex flex-col h-full max-h-[80vh]">
-            {/* Header - Package Info + Amount */}
-            <div className="bg-[#06C755]/10 rounded-lg p-3 border border-[#06C755]/20 mb-3">
+          <div className="space-y-4">
+            {/* Package Info */}
+            <div className="bg-[#06C755]/10 rounded-lg p-4 border border-[#06C755]/20">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm font-bold text-white">{selectedPackage.name}</p>
-                  <p className="text-[10px] text-slate-400">{selectedPackage.slipQuota.toLocaleString()} สลิป / {selectedPackage.durationDays} วัน</p>
+                  <p className="text-lg font-bold text-white">{selectedPackage.name}</p>
+                  <p className="text-xs text-slate-400">{selectedPackage.slipQuota.toLocaleString()} สลิป / {selectedPackage.durationDays} วัน</p>
                 </div>
                 <p className="text-2xl font-black text-[#06C755]">฿{selectedPackage.price.toLocaleString()}</p>
               </div>
             </div>
 
-            {/* Bank List - Condensed with internal scroll */}
-            {bankAccounts.length > 0 ? (
-              <div className="mb-3">
-                <p className="text-xs text-slate-400 mb-2">โอนเงินไปที่บัญชี ({bankAccounts.length})</p>
-                <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1">
-                  {bankAccounts.map((account, index) => (
-                    <div
-                      key={index}
-                      className="bg-slate-900/80 rounded-lg p-2 border border-white/10 flex items-center gap-2"
-                    >
-                      {/* Bank Logo - Small */}
-                      {account.bank?.logoBase64 ? (
-                        <img src={account.bank.logoBase64} alt={account.bankName} className="w-8 h-8 rounded object-contain bg-white p-0.5 flex-shrink-0" />
-                      ) : (
-                        <div className="w-8 h-8 rounded bg-[#06C755]/20 flex items-center justify-center text-sm flex-shrink-0">🏦</div>
-                      )}
-                      {/* Bank Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-slate-400 truncate">{account.bankName} • {account.accountName}</p>
-                        <p className="text-base sm:text-lg font-black text-white font-mono tracking-wide">{account.accountNumber}</p>
-                      </div>
-                      {/* Copy Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopyAccountNumber(account.accountNumber)}
-                        className="px-2 py-1 bg-[#06C755] hover:bg-[#05a347] text-white rounded text-[10px] font-semibold flex-shrink-0"
-                      >
-                        คัดลอก
-                      </button>
-                    </div>
-                  ))}
+            {/* Balance Info */}
+            <div className="bg-slate-800/50 rounded-lg p-4 border border-white/10">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-slate-400">เครดิตคงเหลือ</span>
+                <span className={cn(
+                  "text-lg font-bold",
+                  hasEnoughBalance ? "text-emerald-400" : "text-rose-400"
+                )}>
+                  ฿{balance.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-400">ราคาแพ็คเกจ</span>
+                <span className="text-lg font-bold text-white">-฿{selectedPackage.price.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-white/10 mt-2 pt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-400">คงเหลือหลังซื้อ</span>
+                  <span className={cn(
+                    "text-lg font-bold",
+                    hasEnoughBalance ? "text-emerald-400" : "text-rose-400"
+                  )}>
+                    ฿{(balance - selectedPackage.price).toLocaleString()}
+                  </span>
                 </div>
               </div>
-            ) : (
-              <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/30 text-center mb-3">
-                <p className="text-red-400 text-sm font-medium">ไม่พบบัญชีธนาคาร</p>
+            </div>
+
+            {/* Insufficient Balance Warning */}
+            {!hasEnoughBalance && (
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div>
+                    <p className="text-rose-300 font-bold mb-1">เครดิตไม่เพียงพอ</p>
+                    <p className="text-rose-300/80 text-sm mb-3">
+                      ต้องการอีก <span className="font-bold">฿{(selectedPackage.price - balance).toLocaleString()}</span> กรุณาเติมเครดิตก่อนซื้อแพ็คเกจ
+                    </p>
+                    <Link href="/user/wallet">
+                      <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600">
+                        💰 เติมเครดิตที่นี่
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Upload Section - Fixed at bottom */}
-            <div className="mt-auto pt-2 border-t border-white/10">
-              <p className="text-xs text-slate-400 mb-2">อัปโหลดสลิป</p>
-              <div className="relative">
-                <input type="file" id="slip-upload" accept="image/*" onChange={handleFileChange} className="hidden" disabled={isSubmitting} />
-                <label
-                  htmlFor="slip-upload"
-                  className={`flex items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
-                    slipPreview ? 'border-[#06C755] bg-[#06C755]/5' : 'border-white/20 hover:border-white/40 bg-white/5'
-                  }`}
-                >
-                  {slipPreview ? (
-                    <div className="relative w-full h-full p-1">
-                      <img src={slipPreview} alt="Slip" className="w-full h-full object-contain rounded" />
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); setSlipFile(null); setSlipPreview(null); }}
-                        className="absolute top-2 right-2 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <svg className="w-6 h-6 text-slate-500 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-xs text-slate-400">คลิกอัปโหลดสลิป (JPG, PNG)</p>
-                    </div>
-                  )}
-                </label>
+            {/* Purchase Result */}
+            {purchaseResult && (
+              <div className={cn(
+                "rounded-lg p-4 border",
+                purchaseResult.success
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                  : "bg-rose-500/10 border-rose-500/20 text-rose-300"
+              )}>
+                <div className="flex items-center gap-2">
+                  <span>{purchaseResult.success ? '✅' : '❌'}</span>
+                  <span className="font-medium">{purchaseResult.message}</span>
+                </div>
               </div>
+            )}
 
-              {/* Action Buttons - Side by Side */}
-              <div className="flex gap-2 mt-3">
-                <Button variant="ghost" fullWidth onClick={handleCloseModal} disabled={isSubmitting} className="h-10 text-sm">
-                  ยกเลิก
-                </Button>
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onClick={handleSubmitPayment}
-                  disabled={isSubmitting || !slipFile}
-                  className="h-10 text-sm bg-[#06C755] hover:bg-[#05a347]"
-                >
-                  {isSubmitting ? 'กำลังส่ง...' : 'ยืนยัน'}
-                </Button>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                fullWidth
+                onClick={handleCloseModal}
+                disabled={isPurchasing}
+                className="h-10"
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handlePurchase}
+                disabled={isPurchasing || !hasEnoughBalance || purchaseResult?.success}
+                className={cn(
+                  "h-10",
+                  hasEnoughBalance ? "bg-[#06C755] hover:bg-[#05a347]" : "bg-slate-600"
+                )}
+              >
+                {isPurchasing ? 'กำลังซื้อ...' : hasEnoughBalance ? '✅ ยืนยันซื้อ' : 'เครดิตไม่พอ'}
+              </Button>
             </div>
           </div>
         )}
