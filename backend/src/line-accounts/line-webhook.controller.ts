@@ -292,20 +292,25 @@ export class LineWebhookController {
     };
 
     try {
+      this.logger.log(`[SLIP] Starting verification for messageId=${messageId}, accountId=${accountId}`);
+
       // Prevent duplicate concurrent processing per message
       if (await this.redisService.exists(lockKey)) {
-        this.logger.log(`Duplicate slip processing blocked: ${messageId}`);
+        this.logger.log(`[SLIP] Duplicate slip processing blocked: ${messageId}`);
         return;
       }
       await this.redisService.set(lockKey, '1', 300); // 5 minutes lock
+      this.logger.log(`[SLIP] Lock acquired for ${messageId}`);
 
       // ============================================
       // ตรวจสอบโควต้าก่อนส่งตรวจสอบสลิป (ใช้ logic ใหม่ที่เรียบง่าย)
       // ============================================
       const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
+      this.logger.log(`[SLIP] Quota check: status=${ownerQuotaDetail.status}, remaining=${ownerQuotaDetail.remainingQuota}`);
 
       // สถานะ: no_subscription หรือ quota_exhausted = ใช้ template โควต้าหมด
       if (ownerQuotaDetail.status === 'no_subscription' || ownerQuotaDetail.status === 'quota_exhausted') {
+        this.logger.log(`[SLIP] No quota - sending quota exhausted message`);
         const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
         await safeSendMessage([quotaMsg], true);
         return;
@@ -313,6 +318,7 @@ export class LineWebhookController {
 
       // สถานะ: package_expired = ใช้ template แพ็คเกจหมดอายุ
       if (ownerQuotaDetail.status === 'package_expired') {
+        this.logger.log(`[SLIP] Package expired - sending expired message`);
         const expiredMsg = await this.configurableMessagesService.formatPackageExpiredResponse({ account });
         await safeSendMessage([expiredMsg], true);
         return;
@@ -327,10 +333,12 @@ export class LineWebhookController {
       const processingMsg = await this.configurableMessagesService.formatProcessingResponse({ account });
       if (processingMsg) {
         await safeSendMessage([processingMsg], true);
+        this.logger.log(`[SLIP] Processing message sent`);
       }
 
       // Get retry settings
       const retrySettings = await this.configurableMessagesService.getRetrySettings();
+      this.logger.log(`[SLIP] Starting image download...`);
 
       // ============================================
       // ดาวน์โหลดรูปภาพ (ใช้ template ไม่พบสลิป รวมทุกกรณีอ่านสลิปไม่ได้)
@@ -344,22 +352,26 @@ export class LineWebhookController {
           'Get image content',
         );
       } catch (imageError) {
-        this.logger.error('Failed to get image content after retries:', imageError);
+        this.logger.error('[SLIP] Failed to get image content after retries:', imageError);
         const errorMsg = await this.configurableMessagesService.formatSlipNotFoundResponse({ account });
         await safeSendMessage([errorMsg]);
         return;
       }
+      this.logger.log(`[SLIP] Image downloaded, size=${imageData.length} bytes`);
 
       // Phase 1: Pre-screen (validate) before reserving quota
       const validation = this.slipVerificationService.validateSlipImage(imageData);
       if (!validation.ok) {
+        this.logger.log(`[SLIP] Image validation failed`);
         const invalidMsg = await this.configurableMessagesService.formatSlipNotFoundResponse({ account });
         await safeSendMessage([invalidMsg]);
         return;
       }
+      this.logger.log(`[SLIP] Image validation passed`);
 
       // Phase 2: Check and reserve quota (atomic operation)
       if (!ownerQuota.hasQuota) {
+        this.logger.log(`[SLIP] No quota available`);
         const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
         await safeSendMessage([quotaMsg]);
         return;
@@ -367,10 +379,12 @@ export class LineWebhookController {
 
       subscriptionId = await this.subscriptionsService.reserveQuota(ownerId, 1);
       if (!subscriptionId) {
+        this.logger.log(`[SLIP] Quota reservation failed`);
         const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
         await safeSendMessage([quotaMsg]);
         return;
       }
+      this.logger.log(`[SLIP] Quota reserved, subscriptionId=${subscriptionId}`);
 
       // Create reservation record
       const reservation = await this.slipVerificationService.createReservation({
@@ -382,6 +396,7 @@ export class LineWebhookController {
         amount: 1,
       });
       reservationId = reservation._id.toString();
+      this.logger.log(`[SLIP] Reservation created, starting Thunder API verification...`);
 
       // Phase 3: Verify slip with retry (ใช้ template ใหม่เมื่อเกิดข้อผิดพลาด)
       const result = await retryWithBackoff(
