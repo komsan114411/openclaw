@@ -281,7 +281,7 @@ export default function WalletPage() {
           </div>
         </div>
 
-        {activeTab === 'crypto' ? (
+        {activeTab === 'crypto' && (
           /* Crypto Deposit Section */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
             {/* Left: Wallet Info */}
