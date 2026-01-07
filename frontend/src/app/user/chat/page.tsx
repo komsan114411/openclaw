@@ -152,7 +152,19 @@ function UserChatContent() {
       // 2. Update user list (last message / unread count) regardless of who is open
       setUsers((prev) => {
         const index = prev.findIndex(u => u.lineUserId === data.lineUserId);
-        if (index === -1) return prev; // New user case handled by refresh usually, or can add logic here
+
+        if (index === -1) {
+          // New user (not in list) - Add to top
+          const newUser: ChatUser = {
+            lineUserId: data.lineUserId,
+            lineUserName: data.lineUserName || 'Unknown User',
+            lineUserPicture: data.lineUserPicture,
+            lastMessage: data.messageType === 'image' ? '[รูปภาพ]' : (data.messageText || ''),
+            lastMessageTime: data.createdAt,
+            unreadCount: data.direction === 'in' ? 1 : 0,
+          };
+          return [newUser, ...prev];
+        }
 
         const updatedUsers = [...prev];
         const isCurrentChat = selectedUserRef.current?.lineUserId === data.lineUserId;

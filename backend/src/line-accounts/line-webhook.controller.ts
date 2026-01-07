@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Req,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import * as crypto from 'crypto';
@@ -20,9 +21,11 @@ import { MessageDirection, MessageType } from '../database/schemas/chat-message.
 import { RedisService } from '../redis/redis.service';
 import { ConfigurableMessagesService } from '../common/configurable-messages.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { WebhookRateLimitGuard } from '../common/guards/webhook-rate-limit.guard';
 
 @ApiTags('LINE Webhook')
 @Controller('webhook/line')
+@UseGuards(WebhookRateLimitGuard)
 export class LineWebhookController {
   private readonly logger = new Logger(LineWebhookController.name);
 

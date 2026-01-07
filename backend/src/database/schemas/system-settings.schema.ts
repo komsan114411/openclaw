@@ -168,6 +168,31 @@ export class SystemSettings {
   @Prop({ default: '1,000.00' })
   previewAmount: string;
 
+  // ===============================
+  // Webhook Rate Limiting Settings
+  // ===============================
+
+  // Per LINE Account limits (per minute)
+  @Prop({ default: true })
+  webhookRateLimitEnabled: boolean;
+
+  @Prop({ default: 100 })
+  webhookRateLimitPerAccountPerMinute: number;
+
+  @Prop({ default: 10 })
+  webhookRateLimitPerAccountPerSecond: number;
+
+  // Global limits (per minute)
+  @Prop({ default: 1000 })
+  webhookRateLimitGlobalPerMinute: number;
+
+  @Prop({ default: 100 })
+  webhookRateLimitGlobalPerSecond: number;
+
+  // Rate limit response message
+  @Prop({ default: 'Too many requests, please try again later' })
+  webhookRateLimitMessage: string;
+
   @Prop()
   updatedBy: string;
 }

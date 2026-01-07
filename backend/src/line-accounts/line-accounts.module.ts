@@ -9,6 +9,8 @@ import { SlipTemplate, SlipTemplateSchema } from '../database/schemas/slip-templ
 import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
 import { ChatbotModule } from '../chatbot/chatbot.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
+import { WebhookRateLimitGuard } from '../common/guards/webhook-rate-limit.guard';
 
 @Module({
   imports: [
@@ -20,8 +22,9 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     SlipVerificationModule,
     ChatbotModule,
     SubscriptionsModule,
+    SystemSettingsModule,
   ],
-  providers: [LineAccountsService],
+  providers: [LineAccountsService, WebhookRateLimitGuard],
   controllers: [LineAccountsController, LineWebhookController],
   exports: [LineAccountsService],
 })
