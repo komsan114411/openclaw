@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, chatMessagesApi } from '@/lib/api';
@@ -54,6 +54,7 @@ function AdminChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Real-time WebSocket connection
   useEffect(() => {
@@ -205,14 +206,25 @@ function AdminChatContent() {
   useEffect(() => {
     if (selectedUser) {
       fetchMessages(selectedUser.lineUserId);
+
+      // Start polling for real-time updates
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      pollingRef.current = setInterval(() => {
+        fetchMessages(selectedUser.lineUserId);
+      }, 5000); // Poll every 5 seconds
     }
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, [selectedUser, fetchMessages]);
 
-  useEffect(() => {
+  // Auto scroll to bottom when messages change
+  useLayoutEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, loadingMessages]);
 
   const handleSelectAccount = (id: string) => {
     setSelectedAccountId(id);
@@ -272,7 +284,7 @@ function AdminChatContent() {
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="h-[calc(100vh-140px)] flex flex-col space-y-6 max-w-[1600px] mx-auto animate-fade">
+      <div className="h-[calc(100vh-100px)] flex flex-col max-w-[1600px] mx-auto animate-fade overflow-hidden">
 
         {/* Neural Navigation Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-2">

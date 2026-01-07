@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { chatMessagesApi, lineAccountsApi } from '@/lib/api';
@@ -53,7 +53,9 @@ function UserChatContent() {
   const [sending, setSending] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch all LINE accounts on mount
   useEffect(() => {
@@ -194,10 +196,25 @@ function UserChatContent() {
     } else {
       setMessages([]);
     }
+
+    // Start polling for real-time updates
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    if (selectedUser) {
+      pollingRef.current = setInterval(() => {
+        fetchMessages(selectedUser.lineUserId);
+      }, 5000); // Poll every 5 seconds
+    }
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
   }, [selectedUser, fetchMessages]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Auto scroll to bottom when messages change
+  useLayoutEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages, loadingMessages]);
 
   const handleSendMessage = async () => {
@@ -257,7 +274,7 @@ function UserChatContent() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto animate-fade h-[calc(100vh-120px)] md:h-auto">
+      <div className="flex flex-col max-w-[1600px] mx-auto animate-fade h-[calc(100vh-80px)] overflow-hidden">
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
           <div className="space-y-1 sm:space-y-2 flex-1">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
@@ -274,14 +291,14 @@ function UserChatContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 min-h-0 overflow-hidden">
           {/* Col 1: Account Switcher (Desktop) */}
           <div className="hidden lg:block lg:col-span-2">
             <Card className="p-0 overflow-hidden bg-black/40 border border-white/5 shadow-2xl rounded-xl sm:rounded-2xl h-full" variant="glass">
               <div className="p-4 border-b border-white/5 bg-white/[0.02]">
                 <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">บัญชี LINE ({allAccounts.length})</p>
               </div>
-              <div className="p-2 space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
+              <div className="p-2 space-y-2 flex-1 overflow-y-auto">
                 {allAccounts.map((acc) => {
                   const isActive = acc._id === activeAccountId;
                   return (
@@ -542,7 +559,7 @@ function UserChatContent() {
                   </IconButton>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 bg-black/20 min-h-[50vh]">
+                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 bg-black/20" style={{ overscrollBehavior: 'contain' }}>
                   {loadingMessages ? (
                     <div className="py-16 sm:py-24 flex flex-col items-center gap-3 sm:gap-4">
                       <Spinner size="lg" />
