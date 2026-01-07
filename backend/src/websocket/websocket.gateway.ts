@@ -41,21 +41,34 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   @SubscribeMessage('join')
-  handleJoin(
+  async handleJoin(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { userId: string; role: string },
+    @MessageBody() data: { userId: string; role: string; sessionId?: string },
   ) {
-    this.websocketService.setClientUser(client.id, data.userId, data.role);
-    
-    // Join user-specific room
-    client.join(`user:${data.userId}`);
-    
-    // Join role-specific room
-    if (data.role === 'admin') {
-      client.join('admins');
+    // SECURITY: Verify session before allowing admin room access
+    if (data.sessionId) {
+      try {
+        const session = await this.authService.validateSession(data.sessionId);
+        if (session) {
+          // Use verified session data
+          this.websocketService.setClientUser(client.id, session.userId, session.role);
+          client.join(`user:${session.userId}`);
+          if (session.role === 'admin') {
+            client.join('admins');
+          }
+          return { success: true, verified: true };
+        }
+      } catch (error) {
+        this.logger.warn(`Session validation failed for client ${client.id}`);
+      }
     }
-
-    return { success: true };
+    
+    // For unauthenticated: allow basic join but NOT admin room
+    this.websocketService.setClientUser(client.id, data.userId, 'user');
+    client.join(`user:${data.userId}`);
+    // Do NOT allow joining 'admins' room without verified session
+    
+    return { success: true, verified: false };
   }
 
   @SubscribeMessage('subscribe')

@@ -1,6 +1,9 @@
-Fix Flex Message Error: แก้ไขปัญหา status code 400 และ invalid uri ใน Flex Message โดยตรวจสอบว่าทุกลิงก์ (Action URI) มี https:// ครบถ้วนและไม่เป็นค่าว่าง
+Centralize Management: ย้ายการตั้งค่าเทมเพลตสลิปและการตอบกลับทั้งหมดจากหน้าอื่นๆ มาไว้ที่เส้นทาง admin/templates/ เพียงที่เดียวเท่านั้น
 
-Dynamic Template: ปรับ Logic ให้ดึง Template ที่ผู้ใช้เลือก หรือ Template ที่ Admin สร้างไว้จากฐานข้อมูลมาใช้งาน แทนการใช้ Template แบบ Hard-coded
+Cleanup: ลบหน้าตั้งค่าเทมเพลตซ้ำซ้อนในหน้าอื่นๆ ออกให้หมดหลังจากย้ายข้อมูลเสร็จสิ้น
 
-Validation Logic: ตรวจสอบให้แน่ใจว่าเมื่อสถานะเป็น duplicate (สลิปซ้ำ) ระบบจะส่ง Flex Message แจ้งเตือนตามรูปแบบที่ตั้งค่าไว้ได้อย่างถูกต้อง
+Unified Logic: ปรับปรุงให้ระบบตรวจสอบสลิปและระบบตอบกลับ (Flex Message) ดึงข้อมูลค่า Configuration จากหน้า admin/templates/ นี้ไปใช้งานแทน
 
+Fix URI & Logic: ตรวจสอบให้แน่ใจว่าการแก้ไข invalid uri ใน Flex Message (ตาม Log Error 400) ถูกรวมเข้ากับเทมเพลตใหม่นี้ด้วย
+
+Backward Compatibility: ระบบต้องทำงานร่วมกันได้เหมือนเดิม (Integrate smoothly) โดยที่ฟังก์ชันการดึงเทมเพลตตามที่แอดมินหรือผู้ใช้เลือกยังต้องทำงานได้ถูกต้อง

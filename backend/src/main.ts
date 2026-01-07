@@ -16,7 +16,12 @@ async function bootstrap() {
     
     // Enable CORS (must not use "*" with credentials)
     app.enableCors({
-      origin: true, // reflect request origin
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const allowed = (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
+        if (allowed.includes(origin) || allowed.includes('*')) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'), false);
+      },
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization'],
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

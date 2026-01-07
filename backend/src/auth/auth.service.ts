@@ -53,7 +53,7 @@ export class AuthService {
           forcePasswordChange: true,
           isActive: true,
         });
-        this.logger.log('✅ Default admin user created (username: admin, password: admin123) - Password change required on first login');
+        this.logger.log('✅ Default admin user created (username: admin, password: [HIDDEN]) - Password change required on first login');
       }
     } catch (error) {
       this.logger.error('Error creating default admin:', error);
