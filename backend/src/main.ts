@@ -6,30 +6,42 @@ import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  
+
   try {
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
       // Required for LINE signature verification (use req.rawBody)
       rawBody: true,
     });
-    
+
     // Enable CORS (must not use "*" with credentials)
     app.enableCors({
       origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
-        const allowed = (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(o => o.trim());
+
+        // Allow all Railway domains
+        if (origin.includes('.railway.app')) return callback(null, true);
+
+        // Allow localhost for development
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
+
+        // Check custom CORS_ORIGINS env var
+        const allowed = (process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
         if (allowed.includes(origin) || allowed.includes('*')) return callback(null, true);
+
+        // Log rejected origins for debugging
+        console.warn(`CORS rejected origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'), false);
       },
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     });
-    
+
     // Cookie parser
     app.use(cookieParser());
-    
+
     // Global validation pipe
     app.setGlobalPrefix('api');
     app.useGlobalPipes(
