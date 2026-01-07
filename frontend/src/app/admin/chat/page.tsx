@@ -387,17 +387,17 @@ function AdminChatContent() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-[#0F1A14] p-2 rounded-full border border-emerald-500/10">
+          <div className="flex items-center gap-3 bg-black/40 p-2 rounded-full border border-white/5 backdrop-blur-md">
             <Select
               value={selectedAccountId}
               onChange={(e) => handleSelectAccount(e.target.value)}
               className="w-60 border-none shadow-none bg-transparent font-semibold text-xs focus:ring-0 cursor-pointer text-white rounded-full px-4"
             >
-              <option value="" className="bg-[#0A0F0D]">เลือกบัญชี LINE</option>
+              <option value="" className="bg-slate-900">เลือกบัญชี LINE</option>
               {accounts.map((account) => {
                 const ownerName = account.owner?.fullName || account.owner?.username || 'Unknown';
                 return (
-                  <option key={account._id} value={account._id} className="bg-[#0A0F0D]">
+                  <option key={account._id} value={account._id} className="bg-slate-900">
                     {account.accountName} ({ownerName})
                   </option>
                 );
@@ -407,10 +407,10 @@ function AdminChatContent() {
               <IconButton
                 variant="primary"
                 size="md"
-                className="rounded-full w-10 h-10 shadow-lg shadow-[#06C755]/20"
+                className="rounded-full w-10 h-10 shadow-lg shadow-[#06C755]/20 bg-[#06C755] hover:bg-[#05B048]"
                 onClick={fetchUsers}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
               </IconButton>
             )}
           </div>
@@ -425,17 +425,18 @@ function AdminChatContent() {
         </div>
 
         {!selectedAccountId ? (
-          <div className="flex-1 flex flex-col items-center justify-center bg-white/40 backdrop-blur-3xl rounded-[4rem] border-4 border-dashed border-slate-200">
-            <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl mb-6 animate-pulse">📡</div>
-            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">ยังไม่ได้เลือกบัญชี</h3>
-            <p className="text-slate-400 font-medium max-w-sm text-center">กรุณาเลือกบัญชี LINE OA เพื่อเริ่มการสนทนา</p>
+          <div className="flex-1 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xl rounded-[2rem] border-2 border-dashed border-white/5 p-12">
+            <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center text-4xl mb-6 animate-pulse border border-white/5">📡</div>
+            <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">ยังไม่ได้เลือกบัญชี</h3>
+            <p className="text-slate-400 font-medium text-sm">กรุณาเลือกบัญชี LINE ด้านบนเพื่อเริ่มใช้งาน</p>
           </div>
+
         ) : (
           <div className="flex-1 flex gap-6 min-h-0">
 
             {/* Personnel Manifest (User List) */}
-            <Card className="w-[420px] flex flex-col p-0 bg-white/60 backdrop-blur-3xl border-none shadow-premium-lg rounded-[3.5rem] overflow-hidden">
-              <div className="p-8 border-b border-slate-100/50 space-y-6">
+            <Card className="w-[380px] lg:w-[420px] flex flex-col p-0 bg-black/40 backdrop-blur-xl border-white/5 shadow-2xl rounded-2xl overflow-hidden" variant="glass">
+              <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02] space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-semibold text-slate-400 mb-1">รายชื่อผู้ใช้</p>
@@ -477,51 +478,51 @@ function AdminChatContent() {
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={() => handleSelectUser(user)}
                         className={cn(
-                          "relative p-5 rounded-[2.2rem] cursor-pointer transition-all duration-500 group overflow-hidden border border-transparent",
+                          "relative p-3 sm:p-4 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-500 group overflow-hidden border",
                           selectedUser?.lineUserId === user.lineUserId
-                            ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20"
-                            : "hover:bg-white hover:shadow-premium"
+                            ? "bg-slate-900 text-white border-[#06C755]/20 shadow-[#06C755]/10"
+                            : "bg-white/[0.01] hover:bg-white/[0.03] border-white/5"
                         )}
                       >
-                        <div className="flex items-center gap-5 relative z-10">
+                        <div className="flex items-center gap-3 sm:gap-4 relative z-10">
                           <div className="relative">
                             <div className={cn(
-                              "w-16 h-16 rounded-[1.6rem] overflow-hidden border-2 shadow-inner transition-colors duration-500 flex items-center justify-center",
-                              selectedUser?.lineUserId === user.lineUserId ? "bg-white/10 border-white/20" : "bg-slate-50 border-white"
+                              "w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-500 flex items-center justify-center group-hover:scale-110",
+                              selectedUser?.lineUserId === user.lineUserId ? "bg-white/10 border-white/10" : "bg-white/5 border-white/5"
                             )}>
                               {user.lineUserPicture ? (
-                                <img src={user.lineUserPicture} alt={user.lineUserName} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                <img src={user.lineUserPicture} alt={user.lineUserName} className="w-full h-full object-cover transition-transform duration-700" />
                               ) : (
-                                <span className="font-black text-xl opacity-30 uppercase italic">{user.lineUserName?.charAt(0) || '?'}</span>
+                                <span className={cn("font-black text-base sm:text-lg", selectedUser?.lineUserId === user.lineUserId ? "text-white" : "text-slate-500")}>
+                                  {(user.lineUserName || '?').charAt(0)}
+                                </span>
                               )}
                             </div>
                             {user.unreadCount > 0 && (
-                              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-black rounded-lg px-2.5 py-1 shadow-lg border-2 border-white animate-bounce-subtle">
+                              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] sm:text-[9px] font-black rounded-lg px-1.5 py-0.5 shadow-lg border border-black animate-bounce-subtle">
                                 {user.unreadCount > 9 ? '9+' : user.unreadCount}
                               </span>
                             )}
                           </div>
                           <div className="flex-1 min-w-0 pr-2">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <p className="font-black text-[13px] truncate uppercase tracking-tight">{user.lineUserName}</p>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className={cn("font-black text-xs sm:text-sm truncate uppercase tracking-tight", selectedUser?.lineUserId === user.lineUserId ? "text-white" : "text-slate-300")}>
+                                {user.lineUserName}
+                              </p>
                               <span className={cn(
-                                "text-[10px] font-black uppercase tracking-widest opacity-40 transition-colors",
-                                selectedUser?.lineUserId === user.lineUserId ? "text-emerald-400 opacity-100" : "group-hover:opacity-70"
+                                "text-[9px] font-black uppercase tracking-widest transition-colors",
+                                selectedUser?.lineUserId === user.lineUserId ? "text-[#06C755] opacity-100" : "text-slate-500 opacity-40 group-hover:opacity-70"
                               )}>
                                 {formatLastSeen(user.lastMessageTime)}
                               </span>
                             </div>
                             <p className={cn(
-                              "text-xs font-medium truncate opacity-40 transition-all",
-                              selectedUser?.lineUserId === user.lineUserId ? "opacity-80 font-bold" : "group-hover:opacity-60"
+                              "text-[10px] sm:text-xs font-medium truncate transition-all",
+                              selectedUser?.lineUserId === user.lineUserId ? "text-white/60" : "text-slate-400 group-hover:text-slate-300"
                             )}>
                               {user.lastMessage || 'ไม่มีข้อความใหม่'}
                             </p>
                           </div>
-                          <div className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            selectedUser?.lineUserId === user.lineUserId ? "bg-emerald-400" : "bg-slate-100 group-hover:bg-emerald-200"
-                          )} />
                         </div>
                       </motion.div>
                     ))}
@@ -531,42 +532,42 @@ function AdminChatContent() {
             </Card>
 
             {/* Neural Interface (Chat Area) */}
-            <Card className="flex-1 flex flex-col p-0 bg-white/80 backdrop-blur-3xl border-none shadow-premium-lg rounded-[4.5rem] overflow-hidden">
+            <Card className="flex-1 flex flex-col p-0 bg-black/40 backdrop-blur-xl border-white/5 shadow-2xl rounded-2xl overflow-hidden" variant="glass">
               {selectedUser ? (
                 <>
                   {/* Uplink Header */}
-                  <div className="p-10 border-b border-slate-100/50 flex items-center justify-between bg-white/40 backdrop-blur-md">
-                    <div className="flex items-center gap-6">
-                      <div className="w-20 h-20 rounded-[2.5rem] bg-white border border-slate-100 shadow-premium overflow-hidden flex items-center justify-center p-1">
-                        <div className="w-full h-full rounded-[2rem] overflow-hidden">
+                  <div className="p-4 sm:p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02] backdrop-blur-md">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 shadow-lg overflow-hidden flex items-center justify-center p-0.5">
+                        <div className="w-full h-full rounded-[0.6rem] overflow-hidden">
                           {selectedUser.lineUserPicture ? (
                             <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-slate-50 flex items-center justify-center font-black text-2xl text-slate-300 italic uppercase">
-                              {selectedUser.lineUserName?.slice(0, 2)}
+                            <div className="w-full h-full bg-white/5 flex items-center justify-center font-black text-lg text-slate-500 italic uppercase">
+                              {selectedUser.lineUserName?.slice(0, 1)}
                             </div>
                           )}
                         </div>
                       </div>
                       <div>
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <h2 className="text-3xl font-black text-slate-900 tracking-[-0.04em] uppercase">{selectedUser.lineUserName}</h2>
-                          <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">ออนไลน์</span>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h2 className="text-lg sm:text-xl font-black text-white tracking-tight uppercase">{selectedUser.lineUserName}</h2>
+                          <div className="flex items-center gap-1.5 bg-[#06C755]/10 px-2 py-0.5 rounded-md border border-[#06C755]/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#06C755] animate-pulse" />
+                            <span className="text-[9px] font-bold text-[#06C755] uppercase tracking-wider">ONLINE</span>
                           </div>
                         </div>
-                        <p className="text-[10px] font-mono font-black text-slate-400 tracking-[0.2em] uppercase opacity-70">ID ผู้ใช้: {selectedUser.lineUserId}</p>
+                        <p className="text-[10px] font-mono font-medium text-slate-500 tracking-wider uppercase">ID: {selectedUser.lineUserId}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <IconButton
-                        variant="glass"
+                        variant="ghost"
                         size="lg"
-                        className="rounded-2xl shadow-premium-sm w-14 h-14 bg-white/50 border-white hover:bg-white"
+                        className="rounded-xl w-10 h-10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5"
                         onClick={() => fetchMessages(selectedUser.lineUserId)}
                       >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                       </IconButton>
                     </div>
                   </div>
@@ -589,72 +590,56 @@ function AdminChatContent() {
                     <div
                       ref={messagesContainerRef}
                       onScroll={handleScroll}
-                      className="h-full overflow-y-auto p-12 space-y-8 bg-slate-50/10 custom-scrollbar"
+                      className="h-full overflow-y-auto p-4 sm:p-6 bg-black/20 custom-scrollbar"
                       style={{ overscrollBehavior: 'contain' }}
                     >
-                      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
-                        style={{ backgroundImage: 'radial-gradient(#10b981 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-
                       {loadingMessages ? (
-                        <div className="flex flex-col items-center justify-center py-24 gap-6 animate-fade">
-                          <div className="w-16 h-16 rounded-full border-4 border-emerald-500/10 border-t-emerald-500 animate-spin" />
-                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] animate-pulse">กำลังโหลดข้อความ...</p>
+                        <div className="flex flex-col items-center justify-center py-24 gap-4 animate-fade">
+                          <Spinner size="lg" className="text-[#06C755]" />
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">กำลังโหลดข้อความ...</p>
                         </div>
                       ) : messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-32 opacity-20">
-                          <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-4xl mb-6">🧊</div>
-                          <p className="text-xs font-black uppercase tracking-[0.6em] text-slate-400">ไม่มีประวัติการแชท</p>
+                        <div className="flex flex-col items-center justify-center py-32 opacity-40">
+                          <EmptyState icon="🧊" title="ไม่มีประวัติการแชท" description="เริ่มการสนทนาใหม่" variant="glass" />
                         </div>
                       ) : (
-                        <div className="relative z-10 space-y-8">
+                        <div className="space-y-4 sm:space-y-6">
                           {messages.map((msg, idx) => (
                             <motion.div
                               key={msg._id}
-                              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                              initial={{ opacity: 0, y: 10, scale: 0.98 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               className={cn("flex w-full", msg.direction === 'out' ? 'justify-end' : 'justify-start')}
                             >
                               <div className={cn(
-                                "max-w-[70%] space-y-2",
+                                "max-w-[85%] sm:max-w-[80%] space-y-1 sm:space-y-2",
                                 msg.direction === 'out' ? "items-end text-right" : "items-start text-left"
                               )}>
                                 <div className={cn(
-                                  "group relative p-6 rounded-[2.8rem] transition-all duration-500",
+                                  "p-3 sm:p-4 rounded-2xl sm:rounded-3xl shadow-lg border transition-all duration-500",
                                   msg.direction === 'out'
-                                    ? "bg-slate-900 text-white rounded-br-2xl shadow-2xl shadow-slate-900/10"
-                                    : "bg-white text-slate-900 rounded-bl-2xl shadow-premium border border-slate-100 hover:border-emerald-100"
+                                    ? "bg-slate-900 text-white border-white/10 rounded-tr-sm sm:rounded-tr-none"
+                                    : "bg-white/[0.03] text-white border-white/5 rounded-tl-sm sm:rounded-tl-none backdrop-blur-md"
                                 )}>
-                                  {msg.messageType === 'image' ? (
-                                    <div className="relative group/img overflow-hidden rounded-[2rem] shadow-2xl">
-                                      {msg.messageId ? (
-                                        <img
-                                          src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
-                                          alt="Received image"
-                                          className="max-w-full rounded-[2rem] cursor-pointer hover:scale-110 transition-transform duration-1000"
-                                          onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
-                                        />
-                                      ) : (
-                                        <div className="p-10 bg-slate-100 rounded-[2rem] text-slate-400 text-xs font-black uppercase tracking-widest">[Image Data Corrupted]</div>
-                                      )}
-                                      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 transition-all duration-500 flex items-center justify-center backdrop-blur-sm">
-                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] font-mono">ขยายรูปภาพ</span>
-                                      </div>
-                                    </div>
+                                  {msg.messageType === 'image' && msg.messageId ? (
+                                    <img
+                                      src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
+                                      alt="sent image"
+                                      className="max-w-full rounded-xl sm:rounded-2xl cursor-zoom-in hover:opacity-90 transition-opacity"
+                                      onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
+                                      onLoad={() => {
+                                        if (isAtBottomRef.current) scrollToBottom();
+                                      }}
+                                    />
                                   ) : (
-                                    <p className="text-[14px] font-bold leading-relaxed tracking-tight whitespace-pre-wrap break-words">{msg.messageText}</p>
+                                    <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
                                   )}
-
                                   <div className={cn(
-                                    "flex items-center gap-3 mt-4 opacity-0 group-hover:opacity-40 transition-all duration-500",
-                                    msg.direction === 'out' ? "justify-end" : "justify-start"
+                                    "mt-2 sm:mt-3 text-[8px] sm:text-[9px] font-semibold opacity-50",
+                                    msg.direction === 'out' ? "text-[#06C755] text-right" : "text-slate-400"
                                   )}>
-                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">{formatTime(msg.createdAt)}</span>
-                                    {msg.direction === 'out' && msg.sentBy && (
-                                      <>
-                                        <div className="w-1 h-1 rounded-full bg-emerald-500" />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 italic">OP: {msg.sentBy}</span>
-                                      </>
-                                    )}
+                                    {formatTime(msg.createdAt)}
+                                    {msg.sentBy && msg.direction === 'out' && ` • ${msg.sentBy}`}
                                   </div>
                                 </div>
                               </div>
@@ -665,9 +650,9 @@ function AdminChatContent() {
                     </div>
                   </div>
 
-                  {/* Command Console (Input) */}
-                  <div className="p-10 bg-white/40 backdrop-blur-2xl border-t border-slate-100/50">
-                    <div className="relative group bg-white flex items-center p-3 pr-5 rounded-[3rem] border border-slate-100 focus-within:border-slate-900/10 focus-within:shadow-2xl transition-all shadow-premium-sm">
+                  {/* Neural Input Interface */}
+                  <div className="p-4 sm:p-6 bg-white/[0.02] border-t border-white/5 backdrop-blur-md">
+                    <div className="flex gap-3 sm:gap-4 items-end">
                       <textarea
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
@@ -678,40 +663,41 @@ function AdminChatContent() {
                           }
                         }}
                         placeholder="พิมพ์ข้อความตอบกลับ..."
-                        disabled={sending}
-                        className="flex-1 bg-transparent border-none focus:ring-0 text-[14px] font-bold text-slate-900 placeholder:text-slate-300 custom-scrollbar py-4 px-8 h-14 max-h-40 min-h-14 resize-none"
+                        className="flex-1 min-h-[48px] sm:min-h-[56px] max-h-32 sm:max-h-48 resize-none bg-white/[0.03] border-white/5 rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-white font-medium text-xs sm:text-sm focus:ring-1 focus:ring-[#06C755]/50 transition-all placeholder:text-slate-500 outline-none custom-scrollbar"
                         rows={1}
+                        disabled={sending}
                       />
                       <Button
                         variant="primary"
                         size="lg"
-                        className="rounded-[1.8rem] h-14 px-10 font-black uppercase tracking-[0.2em] text-[11px] shadow-emerald-500/20 shadow-2xl transition-all hover:scale-105 active:scale-95"
+                        className="h-12 sm:h-14 px-6 sm:px-8 rounded-xl sm:rounded-2xl bg-[#06C755] hover:bg-[#05B048] font-semibold text-xs sm:text-sm shadow-lg shadow-[#06C755]/20 hover:shadow-[#06C755]/40 transition-all"
                         onClick={handleSendMessage}
-                        disabled={sending || !newMessage.trim()}
                         isLoading={sending}
+                        disabled={sending || !newMessage.trim()}
                       >
                         ส่ง
                       </Button>
                     </div>
-                    <div className="mt-4 flex justify-between items-center px-8">
-                      <div className="flex gap-6">
-                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/30" />
-                          เชื่อมต่อปลอดภัย
-                        </p>
-                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] opacity-40">รองรับมัลติมีเดีย</p>
+                    <div className="flex items-center justify-between mt-3 px-1.5 opacity-30">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#06C755] animate-pulse" />
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">เชื่อมต่อปลอดภัย</span>
                       </div>
-                      <p className="text-[9px] font-black text-slate-200 uppercase tracking-widest italic">ระบบ AI พร้อมใช้งาน</p>
+                      <span className="text-[9px] font-mono text-slate-500 tracking-wider">ระบบ AI พร้อมใช้งาน</span>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-24 animate-in fade-in zoom-in duration-1000">
-                  <div className="w-40 h-40 bg-slate-50 rounded-[4rem] flex items-center justify-center text-6xl shadow-inner mb-10 group hover:scale-110 transition-transform duration-700">
-                    <span className="grayscale opacity-20 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700">💬</span>
+                <div className="p-8 sm:p-12 lg:p-16 flex-1 flex flex-col items-center justify-center bg-black/40">
+                  <EmptyState
+                    icon="👈"
+                    title="ยังไม่ได้เลือกผู้ใช้"
+                    description="เลือกผู้ใช้จากรายการด้านซ้ายเพื่อเริ่มการสนทนา"
+                    variant="glass"
+                  />
+                  <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/5 text-[10px] text-slate-400 max-w-xs text-center leading-relaxed">
+                    ระบบจะแสดงประวัติการแชท รูปภาพ และสถานะการอ่านแบบ Real-time
                   </div>
-                  <h4 className="text-3xl font-black text-slate-900 uppercase tracking-[0.3em] mb-4">เลือกแชทเพื่อเริ่มสนทนา</h4>
-                  <p className="text-[10px] font-black text-slate-400 text-center max-w-sm leading-loose uppercase tracking-[0.25em]">เลือกรายชื่อผู้ใช้จากรายการด้านซ้ายเพื่อเริ่มการสนทนา</p>
                 </div>
               )}
             </Card>
@@ -735,7 +721,7 @@ function AdminChatContent() {
           background: rgba(16, 185, 129, 0.2);
         }
       `}</style>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
 
