@@ -134,15 +134,56 @@ export class WalletService {
 
                 // Check if receiver account matches configured bank accounts
                 const receiverAccount = result.data.receiverAccountNumber || result.data.receiverAccount || '';
-                const receiverAccountNorm = receiverAccount.replace(/[-\s]/g, '').trim();
+                const receiverAccountNorm = receiverAccount.replace(/[-\s]/g, '').toLowerCase().trim();
 
                 // Log for debugging
                 this.logger.log(`Deposit verification - Receiver account from slip: "${receiverAccount}" (normalized: "${receiverAccountNorm}")`);
                 this.logger.log(`Configured bank accounts: ${JSON.stringify(bankAccounts.map((a: any) => a.accountNumber))}`);
 
-                // Flexible matching: exact, contains, or last 6 digits match
+                // Helper function to match masked account (e.g., "12xxxx3456" vs "1234567890")
+                const matchMaskedAccount = (masked: string, full: string): boolean => {
+                    // Remove non-alphanumeric except x
+                    const maskedClean = masked.replace(/[-\s]/g, '').toLowerCase();
+                    const fullClean = full.replace(/[-\s]/g, '').toLowerCase();
+
+                    // Compare each character, ignoring 'x' in masked
+                    let maskedIdx = 0;
+                    let fullIdx = 0;
+                    let unmatchedFull = false;
+
+                    // Try position-based matching first
+                    if (maskedClean.length === fullClean.length) {
+                        let allMatch = true;
+                        for (let i = 0; i < maskedClean.length; i++) {
+                            if (maskedClean[i] !== 'x' && maskedClean[i] !== fullClean[i]) {
+                                allMatch = false;
+                                break;
+                            }
+                        }
+                        if (allMatch) return true;
+                    }
+
+                    // Extract visible digits from masked (non-x characters)
+                    const maskedVisible = maskedClean.replace(/x/g, '');
+
+                    // Common pattern: first 2 + last 4 digits (12xxxx3456 -> 12, 3456)
+                    if (maskedClean.includes('x') && maskedVisible.length >= 4) {
+                        // Get first and last chunks of visible digits
+                        const firstDigits = maskedClean.match(/^[^x]+/)?.[0] || '';
+                        const lastDigits = maskedClean.match(/[^x]+$/)?.[0] || '';
+
+                        if (firstDigits && fullClean.startsWith(firstDigits) &&
+                            lastDigits && fullClean.endsWith(lastDigits)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                };
+
+                // Flexible matching: exact, masked, contains, or last digits match
                 const matchedAccount = bankAccounts.find((acc: any) => {
-                    const configuredNorm = (acc.accountNumber || '').replace(/[-\s]/g, '').trim();
+                    const configuredNorm = (acc.accountNumber || '').replace(/[-\s]/g, '').toLowerCase().trim();
 
                     // Exact match
                     if (configuredNorm === receiverAccountNorm) {
@@ -150,18 +191,29 @@ export class WalletService {
                         return true;
                     }
 
-                    // Contains match (slip may have partial account number)
+                    // Masked account match (Thunder API returns masked like "12xxxx3456")
+                    if (receiverAccountNorm.includes('x') && matchMaskedAccount(receiverAccountNorm, configuredNorm)) {
+                        this.logger.log(`Account matched via masked pattern: "${receiverAccountNorm}" -> "${configuredNorm}"`);
+                        return true;
+                    }
+
+                    // Contains match (slip may have partial account number)  
                     if (configuredNorm.includes(receiverAccountNorm) || receiverAccountNorm.includes(configuredNorm)) {
                         this.logger.log(`Account matched by contains: configured="${configuredNorm}", received="${receiverAccountNorm}"`);
                         return true;
                     }
 
-                    // Last 6 digits match (common in slip parsing)
-                    const configLast6 = configuredNorm.slice(-6);
-                    const receiverLast6 = receiverAccountNorm.slice(-6);
-                    if (configLast6.length >= 6 && receiverLast6.length >= 6 && configLast6 === receiverLast6) {
-                        this.logger.log(`Account matched by last 6 digits: ${configLast6}`);
-                        return true;
+                    // Last 4 digits match (most reliable for masked accounts)
+                    const configLast4 = configuredNorm.slice(-4);
+                    const receiverLast4 = receiverAccountNorm.replace(/x/g, '').slice(-4);
+                    if (configLast4.length >= 4 && receiverLast4.length >= 4 && configLast4 === receiverLast4) {
+                        // Also check first 2 if available
+                        const configFirst2 = configuredNorm.slice(0, 2);
+                        const receiverFirst2 = receiverAccountNorm.replace(/x/g, '').slice(0, 2);
+                        if (receiverFirst2.length < 2 || configFirst2 === receiverFirst2) {
+                            this.logger.log(`Account matched by first/last digits: first=${configFirst2}, last=${configLast4}`);
+                            return true;
+                        }
                     }
 
                     return false;
