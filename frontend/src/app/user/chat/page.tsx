@@ -221,7 +221,7 @@ function UserChatContent() {
     return scrollHeight - scrollTop - clientHeight < 100;
   }, []);
 
-  // Handle scroll event
+  // Handle scroll event - update isAtBottom state
   const handleScroll = useCallback(() => {
     const atBottom = checkIfAtBottom();
     isAtBottomRef.current = atBottom;
@@ -240,9 +240,20 @@ function UserChatContent() {
     }
   }, []);
 
-  // Smart scroll: only auto-scroll if user is at bottom, otherwise show badge
+  // Smart scroll: detect truly new messages by comparing last message ID
   useLayoutEffect(() => {
-    if (messages.length > prevMessageCountRef.current) {
+    if (messages.length === 0) {
+      prevMessageCountRef.current = 0;
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageId = lastMessage?._id || '';
+    const prevCount = prevMessageCountRef.current;
+
+    // Check if this is a truly new message (not just a refresh)
+    // New message = count increased AND it's not just initial load
+    if (messages.length > prevCount && prevCount > 0) {
       // New messages arrived
       if (isAtBottomRef.current) {
         // User was at bottom, scroll to new messages
@@ -252,16 +263,21 @@ function UserChatContent() {
         setHasNewMessage(true);
       }
     }
+    // Update the count for next comparison
     prevMessageCountRef.current = messages.length;
   }, [messages, scrollToBottom]);
 
-  // Initial scroll to bottom when first loading messages
+  // Initial scroll to bottom ONLY when first switching to a new user
+  const prevSelectedUserRef = useRef<string | null>(null);
   useLayoutEffect(() => {
-    if (!loadingMessages && messages.length > 0) {
+    const currentUserId = selectedUser?.lineUserId || null;
+
+    // Only scroll on initial load for a NEW user (different from previous)
+    if (!loadingMessages && messages.length > 0 && currentUserId !== prevSelectedUserRef.current) {
       scrollToBottom();
+      prevSelectedUserRef.current = currentUserId;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMessages, selectedUser]);
+  }, [loadingMessages, selectedUser, messages.length, scrollToBottom]);
 
   const handleSendMessage = async () => {
     if (!activeAccountId || !selectedUser || !newMessage.trim() || sending) return;

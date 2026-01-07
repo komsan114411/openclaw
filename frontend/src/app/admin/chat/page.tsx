@@ -229,7 +229,7 @@ function AdminChatContent() {
     return scrollHeight - scrollTop - clientHeight < 100;
   }, []);
 
-  // Handle scroll event
+  // Handle scroll event - update isAtBottom state
   const handleScroll = useCallback(() => {
     const atBottom = checkIfAtBottom();
     isAtBottomRef.current = atBottom;
@@ -247,9 +247,17 @@ function AdminChatContent() {
     }
   }, []);
 
-  // Smart scroll: only auto-scroll if user is at bottom
+  // Smart scroll: detect truly new messages
   useLayoutEffect(() => {
-    if (messages.length > prevMessageCountRef.current) {
+    if (messages.length === 0) {
+      prevMessageCountRef.current = 0;
+      return;
+    }
+
+    const prevCount = prevMessageCountRef.current;
+
+    // Check if this is a truly new message (count increased AND not initial load)
+    if (messages.length > prevCount && prevCount > 0) {
       if (isAtBottomRef.current) {
         scrollToBottom();
       } else {
@@ -259,13 +267,16 @@ function AdminChatContent() {
     prevMessageCountRef.current = messages.length;
   }, [messages, scrollToBottom]);
 
-  // Initial scroll to bottom when first loading messages
+  // Initial scroll to bottom ONLY when first switching to a new user
+  const prevSelectedUserRef = useRef<string | null>(null);
   useLayoutEffect(() => {
-    if (!loadingMessages && messages.length > 0) {
+    const currentUserId = selectedUser?.lineUserId || null;
+
+    if (!loadingMessages && messages.length > 0 && currentUserId !== prevSelectedUserRef.current) {
       scrollToBottom();
+      prevSelectedUserRef.current = currentUserId;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMessages, selectedUser]);
+  }, [loadingMessages, selectedUser, messages.length, scrollToBottom]);
 
   const handleSelectAccount = (id: string) => {
     setSelectedAccountId(id);
