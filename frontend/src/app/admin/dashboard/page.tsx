@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                     {/* Meta Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
                       <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
-                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิตคงเหลือ</p>
+                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิต Thunder API</p>
                         <p className="text-2xl md:text-3xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
                       </div>
                       <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
