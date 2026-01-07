@@ -414,3 +414,26 @@ export const systemResponseTemplatesApi = {
   preview: (type: string, variables?: Record<string, string>) =>
     api.post(`/admin/system-response-templates/${type}/preview`, { variables }),
 };
+
+// Wallet API (Credit System)
+export const walletApi = {
+  // User endpoints
+  getBalance: () => api.get('/wallet/balance'),
+  getTransactions: (limit?: number, offset?: number) =>
+    api.get('/wallet/transactions', { params: { limit, offset } }),
+  deposit: (slipImage: string) =>
+    api.post('/wallet/deposit', { slipImage }),
+
+  // Admin endpoints
+  getAllTransactions: (params?: { limit?: number; offset?: number; type?: string; status?: string }) =>
+    api.get('/wallet/admin/transactions', { params }),
+  getStatistics: () => api.get('/wallet/admin/statistics'),
+  getUserBalance: (userId: string) => api.get(`/wallet/admin/user/${userId}/balance`),
+  getUserTransactions: (userId: string, limit?: number, offset?: number) =>
+    api.get(`/wallet/admin/user/${userId}/transactions`, { params: { limit, offset } }),
+  addCredits: (userId: string, amount: number, description: string) =>
+    api.post(`/wallet/admin/user/${userId}/add-credits`, { amount, description }),
+  deductCredits: (userId: string, amount: number, description: string) =>
+    api.post(`/wallet/admin/user/${userId}/deduct-credits`, { amount, description }),
+};
+
