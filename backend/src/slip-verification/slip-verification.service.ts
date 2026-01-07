@@ -755,12 +755,13 @@ export class SlipVerificationService {
               text: '⚠️',
               size: 'xxl',
               flex: 0,
+              gravity: 'center',
             },
             {
               type: 'box',
               layout: 'vertical',
               flex: 1,
-              paddingStart: 'md',
+              margin: 'md',
               contents: [
                 {
                   type: 'text',
