@@ -78,6 +78,13 @@ export class SystemSettingsController {
       safeSettings.previewSenderBankCode = settings.previewSenderBankCode || '004';
       safeSettings.previewReceiverBankCode = settings.previewReceiverBankCode || '014';
       safeSettings.previewAmount = settings.previewAmount || '1,000.00';
+      // Rate Limiter settings
+      safeSettings.webhookRateLimitEnabled = settings.webhookRateLimitEnabled ?? true;
+      safeSettings.webhookRateLimitPerAccountPerSecond = settings.webhookRateLimitPerAccountPerSecond ?? 10;
+      safeSettings.webhookRateLimitPerAccountPerMinute = settings.webhookRateLimitPerAccountPerMinute ?? 100;
+      safeSettings.webhookRateLimitGlobalPerSecond = settings.webhookRateLimitGlobalPerSecond ?? 100;
+      safeSettings.webhookRateLimitGlobalPerMinute = settings.webhookRateLimitGlobalPerMinute ?? 1000;
+      safeSettings.webhookRateLimitMessage = settings.webhookRateLimitMessage || 'Too many requests, please try again later';
     }
 
     return {

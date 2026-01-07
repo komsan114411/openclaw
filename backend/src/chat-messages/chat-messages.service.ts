@@ -43,7 +43,7 @@ export class ChatMessagesService {
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
     private websocketGateway: WebsocketGateway,
-  ) {}
+  ) { }
 
   /**
    * Ensure the current user can access a LINE account (admin or owner).
@@ -181,8 +181,10 @@ export class ChatMessagesService {
       {
         $group: {
           _id: '$lineUserId',
-          lineUserName: { $first: '$lineUserName' },
-          lineUserPicture: { $first: '$lineUserPicture' },
+          // Collect all names and pictures to find the latest non-null one
+          names: { $push: '$lineUserName' },
+          pictures: { $push: '$lineUserPicture' },
+
           lastMessage: { $first: '$messageText' },
           lastMessageTime: { $first: '$createdAt' },
           lastDirection: { $first: '$direction' },
@@ -193,6 +195,24 @@ export class ChatMessagesService {
                 1,
                 0,
               ],
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          lineUserName: {
+            $reduce: {
+              input: '$names',
+              initialValue: null,
+              in: { $ifNull: ['$$value', '$$this'] },
+            },
+          },
+          lineUserPicture: {
+            $reduce: {
+              input: '$pictures',
+              initialValue: null,
+              in: { $ifNull: ['$$value', '$$this'] },
             },
           },
         },

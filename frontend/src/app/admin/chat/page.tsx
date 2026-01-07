@@ -152,11 +152,23 @@ function AdminChatContent() {
       }
     });
 
+    const handleConnect = () => {
+      console.log('Admin socket connected/reconnected');
+      socket.emit('subscribe_chat', { lineAccountId: selectedAccountId });
+    };
+
+    socket.on('connect', handleConnect);
     socket.on('disconnect', () => {
       console.log('Admin socket disconnected');
     });
 
+    // Initial subscription (in case socket was already connected)
+    if (socket.connected) {
+      handleConnect();
+    }
+
     return () => {
+      socket.off('connect', handleConnect);
       socket.emit('unsubscribe_chat', { lineAccountId: selectedAccountId });
       socket.disconnect();
     };
