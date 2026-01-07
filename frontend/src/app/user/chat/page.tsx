@@ -56,6 +56,9 @@ function UserChatContent() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isAtBottomRef = useRef<boolean>(true);
+  const prevMessageCountRef = useRef<number>(0);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
 
   // Fetch all LINE accounts on mount
   useEffect(() => {
@@ -210,12 +213,55 @@ function UserChatContent() {
     }
   }, [selectedUser, fetchMessages]);
 
-  // Auto scroll to bottom when messages change
-  useLayoutEffect(() => {
+  // Check if user is at bottom of scroll
+  const checkIfAtBottom = useCallback(() => {
+    if (!messagesContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    // Consider "at bottom" if within 100px of bottom
+    return scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  // Handle scroll event
+  const handleScroll = useCallback(() => {
+    const atBottom = checkIfAtBottom();
+    isAtBottomRef.current = atBottom;
+    // Clear new message badge if user scrolled to bottom
+    if (atBottom && hasNewMessage) {
+      setHasNewMessage(false);
+    }
+  }, [checkIfAtBottom, hasNewMessage]);
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      setHasNewMessage(false);
+      isAtBottomRef.current = true;
     }
-  }, [messages, loadingMessages]);
+  }, []);
+
+  // Smart scroll: only auto-scroll if user is at bottom, otherwise show badge
+  useLayoutEffect(() => {
+    if (messages.length > prevMessageCountRef.current) {
+      // New messages arrived
+      if (isAtBottomRef.current) {
+        // User was at bottom, scroll to new messages
+        scrollToBottom();
+      } else {
+        // User was reading history, show badge
+        setHasNewMessage(true);
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages, scrollToBottom]);
+
+  // Initial scroll to bottom when first loading messages
+  useLayoutEffect(() => {
+    if (!loadingMessages && messages.length > 0) {
+      scrollToBottom();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingMessages, selectedUser]);
 
   const handleSendMessage = async () => {
     if (!activeAccountId || !selectedUser || !newMessage.trim() || sending) return;
@@ -559,65 +605,86 @@ function UserChatContent() {
                   </IconButton>
                 </div>
 
-                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 bg-black/20" style={{ overscrollBehavior: 'contain' }}>
-                  {loadingMessages ? (
-                    <div className="py-16 sm:py-24 flex flex-col items-center gap-3 sm:gap-4">
-                      <Spinner size="lg" />
-                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">กำลังโหลดข้อความ...</p>
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="py-16 sm:py-24 opacity-60">
-                      <EmptyState icon="🧊" title="ยังไม่มีข้อความ" description="ยังไม่มีข้อความในแชทนี้" variant="glass" />
-                    </div>
-                  ) : (
-                    <div className="space-y-4 sm:space-y-6">
-                      {messages.map((msg) => {
-                        const isOut = msg.direction === 'out';
-                        const imageUrl =
-                          msg.messageType === 'image' && msg.messageId
-                            ? chatMessagesApi.getImage(activeAccountId, msg.messageId)
-                            : null;
+                {/* Chat messages area with new message badge */}
+                <div className="flex-1 overflow-hidden relative">
+                  {/* New message badge */}
+                  {hasNewMessage && (
+                    <button
+                      onClick={scrollToBottom}
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-[#06C755] text-white text-xs font-bold rounded-full shadow-lg shadow-[#06C755]/30 hover:bg-[#05a347] transition-all animate-bounce flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                      ข้อความใหม่
+                    </button>
+                  )}
 
-                        return (
-                          <div key={msg._id} className={cn('flex', isOut ? 'justify-end' : 'justify-start')}>
-                            <div className={cn('max-w-[85%] sm:max-w-[80%] space-y-1 sm:space-y-2', isOut ? 'items-end' : 'items-start')}>
-                              <div className={cn(
-                                'p-3 sm:p-4 rounded-2xl sm:rounded-3xl shadow-lg border transition-all duration-500',
-                                isOut
-                                  ? 'bg-slate-900 text-white border-white/10 rounded-tr-sm sm:rounded-tr-none'
-                                  : 'bg-white/[0.03] text-white border-white/5 rounded-tl-sm sm:rounded-tl-none backdrop-blur-md'
-                              )}>
-                                {msg.messageType === 'image' ? (
-                                  imageUrl ? (
-                                    <img
-                                      src={imageUrl}
-                                      alt="LINE image"
-                                      className="max-w-full rounded-xl sm:rounded-2xl cursor-zoom-in"
-                                      onClick={() => window.open(imageUrl, '_blank')}
-                                    />
-                                  ) : (
-                                    <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[รูปภาพ]</p>
-                                  )
-                                ) : msg.messageType === 'sticker' ? (
-                                  <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[สติกเกอร์]</p>
-                                ) : (
-                                  <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
-                                )}
+                  <div
+                    ref={messagesContainerRef}
+                    onScroll={handleScroll}
+                    className="h-full overflow-y-auto p-4 sm:p-6 bg-black/20"
+                    style={{ overscrollBehavior: 'contain' }}
+                  >
+                    {loadingMessages ? (
+                      <div className="py-16 sm:py-24 flex flex-col items-center gap-3 sm:gap-4">
+                        <Spinner size="lg" />
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">กำลังโหลดข้อความ...</p>
+                      </div>
+                    ) : messages.length === 0 ? (
+                      <div className="py-16 sm:py-24 opacity-60">
+                        <EmptyState icon="🧊" title="ยังไม่มีข้อความ" description="ยังไม่มีข้อความในแชทนี้" variant="glass" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4 sm:space-y-6">
+                        {messages.map((msg) => {
+                          const isOut = msg.direction === 'out';
+                          const imageUrl =
+                            msg.messageType === 'image' && msg.messageId
+                              ? chatMessagesApi.getImage(activeAccountId, msg.messageId)
+                              : null;
 
+                          return (
+                            <div key={msg._id} className={cn('flex', isOut ? 'justify-end' : 'justify-start')}>
+                              <div className={cn('max-w-[85%] sm:max-w-[80%] space-y-1 sm:space-y-2', isOut ? 'items-end' : 'items-start')}>
                                 <div className={cn(
-                                  'mt-2 sm:mt-3 text-[8px] sm:text-[9px] font-semibold opacity-50',
-                                  isOut ? 'text-[#06C755] text-right' : 'text-slate-400'
+                                  'p-3 sm:p-4 rounded-2xl sm:rounded-3xl shadow-lg border transition-all duration-500',
+                                  isOut
+                                    ? 'bg-slate-900 text-white border-white/10 rounded-tr-sm sm:rounded-tr-none'
+                                    : 'bg-white/[0.03] text-white border-white/5 rounded-tl-sm sm:rounded-tl-none backdrop-blur-md'
                                 )}>
-                                  {formatTime(msg.createdAt)}{isOut && msg.sentBy ? ` • ${msg.sentBy}` : ''}
+                                  {msg.messageType === 'image' ? (
+                                    imageUrl ? (
+                                      <img
+                                        src={imageUrl}
+                                        alt="LINE image"
+                                        className="max-w-full rounded-xl sm:rounded-2xl cursor-zoom-in"
+                                        onClick={() => window.open(imageUrl, '_blank')}
+                                      />
+                                    ) : (
+                                      <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[รูปภาพ]</p>
+                                    )
+                                  ) : msg.messageType === 'sticker' ? (
+                                    <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[สติกเกอร์]</p>
+                                  ) : (
+                                    <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
+                                  )}
+
+                                  <div className={cn(
+                                    'mt-2 sm:mt-3 text-[8px] sm:text-[9px] font-semibold opacity-50',
+                                    isOut ? 'text-[#06C755] text-right' : 'text-slate-400'
+                                  )}>
+                                    {formatTime(msg.createdAt)}{isOut && msg.sentBy ? ` • ${msg.sentBy}` : ''}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  )}
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-4 sm:p-6 bg-white/[0.02] border-t border-white/5">

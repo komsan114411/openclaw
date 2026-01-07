@@ -55,6 +55,9 @@ function AdminChatContent() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isAtBottomRef = useRef<boolean>(true);
+  const prevMessageCountRef = useRef<number>(0);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
 
   // Real-time WebSocket connection
   useEffect(() => {
@@ -219,12 +222,50 @@ function AdminChatContent() {
     };
   }, [selectedUser, fetchMessages]);
 
-  // Auto scroll to bottom when messages change
-  useLayoutEffect(() => {
+  // Check if user is at bottom of scroll
+  const checkIfAtBottom = useCallback(() => {
+    if (!messagesContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  // Handle scroll event
+  const handleScroll = useCallback(() => {
+    const atBottom = checkIfAtBottom();
+    isAtBottomRef.current = atBottom;
+    if (atBottom && hasNewMessage) {
+      setHasNewMessage(false);
+    }
+  }, [checkIfAtBottom, hasNewMessage]);
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      setHasNewMessage(false);
+      isAtBottomRef.current = true;
     }
-  }, [messages, loadingMessages]);
+  }, []);
+
+  // Smart scroll: only auto-scroll if user is at bottom
+  useLayoutEffect(() => {
+    if (messages.length > prevMessageCountRef.current) {
+      if (isAtBottomRef.current) {
+        scrollToBottom();
+      } else {
+        setHasNewMessage(true);
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages, scrollToBottom]);
+
+  // Initial scroll to bottom when first loading messages
+  useLayoutEffect(() => {
+    if (!loadingMessages && messages.length > 0) {
+      scrollToBottom();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingMessages, selectedUser]);
 
   const handleSelectAccount = (id: string) => {
     setSelectedAccountId(id);
@@ -471,81 +512,98 @@ function AdminChatContent() {
                     </div>
                   </div>
 
-                  {/* Downlink Feed */}
-                  <div
-                    ref={messagesContainerRef}
-                    className="flex-1 overflow-y-auto p-12 space-y-8 bg-slate-50/10 custom-scrollbar relative"
-                  >
-                    <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
-                      style={{ backgroundImage: 'radial-gradient(#10b981 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+                  {/* Downlink Feed with new message badge */}
+                  <div className="flex-1 overflow-hidden relative">
+                    {/* New message badge */}
+                    {hasNewMessage && (
+                      <button
+                        onClick={scrollToBottom}
+                        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-[#06C755] text-white text-xs font-bold rounded-full shadow-lg shadow-[#06C755]/30 hover:bg-[#05a347] transition-all animate-bounce flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        ข้อความใหม่
+                      </button>
+                    )}
 
-                    {loadingMessages ? (
-                      <div className="flex flex-col items-center justify-center py-24 gap-6 animate-fade">
-                        <div className="w-16 h-16 rounded-full border-4 border-emerald-500/10 border-t-emerald-500 animate-spin" />
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] animate-pulse">กำลังโหลดข้อความ...</p>
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-32 opacity-20">
-                        <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-4xl mb-6">🧊</div>
-                        <p className="text-xs font-black uppercase tracking-[0.6em] text-slate-400">ไม่มีประวัติการแชท</p>
-                      </div>
-                    ) : (
-                      <div className="relative z-10 space-y-8">
-                        {messages.map((msg, idx) => (
-                          <motion.div
-                            key={msg._id}
-                            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            className={cn("flex w-full", msg.direction === 'out' ? 'justify-end' : 'justify-start')}
-                          >
-                            <div className={cn(
-                              "max-w-[70%] space-y-2",
-                              msg.direction === 'out' ? "items-end text-right" : "items-start text-left"
-                            )}>
+                    <div
+                      ref={messagesContainerRef}
+                      onScroll={handleScroll}
+                      className="h-full overflow-y-auto p-12 space-y-8 bg-slate-50/10 custom-scrollbar"
+                      style={{ overscrollBehavior: 'contain' }}
+                    >
+                      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
+                        style={{ backgroundImage: 'radial-gradient(#10b981 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+                      {loadingMessages ? (
+                        <div className="flex flex-col items-center justify-center py-24 gap-6 animate-fade">
+                          <div className="w-16 h-16 rounded-full border-4 border-emerald-500/10 border-t-emerald-500 animate-spin" />
+                          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] animate-pulse">กำลังโหลดข้อความ...</p>
+                        </div>
+                      ) : messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-32 opacity-20">
+                          <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 flex items-center justify-center text-4xl mb-6">🧊</div>
+                          <p className="text-xs font-black uppercase tracking-[0.6em] text-slate-400">ไม่มีประวัติการแชท</p>
+                        </div>
+                      ) : (
+                        <div className="relative z-10 space-y-8">
+                          {messages.map((msg, idx) => (
+                            <motion.div
+                              key={msg._id}
+                              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              className={cn("flex w-full", msg.direction === 'out' ? 'justify-end' : 'justify-start')}
+                            >
                               <div className={cn(
-                                "group relative p-6 rounded-[2.8rem] transition-all duration-500",
-                                msg.direction === 'out'
-                                  ? "bg-slate-900 text-white rounded-br-2xl shadow-2xl shadow-slate-900/10"
-                                  : "bg-white text-slate-900 rounded-bl-2xl shadow-premium border border-slate-100 hover:border-emerald-100"
+                                "max-w-[70%] space-y-2",
+                                msg.direction === 'out' ? "items-end text-right" : "items-start text-left"
                               )}>
-                                {msg.messageType === 'image' ? (
-                                  <div className="relative group/img overflow-hidden rounded-[2rem] shadow-2xl">
-                                    {msg.messageId ? (
-                                      <img
-                                        src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
-                                        alt="Received image"
-                                        className="max-w-full rounded-[2rem] cursor-pointer hover:scale-110 transition-transform duration-1000"
-                                        onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
-                                      />
-                                    ) : (
-                                      <div className="p-10 bg-slate-100 rounded-[2rem] text-slate-400 text-xs font-black uppercase tracking-widest">[Image Data Corrupted]</div>
-                                    )}
-                                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 transition-all duration-500 flex items-center justify-center backdrop-blur-sm">
-                                      <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] font-mono">ขยายรูปภาพ</span>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <p className="text-[14px] font-bold leading-relaxed tracking-tight whitespace-pre-wrap break-words">{msg.messageText}</p>
-                                )}
-
                                 <div className={cn(
-                                  "flex items-center gap-3 mt-4 opacity-0 group-hover:opacity-40 transition-all duration-500",
-                                  msg.direction === 'out' ? "justify-end" : "justify-start"
+                                  "group relative p-6 rounded-[2.8rem] transition-all duration-500",
+                                  msg.direction === 'out'
+                                    ? "bg-slate-900 text-white rounded-br-2xl shadow-2xl shadow-slate-900/10"
+                                    : "bg-white text-slate-900 rounded-bl-2xl shadow-premium border border-slate-100 hover:border-emerald-100"
                                 )}>
-                                  <span className="text-[9px] font-black uppercase tracking-[0.2em]">{formatTime(msg.createdAt)}</span>
-                                  {msg.direction === 'out' && msg.sentBy && (
-                                    <>
-                                      <div className="w-1 h-1 rounded-full bg-emerald-500" />
-                                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 italic">OP: {msg.sentBy}</span>
-                                    </>
+                                  {msg.messageType === 'image' ? (
+                                    <div className="relative group/img overflow-hidden rounded-[2rem] shadow-2xl">
+                                      {msg.messageId ? (
+                                        <img
+                                          src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
+                                          alt="Received image"
+                                          className="max-w-full rounded-[2rem] cursor-pointer hover:scale-110 transition-transform duration-1000"
+                                          onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
+                                        />
+                                      ) : (
+                                        <div className="p-10 bg-slate-100 rounded-[2rem] text-slate-400 text-xs font-black uppercase tracking-widest">[Image Data Corrupted]</div>
+                                      )}
+                                      <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/img:opacity-100 transition-all duration-500 flex items-center justify-center backdrop-blur-sm">
+                                        <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] font-mono">ขยายรูปภาพ</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="text-[14px] font-bold leading-relaxed tracking-tight whitespace-pre-wrap break-words">{msg.messageText}</p>
                                   )}
+
+                                  <div className={cn(
+                                    "flex items-center gap-3 mt-4 opacity-0 group-hover:opacity-40 transition-all duration-500",
+                                    msg.direction === 'out' ? "justify-end" : "justify-start"
+                                  )}>
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em]">{formatTime(msg.createdAt)}</span>
+                                    {msg.direction === 'out' && msg.sentBy && (
+                                      <>
+                                        <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500 italic">OP: {msg.sentBy}</span>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Command Console (Input) */}
