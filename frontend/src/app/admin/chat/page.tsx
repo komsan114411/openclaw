@@ -207,20 +207,19 @@ function AdminChatContent() {
     setMessages([]);
   }, [selectedAccountId, fetchUsers]);
 
+  // Fetch messages ONCE when selecting a user (no polling)
   useEffect(() => {
     if (selectedUser) {
       fetchMessages(selectedUser.lineUserId);
 
-      // Start polling for real-time updates
-      if (pollingRef.current) clearInterval(pollingRef.current);
-      pollingRef.current = setInterval(() => {
-        fetchMessages(selectedUser.lineUserId);
-      }, 5000); // Poll every 5 seconds
+      // Reset scroll state for new user
+      isInitialLoadRef.current = true;
+      lastMessageIdRef.current = '';
+      setHasNewMessage(false);
+    } else {
+      setMessages([]);
     }
-
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    // NO POLLING - WebSocket handles real-time updates
   }, [selectedUser, fetchMessages]);
 
   // Check if user is at bottom of scroll
