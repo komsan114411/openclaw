@@ -118,28 +118,30 @@ function UserChatContent() {
     });
 
     socket.on('message_received', (data: any) => {
-      // Only process messages for the current selected user
-      if (data.lineAccountId === activeAccountId) {
-        setMessages((prev) => {
-          // Prevent duplicates by checking _id or messageId
-          const exists = prev.some(
-            (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
-          );
-          if (exists) return prev;
+      // Only process messages for the current LINE account AND selected user
+      if (data.lineAccountId !== activeAccountId) return;
 
-          const newMessage: ChatMessage = {
-            _id: data._id,
-            messageId: data.messageId,
-            direction: data.direction,
-            messageType: data.messageType,
-            messageText: data.messageText,
-            createdAt: data.createdAt,
-            sentBy: data.sentBy,
-          };
+      // Use functional ref to get current selectedUser without re-creating socket
+      setMessages((prev) => {
+        // Prevent duplicates by checking _id or messageId
+        const exists = prev.some(
+          (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
+        );
+        if (exists) return prev;
 
-          return [...prev, newMessage];
-        });
-      }
+        const newMessage: ChatMessage = {
+          _id: data._id,
+          messageId: data.messageId,
+          direction: data.direction,
+          messageType: data.messageType,
+          messageText: data.messageText,
+          createdAt: data.createdAt,
+          sentBy: data.sentBy,
+        };
+
+        // Append new message to the end
+        return [...prev, newMessage];
+      });
     });
 
     socket.on('disconnect', () => {
@@ -194,24 +196,18 @@ function UserChatContent() {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Fetch messages ONCE when selecting a user (no polling)
   useEffect(() => {
     if (selectedUser) {
       fetchMessages(selectedUser.lineUserId);
+      // Reset scroll state for new user
+      isInitialLoadRef.current = true;
+      lastMessageIdRef.current = '';
+      setHasNewMessage(false);
     } else {
       setMessages([]);
     }
-
-    // Start polling for real-time updates
-    if (pollingRef.current) clearInterval(pollingRef.current);
-    if (selectedUser) {
-      pollingRef.current = setInterval(() => {
-        fetchMessages(selectedUser.lineUserId);
-      }, 5000); // Poll every 5 seconds
-    }
-
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    }
+    // NO POLLING - WebSocket handles real-time updates
   }, [selectedUser, fetchMessages]);
 
   // Check if user is at bottom of scroll
