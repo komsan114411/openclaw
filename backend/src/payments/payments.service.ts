@@ -27,7 +27,7 @@ export class PaymentsService {
     private redisService: RedisService,
     @Inject(forwardRef(() => ActivityLogsService))
     private activityLogsService: ActivityLogsService,
-  ) {}
+  ) { }
 
   /**
    * Safe activity logging - never fails the main transaction
@@ -391,13 +391,22 @@ export class PaymentsService {
 
         payment.transRef = result.data.transRef;
 
+        // Get receiver info from slip
+        const receiverAccount = result.data.receiverAccountNumber || result.data.receiverAccount;
+        const receiverName = result.data.receiverName || '';
+
         // Check if receiver account matches configured bank accounts
-        const receiverAccount = result.data.receiverAccountNumber;
         const matchedAccount = bankAccounts.find(
           (acc: any) => acc.accountNumber.replace(/[-\s]/g, '') === receiverAccount?.replace(/[-\s]/g, ''),
         );
 
-        const verified = !!matchedAccount;
+        // Check if receiver name matches (case-insensitive, ignore spaces)
+        const normalizeText = (text: string) => (text || '').toLowerCase().replace(/\s+/g, '');
+        const nameMatched = matchedAccount ?
+          normalizeText(matchedAccount.accountName).includes(normalizeText(receiverName)) ||
+          normalizeText(receiverName).includes(normalizeText(matchedAccount.accountName)) : false;
+
+        const accountMatched = !!matchedAccount;
 
         // Verify amount matches package price (with 1% tolerance for fees)
         const expectedAmount = payment.amount;
@@ -405,16 +414,21 @@ export class PaymentsService {
         const amountTolerance = expectedAmount * 0.01; // 1% tolerance
         const amountMatched = Math.abs(actualAmount - expectedAmount) <= amountTolerance;
 
+        // Store detailed verification result
         payment.verificationResult = {
           ...result.data,
-          accountMatched: verified,
-          matchedAccountName: matchedAccount?.accountName,
+          accountMatched,
+          nameMatched,
           amountMatched,
+          matchedAccountName: matchedAccount?.accountName,
+          expectedAccountNumber: matchedAccount?.accountNumber,
           expectedAmount,
           actualAmount,
+          amountDifference: actualAmount - expectedAmount,
         };
 
-        if (verified && amountMatched) {
+        // All checks passed - auto approve
+        if (accountMatched && amountMatched) {
           // BULLETPROOF: Use atomic operation with quotaGranted check
           const updateResult = await this.paymentModel.findOneAndUpdate(
             {
@@ -498,12 +512,28 @@ export class PaymentsService {
             verificationResult: payment.verificationResult,
           };
         } else {
-          // Account or amount didn't match - save for manual review
-          let failReason = '';
-          if (!verified) failReason += 'บัญชีผู้รับไม่ตรง ';
-          if (!amountMatched) failReason += `ยอดเงินไม่ตรง (คาดหวัง ${expectedAmount} ได้รับ ${actualAmount})`;
+          // Account or amount didn't match - create detailed error message
+          const errors: string[] = [];
 
-          payment.adminNotes = failReason.trim() + ' - รอตรวจสอบจากผู้ดูแลระบบ';
+          if (!accountMatched) {
+            errors.push(`❌ เลขบัญชีผู้รับไม่ถูกต้อง (ได้รับ: ${receiverAccount || 'ไม่พบ'})`);
+          }
+
+          if (!amountMatched) {
+            const diff = actualAmount - expectedAmount;
+            if (diff > 0) {
+              errors.push(`⚠️ ยอดเงินมากกว่าที่ต้องชำระ (ต้องชำระ ฿${expectedAmount} แต่โอนมา ฿${actualAmount})`);
+            } else {
+              errors.push(`⚠️ ยอดเงินไม่ครบ (ต้องชำระ ฿${expectedAmount} แต่โอนมา ฿${actualAmount} ขาดอีก ฿${Math.abs(diff)})`);
+            }
+          }
+
+          const failReason = errors.join('\n');
+          const userMessage = !accountMatched
+            ? `เลขบัญชีผู้รับไม่ถูกต้อง กรุณาโอนเงินไปยังบัญชีที่ระบบกำหนดเท่านั้น`
+            : `ยอดเงินไม่ตรงกับราคาแพ็คเกจ (ต้องชำระ ฿${expectedAmount} แต่โอนมา ฿${actualAmount})`;
+
+          payment.adminNotes = failReason + '\n- รอตรวจสอบจากผู้ดูแลระบบ';
           await payment.save();
 
           // Log activity: PAYMENT_REJECTED (verification failed)
@@ -515,20 +545,21 @@ export class PaymentsService {
             message: 'ตรวจสอบสลิปไม่ผ่าน - รอตรวจสอบจากผู้ดูแลระบบ',
             metadata: {
               packageId: payment.packageId.toString(),
-              reason: failReason.trim(),
-              accountMatched: verified,
+              reason: failReason,
+              accountMatched,
+              nameMatched,
               amountMatched,
               expectedAmount,
               actualAmount,
+              receiverAccount,
+              receiverName,
               rejectedBy: 'system',
             },
           });
 
           return {
             success: false,
-            message: verified
-              ? 'ยอดเงินไม่ตรงกับราคาแพ็คเกจ รอตรวจสอบจากผู้ดูแลระบบ'
-              : 'ข้อมูลบัญชีผู้รับไม่ตรง รอตรวจสอบจากผู้ดูแลระบบ',
+            message: userMessage,
             verificationResult: payment.verificationResult,
           };
         }

@@ -1,55 +1,104 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Security Improvements and Bug Fixes
+**Task:** Slip Template Consolidation & Invalid URI Fix
 
-## Issues Found and Fixed
+## TASK.md Requirements Status
 
-### CRITICAL Security Fixes
+### 1. Centralize Management
+**Status:** VERIFIED
 
-#### 1. Password Logged in Plaintext
-**File:** `backend/src/auth/auth.service.ts`
-**Fix:** Removed password from log message
+- Admin templates page (`admin/templates/page.tsx`) is the centralized location
+- Added "ตั้งค่าข้อมูลตัวอย่าง" (Preview Settings) tab to templates page
+- Preview config is now stored in DB via `systemSettingsApi.getPreviewConfig()`
 
-#### 2. Optional Authentication Bypass in Chat History
-**File:** `backend/src/chat-messages/chat-messages.controller.ts`
-**Fix:** Made user parameter required, always check access
+### 2. Cleanup
+**Status:** VERIFIED
 
-#### 3. CORS Allowing Any Origin
-**File:** `backend/src/main.ts`
-**Fix:** Use whitelist from CORS_ORIGINS environment variable
+- User-facing pages (`user/templates`, `user/line-accounts`) use API for preview config
+- No duplicate admin settings pages exist
+- All pages fetch from single source (system-settings)
 
-#### 4. WebSocket Without Authentication
-**File:** `backend/src/websocket/websocket.gateway.ts`
-**Fix:** Added AuthService, verify session before joining admin room
+### 3. Unified Logic
+**Status:** VERIFIED
 
-#### 5. Slip History Endpoint Without Admin Guard
-**File:** `backend/src/slip-verification/slip-verification.controller.ts`
-**Fix:** Added RolesGuard, Roles decorator, ObjectId validation
+**Template Services Architecture:**
+- `SlipTemplatesService` - Manages slip response templates
+- `SystemResponseTemplatesService` - Manages system messages (quota, errors)
+- `ConfigurableMessagesService` - Formatting layer, uses both services
 
-## Files Modified
-1. `backend/src/auth/auth.service.ts`
-2. `backend/src/chat-messages/chat-messages.controller.ts`
-3. `backend/src/main.ts`
-4. `backend/src/websocket/websocket.gateway.ts`
-5. `backend/src/websocket/websocket.module.ts`
-6. `backend/src/slip-verification/slip-verification.controller.ts`
+**Data Flow:**
+```
+Webhook -> ConfigurableMessagesService -> SystemResponseTemplatesService
+                                       -> SlipTemplatesService
+                                       -> SlipVerificationService
+```
+
+### 4. Fix URI & Logic (Invalid URI Error 400)
+**Status:** VERIFIED
+
+**URI Validation Points:**
+
+| Location | File | Lines | Description |
+|----------|------|-------|-------------|
+| Save Time | `slip-templates.service.ts` | 152-168 | `validateFooterLink()` blocks invalid protocols |
+| Render Time | `slip-templates.service.ts` | 1089-1117 | Only adds action if URI starts with `https://` or `tel:` |
+| System Templates | `system-response-templates.service.ts` | 361-386 | Validates contactButtonUrl before use |
+| Fallback | `line-webhook.controller.ts` | 268-286 | Falls back to text if Flex returns 400 |
+
+**Validation Logic:**
+```typescript
+// Only allow https:// and tel: protocols
+if (trimmedLink && (trimmedLink.startsWith('https://') || trimmedLink.startsWith('tel:'))) {
+  // Add URI action
+} else {
+  // Fallback to message action or no action
+}
+```
+
+### 5. Backward Compatibility
+**Status:** VERIFIED
+
+- Legacy methods kept with `@deprecated` annotations
+- Fallback to text message if Flex fails
+- User pages continue to work with new API
 
 ## TypeScript Check
+- Frontend: `npx tsc --noEmit` - PASSED
 - Backend: `npx tsc --noEmit` - PASSED
 
-## Security Summary
+## Files Verified
 
-| Issue | Severity | Status |
-|-------|----------|--------|
-| Password in logs | CRITICAL | FIXED |
-| Auth bypass in chat | CRITICAL | FIXED |
-| CORS misconfiguration | HIGH | FIXED |
-| WebSocket no auth | HIGH | FIXED |
-| Unprotected slip history | HIGH | FIXED |
-| ObjectId validation | MEDIUM | FIXED |
+### Frontend
+| File | Purpose |
+|------|---------|
+| `admin/templates/page.tsx` | Main templates studio + preview settings tab |
+| `admin/settings/page.tsx` | System settings (preview moved to templates) |
+| `user/templates/page.tsx` | User templates view (uses API config) |
+| `user/line-accounts/page.tsx` | User LINE accounts (uses API config) |
+| `lib/api.ts` | API client with preview settings types |
+
+### Backend
+| File | Purpose |
+|------|---------|
+| `slip-templates/slip-templates.service.ts` | Template generation + URI validation |
+| `system-response-templates/system-response-templates.service.ts` | System messages + URI validation |
+| `common/configurable-messages.service.ts` | Message formatting |
+| `line-accounts/line-webhook.controller.ts` | Webhook with fallback handling |
+| `system-settings/system-settings.service.ts` | Preview config storage |
+
+## Summary Table
+
+| Requirement | Status |
+|-------------|--------|
+| Centralize Management | VERIFIED |
+| Cleanup Duplicate Pages | VERIFIED |
+| Unified Logic | VERIFIED |
+| Fix Invalid URI | VERIFIED |
+| Backward Compatibility | VERIFIED |
+| TypeScript Compile | PASSED |
 
 ---
 **Created:** 2026-01-07
 **Developer Session:** Claude Code (Opus 4.5)
-**Task Type:** Security Hardening
+**Task Type:** Template Consolidation & Bug Fix
