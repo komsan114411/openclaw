@@ -291,6 +291,8 @@ export class LineAccountsService {
       return;
     }
 
+    this.logger.debug(`[sendPush] Sending ${messages.length} message(s) to ${userId}`);
+
     try {
       await axios.post(
         'https://api.line.me/v2/bot/message/push',
@@ -303,9 +305,16 @@ export class LineAccountsService {
           timeout: 10000,
         },
       );
+      this.logger.debug(`[sendPush] Message sent successfully`);
     } catch (error) {
       const axiosError = error as AxiosError;
       this.logger.error(`Error sending LINE push message: ${axiosError.message}`);
+      // Log detailed error response from LINE API
+      if (axiosError.response) {
+        this.logger.error(`LINE API response: ${JSON.stringify(axiosError.response.data)}`);
+      }
+      // Log the message that failed to send (for debugging)
+      this.logger.error(`Failed message: ${JSON.stringify(messages).substring(0, 500)}`);
       throw error;
     }
   }
