@@ -25,6 +25,7 @@ import { BanksModule } from './banks/banks.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 import { ThunderApiModule } from './thunder-api/thunder-api.module';
 import { SystemResponseTemplatesModule } from './system-response-templates/system-response-templates.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { SystemResponseTemplatesModule } from './system-response-templates/syste
     ActivityLogsModule,
     ThunderApiModule,
     SystemResponseTemplatesModule,
+    WalletModule,
   ],
 })
 export class AppModule { }

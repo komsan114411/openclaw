@@ -8,6 +8,9 @@ import {
   Param,
   Query,
   UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PackagesService } from './packages.service';
@@ -17,12 +20,17 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
+import { WalletService } from '../wallet/wallet.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Packages')
 @ApiBearerAuth()
 @Controller('packages')
 export class PackagesController {
-  constructor(private packagesService: PackagesService) {}
+  constructor(
+    private packagesService: PackagesService,
+    private walletService: WalletService,
+  ) { }
 
   @Post()
   @UseGuards(SessionAuthGuard, RolesGuard)
@@ -93,4 +101,32 @@ export class PackagesController {
       message: 'Package activated successfully',
     };
   }
+
+  @Post(':id/purchase')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Purchase package with wallet credits' })
+  async purchaseWithCredits(@Param('id') id: string, @Request() req: any) {
+    const userId = req.user.userId;
+
+    // Get package info
+    const pkg = await this.packagesService.findById(id);
+    if (!pkg) {
+      return { success: false, message: 'ไม่พบแพ็คเกจ' };
+    }
+    if (!pkg.isActive) {
+      return { success: false, message: 'แพ็คเกจนี้ปิดให้บริการแล้ว' };
+    }
+
+    // Purchase with wallet credits
+    const result = await this.walletService.purchasePackage(
+      userId,
+      id,
+      pkg.name,
+      pkg.price,
+    );
+
+    return result;
+  }
 }
+

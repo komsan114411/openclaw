@@ -1,9 +1,12 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthUser } from '../auth/auth.service';
+import { CreditTransactionDocument } from '../database/schemas/credit-transaction.schema';
 
 @Controller('api/wallet')
-@UseGuards(JwtAuthGuard)
+@UseGuards(SessionAuthGuard)
 export class WalletController {
     constructor(private readonly walletService: WalletService) { }
 
@@ -11,9 +14,8 @@ export class WalletController {
      * Get wallet balance
      */
     @Get('balance')
-    async getBalance(@Request() req: any) {
-        const userId = req.user.userId;
-        return this.walletService.getBalance(userId);
+    async getBalance(@CurrentUser() user: AuthUser) {
+        return this.walletService.getBalance(user.userId);
     }
 
     /**
@@ -21,19 +23,18 @@ export class WalletController {
      */
     @Get('transactions')
     async getTransactions(
-        @Request() req: any,
+        @CurrentUser() user: AuthUser,
         @Query('limit') limit?: string,
         @Query('offset') offset?: string,
     ) {
-        const userId = req.user.userId;
         const transactions = await this.walletService.getTransactions(
-            userId,
+            user.userId,
             limit ? parseInt(limit, 10) : 20,
             offset ? parseInt(offset, 10) : 0,
         );
 
         // Don't send slip image data in response
-        return transactions.map((tx: any) => ({
+        return transactions.map((tx: CreditTransactionDocument) => ({
             ...tx.toObject(),
             slipImageData: undefined,
             hasSlipImage: !!tx.slipImageData,
@@ -46,11 +47,9 @@ export class WalletController {
     @Post('deposit')
     @HttpCode(HttpStatus.OK)
     async deposit(
-        @Request() req: any,
+        @CurrentUser() user: AuthUser,
         @Body() body: { slipImage: string }, // Base64 encoded image
     ) {
-        const userId = req.user.userId;
-
         if (!body.slipImage) {
             return { success: false, message: 'กรุณาอัปโหลดรูปสลิป' };
         }
@@ -58,6 +57,6 @@ export class WalletController {
         // Decode base64 image
         const slipImageData = Buffer.from(body.slipImage, 'base64');
 
-        return this.walletService.deposit(userId, slipImageData);
+        return this.walletService.deposit(user.userId, slipImageData);
     }
 }

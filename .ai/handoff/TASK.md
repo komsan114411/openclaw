@@ -1,9 +1,11 @@
-Centralize Management: ย้ายการตั้งค่าเทมเพลตสลิปและการตอบกลับทั้งหมดจากหน้าอื่นๆ มาไว้ที่เส้นทาง admin/templates/ เพียงที่เดียวเท่านั้น
+Fix Build Error and Update Path References:
 
-Cleanup: ลบหน้าตั้งค่าเทมเพลตซ้ำซ้อนในหน้าอื่นๆ ออกให้หมดหลังจากย้ายข้อมูลเสร็จสิ้น
+Resolve TS2307 Error: ตรวจสอบไฟล์ src/wallet/wallet.controller.ts และแก้ไขบรรทัดที่ import { JwtAuthGuard } ให้ชี้ไปยัง Path ที่ถูกต้อง (ตรวจสอบว่าหลังจากย้ายหน้าไปที่ admin/templates/ แล้ว โครงสร้างโฟลเดอร์ auth/ เปลี่ยนไปหรือไม่)
 
-Unified Logic: ปรับปรุงให้ระบบตรวจสอบสลิปและระบบตอบกลับ (Flex Message) ดึงข้อมูลค่า Configuration จากหน้า admin/templates/ นี้ไปใช้งานแทน
+Scan for Broken Imports: ตรวจสอบไฟล์อื่นๆ ในโปรเจกต์ที่อาจจะมีปัญหาการ Import แบบเดียวกันหลังจากที่ทำการ Refactor หน้า Admin และ Template
 
-Fix URI & Logic: ตรวจสอบให้แน่ใจว่าการแก้ไข invalid uri ใน Flex Message (ตาม Log Error 400) ถูกรวมเข้ากับเทมเพลตใหม่นี้ด้วย
+Verify File Existence: หากไฟล์ jwt-auth.guard.ts หายไปจากการลบหรือย้ายที่ผิดพลาด ให้ทำการสร้างใหม่หรือกู้คืนไปยังตำแหน่งที่ควรจะเป็นเพื่อให้ระบบความปลอดภัยทำงานได้
 
-Backward Compatibility: ระบบต้องทำงานร่วมกันได้เหมือนเดิม (Integrate smoothly) โดยที่ฟังก์ชันการดึงเทมเพลตตามที่แอดมินหรือผู้ใช้เลือกยังต้องทำงานได้ถูกต้อง
+Retry Build: เมื่อแก้ไข Path เสร็จแล้ว ให้ทำการรัน npm run build ใหม่อัตโนมัติใน Docker Environment
+
+Ensure Connectivity: ตรวจสอบว่าระบบตอบกลับตามเทมเพลต (สลิปซ้ำ, บอทหมดอายุ, ฯลฯ) ยังคงเชื่อมต่อกับ Logic การตรวจสอบสิทธิ์ (Auth) ได้อย่างสมบูรณ์
