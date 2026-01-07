@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -13,6 +14,11 @@ async function bootstrap() {
       // Required for LINE signature verification (use req.rawBody)
       rawBody: true,
     });
+
+    // Increase body size limit for base64 image uploads (10MB)
+    app.use(bodyParser.json({ limit: '10mb' }));
+    app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+
 
     // Enable CORS (must not use "*" with credentials)
     app.enableCors({
