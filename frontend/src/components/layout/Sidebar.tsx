@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
+import { walletApi } from '@/lib/api';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -282,6 +284,24 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const menuItems = isAdmin ? ADMIN_MENU_ITEMS : USER_MENU_ITEMS;
   const mobileNavItems = isAdmin ? ADMIN_MOBILE_NAV : USER_MOBILE_NAV;
 
+  // Wallet balance state
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+
+  // Fetch wallet balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const res = await walletApi.getBalance();
+        setWalletBalance(res.data.balance || 0);
+      } catch {
+        setWalletBalance(0);
+      }
+    };
+    if (user) {
+      fetchBalance();
+    }
+  }, [user]);
+
   // Group rendering function
   const renderGroup = (group: 'management' | 'system' | 'logs', title: string) => {
     const items = menuItems.filter(item => item.group === group);
@@ -387,6 +407,31 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               : "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
           )} />
         </div>
+
+        {/* Wallet Balance Card */}
+        <Link
+          href="/user/wallet"
+          className="mt-3 block group/wallet"
+        >
+          <div className="w-full py-3 px-4 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border-emerald-500/20 shadow-lg shadow-emerald-500/5 hover:border-emerald-400/40 hover:shadow-emerald-500/20 transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover/wallet:scale-110 transition-transform">
+                  <span className="text-white text-sm">💰</span>
+                </div>
+                <div>
+                  <p className="text-[9px] text-slate-400 uppercase tracking-wider font-medium">เครดิตคงเหลือ</p>
+                  <p className="text-lg font-black text-emerald-400 leading-none group-hover/wallet:text-emerald-300 transition-colors">
+                    ฿{walletBalance.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-slate-500 group-hover/wallet:text-emerald-400 group-hover/wallet:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* Navigation - Renders ONLY the appropriate menu based on role */}
