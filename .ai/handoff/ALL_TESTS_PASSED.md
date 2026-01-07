@@ -1,63 +1,76 @@
 # ALL_TESTS_PASSED.md
 
 ## Task Tested
-**Task:** Webhook Rate Limiter for DDoS Protection
+**Task:** Webhook Rate Limiter - Admin UI Settings
 **Date:** 2026-01-08
 **Tester:** Claude Code (Opus 4.5)
 
 ## Test Results
 
 ### TypeScript Check
-- **Command:** `npx tsc --noEmit`
-- **Result:** PASSED (no errors)
+- **Frontend:** `npx tsc --noEmit` - PASSED
+- **Backend:** `npx tsc --noEmit` - PASSED
 
-### Functionality Tests (per TASK.md)
+### Functionality Tests
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| Rate limit ต่อ LINE Account | PASSED | `checkPerAccountLimit()` uses per-account keys |
-| Rate limit ทั้งระบบ (Global) | PASSED | `checkGlobalLimit()` uses global keys |
-| Return HTTP 429 เมื่อเกิน | PASSED | `throwRateLimitException()` returns 429 |
-| ห้าม trigger business logic เมื่อ block | PASSED | Guard applied at controller level |
-| Config จาก Admin Panel | PASSED | Settings in SystemSettings schema |
-| รองรับ concurrent requests | PASSED | Redis + memory fallback |
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| State initialization | PASSED | Default values set correctly |
+| Fetch from API | PASSED | Uses nullish coalescing for proper defaults |
+| Enable/Disable switch | PASSED | Toggles `webhookRateLimitEnabled` |
+| Per-account inputs | PASSED | Per-second and per-minute correctly bound |
+| Global inputs | PASSED | Per-second and per-minute correctly bound |
+| Message input | PASSED | Custom error message editable |
+| Visual summary | PASSED | Shows current values in real-time |
+| Save button | PASSED | Calls `handleUpdate('rate_limit', rateLimitSettings)` |
 
 ### Error Handling
-- Try/catch with default fallback values
-- Graceful degradation if DB fetch fails
-- Logger for error tracking
+
+| Scenario | Status |
+|----------|--------|
+| parseInt with fallback | PASSED - Uses `parseInt(value) \|\| default` |
+| Boolean defaults | PASSED - Uses `?? true` for enabled |
+| API error | PASSED - Try/catch with toast.error |
+| Empty input | PASSED - Falls back to default value |
 
 ### Security
-- No vulnerabilities detected
-- Proper HTTP 429 response
-- No sensitive data leakage
+
+| Check | Status |
+|-------|--------|
+| XSS prevention | PASSED - React escapes values |
+| Input validation | PASSED - parseInt for numbers |
+| Role check | PASSED - `requiredRole="admin"` on layout |
+| No hardcoded URLs | PASSED - Uses `systemSettingsApi` |
 
 ### Code Quality (per CLAUDE.md)
-- TypeScript strict mode compliant
-- No `any` types used
-- Proper NestJS patterns
-- Correct API path conventions
+
+| Rule | Status |
+|------|--------|
+| No `any` types | PASSED |
+| Proper TypeScript interfaces | PASSED |
+| Follows existing patterns | PASSED |
+| Uses shared components | PASSED |
+| Consistent styling | PASSED |
 
 ## Files Verified
 
 | File | Status |
 |------|--------|
-| `common/guards/webhook-rate-limit.guard.ts` | VERIFIED |
-| `database/schemas/system-settings.schema.ts` | VERIFIED |
-| `line-accounts/line-webhook.controller.ts` | VERIFIED |
-| `line-accounts/line-accounts.module.ts` | VERIFIED |
+| `frontend/src/app/admin/settings/page.tsx` | VERIFIED |
 
-## Implementation Flow Verified
+## UI Location Verified
 
 ```
-Request → WebhookRateLimitGuard → Webhook Handler
-              ↓
-         Check Per-Account Limit (per second + minute)
-              ↓
-         Check Global Limit (per second + minute)
-              ↓
-         Pass → Forward to handler
-         Fail → Return HTTP 429 (no business logic)
+Admin Panel
+└── Settings (ตั้งค่าระบบ)
+    └── Infrastructure Tab (โครงสร้างหลัก)
+        └── Rate Limiter Card ← VERIFIED
+            ├── Enable/Disable Switch
+            ├── Per-Account Settings (req/s, req/m)
+            ├── Global Settings (req/s, req/m)
+            ├── Custom Error Message
+            ├── Visual Summary (4 stat cards)
+            └── Save Button
 ```
 
 ---
