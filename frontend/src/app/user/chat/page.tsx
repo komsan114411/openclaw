@@ -57,7 +57,8 @@ function UserChatContent() {
   const socketRef = useRef<Socket | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const isAtBottomRef = useRef<boolean>(true);
-  const prevMessageCountRef = useRef<number>(0);
+  const lastMessageIdRef = useRef<string>('');
+  const isInitialLoadRef = useRef<boolean>(true);
   const [hasNewMessage, setHasNewMessage] = useState(false);
 
   // Fetch all LINE accounts on mount
@@ -240,21 +241,31 @@ function UserChatContent() {
     }
   }, []);
 
-  // Smart scroll: detect truly new messages by comparing last message ID
+  // Smart scroll: detect truly NEW messages by comparing last message ID
   useLayoutEffect(() => {
     if (messages.length === 0) {
-      prevMessageCountRef.current = 0;
+      lastMessageIdRef.current = '';
+      isInitialLoadRef.current = true;
       return;
     }
 
     const lastMessage = messages[messages.length - 1];
-    const lastMessageId = lastMessage?._id || '';
-    const prevCount = prevMessageCountRef.current;
+    const currentLastId = lastMessage?._id || '';
+    const prevLastId = lastMessageIdRef.current;
 
-    // Check if this is a truly new message (not just a refresh)
-    // New message = count increased AND it's not just initial load
-    if (messages.length > prevCount && prevCount > 0) {
-      // New messages arrived
+    // Compare last message ID to detect truly new messages
+    // If IDs are the same, this is just a polling refresh - do nothing
+    if (currentLastId === prevLastId) {
+      return; // Same data, no scroll needed
+    }
+
+    // IDs are different - either new messages or initial load
+    if (isInitialLoadRef.current) {
+      // First load for this user - scroll to bottom
+      scrollToBottom();
+      isInitialLoadRef.current = false;
+    } else {
+      // Truly new message arrived (not initial load, different ID)
       if (isAtBottomRef.current) {
         // User was at bottom, scroll to new messages
         scrollToBottom();
@@ -263,21 +274,24 @@ function UserChatContent() {
         setHasNewMessage(true);
       }
     }
-    // Update the count for next comparison
-    prevMessageCountRef.current = messages.length;
+
+    // Update the last message ID for next comparison
+    lastMessageIdRef.current = currentLastId;
   }, [messages, scrollToBottom]);
 
-  // Initial scroll to bottom ONLY when first switching to a new user
+  // Reset initial load flag when switching users
   const prevSelectedUserRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     const currentUserId = selectedUser?.lineUserId || null;
 
-    // Only scroll on initial load for a NEW user (different from previous)
-    if (!loadingMessages && messages.length > 0 && currentUserId !== prevSelectedUserRef.current) {
-      scrollToBottom();
+    // When switching to a new user, reset scroll state
+    if (currentUserId !== prevSelectedUserRef.current) {
+      isInitialLoadRef.current = true;
+      lastMessageIdRef.current = '';
+      setHasNewMessage(false);
       prevSelectedUserRef.current = currentUserId;
     }
-  }, [loadingMessages, selectedUser, messages.length, scrollToBottom]);
+  }, [selectedUser]);
 
   const handleSendMessage = async () => {
     if (!activeAccountId || !selectedUser || !newMessage.trim() || sending) return;

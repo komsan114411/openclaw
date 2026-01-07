@@ -56,7 +56,8 @@ function AdminChatContent() {
   const socketRef = useRef<Socket | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const isAtBottomRef = useRef<boolean>(true);
-  const prevMessageCountRef = useRef<number>(0);
+  const lastMessageIdRef = useRef<string>('');
+  const isInitialLoadRef = useRef<boolean>(true);
   const [hasNewMessage, setHasNewMessage] = useState(false);
 
   // Real-time WebSocket connection
@@ -247,36 +248,53 @@ function AdminChatContent() {
     }
   }, []);
 
-  // Smart scroll: detect truly new messages
+  // Smart scroll: detect truly NEW messages by comparing last message ID
   useLayoutEffect(() => {
     if (messages.length === 0) {
-      prevMessageCountRef.current = 0;
+      lastMessageIdRef.current = '';
+      isInitialLoadRef.current = true;
       return;
     }
 
-    const prevCount = prevMessageCountRef.current;
+    const lastMessage = messages[messages.length - 1];
+    const currentLastId = lastMessage?._id || '';
+    const prevLastId = lastMessageIdRef.current;
 
-    // Check if this is a truly new message (count increased AND not initial load)
-    if (messages.length > prevCount && prevCount > 0) {
+    // Compare last message ID - if same, this is just polling refresh
+    if (currentLastId === prevLastId) {
+      return; // Same data, no scroll needed
+    }
+
+    // IDs are different - either new messages or initial load
+    if (isInitialLoadRef.current) {
+      // First load for this user - scroll to bottom
+      scrollToBottom();
+      isInitialLoadRef.current = false;
+    } else {
+      // Truly new message arrived
       if (isAtBottomRef.current) {
         scrollToBottom();
       } else {
         setHasNewMessage(true);
       }
     }
-    prevMessageCountRef.current = messages.length;
+
+    // Update the last message ID for next comparison
+    lastMessageIdRef.current = currentLastId;
   }, [messages, scrollToBottom]);
 
-  // Initial scroll to bottom ONLY when first switching to a new user
+  // Reset initial load flag when switching users
   const prevSelectedUserRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     const currentUserId = selectedUser?.lineUserId || null;
 
-    if (!loadingMessages && messages.length > 0 && currentUserId !== prevSelectedUserRef.current) {
-      scrollToBottom();
+    if (currentUserId !== prevSelectedUserRef.current) {
+      isInitialLoadRef.current = true;
+      lastMessageIdRef.current = '';
+      setHasNewMessage(false);
       prevSelectedUserRef.current = currentUserId;
     }
-  }, [loadingMessages, selectedUser, messages.length, scrollToBottom]);
+  }, [selectedUser]);
 
   const handleSelectAccount = (id: string) => {
     setSelectedAccountId(id);

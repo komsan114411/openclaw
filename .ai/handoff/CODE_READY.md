@@ -1,75 +1,82 @@
 # CODE_READY.md
 
 ## Task Completed
-**Task:** Security Audit & Logic Flow Analysis (wallet.controller.ts)
+**Task:** Atomic Transaction for Package Purchase
+**Date:** 2026-01-08
 
-## TASK.md Requirements Status
+## Problem Solved
 
-### 1. Identify Logic Flaws
-**Status:** COMPLETED
+Previously, the purchase flow had a critical issue:
+1. Deduct wallet balance
+2. Grant subscription/credit
 
-**Findings:**
-- Previous wallet.controller.ts had no ObjectId validation on userId parameters
-- Pagination had no upper limit (could request unlimited records)
-- No type checking for amount values (could pass NaN, Infinity)
-- Description field had no length limit or sanitization
+If step 2 failed, manual rollback was attempted but not guaranteed. This could result in:
+- User loses money but doesn't receive package
+- Inconsistent database state
 
-### 2. Security Audit
-**Status:** COMPLETED
+## Solution Implemented
 
-**Vulnerabilities Fixed:**
+Rewrote `purchasePackage()` in `wallet.service.ts` to use **MongoDB Transactions**.
 
-| Vulnerability | Risk | Fix |
-|--------------|------|-----|
-| Invalid ObjectId injection | Medium | Added validateObjectId() helper |
-| Unlimited pagination | Low | Added MAX_PAGINATION_LIMIT = 100 |
-| Unlimited credit amount | High | Added MAX_CREDIT_AMOUNT = 1,000,000 |
-| File size bypass | Medium | Added MAX_SLIP_SIZE = 5MB validation |
-| Invalid file type | Medium | Added magic byte validation (PNG/JPEG) |
-| Base64 injection | Low | Added regex validation |
-| XSS in description | Medium | Added sanitizeDescription() |
-| Query param injection | Low | Whitelisted type/status values |
+### New Flow (Atomic)
+```
+1. Begin Transaction (session.withTransaction)
+2. Check wallet balance (within transaction)
+3. Create transaction record (PENDING status)
+4. Deduct from wallet (within transaction)
+5. Grant subscription/credit (idempotent)
+6. Update transaction to COMPLETED
+7. Commit Transaction
+8. On ANY error → Automatic Rollback
+```
 
-### 3. Edge Case Analysis
-**Status:** COMPLETED
+### Key Changes
 
-| Edge Case | Previous Behavior | New Behavior |
-|-----------|-------------------|--------------|
-| Invalid ObjectId | Server crash | Returns 400 Bad Request |
-| NaN/Infinity amount | Stored invalid value | Returns validation error |
-| Amount > 1M THB | Allowed | Returns limit error |
-| Empty description | Allowed | Requires min 3 chars |
-| 10MB slip image | Processed (slow) | Rejected immediately |
-| Non-image file | Sent to API | Rejected by header check |
-| limit=999999 | Memory exhaustion | Capped at 100 |
+| Before | After |
+|--------|-------|
+| Manual rollback on error | MongoDB transaction auto-rollback |
+| Transaction created as COMPLETED immediately | Transaction starts as PENDING |
+| Separate operations not atomic | All operations within single transaction |
+| Possible inconsistent state | Guaranteed atomicity |
 
-### 4. Optimized Logic Proposal
-**Status:** IMPLEMENTED
+### Code Location
+- **File:** `backend/src/wallet/wallet.service.ts`
+- **Method:** `purchasePackage()` (lines 297-443)
 
-Security Helpers Added:
-- validateObjectId(id, fieldName)
-- sanitizeDescription(description)
-- validatePagination(limit, offset)
-- isValidImageHeader(buffer)
+### Safety Features
 
-### 5. Refactored Code
-**Status:** COMPLETED
+1. **Distributed Lock** - Prevents concurrent purchases by same user
+2. **MongoDB Transaction** - Ensures atomicity (all or nothing)
+3. **Idempotent Subscription** - `addQuotaToExisting()` uses paymentId to prevent double-granting
+4. **Retry-Safe** - Won't deduct money twice for same purchase attempt
 
-**File:** backend/src/wallet/wallet.controller.ts
+### Cases Handled
+
+| Scenario | Result |
+|----------|--------|
+| Wallet balance insufficient | Error returned, no changes |
+| Server error during grant | Transaction rolled back, wallet unchanged |
+| Concurrent purchase attempt | Blocked by distributed lock |
+| Retry after timeout | Idempotent - safe to retry |
 
 ## TypeScript Check
-- Backend Build: npm run build - PASSED
+- Backend: `npx tsc --noEmit` - **PASSED**
 
-## CLAUDE.md Compliance
+## Files Modified
 
-| Rule | Status |
-|------|--------|
-| MongoDB + Mongoose only | PASSED |
-| No any types | PASSED |
-| ObjectId validation | PASSED |
-| Error handling | PASSED |
+| File | Changes |
+|------|---------|
+| `wallet/wallet.service.ts` | Added `InjectConnection`, rewrote `purchasePackage()` with MongoDB transactions |
+
+## Best Practices Applied
+
+1. **Transaction Isolation** - All reads and writes within same session
+2. **Proper Error Handling** - Typed error extraction, user-friendly messages
+3. **Resource Cleanup** - `session.endSession()` and lock release in `finally` block
+4. **Logging** - Clear transaction state logging for debugging
+5. **Comments** - Detailed JSDoc explaining the flow
 
 ---
-**Created:** 2026-01-07
+**Created:** 2026-01-08
 **Developer Session:** Claude Code (Opus 4.5)
-**Task Type:** Security Audit & Hardening
+**Status:** READY FOR TESTING
