@@ -58,7 +58,13 @@ function AdminChatContent() {
   const isAtBottomRef = useRef<boolean>(true);
   const lastMessageIdRef = useRef<string>('');
   const isInitialLoadRef = useRef<boolean>(true);
+  const selectedUserRef = useRef<ChatUser | null>(null); // Track current user for socket
   const [hasNewMessage, setHasNewMessage] = useState(false);
+
+  // Update ref when selectedUser changes
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   // Real-time WebSocket connection
   useEffect(() => {
@@ -83,8 +89,8 @@ function AdminChatContent() {
     socket.on('message_received', (data: any) => {
       // Only process messages for the current selected account
       if (data.lineAccountId === selectedAccountId) {
-        // Update messages if viewing this user's chat
-        if (selectedUser && data.lineUserId === selectedUser.lineUserId) {
+        // Update messages if viewing this user's chat (check against REF to avoid stale closure)
+        if (selectedUserRef.current && data.lineUserId === selectedUserRef.current.lineUserId) {
           setMessages((prev) => {
             // Prevent duplicates
             const exists = prev.some(
@@ -127,12 +133,14 @@ function AdminChatContent() {
 
           // Existing user - update last message
           const updated = [...prev];
+          const isCurrentChat = selectedUserRef.current?.lineUserId === data.lineUserId;
+
           updated[userIndex] = {
             ...updated[userIndex],
             lastMessage: data.messageText,
             lastMessageTime: data.createdAt,
             unreadCount:
-              data.direction === 'in' && selectedUser?.lineUserId !== data.lineUserId
+              data.direction === 'in' && !isCurrentChat
                 ? (updated[userIndex].unreadCount || 0) + 1
                 : updated[userIndex].unreadCount,
           };

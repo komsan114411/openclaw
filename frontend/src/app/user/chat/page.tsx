@@ -59,7 +59,13 @@ function UserChatContent() {
   const isAtBottomRef = useRef<boolean>(true);
   const lastMessageIdRef = useRef<string>('');
   const isInitialLoadRef = useRef<boolean>(true);
+  const selectedUserRef = useRef<ChatUser | null>(null); // Track current user for socket
   const [hasNewMessage, setHasNewMessage] = useState(false);
+
+  // Update ref when selectedUser changes
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   // Fetch all LINE accounts on mount
   useEffect(() => {
@@ -118,29 +124,54 @@ function UserChatContent() {
     });
 
     socket.on('message_received', (data: any) => {
-      // Only process messages for the current LINE account AND selected user
       if (data.lineAccountId !== activeAccountId) return;
 
-      // Use functional ref to get current selectedUser without re-creating socket
-      setMessages((prev) => {
-        // Prevent duplicates by checking _id or messageId
-        const exists = prev.some(
-          (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
-        );
-        if (exists) return prev;
+      // 1. If message belongs to CURRENTLY OPEN chat
+      if (selectedUserRef.current && data.lineUserId === selectedUserRef.current.lineUserId) {
+        setMessages((prev) => {
+          // Prevent duplicates
+          const exists = prev.some(
+            (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
+          );
+          if (exists) return prev;
 
-        const newMessage: ChatMessage = {
-          _id: data._id,
-          messageId: data.messageId,
-          direction: data.direction,
-          messageType: data.messageType,
-          messageText: data.messageText,
-          createdAt: data.createdAt,
-          sentBy: data.sentBy,
+          const newMessage: ChatMessage = {
+            _id: data._id,
+            messageId: data.messageId,
+            direction: data.direction,
+            messageType: data.messageType,
+            messageText: data.messageText,
+            createdAt: data.createdAt,
+            sentBy: data.sentBy,
+          };
+
+          return [...prev, newMessage];
+        });
+      }
+
+      // 2. Update user list (last message / unread count) regardless of who is open
+      setUsers((prev) => {
+        const index = prev.findIndex(u => u.lineUserId === data.lineUserId);
+        if (index === -1) return prev; // New user case handled by refresh usually, or can add logic here
+
+        const updatedUsers = [...prev];
+        const isCurrentChat = selectedUserRef.current?.lineUserId === data.lineUserId;
+
+        updatedUsers[index] = {
+          ...updatedUsers[index],
+          lastMessage: data.messageType === 'image' ? '[รูปภาพ]' : (data.messageText || ''),
+          lastMessageTime: data.createdAt,
+          // Only increment unread if NOT current chat and it's an incoming message
+          unreadCount: (!isCurrentChat && data.direction === 'in')
+            ? (updatedUsers[index].unreadCount + 1)
+            : updatedUsers[index].unreadCount
         };
 
-        // Append new message to the end
-        return [...prev, newMessage];
+        // Move to top
+        const [movedUser] = updatedUsers.splice(index, 1);
+        updatedUsers.unshift(movedUser);
+
+        return updatedUsers;
       });
     });
 
@@ -686,6 +717,10 @@ function UserChatContent() {
                                         alt="LINE image"
                                         className="max-w-full rounded-xl sm:rounded-2xl cursor-zoom-in"
                                         onClick={() => window.open(imageUrl, '_blank')}
+                                        onLoad={() => {
+                                          // If we were at bottom, stay at bottom after image loads
+                                          if (isAtBottomRef.current) scrollToBottom();
+                                        }}
                                       />
                                     ) : (
                                       <p className="text-[9px] sm:text-[10px] font-semibold opacity-40">[รูปภาพ]</p>
