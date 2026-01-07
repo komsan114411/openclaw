@@ -67,6 +67,15 @@ export class WalletController {
         return this.walletService.deposit(req.user.userId, slipImageData);
     }
 
+    @Post("deposit/usdt")
+    @UseGuards(SessionAuthGuard)
+    @HttpCode(HttpStatus.OK)
+    async depositUsdt(@Request() req: any, @Body() body: { amount: number; transactionHash: string }) {
+        if (!body.amount || body.amount <= 0) return { success: false, message: "จำนวนเงินไม่ถูกต้อง" };
+        if (!body.transactionHash) return { success: false, message: "กรุณาระบุ Transaction Hash" };
+        return this.walletService.depositUsdt(req.user.userId, body.amount, body.transactionHash);
+    }
+
     @Get("admin/transactions")
     @UseGuards(SessionAuthGuard, RolesGuard)
     @Roles(UserRole.ADMIN)

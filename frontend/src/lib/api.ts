@@ -423,6 +423,8 @@ export const walletApi = {
     api.get('/wallet/transactions', { params: { limit, offset } }),
   deposit: (slipImage: string) =>
     api.post('/wallet/deposit', { slipImage }),
+  depositUsdt: (amount: number, transactionHash: string) =>
+    api.post('/wallet/deposit/usdt', { amount, transactionHash }),
 
   // Admin endpoints
   getAllTransactions: (params?: { limit?: number; offset?: number; type?: string; status?: string }) =>

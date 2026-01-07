@@ -9,7 +9,7 @@ import { AxiosError } from 'axios';
 import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '@/components/ui/Card';
+import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';

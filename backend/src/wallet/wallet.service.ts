@@ -617,6 +617,48 @@ export class WalletService {
     }
 
     /**
+     * Deposit credits via USDT (Manual Check)
+     */
+    async depositUsdt(
+        userId: string,
+        amount: number,
+        transactionHash: string,
+    ): Promise<{ success: boolean; message: string; transactionId?: string }> {
+        // Prevent duplicate hash
+        const existing = await this.transactionModel.findOne({
+            transRef: transactionHash,
+            status: { $ne: TransactionStatus.CANCELLED }
+        });
+
+        if (existing) {
+            return { success: false, message: 'Transaction Hash นี้ถูกใช้งานแล้ว' };
+        }
+
+        const wallet = await this.getOrCreateWallet(userId);
+
+        // Create pending transaction
+        const transaction = await this.transactionModel.create({
+            userId: new Types.ObjectId(userId),
+            walletId: wallet._id,
+            type: TransactionType.DEPOSIT,
+            amount: amount,
+            balanceAfter: wallet.balance,
+            description: `Deposit via USDT (Hash: ${transactionHash})`,
+            transRef: transactionHash,
+            status: TransactionStatus.PENDING,
+            adminNotes: 'Waiting for Admin verification',
+        });
+
+        this.logger.log(`Created USDT deposit request for user ${userId}: ${amount} USDT`);
+
+        return {
+            success: true,
+            message: 'ส่งคำขอเติมเงินเรียบร้อย กรุณารอการตรวจสอบ',
+            transactionId: transaction._id.toString(),
+        };
+    }
+
+    /**
      * Verify wallet balance matches transaction history (audit function)
      */
     async auditWalletBalance(userId: string): Promise<{
