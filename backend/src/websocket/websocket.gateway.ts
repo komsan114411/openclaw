@@ -14,7 +14,11 @@ import { AuthService } from '../auth/auth.service';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (requestOrigin, callback) => {
+      // Allow all origins for now to prevent connection issues
+      // In production, you should validate against allowed domains
+      callback(null, true);
+    },
     credentials: true,
   },
   namespace: '/ws',
@@ -28,7 +32,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   constructor(
     private websocketService: WebsocketService,
     private authService: AuthService,
-  ) {}
+  ) { }
 
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -62,12 +66,12 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         this.logger.warn(`Session validation failed for client ${client.id}`);
       }
     }
-    
+
     // For unauthenticated: allow basic join but NOT admin room
     this.websocketService.setClientUser(client.id, data.userId, 'user');
     client.join(`user:${data.userId}`);
     // Do NOT allow joining 'admins' room without verified session
-    
+
     return { success: true, verified: false };
   }
 

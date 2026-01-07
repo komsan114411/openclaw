@@ -118,22 +118,36 @@ function UserChatContent() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
+      console.log('User Chat Socket connected:', socket.id);
       // Subscribe to this LINE account's chat room
+      console.log('Subscribing to chat room:', activeAccountId);
       socket.emit('subscribe_chat', { lineAccountId: activeAccountId });
     });
 
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+    });
+
     socket.on('message_received', (data: any) => {
-      if (data.lineAccountId !== activeAccountId) return;
+      console.log('WebSocket message received:', data);
+
+      if (data.lineAccountId !== activeAccountId) {
+        console.log('Message ignored: Account ID mismatch', { received: data.lineAccountId, active: activeAccountId });
+        return;
+      }
 
       // 1. If message belongs to CURRENTLY OPEN chat
       if (selectedUserRef.current && data.lineUserId === selectedUserRef.current.lineUserId) {
+        console.log('Appending message to active chat');
         setMessages((prev) => {
           // Prevent duplicates
           const exists = prev.some(
             (m) => m._id === data._id || (data.messageId && m.messageId === data.messageId)
           );
-          if (exists) return prev;
+          if (exists) {
+            console.log('Skip duplicate message:', data._id);
+            return prev;
+          }
 
           const newMessage: ChatMessage = {
             _id: data._id,
@@ -147,6 +161,8 @@ function UserChatContent() {
 
           return [...prev, newMessage];
         });
+      } else {
+        console.log('Message is for different user:', data.lineUserId);
       }
 
       // 2. Update user list (last message / unread count) regardless of who is open
