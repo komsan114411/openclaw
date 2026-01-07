@@ -311,27 +311,207 @@ export class WalletService {
         description: string,
         adminId: string,
     ): Promise<{ success: boolean; balance: number }> {
+        // Use lock for safety
+        const lockKey = `wallet:admin:${userId}`;
+        const lockToken = await this.redisService.acquireLock(lockKey, 30);
+
+        if (!lockToken) {
+            throw new BadRequestException('กำลังดำเนินการอยู่ กรุณารอสักครู่');
+        }
+
+        try {
+            const wallet = await this.getOrCreateWallet(userId);
+            const newBalance = wallet.balance + amount;
+
+            await this.transactionModel.create({
+                userId: new Types.ObjectId(userId),
+                walletId: wallet._id,
+                type: TransactionType.BONUS,
+                amount,
+                balanceAfter: newBalance,
+                description,
+                status: TransactionStatus.COMPLETED,
+                completedAt: new Date(),
+                processedBy: new Types.ObjectId(adminId),
+            });
+
+            await this.walletModel.findByIdAndUpdate(wallet._id, {
+                $inc: { balance: amount, totalDeposited: amount },
+            });
+
+            this.logger.log(`Admin ${adminId} added ฿${amount} bonus to user ${userId}`);
+
+            return { success: true, balance: newBalance };
+        } finally {
+            await this.redisService.releaseLock(lockKey, lockToken);
+        }
+    }
+
+    /**
+     * Admin: Deduct credits from user (with balance check)
+     */
+    async deductCredits(
+        userId: string,
+        amount: number,
+        description: string,
+        adminId: string,
+    ): Promise<{ success: boolean; message: string; balance?: number }> {
+        // Use lock for safety
+        const lockKey = `wallet:admin:${userId}`;
+        const lockToken = await this.redisService.acquireLock(lockKey, 30);
+
+        if (!lockToken) {
+            return { success: false, message: 'กำลังดำเนินการอยู่ กรุณารอสักครู่' };
+        }
+
+        try {
+            const wallet = await this.getOrCreateWallet(userId);
+
+            // Check if user has enough balance
+            if (wallet.balance < amount) {
+                return {
+                    success: false,
+                    message: `ไม่สามารถหักเครดิตได้ (มี ฿${wallet.balance} ต้องการหัก ฿${amount})`,
+                };
+            }
+
+            const newBalance = wallet.balance - amount;
+
+            await this.transactionModel.create({
+                userId: new Types.ObjectId(userId),
+                walletId: wallet._id,
+                type: TransactionType.ADJUSTMENT,
+                amount: -amount, // Negative for deduction
+                balanceAfter: newBalance,
+                description: `หักเครดิต: ${description}`,
+                status: TransactionStatus.COMPLETED,
+                completedAt: new Date(),
+                processedBy: new Types.ObjectId(adminId),
+            });
+
+            await this.walletModel.findByIdAndUpdate(wallet._id, {
+                $inc: { balance: -amount },
+            });
+
+            this.logger.log(`Admin ${adminId} deducted ฿${amount} from user ${userId}`);
+
+            return { success: true, message: `หักเครดิต ฿${amount} สำเร็จ`, balance: newBalance };
+        } finally {
+            await this.redisService.releaseLock(lockKey, lockToken);
+        }
+    }
+
+    /**
+     * Admin: Get all transactions (with filters)
+     */
+    async getAllTransactions(
+        limit = 50,
+        offset = 0,
+        type?: string,
+        status?: string,
+    ): Promise<any[]> {
+        const query: any = {};
+
+        if (type) {
+            query.type = type;
+        }
+
+        if (status) {
+            query.status = status;
+        }
+
+        return this.transactionModel
+            .find(query)
+            .sort({ createdAt: -1 })
+            .skip(offset)
+            .limit(limit)
+            .populate('userId', 'username email fullName')
+            .populate('packageId', 'name price')
+            .populate('processedBy', 'username')
+            .lean()
+            .exec();
+    }
+
+    /**
+     * Admin: Get wallet statistics
+     */
+    async getStatistics(): Promise<{
+        totalDeposited: number;
+        totalSpent: number;
+        totalWallets: number;
+        totalBalance: number;
+        pendingTransactions: number;
+        completedTransactions: number;
+    }> {
+        const [walletStats, pendingCount, completedCount] = await Promise.all([
+            this.walletModel.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalDeposited: { $sum: '$totalDeposited' },
+                        totalSpent: { $sum: '$totalSpent' },
+                        totalBalance: { $sum: '$balance' },
+                        totalWallets: { $sum: 1 },
+                    },
+                },
+            ]),
+            this.transactionModel.countDocuments({ status: TransactionStatus.PENDING }),
+            this.transactionModel.countDocuments({ status: TransactionStatus.COMPLETED }),
+        ]);
+
+        const stats = walletStats[0] || {
+            totalDeposited: 0,
+            totalSpent: 0,
+            totalBalance: 0,
+            totalWallets: 0,
+        };
+
+        return {
+            totalDeposited: stats.totalDeposited,
+            totalSpent: stats.totalSpent,
+            totalBalance: stats.totalBalance,
+            totalWallets: stats.totalWallets,
+            pendingTransactions: pendingCount,
+            completedTransactions: completedCount,
+        };
+    }
+
+    /**
+     * Verify wallet balance matches transaction history (audit function)
+     */
+    async auditWalletBalance(userId: string): Promise<{
+        storedBalance: number;
+        calculatedBalance: number;
+        isValid: boolean;
+        discrepancy: number;
+    }> {
         const wallet = await this.getOrCreateWallet(userId);
-        const newBalance = wallet.balance + amount;
 
-        await this.transactionModel.create({
-            userId: new Types.ObjectId(userId),
-            walletId: wallet._id,
-            type: TransactionType.BONUS,
-            amount,
-            balanceAfter: newBalance,
-            description,
-            status: TransactionStatus.COMPLETED,
-            completedAt: new Date(),
-            processedBy: new Types.ObjectId(adminId),
-        });
+        // Calculate balance from completed transactions
+        const result = await this.transactionModel.aggregate([
+            {
+                $match: {
+                    userId: new Types.ObjectId(userId),
+                    status: TransactionStatus.COMPLETED,
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' },
+                },
+            },
+        ]);
 
-        await this.walletModel.findByIdAndUpdate(wallet._id, {
-            $inc: { balance: amount, totalDeposited: amount },
-        });
+        const calculatedBalance = result[0]?.total || 0;
+        const discrepancy = wallet.balance - calculatedBalance;
 
-        this.logger.log(`Admin ${adminId} added ฿${amount} bonus to user ${userId}`);
-
-        return { success: true, balance: newBalance };
+        return {
+            storedBalance: wallet.balance,
+            calculatedBalance,
+            isValid: Math.abs(discrepancy) < 0.01, // Allow tiny floating point errors
+            discrepancy,
+        };
     }
 }
+
