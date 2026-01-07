@@ -105,6 +105,16 @@ const ADMIN_MENU_ITEMS: MenuItem[] = [
   },
   {
     group: 'system',
+    name: 'จัดการเครดิต',
+    href: '/admin/credits',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    group: 'system',
     name: 'ตั้งค่าระบบ',
     href: '/admin/settings',
     icon: (
@@ -193,6 +203,16 @@ const USER_MENU_ITEMS: MenuItem[] = [
       </svg>
     ),
   },
+  {
+    group: 'system',
+    name: 'กระเป๋าเงิน',
+    href: '/user/wallet',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
   // Logs Group
   {
     group: 'logs',
@@ -239,10 +259,10 @@ const ADMIN_MOBILE_NAV = [
 
 const USER_MOBILE_NAV = [
   { href: '/user/dashboard', icon: '🏠', label: 'หน้าแรก' },
-  { href: '/user/chat', icon: '💬', label: 'แชท' },
+  { href: '/user/wallet', icon: '💰', label: 'เครดิต' },
   { href: '/user/line-accounts', icon: '💼', label: 'บัญชี' },
-  { href: '/user/payments', icon: '📄', label: 'ชำระเงิน' },
   { href: '/user/packages', icon: '📦', label: 'แพ็คเกจ' },
+  { href: '/user/chat', icon: '💬', label: 'แชท' },
 ];
 
 // =============================================================================
