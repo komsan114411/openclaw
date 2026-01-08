@@ -76,7 +76,7 @@ export class ChatMessagesController {
     if (result.success) {
       return { success: true, message: 'Message sent successfully' };
     } else {
-      return { success: false, error: result.error };
+      return { success: false, message: result.error };
     }
   }
 
@@ -202,7 +202,7 @@ export class ChatMessagesController {
     const imageBuffer = await this.chatMessagesService.getLineImage(accountId, messageId);
 
     if (!imageBuffer) {
-      res.status(404).json({ success: false, error: 'Image not found' });
+      res.status(404).json({ success: false, message: 'Image not found' });
       return;
     }
 
@@ -224,7 +224,7 @@ export class ChatMessagesController {
     const profile = await this.chatMessagesService.getLineUserProfile(accountId, userId);
 
     if (!profile) {
-      return { success: false, error: 'Profile not found' };
+      return { success: false, message: 'Profile not found' };
     }
 
     return { success: true, profile };

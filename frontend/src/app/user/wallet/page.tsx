@@ -79,7 +79,7 @@ export default function WalletPage() {
         systemSettingsApi.getPaymentInfo().catch(() => ({ data: { bankAccounts: [] } })),
       ]);
       setBalance(balanceRes.data);
-      setTransactions(txRes.data || []);
+      setTransactions(txRes.data?.transactions || txRes.data || []);
       setUsdtSettings(settingsRes.data?.usdtWallet || null);
 
       // Map bank accounts

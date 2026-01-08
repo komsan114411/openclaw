@@ -12,10 +12,11 @@ export class ThunderApiController {
 
   /**
    * ดึงข้อมูลโควต้า API (เฉพาะ Admin)
+   * Note: QuotaInfo already contains 'success' field
    */
   @Get('quota')
   @Roles(UserRole.ADMIN)
-  async getQuota(@Query('token') customToken?: string): Promise<QuotaInfo> {
+  async getQuota(@Query('token') customToken?: string) {
     return this.thunderApiService.getQuotaInfo(customToken);
   }
 
@@ -24,7 +25,8 @@ export class ThunderApiController {
    */
   @Get('health')
   @Roles(UserRole.ADMIN)
-  async checkHealth(@Query('token') customToken?: string): Promise<{ healthy: boolean; message: string }> {
-    return this.thunderApiService.checkApiHealth(customToken);
+  async checkHealth(@Query('token') customToken?: string) {
+    const health = await this.thunderApiService.checkApiHealth(customToken);
+    return { success: health.healthy, ...health };
   }
 }

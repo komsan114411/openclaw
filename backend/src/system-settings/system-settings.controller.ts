@@ -56,16 +56,21 @@ export class SystemSettingsController {
   async getSettings() {
     const settings = await this.settingsService.getSettings();
 
-    // settingsService.getSettings() already handles masking via processOutput!
-    // We just need to ensure we pass the full object which now includes masked tokens.
-    // The previous manual masking logic here is redundant or needs to leverage the service.
+    if (!settings) {
+      return { success: false, settings: null };
+    }
 
-    // However, since getSettings() returns everything masked (by default), we can just return it.
-    // But let's keep the existing structure if there's specific mapping logic intended,
-    // OR simplify it to return the settings object directly if it's safe.
-    // Based on SystemSettingsService changes, it returns mapped object.
+    // Map paymentBankAccounts to bankAccounts for frontend compatibility
+    const result = {
+      success: true,
+      settings: {
+        ...settings,
+        // Map paymentBankAccounts to bankAccounts (frontend expects this)
+        bankAccounts: settings.paymentBankAccounts || [],
+      },
+    };
 
-    return settings;
+    return result;
   }
 
 

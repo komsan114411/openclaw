@@ -51,7 +51,8 @@ export class WalletController {
     @Get("balance")
     @UseGuards(SessionAuthGuard)
     async getBalance(@Request() req: any) {
-        return this.walletService.getBalance(req.user.userId);
+        const balance = await this.walletService.getBalance(req.user.userId);
+        return { success: true, ...balance };
     }
 
     @Get("transactions")
@@ -59,7 +60,10 @@ export class WalletController {
     async getTransactions(@Request() req: any, @Query("limit") limit?: string, @Query("offset") offset?: string) {
         const pagination = this.validatePagination(limit ? parseInt(limit, 10) : 20, offset ? parseInt(offset, 10) : 0);
         const transactions = await this.walletService.getTransactions(req.user.userId, pagination.limit, pagination.offset);
-        return transactions.map((tx: CreditTransactionDocument) => ({ ...tx.toObject(), slipImageData: undefined, hasSlipImage: !!tx.slipImageData }));
+        return {
+            success: true,
+            transactions: transactions.map((tx: CreditTransactionDocument) => ({ ...tx.toObject(), slipImageData: undefined, hasSlipImage: !!tx.slipImageData })),
+        };
     }
 
     @Post("deposit")
