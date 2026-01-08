@@ -95,17 +95,26 @@ export class BlockchainVerificationService {
     }
 
     /**
-     * Test API key validity - Decrypts key first if encrypted
+     * Test API key validity
+     * Note: Key may come already decrypted from controller or encrypted from direct call
      */
     async testApiKey(
         network: 'TRC20' | 'ERC20' | 'BEP20',
         apiKey: string,
     ): Promise<{ valid: boolean; message: string }> {
         try {
-            // Decrypt key if needed (decrypt returns as-is if not encrypted)
-            const decryptedKey = this.securityUtil.decrypt(apiKey);
+            // Only decrypt if key looks encrypted (contains ':' separators)
+            let keyToUse = apiKey;
+            if (apiKey?.includes(':')) {
+                keyToUse = this.securityUtil.decrypt(apiKey);
+                this.logger.log(`Decrypted key from encrypted format`);
+            }
 
-            this.logger.log(`Testing ${network} API key (key length: ${decryptedKey?.length || 0})`);
+            this.logger.log(`Testing ${network} API key (key length: ${keyToUse?.length || 0}, first 6 chars: ${keyToUse?.substring(0, 6) || 'empty'})`);
+
+            if (!keyToUse || keyToUse.length < 10) {
+                return { valid: false, message: `API Key ไม่ถูกต้อง (ความยาว: ${keyToUse?.length || 0})` };
+            }
 
             if (network === 'TRC20') {
                 const response = await axios.get(`${this.APIS.TRC20}/system/status`, { timeout: 5000 });
@@ -113,34 +122,31 @@ export class BlockchainVerificationService {
             }
 
             if (network === 'ERC20') {
-                if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ Etherscan API Key' };
-                this.logger.log(`Calling Etherscan V2 API with key: ${decryptedKey.substring(0, 6)}...`);
+                this.logger.log(`Calling Etherscan V2 API...`);
                 const response = await axios.get(this.APIS.ERC20, {
                     params: {
-                        chainid: this.CHAIN_IDS.ERC20,  // Required for V2 API
+                        chainid: this.CHAIN_IDS.ERC20,
                         module: 'stats',
                         action: 'ethsupply',
-                        apikey: decryptedKey
+                        apikey: keyToUse
                     },
                     timeout: 10000,
                 });
-                this.logger.log(`Etherscan response: ${JSON.stringify(response.data)}`);
+                this.logger.log(`Etherscan response status: ${response.data?.status}, message: ${response.data?.message}`);
                 if (response.data?.status === '1') {
                     return { valid: true, message: 'เชื่อมต่อ Etherscan สำเร็จ' };
                 }
-                // Return the 'result' field which contains actual error detail (e.g., 'Invalid API Key format')
                 const errorDetail = response.data?.result || response.data?.message || 'API Key ไม่ถูกต้อง';
                 return { valid: false, message: `Etherscan: ${errorDetail}` };
             }
 
             if (network === 'BEP20') {
-                if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ BSCScan API Key' };
-                this.logger.log(`Calling BSCScan API with key: ${decryptedKey.substring(0, 6)}...`);
+                this.logger.log(`Calling BSCScan API...`);
                 const response = await axios.get(this.APIS.BEP20, {
-                    params: { module: 'stats', action: 'bnbsupply', apikey: decryptedKey },
+                    params: { module: 'stats', action: 'bnbsupply', apikey: keyToUse },
                     timeout: 10000,
                 });
-                this.logger.log(`BSCScan response: ${JSON.stringify(response.data)}`);
+                this.logger.log(`BSCScan response status: ${response.data?.status}`);
                 if (response.data?.status === '1') {
                     return { valid: true, message: 'เชื่อมต่อ BSCScan สำเร็จ' };
                 }
@@ -151,7 +157,7 @@ export class BlockchainVerificationService {
         } catch (error: any) {
             this.logger.error(`API test failed: ${error.message}`);
             if (error.response) {
-                this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+                this.logger.error(`Response: ${JSON.stringify(error.response.data)}`);
             }
             return { valid: false, message: `เชื่อมต่อไม่สำเร็จ: ${error.message}` };
         }

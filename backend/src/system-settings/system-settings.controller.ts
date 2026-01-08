@@ -47,12 +47,15 @@ export class SystemSettingsController {
   @ApiOperation({ summary: 'Test USDT API connection' })
   async testUsdtApiConnection(@Body() body: { network: 'TRC20' | 'ERC20' | 'BEP20', apiKey: string }) {
     let keyToTest = body.apiKey;
+    console.log(`[test-usdt-api] Received key for ${body.network}: ${keyToTest?.substring(0, 10)}... (length: ${keyToTest?.length || 0})`);
 
     // If the key looks masked (contains '....'), use stored key from database
     if (keyToTest?.includes('....') || keyToTest?.includes('***')) {
+      console.log(`[test-usdt-api] Key looks masked, fetching from database...`);
       const settings = await this.settingsService.getDecryptedSettings();
       if (body.network === 'ERC20') {
         keyToTest = settings?.etherscanApiKey || '';
+        console.log(`[test-usdt-api] Got etherscanApiKey from DB: ${keyToTest?.substring(0, 10)}... (length: ${keyToTest?.length || 0})`);
       } else if (body.network === 'BEP20') {
         keyToTest = settings?.bscscanApiKey || '';
       } else if (body.network === 'TRC20') {
