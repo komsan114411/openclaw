@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import axios, { AxiosInstance } from 'axios';
 import { SystemSettings, SystemSettingsDocument } from '../database/schemas/system-settings.schema';
+import { SecurityUtil } from '../utils/security.util';
 
 export interface ThunderApiQuota {
   application: string;
@@ -48,6 +49,7 @@ export class ThunderApiService {
     private configService: ConfigService,
     @InjectModel(SystemSettings.name)
     private settingsModel: Model<SystemSettingsDocument>,
+    private securityUtil: SecurityUtil,
   ) {
     this.apiClient = axios.create({
       baseURL: this.baseUrl,
@@ -63,7 +65,9 @@ export class ThunderApiService {
     try {
       const settings = await this.settingsModel.findOne({ settingsId: 'main' });
       if (settings?.slipApiKey) {
-        return { token: settings.slipApiKey, source: 'database' };
+        // Decrypt the API key before using
+        const decryptedToken = this.securityUtil.decrypt(settings.slipApiKey);
+        return { token: decryptedToken, source: 'database' };
       }
     } catch (error) {
       this.logger.warn('Failed to get API token from database, falling back to env');
@@ -101,7 +105,7 @@ export class ThunderApiService {
 
     try {
       this.logger.log(`Fetching Thunder API quota with token source: ${tokenSource}`);
-      
+
       const response = await this.apiClient.get<ThunderApiResponse>('/me', {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -184,7 +188,7 @@ export class ThunderApiService {
       };
     } catch (error: any) {
       this.logger.error(`Failed to get Thunder API quota: ${error.message}`);
-      
+
       // Log more details for debugging
       if (error.response) {
         this.logger.error(`Thunder API error response: status=${error.response.status}, data=${JSON.stringify(error.response.data)}`);
