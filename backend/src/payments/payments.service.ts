@@ -446,22 +446,26 @@ export class PaymentsService {
           );
 
           if (updateResult) {
-            // Add subscription (idempotent - safe to retry)
+            // Publish PaymentCompleted event (Event-Driven Architecture)
             try {
-              const quotaResult = await this.subscriptionsService.addQuotaToExisting(
-                payment.userId.toString(),
-                payment.packageId.toString(),
+              await this.eventBus.publish<PaymentCompletedEvent>({
+                eventName: EventNames.PAYMENT_COMPLETED,
+                occurredAt: new Date(),
                 paymentId,
-              );
+                userId: payment.userId.toString(),
+                amount: payment.amount,
+                packageId: payment.packageId.toString(),
+                paymentMethod: 'bank_transfer',
+                transactionRef: payment.transRef,
+              });
 
-              // Mark quota as granted atomically
+              // Mark quota as granted
               await this.paymentModel.findByIdAndUpdate(paymentId, {
                 quotaGranted: true,
-                grantedSubscriptionId: quotaResult.subscriptionId,
               });
 
               this.logger.log(
-                `Auto-approved payment ${paymentId}, subscription: ${quotaResult.subscriptionId}`,
+                `Auto-approved payment ${paymentId}, published PaymentCompletedEvent`,
               );
 
               // Log activity: PAYMENT_APPROVED (auto)
@@ -476,15 +480,14 @@ export class PaymentsService {
                   amount: payment.amount,
                   transRef: payment.transRef,
                   approvedBy: 'system',
-                  subscriptionId: quotaResult.subscriptionId,
                 },
               });
             } catch (error) {
-              // Rollback payment status if subscription fails
-              this.logger.error(`Failed to add subscription for payment ${paymentId}:`, error);
+              // Rollback payment status if event publishing fails
+              this.logger.error(`Failed to publish event for payment ${paymentId}:`, error);
               await this.paymentModel.findByIdAndUpdate(paymentId, {
                 status: PaymentStatus.PENDING,
-                adminNotes: 'ระบบอนุมัติแต่เพิ่มโควต้าไม่สำเร็จ รอตรวจสอบ',
+                adminNotes: 'ระบบอนุมัติแต่ publish event ไม่สำเร็จ รอตรวจสอบ',
               });
               return {
                 success: false,
@@ -704,19 +707,24 @@ export class PaymentsService {
     }
 
     try {
-      const quotaResult = await this.subscriptionsService.addQuotaToExisting(
-        payment.userId.toString(),
-        payment.packageId.toString(),
+      // Publish PaymentCompleted event for recovery
+      await this.eventBus.publish<PaymentCompletedEvent>({
+        eventName: EventNames.PAYMENT_COMPLETED,
+        occurredAt: new Date(),
         paymentId,
-      );
+        userId: payment.userId.toString(),
+        amount: payment.amount,
+        packageId: payment.packageId.toString(),
+        paymentMethod: payment.paymentType === PaymentType.USDT ? 'usdt' : 'bank_transfer',
+        transactionRef: payment.transRef,
+      });
 
       await this.paymentModel.findByIdAndUpdate(paymentId, {
         quotaGranted: true,
-        grantedSubscriptionId: quotaResult.subscriptionId,
         adminNotes: `${payment.adminNotes} | กู้คืนโควต้าโดย: ${adminId}`,
       });
 
-      this.logger.log(`Recovered quota for payment ${paymentId}, subscription: ${quotaResult.subscriptionId}`);
+      this.logger.log(`Recovered quota for payment ${paymentId}, published PaymentCompletedEvent`);
       return true;
     } catch (error: any) {
       this.logger.error(`Failed to recover quota for payment ${paymentId}:`, error);

@@ -6,32 +6,36 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { RedisService } from '../../redis/redis.service';
+import { RedisService, RateLimitResult } from '../../redis/redis.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 
 /**
  * Webhook Rate Limit Guard
  *
  * This guard protects webhook endpoints from DDoS attacks by implementing
- * a two-tier rate limiting strategy:
+ * a THREE-tier rate limiting strategy:
  *
- * 1. Per LINE Account - Limits requests per LINE Official Account
- * 2. Global - Limits total requests across all accounts
+ * 1. Per IP Address - Limits requests per client IP (prevents single attacker)
+ * 2. Per LINE Account - Limits requests per LINE Official Account
+ * 3. Global - Limits total requests across all accounts
  *
  * Features:
+ * - TRUE Sliding Window algorithm (not fixed window)
  * - Configurable from Admin Panel (stored in database)
  * - Cached settings to reduce database load
- * - Returns HTTP 429 when rate limit exceeded
+ * - Returns HTTP 429 with Retry-After header when rate limit exceeded
+ * - X-RateLimit-* headers for monitoring
  * - Does NOT trigger business logic when blocked
  * - Supports both per-second and per-minute limits
  *
  * Flow:
  * 1. Request arrives at webhook
- * 2. Guard extracts LINE Account ID from URL params
- * 3. Check per-account rate limit (Redis/memory)
- * 4. Check global rate limit (Redis/memory)
- * 5. If either exceeded → return 429 immediately
- * 6. If both pass → forward to webhook handler
+ * 2. Check per-IP rate limit (prevents single attacker)
+ * 3. Guard extracts LINE Account ID from URL params
+ * 4. Check per-account rate limit (Redis/memory)
+ * 5. Check global rate limit (Redis/memory)
+ * 6. If any exceeded → return 429 with Retry-After header
+ * 7. If all pass → forward to webhook handler with rate limit headers
  */
 @Injectable()
 export class WebhookRateLimitGuard implements CanActivate {
@@ -42,13 +46,34 @@ export class WebhookRateLimitGuard implements CanActivate {
   } = { data: null, expiry: 0 };
   private readonly CACHE_TTL_MS = 60000; // 1 minute cache
 
+  // Metrics for monitoring
+  private metrics = {
+    totalRequests: 0,
+    blockedByIp: 0,
+    blockedByAccount: 0,
+    blockedByGlobal: 0,
+    lastReset: Date.now(),
+  };
+
   constructor(
     private redisService: RedisService,
     private systemSettingsService: SystemSettingsService,
-  ) {}
+  ) {
+    // Reset metrics every hour
+    setInterval(() => {
+      this.logger.log(
+        `[METRICS] Requests: ${this.metrics.totalRequests}, ` +
+        `Blocked (IP: ${this.metrics.blockedByIp}, Account: ${this.metrics.blockedByAccount}, Global: ${this.metrics.blockedByGlobal})`,
+      );
+      this.metrics = { totalRequests: 0, blockedByIp: 0, blockedByAccount: 0, blockedByGlobal: 0, lastReset: Date.now() };
+    }, 3600000);
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
+
+    this.metrics.totalRequests++;
 
     // Get rate limit config (cached)
     const config = await this.getRateLimitConfig();
@@ -58,28 +83,103 @@ export class WebhookRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Extract LINE Account identifier from URL params
-    const slug = request.params?.slug;
-    if (!slug) {
-      // No slug = no per-account limiting, only global
-      return this.checkGlobalLimit(config);
+    // Get client IP address
+    const clientIp = this.getClientIp(request);
+
+    // Check per-IP limits first (prevents single attacker from overwhelming)
+    const ipResult = await this.checkPerIpLimit(clientIp, config);
+    if (!ipResult.allowed) {
+      this.metrics.blockedByIp++;
+      this.logger.warn(`[RATE LIMIT] Per-IP limit exceeded for: ${clientIp}`);
+      this.throwRateLimitException(config.message, 'per_ip', clientIp, ipResult, response);
     }
 
-    // Check per-account limits first (more specific)
-    const accountAllowed = await this.checkPerAccountLimit(slug, config);
-    if (!accountAllowed) {
-      this.logger.warn(`[RATE LIMIT] Per-account limit exceeded for: ${slug}`);
-      this.throwRateLimitException(config.message, 'per_account', slug);
+    // Extract LINE Account identifier from URL params
+    const slug = request.params?.slug;
+
+    if (slug) {
+      // Check per-account limits
+      const accountResult = await this.checkPerAccountLimit(slug, config);
+      if (!accountResult.allowed) {
+        this.metrics.blockedByAccount++;
+        this.logger.warn(`[RATE LIMIT] Per-account limit exceeded for: ${slug}`);
+        this.throwRateLimitException(config.message, 'per_account', slug, accountResult, response);
+      }
     }
 
     // Check global limits
-    const globalAllowed = await this.checkGlobalLimit(config);
-    if (!globalAllowed) {
+    const globalResult = await this.checkGlobalLimit(config);
+    if (!globalResult.allowed) {
+      this.metrics.blockedByGlobal++;
       this.logger.warn(`[RATE LIMIT] Global limit exceeded`);
-      this.throwRateLimitException(config.message, 'global');
+      this.throwRateLimitException(config.message, 'global', undefined, globalResult, response);
     }
 
+    // Add rate limit headers for successful requests
+    this.setRateLimitHeaders(response, globalResult, config);
+
     return true;
+  }
+
+  /**
+   * Get client IP address (handles proxies)
+   */
+  private getClientIp(request: any): string {
+    // Check common proxy headers
+    const forwarded = request.headers['x-forwarded-for'];
+    if (forwarded) {
+      // Take the first IP (original client)
+      return String(forwarded).split(',')[0].trim();
+    }
+
+    const realIp = request.headers['x-real-ip'];
+    if (realIp) {
+      return String(realIp).trim();
+    }
+
+    // Fallback to connection IP
+    return request.ip || request.connection?.remoteAddress || 'unknown';
+  }
+
+  /**
+   * Set rate limit headers on response
+   */
+  private setRateLimitHeaders(response: any, result: RateLimitResult, config: RateLimitConfig): void {
+    if (response.setHeader) {
+      response.setHeader('X-RateLimit-Limit', result.limit);
+      response.setHeader('X-RateLimit-Remaining', result.remaining);
+      response.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000));
+    }
+  }
+
+  /**
+   * Check per-IP rate limits (stricter limits to prevent single attacker)
+   */
+  private async checkPerIpLimit(
+    clientIp: string,
+    config: RateLimitConfig,
+  ): Promise<RateLimitResult> {
+    // IP limits are more strict: half of per-account limits
+    const ipLimitPerSecond = Math.max(5, Math.floor(config.perAccountPerSecond / 2));
+    const ipLimitPerMinute = Math.max(30, Math.floor(config.perAccountPerMinute / 2));
+
+    // Check per-second limit
+    const perSecondResult = await this.redisService.rateLimitWithInfo(
+      `webhook:ip:${clientIp}:second`,
+      ipLimitPerSecond,
+      1,
+    );
+
+    if (!perSecondResult.allowed) {
+      return perSecondResult;
+    }
+
+    // Check per-minute limit
+    return this.redisService.rateLimitWithInfo(
+      `webhook:ip:${clientIp}:minute`,
+      ipLimitPerMinute,
+      60,
+    );
   }
 
   /**
@@ -88,55 +188,47 @@ export class WebhookRateLimitGuard implements CanActivate {
   private async checkPerAccountLimit(
     accountId: string,
     config: RateLimitConfig,
-  ): Promise<boolean> {
+  ): Promise<RateLimitResult> {
     // Check per-second limit
-    const perSecondKey = `webhook:account:${accountId}:second`;
-    const perSecondAllowed = await this.redisService.rateLimit(
-      perSecondKey,
+    const perSecondResult = await this.redisService.rateLimitWithInfo(
+      `webhook:account:${accountId}:second`,
       config.perAccountPerSecond,
-      1, // 1 second window
+      1,
     );
 
-    if (!perSecondAllowed) {
-      return false;
+    if (!perSecondResult.allowed) {
+      return perSecondResult;
     }
 
     // Check per-minute limit
-    const perMinuteKey = `webhook:account:${accountId}:minute`;
-    const perMinuteAllowed = await this.redisService.rateLimit(
-      perMinuteKey,
+    return this.redisService.rateLimitWithInfo(
+      `webhook:account:${accountId}:minute`,
       config.perAccountPerMinute,
-      60, // 60 second window
+      60,
     );
-
-    return perMinuteAllowed;
   }
 
   /**
    * Check global rate limits (per second and per minute)
    */
-  private async checkGlobalLimit(config: RateLimitConfig): Promise<boolean> {
+  private async checkGlobalLimit(config: RateLimitConfig): Promise<RateLimitResult> {
     // Check global per-second limit
-    const perSecondKey = 'webhook:global:second';
-    const perSecondAllowed = await this.redisService.rateLimit(
-      perSecondKey,
+    const perSecondResult = await this.redisService.rateLimitWithInfo(
+      `webhook:global:second`,
       config.globalPerSecond,
-      1, // 1 second window
+      1,
     );
 
-    if (!perSecondAllowed) {
-      return false;
+    if (!perSecondResult.allowed) {
+      return perSecondResult;
     }
 
     // Check global per-minute limit
-    const perMinuteKey = 'webhook:global:minute';
-    const perMinuteAllowed = await this.redisService.rateLimit(
-      perMinuteKey,
+    return this.redisService.rateLimitWithInfo(
+      `webhook:global:minute`,
       config.globalPerMinute,
-      60, // 60 second window
+      60,
     );
-
-    return perMinuteAllowed;
   }
 
   /**
@@ -186,23 +278,42 @@ export class WebhookRateLimitGuard implements CanActivate {
   }
 
   /**
-   * Throw HTTP 429 exception
+   * Throw HTTP 429 exception with proper headers
    */
   private throwRateLimitException(
     message: string,
-    limitType: 'per_account' | 'global',
-    accountId?: string,
+    limitType: 'per_ip' | 'per_account' | 'global',
+    identifier?: string,
+    result?: RateLimitResult,
+    response?: any,
   ): never {
+    // Set Retry-After header if we have the response object
+    if (response?.setHeader && result) {
+      response.setHeader('Retry-After', result.retryAfter || 1);
+      response.setHeader('X-RateLimit-Limit', result.limit);
+      response.setHeader('X-RateLimit-Remaining', 0);
+      response.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000));
+    }
+
     throw new HttpException(
       {
         statusCode: HttpStatus.TOO_MANY_REQUESTS,
         message,
         error: 'Too Many Requests',
         limitType,
-        accountId,
+        identifier,
+        retryAfter: result?.retryAfter || 1,
+        resetAt: result ? new Date(result.resetAt).toISOString() : undefined,
       },
       HttpStatus.TOO_MANY_REQUESTS,
     );
+  }
+
+  /**
+   * Get current metrics (for monitoring endpoints)
+   */
+  getMetrics(): typeof this.metrics {
+    return { ...this.metrics };
   }
 }
 

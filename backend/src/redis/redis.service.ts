@@ -2,11 +2,24 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.constants';
 
+/**
+ * Rate limit result with detailed info for headers
+ */
+export interface RateLimitResult {
+  allowed: boolean;
+  current: number;
+  limit: number;
+  remaining: number;
+  resetAt: number;
+  retryAfter: number;
+}
+
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
   private memoryCache: Map<string, { value: string; expiry?: number }> = new Map();
   private memoryRateLimits: Map<string, { count: number; resetAt: number }> = new Map();
+  private memorySlidingLogs: Map<string, number[]> = new Map();
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {
     // Cleanup expired memory cache entries periodically
@@ -27,6 +40,18 @@ export class RedisService {
     for (const [key, value] of this.memoryRateLimits.entries()) {
       if (now > value.resetAt) {
         this.memoryRateLimits.delete(key);
+      }
+    }
+    // Cleanup sliding window logs (remove entries older than 2 minutes)
+    const twoMinutesAgo = now - 120000;
+    for (const [key, log] of this.memorySlidingLogs.entries()) {
+      // Remove all expired entries
+      while (log.length > 0 && log[0] < twoMinutesAgo) {
+        log.shift();
+      }
+      // Delete empty logs
+      if (log.length === 0) {
+        this.memorySlidingLogs.delete(key);
       }
     }
   }
@@ -166,39 +191,133 @@ export class RedisService {
   }
 
   /**
-   * Rate limiting with sliding window
-   * Returns true if request is allowed, false if rate limit exceeded
+   * Rate limiting with TRUE Sliding Window Log Algorithm
+   * Uses Redis sorted sets for accurate sliding window
+   * Returns object with allowed status, current count, and reset time
    */
   async rateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
+    const result = await this.rateLimitWithInfo(key, limit, windowSeconds);
+    return result.allowed;
+  }
+
+  /**
+   * Rate limiting with detailed info (for headers)
+   * Uses Sliding Window Log algorithm with Redis sorted sets
+   */
+  async rateLimitWithInfo(
+    key: string,
+    limit: number,
+    windowSeconds: number,
+  ): Promise<RateLimitResult> {
     const rateLimitKey = `ratelimit:${key}`;
-    
+    const now = Date.now();
+    const windowStart = now - windowSeconds * 1000;
+
     if (this.isRedisAvailable()) {
       try {
-        const current = await this.redis!.incr(rateLimitKey);
-        if (current === 1) {
-          await this.redis!.expire(rateLimitKey, windowSeconds);
-        }
-        return current <= limit;
+        // Use Lua script for atomic sliding window operation
+        const luaScript = `
+          local key = KEYS[1]
+          local now = tonumber(ARGV[1])
+          local window_start = tonumber(ARGV[2])
+          local limit = tonumber(ARGV[3])
+          local window_seconds = tonumber(ARGV[4])
+
+          -- Remove expired entries
+          redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start)
+
+          -- Count current requests in window
+          local current = redis.call('ZCARD', key)
+
+          -- Check if under limit
+          if current < limit then
+            -- Add new request with current timestamp as score
+            redis.call('ZADD', key, now, now .. '-' .. math.random())
+            -- Set expiry on the key
+            redis.call('EXPIRE', key, window_seconds + 1)
+            return {1, current + 1, window_start + (window_seconds * 1000)}
+          else
+            -- Get oldest entry to calculate reset time
+            local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+            local reset_at = oldest[2] and (tonumber(oldest[2]) + (window_seconds * 1000)) or (now + (window_seconds * 1000))
+            return {0, current, reset_at}
+          end
+        `;
+
+        const result = await this.redis!.eval(
+          luaScript,
+          1,
+          rateLimitKey,
+          now.toString(),
+          windowStart.toString(),
+          limit.toString(),
+          windowSeconds.toString(),
+        ) as [number, number, number];
+
+        return {
+          allowed: result[0] === 1,
+          current: result[1],
+          limit,
+          remaining: Math.max(0, limit - result[1]),
+          resetAt: Math.ceil(result[2]),
+          retryAfter: result[0] === 0 ? Math.ceil((result[2] - now) / 1000) : 0,
+        };
       } catch (error) {
         this.logger.warn(`Redis rateLimit failed: ${error}`);
       }
     }
-    
-    // Fallback to memory-based rate limiting
+
+    // Fallback to memory-based sliding window
+    return this.memoryRateLimitSlidingWindow(rateLimitKey, limit, windowSeconds);
+  }
+
+  /**
+   * Memory-based sliding window rate limiting (fallback)
+   */
+  private memoryRateLimitSlidingWindow(
+    key: string,
+    limit: number,
+    windowSeconds: number,
+  ): RateLimitResult {
     const now = Date.now();
-    const existing = this.memoryRateLimits.get(rateLimitKey);
-    
-    if (existing && now < existing.resetAt) {
-      existing.count++;
-      return existing.count <= limit;
+    const windowMs = windowSeconds * 1000;
+    const windowStart = now - windowMs;
+
+    // Get or create sliding window log
+    let log = this.memorySlidingLogs.get(key);
+    if (!log) {
+      log = [];
+      this.memorySlidingLogs.set(key, log);
     }
-    
-    // Start new window
-    this.memoryRateLimits.set(rateLimitKey, {
-      count: 1,
-      resetAt: now + windowSeconds * 1000,
-    });
-    return true;
+
+    // Remove expired entries
+    while (log.length > 0 && log[0] < windowStart) {
+      log.shift();
+    }
+
+    // Check if under limit
+    if (log.length < limit) {
+      log.push(now);
+      return {
+        allowed: true,
+        current: log.length,
+        limit,
+        remaining: limit - log.length,
+        resetAt: log.length > 0 ? log[0] + windowMs : now + windowMs,
+        retryAfter: 0,
+      };
+    }
+
+    // Over limit
+    const resetAt = log[0] + windowMs;
+    return {
+      allowed: false,
+      current: log.length,
+      limit,
+      remaining: 0,
+      resetAt,
+      retryAfter: Math.ceil((resetAt - now) / 1000),
+    };
   }
 
   /**
