@@ -118,8 +118,9 @@ export class BlockchainVerificationService {
                 if (response.data?.status === '1') {
                     return { valid: true, message: 'เชื่อมต่อ Etherscan สำเร็จ' };
                 }
-                // Return more specific error message
-                return { valid: false, message: response.data?.message || 'API Key ไม่ถูกต้อง' };
+                // Return the 'result' field which contains actual error detail (e.g., 'Invalid API Key format')
+                const errorDetail = response.data?.result || response.data?.message || 'API Key ไม่ถูกต้อง';
+                return { valid: false, message: `Etherscan: ${errorDetail}` };
             }
 
             if (network === 'BEP20') {
@@ -133,7 +134,8 @@ export class BlockchainVerificationService {
                 if (response.data?.status === '1') {
                     return { valid: true, message: 'เชื่อมต่อ BSCScan สำเร็จ' };
                 }
-                return { valid: false, message: response.data?.message || 'API Key ไม่ถูกต้อง' };
+                const errorDetail = response.data?.result || response.data?.message || 'API Key ไม่ถูกต้อง';
+                return { valid: false, message: `BSCScan: ${errorDetail}` };
             }
             return { valid: false, message: 'Network ไม่รองรับ' };
         } catch (error: any) {
