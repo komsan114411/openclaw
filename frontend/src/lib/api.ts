@@ -444,5 +444,12 @@ export const walletApi = {
     api.post(`/wallet/admin/user/${userId}/add-credits`, { amount, description }),
   deductCredits: (userId: string, amount: number, description: string) =>
     api.post(`/wallet/admin/user/${userId}/deduct-credits`, { amount, description }),
+  // Admin transaction approval
+  getTransactionById: (id: string) => api.get(`/wallet/admin/transaction/${id}`),
+  approveTransaction: (id: string, notes?: string) =>
+    api.post(`/wallet/admin/transaction/${id}/approve`, { notes }),
+  rejectTransaction: (id: string, reason?: string) =>
+    api.post(`/wallet/admin/transaction/${id}/reject`, { reason }),
+
 };
 

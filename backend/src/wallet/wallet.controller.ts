@@ -227,4 +227,40 @@ export class WalletController {
         const stats = await this.walletService.getStatistics();
         return { success: true, ...stats };
     }
+
+    // ==========================================
+    // Admin: Transaction Approval/Rejection
+    // ==========================================
+
+    @Get("admin/transaction/:id")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    async getTransactionById(@Param("id") id: string) {
+        this.validateObjectId(id, "transactionId");
+        const transaction = await this.walletService.getTransactionById(id);
+        if (!transaction) {
+            return { success: false, message: "ไม่พบรายการธุรกรรม" };
+        }
+        return { success: true, transaction: { ...transaction, slipImageData: undefined, hasSlipImage: !!transaction.slipImageData } };
+    }
+
+    @Post("admin/transaction/:id/approve")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @HttpCode(HttpStatus.OK)
+    async approveTransaction(@Request() req: any, @Param("id") id: string, @Body() body: { notes?: string }) {
+        this.validateObjectId(id, "transactionId");
+        const notes = body.notes ? this.sanitizeDescription(body.notes) : undefined;
+        return this.walletService.approveTransaction(id, req.user.userId, notes);
+    }
+
+    @Post("admin/transaction/:id/reject")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @HttpCode(HttpStatus.OK)
+    async rejectTransaction(@Request() req: any, @Param("id") id: string, @Body() body: { reason?: string }) {
+        this.validateObjectId(id, "transactionId");
+        const reason = body.reason ? this.sanitizeDescription(body.reason) : undefined;
+        return this.walletService.rejectTransaction(id, req.user.userId, reason);
+    }
 }

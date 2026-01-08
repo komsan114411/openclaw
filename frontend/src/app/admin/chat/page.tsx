@@ -612,35 +612,44 @@ function AdminChatContent() {
                               className={cn("flex w-full", msg.direction === 'out' ? 'justify-end' : 'justify-start')}
                             >
                               <div className={cn(
-                                "max-w-[85%] sm:max-w-[80%] space-y-1 sm:space-y-2",
+                                "space-y-1",
                                 msg.direction === 'out' ? "items-end text-right" : "items-start text-left"
                               )}>
-                                <div className={cn(
-                                  "p-3 sm:p-4 rounded-2xl sm:rounded-3xl shadow-lg border transition-all duration-500",
-                                  msg.direction === 'out'
-                                    ? "bg-slate-900 text-white border-white/10 rounded-tr-sm sm:rounded-tr-none"
-                                    : "bg-white/[0.03] text-white border-white/5 rounded-tl-sm sm:rounded-tl-none backdrop-blur-md"
-                                )}>
-                                  {msg.messageType === 'image' && msg.messageId ? (
+                                {/* Message Bubble - Different style for images */}
+                                {msg.messageType === 'image' && msg.messageId ? (
+                                  <div className={cn(
+                                    "overflow-hidden rounded-2xl shadow-lg cursor-pointer group",
+                                    msg.direction === 'out'
+                                      ? "rounded-tr-md"
+                                      : "rounded-tl-md"
+                                  )}>
                                     <img
                                       src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
                                       alt="sent image"
-                                      className="max-w-full rounded-xl sm:rounded-2xl cursor-zoom-in hover:opacity-90 transition-opacity"
+                                      className="max-w-[240px] max-h-[320px] object-cover transition-transform duration-300 group-hover:scale-105"
                                       onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
                                       onLoad={() => {
                                         if (isAtBottomRef.current) scrollToBottom();
                                       }}
                                     />
-                                  ) : (
-                                    <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
-                                  )}
-                                  <div className={cn(
-                                    "mt-2 sm:mt-3 text-[8px] sm:text-[9px] font-semibold opacity-50",
-                                    msg.direction === 'out' ? "text-[#06C755] text-right" : "text-slate-400"
-                                  )}>
-                                    {formatTime(msg.createdAt)}
-                                    {msg.sentBy && msg.direction === 'out' && ` • ${msg.sentBy}`}
                                   </div>
+                                ) : (
+                                  <div className={cn(
+                                    "px-4 py-2.5 rounded-2xl shadow-md border max-w-[320px]",
+                                    msg.direction === 'out'
+                                      ? "bg-[#06C755] text-white border-[#06C755]/50 rounded-tr-md"
+                                      : "bg-white/[0.08] text-white border-white/10 rounded-tl-md backdrop-blur-sm"
+                                  )}>
+                                    <p className="text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
+                                  </div>
+                                )}
+                                {/* Timestamp */}
+                                <div className={cn(
+                                  "px-1 text-[10px] font-medium opacity-50",
+                                  msg.direction === 'out' ? "text-slate-400 text-right" : "text-slate-500"
+                                )}>
+                                  {formatTime(msg.createdAt)}
+                                  {msg.sentBy && msg.direction === 'out' && ` • ${msg.sentBy}`}
                                 </div>
                               </div>
                             </motion.div>

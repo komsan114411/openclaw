@@ -252,8 +252,34 @@ export class LineAccountsService {
       throw new NotFoundException('LINE account not found');
     }
 
-    account.settings = { ...account.settings, ...settings };
+    // Convert existing settings to plain object to avoid Mongoose subdocument issues
+    const rawSettings = account.settings as any;
+    const currentSettings = rawSettings && typeof rawSettings.toObject === 'function'
+      ? rawSettings.toObject()
+      : (rawSettings || {});
+
+    // Merge settings properly (handle nested objects like slipTemplateIds)
+    const mergedSettings = { ...currentSettings };
+    for (const [key, value] of Object.entries(settings)) {
+      if (value !== undefined) {
+        // For nested objects like slipTemplateIds, merge instead of replace
+        if (key === 'slipTemplateIds' && typeof value === 'object' && value !== null) {
+          mergedSettings[key] = { ...(currentSettings[key] || {}), ...value };
+        } else {
+          mergedSettings[key] = value;
+        }
+      }
+    }
+
+    // Set the merged settings
+    account.settings = mergedSettings as any;
+
+    // Mark settings as modified to ensure Mongoose saves nested changes
+    account.markModified('settings');
+
     await account.save();
+
+    this.logger.log(`[updateSettings] Updated settings for account ${id}: slipTemplateIds=${JSON.stringify(mergedSettings.slipTemplateIds || {})}`);
 
     await this.redisService.invalidateCache(`line-account:${id}`);
   }

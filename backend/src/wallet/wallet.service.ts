@@ -805,5 +805,102 @@ export class WalletService {
             discrepancy,
         };
     }
-}
 
+    /**
+     * Admin: Approve pending transaction
+     */
+    async approveTransaction(
+        transactionId: string,
+        adminUserId: string,
+        notes?: string,
+    ): Promise<{ success: boolean; message: string; transaction?: any }> {
+        const transaction = await this.transactionModel.findById(transactionId);
+        if (!transaction) {
+            return { success: false, message: 'ไม่พบรายการธุรกรรม' };
+        }
+
+        if (transaction.status !== TransactionStatus.PENDING) {
+            return { success: false, message: 'รายการนี้ไม่อยู่ในสถานะรอดำเนินการ' };
+        }
+
+        // Get the amount to credit (from metadata for USDT, or from transaction amount)
+        const creditAmount = transaction.metadata?.thbCredits || transaction.amount;
+        if (!creditAmount || creditAmount <= 0) {
+            return { success: false, message: 'จำนวนเครดิตไม่ถูกต้อง' };
+        }
+
+        // Update wallet balance
+        const wallet = await this.getOrCreateWallet(transaction.userId.toString());
+        const balanceBefore = wallet.balance;
+        wallet.balance += creditAmount;
+        wallet.totalDeposited += creditAmount;
+        await wallet.save();
+
+        // Update transaction status
+        transaction.status = TransactionStatus.COMPLETED;
+        transaction.processedBy = new Types.ObjectId(adminUserId);
+        transaction.completedAt = new Date();
+        transaction.balanceBefore = balanceBefore;
+        transaction.balanceAfter = wallet.balance;
+        transaction.amount = creditAmount; // Ensure amount reflects credited amount
+        if (notes) {
+            transaction.adminNotes = notes;
+        }
+        await transaction.save();
+
+        this.logger.log(`Transaction approved: id=${transactionId}, userId=${transaction.userId}, amount=${creditAmount}, by=${adminUserId}`);
+
+        return {
+            success: true,
+            message: `อนุมัติรายการสำเร็จ เติมเครดิต ${creditAmount.toLocaleString()} บาท`,
+            transaction: transaction.toObject(),
+        };
+    }
+
+    /**
+     * Admin: Reject pending transaction
+     */
+    async rejectTransaction(
+        transactionId: string,
+        adminUserId: string,
+        reason?: string,
+    ): Promise<{ success: boolean; message: string; transaction?: any }> {
+        const transaction = await this.transactionModel.findById(transactionId);
+        if (!transaction) {
+            return { success: false, message: 'ไม่พบรายการธุรกรรม' };
+        }
+
+        if (transaction.status !== TransactionStatus.PENDING) {
+            return { success: false, message: 'รายการนี้ไม่อยู่ในสถานะรอดำเนินการ' };
+        }
+
+        // Update transaction status
+        transaction.status = TransactionStatus.REJECTED;
+        transaction.processedBy = new Types.ObjectId(adminUserId);
+        transaction.completedAt = new Date();
+        if (reason) {
+            transaction.adminNotes = reason;
+        }
+        await transaction.save();
+
+        this.logger.log(`Transaction rejected: id=${transactionId}, userId=${transaction.userId}, reason=${reason || 'N/A'}, by=${adminUserId}`);
+
+        return {
+            success: true,
+            message: 'ปฏิเสธรายการสำเร็จ',
+            transaction: transaction.toObject(),
+        };
+    }
+
+    /**
+     * Admin: Get transaction by ID
+     */
+    async getTransactionById(transactionId: string): Promise<any> {
+        return this.transactionModel
+            .findById(transactionId)
+            .populate('userId', 'username email fullName')
+            .populate('processedBy', 'username')
+            .lean()
+            .exec();
+    }
+}
