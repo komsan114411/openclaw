@@ -290,7 +290,10 @@ interface AddBankAccountData {
 // System Settings API
 export const systemSettingsApi = {
   get: () => api.get('/system-settings'),
-  update: (data: UpdateSystemSettingsData) => api.put('/system-settings', data),
+  updateSystemSettings: (data: UpdateSystemSettingsData) =>
+    api.put('/system-settings', data),
+  testUsdtApi: (network: 'TRC20' | 'ERC20' | 'BEP20', apiKey: string) =>
+    api.post('/system-settings/test-usdt-api', { network, apiKey }),
   addBankAccount: (data: AddBankAccountData) => api.post('/system-settings/bank-accounts', data),
   removeBankAccount: (index: number) =>
     api.delete(`/system-settings/bank-accounts/${index}`),

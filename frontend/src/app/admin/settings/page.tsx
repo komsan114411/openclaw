@@ -240,6 +240,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleTestConnection = async (network: 'TRC20' | 'ERC20' | 'BEP20', apiKey: string) => {
+    try {
+      const toastId = toast.loading('กำลังตรวจสอบการเชื่อมต่อ...');
+
+      const response = await systemSettingsApi.testUsdtApi(network, apiKey);
+
+      toast.dismiss(toastId);
+
+      if (response.data.valid) {
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.response?.data?.message || 'การเชื่อมต่อล้มเหลว');
+    }
+  };
+
   const handleTestSlipApi = async () => {
     setTestingSlip(true);
     try {
@@ -1250,6 +1269,8 @@ export default function SettingsPage() {
                       </div>
 
                       {/* Network-specific API Keys */}
+
+
                       {usdtSettings.usdtNetwork === 'ERC20' && (
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
@@ -1258,18 +1279,34 @@ export default function SettingsPage() {
                               Etherscan API Key (จำเป็นสำหรับ ERC20)
                             </label>
                           </div>
-                          <Input
-                            variant="glass"
-                            type="password"
-                            value={usdtSettings.etherscanApiKey}
-                            onChange={(e) => setUsdtSettings({ ...usdtSettings, etherscanApiKey: e.target.value })}
-                            className="bg-white/5 border-white/10 text-white font-mono"
-                            placeholder="ใส่ Etherscan API Key..."
-                          />
-                          {!usdtSettings.etherscanApiKey && (
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <Input
+                                variant="glass"
+                                type={usdtSettings.etherscanApiKey?.includes('...') ? 'text' : 'password'}
+                                value={usdtSettings.etherscanApiKey}
+                                onChange={(e) => setUsdtSettings({ ...usdtSettings, etherscanApiKey: e.target.value })}
+                                className="bg-white/5 border-white/10 text-white font-mono"
+                                placeholder="ใส่ Etherscan API Key..."
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              className="px-4 border border-white/10 hover:bg-white/5"
+                              onClick={() => handleTestConnection('ERC20', usdtSettings.etherscanApiKey)}
+                              disabled={!usdtSettings.etherscanApiKey}
+                            >
+                              ทดสอบ
+                            </Button>
+                          </div>
+                          {!usdtSettings.etherscanApiKey ? (
                             <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
                               <span>⚠️</span>
                               <span className="text-xs">ยังไม่ได้ตั้งค่า API Key - สมัครฟรีที่ etherscan.io/apis</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-slate-400 bg-white/5 px-3 py-2 rounded-lg">
+                              <span className="text-xs">API Key ถูกเข้ารหัสแล้ว: {usdtSettings.etherscanApiKey.includes('...') ? usdtSettings.etherscanApiKey : '****************'}</span>
                             </div>
                           )}
                         </div>
@@ -1283,18 +1320,34 @@ export default function SettingsPage() {
                               BSCScan API Key (จำเป็นสำหรับ BEP20)
                             </label>
                           </div>
-                          <Input
-                            variant="glass"
-                            type="password"
-                            value={usdtSettings.bscscanApiKey}
-                            onChange={(e) => setUsdtSettings({ ...usdtSettings, bscscanApiKey: e.target.value })}
-                            className="bg-white/5 border-white/10 text-white font-mono"
-                            placeholder="ใส่ BSCScan API Key..."
-                          />
-                          {!usdtSettings.bscscanApiKey && (
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <Input
+                                variant="glass"
+                                type={usdtSettings.bscscanApiKey?.includes('...') ? 'text' : 'password'}
+                                value={usdtSettings.bscscanApiKey}
+                                onChange={(e) => setUsdtSettings({ ...usdtSettings, bscscanApiKey: e.target.value })}
+                                className="bg-white/5 border-white/10 text-white font-mono"
+                                placeholder="ใส่ BSCScan API Key..."
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              className="px-4 border border-white/10 hover:bg-white/5"
+                              onClick={() => handleTestConnection('BEP20', usdtSettings.bscscanApiKey)}
+                              disabled={!usdtSettings.bscscanApiKey}
+                            >
+                              ทดสอบ
+                            </Button>
+                          </div>
+                          {!usdtSettings.bscscanApiKey ? (
                             <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
                               <span>⚠️</span>
                               <span className="text-xs">ยังไม่ได้ตั้งค่า API Key - สมัครฟรีที่ bscscan.com/apis</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-slate-400 bg-white/5 px-3 py-2 rounded-lg">
+                              <span className="text-xs">API Key ถูกเข้ารหัสแล้ว: {usdtSettings.bscscanApiKey.includes('...') ? usdtSettings.bscscanApiKey : '****************'}</span>
                             </div>
                           )}
                         </div>
