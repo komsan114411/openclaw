@@ -625,7 +625,6 @@ export default function WalletPage() {
           </Card>
         </div>
       </div>
-    </div>
-    </DashboardLayout >
+    </DashboardLayout>
   );
 }
