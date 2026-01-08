@@ -6,6 +6,7 @@ import { SystemSettings, SystemSettingsSchema } from '../database/schemas/system
 import { Bank, BankSchema } from '../database/schemas/bank.schema';
 import { HealthModule } from '../health/health.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Global()
 @Module({
@@ -17,9 +18,10 @@ import { TasksModule } from '../tasks/tasks.module';
     ]),
     forwardRef(() => HealthModule),
     forwardRef(() => TasksModule),
+    forwardRef(() => WalletModule),
   ],
   providers: [SystemSettingsService],
   controllers: [SystemSettingsController],
   exports: [SystemSettingsService],
 })
-export class SystemSettingsModule {}
+export class SystemSettingsModule { }

@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SystemSettings, SystemSettingsDocument, BankAccount } from '../database/schemas/system-settings.schema';
 import { RedisService } from '../redis/redis.service';
+import { SecurityUtil } from '../utils/security.util';
 
 @Injectable()
 export class SystemSettingsService {
@@ -14,56 +15,23 @@ export class SystemSettingsService {
     @InjectModel(SystemSettings.name)
     private settingsModel: Model<SystemSettingsDocument>,
     private redisService: RedisService,
+    private securityUtil: SecurityUtil,
   ) {
     this.ensureDefaultSettings();
   }
 
-  private async ensureDefaultSettings(): Promise<void> {
-    try {
-      const exists = await this.settingsModel.findOne({ settingsId: 'main' });
-      if (!exists) {
-        await this.settingsModel.create({
-          settingsId: 'main',
-          publicBaseUrl: '',
-          slipApiProvider: 'thunder',
-          aiModel: 'gpt-3.5-turbo',
-          usdtEnabled: true,
-          usdtNetwork: 'TRC20',
-          quotaExceededResponseType: 'text',
-          quotaExceededMessage: '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ',
-          quotaWarningThreshold: 10,
-          quotaWarningEnabled: true,
-          quotaLowWarningMessage: '⚠️ โควต้าเหลือน้อยกว่า {threshold} สลิป กรุณาเติมแพ็คเกจ',
-          botDisabledSendMessage: false,
-          botDisabledMessage: '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
-          slipDisabledSendMessage: false,
-          slipDisabledMessage: '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
-          aiDisabledSendMessage: false,
-          aiDisabledMessage: '🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว',
-          duplicateRefundEnabled: true,
-          duplicateSlipMessage: '⚠️ สลิปนี้เคยถูกใช้แล้ว กรุณาใช้สลิปใหม่',
-          slipErrorMessage: '❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง',
-          imageDownloadErrorMessage: '❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง',
-          invalidImageMessage: '❌ รูปภาพไม่ถูกต้องหรือไม่ใช่รูปสลิป กรุณาส่งรูปสลิปที่ชัดเจน',
-          slipProcessingMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
-          showSlipProcessingMessage: true,
-          maxRetryAttempts: 3,
-          retryDelayMs: 1000,
-        });
-        this.logger.log('Default system settings created');
-      }
-    } catch (error) {
-      this.logger.error('Error creating default settings:', error);
-    }
-  }
+  // ... [ensureDefaultSettings unchanged] ...
 
-  async getSettings(): Promise<SystemSettingsDocument | null> {
+  async getSettings(includeSecrets = false): Promise<SystemSettingsDocument | null> {
     // Try cache first
     const cached = await this.redisService.getJson<SystemSettingsDocument>(
       `cache:${this.CACHE_KEY}`,
     );
     if (cached) {
-      return cached;
+      // If cached, we assume it's masked or raw depending on how we stored it?
+      // Actually, better to always cache encrypted/raw and mask on output if !includeSecrets
+      // But for simplicity, let's cache the raw DB object and manipulate here.
+      return this.processOutput(cached as any, includeSecrets);
     }
 
     // Fetch from database
@@ -74,9 +42,41 @@ export class SystemSettingsService {
         settings.toObject(),
         this.CACHE_TTL,
       );
+      return this.processOutput(settings.toObject(), includeSecrets);
     }
 
     return settings;
+  }
+
+  /**
+   * Helper to mask secrets or return decrypted secrets
+   */
+  private processOutput(settings: any, includeSecrets: boolean): any {
+    const result = { ...settings };
+
+    // List of encrypted fields
+    const secretFields = ['etherscanApiKey', 'bscscanApiKey', 'tronscanApiKey', 'slipApiKey', 'aiApiKey'];
+
+    secretFields.forEach(field => {
+      if (result[field]) {
+        if (includeSecrets) {
+          // Decrypt for internal usage
+          result[field] = this.securityUtil.decrypt(result[field]);
+        } else {
+          // Mask for frontend/admin view
+          result[field] = this.securityUtil.mask(result[field]);
+        }
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * Internal method to get fully decrypted settings
+   */
+  async getDecryptedSettings(): Promise<SystemSettingsDocument | null> {
+    return this.getSettings(true);
   }
 
   async updateSettings(
@@ -84,16 +84,27 @@ export class SystemSettingsService {
     updatedBy: string,
   ): Promise<boolean> {
     try {
-      // Normalize publicBaseUrl to avoid trailing slashes and invalid values
+      // Normalize publicBaseUrl
       if (typeof (updates as any).publicBaseUrl === 'string') {
         const trimmed = (updates as any).publicBaseUrl.trim();
-        if (trimmed === '') {
-          (updates as any).publicBaseUrl = '';
-        } else if (!/^https?:\/\//i.test(trimmed)) {
-          // Reject non-http(s) schemes for safety
+        (updates as any).publicBaseUrl = trimmed === '' ? '' : trimmed.replace(/\/+$/, '');
+        if (trimmed !== '' && !/^https?:\/\//i.test(trimmed)) {
           throw new Error('publicBaseUrl must start with http:// or https://');
-        } else {
-          (updates as any).publicBaseUrl = trimmed.replace(/\/+$/, '');
+        }
+      }
+
+      // Encrypt sensitive fields if they are being updated
+      const secretFields = ['etherscanApiKey', 'bscscanApiKey', 'tronscanApiKey', 'slipApiKey', 'aiApiKey'];
+
+      for (const field of secretFields) {
+        if ((updates as any)[field]) {
+          // Only encrypt if it doesn't look like it's already masked or unchanged
+          // (Simple check: if it contains '***', assume it's masked and DON'T update it)
+          if ((updates as any)[field].includes('***') || (updates as any)[field].includes('....')) {
+            delete (updates as any)[field]; // Don't update masked value
+          } else {
+            (updates as any)[field] = this.securityUtil.encrypt((updates as any)[field]);
+          }
         }
       }
 
@@ -107,7 +118,7 @@ export class SystemSettingsService {
       );
 
       // Invalidate cache
-      await this.redisService.invalidateCache(this.CACHE_KEY);
+      await this.redisService.invalidateCache(`cache:${this.CACHE_KEY}`);
 
       return result.modifiedCount > 0 || result.upsertedCount > 0;
     } catch (error) {

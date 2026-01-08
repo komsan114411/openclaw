@@ -27,11 +27,13 @@ import { ThunderApiModule } from './thunder-api/thunder-api.module';
 import { SystemResponseTemplatesModule } from './system-response-templates/system-response-templates.module';
 import { WalletModule } from './wallet/wallet.module';
 import { EventBusModule } from './core/events';
+import { SecurityModule } from './utils/security.module';
 
 @Module({
   imports: [
     // Core modules (Event Bus - Global)
     EventBusModule,
+    SecurityModule,
 
     // Configuration
     ConfigModule.forRoot({

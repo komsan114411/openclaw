@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { SecurityUtil } from '../utils/security.util';
 
 /**
  * Multi-Chain USDT Verification Service
@@ -12,6 +13,8 @@ import axios from 'axios';
 @Injectable()
 export class BlockchainVerificationService {
     private readonly logger = new Logger(BlockchainVerificationService.name);
+
+    constructor(private securityUtil: SecurityUtil) { }
 
     // USDT Contract Addresses
     private readonly CONTRACTS = {
@@ -109,16 +112,20 @@ export class BlockchainVerificationService {
             if (network === 'TRC20') {
                 return this.verifyTRC20(txHash, expectedWallet, expectedAmount);
             } else if (network === 'ERC20') {
-                const apiKey = apiKeys?.etherscan || process.env.ETHERSCAN_API_KEY || '';
+                let apiKey = apiKeys?.etherscan || process.env.ETHERSCAN_API_KEY || '';
                 if (!apiKey) {
                     return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า Etherscan API Key' };
                 }
+                // Decrypt if necessary
+                apiKey = this.securityUtil.decrypt(apiKey);
                 return this.verifyERC20(txHash, expectedWallet, expectedAmount, apiKey);
             } else if (network === 'BEP20') {
-                const apiKey = apiKeys?.bscscan || process.env.BSCSCAN_API_KEY || '';
+                let apiKey = apiKeys?.bscscan || process.env.BSCSCAN_API_KEY || '';
                 if (!apiKey) {
                     return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า BSCScan API Key' };
                 }
+                // Decrypt if necessary
+                apiKey = this.securityUtil.decrypt(apiKey);
                 return this.verifyBEP20(txHash, expectedWallet, expectedAmount, apiKey);
             }
 
@@ -126,6 +133,51 @@ export class BlockchainVerificationService {
         } catch (error: any) {
             this.logger.error(`Verification error: ${error.message}`);
             return { verified: false, status: 'error', message: error.message };
+        }
+    }
+
+    /**
+     * Test API key validity - Decrypts key first
+     */
+    async testApiKey(
+        network: 'TRC20' | 'ERC20' | 'BEP20',
+        apiKey: string,
+    ): Promise<{ valid: boolean; message: string }> {
+        try {
+            // Decrypt key if needed
+            const decryptedKey = this.securityUtil.decrypt(apiKey);
+
+            if (network === 'TRC20') {
+                const response = await axios.get(`${this.APIS.TRC20}/system/status`, { timeout: 5000 });
+                return { valid: true, message: 'เชื่อมต่อ TRONSCAN สำเร็จ' };
+            }
+
+            if (network === 'ERC20') {
+                if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ Etherscan API Key' };
+                const response = await axios.get(this.APIS.ERC20, {
+                    params: { module: 'stats', action: 'ethsupply', apikey: decryptedKey },
+                    timeout: 5000,
+                });
+                if (response.data?.status === '1') {
+                    return { valid: true, message: 'เชื่อมต่อ Etherscan สำเร็จ' };
+                }
+                return { valid: false, message: 'API Key ไม่ถูกต้อง' };
+            }
+
+            if (network === 'BEP20') {
+                if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ BSCScan API Key' };
+                const response = await axios.get(this.APIS.BEP20, {
+                    params: { module: 'stats', action: 'bnbsupply', apikey: decryptedKey },
+                    timeout: 5000,
+                });
+                if (response.data?.status === '1') {
+                    return { valid: true, message: 'เชื่อมต่อ BSCScan สำเร็จ' };
+                }
+                return { valid: false, message: 'API Key ไม่ถูกต้อง' };
+            }
+            return { valid: false, message: 'Network ไม่รองรับ' };
+        } catch (error: any) {
+            return { valid: false, message: `เชื่อมต่อไม่สำเร็จ: ${error.message}` };
         }
     }
 
