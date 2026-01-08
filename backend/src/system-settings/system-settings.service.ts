@@ -154,6 +154,12 @@ export class SystemSettingsService {
         { upsert: true },
       );
 
+      // Debug log for QR image
+      if ((updates as any).usdtQrImage) {
+        this.logger.log(`USDT QR Image update detected, length: ${(updates as any).usdtQrImage.length}`);
+      }
+
+
       // Invalidate cache
       await this.redisService.invalidateCache(`cache:${this.CACHE_KEY}`);
 
