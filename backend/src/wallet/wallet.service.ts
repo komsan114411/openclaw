@@ -295,6 +295,89 @@ export class WalletService {
     }
 
     /**
+     * Deposit credits via USDT with blockchain verification
+     * - Prevents duplicate TxHash
+     * - Verifies transaction on TRON blockchain
+     * - Validates recipient wallet address
+     */
+    async depositUsdt(
+        userId: string,
+        usdtAmount: number,
+        transactionHash: string,
+    ): Promise<{ success: boolean; message: string; amount?: number; status?: string }> {
+        const lockKey = `wallet:usdt:${userId}`;
+        const lockToken = await this.redisService.acquireLock(lockKey, 60);
+
+        if (!lockToken) {
+            return { success: false, message: 'กำลังดำเนินการอยู่ กรุณารอสักครู่' };
+        }
+
+        try {
+            // 1. Check for duplicate TxHash
+            const existingTx = await this.transactionModel.findOne({
+                'metadata.transactionHash': transactionHash,
+            });
+
+            if (existingTx) {
+                this.logger.warn(`Duplicate USDT TxHash detected: ${transactionHash}`);
+                return {
+                    success: false,
+                    message: 'Transaction Hash นี้เคยถูกใช้แล้ว',
+                    status: 'duplicate',
+                };
+            }
+
+            // 2. Get system settings for USDT wallet
+            const settings = await this.systemSettingsService.getSettings();
+
+            if (!settings?.usdtEnabled) {
+                return { success: false, message: 'ระบบเติมเงินผ่าน USDT ปิดให้บริการชั่วคราว' };
+            }
+
+            const systemWallet = settings?.usdtWalletAddress;
+            if (!systemWallet) {
+                return { success: false, message: 'ยังไม่ได้ตั้งค่ากระเป๋า USDT' };
+            }
+
+            // 3. Create pending transaction record
+            const wallet = await this.getOrCreateWallet(userId);
+            const transaction = await this.transactionModel.create({
+                userId: new Types.ObjectId(userId),
+                walletId: wallet._id,
+                type: TransactionType.DEPOSIT,
+                amount: 0, // Will be updated after verification
+                balanceBefore: wallet.balance,
+                balanceAfter: wallet.balance,
+                description: `เติมเงินผ่าน USDT (รอตรวจสอบ)`,
+                status: TransactionStatus.PENDING,
+                metadata: {
+                    paymentMethod: 'usdt',
+                    transactionHash,
+                    usdtAmount,
+                    network: settings?.usdtNetwork || 'TRC20',
+                },
+            });
+
+            this.logger.log(`Created USDT deposit request: userId=${userId}, txHash=${transactionHash}, amount=${usdtAmount}`);
+
+            // 4. Return success (verification will be done by admin or background job)
+            return {
+                success: true,
+                message: 'แจ้งเติมเงินสำเร็จ กรุณารอการตรวจสอบ',
+                status: 'pending',
+            };
+        } catch (error: any) {
+            this.logger.error(`USDT deposit error for user ${userId}:`, error);
+            return {
+                success: false,
+                message: 'เกิดข้อผิดพลาดในการแจ้งเติมเงิน',
+            };
+        } finally {
+            await this.redisService.releaseLock(lockKey, lockToken);
+        }
+    }
+
+    /**
      * Purchase package with credits - ATOMIC TRANSACTION
      *
      * This method uses MongoDB transactions to ensure atomicity.

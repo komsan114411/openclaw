@@ -152,6 +152,7 @@ export default function SettingsPage() {
         usdtEnabled: data.usdtEnabled ?? true,
         usdtNetwork: data.usdtNetwork || 'TRC20',
         usdtWalletAddress: data.usdtWalletAddress || '',
+        usdtQrImage: data.usdtQrImage || '',
       });
       setMessageSettings({
         quotaExceededMessage: data.quotaExceededMessage || '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ',
