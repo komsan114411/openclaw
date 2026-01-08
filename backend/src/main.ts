@@ -20,24 +20,49 @@ async function bootstrap() {
     app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 
-    // Enable CORS (must not use "*" with credentials)
+    // Enable CORS with strict origin validation
+    const isProduction = process.env.NODE_ENV === 'production';
     app.enableCors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, Postman)
-        if (!origin) return callback(null, true);
+        // In production, require origin header (block direct API calls)
+        // In development, allow tools like Postman for testing
+        if (!origin) {
+          if (isProduction) {
+            return callback(new Error('Origin header required'), false);
+          }
+          return callback(null, true);
+        }
 
-        // Allow all Railway domains
-        if (origin.includes('.railway.app')) return callback(null, true);
+        // Validate origin format to prevent header injection
+        try {
+          const url = new URL(origin);
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            return callback(new Error('Invalid origin protocol'), false);
+          }
+        } catch {
+          return callback(new Error('Invalid origin format'), false);
+        }
 
-        // Allow localhost for development
-        if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
+        // Allow Railway domains (strict suffix match)
+        if (origin.endsWith('.railway.app') || origin === 'https://railway.app') {
+          return callback(null, true);
+        }
 
-        // Check custom CORS_ORIGINS env var
+        // Allow localhost for development only
+        if (!isProduction) {
+          if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+            return callback(null, true);
+          }
+        }
+
+        // Check custom CORS_ORIGINS env var (exact match only, no wildcards)
         const allowed = (process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
-        if (allowed.includes(origin) || allowed.includes('*')) return callback(null, true);
+        if (allowed.includes(origin)) {
+          return callback(null, true);
+        }
 
-        // Log rejected origins for debugging
-        console.warn(`CORS rejected origin: ${origin}`);
+        // Reject unknown origins
+        logger.warn(`CORS rejected origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'), false);
       },
       credentials: true,

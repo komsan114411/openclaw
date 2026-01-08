@@ -346,11 +346,33 @@ export class BanksService {
     return bank;
   }
 
+
   /**
-   * Search banks
+   * Escape special regex characters to prevent ReDoS attacks
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Search banks (with ReDoS protection)
    */
   async search(query: string): Promise<BankDocument[]> {
-    const regex = new RegExp(query, 'i');
+    // Validate and sanitize input
+    if (!query || typeof query !== 'string') {
+      return [];
+    }
+
+    // Limit query length to prevent abuse
+    const sanitizedQuery = query.trim().slice(0, 50);
+    if (!sanitizedQuery) {
+      return [];
+    }
+
+    // Escape special regex characters to prevent ReDoS
+    const escapedQuery = this.escapeRegex(sanitizedQuery);
+    const regex = new RegExp(escapedQuery, 'i');
+
     return this.bankModel
       .find({
         isActive: true,

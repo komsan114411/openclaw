@@ -43,7 +43,8 @@ export class AuthService {
     try {
       const adminExists = await this.userModel.findOne({ username: 'admin' });
       if (!adminExists) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+        const randomPassword = crypto.randomBytes(12).toString('base64').slice(0, 16);
+        const hashedPassword = await bcrypt.hash(randomPassword, 12);
         await this.userModel.create({
           username: 'admin',
           password: hashedPassword,
@@ -53,7 +54,12 @@ export class AuthService {
           forcePasswordChange: true,
           isActive: true,
         });
-        this.logger.log('✅ Default admin user created (username: admin, password: [HIDDEN]) - Password change required on first login');
+        this.logger.warn('═══════════════════════════════════════════════════');
+        this.logger.warn('🔐 DEFAULT ADMIN CREATED');
+        this.logger.warn('   Username: admin');
+        this.logger.warn('   Password: ' + randomPassword);
+        this.logger.warn('   ⚠️ CHANGE PASSWORD IMMEDIATELY ON FIRST LOGIN');
+        this.logger.warn('═══════════════════════════════════════════════════');
       }
     } catch (error) {
       this.logger.error('Error creating default admin:', error);
