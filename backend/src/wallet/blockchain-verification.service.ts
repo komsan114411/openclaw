@@ -207,6 +207,7 @@ export class BlockchainVerificationService {
 
     /**
      * Verify ERC20 (Ethereum) transaction via Etherscan V2 API
+     * Note: V2 API queries by address, then we filter by txhash
      */
     private async verifyERC20(
         txHash: string,
@@ -217,14 +218,18 @@ export class BlockchainVerificationService {
         try {
             this.logger.log(`[ERC20] Verifying txHash: ${txHash}`);
             this.logger.log(`[ERC20] Expected wallet: ${expectedWallet}, amount: ${expectedAmount}`);
-            this.logger.log(`[ERC20] Using API key length: ${apiKey?.length || 0}`);
 
+            // Query token transfers to the expected wallet address
             const response = await axios.get(this.APIS.ERC20, {
                 params: {
                     chainid: this.CHAIN_IDS.ERC20,
                     module: 'account',
                     action: 'tokentx',
-                    txhash: txHash,
+                    address: expectedWallet,  // Query by wallet address
+                    contractaddress: this.CONTRACTS.ERC20, // Filter by USDT contract
+                    page: 1,
+                    offset: 50,  // Get last 50 transfers
+                    sort: 'desc',
                     apikey: apiKey,
                 },
                 timeout: 15000,
@@ -236,23 +241,35 @@ export class BlockchainVerificationService {
             if (response.data?.status === '0') {
                 const errorMsg = response.data?.result || response.data?.message || 'Unknown error';
                 this.logger.error(`[ERC20] API Error: ${errorMsg}`);
+
+                // If no transactions found, that's not necessarily an error
+                if (errorMsg.includes('No transactions found')) {
+                    return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรม USDT มายังกระเป๋านี้' };
+                }
                 return { verified: false, status: 'error', message: `Etherscan: ${errorMsg}` };
             }
 
-            const result = response.data?.result;
+            const results = response.data?.result;
 
-            if (!result || result.length === 0) {
-                this.logger.warn(`[ERC20] No results found for txHash: ${txHash}`);
+            if (!results || results.length === 0) {
+                this.logger.warn(`[ERC20] No USDT transfers found to wallet: ${expectedWallet}`);
+                return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรม USDT มายังกระเป๋านี้' };
+            }
+
+            // Find the transaction matching the txHash
+            const normalizedTxHash = txHash.toLowerCase();
+            const tx = results.find((t: any) => t.hash?.toLowerCase() === normalizedTxHash);
+
+            if (!tx) {
+                this.logger.warn(`[ERC20] TxHash ${txHash} not found in recent transfers`);
                 return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรมนี้ หรือยังไม่ได้รับการยืนยัน' };
             }
 
-            const tx = result[0];
-            this.logger.log(`[ERC20] Transaction found: contractAddress=${tx.contractAddress}, to=${tx.to}, value=${tx.value}`);
-            this.logger.log(`[ERC20] Expected USDT contract: ${this.CONTRACTS.ERC20}`);
+            this.logger.log(`[ERC20] Transaction found: hash=${tx.hash}, to=${tx.to}, value=${tx.value}, token=${tx.tokenSymbol}`);
 
-            // Check if it's USDT token
+            // Verify it's USDT
             if (tx.contractAddress?.toLowerCase() !== this.CONTRACTS.ERC20.toLowerCase()) {
-                this.logger.warn(`[ERC20] Contract mismatch! Got: ${tx.contractAddress}, Expected: ${this.CONTRACTS.ERC20}`);
+                this.logger.warn(`[ERC20] Contract mismatch! Got: ${tx.contractAddress}`);
                 return {
                     verified: false,
                     status: 'wrong_token',
@@ -260,21 +277,28 @@ export class BlockchainVerificationService {
                 };
             }
 
+            // Verify recipient
             const toAddress = tx.to?.toLowerCase();
-            const actualAmount = parseFloat(tx.value) / 1e6; // USDT has 6 decimals
-
-            this.logger.log(`[ERC20] To address: ${toAddress}, Amount: ${actualAmount} USDT`);
-
             if (toAddress !== expectedWallet.toLowerCase()) {
                 this.logger.warn(`[ERC20] Wallet mismatch! Got: ${toAddress}, Expected: ${expectedWallet.toLowerCase()}`);
-                return { verified: false, status: 'wrong_recipient', actualAmount, toAddress: tx.to, message: 'กระเป๋าปลายทางไม่ตรง' };
+                return { verified: false, status: 'wrong_recipient', message: 'กระเป๋าปลายทางไม่ตรง' };
             }
+
+            // Calculate amount (USDT has 6 decimals)
+            const actualAmount = parseFloat(tx.value) / 1e6;
+            this.logger.log(`[ERC20] Amount: ${actualAmount} USDT (expected: ${expectedAmount})`);
 
             if (actualAmount < expectedAmount * 0.99) {
-                return { verified: false, status: 'insufficient_amount', actualAmount, toAddress: tx.to, message: `ยอดไม่ตรง: ได้รับ ${actualAmount} USDT` };
+                return {
+                    verified: false,
+                    status: 'insufficient_amount',
+                    actualAmount,
+                    toAddress: tx.to,
+                    message: `ยอดไม่ตรง: ได้รับ ${actualAmount} USDT`
+                };
             }
 
-            this.logger.log(`[ERC20] Verification SUCCESS! Amount: ${actualAmount} USDT`);
+            this.logger.log(`[ERC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT`);
             return {
                 verified: true,
                 status: 'success',
