@@ -4,7 +4,6 @@ import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { Payment, PaymentSchema } from '../database/schemas/payment.schema';
 import { PackagesModule } from '../packages/packages.module';
-import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
 import { ActivityLogsModule } from '../activity-logs/activity-logs.module';
@@ -13,7 +12,7 @@ import { ActivityLogsModule } from '../activity-logs/activity-logs.module';
   imports: [
     MongooseModule.forFeature([{ name: Payment.name, schema: PaymentSchema }]),
     forwardRef(() => PackagesModule),
-    forwardRef(() => SubscriptionsModule),
+    // SubscriptionsModule removed - now uses Event-Driven Architecture
     forwardRef(() => SystemSettingsModule),
     forwardRef(() => SlipVerificationModule),
     forwardRef(() => ActivityLogsModule),
@@ -22,4 +21,5 @@ import { ActivityLogsModule } from '../activity-logs/activity-logs.module';
   controllers: [PaymentsController],
   exports: [PaymentsService],
 })
-export class PaymentsModule {}
+export class PaymentsModule { }
+

@@ -3,12 +3,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Payment, PaymentDocument, PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
 import { PackagesService } from '../packages/packages.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { RedisService } from '../redis/redis.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { ActivityActorRole } from '../database/schemas/activity-log.schema';
+import { EventBusService, EventNames, PaymentCompletedEvent } from '../core/events';
 
 @Injectable()
 export class PaymentsService {
@@ -18,8 +18,6 @@ export class PaymentsService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @Inject(forwardRef(() => PackagesService))
     private packagesService: PackagesService,
-    @Inject(forwardRef(() => SubscriptionsService))
-    private subscriptionsService: SubscriptionsService,
     @Inject(forwardRef(() => SystemSettingsService))
     private systemSettingsService: SystemSettingsService,
     @Inject(forwardRef(() => SlipVerificationService))
@@ -27,6 +25,7 @@ export class PaymentsService {
     private redisService: RedisService,
     @Inject(forwardRef(() => ActivityLogsService))
     private activityLogsService: ActivityLogsService,
+    private eventBus: EventBusService,
   ) { }
 
   /**
@@ -635,25 +634,32 @@ export class PaymentsService {
       throw new BadRequestException('Cannot approve this payment');
     }
 
-    // STEP 2: Add quota (idempotent - safe to retry)
+    // STEP 2: Publish PaymentCompleted event (Event-Driven Architecture)
+    // The SubscriptionEventHandlers will listen and activate subscription
     try {
-      const quotaResult = await this.subscriptionsService.addQuotaToExisting(
-        payment.userId.toString(),
-        payment.packageId.toString(),
-        paymentId,
-      );
+      // Get package details for event payload
+      const pkg = await this.packagesService.findById(payment.packageId.toString());
 
-      // STEP 3: Mark quota as granted atomically
+      // Publish event - SubscriptionEventHandlers will process this
+      await this.eventBus.publish<PaymentCompletedEvent>({
+        eventName: EventNames.PAYMENT_COMPLETED,
+        occurredAt: new Date(),
+        paymentId,
+        userId: payment.userId.toString(),
+        amount: payment.amount,
+        packageId: payment.packageId.toString(),
+        paymentMethod: payment.paymentType === PaymentType.USDT ? 'usdt' : 'bank_transfer',
+        transactionRef: payment.transRef,
+      });
+
+      // STEP 3: Mark quota as granted (event handlers may take time, but we mark intent)
       await this.paymentModel.findByIdAndUpdate(paymentId, {
         quotaGranted: true,
-        grantedSubscriptionId: quotaResult.subscriptionId,
-        adminNotes: quotaResult.alreadyProcessed
-          ? `อนุมัติโดย Admin: ${adminId} (โควต้าถูกเพิ่มไปแล้ว)`
-          : `อนุมัติโดย Admin: ${adminId}`,
+        adminNotes: `อนุมัติโดย Admin: ${adminId}`,
       });
 
       this.logger.log(
-        `Admin ${adminId} approved payment ${paymentId}, subscription: ${quotaResult.subscriptionId}`,
+        `Admin ${adminId} approved payment ${paymentId}, published PaymentCompletedEvent`,
       );
 
       // Log activity: PAYMENT_APPROVED (admin)
@@ -668,24 +674,22 @@ export class PaymentsService {
           packageId: payment.packageId.toString(),
           amount: payment.amount,
           approvedBy: adminId,
-          subscriptionId: quotaResult.subscriptionId,
-          wasAlreadyProcessed: quotaResult.alreadyProcessed,
         },
       });
 
       return true;
     } catch (error: any) {
-      // ROLLBACK: Revert payment status since quota addition failed
-      this.logger.error(`Failed to add subscription for payment ${paymentId}:`, error);
+      // ROLLBACK: Revert payment status since event publishing failed
+      this.logger.error(`Failed to publish event for payment ${paymentId}:`, error);
 
       await this.paymentModel.findByIdAndUpdate(paymentId, {
         status: PaymentStatus.PENDING,
         adminId: undefined,
         verifiedAt: undefined,
-        adminNotes: `อนุมัติโดย Admin แต่เพิ่มโควต้าไม่สำเร็จ: ${error.message}`,
+        adminNotes: `อนุมัติโดย Admin แต่ publish event ไม่สำเร็จ: ${error.message}`,
       });
 
-      throw new BadRequestException('อนุมัติสำเร็จแต่เพิ่มโควต้าไม่สำเร็จ กรุณาลองใหม่');
+      throw new BadRequestException('อนุมัติสำเร็จแต่ระบบมีปัญหา กรุณาลองใหม่');
     }
   }
 
