@@ -96,24 +96,20 @@ export class BlockchainVerificationService {
 
     /**
      * Test API key validity
-     * Note: Key may come already decrypted from controller or encrypted from direct call
+     * Note: Blockchain API keys (etherscan, bscscan, tronscan) are stored as plain text
      */
     async testApiKey(
         network: 'TRC20' | 'ERC20' | 'BEP20',
         apiKey: string,
     ): Promise<{ valid: boolean; message: string }> {
         try {
-            // Only decrypt if key looks encrypted (contains ':' separators)
-            let keyToUse = apiKey;
-            if (apiKey?.includes(':')) {
-                keyToUse = this.securityUtil.decrypt(apiKey);
-                this.logger.log(`Decrypted key from encrypted format`);
-            }
+            // Blockchain keys are stored as plain text - use directly
+            const keyToUse = apiKey?.trim() || '';
 
-            this.logger.log(`Testing ${network} API key (key length: ${keyToUse?.length || 0}, first 6 chars: ${keyToUse?.substring(0, 6) || 'empty'})`);
+            this.logger.log(`Testing ${network} API key (length: ${keyToUse?.length || 0})`);
 
             if (!keyToUse || keyToUse.length < 10) {
-                return { valid: false, message: `API Key ไม่ถูกต้อง (ความยาว: ${keyToUse?.length || 0})` };
+                return { valid: false, message: `กรุณาใส่ API Key ที่ถูกต้อง` };
             }
 
             if (network === 'TRC20') {

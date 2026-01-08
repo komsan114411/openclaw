@@ -91,8 +91,9 @@ export class SystemSettingsService {
   private processOutput(settings: any, includeSecrets: boolean): any {
     const result = { ...settings };
 
-    // List of encrypted fields
-    const secretFields = ['etherscanApiKey', 'bscscanApiKey', 'tronscanApiKey', 'slipApiKey', 'aiApiKey'];
+    // List of encrypted fields - only keep Thunder API and AI API encrypted
+    // Blockchain API keys (etherscan, bscscan, tronscan) are stored as plain text for simplicity
+    const secretFields = ['slipApiKey', 'aiApiKey'];
 
     secretFields.forEach(field => {
       if (result[field]) {
@@ -130,8 +131,9 @@ export class SystemSettingsService {
         }
       }
 
-      // Encrypt sensitive fields if they are being updated
-      const secretFields = ['etherscanApiKey', 'bscscanApiKey', 'tronscanApiKey', 'slipApiKey', 'aiApiKey'];
+      // Encrypt only Thunder API and AI API keys
+      // Blockchain keys (etherscan, bscscan, tronscan) are stored as plain text
+      const secretFields = ['slipApiKey', 'aiApiKey'];
 
       for (const field of secretFields) {
         if ((updates as any)[field]) {

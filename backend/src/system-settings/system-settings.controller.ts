@@ -46,21 +46,21 @@ export class SystemSettingsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Test USDT API connection' })
   async testUsdtApiConnection(@Body() body: { network: 'TRC20' | 'ERC20' | 'BEP20', apiKey: string }) {
+    // Get the API key - blockchain keys are stored as plain text now
     let keyToTest = body.apiKey;
-    console.log(`[test-usdt-api] Received key for ${body.network}: ${keyToTest?.substring(0, 10)}... (length: ${keyToTest?.length || 0})`);
 
-    // If the key looks masked (contains '....'), use stored key from database
-    if (keyToTest?.includes('....') || keyToTest?.includes('***')) {
-      console.log(`[test-usdt-api] Key looks masked, fetching from database...`);
-      const settings = await this.settingsService.getDecryptedSettings();
+    // If key is masked or empty, fetch from database
+    if (!keyToTest || keyToTest.includes('....') || keyToTest.includes('***') || keyToTest.length < 10) {
+      console.log(`[test-usdt-api] Fetching ${body.network} API key from database...`);
+      const settings = await this.settingsService.getSettings();
       if (body.network === 'ERC20') {
         keyToTest = settings?.etherscanApiKey || '';
-        console.log(`[test-usdt-api] Got etherscanApiKey from DB: ${keyToTest?.substring(0, 10)}... (length: ${keyToTest?.length || 0})`);
       } else if (body.network === 'BEP20') {
         keyToTest = settings?.bscscanApiKey || '';
       } else if (body.network === 'TRC20') {
         keyToTest = settings?.tronscanApiKey || '';
       }
+      console.log(`[test-usdt-api] Got key from DB (length: ${keyToTest?.length || 0})`);
     }
 
     return this.blockchainVerificationService.testApiKey(body.network, keyToTest);
