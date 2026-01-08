@@ -32,8 +32,14 @@ export class CreditTransaction {
     @Prop({ type: Number, required: true })
     amount: number; // จำนวนเงิน (+ สำหรับเติม, - สำหรับใช้)
 
+    @Prop({ type: Number, required: true, default: 0 })
+    balanceBefore: number; // ยอดคงเหลือก่อนทำรายการ
+
     @Prop({ type: Number, required: true })
     balanceAfter: number; // ยอดคงเหลือหลังทำรายการ
+
+    @Prop({ type: Object })
+    metadata?: Record<string, any>; // ข้อมูลเพิ่มเติม (เช่น USDT info)
 
     @Prop({ type: String })
     transRef?: string; // เลขอ้างอิงสลิป (สำหรับ deposit)
