@@ -170,7 +170,7 @@ export class SystemSettingsService {
         this.logger.log(`USDT QR Image update detected, length: ${(updates as any).usdtQrImage.length}`);
       }
 
-      // Invalidate cache
+      // Invalidate cache (invalidateCache adds 'cache:' prefix internally)
       await this.redisService.invalidateCache(this.CACHE_KEY);
 
       // Return true if update was acknowledged (even if no changes)
