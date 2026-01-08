@@ -4,6 +4,7 @@ import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
 import { UsdtRateService } from './usdt-rate.service';
 import { TronVerificationService } from './tron-verification.service';
+import { BlockchainVerificationService } from './blockchain-verification.service';
 import { Wallet, WalletSchema } from '../database/schemas/wallet.schema';
 import { CreditTransaction, CreditTransactionSchema } from '../database/schemas/credit-transaction.schema';
 import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
@@ -23,8 +24,9 @@ import { RedisModule } from '../redis/redis.module';
         RedisModule,
     ],
     controllers: [WalletController],
-    providers: [WalletService, UsdtRateService, TronVerificationService],
-    exports: [WalletService, UsdtRateService, TronVerificationService],
+    providers: [WalletService, UsdtRateService, TronVerificationService, BlockchainVerificationService],
+    exports: [WalletService, UsdtRateService, TronVerificationService, BlockchainVerificationService],
 })
 export class WalletModule { }
+
 
