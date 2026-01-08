@@ -1271,12 +1271,18 @@ export default function SettingsPage() {
                       {/* Network-specific API Keys */}
 
 
-                      {usdtSettings.usdtNetwork === 'ERC20' && (
+                      {/* Network-specific API Keys */}
+                      <div className="pt-6 border-t border-white/5 space-y-6">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">🔑</span>
+                          <h3 className="text-sm font-bold text-white uppercase tracking-wider">ตั้งค่า API Keys</h3>
+                        </div>
+
+                        {/* Etherscan */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-2xl">🔑</span>
-                            <label className="text-xs font-black uppercase tracking-widest text-amber-400">
-                              Etherscan API Key (จำเป็นสำหรับ ERC20)
+                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                              Etherscan API Key (สำหรับ ERC20)
                             </label>
                           </div>
                           <div className="flex gap-3">
@@ -1292,7 +1298,7 @@ export default function SettingsPage() {
                             </div>
                             <Button
                               variant="ghost"
-                              className="px-4 border border-white/10 hover:bg-white/5"
+                              className="px-4 border border-white/10 hover:bg-white/5 text-slate-300"
                               onClick={() => handleTestConnection('ERC20', usdtSettings.etherscanApiKey)}
                               disabled={!usdtSettings.etherscanApiKey}
                             >
@@ -1310,14 +1316,12 @@ export default function SettingsPage() {
                             </div>
                           )}
                         </div>
-                      )}
 
-                      {usdtSettings.usdtNetwork === 'BEP20' && (
+                        {/* BSCScan */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-2xl">🔑</span>
-                            <label className="text-xs font-black uppercase tracking-widest text-amber-400">
-                              BSCScan API Key (จำเป็นสำหรับ BEP20)
+                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                              BSCScan API Key (สำหรับ BEP20)
                             </label>
                           </div>
                           <div className="flex gap-3">
@@ -1333,7 +1337,7 @@ export default function SettingsPage() {
                             </div>
                             <Button
                               variant="ghost"
-                              className="px-4 border border-white/10 hover:bg-white/5"
+                              className="px-4 border border-white/10 hover:bg-white/5 text-slate-300"
                               onClick={() => handleTestConnection('BEP20', usdtSettings.bscscanApiKey)}
                               disabled={!usdtSettings.bscscanApiKey}
                             >
@@ -1351,14 +1355,15 @@ export default function SettingsPage() {
                             </div>
                           )}
                         </div>
-                      )}
 
-                      {usdtSettings.usdtNetwork === 'TRC20' && (
-                        <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-2 rounded-lg">
-                          <span>✅</span>
-                          <span className="text-xs">TRC20 ไม่ต้องใช้ API Key - พร้อมใช้งาน</span>
+                        <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4 flex gap-3">
+                          <div className="text-emerald-400">ℹ️</div>
+                          <p className="text-xs text-emerald-200/80 leading-relaxed">
+                            <strong>TRC20 (Tron)</strong> ไม่จำเป็นต้องใช้ API Key สามารถใช้งานได้ทันที<br />
+                            ระบบจะเลือกใช้ API Key ตามเครือข่ายที่คุณเลือกด้านบนโดยอัตโนมัติ
+                          </p>
                         </div>
-                      )}
+                      </div>
 
                       <div className="pt-10 border-t border-white/5">
                         <Button

@@ -147,9 +147,15 @@ export default function DepositPage() {
     try {
       const res = await walletApi.depositUsdt(parseFloat(usdtAmount), txHash.trim());
       if (res.data.success) {
-        toast.success('ส่งข้อมูลสำเร็จ รอตรวจสอบ');
+        // Show different message based on status
+        if (res.data.status === 'approved') {
+          toast.success(res.data.message || 'เติมเงินสำเร็จ!');
+        } else {
+          toast.success('ส่งข้อมูลสำเร็จ รอตรวจสอบ (ประมาณ 5-15 นาที)');
+        }
         router.push('/user/wallet');
       } else {
+        // Show specific error message from backend
         toast.error(res.data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (error: unknown) {

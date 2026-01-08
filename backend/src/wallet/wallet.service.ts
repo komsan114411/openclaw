@@ -378,6 +378,35 @@ export class WalletService {
                     actualAmount = verificationResult.actualAmount || usdtAmount;
                     this.logger.log(`USDT auto-verified: ${transactionHash}, amount=${actualAmount}`);
                 } else {
+                    // Handle rejection statuses - immediately reject
+                    const rejectStatuses = ['wrong_recipient', 'wrong_token', 'insufficient_amount'];
+
+                    if (rejectStatuses.includes(verificationResult.status)) {
+                        this.logger.warn('USDT rejected: ' + transactionHash + ', status=' + verificationResult.status);
+
+                        // Create rejected transaction for history
+                        await this.transactionModel.create({
+                            userId: new Types.ObjectId(userId),
+                            walletId: wallet._id,
+                            type: TransactionType.DEPOSIT,
+                            amount: 0,
+                            balanceBefore: wallet.balance,
+                            balanceAfter: wallet.balance,
+                            description: 'เติมเงินผ่าน USDT (ปฏิเสธ)',
+                            status: TransactionStatus.REJECTED,
+                            transRef: transactionHash,
+                            metadata: { paymentMethod: 'usdt', transactionHash, usdtAmount, network, verificationResult, rejectionReason: verificationResult.status },
+                        });
+
+                        let errorMsg = verificationResult.message || 'ตรวจสอบไม่ผ่าน';
+                        if (verificationResult.status === 'wrong_recipient') errorMsg = 'กรุณาโอนไปยังกระเป๋าที่ระบบกำหนดเท่านั้น';
+                        else if (verificationResult.status === 'wrong_token') errorMsg = 'กรุณาโอน USDT ' + network + ' เท่านั้น';
+                        else if (verificationResult.status === 'insufficient_amount') errorMsg = 'ยอดไม่ตรง: คาดหวัง ' + usdtAmount + ' USDT แต่ได้รับ ' + (verificationResult.actualAmount || 0) + ' USDT';
+
+                        await this.redisService.releaseLock(lockKey, lockToken);
+                        return { success: false, message: errorMsg, status: 'rejected' };
+                    }
+
                     this.logger.log(`USDT verification pending: ${transactionHash}, reason=${verificationResult.message}`);
                 }
             } catch (verifyError: any) {
