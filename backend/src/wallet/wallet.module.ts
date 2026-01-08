@@ -11,6 +11,7 @@ import { SlipVerificationModule } from '../slip-verification/slip-verification.m
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { RedisModule } from '../redis/redis.module';
+import { SecurityUtil } from '../utils/security.util';
 
 @Module({
     imports: [
@@ -24,7 +25,7 @@ import { RedisModule } from '../redis/redis.module';
         RedisModule,
     ],
     controllers: [WalletController],
-    providers: [WalletService, UsdtRateService, TronVerificationService, BlockchainVerificationService],
+    providers: [WalletService, UsdtRateService, TronVerificationService, BlockchainVerificationService, SecurityUtil],
     exports: [WalletService, UsdtRateService, TronVerificationService, BlockchainVerificationService],
 })
 export class WalletModule { }
