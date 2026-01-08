@@ -26,8 +26,13 @@ export class BlockchainVerificationService {
     // API Endpoints
     private readonly APIS = {
         TRC20: 'https://apilist.tronscan.org/api',
-        ERC20: 'https://api.etherscan.io/api',
+        ERC20: 'https://api.etherscan.io/v2/api',  // V2 API
         BEP20: 'https://api.bscscan.com/api',
+    };
+
+    // Chain IDs for Etherscan V2
+    private readonly CHAIN_IDS = {
+        ERC20: 1,  // Ethereum Mainnet
     };
 
     /**
@@ -109,9 +114,14 @@ export class BlockchainVerificationService {
 
             if (network === 'ERC20') {
                 if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ Etherscan API Key' };
-                this.logger.log(`Calling Etherscan API with key: ${decryptedKey.substring(0, 6)}...`);
+                this.logger.log(`Calling Etherscan V2 API with key: ${decryptedKey.substring(0, 6)}...`);
                 const response = await axios.get(this.APIS.ERC20, {
-                    params: { module: 'stats', action: 'ethsupply', apikey: decryptedKey },
+                    params: {
+                        chainid: this.CHAIN_IDS.ERC20,  // Required for V2 API
+                        module: 'stats',
+                        action: 'ethsupply',
+                        apikey: decryptedKey
+                    },
                     timeout: 10000,
                 });
                 this.logger.log(`Etherscan response: ${JSON.stringify(response.data)}`);
@@ -203,6 +213,7 @@ export class BlockchainVerificationService {
     ): Promise<any> {
         const response = await axios.get(this.APIS.ERC20, {
             params: {
+                chainid: this.CHAIN_IDS.ERC20,  // Required for V2 API
                 module: 'account',
                 action: 'tokentx',
                 txhash: txHash,
