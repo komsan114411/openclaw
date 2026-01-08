@@ -2,6 +2,8 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
+import { UsdtRateService } from './usdt-rate.service';
+import { TronVerificationService } from './tron-verification.service';
 import { Wallet, WalletSchema } from '../database/schemas/wallet.schema';
 import { CreditTransaction, CreditTransactionSchema } from '../database/schemas/credit-transaction.schema';
 import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
@@ -21,7 +23,8 @@ import { RedisModule } from '../redis/redis.module';
         RedisModule,
     ],
     controllers: [WalletController],
-    providers: [WalletService],
-    exports: [WalletService],
+    providers: [WalletService, UsdtRateService, TronVerificationService],
+    exports: [WalletService, UsdtRateService, TronVerificationService],
 })
 export class WalletModule { }
+

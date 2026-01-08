@@ -426,6 +426,13 @@ export const walletApi = {
   depositUsdt: (amount: number, transactionHash: string) =>
     api.post('/wallet/deposit/usdt', { amount, transactionHash }),
 
+  // USDT Rate & Verification
+  getUsdtRate: () => api.get('/wallet/usdt/rate'),
+  calculateUsdtCredits: (amount: number) =>
+    api.get('/wallet/usdt/calculate', { params: { amount } }),
+  verifyUsdtTransaction: (txHash: string, expectedAmount?: number, expectedWallet?: string) =>
+    api.get(`/wallet/usdt/verify/${txHash}`, { params: { expectedAmount, expectedWallet } }),
+
   // Admin endpoints
   getAllTransactions: (params?: { limit?: number; offset?: number; type?: string; status?: string }) =>
     api.get('/wallet/admin/transactions', { params }),

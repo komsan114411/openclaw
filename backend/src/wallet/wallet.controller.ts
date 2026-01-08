@@ -1,11 +1,14 @@
 import { Controller, Get, Post, Body, Query, Param, UseGuards, Request, HttpCode, HttpStatus, BadRequestException } from "@nestjs/common";
 import { WalletService } from "./wallet.service";
+import { UsdtRateService } from "./usdt-rate.service";
+import { TronVerificationService } from "./tron-verification.service";
 import { SessionAuthGuard } from "../auth/guards/session-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../database/schemas/user.schema";
 import { CreditTransactionDocument } from "../database/schemas/credit-transaction.schema";
 import { Types } from "mongoose";
+import { SystemSettingsService } from "../system-settings/system-settings.service";
 
 const MAX_CREDIT_AMOUNT = 1000000;
 const MAX_SLIP_SIZE = 5 * 1024 * 1024;
@@ -14,7 +17,11 @@ const MAX_DESCRIPTION_LENGTH = 500;
 
 @Controller("wallet")
 export class WalletController {
-    constructor(private readonly walletService: WalletService) { }
+    constructor(
+        private readonly walletService: WalletService,
+        private readonly usdtRateService: UsdtRateService,
+        private readonly tronVerificationService: TronVerificationService,
+    ) { }
 
     private validateObjectId(id: string, fieldName: string = "ID"): void {
         if (!id || !Types.ObjectId.isValid(id)) {
@@ -74,6 +81,79 @@ export class WalletController {
         if (!body.amount || body.amount <= 0) return { success: false, message: "จำนวนเงินไม่ถูกต้อง" };
         if (!body.transactionHash) return { success: false, message: "กรุณาระบุ Transaction Hash" };
         return this.walletService.depositUsdt(req.user.userId, body.amount, body.transactionHash);
+    }
+
+    // ==========================================
+    // USDT Rate & Verification Endpoints
+    // ==========================================
+
+    /**
+     * Get current USDT/THB exchange rate from Binance
+     */
+    @Get("usdt/rate")
+    async getUsdtRate() {
+        const rateInfo = await this.usdtRateService.getUsdtThbRate();
+        return {
+            success: true,
+            rate: rateInfo.rate,
+            source: rateInfo.source,
+            updatedAt: rateInfo.updatedAt,
+        };
+    }
+
+    /**
+     * Calculate THB credits from USDT amount
+     */
+    @Get("usdt/calculate")
+    async calculateUsdtCredits(@Query("amount") amount: string) {
+        const usdtAmount = parseFloat(amount);
+        if (isNaN(usdtAmount) || usdtAmount <= 0) {
+            return { success: false, message: "จำนวน USDT ไม่ถูกต้อง" };
+        }
+
+        const result = await this.usdtRateService.getCreditsForUsdt(usdtAmount);
+        return {
+            success: true,
+            usdtAmount: result.usdtAmount,
+            rate: result.rate,
+            thbCredits: result.thbCredits,
+            source: result.source,
+        };
+    }
+
+    /**
+     * Verify USDT TRC20 transaction on blockchain
+     */
+    @Get("usdt/verify/:txHash")
+    @UseGuards(SessionAuthGuard)
+    async verifyUsdtTransaction(
+        @Param("txHash") txHash: string,
+        @Query("expectedAmount") expectedAmount?: string,
+        @Query("expectedWallet") expectedWallet?: string,
+    ) {
+        if (!txHash || txHash.length < 10) {
+            return { success: false, message: "Transaction Hash ไม่ถูกต้อง" };
+        }
+
+        // Default to 0 if no expected amount (just get transaction details)
+        const amount = expectedAmount ? parseFloat(expectedAmount) : 0;
+        const wallet = expectedWallet || "";
+
+        if (wallet && amount > 0) {
+            // Full verification with amount and wallet check
+            const result = await this.tronVerificationService.verifyTransaction(txHash, wallet, amount);
+            return {
+                success: result.verified,
+                ...result,
+            };
+        } else {
+            // Just get transaction details
+            const details = await this.tronVerificationService.getTransactionDetails(txHash);
+            return {
+                success: details.found,
+                ...details,
+            };
+        }
     }
 
     @Get("admin/transactions")

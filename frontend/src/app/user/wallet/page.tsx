@@ -59,6 +59,9 @@ export default function WalletPage() {
   const [activeTab, setActiveTab] = useState<'bank' | 'crypto'>('bank');
   const [usdtAmount, setUsdtAmount] = useState('');
   const [txHash, setTxHash] = useState('');
+  const [usdtRate, setUsdtRate] = useState<number | null>(null);
+  const [thbCredits, setThbCredits] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isDepositing, setIsDepositing] = useState(false);
@@ -98,7 +101,32 @@ export default function WalletPage() {
 
   useEffect(() => {
     fetchData();
+    fetchUsdtRate();
   }, []);
+
+  // Fetch live USDT rate
+  const fetchUsdtRate = async () => {
+    setRateLoading(true);
+    try {
+      const res = await walletApi.getUsdtRate();
+      if (res.data.success) {
+        setUsdtRate(res.data.rate);
+      }
+    } catch (err) {
+      console.error('Failed to fetch USDT rate:', err);
+    } finally {
+      setRateLoading(false);
+    }
+  };
+
+  // Auto-calculate THB credits when USDT amount changes
+  useEffect(() => {
+    if (usdtAmount && Number(usdtAmount) > 0 && usdtRate) {
+      setThbCredits(Math.floor(Number(usdtAmount) * usdtRate));
+    } else {
+      setThbCredits(null);
+    }
+  }, [usdtAmount, usdtRate]);
 
   const handleCopyAccount = (accountNumber: string) => {
     navigator.clipboard.writeText(accountNumber);
@@ -334,6 +362,30 @@ export default function WalletPage() {
               </h3>
 
               <div className="space-y-6 flex-1">
+                {/* Live Rate Display */}
+                <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">อัตราแลกเปลี่ยนปัจจุบัน</span>
+                    <button
+                      onClick={fetchUsdtRate}
+                      disabled={rateLoading}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                    >
+                      {rateLoading ? '🔄' : '↻'} รีเฟรช
+                    </button>
+                  </div>
+                  <div className="text-2xl font-bold text-white mt-1">
+                    {rateLoading ? (
+                      <span className="text-slate-400 animate-pulse">กำลังโหลด...</span>
+                    ) : usdtRate ? (
+                      <>1 USDT = <span className="text-emerald-400">{usdtRate.toFixed(2)}</span> บาท</>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">อัตราจาก Binance (อัปเดตทุก 60 วินาที)</p>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-300">จำนวน USDT ที่โอน</label>
                   <Input
@@ -343,6 +395,16 @@ export default function WalletPage() {
                     onChange={(e) => setUsdtAmount(e.target.value)}
                     className="bg-white/5 border-white/10 text-white placeholder:text-slate-500"
                   />
+                  {/* Auto-calculated credits display */}
+                  {thbCredits !== null && (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                      <span className="text-emerald-400 text-lg">💰</span>
+                      <div>
+                        <p className="text-xs text-slate-400">เครดิตที่จะได้รับ</p>
+                        <p className="text-xl font-bold text-emerald-400">{thbCredits.toLocaleString()} บาท</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
