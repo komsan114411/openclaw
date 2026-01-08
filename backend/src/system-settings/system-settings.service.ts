@@ -171,7 +171,7 @@ export class SystemSettingsService {
       }
 
       // Invalidate cache
-      await this.redisService.invalidateCache(`cache:${this.CACHE_KEY}`);
+      await this.redisService.invalidateCache(this.CACHE_KEY);
 
       // Return true if update was acknowledged (even if no changes)
       // This prevents confusing "save failed" messages when data is unchanged

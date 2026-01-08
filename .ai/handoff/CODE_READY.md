@@ -148,3 +148,43 @@ export class MemberEventHandler implements OnModuleInit {
 **Created:** 2026-01-08
 **Developer Session:** Claude Code (Opus 4.5)
 **Status:** READY FOR TESTING
+
+---
+
+## Bug Fix: Admin Settings Not Saving
+
+**Task:** Debug admin/settings page where settings weren't being saved after clicking "Save" button
+
+### Bug Description
+- User edits settings on admin/settings page
+- Clicks "Save" button
+- No error shown, but data doesn't persist
+- Reload shows old values
+
+### Root Cause
+
+In `backend/src/system-settings/system-settings.service.ts` line 174:
+
+```typescript
+// BEFORE (buggy):
+await this.redisService.invalidateCache(`cache:${this.CACHE_KEY}`);
+```
+
+The `invalidateCache()` method already adds `cache:` prefix internally, causing double prefixing:
+- Expected: `cache:system-settings`
+- Actual: `cache:cache:system-settings`
+
+### Fix Applied
+
+**File**: `backend/src/system-settings/system-settings.service.ts:174`
+
+```typescript
+// AFTER (fixed):
+await this.redisService.invalidateCache(this.CACHE_KEY);
+```
+
+### Verification
+- TypeScript check: **PASSED**
+
+---
+**Bug Fix Date:** 2026-01-08

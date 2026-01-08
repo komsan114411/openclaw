@@ -18,8 +18,8 @@ type TabType = 'infrastructure' | 'communication' | 'financials';
 
 interface SystemSettings {
   publicBaseUrl?: string;
-  slipApiKeyPreview?: string;
-  aiApiKeyPreview?: string;
+  slipApiKey?: string;
+  aiApiKey?: string;
   usdtEnabled?: boolean;
   usdtNetwork?: string;
   usdtWalletAddress?: string;
@@ -97,6 +97,7 @@ export default function SettingsPage() {
     usdtNetwork: 'TRC20',
     usdtWalletAddress: '',
     usdtQrImage: '',
+    usdtDisabledMessage: '',
     usdtAutoVerify: true,
     etherscanApiKey: '',
     bscscanApiKey: '',
@@ -159,6 +160,7 @@ export default function SettingsPage() {
         usdtNetwork: data.usdtNetwork || 'TRC20',
         usdtWalletAddress: data.usdtWalletAddress || '',
         usdtQrImage: data.usdtQrImage || '',
+        usdtDisabledMessage: data.usdtDisabledMessage || '',
         usdtAutoVerify: data.usdtAutoVerify ?? true,
         etherscanApiKey: data.etherscanApiKey || '',
         bscscanApiKey: data.bscscanApiKey || '',
@@ -445,8 +447,8 @@ export default function SettingsPage() {
                           <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">ตรวจสอบสลิป</p>
                         </div>
                       </div>
-                      <Badge variant={settings?.slipApiKeyPreview ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-                        {settings?.slipApiKeyPreview ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
+                      <Badge variant={settings?.slipApiKey ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+                        {settings?.slipApiKey ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
                       </Badge>
                     </div>
 
@@ -493,8 +495,8 @@ export default function SettingsPage() {
                           <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">ระบบ AI ตอบกลับ</p>
                         </div>
                       </div>
-                      <Badge variant={settings?.aiApiKeyPreview ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-                        {settings?.aiApiKeyPreview ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
+                      <Badge variant={settings?.aiApiKey ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+                        {settings?.aiApiKey ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
                       </Badge>
                     </div>
 
