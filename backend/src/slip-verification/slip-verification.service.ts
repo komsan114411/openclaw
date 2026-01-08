@@ -518,7 +518,20 @@ export class SlipVerificationService {
   ): Promise<any> {
     this.logger.debug(`formatSlipResponseWithConfig called: status=${result.status}, message=${result.message}, hasData=${!!result.data}`);
 
-    const accountSettings = context?.account?.settings || {};
+    // Debug: Log account info
+    const accountId = context?.account?._id?.toString();
+    const accountName = context?.account?.accountName;
+    this.logger.debug(`[TEMPLATE DEBUG] accountId=${accountId}, accountName=${accountName}`);
+
+    // Get settings - handle both Mongoose document and plain object
+    const rawSettings = context?.account?.settings;
+    const accountSettings = rawSettings?.toObject ? rawSettings.toObject() : (rawSettings || {});
+
+    // Debug: Log settings
+    this.logger.debug(`[TEMPLATE DEBUG] slipTemplateIds=${JSON.stringify(accountSettings.slipTemplateIds || {})}`);
+    this.logger.debug(`[TEMPLATE DEBUG] slipTemplateId=${accountSettings.slipTemplateId || 'none'}`);
+    this.logger.debug(`[TEMPLATE DEBUG] hasSettings=${!!rawSettings}, settingsKeys=${Object.keys(accountSettings).join(',')}`);
+
     const settings = await this.systemSettingsService.getSettings();
     const quotaRemaining = context?.quotaRemaining;
     const quotaWarningThreshold = settings?.quotaWarningThreshold || 10;
@@ -633,40 +646,53 @@ export class SlipVerificationService {
       const idsByType = (accountSettings.slipTemplateIds || {}) as Record<string, string>;
       const selectedId = idsByType[templateType] || accountSettings.slipTemplateId || '';
 
-      this.logger.debug(`tryUseSlipTemplate: type=${templateType}, selectedId=${selectedId || 'none'}, lineAccountId=${lineAccountId || 'none'}`);
+      this.logger.log(`[TEMPLATE] Looking for template: type=${templateType}, lineAccountId=${lineAccountId || 'none'}`);
+      this.logger.log(`[TEMPLATE] idsByType=${JSON.stringify(idsByType)}, selectedId=${selectedId || 'none'}`);
 
       let template: Awaited<ReturnType<typeof this.slipTemplatesService.getById>> | null = null;
 
       // 1. Try user-selected template first
       if (selectedId) {
+        this.logger.log(`[TEMPLATE] Step 1: Looking for selected template ID: ${selectedId}`);
         template = await this.slipTemplatesService.getById(selectedId).catch((e) => {
-          this.logger.warn(`Failed to get template by ID ${selectedId}:`, e);
+          this.logger.warn(`[TEMPLATE] Failed to get template by ID ${selectedId}:`, e);
           return null;
         });
+        if (template) {
+          this.logger.log(`[TEMPLATE] ✓ Found selected template: ${(template as any).name}`);
+        }
       }
 
       // 2. If no selected template, try account-specific default template
       if (!template && lineAccountId) {
+        this.logger.log(`[TEMPLATE] Step 2: Looking for account default template`);
         template = await this.slipTemplatesService.getDefaultTemplate(lineAccountId, templateType).catch((e) => {
-          this.logger.debug(`No account default template for ${templateType}:`, e);
+          this.logger.debug(`[TEMPLATE] No account default template for ${templateType}`);
           return null;
         });
+        if (template) {
+          this.logger.log(`[TEMPLATE] ✓ Found account default template: ${(template as any).name}`);
+        }
       }
 
       // 3. Fall back to global default template
       if (!template) {
+        this.logger.log(`[TEMPLATE] Step 3: Looking for global default template`);
         template = await this.slipTemplatesService.getGlobalDefaultTemplate(templateType).catch((e) => {
-          this.logger.warn(`Failed to get global default template for ${templateType}:`, e);
+          this.logger.warn(`[TEMPLATE] Failed to get global default template for ${templateType}:`, e);
           return null;
         });
+        if (template) {
+          this.logger.log(`[TEMPLATE] ✓ Found global default template: ${(template as any).name}`);
+        }
       }
 
       if (!template) {
-        this.logger.debug(`No template found for type ${templateType}, will use fallback`);
+        this.logger.warn(`[TEMPLATE] ✗ No template found for type ${templateType}, will use fallback`);
         return null;
       }
 
-      this.logger.debug(`Using template: ${(template as any).name || (template as any)._id} (isGlobal: ${(template as any).isGlobal})`);
+      this.logger.log(`[TEMPLATE] Using template: ${(template as any).name} (ID: ${(template as any)._id}, isGlobal: ${(template as any).isGlobal})`);
 
       const slipData = await buildSlipData(data);
       const bubble = this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
