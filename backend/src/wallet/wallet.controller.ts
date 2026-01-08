@@ -81,10 +81,45 @@ export class WalletController {
     @Post("deposit/usdt")
     @UseGuards(SessionAuthGuard)
     @HttpCode(HttpStatus.OK)
-    async depositUsdt(@Request() req: any, @Body() body: { amount: number; transactionHash: string }) {
-        if (!body.amount || body.amount <= 0) return { success: false, message: "จำนวนเงินไม่ถูกต้อง" };
-        if (!body.transactionHash) return { success: false, message: "กรุณาระบุ Transaction Hash" };
-        return this.walletService.depositUsdt(req.user.userId, body.amount, body.transactionHash);
+    async depositUsdt(@Request() req: any, @Body() body: { amount: number; transactionHash: string; network?: string }) {
+        // === INPUT VALIDATION ===
+        
+        // Validate amount
+        if (!body.amount || typeof body.amount !== "number" || !Number.isFinite(body.amount)) {
+            return { success: false, message: "จำนวนเงินไม่ถูกต้อง" };
+        }
+        if (body.amount <= 0) {
+            return { success: false, message: "จำนวนเงินต้องมากกว่า 0" };
+        }
+        if (body.amount > 1000000) {
+            return { success: false, message: "จำนวนเงินเกินขีดจำกัด (สูงสุด 1,000,000 USDT)" };
+        }
+        
+        // Validate transaction hash
+        if (!body.transactionHash || typeof body.transactionHash !== "string") {
+            return { success: false, message: "กรุณาระบุ Transaction Hash" };
+        }
+        
+        const txHash = body.transactionHash.trim();
+        
+        // Check transaction hash length
+        if (txHash.length < 64 || txHash.length > 66) {
+            return { success: false, message: "ความยาว Transaction Hash ไม่ถูกต้อง" };
+        }
+        
+        // Check for valid hex characters (with optional 0x prefix)
+        const hexPattern = /^(0x)?[a-fA-F0-9]{64}$/;
+        if (!hexPattern.test(txHash)) {
+            return { success: false, message: "รูปแบบ Transaction Hash ไม่ถูกต้อง" };
+        }
+        
+        // Sanitize: prevent injection by ensuring only hex characters
+        const sanitizedTxHash = txHash.replace(/[^a-fA-F0-9x]/g, "");
+        if (sanitizedTxHash !== txHash) {
+            return { success: false, message: "Transaction Hash มีอักขระที่ไม่ถูกต้อง" };
+        }
+        
+        return this.walletService.depositUsdt(req.user.userId, body.amount, txHash);
     }
 
     // ==========================================

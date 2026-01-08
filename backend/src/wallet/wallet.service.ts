@@ -301,16 +301,61 @@ export class WalletService {
 
     /**
      * Deposit credits via USDT with AUTO blockchain verification
-     * - Prevents duplicate TxHash
-     * - Verifies transaction on blockchain (TRC20/ERC20/BEP20)
-     * - Auto-approves if verification succeeds
-     * - Creates pending record if verification fails/pending
+     * 
+     * Security Features:
+     * - Distributed lock prevents race conditions
+     * - Duplicate TxHash prevention (checks both metadata and transRef)
+     * - Input validation (amount, txHash format)
+     * - Blockchain verification (contract, recipient, amount)
+     * - Rate limiting via Redis lock
+     * - Audit logging for all transactions
+     * 
+     * Flow:
+     * 1. Acquire distributed lock
+     * 2. Check for duplicate TxHash
+     * 3. Validate system settings
+     * 4. Verify transaction on blockchain
+     * 5. Calculate THB credits
+     * 6. Create transaction record
+     * 7. Update wallet if auto-approved
      */
     async depositUsdt(
         userId: string,
         usdtAmount: number,
         transactionHash: string,
     ): Promise<{ success: boolean; message: string; amount?: number; status?: string; thbCredits?: number }> {
+        // === SECURITY: Input validation ===
+        
+        // Validate userId
+        if (!userId || !Types.ObjectId.isValid(userId)) {
+            this.logger.warn(`Invalid userId: ${userId}`);
+            return { success: false, message: 'ข้อมูลผู้ใช้ไม่ถูกต้อง' };
+        }
+        
+        // Validate amount
+        if (typeof usdtAmount !== 'number' || !Number.isFinite(usdtAmount) || usdtAmount <= 0) {
+            this.logger.warn(`Invalid amount: ${usdtAmount}`);
+            return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
+        }
+        
+        if (usdtAmount > 1000000) {
+            this.logger.warn(`Amount exceeds limit: ${usdtAmount}`);
+            return { success: false, message: 'จำนวนเงินเกินขีดจำกัด' };
+        }
+        
+        // Validate and sanitize transaction hash
+        if (!transactionHash || typeof transactionHash !== 'string') {
+            return { success: false, message: 'กรุณาระบุ Transaction Hash' };
+        }
+        
+        const sanitizedTxHash = transactionHash.trim();
+        const hexPattern = /^(0x)?[a-fA-F0-9]{64}$/;
+        if (!hexPattern.test(sanitizedTxHash)) {
+            this.logger.warn(`Invalid txHash format: ${sanitizedTxHash}`);
+            return { success: false, message: 'รูปแบบ Transaction Hash ไม่ถูกต้อง' };
+        }
+        
+        // === SECURITY: Distributed lock to prevent race conditions ===
         const lockKey = `wallet:usdt:${userId}`;
         const lockToken = await this.redisService.acquireLock(lockKey, 120);
 
@@ -319,11 +364,13 @@ export class WalletService {
         }
 
         try {
-            // 1. Check for duplicate TxHash
+            // === SECURITY: Check for duplicate TxHash (case-insensitive) ===
+            const normalizedTxHash = sanitizedTxHash.toLowerCase();
+            // Check both original and normalized (lowercase) versions
             const existingTx = await this.transactionModel.findOne({
                 $or: [
-                    { 'metadata.transactionHash': transactionHash },
-                    { transRef: transactionHash },
+                    { 'metadata.transactionHash': { $regex: new RegExp(`^${normalizedTxHash}$`, 'i') } },
+                    { transRef: { $regex: new RegExp(`^${normalizedTxHash}$`, 'i') } },
                 ],
             });
 
@@ -366,7 +413,7 @@ export class WalletService {
                 };
 
                 verificationResult = await this.blockchainVerificationService.verifyTransaction(
-                    transactionHash,
+                    sanitizedTxHash,
                     systemWallet,
                     usdtAmount,
                     network,
@@ -376,13 +423,13 @@ export class WalletService {
                 if (verificationResult.verified) {
                     autoApproved = true;
                     actualAmount = verificationResult.actualAmount || usdtAmount;
-                    this.logger.log(`USDT auto-verified: ${transactionHash}, amount=${actualAmount}`);
+                    this.logger.log(`USDT auto-verified: ${sanitizedTxHash}, amount=${actualAmount}`);
                 } else {
                     // Handle rejection statuses - immediately reject
                     const rejectStatuses = ['wrong_recipient', 'wrong_token', 'insufficient_amount'];
 
                     if (rejectStatuses.includes(verificationResult.status)) {
-                        this.logger.warn('USDT rejected: ' + transactionHash + ', status=' + verificationResult.status);
+                        this.logger.warn('USDT rejected: ' + sanitizedTxHash + ', status=' + verificationResult.status);
 
                         // Create rejected transaction for history
                         await this.transactionModel.create({
@@ -394,8 +441,8 @@ export class WalletService {
                             balanceAfter: wallet.balance,
                             description: 'เติมเงินผ่าน USDT (ปฏิเสธ)',
                             status: TransactionStatus.REJECTED,
-                            transRef: transactionHash,
-                            metadata: { paymentMethod: 'usdt', transactionHash, usdtAmount, network, verificationResult, rejectionReason: verificationResult.status },
+                            transRef: sanitizedTxHash,
+                            metadata: { paymentMethod: 'usdt', transactionHash: sanitizedTxHash, usdtAmount, network, verificationResult, rejectionReason: verificationResult.status },
                         });
 
                         let errorMsg = verificationResult.message || 'ตรวจสอบไม่ผ่าน';
@@ -407,7 +454,7 @@ export class WalletService {
                         return { success: false, message: errorMsg, status: 'rejected' };
                     }
 
-                    this.logger.log(`USDT verification pending: ${transactionHash}, reason=${verificationResult.message}`);
+                    this.logger.log(`USDT verification pending: ${sanitizedTxHash}, reason=${verificationResult.message}`);
                 }
             } catch (verifyError: any) {
                 this.logger.warn(`Blockchain verification failed, creating pending: ${verifyError.message}`);
@@ -438,10 +485,10 @@ export class WalletService {
                     ? `เติมเงินผ่าน USDT (ตรวจสอบอัตโนมัติ) - ${actualAmount} USDT`
                     : `เติมเงินผ่าน USDT (รอตรวจสอบ) - ${usdtAmount} USDT`,
                 status: autoApproved ? TransactionStatus.COMPLETED : TransactionStatus.PENDING,
-                transRef: transactionHash,
+                transRef: sanitizedTxHash,
                 metadata: {
                     paymentMethod: 'usdt',
-                    transactionHash,
+                    transactionHash: sanitizedTxHash,
                     usdtAmount: actualAmount,
                     network,
                     verificationResult,
@@ -456,7 +503,7 @@ export class WalletService {
                     $inc: { balance: thbCredits, totalDeposited: thbCredits },
                 });
 
-                this.logger.log(`USDT auto-approved: userId=${userId}, txHash=${transactionHash}, credits=${thbCredits}`);
+                this.logger.log(`USDT auto-approved: userId=${userId}, txHash=${sanitizedTxHash}, credits=${thbCredits}`);
 
                 return {
                     success: true,
@@ -467,7 +514,7 @@ export class WalletService {
                 };
             }
 
-            this.logger.log(`USDT pending: userId=${userId}, txHash=${transactionHash}`);
+            this.logger.log(`USDT pending: userId=${userId}, txHash=${sanitizedTxHash}`);
 
             return {
                 success: true,
