@@ -90,15 +90,17 @@ export class BlockchainVerificationService {
     }
 
     /**
-     * Test API key validity - Decrypts key first
+     * Test API key validity - Decrypts key first if encrypted
      */
     async testApiKey(
         network: 'TRC20' | 'ERC20' | 'BEP20',
         apiKey: string,
     ): Promise<{ valid: boolean; message: string }> {
         try {
-            // Decrypt key if needed
+            // Decrypt key if needed (decrypt returns as-is if not encrypted)
             const decryptedKey = this.securityUtil.decrypt(apiKey);
+
+            this.logger.log(`Testing ${network} API key (key length: ${decryptedKey?.length || 0})`);
 
             if (network === 'TRC20') {
                 const response = await axios.get(`${this.APIS.TRC20}/system/status`, { timeout: 5000 });
@@ -107,29 +109,38 @@ export class BlockchainVerificationService {
 
             if (network === 'ERC20') {
                 if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ Etherscan API Key' };
+                this.logger.log(`Calling Etherscan API with key: ${decryptedKey.substring(0, 6)}...`);
                 const response = await axios.get(this.APIS.ERC20, {
                     params: { module: 'stats', action: 'ethsupply', apikey: decryptedKey },
-                    timeout: 5000,
+                    timeout: 10000,
                 });
+                this.logger.log(`Etherscan response: ${JSON.stringify(response.data)}`);
                 if (response.data?.status === '1') {
                     return { valid: true, message: 'เชื่อมต่อ Etherscan สำเร็จ' };
                 }
-                return { valid: false, message: 'API Key ไม่ถูกต้อง' };
+                // Return more specific error message
+                return { valid: false, message: response.data?.message || 'API Key ไม่ถูกต้อง' };
             }
 
             if (network === 'BEP20') {
                 if (!decryptedKey) return { valid: false, message: 'กรุณาใส่ BSCScan API Key' };
+                this.logger.log(`Calling BSCScan API with key: ${decryptedKey.substring(0, 6)}...`);
                 const response = await axios.get(this.APIS.BEP20, {
                     params: { module: 'stats', action: 'bnbsupply', apikey: decryptedKey },
-                    timeout: 5000,
+                    timeout: 10000,
                 });
+                this.logger.log(`BSCScan response: ${JSON.stringify(response.data)}`);
                 if (response.data?.status === '1') {
                     return { valid: true, message: 'เชื่อมต่อ BSCScan สำเร็จ' };
                 }
-                return { valid: false, message: 'API Key ไม่ถูกต้อง' };
+                return { valid: false, message: response.data?.message || 'API Key ไม่ถูกต้อง' };
             }
             return { valid: false, message: 'Network ไม่รองรับ' };
         } catch (error: any) {
+            this.logger.error(`API test failed: ${error.message}`);
+            if (error.response) {
+                this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+            }
             return { valid: false, message: `เชื่อมต่อไม่สำเร็จ: ${error.message}` };
         }
     }
