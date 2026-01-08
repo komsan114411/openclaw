@@ -97,6 +97,10 @@ export default function SettingsPage() {
     usdtNetwork: 'TRC20',
     usdtWalletAddress: '',
     usdtQrImage: '',
+    usdtAutoVerify: true,
+    etherscanApiKey: '',
+    bscscanApiKey: '',
+    tronscanApiKey: '',
   });
 
   // Communication Settings
@@ -153,6 +157,10 @@ export default function SettingsPage() {
         usdtNetwork: data.usdtNetwork || 'TRC20',
         usdtWalletAddress: data.usdtWalletAddress || '',
         usdtQrImage: data.usdtQrImage || '',
+        usdtAutoVerify: data.usdtAutoVerify ?? true,
+        etherscanApiKey: data.etherscanApiKey || '',
+        bscscanApiKey: data.bscscanApiKey || '',
+        tronscanApiKey: data.tronscanApiKey || '',
       });
       setMessageSettings({
         quotaExceededMessage: data.quotaExceededMessage || '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ',
@@ -1228,6 +1236,76 @@ export default function SettingsPage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Auto Verify Toggle */}
+                      <div className="flex items-center justify-between py-4 px-5 bg-white/5 rounded-2xl">
+                        <div>
+                          <p className="text-sm font-bold text-white">ตรวจสอบอัตโนมัติ</p>
+                          <p className="text-[10px] text-slate-500">ตรวจสอบ TxHash บน Blockchain อัตโนมัติ</p>
+                        </div>
+                        <Switch
+                          checked={usdtSettings.usdtAutoVerify}
+                          onChange={() => setUsdtSettings({ ...usdtSettings, usdtAutoVerify: !usdtSettings.usdtAutoVerify })}
+                        />
+                      </div>
+
+                      {/* Network-specific API Keys */}
+                      {usdtSettings.usdtNetwork === 'ERC20' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">🔑</span>
+                            <label className="text-xs font-black uppercase tracking-widest text-amber-400">
+                              Etherscan API Key (จำเป็นสำหรับ ERC20)
+                            </label>
+                          </div>
+                          <Input
+                            variant="glass"
+                            type="password"
+                            value={usdtSettings.etherscanApiKey}
+                            onChange={(e) => setUsdtSettings({ ...usdtSettings, etherscanApiKey: e.target.value })}
+                            className="bg-white/5 border-white/10 text-white font-mono"
+                            placeholder="ใส่ Etherscan API Key..."
+                          />
+                          {!usdtSettings.etherscanApiKey && (
+                            <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+                              <span>⚠️</span>
+                              <span className="text-xs">ยังไม่ได้ตั้งค่า API Key - สมัครฟรีที่ etherscan.io/apis</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {usdtSettings.usdtNetwork === 'BEP20' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">🔑</span>
+                            <label className="text-xs font-black uppercase tracking-widest text-amber-400">
+                              BSCScan API Key (จำเป็นสำหรับ BEP20)
+                            </label>
+                          </div>
+                          <Input
+                            variant="glass"
+                            type="password"
+                            value={usdtSettings.bscscanApiKey}
+                            onChange={(e) => setUsdtSettings({ ...usdtSettings, bscscanApiKey: e.target.value })}
+                            className="bg-white/5 border-white/10 text-white font-mono"
+                            placeholder="ใส่ BSCScan API Key..."
+                          />
+                          {!usdtSettings.bscscanApiKey && (
+                            <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+                              <span>⚠️</span>
+                              <span className="text-xs">ยังไม่ได้ตั้งค่า API Key - สมัครฟรีที่ bscscan.com/apis</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {usdtSettings.usdtNetwork === 'TRC20' && (
+                        <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-2 rounded-lg">
+                          <span>✅</span>
+                          <span className="text-xs">TRC20 ไม่ต้องใช้ API Key - พร้อมใช้งาน</span>
+                        </div>
+                      )}
 
                       <div className="pt-10 border-t border-white/5">
                         <Button
