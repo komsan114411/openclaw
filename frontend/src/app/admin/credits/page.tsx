@@ -50,6 +50,7 @@ export default function AdminCreditsPage() {
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
     const [filterType, setFilterType] = useState<string>('');
     const [filterStatus, setFilterStatus] = useState<string>('');
+    const [processingTxId, setProcessingTxId] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
@@ -148,6 +149,41 @@ export default function AdminCreditsPage() {
         }
     };
 
+
+
+    const handleApprove = async (txId: string) => {
+        setProcessingTxId(txId);
+        try {
+            const res = await walletApi.approveTransaction(txId);
+            if (res.data.success) {
+                fetchData();
+            } else {
+                alert(res.data.message || 'Error');
+            }
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Error');
+        } finally {
+            setProcessingTxId(null);
+        }
+    };
+
+    const handleReject = async (txId: string) => {
+        const reason = prompt('Enter rejection reason:');
+        if (!reason) return;
+        setProcessingTxId(txId);
+        try {
+            const res = await walletApi.rejectTransaction(txId, reason);
+            if (res.data.success) {
+                fetchData();
+            } else {
+                alert(res.data.message || 'Error');
+            }
+        } catch (e: any) {
+            alert(e.response?.data?.message || 'Error');
+        } finally {
+            setProcessingTxId(null);
+        }
+    };
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleString('th-TH', {
             month: 'short',
@@ -367,6 +403,12 @@ export default function AdminCreditsPage() {
                                                     )}>
                                                         {tx.amount > 0 ? '+' : ''}฿{Math.abs(tx.amount).toLocaleString()}
                                                     </p>
+                                                    {tx.status === 'pending' && (
+                                                        <div className="flex gap-1 ml-2">
+                                                            <button onClick={() => handleApprove(tx._id)} disabled={processingTxId === tx._id} className="px-2 py-1 bg-emerald-500 text-white text-xs rounded hover:bg-emerald-600 disabled:opacity-50">{processingTxId === tx._id ? '...' : '✓'}</button>
+                                                            <button onClick={() => handleReject(tx._id)} disabled={processingTxId === tx._id} className="px-2 py-1 bg-rose-500 text-white text-xs rounded hover:bg-rose-600 disabled:opacity-50">✕</button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
