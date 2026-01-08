@@ -96,6 +96,7 @@ export default function SettingsPage() {
     usdtEnabled: true,
     usdtNetwork: 'TRC20',
     usdtWalletAddress: '',
+    usdtQrImage: '',
   });
 
   // Communication Settings
@@ -649,22 +650,22 @@ export default function SettingsPage() {
                     {(!previewSettings.previewSenderName || !previewSettings.previewReceiverName ||
                       !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
                       !previewSettings.previewAmount) && (
-                      <div className="lg:col-span-2 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                        <div className="flex items-start gap-3">
-                          <span className="text-amber-400 text-lg">⚠️</span>
-                          <div>
-                            <p className="text-sm font-semibold text-amber-400">กรุณากรอกข้อมูลให้ครบถ้วน</p>
-                            <ul className="text-xs text-slate-400 mt-1 space-y-0.5">
-                              {!previewSettings.previewSenderName && <li>• ชื่อผู้โอน</li>}
-                              {!previewSettings.previewSenderBankCode && <li>• ธนาคารผู้โอน</li>}
-                              {!previewSettings.previewReceiverName && <li>• ชื่อผู้รับ</li>}
-                              {!previewSettings.previewReceiverBankCode && <li>• ธนาคารผู้รับ</li>}
-                              {!previewSettings.previewAmount && <li>• จำนวนเงิน</li>}
-                            </ul>
+                        <div className="lg:col-span-2 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                          <div className="flex items-start gap-3">
+                            <span className="text-amber-400 text-lg">⚠️</span>
+                            <div>
+                              <p className="text-sm font-semibold text-amber-400">กรุณากรอกข้อมูลให้ครบถ้วน</p>
+                              <ul className="text-xs text-slate-400 mt-1 space-y-0.5">
+                                {!previewSettings.previewSenderName && <li>• ชื่อผู้โอน</li>}
+                                {!previewSettings.previewSenderBankCode && <li>• ธนาคารผู้โอน</li>}
+                                {!previewSettings.previewReceiverName && <li>• ชื่อผู้รับ</li>}
+                                {!previewSettings.previewReceiverBankCode && <li>• ธนาคารผู้รับ</li>}
+                                {!previewSettings.previewAmount && <li>• จำนวนเงิน</li>}
+                              </ul>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     <div className="lg:col-span-2 pt-6 border-t border-white/5">
                       <Button
@@ -674,8 +675,8 @@ export default function SettingsPage() {
                         onClick={() => {
                           // Validate before saving
                           if (!previewSettings.previewSenderName || !previewSettings.previewReceiverName ||
-                              !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
-                              !previewSettings.previewAmount) {
+                            !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
+                            !previewSettings.previewAmount) {
                             toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
                             return;
                           }
@@ -683,8 +684,8 @@ export default function SettingsPage() {
                         }}
                         isLoading={isSaving === 'preview'}
                         disabled={!previewSettings.previewSenderName || !previewSettings.previewReceiverName ||
-                                  !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
-                                  !previewSettings.previewAmount}
+                          !previewSettings.previewSenderBankCode || !previewSettings.previewReceiverBankCode ||
+                          !previewSettings.previewAmount}
                       >
                         บันทึกการตั้งค่าตัวอย่าง
                       </Button>
@@ -1172,6 +1173,60 @@ export default function SettingsPage() {
                         className="bg-white/5 border-white/10 text-white font-mono"
                         placeholder="T..."
                       />
+
+                      {/* QR Code Upload */}
+                      <div className="space-y-3">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-400">รูป QR Code กระเป๋า</label>
+                        <div className="flex items-start gap-6">
+                          {/* QR Preview */}
+                          <div className="w-32 h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {usdtSettings.usdtQrImage ? (
+                              <img src={usdtSettings.usdtQrImage} alt="USDT QR" className="w-full h-full object-contain" />
+                            ) : (
+                              <span className="text-3xl opacity-30">🖼️</span>
+                            )}
+                          </div>
+                          {/* Upload Button */}
+                          <div className="flex-1 space-y-3">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="usdt-qr-upload"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (file.size > 2 * 1024 * 1024) {
+                                    toast.error('ไฟล์ต้องมีขนาดไม่เกิน 2MB');
+                                    return;
+                                  }
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const base64 = event.target?.result as string;
+                                    setUsdtSettings({ ...usdtSettings, usdtQrImage: base64 });
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor="usdt-qr-upload"
+                              className="block text-center cursor-pointer px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-colors"
+                            >
+                              📷 อัปโหลดรูป QR
+                            </label>
+                            {usdtSettings.usdtQrImage && (
+                              <button
+                                onClick={() => setUsdtSettings({ ...usdtSettings, usdtQrImage: '' })}
+                                className="w-full text-center px-4 py-2 text-xs font-medium text-rose-400 hover:text-rose-300 transition-colors"
+                              >
+                                ลบรูป
+                              </button>
+                            )}
+                            <p className="text-[10px] text-slate-500">รองรับ PNG, JPEG ขนาดไม่เกิน 2MB</p>
+                          </div>
+                        </div>
+                      </div>
 
                       <div className="pt-10 border-t border-white/5">
                         <Button
