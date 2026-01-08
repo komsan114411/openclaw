@@ -152,9 +152,8 @@ export default function SettingsPage() {
       const data = response.data.settings || {};
       setSettings(data);
       setPublicBaseUrl(data.publicBaseUrl || '');
-      // Load API keys (they come back masked from backend)
-      setSlipApiKey(data.slipApiKey || '');
-      setAiApiKey(data.aiApiKey || '');
+      // Don't load masked API keys back into form fields - they are for NEW keys only
+      // Status is shown via slipApiKeyPreview and aiApiKeyPreview in settings object
       setUsdtSettings({
         usdtEnabled: data.usdtEnabled ?? true,
         usdtNetwork: data.usdtNetwork || 'TRC20',
