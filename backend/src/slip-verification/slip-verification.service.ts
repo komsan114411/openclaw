@@ -628,27 +628,45 @@ export class SlipVerificationService {
       templateType: TemplateType,
       data: Record<string, any>,
     ): Promise<any | null> => {
+      // Get LINE account ID from context
+      const lineAccountId = context?.account?._id?.toString();
       const idsByType = (accountSettings.slipTemplateIds || {}) as Record<string, string>;
       const selectedId = idsByType[templateType] || accountSettings.slipTemplateId || '';
 
-      this.logger.debug(`tryUseSlipTemplate: type=${templateType}, selectedId=${selectedId || 'none'}`);
+      this.logger.debug(`tryUseSlipTemplate: type=${templateType}, selectedId=${selectedId || 'none'}, lineAccountId=${lineAccountId || 'none'}`);
 
-      const template =
-        (selectedId ? await this.slipTemplatesService.getById(selectedId).catch((e) => {
+      let template: Awaited<ReturnType<typeof this.slipTemplatesService.getById>> | null = null;
+
+      // 1. Try user-selected template first
+      if (selectedId) {
+        template = await this.slipTemplatesService.getById(selectedId).catch((e) => {
           this.logger.warn(`Failed to get template by ID ${selectedId}:`, e);
           return null;
-        }) : null) ||
-        (await this.slipTemplatesService.getGlobalDefaultTemplate(templateType).catch((e) => {
+        });
+      }
+
+      // 2. If no selected template, try account-specific default template
+      if (!template && lineAccountId) {
+        template = await this.slipTemplatesService.getDefaultTemplate(lineAccountId, templateType).catch((e) => {
+          this.logger.debug(`No account default template for ${templateType}:`, e);
+          return null;
+        });
+      }
+
+      // 3. Fall back to global default template
+      if (!template) {
+        template = await this.slipTemplatesService.getGlobalDefaultTemplate(templateType).catch((e) => {
           this.logger.warn(`Failed to get global default template for ${templateType}:`, e);
           return null;
-        }));
+        });
+      }
 
       if (!template) {
         this.logger.debug(`No template found for type ${templateType}, will use fallback`);
         return null;
       }
 
-      this.logger.debug(`Using template: ${(template as any).name || (template as any)._id}`);
+      this.logger.debug(`Using template: ${(template as any).name || (template as any)._id} (isGlobal: ${(template as any).isGlobal})`);
 
       const slipData = await buildSlipData(data);
       const bubble = this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
