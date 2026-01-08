@@ -145,25 +145,37 @@ export class SystemSettingsService {
         }
       }
 
+      // Log what we're about to save (excluding large fields)
+      const logPayload = { ...updates };
+      if ((logPayload as any).usdtQrImage) {
+        (logPayload as any).usdtQrImage = `[BASE64: ${(logPayload as any).usdtQrImage.length} chars]`;
+      }
+      this.logger.log(`Updating settings with payload: ${JSON.stringify(logPayload)}`);
+
       const result = await this.settingsModel.updateOne(
         { settingsId: 'main' },
         {
-          ...updates,
-          updatedBy,
+          $set: {
+            ...updates,
+            updatedBy,
+          },
         },
         { upsert: true },
       );
+
+      this.logger.log(`Update result: acknowledged=${result.acknowledged}, modifiedCount=${result.modifiedCount}, upsertedCount=${result.upsertedCount}`);
 
       // Debug log for QR image
       if ((updates as any).usdtQrImage) {
         this.logger.log(`USDT QR Image update detected, length: ${(updates as any).usdtQrImage.length}`);
       }
 
-
       // Invalidate cache
       await this.redisService.invalidateCache(`cache:${this.CACHE_KEY}`);
 
-      return result.modifiedCount > 0 || result.upsertedCount > 0;
+      // Return true if update was acknowledged (even if no changes)
+      // This prevents confusing "save failed" messages when data is unchanged
+      return result.acknowledged;
     } catch (error) {
       this.logger.error('Error updating settings:', error);
       return false;

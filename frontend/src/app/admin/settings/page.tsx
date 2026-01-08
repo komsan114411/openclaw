@@ -152,6 +152,9 @@ export default function SettingsPage() {
       const data = response.data.settings || {};
       setSettings(data);
       setPublicBaseUrl(data.publicBaseUrl || '');
+      // Load API keys (they come back masked from backend)
+      setSlipApiKey(data.slipApiKey || '');
+      setAiApiKey(data.aiApiKey || '');
       setUsdtSettings({
         usdtEnabled: data.usdtEnabled ?? true,
         usdtNetwork: data.usdtNetwork || 'TRC20',
