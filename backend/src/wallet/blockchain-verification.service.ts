@@ -48,6 +48,7 @@ export class BlockchainVerificationService {
 
     /**
      * Verify USDT transaction on any supported network
+     * Note: API keys are now stored as plain text in database
      */
     async verifyTransaction(
         txHash: string,
@@ -70,20 +71,20 @@ export class BlockchainVerificationService {
             if (network === 'TRC20') {
                 return this.verifyTRC20(txHash, expectedWallet, expectedAmount);
             } else if (network === 'ERC20') {
-                let apiKey = apiKeys?.etherscan || process.env.ETHERSCAN_API_KEY || '';
+                // API key is now plain text - use directly
+                const apiKey = apiKeys?.etherscan || process.env.ETHERSCAN_API_KEY || '';
                 if (!apiKey) {
                     return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า Etherscan API Key' };
                 }
-                // Decrypt if necessary
-                apiKey = this.securityUtil.decrypt(apiKey);
+                this.logger.log(`Verifying ERC20 with API key (length: ${apiKey.length})`);
                 return this.verifyERC20(txHash, expectedWallet, expectedAmount, apiKey);
             } else if (network === 'BEP20') {
-                let apiKey = apiKeys?.bscscan || process.env.BSCSCAN_API_KEY || '';
+                // API key is now plain text - use directly
+                const apiKey = apiKeys?.bscscan || process.env.BSCSCAN_API_KEY || '';
                 if (!apiKey) {
                     return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า BSCScan API Key' };
                 }
-                // Decrypt if necessary
-                apiKey = this.securityUtil.decrypt(apiKey);
+                this.logger.log(`Verifying BEP20 with API key (length: ${apiKey.length})`);
                 return this.verifyBEP20(txHash, expectedWallet, expectedAmount, apiKey);
             }
 
