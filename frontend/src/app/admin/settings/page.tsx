@@ -225,7 +225,7 @@ export default function SettingsPage() {
   const handleUpdate = async (section: string, payload: Record<string, unknown>) => {
     setIsSaving(section);
     try {
-      const response = await systemSettingsApi.update(payload);
+      const response = await systemSettingsApi.updateSystemSettings(payload);
       if (response.data.success) {
         toast.success('บันทึกการตั้งค่าสำเร็จ');
         await fetchSettings();
