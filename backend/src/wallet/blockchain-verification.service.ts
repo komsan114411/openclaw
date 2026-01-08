@@ -26,11 +26,12 @@ export class BlockchainVerificationService {
     // API Endpoints
     private readonly APIS = {
         TRC20: 'https://apilist.tronscan.org/api',
-        ERC20: 'https://api.etherscan.io/v2/api',  // V2 API
+        ERC20: 'https://api.etherscan.io/api',  // V1 API (stable)
         BEP20: 'https://api.bscscan.com/api',
     };
 
-    // Chain IDs for Etherscan V2
+    // Note: Chain IDs not needed for V1 API
+    // Keeping for reference if V2 migration needed in future
     private readonly CHAIN_IDS = {
         ERC20: 1,  // Ethereum Mainnet
     };
@@ -48,7 +49,7 @@ export class BlockchainVerificationService {
 
     /**
      * Verify USDT transaction on any supported network
-     * Note: API keys are now stored as plain text in database
+     * Note: API keys are encrypted in database and decrypted before use
      */
     async verifyTransaction(
         txHash: string,
@@ -71,7 +72,7 @@ export class BlockchainVerificationService {
             if (network === 'TRC20') {
                 return this.verifyTRC20(txHash, expectedWallet, expectedAmount);
             } else if (network === 'ERC20') {
-                // API key is now plain text - use directly
+                // API key is decrypted from database by SystemSettingsService
                 const apiKey = apiKeys?.etherscan || process.env.ETHERSCAN_API_KEY || '';
                 if (!apiKey) {
                     return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า Etherscan API Key' };
@@ -79,7 +80,7 @@ export class BlockchainVerificationService {
                 this.logger.log(`Verifying ERC20 with API key (length: ${apiKey.length})`);
                 return this.verifyERC20(txHash, expectedWallet, expectedAmount, apiKey);
             } else if (network === 'BEP20') {
-                // API key is now plain text - use directly
+                // API key is decrypted from database by SystemSettingsService
                 const apiKey = apiKeys?.bscscan || process.env.BSCSCAN_API_KEY || '';
                 if (!apiKey) {
                     return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า BSCScan API Key' };
@@ -97,14 +98,14 @@ export class BlockchainVerificationService {
 
     /**
      * Test API key validity
-     * Note: Blockchain API keys (etherscan, bscscan, tronscan) are stored as plain text
+     * Note: Blockchain API keys are encrypted in database
      */
     async testApiKey(
         network: 'TRC20' | 'ERC20' | 'BEP20',
         apiKey: string,
     ): Promise<{ valid: boolean; message: string }> {
         try {
-            // Blockchain keys are stored as plain text - use directly
+            // API key should be decrypted before calling this method
             const keyToUse = apiKey?.trim() || '';
 
             this.logger.log(`Testing ${network} API key (length: ${keyToUse?.length || 0})`);
@@ -119,10 +120,9 @@ export class BlockchainVerificationService {
             }
 
             if (network === 'ERC20') {
-                this.logger.log(`Calling Etherscan V2 API...`);
+                this.logger.log(`Calling Etherscan API...`);
                 const response = await axios.get(this.APIS.ERC20, {
                     params: {
-                        chainid: this.CHAIN_IDS.ERC20,
                         module: 'stats',
                         action: 'ethsupply',
                         apikey: keyToUse
@@ -206,8 +206,8 @@ export class BlockchainVerificationService {
     }
 
     /**
-     * Verify ERC20 (Ethereum) transaction via Etherscan V2 API
-     * Note: V2 API queries by address, then we filter by txhash
+     * Verify ERC20 (Ethereum) transaction via Etherscan API
+     * Note: Queries by wallet address and filters by txhash for reliability
      */
     private async verifyERC20(
         txHash: string,
@@ -222,7 +222,6 @@ export class BlockchainVerificationService {
             // Query token transfers to the expected wallet address
             const response = await axios.get(this.APIS.ERC20, {
                 params: {
-                    chainid: this.CHAIN_IDS.ERC20,
                     module: 'account',
                     action: 'tokentx',
                     address: expectedWallet,  // Query by wallet address
