@@ -596,7 +596,7 @@ export default function AdminTemplatesPage() {
 
     setIsSavingPreviewSettings(true);
     try {
-      await systemSettingsApi.update({
+      await systemSettingsApi.updateSystemSettings({
         previewSenderName: previewSettingsForm.senderName,
         previewReceiverName: previewSettingsForm.receiverName,
         previewSenderBankCode: previewSettingsForm.senderBankCode,
@@ -857,97 +857,97 @@ export default function AdminTemplatesPage() {
               <StatCard title="ค่าเริ่มต้น" value={templates.filter(t => t.isDefault).length} icon="⭐" color="blue" variant="glass" />
             </div>
 
-        {/* Templates List */}
-        {templates.length === 0 ? (
-          <Card className="p-8 sm:p-12 text-center" variant="glass">
-            <div className="text-5xl mb-4 opacity-50">🎨</div>
-            <h3 className="text-lg font-bold text-white mb-2">ยังไม่มีเทมเพลต</h3>
-            <p className="text-slate-400 mb-6 text-sm">กดปุ่ม "รีเซ็ตค่าเริ่มต้น" เพื่อสร้างเทมเพลตพื้นฐาน</p>
-            <Button onClick={handleInitDefaults} variant="primary">
-              สร้างเทมเพลตเริ่มต้น
-            </Button>
-          </Card>
-        ) : (
-          <div className="space-y-8">
-            {TYPE_OPTIONS.map((type) => {
-              const list = templatesByType[type.value] || [];
-              if (list.length === 0) return null;
+            {/* Templates List */}
+            {templates.length === 0 ? (
+              <Card className="p-8 sm:p-12 text-center" variant="glass">
+                <div className="text-5xl mb-4 opacity-50">🎨</div>
+                <h3 className="text-lg font-bold text-white mb-2">ยังไม่มีเทมเพลต</h3>
+                <p className="text-slate-400 mb-6 text-sm">กดปุ่ม "รีเซ็ตค่าเริ่มต้น" เพื่อสร้างเทมเพลตพื้นฐาน</p>
+                <Button onClick={handleInitDefaults} variant="primary">
+                  สร้างเทมเพลตเริ่มต้น
+                </Button>
+              </Card>
+            ) : (
+              <div className="space-y-8">
+                {TYPE_OPTIONS.map((type) => {
+                  const list = templatesByType[type.value] || [];
+                  if (list.length === 0) return null;
 
-              return (
-                <div key={type.value} className="space-y-4">
-                  {/* Type Header */}
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-lg", type.bgColor)}>
-                      {type.icon}
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold text-white">{type.label}</h2>
-                      <p className="text-xs text-slate-400">{list.length} เทมเพลต</p>
-                    </div>
-                  </div>
-
-                  {/* Templates Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {list.map((template) => (
-                      <Card key={template._id} className="p-5 hover:border-white/20 transition-all" variant="glass">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-white truncate">{template.name}</h3>
-                            <p className="text-xs text-slate-400 truncate mt-0.5">
-                              {template.description || 'ไม่มีคำอธิบาย'}
-                            </p>
-                          </div>
-                          {template.isDefault && (
-                            <Badge variant="success" size="sm">ค่าเริ่มต้น</Badge>
-                          )}
+                  return (
+                    <div key={type.value} className="space-y-4">
+                      {/* Type Header */}
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-lg", type.bgColor)}>
+                          {type.icon}
                         </div>
-
-                        {/* Feature Tags */}
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {template.showAmount && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">จำนวนเงิน</span>}
-                          {template.showSender && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">ผู้โอน</span>}
-                          {template.showReceiver && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">ผู้รับ</span>}
-                          {template.showBankLogo && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">โลโก้ธนาคาร</span>}
+                        <div>
+                          <h2 className="text-base font-bold text-white">{type.label}</h2>
+                          <p className="text-xs text-slate-400">{list.length} เทมเพลต</p>
                         </div>
+                      </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => openEditModal(template)}
-                          >
-                            แก้ไข
-                          </Button>
-                          {!template.isDefault && (
-                            <>
+                      {/* Templates Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {list.map((template) => (
+                          <Card key={template._id} className="p-5 hover:border-white/20 transition-all" variant="glass">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-white truncate">{template.name}</h3>
+                                <p className="text-xs text-slate-400 truncate mt-0.5">
+                                  {template.description || 'ไม่มีคำอธิบาย'}
+                                </p>
+                              </div>
+                              {template.isDefault && (
+                                <Badge variant="success" size="sm">ค่าเริ่มต้น</Badge>
+                              )}
+                            </div>
+
+                            {/* Feature Tags */}
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              {template.showAmount && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">จำนวนเงิน</span>}
+                              {template.showSender && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">ผู้โอน</span>}
+                              {template.showReceiver && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">ผู้รับ</span>}
+                              {template.showBankLogo && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">โลโก้ธนาคาร</span>}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleSetDefault(template._id)}
+                                className="flex-1"
+                                onClick={() => openEditModal(template)}
                               >
-                                ⭐
+                                แก้ไข
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-rose-400 hover:text-rose-300"
-                                onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
-                              >
-                                🗑️
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                              {!template.isDefault && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleSetDefault(template._id)}
+                                  >
+                                    ⭐
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-rose-400 hover:text-rose-300"
+                                    onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
+                                  >
+                                    🗑️
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
 
