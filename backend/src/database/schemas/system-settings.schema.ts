@@ -74,6 +74,24 @@ export class SystemSettings {
   @Prop({ default: 'งดให้บริการชำระเงินด้วย USDT ชั่วคราว' })
   usdtDisabledMessage: string;
 
+  // USDT API Keys (encrypted)
+  @Prop()
+  etherscanApiKey: string; // For ERC20 verification
+
+  @Prop()
+  bscscanApiKey: string; // For BEP20 verification
+
+  @Prop()
+  tronscanApiKey: string; // For TRC20 verification (optional, public API works)
+
+  // USDT Auto-Verification
+  @Prop({ default: true })
+  usdtAutoVerify: boolean;
+
+  // USDT configuration status (set automatically)
+  @Prop({ default: false })
+  usdtConfigured: boolean;
+
   // Quota Settings
   @Prop({ default: 'text' })
   quotaExceededResponseType: string;

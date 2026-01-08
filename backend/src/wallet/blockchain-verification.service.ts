@@ -28,6 +28,64 @@ export class BlockchainVerificationService {
     };
 
     /**
+     * Check if API key is required and configured for the network
+     */
+    isApiKeyRequired(network: 'TRC20' | 'ERC20' | 'BEP20'): boolean {
+        // TRC20 (TRONSCAN) works without API key
+        // ERC20 and BEP20 require API keys for reliable access
+        return network === 'ERC20' || network === 'BEP20';
+    }
+
+    /**
+     * Test API key validity
+     */
+    async testApiKey(
+        network: 'TRC20' | 'ERC20' | 'BEP20',
+        apiKey: string,
+    ): Promise<{ valid: boolean; message: string }> {
+        try {
+            if (network === 'TRC20') {
+                // Test TRONSCAN with a simple call
+                const response = await axios.get(`${this.APIS.TRC20}/system/status`, { timeout: 5000 });
+                return { valid: true, message: 'เชื่อมต่อ TRONSCAN สำเร็จ' };
+            }
+
+            if (network === 'ERC20') {
+                if (!apiKey) {
+                    return { valid: false, message: 'กรุณาใส่ Etherscan API Key' };
+                }
+                const response = await axios.get(this.APIS.ERC20, {
+                    params: { module: 'stats', action: 'ethsupply', apikey: apiKey },
+                    timeout: 5000,
+                });
+                if (response.data?.status === '1') {
+                    return { valid: true, message: 'เชื่อมต่อ Etherscan สำเร็จ' };
+                }
+                return { valid: false, message: 'API Key ไม่ถูกต้อง' };
+            }
+
+            if (network === 'BEP20') {
+                if (!apiKey) {
+                    return { valid: false, message: 'กรุณาใส่ BSCScan API Key' };
+                }
+                const response = await axios.get(this.APIS.BEP20, {
+                    params: { module: 'stats', action: 'bnbsupply', apikey: apiKey },
+                    timeout: 5000,
+                });
+                if (response.data?.status === '1') {
+                    return { valid: true, message: 'เชื่อมต่อ BSCScan สำเร็จ' };
+                }
+                return { valid: false, message: 'API Key ไม่ถูกต้อง' };
+            }
+
+            return { valid: false, message: 'Network ไม่รองรับ' };
+        } catch (error: any) {
+            this.logger.error(`API key test failed: ${error.message}`);
+            return { valid: false, message: `เชื่อมต่อไม่สำเร็จ: ${error.message}` };
+        }
+    }
+
+    /**
      * Verify USDT transaction on any supported network
      */
     async verifyTransaction(
@@ -35,9 +93,10 @@ export class BlockchainVerificationService {
         expectedWallet: string,
         expectedAmount: number,
         network: 'TRC20' | 'ERC20' | 'BEP20' = 'TRC20',
+        apiKeys?: { etherscan?: string; bscscan?: string; tronscan?: string },
     ): Promise<{
         verified: boolean;
-        status: 'success' | 'not_found' | 'wrong_recipient' | 'insufficient_amount' | 'wrong_token' | 'pending' | 'error';
+        status: 'success' | 'not_found' | 'wrong_recipient' | 'insufficient_amount' | 'wrong_token' | 'pending' | 'no_api_key' | 'error';
         actualAmount?: number;
         fromAddress?: string;
         toAddress?: string;
@@ -50,9 +109,17 @@ export class BlockchainVerificationService {
             if (network === 'TRC20') {
                 return this.verifyTRC20(txHash, expectedWallet, expectedAmount);
             } else if (network === 'ERC20') {
-                return this.verifyERC20(txHash, expectedWallet, expectedAmount);
+                const apiKey = apiKeys?.etherscan || process.env.ETHERSCAN_API_KEY || '';
+                if (!apiKey) {
+                    return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า Etherscan API Key' };
+                }
+                return this.verifyERC20(txHash, expectedWallet, expectedAmount, apiKey);
             } else if (network === 'BEP20') {
-                return this.verifyBEP20(txHash, expectedWallet, expectedAmount);
+                const apiKey = apiKeys?.bscscan || process.env.BSCSCAN_API_KEY || '';
+                if (!apiKey) {
+                    return { verified: false, status: 'no_api_key', message: 'ยังไม่ได้ตั้งค่า BSCScan API Key' };
+                }
+                return this.verifyBEP20(txHash, expectedWallet, expectedAmount, apiKey);
             }
 
             return { verified: false, status: 'error', message: 'Unsupported network' };
@@ -81,7 +148,6 @@ export class BlockchainVerificationService {
             return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรมนี้' };
         }
 
-        // Check USDT contract
         if (tx.contractData?.contract_address !== this.CONTRACTS.TRC20) {
             return { verified: false, status: 'wrong_token', message: 'ไม่ใช่ USDT TRC20' };
         }
@@ -93,7 +159,7 @@ export class BlockchainVerificationService {
             return { verified: false, status: 'wrong_recipient', actualAmount, toAddress, message: 'กระเป๋าปลายทางไม่ตรง' };
         }
 
-        if (actualAmount < expectedAmount * 0.99) { // Allow 1% tolerance
+        if (actualAmount < expectedAmount * 0.99) {
             return { verified: false, status: 'insufficient_amount', actualAmount, toAddress, message: `ยอดไม่ตรง: ได้รับ ${actualAmount} USDT` };
         }
 
@@ -115,9 +181,8 @@ export class BlockchainVerificationService {
         txHash: string,
         expectedWallet: string,
         expectedAmount: number,
+        apiKey: string,
     ): Promise<any> {
-        const apiKey = process.env.ETHERSCAN_API_KEY || '';
-
         const response = await axios.get(this.APIS.ERC20, {
             params: {
                 module: 'account',
@@ -136,13 +201,12 @@ export class BlockchainVerificationService {
 
         const tx = result[0];
 
-        // Check USDT contract (case-insensitive)
         if (tx.contractAddress?.toLowerCase() !== this.CONTRACTS.ERC20.toLowerCase()) {
             return { verified: false, status: 'wrong_token', message: 'ไม่ใช่ USDT ERC20' };
         }
 
         const toAddress = tx.to?.toLowerCase();
-        const actualAmount = parseFloat(tx.value) / 1e6; // USDT has 6 decimals
+        const actualAmount = parseFloat(tx.value) / 1e6;
 
         if (toAddress !== expectedWallet.toLowerCase()) {
             return { verified: false, status: 'wrong_recipient', actualAmount, toAddress: tx.to, message: 'กระเป๋าปลายทางไม่ตรง' };
@@ -170,9 +234,8 @@ export class BlockchainVerificationService {
         txHash: string,
         expectedWallet: string,
         expectedAmount: number,
+        apiKey: string,
     ): Promise<any> {
-        const apiKey = process.env.BSCSCAN_API_KEY || '';
-
         const response = await axios.get(this.APIS.BEP20, {
             params: {
                 module: 'account',
@@ -196,7 +259,7 @@ export class BlockchainVerificationService {
         }
 
         const toAddress = tx.to?.toLowerCase();
-        const actualAmount = parseFloat(tx.value) / 1e18; // BEP20 USDT has 18 decimals
+        const actualAmount = parseFloat(tx.value) / 1e18;
 
         if (toAddress !== expectedWallet.toLowerCase()) {
             return { verified: false, status: 'wrong_recipient', actualAmount, toAddress: tx.to, message: 'กระเป๋าปลายทางไม่ตรง' };
@@ -217,3 +280,4 @@ export class BlockchainVerificationService {
         };
     }
 }
+

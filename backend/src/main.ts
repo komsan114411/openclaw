@@ -20,16 +20,12 @@ async function bootstrap() {
     app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 
-    // Enable CORS with strict origin validation
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Enable CORS with safe origin validation
+    // Note: Webhooks (LINE) and health checks don't send Origin headers
     app.enableCors({
       origin: (origin, callback) => {
-        // In production, require origin header (block direct API calls)
-        // In development, allow tools like Postman for testing
+        // Allow requests without Origin header (LINE webhooks, health checks, server-to-server)
         if (!origin) {
-          if (isProduction) {
-            return callback(new Error('Origin header required'), false);
-          }
           return callback(null, true);
         }
 
@@ -48,11 +44,9 @@ async function bootstrap() {
           return callback(null, true);
         }
 
-        // Allow localhost for development only
-        if (!isProduction) {
-          if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-            return callback(null, true);
-          }
+        // Allow localhost for development
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+          return callback(null, true);
         }
 
         // Check custom CORS_ORIGINS env var (exact match only, no wildcards)
