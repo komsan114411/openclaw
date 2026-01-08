@@ -183,7 +183,8 @@ export class SlipVerificationService {
     messageId?: string,
     meta?: { ownerId?: string; subscriptionId?: string; reservationId?: string },
   ): Promise<SlipVerificationResult> {
-    const settings = await this.systemSettingsService.getSettings();
+    // Use getDecryptedSettings to get actual API key, not masked version
+    const settings = await this.systemSettingsService.getDecryptedSettings();
     const apiKey = settings?.slipApiKey;
 
     if (!apiKey) {
