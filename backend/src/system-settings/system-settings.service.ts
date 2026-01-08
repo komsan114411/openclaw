@@ -20,7 +20,44 @@ export class SystemSettingsService {
     this.ensureDefaultSettings();
   }
 
-  // ... [ensureDefaultSettings unchanged] ...
+  private async ensureDefaultSettings(): Promise<void> {
+    try {
+      const exists = await this.settingsModel.findOne({ settingsId: 'main' });
+      if (!exists) {
+        await this.settingsModel.create({
+          settingsId: 'main',
+          publicBaseUrl: '',
+          slipApiProvider: 'thunder',
+          aiModel: 'gpt-3.5-turbo',
+          usdtEnabled: true,
+          usdtNetwork: 'TRC20',
+          quotaExceededResponseType: 'text',
+          quotaExceededMessage: '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ',
+          quotaWarningThreshold: 10,
+          quotaWarningEnabled: true,
+          quotaLowWarningMessage: '⚠️ โควต้าเหลือน้อยกว่า {threshold} สลิป กรุณาเติมแพ็คเกจ',
+          botDisabledSendMessage: false,
+          botDisabledMessage: '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
+          slipDisabledSendMessage: false,
+          slipDisabledMessage: '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
+          aiDisabledSendMessage: false,
+          aiDisabledMessage: '🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว',
+          duplicateRefundEnabled: true,
+          duplicateSlipMessage: '⚠️ สลิปนี้เคยถูกใช้แล้ว กรุณาใช้สลิปใหม่',
+          slipErrorMessage: '❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง',
+          imageDownloadErrorMessage: '❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง',
+          invalidImageMessage: '❌ รูปภาพไม่ถูกต้องหรือไม่ใช่รูปสลิป กรุณาส่งรูปสลิปที่ชัดเจน',
+          slipProcessingMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
+          showSlipProcessingMessage: true,
+          maxRetryAttempts: 3,
+          retryDelayMs: 1000,
+        });
+        this.logger.log('Default system settings created');
+      }
+    } catch (error) {
+      this.logger.error('Error creating default settings:', error);
+    }
+  }
 
   async getSettings(includeSecrets = false): Promise<SystemSettingsDocument | null> {
     // Try cache first

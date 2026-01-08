@@ -8,6 +8,8 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { RedisService } from '../redis/redis.service';
 
+import { BlockchainVerificationService } from './blockchain-verification.service';
+
 @Injectable()
 export class WalletService {
     private readonly logger = new Logger(WalletService.name);
@@ -23,7 +25,10 @@ export class WalletService {
         @Inject(forwardRef(() => SubscriptionsService))
         private subscriptionsService: SubscriptionsService,
         private redisService: RedisService,
+        private blockchainVerificationService: BlockchainVerificationService,
     ) { }
+
+
 
     /**
      * Get or create wallet for a user
@@ -352,15 +357,20 @@ export class WalletService {
             let actualAmount = usdtAmount;
 
             try {
-                // Dynamic import to avoid circular dependency
-                const { BlockchainVerificationService } = await import('./blockchain-verification.service');
-                const verifier = new BlockchainVerificationService();
+                // Get decrypted API keys map
+                const decryptedSettings = await this.systemSettingsService.getDecryptedSettings();
+                const apiKeys = {
+                    etherscan: decryptedSettings?.etherscanApiKey,
+                    bscscan: decryptedSettings?.bscscanApiKey,
+                    tronscan: decryptedSettings?.tronscanApiKey,
+                };
 
-                verificationResult = await verifier.verifyTransaction(
+                verificationResult = await this.blockchainVerificationService.verifyTransaction(
                     transactionHash,
                     systemWallet,
                     usdtAmount,
                     network,
+                    apiKeys
                 );
 
                 if (verificationResult.verified) {
