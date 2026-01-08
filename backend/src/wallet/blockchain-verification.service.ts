@@ -26,14 +26,13 @@ export class BlockchainVerificationService {
     // API Endpoints
     private readonly APIS = {
         TRC20: 'https://apilist.tronscan.org/api',
-        ERC20: 'https://api.etherscan.io/api',  // V1 API (stable)
+        ERC20: 'https://api.etherscan.io/v2/api',  // V2 API
         BEP20: 'https://api.bscscan.com/api',
     };
 
-    // Note: Chain IDs not needed for V1 API
-    // Keeping for reference if V2 migration needed in future
+    // Chain IDs for Etherscan V2 API
     private readonly CHAIN_IDS = {
-        ERC20: 1,  // Ethereum Mainnet
+        ERC20: '1',  // Ethereum Mainnet
     };
 
     /**
@@ -120,9 +119,10 @@ export class BlockchainVerificationService {
             }
 
             if (network === 'ERC20') {
-                this.logger.log(`Calling Etherscan API...`);
+                this.logger.log(`Calling Etherscan V2 API...`);
                 const response = await axios.get(this.APIS.ERC20, {
                     params: {
+                        chainid: this.CHAIN_IDS.ERC20,
                         module: 'stats',
                         action: 'ethsupply',
                         apikey: keyToUse
@@ -206,8 +206,9 @@ export class BlockchainVerificationService {
     }
 
     /**
-     * Verify ERC20 (Ethereum) transaction via Etherscan API
+     * Verify ERC20 (Ethereum) transaction via Etherscan V2 API
      * Note: Queries by wallet address and filters by txhash for reliability
+     * API Docs: https://docs.etherscan.io/api-reference/endpoint/tokentx
      */
     private async verifyERC20(
         txHash: string,
@@ -219,13 +220,16 @@ export class BlockchainVerificationService {
             this.logger.log(`[ERC20] Verifying txHash: ${txHash}`);
             this.logger.log(`[ERC20] Expected wallet: ${expectedWallet}, amount: ${expectedAmount}`);
 
-            // Query token transfers to the expected wallet address
+            // Query token transfers to the expected wallet address using V2 API
             const response = await axios.get(this.APIS.ERC20, {
                 params: {
+                    chainid: this.CHAIN_IDS.ERC20,  // Required for V2 API
                     module: 'account',
                     action: 'tokentx',
                     address: expectedWallet,  // Query by wallet address
                     contractaddress: this.CONTRACTS.ERC20, // Filter by USDT contract
+                    startblock: 0,
+                    endblock: 99999999,
                     page: 1,
                     offset: 50,  // Get last 50 transfers
                     sort: 'desc',
