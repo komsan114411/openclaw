@@ -390,8 +390,30 @@ export class ConfigurableMessagesService {
     return this.formatSystemErrorResponse(context);
   }
 
-  /** @deprecated ใช้ formatBotDisabledResponse แทน */
+  /**
+   * Format slip verification disabled response
+   * ส่งข้อความตอบกลับเมื่อระบบตรวจสอบสลิปปิดอยู่
+   * ต่างจาก formatBotDisabledResponse ตรงที่จะส่งข้อความเสมอเมื่อรับรูปมา
+   */
   async formatSlipDisabledResponse(context: MessageContext = {}): Promise<any> {
-    return this.formatBotDisabledResponse(context);
+    // ตรวจสอบว่าผู้ใช้ต้องการให้ส่งหรือไม่
+    const settings = await this.systemSettingsService.getSettings();
+    const accountSettings = context.account?.settings;
+    const shouldSend = accountSettings?.sendMessageWhenSlipDisabled ?? settings?.slipDisabledSendMessage ?? true;
+    
+    if (!shouldSend) {
+      return null; // ไม่ส่งอะไรเลย
+    }
+
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.SLIP_DISABLED
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting slip disabled response:', error);
+      // Fallback message
+      return this.formatTextMessage('🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
+    }
   }
 }

@@ -224,10 +224,23 @@ export class LineWebhookController {
       if (account.settings?.enableSlipVerification) {
         await this.handleSlipVerification(account, event);
       } else {
-        // Send slip disabled message if configured (ผู้ใช้เลือกได้ว่าจะส่งหรือไม่)
-        const slipDisabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
+        // Send slip disabled message (ใช้ formatSlipDisabledResponse แทน formatBotDisabledResponse)
+        const slipDisabledMsg = await this.configurableMessagesService.formatSlipDisabledResponse({ account });
         if (slipDisabledMsg) {
-          await safeSendReply(typeof slipDisabledMsg === 'string' ? slipDisabledMsg : slipDisabledMsg.text || '');
+          try {
+            // ส่งข้อความตอบกลับทุกครั้งเมื่อรับรูป
+            if (replyToken) {
+              await this.lineAccountsService.sendReply(replyToken, [slipDisabledMsg], accessToken);
+            }
+          } catch (error) {
+            this.logger.error('Failed to send slip disabled reply:', error);
+            // Fallback to text message
+            const fallbackText = typeof slipDisabledMsg === 'string' ? slipDisabledMsg : (slipDisabledMsg.text || slipDisabledMsg.altText || '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
+            await safeSendReply(fallbackText);
+          }
+        } else {
+          // ถ้าไม่มีข้อความจาก template ให้ส่ง fallback message
+          await safeSendReply('🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
         }
       }
     } else if (message.type === 'text') {

@@ -157,6 +157,29 @@ const DEFAULT_TEMPLATES: Partial<SystemResponseTemplate>[] = [
   // หมายเหตุ: โควต้าใกล้หมดจะแสดงในบล็อกผลสลิปโดยตรง (ไม่ได้ส่งแยก)
   // สลิปซ้ำให้ใช้ Slip Templates (TemplateType.DUPLICATE) แทน
   {
+    type: SystemResponseType.SLIP_DISABLED,
+    name: 'ระบบตรวจสอบสลิปปิด',
+    description: 'เมื่อระบบตรวจสอบสลิปปิดอยู่ (ผู้ใช้เลือกส่ง/ไม่ส่ง)',
+    responseFormat: ResponseFormat.FLEX,
+    textMessage: '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
+    title: 'ปิดให้บริการ',
+    mainMessage: 'ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว',
+    subMessage: 'กรุณาติดต่อผู้ดูแลระบบ',
+    styling: {
+      primaryColor: '#64748B',
+      textColor: '#FFFFFF',
+      backgroundColor: '#F8FAFC',
+      icon: '🔴',
+      showIcon: true,
+      showContactButton: true,
+      contactButtonText: 'ติดต่อผู้ดูแล',
+      contactButtonUrl: '',
+      showRetryButton: false,
+      retryButtonText: '',
+    },
+    sortOrder: 8,
+  },
+  {
     type: SystemResponseType.QUOTA_LOW,
     name: 'โควต้าใกล้หมด',
     description: 'เตือนเมื่อโควต้าเหลือน้อย (แสดงในบล็อกผลสลิป)',
