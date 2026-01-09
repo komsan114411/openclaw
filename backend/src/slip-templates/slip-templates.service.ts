@@ -314,15 +314,30 @@ export class SlipTemplatesService implements OnModuleInit {
 
   /**
    * Get default global template for a type
+   * Falls back to any global template of the same type if no default is found
    */
   async getGlobalDefaultTemplate(type: TemplateType): Promise<SlipTemplateDocument | null> {
-    return this.slipTemplateModel.findOne({
+    // First try to find a default template
+    const defaultTemplate = await this.slipTemplateModel.findOne({
       isGlobal: true,
       type,
       isDefault: true,
       isActive: true,
     });
+
+    if (defaultTemplate) {
+      return defaultTemplate;
+    }
+
+    // Fallback: find any global template for this type
+    this.logger.log(`[TEMPLATE] No default global template for ${type}, looking for any global template`);
+    return this.slipTemplateModel.findOne({
+      isGlobal: true,
+      type,
+      isActive: true,
+    }).sort({ createdAt: -1 }); // Use most recently created
   }
+
 
   /**
    * Update template
