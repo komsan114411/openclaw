@@ -16,14 +16,15 @@ interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
-  _hasHydrated: boolean; // Track if store has hydrated from storage
   login: (username: string, password: string) => Promise<boolean>;
   register: (data: { username: string; password: string; email?: string; fullName?: string }) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
-  setInitialized: () => void;
 }
+
+// Flag to track if checkAuth has been called this session
+let _authChecked = false;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -32,7 +33,6 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isInitialized: false,
       error: null,
-      _hasHydrated: false,
 
       login: async (username: string, password: string) => {
         set({ isLoading: true, error: null });
@@ -40,6 +40,7 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.login(username, password);
           if (response.data.success) {
             set({ user: response.data.user, isLoading: false, isInitialized: true });
+            _authChecked = true;
             return true;
           }
           set({ error: response.data.message || 'Login failed', isLoading: false, isInitialized: true });
@@ -60,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.register(data);
           if (response.data.success) {
             set({ user: response.data.user, isLoading: false, isInitialized: true });
+            _authChecked = true;
             return true;
           }
           set({ error: response.data.message || 'Registration failed', isLoading: false, isInitialized: true });
@@ -80,17 +82,23 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           // Ignore logout errors
         }
+        _authChecked = false;
         set({ user: null, isLoading: false, error: null, isInitialized: true });
       },
 
       checkAuth: async () => {
-        // Only check isLoading to prevent concurrent calls
-        // Let each component's useRef handle calling this only once
-        if (get().isLoading) {
+        // CRITICAL: Multiple protections against infinite loop
+        // 1. Check if already initialized (from rehydration)
+        // 2. Check if currently loading
+        // 3. Check module-level flag for this session
+        const state = get();
+        if (state.isInitialized || state.isLoading || _authChecked) {
           return;
         }
 
+        _authChecked = true; // Mark as checked BEFORE async call
         set({ isLoading: true });
+
         try {
           const response = await authApi.me();
           if (response.data.success) {
@@ -104,8 +112,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
-
-      setInitialized: () => set({ isInitialized: true }),
     }),
     {
       name: 'auth-storage',
@@ -114,14 +120,14 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
       }),
-      // On rehydration complete, set flag and initialize
+      // CRITICAL: Always set initialized after rehydration to prevent loop
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state._hasHydrated = true;
-          // If we have a persisted user, mark as initialized
-          // so the UI can show immediately while checkAuth verifies
+          // ALWAYS set initialized to true - this prevents checkAuth loop
+          state.isInitialized = true;
+          // If we had a session, mark auth as checked
           if (state.user) {
-            state.isInitialized = true;
+            _authChecked = true;
           }
         }
       },
