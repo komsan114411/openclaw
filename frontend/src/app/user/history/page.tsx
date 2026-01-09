@@ -47,9 +47,7 @@ export default function UserHistoryPage() {
             t.type.toLowerCase().includes(search.toLowerCase());
 
         if (filter === 'all') return matchesSearch;
-        // Map UI filter to backend types if necessary
-        const targetType = filter === 'subscription' ? 'purchase' : filter;
-        return matchesSearch && t.type === targetType;
+        return matchesSearch && t.type === filter;
     });
 
     const getStatusBadge = (status: string) => {
