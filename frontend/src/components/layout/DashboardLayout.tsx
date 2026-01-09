@@ -25,7 +25,8 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
       authCheckRef.current = true;
       checkAuth();
     }
-  }, [checkAuth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
   // Handle authorization after auth check completes
   useEffect(() => {

@@ -14,8 +14,9 @@ interface User {
 interface AuthState {
   user: User | null;
   isLoading: boolean;
-  isInitialized: boolean; // Track if initial auth check is done
+  isInitialized: boolean;
   error: string | null;
+  _hasHydrated: boolean; // Track if store has hydrated from storage
   login: (username: string, password: string) => Promise<boolean>;
   register: (data: { username: string; password: string; email?: string; fullName?: string }) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -29,8 +30,9 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isLoading: false,
-      isInitialized: false, // Start as not initialized
+      isInitialized: false,
       error: null,
+      _hasHydrated: false,
 
       login: async (username: string, password: string) => {
         set({ isLoading: true, error: null });
@@ -40,12 +42,13 @@ export const useAuthStore = create<AuthState>()(
             set({ user: response.data.user, isLoading: false, isInitialized: true });
             return true;
           }
-          set({ error: response.data.message || 'Login failed', isLoading: false });
+          set({ error: response.data.message || 'Login failed', isLoading: false, isInitialized: true });
           return false;
         } catch (error: any) {
           set({
             error: error.response?.data?.message || 'Login failed',
             isLoading: false,
+            isInitialized: true,
           });
           return false;
         }
@@ -59,12 +62,13 @@ export const useAuthStore = create<AuthState>()(
             set({ user: response.data.user, isLoading: false, isInitialized: true });
             return true;
           }
-          set({ error: response.data.message || 'Registration failed', isLoading: false });
+          set({ error: response.data.message || 'Registration failed', isLoading: false, isInitialized: true });
           return false;
         } catch (error: any) {
           set({
             error: error.response?.data?.message || 'Registration failed',
             isLoading: false,
+            isInitialized: true,
           });
           return false;
         }
@@ -80,9 +84,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
-        // If already initialized or currently checking, don't start another check
-        const state = get();
-        if (state.isInitialized || state.isLoading) {
+        // Only check isLoading to prevent concurrent calls
+        // Let each component's useRef handle calling this only once
+        if (get().isLoading) {
           return;
         }
 
@@ -99,7 +103,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-
       clearError: () => set({ error: null }),
 
       setInitialized: () => set({ isInitialized: true }),
@@ -107,19 +110,21 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => sessionStorage),
-      // Only persist user data, NOT isInitialized (it's runtime state)
+      // Only persist user data
       partialize: (state) => ({
         user: state.user,
       }),
-      // On rehydration, always mark as initialized to prevent infinite loop
+      // On rehydration complete, set flag and initialize
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Always set initialized to true after rehydration
-          // checkAuth will NOT be called if isInitialized is true
-          state.isInitialized = true;
+          state._hasHydrated = true;
+          // If we have a persisted user, mark as initialized
+          // so the UI can show immediately while checkAuth verifies
+          if (state.user) {
+            state.isInitialized = true;
+          }
         }
       },
     }
   )
 );
-
