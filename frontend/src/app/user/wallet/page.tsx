@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { walletApi, systemSettingsApi } from '@/lib/api';
 import { useWalletStore } from '@/store/wallet';
@@ -8,7 +9,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
-import { SectionHeader } from '@/components/ui';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
@@ -76,14 +76,13 @@ export default function WalletPage() {
       setError(null);
       const [balanceRes, txRes, settingsRes] = await Promise.all([
         walletApi.getBalance().catch(() => ({ data: { balance: 0, totalDeposited: 0, totalSpent: 0 } })),
-        walletApi.getTransactions(20).catch(() => ({ data: [] })),
+        walletApi.getTransactions(10).catch(() => ({ data: [] })),
         systemSettingsApi.getPaymentInfo().catch(() => ({ data: { bankAccounts: [] } })),
       ]);
       setBalance(balanceRes.data);
       setTransactions(txRes.data?.transactions || txRes.data || []);
       setUsdtSettings(settingsRes.data?.usdtWallet || null);
 
-      // Map bank accounts
       const accounts = (settingsRes.data?.bankAccounts || []).map((acc: any) => ({
         bankName: acc.bankName || acc.bank?.nameTh || acc.bank?.name || '',
         accountName: acc.accountName || '',
@@ -105,7 +104,6 @@ export default function WalletPage() {
     fetchUsdtRate();
   }, []);
 
-  // Fetch live USDT rate
   const fetchUsdtRate = async () => {
     setRateLoading(true);
     try {
@@ -120,7 +118,6 @@ export default function WalletPage() {
     }
   };
 
-  // Auto-calculate THB credits when USDT amount changes
   useEffect(() => {
     if (usdtAmount && Number(usdtAmount) > 0 && usdtRate) {
       setThbCredits(Math.floor(Number(usdtAmount) * usdtRate));
@@ -129,9 +126,10 @@ export default function WalletPage() {
     }
   }, [usdtAmount, usdtRate]);
 
-  const handleCopyAccount = (accountNumber: string) => {
-    navigator.clipboard.writeText(accountNumber);
-    setCopiedAccount(accountNumber);
+  const handleCopyAccount = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedAccount(text);
+    toast.success('คัดลอกแล้ว');
     setTimeout(() => setCopiedAccount(null), 2000);
   };
 
@@ -139,20 +137,18 @@ export default function WalletPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file
     if (!file.type.startsWith('image/')) {
-      setDepositResult({ success: false, message: 'กรุณาเลือกไฟล์รูปภาพเท่านั้น' });
+      toast.error('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setDepositResult({ success: false, message: 'ไฟล์ใหญ่เกินไป (สูงสุด 5MB)' });
+      toast.error('ไฟล์ใหญ่เกินไป (สูงสุด 5MB)');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64 = (event.target?.result as string).split(',')[1];
-
       setIsDepositing(true);
       setDepositResult(null);
 
@@ -163,11 +159,10 @@ export default function WalletPage() {
           message: res.data.message,
         });
 
-      if (res.data.success) {
-        fetchData();
-        // Refresh wallet balance in global store
-        useWalletStore.getState().refreshBalance();
-      }
+        if (res.data.success) {
+          fetchData();
+          useWalletStore.getState().refreshBalance();
+        }
       } catch (err: any) {
         setDepositResult({
           success: false,
@@ -208,7 +203,6 @@ export default function WalletPage() {
         setUsdtAmount('');
         setTxHash('');
         fetchData();
-        // Refresh wallet balance in global store
         useWalletStore.getState().refreshBalance();
       }
     } catch (err: any) {
@@ -224,9 +218,8 @@ export default function WalletPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('th-TH', {
-      year: 'numeric',
-      month: 'short',
       day: 'numeric',
+      month: 'short',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -259,7 +252,7 @@ export default function WalletPage() {
       case 'completed':
         return <Badge variant="success" size="sm">สำเร็จ</Badge>;
       case 'pending':
-        return <Badge variant="warning" size="sm">รอดำเนินการ</Badge>;
+        return <Badge variant="warning" size="sm">รอ</Badge>;
       case 'rejected':
         return <Badge variant="error" size="sm">ปฏิเสธ</Badge>;
       case 'cancelled':
@@ -279,282 +272,164 @@ export default function WalletPage() {
 
   return (
     <DashboardLayout>
-      <div className="section-gap animate-fade pb-10 max-w-5xl mx-auto px-4 sm:px-6">
-        <SectionHeader
-          title="เติมเครดิต"
-          highlight="Wallet"
-          subtitle="เลือกช่องทางการชำระเงินเพื่อเติมเครดิต"
-        />
+      <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-white">
+              กระเป๋าเงิน <span className="text-[#06C755]">(Wallet)</span>
+            </h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">เติมเครดิตเพื่อซื้อแพ็คเกจ</p>
+          </div>
+          <Link href="/user/packages">
+            <Button variant="primary" size="sm" className="bg-[#06C755] hover:bg-[#05a347] h-9 sm:h-10 px-4">
+              💎 ซื้อแพ็คเกจ
+            </Button>
+          </Link>
+        </div>
 
-        {/* Payment Methods - Tabs */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
+        {/* Balance Card */}
+        <Card className="bg-gradient-to-br from-emerald-900/40 via-slate-900 to-slate-950 border border-emerald-500/20 overflow-hidden relative" variant="glass">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-[60px] -mr-24 -mt-24" />
+          <div className="p-4 sm:p-6 relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="text-xs text-slate-400 mb-1">ยอดเครดิตคงเหลือ</p>
+                <h2 className="text-3xl sm:text-4xl font-black text-white">
+                  ฿{balance?.balance?.toLocaleString() || 0}
+                </h2>
+                <div className="flex gap-4 sm:gap-6 mt-3">
+                  <div>
+                    <p className="text-[10px] text-slate-500">เติมสะสม</p>
+                    <p className="text-sm font-bold text-emerald-400">฿{balance?.totalDeposited?.toLocaleString() || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-500">ใช้ไป</p>
+                    <p className="text-sm font-bold text-rose-400">฿{balance?.totalSpent?.toLocaleString() || 0}</p>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchData}
+                className="h-9 px-4 border-white/20 text-xs self-start sm:self-center"
+              >
+                🔄 รีเฟรช
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Payment Method Tabs */}
+        <div className="flex justify-center">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('bank')}
               className={cn(
-                "px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                "flex-1 sm:flex-none px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2",
                 activeTab === 'bank'
-                  ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20"
+                  ? "bg-[#06C755] text-white shadow-lg"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              <span>🏦</span> โอนเงินธนาคาร
+              🏦 <span className="hidden xs:inline">โอนเงิน</span>ธนาคาร
             </button>
             <button
               onClick={() => setActiveTab('crypto')}
               className={cn(
-                "px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                "flex-1 sm:flex-none px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2",
                 activeTab === 'crypto'
-                  ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20"
+                  ? "bg-[#06C755] text-white shadow-lg"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              <span>💎</span> Crypto (USDT)
+              💎 USDT
             </button>
           </div>
         </div>
 
-        {activeTab === 'crypto' && (
-          /* Crypto Deposit Section */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {/* Left: Wallet Info */}
-            <Card variant="glass" className="border border-white/10 p-6 flex flex-col justify-center items-center text-center space-y-6">
-              {!usdtSettings?.enabled ? (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">⚠️</div>
-                  <h3 className="text-xl font-bold text-white mb-2">ปิดปรับปรุงชั่วคราว</h3>
-                  <p className="text-slate-400">{usdtSettings?.disabledMessage || 'งดรับชำระด้วย USDT ชั่วคราว'}</p>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <Badge variant="warning" className="mb-4 text-xs tracking-wider">NETWORK: {usdtSettings?.network || 'TRC20'}</Badge>
-                    <h3 className="text-xl font-bold text-white">USDT Wallet Address</h3>
-                    <p className="text-slate-400 text-sm mt-1">สแกน QR Code หรือคัดลอกที่อยู่กระเป๋า</p>
-                  </div>
+        {error && (
+          <Card className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-3" variant="glass">
+            <div className="flex items-center gap-2 text-sm">
+              <span>❌</span>
+              <span>{error}</span>
+              <Button variant="ghost" size="sm" onClick={fetchData} className="ml-auto text-xs">ลองใหม่</Button>
+            </div>
+          </Card>
+        )}
 
-                  {usdtSettings?.qrImage ? (
-                    <div className="w-56 h-56 bg-white p-2 rounded-xl shadow-2xl">
-                      <img src={usdtSettings.qrImage} alt="USDT QR Code" className="w-full h-full object-contain" />
-                    </div>
-                  ) : (
-                    <div className="w-56 h-56 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-4xl animate-pulse">
-                      🪙
-                    </div>
-                  )}
+        {/* Bank Transfer Section */}
+        {activeTab === 'bank' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Bank Accounts */}
+            <Card className="border border-white/10" variant="glass">
+              <div className="p-4 sm:p-5">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm">1</span>
+                  บัญชีสำหรับโอนเงิน
+                </h3>
 
-                  <div className="w-full relative group">
-                    <div className="bg-[#0A0F0D] border border-white/10 rounded-xl p-4 pr-12 break-all text-xs sm:text-sm font-mono text-emerald-400">
-                      {usdtSettings?.address || 'Loading...'}
-                    </div>
-                    <button
-                      onClick={() => handleCopyAccount(usdtSettings?.address || '')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
-                    >
-                      {copiedAccount === usdtSettings?.address ? '✅' : '📋'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-500">*กรุณาตรวจสอบ Network ให้ถูกต้องก่อนโอน (รองรับ {usdtSettings?.network})</p>
-                </>
-              )}
-            </Card>
-
-            {/* Right: Submit Form */}
-            <Card variant="glass" className="border border-white/10 p-6 flex flex-col">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">2</span>
-                แจ้งโอนเงิน (Submit TX)
-              </h3>
-
-              <div className="space-y-6 flex-1">
-                {/* Live Rate Display */}
-                <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">อัตราแลกเปลี่ยนปัจจุบัน</span>
-                    <button
-                      onClick={fetchUsdtRate}
-                      disabled={rateLoading}
-                      className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
-                    >
-                      {rateLoading ? '🔄' : '↻'} รีเฟรช
-                    </button>
-                  </div>
-                  <div className="text-2xl font-bold text-white mt-1">
-                    {rateLoading ? (
-                      <span className="text-slate-400 animate-pulse">กำลังโหลด...</span>
-                    ) : usdtRate ? (
-                      <>1 USDT = <span className="text-emerald-400">{usdtRate.toFixed(2)}</span> บาท</>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-1">อัตราจาก Binance (อัปเดตทุก 60 วินาที)</p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">จำนวน USDT ที่โอน</label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={usdtAmount}
-                    onChange={(e) => setUsdtAmount(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-slate-500"
-                  />
-                  {/* Auto-calculated credits display */}
-                  {thbCredits !== null && (
-                    <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                      <span className="text-emerald-400 text-lg">💰</span>
-                      <div>
-                        <p className="text-xs text-slate-400">เครดิตที่จะได้รับ</p>
-                        <p className="text-xl font-bold text-emerald-400">{thbCredits.toLocaleString()} บาท</p>
+                {bankAccounts.length > 0 ? (
+                  <div className="space-y-3">
+                    {bankAccounts.map((account, index) => (
+                      <div
+                        key={index}
+                        className="bg-slate-900/60 rounded-xl p-3 sm:p-4 border border-white/5"
+                      >
+                        <div className="flex items-center gap-3">
+                          {account.bank?.logoBase64 ? (
+                            <img
+                              src={account.bank.logoBase64}
+                              alt={account.bankName}
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain bg-white p-1 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center text-lg flex-shrink-0">
+                              🏦
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs sm:text-sm text-slate-400 truncate">{account.bankName}</p>
+                            <p className="text-[10px] sm:text-xs text-slate-500 truncate">{account.accountName}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <p className="text-lg sm:text-xl font-black text-white font-mono tracking-wider flex-1">
+                            {account.accountNumber}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyAccount(account.accountNumber)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0",
+                              copiedAccount === account.accountNumber
+                                ? "bg-emerald-500 text-white"
+                                : "bg-white/10 text-white hover:bg-emerald-500"
+                            )}
+                          >
+                            {copiedAccount === account.accountNumber ? '✓' : '📋'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Transaction Hash (TxID)</label>
-                  <Input
-                    placeholder="วางเลข TxID ที่นี่..."
-                    value={txHash}
-                    onChange={(e) => setTxHash(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 font-mono text-sm"
-                  />
-                </div>
-
-                {/* Instructions */}
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-                  <h4 className="text-yellow-400 text-xs font-bold mb-2">⚠️ คำแนะนำ</h4>
-                  <ul className="text-[10px] text-yellow-200/70 space-y-1 list-disc list-inside">
-                    <li>กรุณาโอนเงินผ่าน Network <b>{usdtSettings?.network}</b> เท่านั้น</li>
-                    <li>ยอดเงินจะเข้าบัญชีหลังจาก Admin ตรวจสอบ (15-30 นาที)</li>
-                    <li>หากโอนผิด Network สินทรัพย์อาจสูญหาย</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <Button
-                  variant="primary"
-                  className="w-full h-12 bg-[#06C755] hover:bg-[#05B048] font-bold shadow-lg shadow-emerald-500/20"
-                  onClick={handleUsdtDeposit}
-                  isLoading={isDepositing}
-                  disabled={!usdtSettings?.enabled || isDepositing || !usdtAmount || !txHash}
-                >
-                  แจ้งโอนเงิน
-                </Button>
-                {depositResult && (
-                  <div className={cn("mt-4 p-3 rounded-lg text-center text-sm font-bold animate-fade", depositResult.success ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
-                    {depositResult.message}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400 text-sm">ไม่พบข้อมูลบัญชีธนาคาร</p>
                   </div>
                 )}
               </div>
             </Card>
-          </div>
-        )}
 
-        <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 animate-fade", activeTab !== 'bank' && "hidden")}>
+            {/* Upload Slip */}
+            <Card className="border border-emerald-500/20" variant="glass">
+              <div className="p-4 sm:p-5">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm">2</span>
+                  อัปโหลดสลิป
+                </h3>
 
-          {error && (
-            <Card className="bg-rose-500/10 border border-rose-500/20 text-rose-300 mt-6 p-4" variant="glass">
-              <div className="flex items-center gap-2">
-                <span>❌</span>
-                <span>{error}</span>
-                <Button variant="ghost" size="sm" onClick={fetchData} className="ml-auto">ลองใหม่</Button>
-              </div>
-            </Card>
-          )}
-
-          {/* BALANCE CARD */}
-          <Card className="bg-gradient-to-br from-emerald-900/30 to-slate-950 border border-emerald-500/20 shadow-2xl mt-6 overflow-hidden relative" variant="glass">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] -mr-32 -mt-32" />
-
-            <div className="p-6 sm:p-8 relative z-10">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 mb-1">ยอดเครดิตคงเหลือ</p>
-                  <h2 className="text-4xl sm:text-5xl font-black text-white">
-                    ฿{balance?.balance?.toLocaleString() || 0}
-                  </h2>
-                  <div className="flex gap-6 mt-4">
-                    <div>
-                      <p className="text-[10px] text-slate-400">เติมสะสม</p>
-                      <p className="text-sm font-bold text-emerald-400">฿{balance?.totalDeposited?.toLocaleString() || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400">ใช้ไป</p>
-                      <p className="text-sm font-bold text-rose-400">฿{balance?.totalSpent?.toLocaleString() || 0}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* BANK ACCOUNTS - เลขบัญชีสำหรับโอนเงิน */}
-          <Card className="bg-slate-950 border border-white/5 mt-6" variant="glass">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4">📍 บัญชีสำหรับโอนเงิน</h3>
-
-              {bankAccounts.length > 0 ? (
-                <div className="space-y-3">
-                  {bankAccounts.map((account, index) => (
-                    <div
-                      key={index}
-                      className="bg-slate-900/80 rounded-xl p-4 border border-white/10 flex items-center gap-4"
-                    >
-                      {/* Bank Logo */}
-                      {account.bank?.logoBase64 ? (
-                        <img
-                          src={account.bank.logoBase64}
-                          alt={account.bankName}
-                          className="w-12 h-12 rounded-lg object-contain bg-white p-1 flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">
-                          🏦
-                        </div>
-                      )}
-
-                      {/* Bank Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-400 truncate">{account.bankName}</p>
-                        <p className="text-xs text-slate-500 truncate">{account.accountName}</p>
-                        <p className="text-xl sm:text-2xl font-black text-white font-mono tracking-wider mt-1">
-                          {account.accountNumber}
-                        </p>
-                      </div>
-
-                      {/* Copy Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopyAccount(account.accountNumber)}
-                        className={cn(
-                          "px-4 py-2 rounded-lg text-sm font-bold flex-shrink-0 transition-all",
-                          copiedAccount === account.accountNumber
-                            ? "bg-emerald-500 text-white"
-                            : "bg-white/10 text-white hover:bg-emerald-500"
-                        )}
-                      >
-                        {copiedAccount === account.accountNumber ? '✓ คัดลอกแล้ว' : '📋 คัดลอก'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-slate-400">ไม่พบข้อมูลบัญชีธนาคาร</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* UPLOAD SLIP */}
-          <Card className="bg-slate-950 border border-emerald-500/20 mt-6" variant="glass">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4">📤 อัปโหลดสลิปการโอนเงิน</h3>
-
-              <div className="relative">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -567,7 +442,7 @@ export default function WalletPage() {
                 <label
                   htmlFor="slip-upload"
                   className={cn(
-                    "flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all",
+                    "flex flex-col items-center justify-center w-full h-32 sm:h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all",
                     isDepositing
                       ? "border-slate-600 bg-slate-800/50 cursor-not-allowed"
                       : "border-emerald-500/30 hover:border-emerald-500 bg-emerald-500/5 hover:bg-emerald-500/10"
@@ -575,122 +450,228 @@ export default function WalletPage() {
                 >
                   {isDepositing ? (
                     <div className="text-center">
-                      <div className="text-4xl mb-2 animate-spin">⏳</div>
-                      <p className="text-slate-400">กำลังตรวจสอบสลิป...</p>
+                      <div className="text-3xl mb-2 animate-spin">⏳</div>
+                      <p className="text-slate-400 text-sm">กำลังตรวจสอบ...</p>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <div className="text-4xl mb-2">📷</div>
-                      <p className="text-emerald-400 font-bold">คลิกเพื่ออัปโหลดสลิป</p>
-                      <p className="text-xs text-slate-400 mt-1">รองรับ JPG, PNG (สูงสุด 5MB)</p>
+                      <div className="text-3xl mb-2">📷</div>
+                      <p className="text-emerald-400 font-bold text-sm">คลิกเพื่ออัปโหลดสลิป</p>
+                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG (สูงสุด 5MB)</p>
                     </div>
                   )}
                 </label>
-              </div>
 
-              {depositResult && (
-                <div className={cn(
-                  "mt-4 p-4 rounded-xl border",
-                  depositResult.success
-                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
-                    : "bg-rose-500/10 border-rose-500/20 text-rose-300"
-                )}>
-                  <div className="flex items-center gap-2">
-                    <span>{depositResult.success ? '✅' : '❌'}</span>
-                    <span className="font-medium">{depositResult.message}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* HOW IT WORKS */}
-          <Card className="bg-slate-950 border border-white/5 mt-6" variant="glass">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4">📋 ขั้นตอนการเติมเครดิต</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex items-start gap-3 p-4 bg-white/[0.02] rounded-xl border border-white/5">
-                  <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-emerald-400">1</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white text-sm">โอนเงิน</p>
-                    <p className="text-xs text-slate-400">โอนเงินไปยังบัญชีด้านบน</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-4 bg-white/[0.02] rounded-xl border border-white/5">
-                  <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-emerald-400">2</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white text-sm">อัปโหลดสลิป</p>
-                    <p className="text-xs text-slate-400">กดคลิกอัปโหลดสลิปการโอนเงิน</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-4 bg-white/[0.02] rounded-xl border border-white/5">
-                  <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-emerald-400">3</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white text-sm">รับเครดิต</p>
-                    <p className="text-xs text-slate-400">ระบบตรวจสอบ เครดิตเข้าทันที</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* TRANSACTION HISTORY */}
-          <Card className="bg-slate-950 border border-white/5 mt-6" variant="glass">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4">📜 ประวัติธุรกรรม</h3>
-
-              {transactions.length > 0 ? (
-                <div className="space-y-3">
-                  {transactions.map((tx) => (
-                    <div
-                      key={tx._id}
-                      className="flex items-center gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/5"
-                    >
-                      <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                        tx.amount > 0 ? "bg-emerald-500/10" : "bg-rose-500/10"
-                      )}>
-                        <span className="text-lg">{getTypeIcon(tx.type)}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-white truncate">{tx.description || getTypeLabel(tx.type)}</p>
-                          {getStatusBadge(tx.status)}
-                        </div>
-                        <p className="text-xs text-slate-400">{formatDate(tx.createdAt)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={cn(
-                          "font-bold",
-                          tx.amount > 0 ? "text-emerald-400" : "text-rose-400"
-                        )}>
-                          {tx.amount > 0 ? '+' : ''}฿{Math.abs(tx.amount).toLocaleString()}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          คงเหลือ ฿{tx.balanceAfter?.toLocaleString() || 0}
-                        </p>
-                      </div>
+                {depositResult && (
+                  <div className={cn(
+                    "mt-4 p-3 rounded-xl border text-sm",
+                    depositResult.success
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                      : "bg-rose-500/10 border-rose-500/20 text-rose-300"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <span>{depositResult.success ? '✅' : '❌'}</span>
+                      <span className="font-medium">{depositResult.message}</span>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">📋</span>
                   </div>
-                  <p className="text-slate-400">ยังไม่มีประวัติธุรกรรม</p>
-                  <p className="text-sm text-slate-500 mt-1">เริ่มเติมเครดิตเพื่อใช้ซื้อแพ็คเกจ</p>
+                )}
+
+                {/* Steps */}
+                <div className="mt-4 p-3 bg-white/[0.02] rounded-xl border border-white/5">
+                  <p className="text-[10px] text-slate-500 mb-2">ขั้นตอน:</p>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                    <span className="text-emerald-400">1.</span> โอนเงิน →
+                    <span className="text-emerald-400">2.</span> อัปโหลดสลิป →
+                    <span className="text-emerald-400">3.</span> รับเครดิต
+                  </div>
                 </div>
-              )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* USDT Section */}
+        {activeTab === 'crypto' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Wallet Info */}
+            <Card className="border border-white/10" variant="glass">
+              <div className="p-4 sm:p-5 flex flex-col items-center text-center">
+                {!usdtSettings?.enabled ? (
+                  <div className="py-8">
+                    <div className="text-4xl mb-4">⚠️</div>
+                    <h3 className="text-lg font-bold text-white mb-2">ปิดปรับปรุงชั่วคราว</h3>
+                    <p className="text-slate-400 text-sm">{usdtSettings?.disabledMessage || 'งดรับชำระด้วย USDT ชั่วคราว'}</p>
+                  </div>
+                ) : (
+                  <>
+                    <Badge variant="warning" className="mb-3 text-[10px]">NETWORK: {usdtSettings?.network || 'TRC20'}</Badge>
+                    <h3 className="text-base sm:text-lg font-bold text-white">USDT Wallet Address</h3>
+                    <p className="text-slate-400 text-xs mt-1">สแกน QR Code หรือคัดลอกที่อยู่</p>
+
+                    {usdtSettings?.qrImage ? (
+                      <div className="w-40 h-40 sm:w-48 sm:h-48 bg-white p-2 rounded-xl shadow-2xl mt-4">
+                        <img src={usdtSettings.qrImage} alt="USDT QR Code" className="w-full h-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className="w-40 h-40 sm:w-48 sm:h-48 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-4xl mt-4">
+                        🪙
+                      </div>
+                    )}
+
+                    <div className="w-full mt-4 relative">
+                      <div className="bg-[#0A0F0D] border border-white/10 rounded-xl p-3 pr-10 break-all text-[10px] sm:text-xs font-mono text-emerald-400">
+                        {usdtSettings?.address || 'Loading...'}
+                      </div>
+                      <button
+                        onClick={() => handleCopyAccount(usdtSettings?.address || '')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        {copiedAccount === usdtSettings?.address ? '✅' : '📋'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-2">*ตรวจสอบ Network ให้ถูกต้อง ({usdtSettings?.network})</p>
+                  </>
+                )}
+              </div>
+            </Card>
+
+            {/* Submit Form */}
+            <Card className="border border-white/10" variant="glass">
+              <div className="p-4 sm:p-5">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm">2</span>
+                  แจ้งโอนเงิน
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Rate Display */}
+                  <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">อัตราแลกเปลี่ยน</span>
+                      <button
+                        onClick={fetchUsdtRate}
+                        disabled={rateLoading}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300"
+                      >
+                        {rateLoading ? '🔄' : '↻'} รีเฟรช
+                      </button>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white mt-1">
+                      {rateLoading ? (
+                        <span className="text-slate-400 animate-pulse text-sm">กำลังโหลด...</span>
+                      ) : usdtRate ? (
+                        <>1 USDT = <span className="text-emerald-400">{usdtRate.toFixed(2)}</span> บาท</>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-300">จำนวน USDT</label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={usdtAmount}
+                      onChange={(e) => setUsdtAmount(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 h-10"
+                    />
+                    {thbCredits !== null && (
+                      <div className="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                        <span className="text-emerald-400">💰</span>
+                        <div>
+                          <p className="text-[10px] text-slate-400">เครดิตที่จะได้รับ</p>
+                          <p className="text-base font-bold text-emerald-400">{thbCredits.toLocaleString()} บาท</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-300">Transaction Hash</label>
+                    <Input
+                      placeholder="วาง TxID ที่นี่..."
+                      value={txHash}
+                      onChange={(e) => setTxHash(e.target.value)}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 font-mono text-xs h-10"
+                    />
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    className="w-full h-10 sm:h-11 bg-[#06C755] hover:bg-[#05B048] font-bold"
+                    onClick={handleUsdtDeposit}
+                    isLoading={isDepositing}
+                    disabled={!usdtSettings?.enabled || isDepositing || !usdtAmount || !txHash}
+                  >
+                    แจ้งโอนเงิน
+                  </Button>
+
+                  {depositResult && (
+                    <div className={cn(
+                      "p-3 rounded-lg text-center text-sm font-bold",
+                      depositResult.success ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    )}>
+                      {depositResult.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Transaction History */}
+        <Card className="border border-white/10" variant="glass">
+          <div className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-white">📜 ประวัติธุรกรรมล่าสุด</h3>
+              <Link href="/user/payments" className="text-xs text-emerald-400 hover:text-emerald-300">
+                ดูทั้งหมด →
+              </Link>
             </div>
-          </Card>
-        </div>
+
+            {transactions.length > 0 ? (
+              <div className="space-y-2 sm:space-y-3">
+                {transactions.slice(0, 5).map((tx) => (
+                  <div
+                    key={tx._id}
+                    className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5"
+                  >
+                    <div className={cn(
+                      "w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                      tx.amount > 0 ? "bg-emerald-500/10" : "bg-rose-500/10"
+                    )}>
+                      <span className="text-base sm:text-lg">{getTypeIcon(tx.type)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-white text-sm truncate">{getTypeLabel(tx.type)}</p>
+                        {getStatusBadge(tx.status)}
+                      </div>
+                      <p className="text-[10px] text-slate-500">{formatDate(tx.createdAt)}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={cn(
+                        "font-bold text-sm",
+                        tx.amount > 0 ? "text-emerald-400" : "text-rose-400"
+                      )}>
+                        {tx.amount > 0 ? '+' : ''}฿{Math.abs(tx.amount).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">📋</span>
+                </div>
+                <p className="text-slate-400 text-sm">ยังไม่มีประวัติธุรกรรม</p>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </DashboardLayout>
   );

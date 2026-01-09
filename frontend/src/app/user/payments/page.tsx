@@ -17,12 +17,16 @@ export default function UserPaymentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null);
 
-  // Fetch payment history
+  // Fetch payment history - only show completed/approved payments
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const paymentsRes = await paymentsApi.getMy();
-      setPayments(paymentsRes.data.payments || []);
+      // Filter to show only successful payments (completed, approved, verified)
+      const successfulPayments = (paymentsRes.data.payments || []).filter(
+        (p: Payment) => ['completed', 'approved', 'verified'].includes(p.status)
+      );
+      setPayments(successfulPayments);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('ไม่สามารถโหลดข้อมูลได้');
@@ -54,36 +58,24 @@ export default function UserPaymentsPage() {
     return `฿${amount.toLocaleString()}`;
   };
 
-  // Status badge component
+  // Status badge component - only for successful statuses
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { label: string; className: string }> = {
-      pending: {
-        label: 'รอตรวจสอบ',
-        className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      completed: {
+        label: 'สำเร็จ',
+        className: 'bg-green-500/20 text-green-400 border-green-500/30',
       },
       verified: {
-        label: 'อนุมัติแล้ว',
+        label: 'สำเร็จ',
         className: 'bg-green-500/20 text-green-400 border-green-500/30',
       },
       approved: {
-        label: 'อนุมัติแล้ว',
+        label: 'สำเร็จ',
         className: 'bg-green-500/20 text-green-400 border-green-500/30',
-      },
-      rejected: {
-        label: 'ปฏิเสธ',
-        className: 'bg-red-500/20 text-red-400 border-red-500/30',
-      },
-      failed: {
-        label: 'ล้มเหลว',
-        className: 'bg-red-500/20 text-red-400 border-red-500/30',
-      },
-      cancelled: {
-        label: 'ยกเลิก',
-        className: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
       },
     };
 
-    const { label, className } = config[status] || config.pending;
+    const { label, className } = config[status] || { label: 'สำเร็จ', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
 
     return (
       <span className={`px-3 py-1 text-xs font-semibold rounded-lg border ${className}`}>
