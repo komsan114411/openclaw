@@ -454,13 +454,23 @@ export default function SettingsPage() {
 
                     <div className="space-y-6">
                       <Input
-                        type="password"
-                        label="API Key ใหม่"
-                        placeholder="••••••••••••••••"
-                        value={slipApiKey}
+                        type={settings?.slipApiKey?.includes('....') ? 'text' : 'password'}
+                        label="API Key"
+                        placeholder="ใส่ Thunder API Key..."
+                        value={slipApiKey || settings?.slipApiKey || ''}
                         onChange={(e) => setSlipApiKey(e.target.value)}
-                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono"
                       />
+                      {settings?.slipApiKey ? (
+                        <div className="flex items-center gap-2 text-slate-400 bg-white/5 px-3 py-2 rounded-lg">
+                          <span className="text-xs">API Key ถูกเข้ารหัสแล้ว: {settings.slipApiKey}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+                          <span>⚠️</span>
+                          <span className="text-xs">ยังไม่ได้ตั้งค่า API Key - สมัครที่ thunder.in.th</span>
+                        </div>
+                      )}
                       <div className="flex gap-4">
                         <Button
                           variant="primary"
@@ -503,13 +513,23 @@ export default function SettingsPage() {
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 gap-4">
                         <Input
-                          type="password"
+                          type={settings?.aiApiKey?.includes('....') ? 'text' : 'password'}
                           label="OpenAI API Key"
-                          placeholder="sk-••••••••••••••••"
-                          value={aiApiKey}
+                          placeholder="ใส่ OpenAI API Key..."
+                          value={aiApiKey || settings?.aiApiKey || ''}
                           onChange={(e) => setAiApiKey(e.target.value)}
-                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono"
                         />
+                        {settings?.aiApiKey ? (
+                          <div className="flex items-center gap-2 text-slate-400 bg-white/5 px-3 py-2 rounded-lg">
+                            <span className="text-xs">API Key ถูกเข้ารหัสแล้ว: {settings.aiApiKey}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+                            <span>⚠️</span>
+                            <span className="text-xs">ยังไม่ได้ตั้งค่า API Key - สมัครที่ platform.openai.com</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex gap-4">
                         <Button
