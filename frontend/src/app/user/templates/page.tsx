@@ -500,7 +500,7 @@ function TemplatesContent() {
     }
     try {
       // Fetch templates using correct API path (includes global templates)
-      const response = await slipTemplatesApi.getAll(accountId);
+      const response = await slipTemplatesApi.getGlobal();
       if (response.data.success) {
         const apiTemplates = response.data.templates || [];
         // If API returns empty, try to fetch global templates
