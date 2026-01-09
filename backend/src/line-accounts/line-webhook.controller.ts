@@ -248,16 +248,30 @@ export class LineWebhookController {
             // ส่งข้อความตอบกลับทุกครั้งเมื่อรับรูป
             if (replyToken) {
               await this.lineAccountsService.sendReply(replyToken, [slipDisabledMsg], accessToken);
+            } else {
+              // ถ้าไม่มี replyToken ให้ใช้ push แทน
+              await this.lineAccountsService.sendPush(lineUserId, [slipDisabledMsg], accessToken);
             }
           } catch (error) {
             this.logger.error('Failed to send slip disabled reply:', error);
-            // Fallback to text message
-            const fallbackText = typeof slipDisabledMsg === 'string' ? slipDisabledMsg : (slipDisabledMsg.text || slipDisabledMsg.altText || '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
-            await safeSendReply(fallbackText);
+            // Fallback: ลองส่งผ่าน push แทน
+            try {
+              const fallbackText = typeof slipDisabledMsg === 'string' ? slipDisabledMsg : (slipDisabledMsg.text || slipDisabledMsg.altText || '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
+              await this.lineAccountsService.sendPush(lineUserId, [{ type: 'text', text: fallbackText }], accessToken);
+            } catch (pushError) {
+              this.logger.error('Failed to send slip disabled push:', pushError);
+            }
           }
         } else {
-          // ถ้าไม่มีข้อความจาก template ให้ส่ง fallback message
-          await safeSendReply('🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
+          // ถ้าไม่มีข้อความจาก template แต่ตั้งค่าให้ส่ง ให้ส่ง fallback message
+          // ตรวจสอบว่าตั้งค่าให้ส่งข้อความหรือไม่
+          const settings = await this.systemSettingsService.getSettings();
+          const accountSettings = account.settings || {};
+          const shouldSend = accountSettings.sendMessageWhenSlipDisabled ?? settings?.slipDisabledSendMessage ?? true;
+          
+          if (shouldSend) {
+            await safeSendReply('🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว');
+          }
         }
       }
     } else if (message.type === 'text') {
@@ -299,34 +313,81 @@ export class LineWebhookController {
         }
       }
 
-      const sendMessages = async (msgs: any[]) => {
-        if (useReply && replyToken && !replyTokenUsed) {
+      // Helper to extract fallback text from message
+      const getFallbackText = (msg: any): string => {
+        return msg?.altText || msg?.text || msg?.contents?.body?.contents?.[0]?.text || 'ระบบตรวจสอบสลิปเรียบร้อยแล้ว';
+      };
+
+      const sendViaReply = async (msgs: any[]) => {
+        if (replyToken && !replyTokenUsed) {
           this.logger.log(`[SLIP] Sending via reply token`);
           await this.lineAccountsService.sendReply(replyToken, msgs, accessToken);
           replyTokenUsed = true;
-        } else {
-          this.logger.log(`[SLIP] Sending via push to ${lineUserId}`);
-          await this.lineAccountsService.sendPush(lineUserId, msgs, accessToken);
+          return true;
         }
+        return false;
+      };
+
+      const sendViaPush = async (msgs: any[]) => {
+        this.logger.log(`[SLIP] Sending via push to ${lineUserId}`);
+        await this.lineAccountsService.sendPush(lineUserId, msgs, accessToken);
       };
 
       try {
-        await sendMessages(messages);
-        this.logger.log(`[SLIP] Message sent successfully`);
+        // Try reply first if requested
+        if (useReply) {
+          const replySent = await sendViaReply(messages);
+          if (replySent) {
+            this.logger.log(`[SLIP] Message sent successfully via reply`);
+            return;
+          }
+        }
+        // Fallback to push
+        await sendViaPush(messages);
+        this.logger.log(`[SLIP] Message sent successfully via push`);
       } catch (sendError: any) {
         this.logger.error('Failed to send LINE message:', sendError);
 
-        // If sending fails (e.g. invalid Flex format), try fallback to text message
+        // If Flex message failed (400 error), try text fallback
         if (sendError?.response?.status === 400) {
           this.logger.warn('[SLIP] Flex message failed, trying text fallback...');
+          const firstMsg = messages[0];
+          const fallbackText = getFallbackText(firstMsg);
+          const textMsg = [{ type: 'text', text: fallbackText }];
+          
           try {
-            // Extract text from first message's altText or use default
-            const firstMsg = messages[0];
-            const fallbackText = firstMsg?.altText || firstMsg?.text || 'ระบบตรวจสอบสลิปเรียบร้อยแล้ว';
-            await sendMessages([{ type: 'text', text: fallbackText }]);
-            this.logger.log('[SLIP] Text fallback sent successfully');
+            // Try reply first for text fallback
+            if (useReply && !replyTokenUsed) {
+              const replySent = await sendViaReply(textMsg);
+              if (replySent) {
+                this.logger.log('[SLIP] Text fallback sent via reply');
+                return;
+              }
+            }
+            // Fallback to push for text
+            await sendViaPush(textMsg);
+            this.logger.log('[SLIP] Text fallback sent via push');
           } catch (fallbackError) {
             this.logger.error('[SLIP] Text fallback also failed:', fallbackError);
+          }
+        } else {
+          // For other errors, try push as fallback if we used reply
+          if (useReply && replyTokenUsed) {
+            this.logger.warn('[SLIP] Reply failed, trying push...');
+            try {
+              await sendViaPush(messages);
+              this.logger.log('[SLIP] Message sent via push after reply failed');
+            } catch (pushError) {
+              this.logger.error('[SLIP] Push also failed:', pushError);
+              // Last resort: try text message via push
+              try {
+                const fallbackText = getFallbackText(messages[0]);
+                await sendViaPush([{ type: 'text', text: fallbackText }]);
+                this.logger.log('[SLIP] Text fallback sent via push');
+              } catch (lastError) {
+                this.logger.error('[SLIP] All send attempts failed:', lastError);
+              }
+            }
           }
         }
       }
