@@ -517,21 +517,20 @@ export class SlipVerificationService {
     result: SlipVerificationResult,
     context?: { account?: any; quotaRemaining?: number }
   ): Promise<any> {
-    this.logger.debug(`formatSlipResponseWithConfig called: status=${result.status}, message=${result.message}, hasData=${!!result.data}`);
+    this.logger.log(`[SLIP RESPONSE] formatSlipResponseWithConfig called: status=${result.status}, message=${result.message}, hasData=${!!result.data}`);
 
-    // Debug: Log account info
+    // Log account info for debugging
     const accountId = context?.account?._id?.toString();
     const accountName = context?.account?.accountName;
-    this.logger.debug(`[TEMPLATE DEBUG] accountId=${accountId}, accountName=${accountName}`);
+    this.logger.log(`[SLIP RESPONSE] Account: id=${accountId}, name=${accountName}`);
 
     // Get settings - handle both Mongoose document and plain object
     const rawSettings = context?.account?.settings;
     const accountSettings = rawSettings?.toObject ? rawSettings.toObject() : (rawSettings || {});
 
-    // Debug: Log settings
-    this.logger.debug(`[TEMPLATE DEBUG] slipTemplateIds=${JSON.stringify(accountSettings.slipTemplateIds || {})}`);
-    this.logger.debug(`[TEMPLATE DEBUG] slipTemplateId=${accountSettings.slipTemplateId || 'none'}`);
-    this.logger.debug(`[TEMPLATE DEBUG] hasSettings=${!!rawSettings}, settingsKeys=${Object.keys(accountSettings).join(',')}`);
+    // Log settings for debugging template selection
+    this.logger.log(`[SLIP RESPONSE] Template settings: slipTemplateIds=${JSON.stringify(accountSettings.slipTemplateIds || {})}, slipTemplateId=${accountSettings.slipTemplateId || 'none'}`);
+    this.logger.log(`[SLIP RESPONSE] Settings keys: ${Object.keys(accountSettings).join(',')}`);
 
     const settings = await this.systemSettingsService.getSettings();
     const quotaRemaining = context?.quotaRemaining;
