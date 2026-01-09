@@ -476,16 +476,31 @@ export class WalletService {
             }
 
             // === VERIFICATION SUCCESSFUL - SAVE TRANSACTION ===
+            // Use creditAmount (what user entered) instead of actualAmount (what blockchain shows)
+            // This ensures user gets exactly what they requested (within tolerance)
+            // creditAmount is only set when verification passes strict amount validation
+            const creditUsdtAmount = verificationResult.creditAmount || verificationResult.expectedAmount || usdtAmount;
             const actualAmount = verificationResult.actualAmount || usdtAmount;
-            this.logger.log(`USDT verified successfully: ${sanitizedTxHash}, amount=${actualAmount}`);
+            
+            // Double-check: creditAmount should match what user entered
+            if (Math.abs(creditUsdtAmount - usdtAmount) > usdtAmount * 0.01) {
+                this.logger.error(`SECURITY: creditAmount mismatch! credit=${creditUsdtAmount}, userInput=${usdtAmount}`);
+                return {
+                    success: false,
+                    message: '❌ เกิดข้อผิดพลาดในการตรวจสอบยอด กรุณาลองใหม่',
+                    status: 'error',
+                };
+            }
+            
+            this.logger.log(`USDT verified successfully: ${sanitizedTxHash}, creditAmount=${creditUsdtAmount}, actualAmount=${actualAmount}`);
 
-            // Calculate THB credits
-            let thbCredits = Math.floor(actualAmount * 31.5); // Fallback rate
+            // Calculate THB credits using the CREDIT amount (what user entered)
+            let thbCredits = Math.floor(creditUsdtAmount * 31.5); // Fallback rate
             try {
                 const { UsdtRateService } = await import('./usdt-rate.service');
                 const rateService = new UsdtRateService();
                 const rateInfo = await rateService.getUsdtThbRate();
-                thbCredits = Math.floor(actualAmount * rateInfo.rate);
+                thbCredits = Math.floor(creditUsdtAmount * rateInfo.rate);
             } catch (rateError: any) {
                 this.logger.warn(`Rate fetch failed, using fallback: ${rateError.message}`);
             }
@@ -502,19 +517,27 @@ export class WalletService {
                 amount: thbCredits,
                 balanceBefore: wallet.balance,
                 balanceAfter: newBalance,
-                description: `เติมเงินผ่าน USDT - ${actualAmount} USDT`,
+                description: `เติมเงินผ่าน USDT - ${creditUsdtAmount} USDT`,
                 status: TransactionStatus.COMPLETED,
                 transRef: sanitizedTxHash,
                 metadata: {
                     paymentMethod: 'usdt',
                     transactionHash: sanitizedTxHash,
-                    usdtAmount: actualAmount,
+                    usdtAmount: creditUsdtAmount, // What user entered (and was credited)
+                    actualUsdtAmount: actualAmount, // What blockchain shows (for audit)
                     network,
                     verificationResult,
                     thbCredits,
                     fromAddress: verificationResult.fromAddress,
                     toAddress: verificationResult.toAddress,
                     verifiedAt: new Date(),
+                    // Security audit fields
+                    amountValidation: {
+                        userInput: usdtAmount,
+                        blockchainAmount: actualAmount,
+                        creditedAmount: creditUsdtAmount,
+                        tolerance: '1%',
+                    },
                 },
             });
 

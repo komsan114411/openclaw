@@ -379,33 +379,61 @@ export class BlockchainVerificationService {
                 };
             }
 
-            // Check amount - if different, return with suggestion to use actual amount
-            if (Math.abs(actualAmount - expectedAmount) > 0.01) {
-                // Amount is different but transaction is valid
-                if (actualAmount < expectedAmount * 0.99) {
-                    return { 
-                        verified: false, 
-                        status: 'amount_mismatch',
-                        actualAmount,
-                        expectedAmount,
-                        fromAddress,
-                        toAddress,
-                        suggestedAmount: actualAmount,
-                        message: `⚠️ ยอดไม่ตรงกับที่กรอก!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n• ส่วนต่าง: ${(expectedAmount - actualAmount).toFixed(2)} USDT\n\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT แล้วลองใหม่` 
-                    };
-                }
+            // === STRICT AMOUNT VALIDATION ===
+            // Amount MUST match exactly (within 1% tolerance for network fees)
+            // This prevents both:
+            // 1. User claiming more than they sent (actualAmount < expectedAmount)
+            // 2. User claiming less than they sent to use same TX multiple times (actualAmount > expectedAmount)
+            
+            const tolerance = 0.01; // 1% tolerance for rounding/fees
+            const minAcceptable = expectedAmount * (1 - tolerance);
+            const maxAcceptable = expectedAmount * (1 + tolerance);
+            
+            if (actualAmount < minAcceptable) {
+                // User entered MORE than they actually sent
+                this.logger.warn(`[TRC20] Amount too low: actual=${actualAmount}, expected=${expectedAmount}`);
+                return { 
+                    verified: false, 
+                    status: 'amount_mismatch',
+                    actualAmount,
+                    expectedAmount,
+                    fromAddress,
+                    toAddress,
+                    suggestedAmount: actualAmount,
+                    message: `❌ ยอดไม่ตรง!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n\nคุณกรอกยอดมากกว่าที่โอนจริง!\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT` 
+                };
+            }
+            
+            if (actualAmount > maxAcceptable) {
+                // User entered LESS than they actually sent (potential exploit attempt)
+                this.logger.warn(`[TRC20] Amount too high: actual=${actualAmount}, expected=${expectedAmount} - POTENTIAL EXPLOIT`);
+                return { 
+                    verified: false, 
+                    status: 'amount_mismatch',
+                    actualAmount,
+                    expectedAmount,
+                    fromAddress,
+                    toAddress,
+                    suggestedAmount: actualAmount,
+                    message: `❌ ยอดไม่ตรง!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n\nคุณกรอกยอดน้อยกว่าที่โอนจริง!\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT` 
+                };
             }
 
-            this.logger.log(`[TRC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT`);
+            this.logger.log(`[TRC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT (expected: ${expectedAmount}, tolerance: ±${tolerance * 100}%)`);
+            this.logger.log(`[TRC20] Amount validation passed: ${minAcceptable.toFixed(2)} <= ${actualAmount} <= ${maxAcceptable.toFixed(2)}`);
+            
+            // Use the EXPECTED amount (what user entered) for credit, not actual
+            // This ensures user gets exactly what they requested (within tolerance)
             return {
                 verified: true,
                 status: 'success',
                 actualAmount,
                 expectedAmount,
+                creditAmount: expectedAmount, // Amount to credit to user
                 fromAddress,
                 toAddress,
                 timestamp: tx.timestamp ? new Date(tx.timestamp) : new Date(),
-                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${actualAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}`,
+                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${expectedAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}`,
             };
         } catch (error: any) {
             this.logger.error(`[TRC20] Verification error: ${error.message}`);
@@ -539,35 +567,64 @@ export class BlockchainVerificationService {
 
             this.logger.log(`[ERC20] Amount: ${actualAmount} USDT (expected: ${expectedAmount})`);
 
-            // Check amount - if different, return with suggestion to use actual amount
-            if (Math.abs(actualAmount - expectedAmount) > 0.01) {
-                // Amount is different but transaction is valid
-                if (actualAmount < expectedAmount * 0.99) {
-                    return {
-                        verified: false,
-                        status: 'amount_mismatch',
-                        actualAmount,
-                        expectedAmount,
-                        fromAddress,
-                        toAddress,
-                        confirmations,
-                        suggestedAmount: actualAmount,
-                        message: `⚠️ ยอดไม่ตรงกับที่กรอก!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n• ส่วนต่าง: ${(expectedAmount - actualAmount).toFixed(2)} USDT\n\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT แล้วลองใหม่`
-                    };
-                }
+            // === STRICT AMOUNT VALIDATION ===
+            // Amount MUST match exactly (within 1% tolerance for network fees)
+            // This prevents both:
+            // 1. User claiming more than they sent (actualAmount < expectedAmount)
+            // 2. User claiming less than they sent to use same TX multiple times (actualAmount > expectedAmount)
+            
+            const tolerance = 0.01; // 1% tolerance for rounding/fees
+            const minAcceptable = expectedAmount * (1 - tolerance);
+            const maxAcceptable = expectedAmount * (1 + tolerance);
+            
+            if (actualAmount < minAcceptable) {
+                // User entered MORE than they actually sent
+                this.logger.warn(`[ERC20] Amount too low: actual=${actualAmount}, expected=${expectedAmount}`);
+                return {
+                    verified: false,
+                    status: 'amount_mismatch',
+                    actualAmount,
+                    expectedAmount,
+                    fromAddress,
+                    toAddress,
+                    confirmations,
+                    suggestedAmount: actualAmount,
+                    message: `❌ ยอดไม่ตรง!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n\nคุณกรอกยอดมากกว่าที่โอนจริง!\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT`
+                };
+            }
+            
+            if (actualAmount > maxAcceptable) {
+                // User entered LESS than they actually sent (potential exploit attempt)
+                this.logger.warn(`[ERC20] Amount too high: actual=${actualAmount}, expected=${expectedAmount} - POTENTIAL EXPLOIT`);
+                return {
+                    verified: false,
+                    status: 'amount_mismatch',
+                    actualAmount,
+                    expectedAmount,
+                    fromAddress,
+                    toAddress,
+                    confirmations,
+                    suggestedAmount: actualAmount,
+                    message: `❌ ยอดไม่ตรง!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n\nคุณกรอกยอดน้อยกว่าที่โอนจริง!\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT`
+                };
             }
 
-            this.logger.log(`[ERC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT, Confirmations: ${confirmations}`);
+            this.logger.log(`[ERC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT (expected: ${expectedAmount}, tolerance: ±${tolerance * 100}%)`);
+            this.logger.log(`[ERC20] Amount validation passed: ${minAcceptable.toFixed(2)} <= ${actualAmount} <= ${maxAcceptable.toFixed(2)}`);
+            
+            // Use the EXPECTED amount (what user entered) for credit, not actual
+            // This ensures user gets exactly what they requested (within tolerance)
             return {
                 verified: true,
                 status: 'success',
                 actualAmount,
                 expectedAmount,
+                creditAmount: expectedAmount, // Amount to credit to user
                 fromAddress,
                 toAddress,
                 timestamp: tx.timeStamp ? new Date(parseInt(tx.timeStamp) * 1000) : new Date(),
                 confirmations,
-                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${actualAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}\n• Confirmations: ${confirmations} blocks`,
+                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${expectedAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}\n• Confirmations: ${confirmations} blocks`,
             };
         } catch (error: any) {
             this.logger.error(`[ERC20] Verification error: ${error.message}`);
@@ -653,27 +710,60 @@ export class BlockchainVerificationService {
 
             // Calculate amount (USDT BEP20 has 18 decimals)
             const actualAmount = parseFloat(tx.value) / 1e18;
+            const fromAddress = tx.from || '';
 
-            if (actualAmount < expectedAmount * 0.99) {
+            // === STRICT AMOUNT VALIDATION ===
+            // Amount MUST match exactly (within 1% tolerance for network fees)
+            const tolerance = 0.01; // 1% tolerance for rounding/fees
+            const minAcceptable = expectedAmount * (1 - tolerance);
+            const maxAcceptable = expectedAmount * (1 + tolerance);
+            
+            if (actualAmount < minAcceptable) {
+                // User entered MORE than they actually sent
+                this.logger.warn(`[BEP20] Amount too low: actual=${actualAmount}, expected=${expectedAmount}`);
                 return { 
                     verified: false, 
-                    status: 'insufficient_amount', 
-                    actualAmount, 
-                    toAddress: tx.to, 
-                    message: `ยอดไม่ตรง: ได้รับ ${actualAmount} USDT แต่คาดหวัง ${expectedAmount} USDT` 
+                    status: 'amount_mismatch', 
+                    actualAmount,
+                    expectedAmount,
+                    fromAddress,
+                    toAddress: tx.to,
+                    confirmations,
+                    suggestedAmount: actualAmount,
+                    message: `❌ ยอดไม่ตรง!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n\nคุณกรอกยอดมากกว่าที่โอนจริง!\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT` 
+                };
+            }
+            
+            if (actualAmount > maxAcceptable) {
+                // User entered LESS than they actually sent (potential exploit attempt)
+                this.logger.warn(`[BEP20] Amount too high: actual=${actualAmount}, expected=${expectedAmount} - POTENTIAL EXPLOIT`);
+                return { 
+                    verified: false, 
+                    status: 'amount_mismatch', 
+                    actualAmount,
+                    expectedAmount,
+                    fromAddress,
+                    toAddress: tx.to,
+                    confirmations,
+                    suggestedAmount: actualAmount,
+                    message: `❌ ยอดไม่ตรง!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n\nคุณกรอกยอดน้อยกว่าที่โอนจริง!\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT` 
                 };
             }
 
-            this.logger.log(`[BEP20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT, Confirmations: ${confirmations}`);
+            this.logger.log(`[BEP20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT (expected: ${expectedAmount}, tolerance: ±${tolerance * 100}%)`);
+            this.logger.log(`[BEP20] Amount validation passed: ${minAcceptable.toFixed(2)} <= ${actualAmount} <= ${maxAcceptable.toFixed(2)}`);
+            
             return {
                 verified: true,
                 status: 'success',
                 actualAmount,
-                fromAddress: tx.from,
+                expectedAmount,
+                creditAmount: expectedAmount, // Amount to credit to user
+                fromAddress,
                 toAddress: tx.to,
                 timestamp: tx.timeStamp ? new Date(parseInt(tx.timeStamp) * 1000) : new Date(),
                 confirmations,
-                message: 'ตรวจสอบสำเร็จ',
+                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${expectedAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${tx.to.slice(0, 10)}...${tx.to.slice(-6)}\n• Confirmations: ${confirmations} blocks`,
             };
         } catch (error: any) {
             this.logger.error(`[BEP20] Verification error: ${error.message}`);
