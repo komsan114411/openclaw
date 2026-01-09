@@ -1,42 +1,47 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 
 export default function Home() {
   const router = useRouter();
-  const { isLoading, checkAuth } = useAuthStore();
+  const { user, isLoading, isInitialized, checkAuth } = useAuthStore();
+  const authCheckRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      await checkAuth();
-      if (cancelled) return;
+    // Only check auth once
+    if (!authCheckRef.current) {
+      authCheckRef.current = true;
+      checkAuth();
+    }
+  }, [checkAuth]);
 
-      // Use the latest store state to avoid effect loops & stale values.
-      const { user: currentUser } = useAuthStore.getState();
-      if (!currentUser) {
-        router.push('/login');
-      } else if (currentUser.role === 'admin') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/user/dashboard');
-      }
-    })();
+  useEffect(() => {
+    // Wait until initialized and not loading
+    if (!isInitialized || isLoading) {
+      return;
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [router, checkAuth]);
+    // Redirect based on user state
+    if (!user) {
+      router.replace('/login');
+    } else if (user.forcePasswordChange) {
+      router.replace('/change-password');
+    } else if (user.role === 'admin') {
+      router.replace('/admin/dashboard');
+    } else {
+      router.replace('/user/dashboard');
+    }
+  }, [user, isLoading, isInitialized, router]);
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+  // Always show loading until redirect happens
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="relative">
+        <div className="h-16 w-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+        <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-transparent border-b-teal-500 animate-spin-slow"></div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }

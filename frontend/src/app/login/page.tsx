@@ -20,7 +20,7 @@ const MAX_LOGIN_ATTEMPTS = 5;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, login, isLoading, error, clearError } = useAuthStore();
+  const { user, isInitialized, login, isLoading, error, clearError, checkAuth } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -69,13 +69,21 @@ export default function LoginPage() {
     }
   }, [isLocked, lockoutTime]);
 
+  // Check if already logged in on mount
   useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    // Only redirect after initialization is complete
+    if (!isInitialized) return;
+    
     if (user) {
-      if (user.forcePasswordChange) router.push('/change-password');
-      else if (user.role === 'admin') router.push('/admin/dashboard');
-      else router.push('/user/dashboard');
+      if (user.forcePasswordChange) router.replace('/change-password');
+      else if (user.role === 'admin') router.replace('/admin/dashboard');
+      else router.replace('/user/dashboard');
     }
-  }, [user, router]);
+  }, [user, isInitialized, router]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     setCapsLockOn(e.getModifierState('CapsLock'));

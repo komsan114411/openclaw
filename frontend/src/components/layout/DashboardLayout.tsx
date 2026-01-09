@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Sidebar from './Sidebar';
@@ -14,60 +14,75 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, requiredRole }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading, checkAuth } = useAuthStore();
+  const { user, isLoading, isInitialized, checkAuth } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const authCheckRef = useRef(false);
 
+  // Check auth only once on mount
   useEffect(() => {
-    checkAuth();
+    if (!authCheckRef.current) {
+      authCheckRef.current = true;
+      checkAuth();
+    }
   }, [checkAuth]);
 
+  // Handle authorization after auth check completes
   useEffect(() => {
-    if (!isLoading && user) {
-      const isAdmin = user.role === 'admin';
-      const isAdminRoute = pathname.startsWith('/admin');
-      const isUserRoute = pathname.startsWith('/user');
-
-      // STRICT ROUTE PROTECTION:
-      // - Regular users can ONLY access /user/* routes
-      // - Admin users can ONLY access /admin/* routes
-      if (!isAdmin && isAdminRoute) {
-        // Regular user trying to access admin route → redirect to user dashboard
-        router.replace('/user/dashboard');
-        setIsAuthorized(false);
-        return;
-      }
-
-      if (isAdmin && isUserRoute) {
-        // Admin trying to access user route → redirect to admin dashboard
-        router.replace('/admin/dashboard');
-        setIsAuthorized(false);
-        return;
-      }
-
-      // Additional check: if requiredRole is specified and doesn't match
-      if (requiredRole && user.role !== requiredRole) {
-        const redirectPath = isAdmin ? '/admin/dashboard' : '/user/dashboard';
-        router.replace(redirectPath);
-        setIsAuthorized(false);
-        return;
-      }
-
-      setIsAuthorized(true);
+    // Wait until initialized and not loading
+    if (!isInitialized || isLoading) {
+      return;
     }
-  }, [user, isLoading, pathname, requiredRole, router]);
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        router.push('/login');
-      } else if (user.forcePasswordChange) {
-        router.push('/change-password');
-      }
+    // No user after auth check - redirect to login
+    if (!user) {
+      router.replace('/login');
+      return;
     }
-  }, [user, isLoading, router]);
 
-  if (isLoading) {
+    // User needs to change password
+    if (user.forcePasswordChange) {
+      router.replace('/change-password');
+      return;
+    }
+
+    const isAdmin = user.role === 'admin';
+    const isAdminRoute = pathname.startsWith('/admin');
+    const isUserRoute = pathname.startsWith('/user');
+
+    // STRICT ROUTE PROTECTION:
+    // - Regular users can ONLY access /user/* routes
+    // - Admin users can ONLY access /admin/* routes
+    if (!isAdmin && isAdminRoute) {
+      // Regular user trying to access admin route → redirect to user dashboard
+      router.replace('/user/dashboard');
+      setIsAuthorized(false);
+      return;
+    }
+
+    if (isAdmin && isUserRoute) {
+      // Admin trying to access user route → redirect to admin dashboard
+      router.replace('/admin/dashboard');
+      setIsAuthorized(false);
+      return;
+    }
+
+    // Additional check: if requiredRole is specified and doesn't match
+    if (requiredRole && user.role !== requiredRole) {
+      const redirectPath = isAdmin ? '/admin/dashboard' : '/user/dashboard';
+      router.replace(redirectPath);
+      setIsAuthorized(false);
+      return;
+    }
+
+    setIsAuthorized(true);
+  }, [user, isLoading, isInitialized, pathname, requiredRole, router]);
+
+  // Show loading spinner while:
+  // 1. Not initialized yet (first load)
+  // 2. Currently loading (checking auth)
+  // 3. User exists but not yet authorized (checking role)
+  if (!isInitialized || isLoading || (user && !isAuthorized)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="relative">
@@ -78,8 +93,8 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
     );
   }
 
-  if (!user || !isAuthorized) {
-    // Show loading state while checking authorization or redirecting
+  // No user after initialization - will redirect to login
+  if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="relative">
