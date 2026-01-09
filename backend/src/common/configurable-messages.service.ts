@@ -307,6 +307,12 @@ export class ConfigurableMessagesService {
       return null;
     }
 
+    // ตรวจสอบว่ามี custom message จาก account settings หรือไม่
+    const customMessage = accountSettings?.slipImmediateMessage;
+    if (customMessage && customMessage.trim()) {
+      return this.formatTextMessage(customMessage);
+    }
+
     try {
       const response = await this.systemResponseTemplatesService.getResponse(
         SystemResponseType.PROCESSING
@@ -403,6 +409,12 @@ export class ConfigurableMessagesService {
     
     if (!shouldSend) {
       return null; // ไม่ส่งอะไรเลย
+    }
+
+    // ตรวจสอบว่ามี custom message จาก account settings หรือไม่
+    const customMessage = accountSettings?.customSlipDisabledMessage;
+    if (customMessage && customMessage.trim()) {
+      return this.formatTextMessage(customMessage);
     }
 
     try {

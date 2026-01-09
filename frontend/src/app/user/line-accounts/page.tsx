@@ -1362,6 +1362,44 @@ export default function UserLineAccountsPage() {
             </div>
           </div>
 
+          {/* ตั้งค่าเมื่อปิดระบบตรวจสอบสลิป */}
+          <div className="space-y-6">
+            <h3 className="text-sm font-bold text-white flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-400 border border-red-500/10">
+                <XCircle className="w-5 h-5" />
+              </div>
+              ตั้งค่าเมื่อปิดระบบตรวจสอบสลิป
+            </h3>
+            <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner">
+              <div className="p-5 bg-red-500/[0.02] rounded-[1.5rem] border border-red-400/10 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-white">ส่งข้อความเมื่อปิดระบบ</p>
+                  <p className="text-xs text-slate-400">แจ้งลูกค้าเมื่อส่งรูปมาแต่ระบบตรวจสอบสลิปปิดอยู่</p>
+                </div>
+                <Select
+                  value={settingsData.sendMessageWhenSlipDisabled}
+                  onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenSlipDisabled: e.target.value })}
+                  className="w-32 bg-slate-950/50 border-white/10 h-10 rounded-xl text-white text-xs"
+                >
+                  <option value="default">ค่าเริ่มต้น</option>
+                  <option value="true">ส่ง</option>
+                  <option value="false">ไม่ส่ง</option>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-400 ml-1">ข้อความเมื่อปิดระบบ (ถ้าไม่กรอกจะใช้ค่าเริ่มต้น)</label>
+                <Input
+                  placeholder="🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว"
+                  value={settingsData.customSlipDisabledMessage}
+                  onChange={(e) => setSettingsData({ ...settingsData, customSlipDisabledMessage: e.target.value })}
+                  disabled={settingsData.sendMessageWhenSlipDisabled === 'false'}
+                  className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-white font-bold"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="pt-8 flex gap-4 sticky bottom-0 bg-slate-950/80 backdrop-blur-xl px-1 py-4 border-t border-white/5 mt-auto">
             <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm text-slate-500 hover:text-white" onClick={() => setShowSettingsModal(false)}>
               ยกเลิก
