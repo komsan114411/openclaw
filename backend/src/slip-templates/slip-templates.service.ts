@@ -891,7 +891,41 @@ export class SlipTemplatesService implements OnModuleInit {
       cornerRadius: '12px',
     });
 
-    // Amount display (big and prominent)
+    // For duplicate/error/not_found templates without data, add descriptive message
+    const isError = template.type === 'error';
+    const isNotFound = template.type === 'not_found';
+    const hasNoData = !data.amountFormatted && !data.senderName && !data.receiverName;
+
+    if ((isDuplicate || isError || isNotFound) && hasNoData) {
+      // Add descriptive message when no slip data is available
+      const messageText = template.footerText || (
+        isDuplicate ? 'สลิปนี้เคยถูกใช้ตรวจสอบแล้ว ไม่สามารถใช้ซ้ำได้' :
+          isError ? 'เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง' :
+            'ไม่พบข้อมูลสลิปในระบบ กรุณาตรวจสอบสลิปอีกครั้ง'
+      );
+
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        margin: 'lg',
+        paddingAll: '16px',
+        backgroundColor: isDuplicate ? '#FFF8E1' : isError ? '#FFEBEE' : '#F5F5F5',
+        cornerRadius: '12px',
+        contents: [
+          {
+            type: 'text',
+            text: messageText,
+            size: 'sm',
+            color: isDuplicate ? '#F57C00' : isError ? '#C62828' : '#616161',
+            wrap: true,
+            align: 'center',
+          },
+        ],
+      });
+
+      // Skip amount/sender/receiver sections and go directly to footer
+    }
+
     if (template.showAmount && data.amountFormatted) {
       contents.push({
         type: 'box',
