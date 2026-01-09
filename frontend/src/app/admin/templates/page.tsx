@@ -525,7 +525,7 @@ export default function AdminTemplatesPage() {
     setLoading(true);
     try {
       const [templatesRes, banksRes, previewConfigRes] = await Promise.all([
-        api.get('/slip-templates/global'),
+        api.get('/admin/slip-templates/global'),
         banksApi.getAll(),
         systemSettingsApi.getPreviewConfig()
       ]);
@@ -711,10 +711,10 @@ export default function AdminTemplatesPage() {
     setIsProcessing(true);
     try {
       if (selectedTemplate) {
-        await api.put(`/slip-templates/global/${selectedTemplate._id}`, formData);
+        await api.put(`/admin/slip-templates/global/${selectedTemplate._id}`, formData);
         toast.success('อัปเดตเทมเพลตสำเร็จ');
       } else {
-        await api.post('/slip-templates/global', formData);
+        await api.post('/admin/slip-templates/global', formData);
         toast.success('สร้างเทมเพลตสำเร็จ');
       }
       setShowModal(false);
@@ -731,7 +731,7 @@ export default function AdminTemplatesPage() {
     if (!selectedTemplate) return;
     setIsProcessing(true);
     try {
-      await api.delete(`/slip-templates/global/${selectedTemplate._id}`);
+      await api.delete(`/admin/slip-templates/global/${selectedTemplate._id}`);
       toast.success('ลบเทมเพลตสำเร็จ');
       setShowDeleteConfirm(false);
       setSelectedTemplate(null);
@@ -746,7 +746,7 @@ export default function AdminTemplatesPage() {
 
   const handleSetDefault = async (id: string) => {
     try {
-      await api.put(`/slip-templates/global/${id}/default`);
+      await api.put(`/admin/slip-templates/global/${id}/default`);
       toast.success('ตั้งเป็นค่าเริ่มต้นสำเร็จ');
       fetchData();
     } catch (err) {
@@ -757,7 +757,7 @@ export default function AdminTemplatesPage() {
   const handleInitDefaults = async () => {
     setIsProcessing(true);
     try {
-      await api.post('/slip-templates/global/init-defaults');
+      await api.post('/admin/slip-templates/global/init-defaults');
       toast.success('สร้างเทมเพลตเริ่มต้นสำเร็จ');
       fetchData();
     } catch (err) {

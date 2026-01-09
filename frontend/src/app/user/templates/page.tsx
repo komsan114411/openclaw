@@ -467,22 +467,52 @@ function TemplatesContent() {
   }, []);
 
   const fetchTemplates = useCallback(async () => {
-    // If no accountId, show mock templates in preview mode
+    // Helper function to fetch global templates
+    const fetchGlobalTemplates = async (): Promise<SlipTemplate[]> => {
+      try {
+        const globalRes = await slipTemplatesApi.getGlobal();
+        if (globalRes.data.success && globalRes.data.templates?.length > 0) {
+          return globalRes.data.templates;
+        }
+      } catch (e) {
+        console.warn('Failed to fetch global templates:', e);
+      }
+      return [];
+    };
+
+    // If no accountId, show global templates in preview mode
     if (!accountId) {
-      setTemplates(MOCK_TEMPLATES);
-      setUsingMockData(true);
+      try {
+        const globalTemplates = await fetchGlobalTemplates();
+        if (globalTemplates.length > 0) {
+          setTemplates(globalTemplates);
+          setUsingMockData(false);
+        } else {
+          setTemplates(MOCK_TEMPLATES);
+          setUsingMockData(true);
+        }
+      } catch {
+        setTemplates(MOCK_TEMPLATES);
+        setUsingMockData(true);
+      }
       setLoading(false);
       return;
     }
     try {
-      // Fetch templates using correct API path
+      // Fetch templates using correct API path (includes global templates)
       const response = await slipTemplatesApi.getAll(accountId);
       if (response.data.success) {
         const apiTemplates = response.data.templates || [];
-        // If API returns empty, use mock templates
+        // If API returns empty, try to fetch global templates
         if (apiTemplates.length === 0) {
-          setTemplates(MOCK_TEMPLATES);
-          setUsingMockData(true);
+          const globalTemplates = await fetchGlobalTemplates();
+          if (globalTemplates.length > 0) {
+            setTemplates(globalTemplates);
+            setUsingMockData(false);
+          } else {
+            setTemplates(MOCK_TEMPLATES);
+            setUsingMockData(true);
+          }
         } else {
           setTemplates(apiTemplates);
           setUsingMockData(false);
@@ -501,9 +531,20 @@ function TemplatesContent() {
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || 'ไม่สามารถโหลด Templates ได้ - กำลังแสดงตัวอย่าง');
-      // Fallback to mock data when API fails
-      setTemplates(MOCK_TEMPLATES);
-      setUsingMockData(true);
+      // Fallback: try global templates first, then mock data
+      try {
+        const globalTemplates = await fetchGlobalTemplates();
+        if (globalTemplates.length > 0) {
+          setTemplates(globalTemplates);
+          setUsingMockData(false);
+        } else {
+          setTemplates(MOCK_TEMPLATES);
+          setUsingMockData(true);
+        }
+      } catch {
+        setTemplates(MOCK_TEMPLATES);
+        setUsingMockData(true);
+      }
     } finally {
       setLoading(false);
     }

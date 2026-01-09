@@ -18,15 +18,34 @@ import { SlipTemplatesService, CreateTemplateDto } from './slip-templates.servic
 import { TemplateType } from '../database/schemas/slip-template.schema';
 
 // ============================================
-// Admin Controller for Global Templates
+// Public Controller for Global Templates (User can view)
 // ============================================
 @Controller('slip-templates')
+@UseGuards(SessionAuthGuard)
+export class PublicSlipTemplatesController {
+  constructor(private readonly slipTemplatesService: SlipTemplatesService) {}
+
+  /**
+   * Get all active global templates (for users to select)
+   */
+  @Get('global')
+  async getGlobalTemplates() {
+    // Use getGlobalTemplates() which only returns active templates
+    const templates = await this.slipTemplatesService.getGlobalTemplates();
+    return { success: true, templates };
+  }
+}
+
+// ============================================
+// Admin Controller for Global Templates
+// ============================================
+@Controller('admin/slip-templates')
 @UseGuards(SessionAuthGuard, RolesGuard)
 export class AdminSlipTemplatesController {
   constructor(private readonly slipTemplatesService: SlipTemplatesService) {}
 
   /**
-   * Get all global templates (Admin only)
+   * Get all global templates including inactive (Admin only)
    */
   @Get('global')
   @Roles(UserRole.ADMIN)
