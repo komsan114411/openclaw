@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { walletApi, systemSettingsApi } from '@/lib/api';
+import { useWalletStore } from '@/store/wallet';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -113,6 +114,8 @@ export default function DepositPage() {
         const res = await walletApi.deposit(base64);
         if (res.data.success) {
           toast.success('ส่งสลิปสำเร็จ รอตรวจสอบ');
+          // Refresh wallet balance in global store
+          useWalletStore.getState().refreshBalance();
           router.push('/user/wallet');
         } else {
           toast.error(res.data.message || 'เกิดข้อผิดพลาด');
@@ -153,6 +156,8 @@ export default function DepositPage() {
         } else {
           toast.success('ส่งข้อมูลสำเร็จ รอตรวจสอบ (ประมาณ 5-15 นาที)');
         }
+        // Refresh wallet balance in global store
+        useWalletStore.getState().refreshBalance();
         router.push('/user/wallet');
       } else {
         // Show specific error message from backend

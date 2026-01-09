@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { walletApi, systemSettingsApi } from '@/lib/api';
+import { useWalletStore } from '@/store/wallet';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -162,9 +163,11 @@ export default function WalletPage() {
           message: res.data.message,
         });
 
-        if (res.data.success) {
-          fetchData();
-        }
+      if (res.data.success) {
+        fetchData();
+        // Refresh wallet balance in global store
+        useWalletStore.getState().refreshBalance();
+      }
       } catch (err: any) {
         setDepositResult({
           success: false,
@@ -205,6 +208,8 @@ export default function WalletPage() {
         setUsdtAmount('');
         setTxHash('');
         fetchData();
+        // Refresh wallet balance in global store
+        useWalletStore.getState().refreshBalance();
       }
     } catch (err: any) {
       setDepositResult({

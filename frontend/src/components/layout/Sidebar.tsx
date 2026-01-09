@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
-import { walletApi } from '@/lib/api';
+import { useWalletStore } from '@/store/wallet';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -294,23 +294,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const menuItems = isAdmin ? ADMIN_MENU_ITEMS : USER_MENU_ITEMS;
   const mobileNavItems = isAdmin ? ADMIN_MOBILE_NAV : USER_MOBILE_NAV;
 
-  // Wallet balance state
-  const [walletBalance, setWalletBalance] = useState<number>(0);
+  // Wallet balance from global store
+  const { balance: walletBalance, fetchBalance } = useWalletStore();
 
-  // Fetch wallet balance
+  // Fetch wallet balance on mount and when user changes
   useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        const res = await walletApi.getBalance();
-        setWalletBalance(res.data.balance || 0);
-      } catch {
-        setWalletBalance(0);
-      }
-    };
-    if (user) {
+    if (user && !isAdmin) {
       fetchBalance();
     }
-  }, [user]);
+  }, [user, isAdmin, fetchBalance]);
 
   // Group rendering function
   const renderGroup = (group: 'management' | 'system' | 'logs', title: string) => {

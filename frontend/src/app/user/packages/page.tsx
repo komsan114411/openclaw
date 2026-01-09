@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { packagesApi, walletApi } from '@/lib/api';
+import { useWalletStore } from '@/store/wallet';
 import { Package } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -106,6 +107,8 @@ export default function UserPackagesPage() {
       if (data.success) {
         setPurchaseResult({ success: true, message: data.message || 'ซื้อแพ็คเกจสำเร็จ!' });
         setBalance(data.balance ?? currentBalance - selectedPackage.price);
+        // Refresh wallet balance in global store
+        useWalletStore.getState().refreshBalance();
         setTimeout(() => {
           handleCloseModal();
           window.location.reload();
