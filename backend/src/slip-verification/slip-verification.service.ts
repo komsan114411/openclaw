@@ -644,24 +644,31 @@ export class SlipVerificationService {
       // Get LINE account ID from context
       const lineAccountId = context?.account?._id?.toString();
       const idsByType = (accountSettings.slipTemplateIds || {}) as Record<string, string>;
-      const selectedId = idsByType[templateType] || accountSettings.slipTemplateId || '';
+      // Only use slipTemplateId if it's for the specific type, not as fallback for all types
+      const selectedId = idsByType[templateType] || '';
 
       this.logger.log(`[TEMPLATE] Looking for template: type=${templateType}, lineAccountId=${lineAccountId || 'none'}`);
       this.logger.log(`[TEMPLATE] idsByType=${JSON.stringify(idsByType)}, selectedId=${selectedId || 'none'}`);
 
       let template: Awaited<ReturnType<typeof this.slipTemplatesService.getById>> | null = null;
 
-      // 1. Try user-selected template first
+      // 1. Try user-selected template for this specific type
       if (selectedId) {
         this.logger.log(`[TEMPLATE] Step 1: Looking for selected template ID: ${selectedId}`);
         template = await this.slipTemplatesService.getById(selectedId).catch((e) => {
           this.logger.warn(`[TEMPLATE] Failed to get template by ID ${selectedId}:`, e);
           return null;
         });
+        // Verify template type matches
+        if (template && (template as any).type !== templateType) {
+          this.logger.warn(`[TEMPLATE] Selected template type mismatch: expected ${templateType}, got ${(template as any).type}`);
+          template = null;
+        }
         if (template) {
           this.logger.log(`[TEMPLATE] ✓ Found selected template: ${(template as any).name}`);
         }
       }
+
 
       // 2. If no selected template, try account-specific default template
       if (!template && lineAccountId) {
