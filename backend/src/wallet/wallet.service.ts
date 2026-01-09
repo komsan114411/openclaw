@@ -321,48 +321,48 @@ export class WalletService {
         transactionHash: string,
     ): Promise<{ success: boolean; message: string; amount?: number; status?: string; thbCredits?: number }> {
         // === SECURITY: Input validation ===
-        
+
         // Validate userId
         if (!userId || !Types.ObjectId.isValid(userId)) {
             this.logger.warn(`Invalid userId: ${userId}`);
             return { success: false, message: 'ข้อมูลผู้ใช้ไม่ถูกต้อง' };
         }
-        
+
         // Validate amount
         if (typeof usdtAmount !== 'number' || !Number.isFinite(usdtAmount) || usdtAmount <= 0) {
             this.logger.warn(`Invalid amount: ${usdtAmount}`);
             return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
         }
-        
+
         if (usdtAmount > 1000000) {
             this.logger.warn(`Amount exceeds limit: ${usdtAmount}`);
             return { success: false, message: 'จำนวนเงินเกินขีดจำกัด' };
         }
-        
+
         // Validate and sanitize transaction hash
         if (!transactionHash || typeof transactionHash !== 'string') {
             return { success: false, message: 'กรุณาระบุ Transaction Hash' };
         }
-        
+
         const sanitizedTxHash = transactionHash.trim();
-        
+
         // Validate length based on network (will be checked later, but do basic check here)
         // ERC20/BEP20: 66 chars (0x + 64 hex), TRC20: 64 chars
         if (sanitizedTxHash.length < 64 || sanitizedTxHash.length > 66) {
             this.logger.warn(`Invalid txHash length: ${sanitizedTxHash.length}`);
-            return { 
-                success: false, 
-                message: `Transaction Hash ความยาวไม่ถูกต้อง (ต้องมี 64-66 ตัวอักษร, ปัจจุบัน: ${sanitizedTxHash.length})` 
+            return {
+                success: false,
+                message: `Transaction Hash ความยาวไม่ถูกต้อง (ต้องมี 64-66 ตัวอักษร, ปัจจุบัน: ${sanitizedTxHash.length})`
             };
         }
-        
+
         // Validate hex pattern
         const hexPattern = /^(0x)?[a-fA-F0-9]{64}$/;
         if (!hexPattern.test(sanitizedTxHash)) {
             this.logger.warn(`Invalid txHash format: ${sanitizedTxHash}`);
             return { success: false, message: 'รูปแบบ Transaction Hash ไม่ถูกต้อง (ต้องเป็นตัวเลขฐาน 16 เท่านั้น)' };
         }
-        
+
         // === SECURITY: Distributed lock to prevent race conditions ===
         const lockKey = `wallet:usdt:${userId}`;
         const lockToken = await this.redisService.acquireLock(lockKey, 120);
@@ -433,11 +433,11 @@ export class WalletService {
 
             // === HANDLE VERIFICATION RESULT ===
             // Only save transaction if verification is SUCCESSFUL
-            
+
             if (!verificationResult.verified) {
                 // Log the rejection but DO NOT save to database
                 this.logger.warn(`USDT verification failed: ${sanitizedTxHash}, status=${verificationResult.status}, message=${verificationResult.message}`);
-                
+
                 // Use detailed message from verification service
                 // Include additional data for frontend to display
                 const responseData: any = {
@@ -445,7 +445,7 @@ export class WalletService {
                     message: verificationResult.message || 'ไม่สามารถตรวจสอบธุรกรรมได้',
                     status: verificationResult.status,
                 };
-                
+
                 // Include transaction details if available
                 if (verificationResult.actualAmount !== undefined) {
                     responseData.actualAmount = verificationResult.actualAmount;
@@ -471,7 +471,7 @@ export class WalletService {
                 if (verificationResult.contractAddress) {
                     responseData.contractAddress = verificationResult.contractAddress;
                 }
-                
+
                 return responseData;
             }
 
@@ -481,7 +481,7 @@ export class WalletService {
             // creditAmount is only set when verification passes strict amount validation
             const creditUsdtAmount = verificationResult.creditAmount || verificationResult.expectedAmount || usdtAmount;
             const actualAmount = verificationResult.actualAmount || usdtAmount;
-            
+
             // Double-check: creditAmount should match what user entered
             if (Math.abs(creditUsdtAmount - usdtAmount) > usdtAmount * 0.01) {
                 this.logger.error(`SECURITY: creditAmount mismatch! credit=${creditUsdtAmount}, userInput=${usdtAmount}`);
@@ -491,7 +491,7 @@ export class WalletService {
                     status: 'error',
                 };
             }
-            
+
             this.logger.log(`USDT verified successfully: ${sanitizedTxHash}, creditAmount=${creditUsdtAmount}, actualAmount=${actualAmount}`);
 
             // Calculate THB credits using the CREDIT amount (what user entered)
@@ -1022,5 +1022,72 @@ export class WalletService {
             .populate('processedBy', 'username')
             .lean()
             .exec();
+    }
+
+    /**
+     * Admin: Get user credit statistics
+     * Returns current balance, total deposited, spent, bonus, deducted, and recent transactions
+     */
+    async getUserStatistics(userId: string): Promise<{
+        currentBalance: number;
+        totalDeposited: number;
+        totalSpent: number;
+        totalBonusReceived: number;
+        totalDeducted: number;
+        lastTransactions: any[];
+    }> {
+        const wallet = await this.getOrCreateWallet(userId);
+
+        // Aggregate transaction statistics by type
+        const [statsResult, recentTransactions] = await Promise.all([
+            this.transactionModel.aggregate([
+                {
+                    $match: {
+                        userId: new Types.ObjectId(userId),
+                        status: TransactionStatus.COMPLETED,
+                    },
+                },
+                {
+                    $group: {
+                        _id: '$type',
+                        total: { $sum: '$amount' },
+                    },
+                },
+            ]),
+            this.transactionModel
+                .find({ userId: new Types.ObjectId(userId) })
+                .sort({ createdAt: -1 })
+                .limit(5)
+                .lean()
+                .exec(),
+        ]);
+
+        // Calculate totals by type
+        let totalBonusReceived = 0;
+        let totalDeducted = 0;
+
+        for (const stat of statsResult) {
+            if (stat._id === TransactionType.BONUS) {
+                totalBonusReceived = Math.abs(stat.total);
+            } else if (stat._id === TransactionType.ADJUSTMENT && stat.total < 0) {
+                totalDeducted = Math.abs(stat.total);
+            }
+        }
+
+        return {
+            currentBalance: wallet.balance,
+            totalDeposited: wallet.totalDeposited,
+            totalSpent: wallet.totalSpent,
+            totalBonusReceived,
+            totalDeducted,
+            lastTransactions: recentTransactions.map((tx: any) => ({
+                _id: tx._id,
+                type: tx.type,
+                amount: tx.amount,
+                description: tx.description,
+                status: tx.status,
+                createdAt: tx.createdAt,
+            })),
+        };
     }
 }

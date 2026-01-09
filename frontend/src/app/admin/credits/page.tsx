@@ -38,6 +38,22 @@ interface User {
     fullName?: string;
 }
 
+interface UserStatistics {
+    currentBalance: number;
+    totalDeposited: number;
+    totalSpent: number;
+    totalBonusReceived: number;
+    totalDeducted: number;
+    lastTransactions: {
+        _id: string;
+        type: string;
+        amount: number;
+        description: string;
+        status: string;
+        createdAt: string;
+    }[];
+}
+
 export default function AdminCreditsPage() {
     const [stats, setStats] = useState<WalletStatistics | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -51,6 +67,8 @@ export default function AdminCreditsPage() {
     const [filterType, setFilterType] = useState<string>('');
     const [filterStatus, setFilterStatus] = useState<string>('');
     const [processingTxId, setProcessingTxId] = useState<string | null>(null);
+    const [userStats, setUserStats] = useState<UserStatistics | null>(null);
+    const [isLoadingUserStats, setIsLoadingUserStats] = useState(false);
 
     const fetchData = async () => {
         try {
@@ -72,6 +90,26 @@ export default function AdminCreditsPage() {
     useEffect(() => {
         fetchData();
     }, [filterType, filterStatus]);
+
+    // Fetch user statistics when a user is selected
+    useEffect(() => {
+        if (selectedUser) {
+            setIsLoadingUserStats(true);
+            walletApi.getUserStatistics(selectedUser)
+                .then((res) => {
+                    setUserStats(res.data);
+                })
+                .catch((error) => {
+                    console.error('Error fetching user stats:', error);
+                    setUserStats(null);
+                })
+                .finally(() => {
+                    setIsLoadingUserStats(false);
+                });
+        } else {
+            setUserStats(null);
+        }
+    }, [selectedUser]);
 
     const handleAddCredits = async () => {
         if (!selectedUser || !creditAmount || !creditDescription) {
@@ -286,6 +324,89 @@ export default function AdminCreditsPage() {
                                         ))}
                                     </select>
                                 </div>
+
+                                {/* USER STATISTICS BLOCK */}
+                                {selectedUser && (
+                                    <div className="bg-slate-800/50 rounded-xl border border-white/5 p-4 space-y-3">
+                                        {isLoadingUserStats ? (
+                                            <div className="flex items-center justify-center py-4">
+                                                <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full"></div>
+                                                <span className="ml-2 text-sm text-slate-400">กำลังโหลด...</span>
+                                            </div>
+                                        ) : userStats ? (
+                                            <>
+                                                {/* Current Balance */}
+                                                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                                                    <span className="text-sm text-slate-400">💰 เครดิตปัจจุบัน</span>
+                                                    <span className="text-lg font-bold text-emerald-400">฿{userStats.currentBalance.toLocaleString()}</span>
+                                                </div>
+
+                                                {/* Statistics Grid */}
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    <div className="bg-slate-900/50 rounded-lg p-2">
+                                                        <div className="text-slate-500">💵 เติมสะสม</div>
+                                                        <div className="text-blue-400 font-semibold">฿{userStats.totalDeposited.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="bg-slate-900/50 rounded-lg p-2">
+                                                        <div className="text-slate-500">🛒 ใช้ไป</div>
+                                                        <div className="text-amber-400 font-semibold">฿{userStats.totalSpent.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="bg-slate-900/50 rounded-lg p-2">
+                                                        <div className="text-slate-500">🎁 โบนัส</div>
+                                                        <div className="text-purple-400 font-semibold">฿{userStats.totalBonusReceived.toLocaleString()}</div>
+                                                    </div>
+                                                    <div className="bg-slate-900/50 rounded-lg p-2">
+                                                        <div className="text-slate-500">➖ ถูกหัก</div>
+                                                        <div className="text-rose-400 font-semibold">฿{userStats.totalDeducted.toLocaleString()}</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Balance Preview */}
+                                                {creditAmount && parseFloat(creditAmount) > 0 && (
+                                                    <div className="mt-2 pt-3 border-t border-white/5 space-y-1">
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-slate-500">ถ้าเพิ่ม ฿{parseFloat(creditAmount).toLocaleString()}</span>
+                                                            <span className="text-emerald-400">→ ฿{(userStats.currentBalance + parseFloat(creditAmount)).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-slate-500">ถ้าหัก ฿{parseFloat(creditAmount).toLocaleString()}</span>
+                                                            <span className={cn(
+                                                                userStats.currentBalance - parseFloat(creditAmount) >= 0 ? "text-amber-400" : "text-rose-400"
+                                                            )}>
+                                                                → ฿{(userStats.currentBalance - parseFloat(creditAmount)).toLocaleString()}
+                                                                {userStats.currentBalance - parseFloat(creditAmount) < 0 && " ⚠️"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Recent Transactions */}
+                                                {userStats.lastTransactions.length > 0 && (
+                                                    <div className="mt-2 pt-3 border-t border-white/5">
+                                                        <div className="text-xs text-slate-500 mb-2">📋 ธุรกรรมล่าสุด</div>
+                                                        <div className="space-y-1 max-h-24 overflow-y-auto">
+                                                            {userStats.lastTransactions.slice(0, 3).map((tx) => (
+                                                                <div key={tx._id} className="flex justify-between text-xs bg-slate-900/30 rounded px-2 py-1">
+                                                                    <span className="text-slate-400 truncate flex-1">{tx.description.slice(0, 20)}</span>
+                                                                    <span className={cn(
+                                                                        "ml-2 font-medium",
+                                                                        tx.amount > 0 ? "text-emerald-400" : "text-rose-400"
+                                                                    )}>
+                                                                        {tx.amount > 0 ? '+' : ''}฿{tx.amount.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="text-center text-sm text-slate-500 py-2">
+                                                ไม่พบข้อมูลผู้ใช้
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="text-sm text-slate-400 block mb-2">จำนวนเครดิต (บาท)</label>
