@@ -81,6 +81,51 @@ export class SlipVerificationService {
     return { ok: true };
   }
 
+  /**
+   * Get original slip data from slip_history by transRef
+   * Used to retrieve slip details when duplicate is detected
+   */
+  async getOriginalSlipByTransRef(transRef: string): Promise<SlipHistoryDocument | null> {
+    if (!transRef) return null;
+
+    try {
+      const originalSlip = await this.slipHistoryModel.findOne({
+        transRef,
+        status: 'success' // Only get successful slips
+      }).sort({ createdAt: -1 }).lean().exec();
+
+      return originalSlip as SlipHistoryDocument | null;
+    } catch (error) {
+      this.logger.warn(`Failed to get original slip by transRef: ${transRef}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Build slip data from SlipHistory document for template rendering
+   */
+  buildSlipDataFromHistory(slip: SlipHistoryDocument): Record<string, any> {
+    if (!slip) return {};
+
+    const rawData = slip.rawData || {};
+    return {
+      transRef: slip.transRef || '',
+      amount: slip.amount,
+      amountFormatted: slip.amount ? this.formatAmount(slip.amount) : '',
+      senderName: slip.senderName || rawData.sender?.displayName || '',
+      senderBank: slip.senderBank || rawData.sender?.bank?.name || '',
+      senderBankCode: rawData.sender?.bank?.short || '',
+      receiverName: slip.receiverName || rawData.receiver?.displayName || '',
+      receiverBank: slip.receiverBank || rawData.receiver?.bank?.name || '',
+      receiverBankCode: rawData.receiver?.bank?.short || '',
+      receiverAccountNumber: slip.receiverAccountNumber || '',
+      date: slip.transactionDate ? this.formatDate(new Date(slip.transactionDate)) : '',
+      time: slip.transactionDate ? this.formatTime(new Date(slip.transactionDate)) : '',
+      isDuplicate: true,
+      originalDate: slip.createdAt ? this.formatDate(new Date(slip.createdAt)) : '',
+    };
+  }
+
   async createReservation(params: {
     ownerId: string;
     subscriptionId: string;
@@ -89,6 +134,7 @@ export class SlipVerificationService {
     messageId?: string;
     amount?: number;
   }): Promise<QuotaReservationDocument> {
+
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
     return this.quotaReservationModel.create({
       ownerId: params.ownerId,
@@ -775,19 +821,38 @@ export class SlipVerificationService {
         },
       };
     } else if (result.status === 'duplicate') {
+      // Try to get original slip data from database if not provided by API
+      let duplicateData = result.data || {};
+
+      // If we have transRef, try to get original slip data from slip_history
+      const transRef = duplicateData.transRef || result.transRef;
+      if (transRef && (!duplicateData.amount || !duplicateData.senderName)) {
+        this.logger.log(`[DUPLICATE] Looking for original slip data with transRef: ${transRef}`);
+        const originalSlip = await this.getOriginalSlipByTransRef(transRef);
+        if (originalSlip) {
+          this.logger.log(`[DUPLICATE] Found original slip data: amount=${originalSlip.amount}, sender=${originalSlip.senderName}`);
+          duplicateData = {
+            ...this.buildSlipDataFromHistory(originalSlip),
+            ...duplicateData, // Keep any data from API response
+            isDuplicate: true,
+          };
+        }
+      }
+
       // Check for custom template first
       if (accountSettings.slipDuplicateTemplate && Object.keys(accountSettings.slipDuplicateTemplate).length > 0) {
-        const customTemplate = this.applyTemplateVariables(accountSettings.slipDuplicateTemplate, result.data || {});
+        const customTemplate = this.applyTemplateVariables(accountSettings.slipDuplicateTemplate, duplicateData);
         return addWarningToFlexMessage(customTemplate);
       }
 
-      // Try to use slip template (even without result.data for duplicates)
-      const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, result.data || {});
+      // Try to use slip template with enriched duplicate data
+      const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, duplicateData);
       if (templated) {
-        this.logger.debug('Using slip template for duplicate');
+        this.logger.log('[DUPLICATE] Using slip template for duplicate');
         return templated;
       }
       this.logger.debug('No template found for duplicate, using fallback');
+
 
       // Fallback: สร้าง flex message สำหรับสลิปซ้ำ (รวมบล็อกเตือน)
       const duplicateMessage = accountSettings.customDuplicateSlipMessage ||
