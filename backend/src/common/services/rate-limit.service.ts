@@ -19,7 +19,7 @@ export interface RateLimitStats {
   blockRate: number;
   topBlockedIps: { ip: string; count: number }[];
   topBlockedAccounts: { account: string; count: number }[];
-  recentLogs: RateLimitLogDocument[];
+  recentLogs: any[];
   period: string;
 }
 
@@ -217,7 +217,7 @@ export class RateLimitService {
       blockRate: totalLogs > 0 ? (blockedRequests / totalLogs) * 100 : 0,
       topBlockedIps: topIps.map((item: any) => ({ ip: item._id, count: item.count })),
       topBlockedAccounts: topAccounts.map((item: any) => ({ account: item._id, count: item.count })),
-      recentLogs: recentLogs as RateLimitLogDocument[],
+      recentLogs: recentLogs as any[],
       period: `${periodMinutes} minutes`,
     };
   }
@@ -232,7 +232,7 @@ export class RateLimitService {
     clientIp?: string;
     accountSlug?: string;
     isTest?: boolean;
-  }): Promise<RateLimitLogDocument[]> {
+  }): Promise<any[]> {
     const query: any = {};
 
     if (options.type) query.type = options.type;

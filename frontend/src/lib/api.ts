@@ -457,3 +457,43 @@ export const walletApi = {
 
 };
 
+
+// Rate Limit API (Admin Only)
+export const rateLimitApi = {
+  // Get statistics
+  getStats: (period?: number) =>
+    api.get('/rate-limit/stats', { params: { period } }),
+  
+  // Get logs with filtering
+  getLogs: (params?: {
+    limit?: number;
+    type?: string;
+    action?: string;
+    clientIp?: string;
+    accountSlug?: string;
+    isTest?: boolean;
+  }) => api.get('/rate-limit/logs', { params }),
+  
+  // Get current in-memory metrics
+  getMetrics: () => api.get('/rate-limit/metrics'),
+  
+  // Run custom rate limit test
+  runTest: (data: {
+    testType: 'per_ip' | 'per_account' | 'global';
+    requestCount: number;
+    delayMs?: number;
+    testIp?: string;
+    testAccount?: string;
+  }) => api.post('/rate-limit/test', data),
+  
+  // Run preset test
+  runQuickTest: (preset: 'light' | 'medium' | 'heavy' | 'ddos_simulation') =>
+    api.post('/rate-limit/test/quick', { preset }),
+  
+  // Get test history
+  getTestHistory: (limit?: number) =>
+    api.get('/rate-limit/test/history', { params: { limit } }),
+  
+  // Clear test logs
+  clearTestLogs: () => api.delete('/rate-limit/test/logs'),
+};

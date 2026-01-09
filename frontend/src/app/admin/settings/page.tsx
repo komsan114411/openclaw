@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { systemSettingsApi, slipApi, chatbotApi, banksApi } from '@/lib/api';
+import { systemSettingsApi, slipApi, chatbotApi, banksApi, rateLimitApi } from '@/lib/api';
 import type { Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -147,6 +147,14 @@ export default function SettingsPage() {
     webhookRateLimitMessage: 'Too many requests, please try again later',
   });
 
+  // Rate Limit Testing State
+  const [rateLimitTestRunning, setRateLimitTestRunning] = useState(false);
+  const [rateLimitTestResult, setRateLimitTestResult] = useState<any>(null);
+  const [rateLimitStats, setRateLimitStats] = useState<any>(null);
+  const [rateLimitLogs, setRateLimitLogs] = useState<any[]>([]);
+  const [selectedTestPreset, setSelectedTestPreset] = useState<'light' | 'medium' | 'heavy' | 'ddos_simulation'>('light');
+  const [showRateLimitLogs, setShowRateLimitLogs] = useState(false);
+
   const fetchSettings = useCallback(async () => {
     try {
       const response = await systemSettingsApi.get();
@@ -221,10 +229,68 @@ export default function SettingsPage() {
     }
   }, []);
 
+  // Fetch Rate Limit Stats
+  const fetchRateLimitStats = useCallback(async () => {
+    try {
+      const [statsRes, logsRes] = await Promise.all([
+        rateLimitApi.getStats(60),
+        rateLimitApi.getLogs({ limit: 20 }),
+      ]);
+      setRateLimitStats(statsRes.data);
+      setRateLimitLogs(logsRes.data.logs || []);
+    } catch (error) {
+      console.error('Error fetching rate limit stats:', error);
+    }
+  }, []);
+
+  // Run Rate Limit Test
+  const handleRunRateLimitTest = async () => {
+    setRateLimitTestRunning(true);
+    setRateLimitTestResult(null);
+    const toastId = toast.loading(`กำลังทดสอบ Rate Limiter (${selectedTestPreset})...`);
+    
+    try {
+      const response = await rateLimitApi.runQuickTest(selectedTestPreset);
+      setRateLimitTestResult(response.data);
+      toast.dismiss(toastId);
+      
+      if (response.data.success) {
+        const { requestsBlocked, requestsSent, blockRate } = response.data;
+        if (requestsBlocked > 0) {
+          toast.success(`ทดสอบสำเร็จ! ระบบบล็อกได้ ${requestsBlocked}/${requestsSent} requests (${blockRate.toFixed(1)}%)`);
+        } else {
+          toast.success(`ทดสอบสำเร็จ! ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)`);
+        }
+      } else {
+        toast.error('การทดสอบล้มเหลว');
+      }
+      
+      // Refresh stats after test
+      await fetchRateLimitStats();
+    } catch (error: any) {
+      toast.dismiss(toastId);
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการทดสอบ');
+    } finally {
+      setRateLimitTestRunning(false);
+    }
+  };
+
+  // Clear test logs
+  const handleClearTestLogs = async () => {
+    try {
+      await rateLimitApi.clearTestLogs();
+      toast.success('ลบ logs การทดสอบสำเร็จ');
+      await fetchRateLimitStats();
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาดในการลบ logs');
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchBanks();
-  }, [fetchSettings, fetchBanks]);
+    fetchRateLimitStats();
+  }, [fetchSettings, fetchBanks, fetchRateLimitStats]);
 
   const handleUpdate = async (section: string, payload: Record<string, unknown>) => {
     setIsSaving(section);
@@ -849,6 +915,193 @@ export default function SettingsPage() {
                           <p className="text-2xl font-black text-blue-400">{rateLimitSettings.webhookRateLimitGlobalPerMinute}</p>
                           <p className="text-[10px] text-slate-500 font-bold uppercase">req/m global</p>
                         </div>
+                      </div>
+
+                      {/* Rate Limit Testing Section */}
+                      <div className="mt-8 pt-8 border-t border-white/5">
+                        <div className="flex items-center gap-3 mb-6">
+                          <span className="text-xl">🧪</span>
+                          <div>
+                            <p className="text-sm font-black text-white uppercase tracking-wide">ทดสอบระบบ Rate Limiter</p>
+                            <p className="text-xs text-slate-500">ทดสอบว่าระบบบล็อก request ที่เกิน limit ได้จริงหรือไม่</p>
+                          </div>
+                        </div>
+
+                        {/* Test Preset Selection */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                          {[
+                            { value: 'light', label: 'เบา', desc: '5 req, 200ms', color: 'emerald' },
+                            { value: 'medium', label: 'ปานกลาง', desc: '15 req, 50ms', color: 'amber' },
+                            { value: 'heavy', label: 'หนัก', desc: '30 req, 10ms', color: 'orange' },
+                            { value: 'ddos_simulation', label: 'DDoS', desc: '50 req, 0ms', color: 'rose' },
+                          ].map((preset) => (
+                            <button
+                              key={preset.value}
+                              onClick={() => setSelectedTestPreset(preset.value as any)}
+                              className={cn(
+                                'p-4 rounded-2xl border transition-all text-left',
+                                selectedTestPreset === preset.value
+                                  ? `bg-${preset.color}-500/20 border-${preset.color}-500/50`
+                                  : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+                              )}
+                            >
+                              <p className={cn(
+                                'text-sm font-bold',
+                                selectedTestPreset === preset.value ? `text-${preset.color}-400` : 'text-white'
+                              )}>{preset.label}</p>
+                              <p className="text-[10px] text-slate-500">{preset.desc}</p>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Test Button */}
+                        <div className="flex gap-3">
+                          <Button
+                            onClick={handleRunRateLimitTest}
+                            isLoading={rateLimitTestRunning}
+                            disabled={rateLimitTestRunning}
+                            className="flex-1 h-12 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 font-bold"
+                          >
+                            {rateLimitTestRunning ? 'กำลังทดสอบ...' : '🚀 เริ่มทดสอบ'}
+                          </Button>
+                          <Button
+                            onClick={() => setShowRateLimitLogs(!showRateLimitLogs)}
+                            variant="outline"
+                            className="h-12 rounded-xl px-4"
+                          >
+                            📋 {showRateLimitLogs ? 'ซ่อน' : 'ดู'} Logs
+                          </Button>
+                        </div>
+
+                        {/* Test Result */}
+                        {rateLimitTestResult && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5"
+                          >
+                            <div className="flex items-center gap-3 mb-4">
+                              <span className={rateLimitTestResult.requestsBlocked > 0 ? 'text-emerald-400' : 'text-amber-400'}>
+                                {rateLimitTestResult.requestsBlocked > 0 ? '✅' : '⚠️'}
+                              </span>
+                              <p className="text-sm font-bold text-white">
+                                {rateLimitTestResult.requestsBlocked > 0 
+                                  ? 'ระบบบล็อกทำงานปกติ!' 
+                                  : 'ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)'}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center p-3 bg-blue-500/10 rounded-xl">
+                                <p className="text-xl font-black text-blue-400">{rateLimitTestResult.requestsSent}</p>
+                                <p className="text-[10px] text-slate-500">ส่งทั้งหมด</p>
+                              </div>
+                              <div className="text-center p-3 bg-emerald-500/10 rounded-xl">
+                                <p className="text-xl font-black text-emerald-400">{rateLimitTestResult.requestsAllowed}</p>
+                                <p className="text-[10px] text-slate-500">ผ่าน</p>
+                              </div>
+                              <div className="text-center p-3 bg-rose-500/10 rounded-xl">
+                                <p className="text-xl font-black text-rose-400">{rateLimitTestResult.requestsBlocked}</p>
+                                <p className="text-[10px] text-slate-500">ถูกบล็อก</p>
+                              </div>
+                              <div className="text-center p-3 bg-amber-500/10 rounded-xl">
+                                <p className="text-xl font-black text-amber-400">{rateLimitTestResult.blockRate?.toFixed(1)}%</p>
+                                <p className="text-[10px] text-slate-500">อัตราบล็อก</p>
+                              </div>
+                            </div>
+
+                            {rateLimitTestResult.averageResponseTime && (
+                              <p className="text-xs text-slate-500 mt-4 text-center">
+                                เวลาตอบสนองเฉลี่ย: {rateLimitTestResult.averageResponseTime.toFixed(2)}ms
+                              </p>
+                            )}
+                          </motion.div>
+                        )}
+
+                        {/* Rate Limit Stats */}
+                        {rateLimitStats && (
+                          <div className="mt-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+                            <div className="flex items-center justify-between mb-4">
+                              <p className="text-sm font-bold text-white">📊 สถิติ (60 นาทีล่าสุด)</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={fetchRateLimitStats}
+                                className="text-xs"
+                              >
+                                🔄 รีเฟรช
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center p-3 bg-slate-500/10 rounded-xl">
+                                <p className="text-xl font-black text-slate-300">{rateLimitStats.totalRequests || 0}</p>
+                                <p className="text-[10px] text-slate-500">Total Requests</p>
+                              </div>
+                              <div className="text-center p-3 bg-rose-500/10 rounded-xl">
+                                <p className="text-xl font-black text-rose-400">{rateLimitStats.blockedRequests || 0}</p>
+                                <p className="text-[10px] text-slate-500">Blocked</p>
+                              </div>
+                              <div className="text-center p-3 bg-amber-500/10 rounded-xl">
+                                <p className="text-xl font-black text-amber-400">{(rateLimitStats.blockRate || 0).toFixed(1)}%</p>
+                                <p className="text-[10px] text-slate-500">Block Rate</p>
+                              </div>
+                              <div className="text-center p-3 bg-purple-500/10 rounded-xl">
+                                <p className="text-xl font-black text-purple-400">{rateLimitStats.blockedByIp || 0}</p>
+                                <p className="text-[10px] text-slate-500">By IP</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rate Limit Logs */}
+                        {showRateLimitLogs && rateLimitLogs.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="mt-6"
+                          >
+                            <div className="flex items-center justify-between mb-4">
+                              <p className="text-sm font-bold text-white">📋 Logs ล่าสุด</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleClearTestLogs}
+                                className="text-xs text-rose-400 hover:text-rose-300"
+                              >
+                                🗑️ ลบ Logs ทดสอบ
+                              </Button>
+                            </div>
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                              {rateLimitLogs.map((log: any, index: number) => (
+                                <div
+                                  key={log._id || index}
+                                  className={cn(
+                                    'p-3 rounded-xl text-xs flex items-center justify-between',
+                                    log.action === 'blocked' ? 'bg-rose-500/10' : 'bg-emerald-500/10'
+                                  )}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span>{log.action === 'blocked' ? '🚫' : '✅'}</span>
+                                    <div>
+                                      <p className="font-medium text-white">
+                                        {log.type} - {log.clientIp}
+                                      </p>
+                                      <p className="text-slate-500">
+                                        {log.endpoint} | {new Date(log.createdAt).toLocaleTimeString('th-TH')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className={log.action === 'blocked' ? 'text-rose-400' : 'text-emerald-400'}>
+                                      {log.requestCount}/{log.limit}
+                                    </p>
+                                    {log.isTest && <Badge size="sm" color="purple">TEST</Badge>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
                       </div>
                     </motion.div>
                   )}
