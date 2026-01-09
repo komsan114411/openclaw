@@ -20,6 +20,14 @@ import { RateLimitService } from '../services/rate-limit.service';
 import { RateLimitType, RateLimitAction } from '../../database/schemas/rate-limit-log.schema';
 import { LineAccount, LineAccountDocument } from '../../database/schemas/line-account.schema';
 
+// Interface for lean account data
+interface LeanLineAccount {
+  _id: any;
+  name?: string;
+  webhookSlug?: string;
+  channelId?: string;
+}
+
 @ApiTags('Rate Limit')
 @ApiBearerAuth()
 @Controller('rate-limit')
@@ -116,16 +124,16 @@ export class RateLimitController {
       .find({ isActive: true })
       .select({ _id: 1, name: 1, webhookSlug: 1, channelId: 1 })
       .sort({ name: 1 })
-      .lean();
+      .lean<LeanLineAccount[]>();
 
     return {
       success: true,
       count: accounts.length,
       accounts: accounts.map((acc) => ({
         id: acc._id.toString(),
-        name: acc.name,
-        webhookSlug: acc.webhookSlug,
-        channelId: acc.channelId,
+        name: acc.name || 'Unknown',
+        webhookSlug: acc.webhookSlug || '',
+        channelId: acc.channelId || '',
       })),
     };
   }
@@ -158,9 +166,9 @@ export class RateLimitController {
     });
 
     return {
-      success: true,
       message: `Simulation test completed: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked`,
       ...result,
+      success: true,
     };
   }
 
@@ -182,16 +190,16 @@ export class RateLimitController {
     const requestCount = Math.min(body.requestCount || 20, 100);
 
     // Get account - either specified or random
-    let account: LineAccountDocument | null;
+    let account: LeanLineAccount | null = null;
     
     if (body.accountId) {
-      account = await this.lineAccountModel.findById(body.accountId).lean();
+      account = await this.lineAccountModel.findById(body.accountId).lean<LeanLineAccount>();
     } else {
       // Get random active account
       const accounts = await this.lineAccountModel
         .find({ isActive: true })
         .select({ _id: 1, name: 1, webhookSlug: 1 })
-        .lean();
+        .lean<LeanLineAccount[]>();
       
       if (accounts.length === 0) {
         return {
@@ -212,17 +220,17 @@ export class RateLimitController {
     }
 
     const result = await this.rateLimitService.runRealWebhookTest({
-      webhookSlug: account.webhookSlug,
-      accountName: account.name,
+      webhookSlug: account.webhookSlug || '',
+      accountName: account.name || 'Unknown',
       accountId: account._id.toString(),
       requestCount,
       delayMs: body.delayMs || 0,
     });
 
     return {
-      success: true,
       message: `Real webhook test completed: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked, ${result.requestsError} errors`,
       ...result,
+      success: true,
     };
   }
 
@@ -252,16 +260,16 @@ export class RateLimitController {
 
     if (mode === 'real_webhook') {
       // Get account - either specified or random
-      let account: LineAccountDocument | null;
+      let account: LeanLineAccount | null = null;
       
       if (body.accountId) {
-        account = await this.lineAccountModel.findById(body.accountId).lean();
+        account = await this.lineAccountModel.findById(body.accountId).lean<LeanLineAccount>();
       } else {
         // Get random active account
         const accounts = await this.lineAccountModel
           .find({ isActive: true })
           .select({ _id: 1, name: 1, webhookSlug: 1 })
-          .lean();
+          .lean<LeanLineAccount[]>();
         
         if (accounts.length === 0) {
           return {
@@ -281,20 +289,21 @@ export class RateLimitController {
         };
       }
 
+      const accountName = account.name || 'Unknown';
       const result = await this.rateLimitService.runRealWebhookTest({
-        webhookSlug: account.webhookSlug,
-        accountName: account.name,
+        webhookSlug: account.webhookSlug || '',
+        accountName: accountName,
         accountId: account._id.toString(),
         requestCount: preset.requestCount,
         delayMs: preset.delayMs,
       });
 
       return {
-        success: true,
         preset: body.preset,
         mode: 'real_webhook',
-        message: `${body.preset.toUpperCase()} test on ${account.name}: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked (${result.blockRate.toFixed(1)}% blocked)`,
+        message: `${body.preset.toUpperCase()} test on ${accountName}: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked (${result.blockRate.toFixed(1)}% blocked)`,
         ...result,
+        success: true,
       };
     } else {
       // Simulation mode
@@ -305,11 +314,11 @@ export class RateLimitController {
       });
 
       return {
-        success: true,
         preset: body.preset,
         mode: 'simulation',
         message: `${body.preset.toUpperCase()} simulation test: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked (${result.blockRate.toFixed(1)}% blocked)`,
         ...result,
+        success: true,
       };
     }
   }
