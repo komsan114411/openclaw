@@ -284,7 +284,7 @@ export default function SettingsPage() {
               : `✅ ระบบบล็อกได้! ${requestsBlocked}/${requestsSent} requests (${blockRate.toFixed(1)}%)`
           );
         } else if (requestsError > 0) {
-          toast.warning(`⚠️ มี ${requestsError} requests error - ตรวจสอบ webhook URL`);
+          toast(`⚠️ มี ${requestsError} requests error - ตรวจสอบ webhook URL`, { icon: '⚠️' });
         } else {
           toast.success(`ทดสอบสำเร็จ! ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)`);
         }
