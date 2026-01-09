@@ -87,14 +87,14 @@ export class TasksService {
         // Get settings from database (with caching)
         const settings = await this.systemSettingsService.getSettings();
         
-        // Check if cleanup is enabled
-        if (!settings.quotaReservationCleanupEnabled) {
+        // Check if cleanup is enabled (default: enabled if settings not found)
+        if (settings && settings.quotaReservationCleanupEnabled === false) {
           this.logger.debug('Stale reservation cleanup is disabled');
           return 0;
         }
 
         // Get timeout from settings (default: 3 minutes)
-        const timeoutMinutes = settings.quotaReservationTimeoutMinutes || 3;
+        const timeoutMinutes = settings?.quotaReservationTimeoutMinutes || 3;
         
         // Cleanup stale reservations
         const cleanedCount = await this.subscriptionsService.cleanupStaleReservations(timeoutMinutes);
@@ -289,7 +289,7 @@ export class TasksService {
     try {
       // Get timeout from settings
       const settings = await this.systemSettingsService.getSettings();
-      const timeoutMinutes = settings.quotaReservationTimeoutMinutes || 3;
+      const timeoutMinutes = settings?.quotaReservationTimeoutMinutes || 3;
       results.staleReservations = await this.subscriptionsService.cleanupStaleReservations(timeoutMinutes);
     } catch (error) {
       this.logger.error('Failed to cleanup stale reservations:', error);
