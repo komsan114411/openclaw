@@ -1095,7 +1095,7 @@ export default function SettingsPage() {
                                     <p className={log.action === 'blocked' ? 'text-rose-400' : 'text-emerald-400'}>
                                       {log.requestCount}/{log.limit}
                                     </p>
-                                    {log.isTest && <Badge size="sm" color="purple">TEST</Badge>}
+                                    {log.isTest && <Badge size="sm" variant="purple">TEST</Badge>}
                                   </div>
                                 </div>
                               ))}
