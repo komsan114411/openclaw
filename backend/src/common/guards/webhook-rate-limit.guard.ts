@@ -5,9 +5,13 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import { RedisService, RateLimitResult } from '../../redis/redis.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
+import { RateLimitService } from '../services/rate-limit.service';
+import { RateLimitType, RateLimitAction } from '../../database/schemas/rate-limit-log.schema';
 
 /**
  * Webhook Rate Limit Guard
@@ -27,6 +31,7 @@ import { SystemSettingsService } from '../../system-settings/system-settings.ser
  * - X-RateLimit-* headers for monitoring
  * - Does NOT trigger business logic when blocked
  * - Supports both per-second and per-minute limits
+ * - Logs all blocked requests to database for analysis
  *
  * Flow:
  * 1. Request arrives at webhook
@@ -58,6 +63,8 @@ export class WebhookRateLimitGuard implements CanActivate {
   constructor(
     private redisService: RedisService,
     private systemSettingsService: SystemSettingsService,
+    @Optional() @Inject(RateLimitService)
+    private rateLimitService?: RateLimitService,
   ) {
     // Reset metrics every hour
     setInterval(() => {
@@ -85,12 +92,25 @@ export class WebhookRateLimitGuard implements CanActivate {
 
     // Get client IP address
     const clientIp = this.getClientIp(request);
+    const userAgent = request.headers['user-agent'] || 'unknown';
+    const endpoint = request.url || '/webhook';
 
     // Check per-IP limits first (prevents single attacker from overwhelming)
     const ipResult = await this.checkPerIpLimit(clientIp, config);
     if (!ipResult.allowed) {
       this.metrics.blockedByIp++;
       this.logger.warn(`[RATE LIMIT] Per-IP limit exceeded for: ${clientIp}`);
+      
+      // Log to database
+      await this.logBlockedRequest(
+        RateLimitType.PER_IP,
+        clientIp,
+        undefined,
+        endpoint,
+        userAgent,
+        ipResult,
+      );
+      
       this.throwRateLimitException(config.message, 'per_ip', clientIp, ipResult, response);
     }
 
@@ -103,6 +123,17 @@ export class WebhookRateLimitGuard implements CanActivate {
       if (!accountResult.allowed) {
         this.metrics.blockedByAccount++;
         this.logger.warn(`[RATE LIMIT] Per-account limit exceeded for: ${slug}`);
+        
+        // Log to database
+        await this.logBlockedRequest(
+          RateLimitType.PER_ACCOUNT,
+          clientIp,
+          slug,
+          endpoint,
+          userAgent,
+          accountResult,
+        );
+        
         this.throwRateLimitException(config.message, 'per_account', slug, accountResult, response);
       }
     }
@@ -112,6 +143,17 @@ export class WebhookRateLimitGuard implements CanActivate {
     if (!globalResult.allowed) {
       this.metrics.blockedByGlobal++;
       this.logger.warn(`[RATE LIMIT] Global limit exceeded`);
+      
+      // Log to database
+      await this.logBlockedRequest(
+        RateLimitType.GLOBAL,
+        clientIp,
+        slug,
+        endpoint,
+        userAgent,
+        globalResult,
+      );
+      
       this.throwRateLimitException(config.message, 'global', undefined, globalResult, response);
     }
 
@@ -119,6 +161,36 @@ export class WebhookRateLimitGuard implements CanActivate {
     this.setRateLimitHeaders(response, globalResult, config);
 
     return true;
+  }
+
+  /**
+   * Log blocked request to database
+   */
+  private async logBlockedRequest(
+    type: RateLimitType,
+    clientIp: string,
+    accountSlug: string | undefined,
+    endpoint: string,
+    userAgent: string,
+    result: RateLimitResult,
+  ): Promise<void> {
+    if (this.rateLimitService) {
+      try {
+        await this.rateLimitService.logRateLimitEvent(type, RateLimitAction.BLOCKED, {
+          clientIp,
+          accountSlug,
+          endpoint,
+          userAgent,
+          requestCount: result.current,
+          limit: result.limit,
+          retryAfter: result.retryAfter,
+          resetAt: new Date(result.resetAt),
+          message: `Rate limit exceeded: ${type}`,
+        });
+      } catch (error) {
+        this.logger.error(`Failed to log blocked request: ${error}`);
+      }
+    }
   }
 
   /**

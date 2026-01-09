@@ -28,6 +28,7 @@ import { SystemResponseTemplatesModule } from './system-response-templates/syste
 import { WalletModule } from './wallet/wallet.module';
 import { EventBusModule } from './core/events';
 import { SecurityModule } from './utils/security.module';
+import { RateLimitModule } from './common/rate-limit.module';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { SecurityModule } from './utils/security.module';
     ThunderApiModule,
     SystemResponseTemplatesModule,
     WalletModule,
+    RateLimitModule,
   ],
 })
 export class AppModule { }
