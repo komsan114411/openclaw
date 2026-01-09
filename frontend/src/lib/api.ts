@@ -477,7 +477,10 @@ export const rateLimitApi = {
   // Get current in-memory metrics
   getMetrics: () => api.get('/rate-limit/metrics'),
   
-  // Run custom rate limit test
+  // Get available LINE accounts for testing
+  getAccounts: () => api.get('/rate-limit/accounts'),
+  
+  // Run custom rate limit test (simulation)
   runTest: (data: {
     testType: 'per_ip' | 'per_account' | 'global';
     requestCount: number;
@@ -486,9 +489,16 @@ export const rateLimitApi = {
     testAccount?: string;
   }) => api.post('/rate-limit/test', data),
   
-  // Run preset test
-  runQuickTest: (preset: 'light' | 'medium' | 'heavy' | 'ddos_simulation') =>
-    api.post('/rate-limit/test/quick', { preset }),
+  // Run real webhook test
+  runWebhookTest: (data: {
+    accountId?: string;
+    requestCount: number;
+    delayMs?: number;
+  }) => api.post('/rate-limit/test/webhook', data),
+  
+  // Run preset test (simulation or real webhook)
+  runQuickTest: (preset: 'light' | 'medium' | 'heavy' | 'ddos_simulation', mode?: 'simulation' | 'real_webhook', accountId?: string) =>
+    api.post('/rate-limit/test/quick', { preset, mode, accountId }),
   
   // Get test history
   getTestHistory: (limit?: number) =>

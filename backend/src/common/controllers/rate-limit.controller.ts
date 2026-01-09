@@ -10,12 +10,15 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { SessionAuthGuard } from '../../auth/guards/session-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../../database/schemas/user.schema';
 import { RateLimitService } from '../services/rate-limit.service';
 import { RateLimitType, RateLimitAction } from '../../database/schemas/rate-limit-log.schema';
+import { LineAccount, LineAccountDocument } from '../../database/schemas/line-account.schema';
 
 @ApiTags('Rate Limit')
 @ApiBearerAuth()
@@ -23,7 +26,11 @@ import { RateLimitType, RateLimitAction } from '../../database/schemas/rate-limi
 @UseGuards(SessionAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class RateLimitController {
-  constructor(private rateLimitService: RateLimitService) {}
+  constructor(
+    private rateLimitService: RateLimitService,
+    @InjectModel(LineAccount.name)
+    private lineAccountModel: Model<LineAccountDocument>,
+  ) {}
 
   /**
    * Get rate limit statistics
@@ -37,7 +44,7 @@ export class RateLimitController {
 
     return {
       success: true,
-      stats,
+      ...stats,
     };
   }
 
@@ -100,11 +107,35 @@ export class RateLimitController {
   }
 
   /**
-   * Run rate limit test
+   * Get available LINE accounts for testing
+   */
+  @Get('accounts')
+  @ApiOperation({ summary: 'Get available LINE accounts for rate limit testing (Admin only)' })
+  async getAccounts() {
+    const accounts = await this.lineAccountModel
+      .find({ isActive: true })
+      .select({ _id: 1, name: 1, webhookSlug: 1, channelId: 1 })
+      .sort({ name: 1 })
+      .lean();
+
+    return {
+      success: true,
+      count: accounts.length,
+      accounts: accounts.map((acc) => ({
+        id: acc._id.toString(),
+        name: acc.name,
+        webhookSlug: acc.webhookSlug,
+        channelId: acc.channelId,
+      })),
+    };
+  }
+
+  /**
+   * Run rate limit test (simulation mode)
    */
   @Post('test')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Run rate limit test (Admin only)' })
+  @ApiOperation({ summary: 'Run rate limit simulation test (Admin only)' })
   async runTest(
     @Body()
     body: {
@@ -118,7 +149,7 @@ export class RateLimitController {
     // Validate request count (max 100 for safety)
     const requestCount = Math.min(body.requestCount || 20, 100);
 
-    const result = await this.rateLimitService.runTest({
+    const result = await this.rateLimitService.runSimulationTest({
       testType: body.testType || 'per_ip',
       requestCount,
       delayMs: body.delayMs || 0,
@@ -128,8 +159,70 @@ export class RateLimitController {
 
     return {
       success: true,
-      message: `Test completed: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked`,
-      result,
+      message: `Simulation test completed: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked`,
+      ...result,
+    };
+  }
+
+  /**
+   * Run rate limit test on real webhook
+   */
+  @Post('test/webhook')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Run rate limit test on real webhook endpoint (Admin only)' })
+  async runWebhookTest(
+    @Body()
+    body: {
+      accountId?: string;
+      requestCount: number;
+      delayMs?: number;
+    },
+  ) {
+    // Validate request count (max 100 for safety)
+    const requestCount = Math.min(body.requestCount || 20, 100);
+
+    // Get account - either specified or random
+    let account: LineAccountDocument | null;
+    
+    if (body.accountId) {
+      account = await this.lineAccountModel.findById(body.accountId).lean();
+    } else {
+      // Get random active account
+      const accounts = await this.lineAccountModel
+        .find({ isActive: true })
+        .select({ _id: 1, name: 1, webhookSlug: 1 })
+        .lean();
+      
+      if (accounts.length === 0) {
+        return {
+          success: false,
+          message: 'ไม่พบ LINE Account ที่เชื่อมต่อแล้ว กรุณาเพิ่ม LINE Account ก่อนทดสอบ',
+        };
+      }
+      
+      // Random select
+      account = accounts[Math.floor(Math.random() * accounts.length)];
+    }
+
+    if (!account) {
+      return {
+        success: false,
+        message: 'ไม่พบ LINE Account ที่ระบุ',
+      };
+    }
+
+    const result = await this.rateLimitService.runRealWebhookTest({
+      webhookSlug: account.webhookSlug,
+      accountName: account.name,
+      accountId: account._id.toString(),
+      requestCount,
+      delayMs: body.delayMs || 0,
+    });
+
+    return {
+      success: true,
+      message: `Real webhook test completed: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked, ${result.requestsError} errors`,
+      ...result,
     };
   }
 
@@ -143,6 +236,8 @@ export class RateLimitController {
     @Body()
     body: {
       preset: 'light' | 'medium' | 'heavy' | 'ddos_simulation';
+      mode?: 'simulation' | 'real_webhook';
+      accountId?: string;
     },
   ) {
     const presets = {
@@ -153,19 +248,70 @@ export class RateLimitController {
     };
 
     const preset = presets[body.preset] || presets.light;
+    const mode = body.mode || 'simulation';
 
-    const result = await this.rateLimitService.runTest({
-      ...preset,
-      testIp: `test-${body.preset}-${Date.now()}`,
-      testAccount: `test-account-${body.preset}`,
-    });
+    if (mode === 'real_webhook') {
+      // Get account - either specified or random
+      let account: LineAccountDocument | null;
+      
+      if (body.accountId) {
+        account = await this.lineAccountModel.findById(body.accountId).lean();
+      } else {
+        // Get random active account
+        const accounts = await this.lineAccountModel
+          .find({ isActive: true })
+          .select({ _id: 1, name: 1, webhookSlug: 1 })
+          .lean();
+        
+        if (accounts.length === 0) {
+          return {
+            success: false,
+            message: 'ไม่พบ LINE Account ที่เชื่อมต่อแล้ว กรุณาเพิ่ม LINE Account ก่อนทดสอบ',
+          };
+        }
+        
+        // Random select
+        account = accounts[Math.floor(Math.random() * accounts.length)];
+      }
 
-    return {
-      success: true,
-      preset: body.preset,
-      message: `${body.preset.toUpperCase()} test completed: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked (${result.blockRate.toFixed(1)}% blocked)`,
-      result,
-    };
+      if (!account) {
+        return {
+          success: false,
+          message: 'ไม่พบ LINE Account ที่ระบุ',
+        };
+      }
+
+      const result = await this.rateLimitService.runRealWebhookTest({
+        webhookSlug: account.webhookSlug,
+        accountName: account.name,
+        accountId: account._id.toString(),
+        requestCount: preset.requestCount,
+        delayMs: preset.delayMs,
+      });
+
+      return {
+        success: true,
+        preset: body.preset,
+        mode: 'real_webhook',
+        message: `${body.preset.toUpperCase()} test on ${account.name}: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked (${result.blockRate.toFixed(1)}% blocked)`,
+        ...result,
+      };
+    } else {
+      // Simulation mode
+      const result = await this.rateLimitService.runSimulationTest({
+        ...preset,
+        testIp: `test-${body.preset}-${Date.now()}`,
+        testAccount: `test-account-${body.preset}`,
+      });
+
+      return {
+        success: true,
+        preset: body.preset,
+        mode: 'simulation',
+        message: `${body.preset.toUpperCase()} simulation test: ${result.requestsAllowed} allowed, ${result.requestsBlocked} blocked (${result.blockRate.toFixed(1)}% blocked)`,
+        ...result,
+      };
+    }
   }
 
   /**
@@ -211,6 +357,8 @@ export class RateLimitController {
           startTime: new Date((log as any).createdAt).toISOString(),
           lastTime: logTime,
           testType: (log as any).metadata?.testType || 'unknown',
+          mode: (log as any).metadata?.mode || 'simulation',
+          accountName: (log as any).metadata?.accountName,
           totalRequests: 0,
           allowedRequests: 0,
           blockedRequests: 0,
@@ -238,6 +386,8 @@ export class RateLimitController {
       sessions: sessions.map((s) => ({
         startTime: s.startTime,
         testType: s.testType,
+        mode: s.mode,
+        accountName: s.accountName,
         totalRequests: s.totalRequests,
         allowedRequests: s.allowedRequests,
         blockedRequests: s.blockedRequests,

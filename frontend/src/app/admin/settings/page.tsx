@@ -154,6 +154,9 @@ export default function SettingsPage() {
   const [rateLimitLogs, setRateLimitLogs] = useState<any[]>([]);
   const [selectedTestPreset, setSelectedTestPreset] = useState<'light' | 'medium' | 'heavy' | 'ddos_simulation'>('light');
   const [showRateLimitLogs, setShowRateLimitLogs] = useState(false);
+  const [rateLimitTestMode, setRateLimitTestMode] = useState<'simulation' | 'real_webhook'>('real_webhook');
+  const [lineAccountsForTest, setLineAccountsForTest] = useState<{id: string; name: string; webhookSlug: string}[]>([]);
+  const [selectedAccountForTest, setSelectedAccountForTest] = useState<string>('random');
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -229,15 +232,17 @@ export default function SettingsPage() {
     }
   }, []);
 
-  // Fetch Rate Limit Stats
+  // Fetch Rate Limit Stats and LINE Accounts
   const fetchRateLimitStats = useCallback(async () => {
     try {
-      const [statsRes, logsRes] = await Promise.all([
+      const [statsRes, logsRes, accountsRes] = await Promise.all([
         rateLimitApi.getStats(60),
         rateLimitApi.getLogs({ limit: 20 }),
+        rateLimitApi.getAccounts(),
       ]);
       setRateLimitStats(statsRes.data);
       setRateLimitLogs(logsRes.data.logs || []);
+      setLineAccountsForTest(accountsRes.data.accounts || []);
     } catch (error) {
       console.error('Error fetching rate limit stats:', error);
     }
@@ -247,22 +252,44 @@ export default function SettingsPage() {
   const handleRunRateLimitTest = async () => {
     setRateLimitTestRunning(true);
     setRateLimitTestResult(null);
-    const toastId = toast.loading(`กำลังทดสอบ Rate Limiter (${selectedTestPreset})...`);
+    
+    const modeText = rateLimitTestMode === 'real_webhook' ? 'Webhook จริง' : 'จำลอง';
+    const accountId = selectedAccountForTest === 'random' ? undefined : selectedAccountForTest;
+    const selectedAccount = lineAccountsForTest.find(a => a.id === accountId);
+    const accountText = selectedAccount ? selectedAccount.name : 'สุ่ม';
+    
+    const toastId = toast.loading(
+      rateLimitTestMode === 'real_webhook' 
+        ? `กำลังยิง ${selectedTestPreset} ไปที่ ${accountText}...`
+        : `กำลังทดสอบ ${selectedTestPreset} (จำลอง)...`
+    );
     
     try {
-      const response = await rateLimitApi.runQuickTest(selectedTestPreset);
+      const response = await rateLimitApi.runQuickTest(
+        selectedTestPreset, 
+        rateLimitTestMode,
+        accountId
+      );
       setRateLimitTestResult(response.data);
       toast.dismiss(toastId);
       
       if (response.data.success) {
-        const { requestsBlocked, requestsSent, blockRate } = response.data;
+        const { requestsBlocked, requestsSent, blockRate, targetAccount, requestsError } = response.data;
+        const targetName = targetAccount?.name || 'N/A';
+        
         if (requestsBlocked > 0) {
-          toast.success(`ทดสอบสำเร็จ! ระบบบล็อกได้ ${requestsBlocked}/${requestsSent} requests (${blockRate.toFixed(1)}%)`);
+          toast.success(
+            rateLimitTestMode === 'real_webhook'
+              ? `✅ ระบบบล็อกได้! ${requestsBlocked}/${requestsSent} requests ถูกบล็อก (${blockRate.toFixed(1)}%) - ${targetName}`
+              : `✅ ระบบบล็อกได้! ${requestsBlocked}/${requestsSent} requests (${blockRate.toFixed(1)}%)`
+          );
+        } else if (requestsError > 0) {
+          toast.warning(`⚠️ มี ${requestsError} requests error - ตรวจสอบ webhook URL`);
         } else {
           toast.success(`ทดสอบสำเร็จ! ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)`);
         }
       } else {
-        toast.error('การทดสอบล้มเหลว');
+        toast.error(response.data.message || 'การทดสอบล้มเหลว');
       }
       
       // Refresh stats after test
@@ -927,31 +954,139 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        {/* Test Preset Selection */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                          {[
-                            { value: 'light', label: 'เบา', desc: '5 req, 200ms', color: 'emerald' },
-                            { value: 'medium', label: 'ปานกลาง', desc: '15 req, 50ms', color: 'amber' },
-                            { value: 'heavy', label: 'หนัก', desc: '30 req, 10ms', color: 'orange' },
-                            { value: 'ddos_simulation', label: 'DDoS', desc: '50 req, 0ms', color: 'rose' },
-                          ].map((preset) => (
+                        {/* Current Settings Info */}
+                        <div className="mb-6 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                          <p className="text-xs font-bold text-indigo-400 mb-2">⚙️ การตั้งค่าปัจจุบัน (จะใช้ทดสอบ)</p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Per Account/s:</span>
+                              <span className="text-white font-bold">{rateLimitSettings.webhookRateLimitPerAccountPerSecond}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Per Account/m:</span>
+                              <span className="text-white font-bold">{rateLimitSettings.webhookRateLimitPerAccountPerMinute}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Global/s:</span>
+                              <span className="text-white font-bold">{rateLimitSettings.webhookRateLimitGlobalPerSecond}</span>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-2">
+                            หากยิง {rateLimitSettings.webhookRateLimitPerAccountPerSecond + 1}+ req/s จะถูกบล็อก
+                          </p>
+                        </div>
+
+                        {/* Test Mode Selection */}
+                        <div className="mb-6">
+                          <p className="text-xs font-bold text-slate-400 mb-3">โหมดทดสอบ</p>
+                          <div className="grid grid-cols-2 gap-3">
                             <button
-                              key={preset.value}
-                              onClick={() => setSelectedTestPreset(preset.value as any)}
+                              onClick={() => setRateLimitTestMode('real_webhook')}
                               className={cn(
                                 'p-4 rounded-2xl border transition-all text-left',
-                                selectedTestPreset === preset.value
-                                  ? `bg-${preset.color}-500/20 border-${preset.color}-500/50`
+                                rateLimitTestMode === 'real_webhook'
+                                  ? 'bg-rose-500/20 border-rose-500/50'
                                   : 'bg-white/[0.02] border-white/5 hover:border-white/10'
                               )}
                             >
                               <p className={cn(
-                                'text-sm font-bold',
-                                selectedTestPreset === preset.value ? `text-${preset.color}-400` : 'text-white'
-                              )}>{preset.label}</p>
-                              <p className="text-[10px] text-slate-500">{preset.desc}</p>
+                                'text-sm font-bold flex items-center gap-2',
+                                rateLimitTestMode === 'real_webhook' ? 'text-rose-400' : 'text-white'
+                              )}>
+                                🎯 Webhook จริง
+                              </p>
+                              <p className="text-[10px] text-slate-500">ยิง HTTP request ไปที่ webhook endpoint จริง</p>
                             </button>
-                          ))}
+                            <button
+                              onClick={() => setRateLimitTestMode('simulation')}
+                              className={cn(
+                                'p-4 rounded-2xl border transition-all text-left',
+                                rateLimitTestMode === 'simulation'
+                                  ? 'bg-blue-500/20 border-blue-500/50'
+                                  : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+                              )}
+                            >
+                              <p className={cn(
+                                'text-sm font-bold flex items-center gap-2',
+                                rateLimitTestMode === 'simulation' ? 'text-blue-400' : 'text-white'
+                              )}>
+                                🖥️ จำลอง (Redis)
+                              </p>
+                              <p className="text-[10px] text-slate-500">ทดสอบผ่าน Redis rate limiter โดยตรง</p>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* LINE Account Selection (only for real_webhook mode) */}
+                        {rateLimitTestMode === 'real_webhook' && (
+                          <div className="mb-6">
+                            <p className="text-xs font-bold text-slate-400 mb-3">เลือก LINE Account ที่จะทดสอบ</p>
+                            <select
+                              value={selectedAccountForTest}
+                              onChange={(e) => setSelectedAccountForTest(e.target.value)}
+                              className="w-full p-3 rounded-xl bg-white/[0.02] border border-white/10 text-white text-sm focus:border-rose-500/50 focus:outline-none"
+                            >
+                              <option value="random" className="bg-slate-800">🎲 สุ่มอัตโนมัติ</option>
+                              {lineAccountsForTest.map((account) => (
+                                <option key={account.id} value={account.id} className="bg-slate-800">
+                                  {account.name} ({account.webhookSlug})
+                                </option>
+                              ))}
+                            </select>
+                            {lineAccountsForTest.length === 0 && (
+                              <p className="text-xs text-amber-400 mt-2">⚠️ ไม่พบ LINE Account ที่เชื่อมต่อแล้ว</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Test Preset Selection */}
+                        <div className="mb-6">
+                          <p className="text-xs font-bold text-slate-400 mb-3">ระดับความหนัก</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {[
+                              { value: 'light', label: 'เบา', desc: '5 req, 200ms', color: 'emerald', icon: '🟢' },
+                              { value: 'medium', label: 'ปานกลาง', desc: '15 req, 50ms', color: 'amber', icon: '🟡' },
+                              { value: 'heavy', label: 'หนัก', desc: '30 req, 10ms', color: 'orange', icon: '🟠' },
+                              { value: 'ddos_simulation', label: 'DDoS', desc: '50 req, 0ms', color: 'rose', icon: '🔴' },
+                            ].map((preset) => (
+                              <button
+                                key={preset.value}
+                                onClick={() => setSelectedTestPreset(preset.value as any)}
+                                className={cn(
+                                  'p-4 rounded-2xl border transition-all text-left',
+                                  selectedTestPreset === preset.value
+                                    ? `bg-${preset.color}-500/20 border-${preset.color}-500/50`
+                                    : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+                                )}
+                              >
+                                <p className={cn(
+                                  'text-sm font-bold flex items-center gap-2',
+                                  selectedTestPreset === preset.value ? `text-${preset.color}-400` : 'text-white'
+                                )}>
+                                  {preset.icon} {preset.label}
+                                </p>
+                                <p className="text-[10px] text-slate-500">{preset.desc}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Expected Result Info */}
+                        <div className="mb-6 p-4 rounded-2xl bg-slate-500/10 border border-slate-500/20">
+                          <p className="text-xs font-bold text-slate-400 mb-2">📊 คาดการณ์ผลลัพธ์</p>
+                          <div className="text-xs text-slate-300">
+                            {
+                              selectedTestPreset === 'light' ? (
+                                <p>ยิง 5 requests ด้วย delay 200ms → ควรผ่านทั้งหมด (ไม่เกิน {rateLimitSettings.webhookRateLimitPerAccountPerSecond}/s)</p>
+                              ) : selectedTestPreset === 'medium' ? (
+                                <p>ยิง 15 requests ด้วย delay 50ms → ควรถูกบล็อกบางส่วน (เกิน {rateLimitSettings.webhookRateLimitPerAccountPerSecond}/s)</p>
+                              ) : selectedTestPreset === 'heavy' ? (
+                                <p>ยิง 30 requests ด้วย delay 10ms → ควรถูกบล็อกหลาย requests (เกิน {rateLimitSettings.webhookRateLimitPerAccountPerSecond}/s มาก)</p>
+                              ) : (
+                                <p>ยิง 50 requests พร้อมกัน (0ms delay) → ควรถูกบล็อกเกือบทั้งหมด (เกิน {rateLimitSettings.webhookRateLimitPerAccountPerSecond}/s มากๆ)</p>
+                              )
+                            }
+                          </div>
                         </div>
 
                         {/* Test Button */}
@@ -959,10 +1094,20 @@ export default function SettingsPage() {
                           <Button
                             onClick={handleRunRateLimitTest}
                             isLoading={rateLimitTestRunning}
-                            disabled={rateLimitTestRunning}
-                            className="flex-1 h-12 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 font-bold"
+                            disabled={rateLimitTestRunning || (rateLimitTestMode === 'real_webhook' && lineAccountsForTest.length === 0)}
+                            className={cn(
+                              "flex-1 h-12 rounded-xl font-bold",
+                              rateLimitTestMode === 'real_webhook'
+                                ? "bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600"
+                                : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+                            )}
                           >
-                            {rateLimitTestRunning ? 'กำลังทดสอบ...' : '🚀 เริ่มทดสอบ'}
+                            {rateLimitTestRunning 
+                              ? 'กำลังทดสอบ...' 
+                              : rateLimitTestMode === 'real_webhook'
+                                ? '🚀 ยิง Webhook จริง!'
+                                : '🖥️ ทดสอบจำลอง'
+                            }
                           </Button>
                           <Button
                             onClick={() => setShowRateLimitLogs(!showRateLimitLogs)}
@@ -980,18 +1125,36 @@ export default function SettingsPage() {
                             animate={{ opacity: 1, y: 0 }}
                             className="mt-6 p-6 rounded-2xl bg-white/[0.02] border border-white/5"
                           >
-                            <div className="flex items-center gap-3 mb-4">
-                              <span className={rateLimitTestResult.requestsBlocked > 0 ? 'text-emerald-400' : 'text-amber-400'}>
-                                {rateLimitTestResult.requestsBlocked > 0 ? '✅' : '⚠️'}
-                              </span>
-                              <p className="text-sm font-bold text-white">
-                                {rateLimitTestResult.requestsBlocked > 0 
-                                  ? 'ระบบบล็อกทำงานปกติ!' 
-                                  : 'ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)'}
-                              </p>
+                            {/* Result Header */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  'text-2xl',
+                                  rateLimitTestResult.requestsBlocked > 0 ? 'animate-pulse' : ''
+                                )}>
+                                  {rateLimitTestResult.requestsBlocked > 0 ? '✅' : rateLimitTestResult.requestsError > 0 ? '⚠️' : 'ℹ️'}
+                                </span>
+                                <div>
+                                  <p className="text-sm font-bold text-white">
+                                    {rateLimitTestResult.requestsBlocked > 0 
+                                      ? '🛡️ ระบบบล็อกทำงานปกติ!' 
+                                      : rateLimitTestResult.requestsError > 0
+                                        ? 'มี Error - ตรวจสอบ Webhook URL'
+                                        : 'ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)'}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">
+                                    โหมด: {rateLimitTestResult.mode === 'real_webhook' ? 'Webhook จริง' : 'จำลอง'}
+                                    {rateLimitTestResult.targetAccount && ` | Account: ${rateLimitTestResult.targetAccount.name}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant={rateLimitTestResult.requestsBlocked > 0 ? 'success' : 'warning'}>
+                                {rateLimitTestResult.preset?.toUpperCase() || 'CUSTOM'}
+                              </Badge>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                               <div className="text-center p-3 bg-blue-500/10 rounded-xl">
                                 <p className="text-xl font-black text-blue-400">{rateLimitTestResult.requestsSent}</p>
                                 <p className="text-[10px] text-slate-500">ส่งทั้งหมด</p>
@@ -1004,17 +1167,79 @@ export default function SettingsPage() {
                                 <p className="text-xl font-black text-rose-400">{rateLimitTestResult.requestsBlocked}</p>
                                 <p className="text-[10px] text-slate-500">ถูกบล็อก</p>
                               </div>
+                              {rateLimitTestResult.requestsError !== undefined && (
+                                <div className="text-center p-3 bg-orange-500/10 rounded-xl">
+                                  <p className="text-xl font-black text-orange-400">{rateLimitTestResult.requestsError}</p>
+                                  <p className="text-[10px] text-slate-500">Error</p>
+                                </div>
+                              )}
                               <div className="text-center p-3 bg-amber-500/10 rounded-xl">
                                 <p className="text-xl font-black text-amber-400">{rateLimitTestResult.blockRate?.toFixed(1)}%</p>
                                 <p className="text-[10px] text-slate-500">อัตราบล็อก</p>
                               </div>
                             </div>
 
-                            {rateLimitTestResult.averageResponseTime && (
-                              <p className="text-xs text-slate-500 mt-4 text-center">
-                                เวลาตอบสนองเฉลี่ย: {rateLimitTestResult.averageResponseTime.toFixed(2)}ms
-                              </p>
-                            )}
+                            {/* Detailed Info */}
+                            <div className="p-3 rounded-xl bg-slate-500/10 text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">การตั้งค่า Per Account/s:</span>
+                                <span className="text-white font-bold">{rateLimitSettings.webhookRateLimitPerAccountPerSecond}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">ยิงไปทั้งหมด:</span>
+                                <span className="text-white font-bold">{rateLimitTestResult.requestsSent} requests</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">ควรถูกบล็อกอย่างน้อย:</span>
+                                <span className="text-white font-bold">
+                                  {Math.max(0, rateLimitTestResult.requestsSent - rateLimitSettings.webhookRateLimitPerAccountPerSecond)} requests
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">ถูกบล็อกจริง:</span>
+                                <span className={cn(
+                                  'font-bold',
+                                  rateLimitTestResult.requestsBlocked >= Math.max(0, rateLimitTestResult.requestsSent - rateLimitSettings.webhookRateLimitPerAccountPerSecond)
+                                    ? 'text-emerald-400'
+                                    : 'text-amber-400'
+                                )}>
+                                  {rateLimitTestResult.requestsBlocked} requests
+                                  {rateLimitTestResult.requestsBlocked >= Math.max(0, rateLimitTestResult.requestsSent - rateLimitSettings.webhookRateLimitPerAccountPerSecond)
+                                    ? ' ✅'
+                                    : ' ⚠️'
+                                  }
+                                </span>
+                              </div>
+                              {rateLimitTestResult.averageResponseTime && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">เวลาตอบสนองเฉลี่ย:</span>
+                                  <span className="text-white font-bold">{rateLimitTestResult.averageResponseTime.toFixed(2)}ms</span>
+                                </div>
+                              )}
+                              {rateLimitTestResult.duration && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">เวลาทดสอบทั้งหมด:</span>
+                                  <span className="text-white font-bold">{rateLimitTestResult.duration}ms</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Verdict */}
+                            <div className={cn(
+                              'mt-4 p-3 rounded-xl text-center text-sm font-bold',
+                              rateLimitTestResult.requestsBlocked > 0
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : rateLimitTestResult.requestsError > 0
+                                  ? 'bg-orange-500/20 text-orange-400'
+                                  : 'bg-amber-500/20 text-amber-400'
+                            )}>
+                              {rateLimitTestResult.requestsBlocked > 0
+                                ? `🛡️ ระบบป้องกัน DDoS ทำงานได้ดี! บล็อกได้ ${rateLimitTestResult.requestsBlocked} requests`
+                                : rateLimitTestResult.requestsError > 0
+                                  ? `⚠️ มี ${rateLimitTestResult.requestsError} requests error - ตรวจสอบการเชื่อมต่อ`
+                                  : `ℹ️ ยังไม่เกิน limit (${rateLimitSettings.webhookRateLimitPerAccountPerSecond}/s) - ลองเพิ่มความหนักการทดสอบ`
+                              }
+                            </div>
                           </motion.div>
                         )}
 

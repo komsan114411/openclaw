@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import { RedisService, RateLimitResult } from '../../redis/redis.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
@@ -25,17 +27,26 @@ export interface RateLimitStats {
 
 export interface RateLimitTestResult {
   success: boolean;
+  testMode: 'simulation' | 'real_webhook';
+  targetAccount?: {
+    id: string;
+    name: string;
+    webhookSlug: string;
+  };
   requestsSent: number;
   requestsBlocked: number;
   requestsAllowed: number;
+  requestsError: number;
   blockRate: number;
   averageResponseTime: number;
   logs: {
     requestNumber: number;
-    allowed: boolean;
+    status: 'allowed' | 'blocked' | 'error';
+    statusCode?: number;
     responseTime: number;
-    remaining: number;
+    remaining?: number;
     retryAfter?: number;
+    errorMessage?: string;
   }[];
   config: {
     perIpPerSecond: number;
@@ -65,6 +76,7 @@ export class RateLimitService {
     private rateLimitLogModel: Model<RateLimitLogDocument>,
     private redisService: RedisService,
     private systemSettingsService: SystemSettingsService,
+    private configService: ConfigService,
   ) {
     // Reset metrics every hour and log summary
     setInterval(() => {
@@ -249,10 +261,9 @@ export class RateLimitService {
   }
 
   /**
-   * Run rate limit test from admin panel
-   * Simulates multiple requests to test rate limiting
+   * Run rate limit test - simulation mode (Redis only)
    */
-  async runTest(options: {
+  async runSimulationTest(options: {
     testType: 'per_ip' | 'per_account' | 'global';
     requestCount: number;
     delayMs?: number;
@@ -279,7 +290,7 @@ export class RateLimitService {
     let requestsAllowed = 0;
     let totalResponseTime = 0;
 
-    this.logger.log(`[RATE LIMIT TEST] Starting test: ${options.testType}, ${options.requestCount} requests`);
+    this.logger.log(`[RATE LIMIT TEST] Starting simulation test: ${options.testType}, ${options.requestCount} requests`);
 
     for (let i = 0; i < options.requestCount; i++) {
       const startTime = Date.now();
@@ -326,7 +337,7 @@ export class RateLimitService {
 
       logs.push({
         requestNumber: i + 1,
-        allowed: result.allowed,
+        status: result.allowed ? 'allowed' : 'blocked',
         responseTime,
         remaining: result.remaining,
         retryAfter: result.retryAfter,
@@ -339,13 +350,13 @@ export class RateLimitService {
         {
           clientIp: testIp,
           accountSlug: testAccount,
-          endpoint: '/test',
+          endpoint: '/test/simulation',
           requestCount: result.current,
           limit: result.limit,
           retryAfter: result.retryAfter,
           resetAt: new Date(result.resetAt),
           isTest: true,
-          metadata: { testType: options.testType, requestNumber: i + 1 },
+          metadata: { testType: options.testType, requestNumber: i + 1, mode: 'simulation' },
         },
       );
 
@@ -357,9 +368,11 @@ export class RateLimitService {
 
     const testResult: RateLimitTestResult = {
       success: true,
+      testMode: 'simulation',
       requestsSent: options.requestCount,
       requestsBlocked,
       requestsAllowed,
+      requestsError: 0,
       blockRate: (requestsBlocked / options.requestCount) * 100,
       averageResponseTime: totalResponseTime / options.requestCount,
       logs,
@@ -367,11 +380,194 @@ export class RateLimitService {
     };
 
     this.logger.log(
-      `[RATE LIMIT TEST] Complete: ${requestsAllowed} allowed, ${requestsBlocked} blocked ` +
+      `[RATE LIMIT TEST] Simulation complete: ${requestsAllowed} allowed, ${requestsBlocked} blocked ` +
       `(${testResult.blockRate.toFixed(1)}% block rate)`,
     );
 
     return testResult;
+  }
+
+  /**
+   * Run rate limit test - real webhook mode (HTTP requests to actual webhook)
+   */
+  async runRealWebhookTest(options: {
+    webhookSlug: string;
+    accountName: string;
+    accountId: string;
+    requestCount: number;
+    delayMs?: number;
+  }): Promise<RateLimitTestResult> {
+    const settings = await this.systemSettingsService.getSettings();
+    const delayMs = options.delayMs || 0;
+
+    // Get base URL
+    const baseUrl = settings?.publicBaseUrl || this.configService.get('PUBLIC_BASE_URL') || 'http://localhost:3000';
+    const webhookUrl = `${baseUrl}/webhook/${options.webhookSlug}`;
+
+    // Get current config
+    const config = {
+      perIpPerSecond: Math.max(5, Math.floor((settings?.webhookRateLimitPerAccountPerSecond || 10) / 2)),
+      perIpPerMinute: Math.max(30, Math.floor((settings?.webhookRateLimitPerAccountPerMinute || 100) / 2)),
+      perAccountPerSecond: settings?.webhookRateLimitPerAccountPerSecond || 10,
+      perAccountPerMinute: settings?.webhookRateLimitPerAccountPerMinute || 100,
+      globalPerSecond: settings?.webhookRateLimitGlobalPerSecond || 100,
+      globalPerMinute: settings?.webhookRateLimitGlobalPerMinute || 1000,
+    };
+
+    const logs: RateLimitTestResult['logs'] = [];
+    let requestsBlocked = 0;
+    let requestsAllowed = 0;
+    let requestsError = 0;
+    let totalResponseTime = 0;
+
+    this.logger.log(`[RATE LIMIT TEST] Starting REAL webhook test to: ${webhookUrl}`);
+    this.logger.log(`[RATE LIMIT TEST] Account: ${options.accountName}, Requests: ${options.requestCount}`);
+
+    // Create a fake LINE webhook event for testing
+    const fakeLineEvent = {
+      destination: 'test-destination',
+      events: [
+        {
+          type: 'message',
+          message: {
+            type: 'text',
+            id: `test-${Date.now()}`,
+            text: '[RATE LIMIT TEST] This is a test message',
+          },
+          timestamp: Date.now(),
+          source: {
+            type: 'user',
+            userId: `test-user-${Date.now()}`,
+          },
+          replyToken: 'test-reply-token',
+          mode: 'active',
+        },
+      ],
+    };
+
+    for (let i = 0; i < options.requestCount; i++) {
+      const startTime = Date.now();
+      let status: 'allowed' | 'blocked' | 'error' = 'allowed';
+      let statusCode: number | undefined;
+      let errorMessage: string | undefined;
+      let retryAfter: number | undefined;
+
+      try {
+        const response = await axios.post(webhookUrl, fakeLineEvent, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Line-Signature': 'test-signature-for-rate-limit-test',
+            'User-Agent': 'RateLimitTest/1.0',
+            'X-Test-Request': 'true',
+          },
+          timeout: 10000,
+          validateStatus: () => true, // Don't throw on any status code
+        });
+
+        statusCode = response.status;
+
+        if (statusCode === 429) {
+          // Rate limited
+          status = 'blocked';
+          requestsBlocked++;
+          retryAfter = parseInt(response.headers['retry-after'] || '1', 10);
+        } else if (statusCode >= 200 && statusCode < 300) {
+          // Success (or signature validation failed, which is expected)
+          status = 'allowed';
+          requestsAllowed++;
+        } else if (statusCode === 401 || statusCode === 403) {
+          // Signature validation failed - this is expected, but request passed rate limit
+          status = 'allowed';
+          requestsAllowed++;
+        } else {
+          // Other error
+          status = 'error';
+          requestsError++;
+          errorMessage = `HTTP ${statusCode}`;
+        }
+      } catch (error: any) {
+        status = 'error';
+        requestsError++;
+        errorMessage = error.message || 'Unknown error';
+      }
+
+      const responseTime = Date.now() - startTime;
+      totalResponseTime += responseTime;
+
+      logs.push({
+        requestNumber: i + 1,
+        status,
+        statusCode,
+        responseTime,
+        retryAfter,
+        errorMessage,
+      });
+
+      // Log to database
+      await this.logRateLimitEvent(
+        RateLimitType.PER_ACCOUNT,
+        status === 'blocked' ? RateLimitAction.BLOCKED : RateLimitAction.ALLOWED,
+        {
+          clientIp: 'test-client',
+          accountSlug: options.webhookSlug,
+          endpoint: webhookUrl,
+          requestCount: i + 1,
+          limit: config.perAccountPerSecond,
+          retryAfter,
+          isTest: true,
+          metadata: {
+            mode: 'real_webhook',
+            accountId: options.accountId,
+            accountName: options.accountName,
+            statusCode,
+            requestNumber: i + 1,
+          },
+        },
+      );
+
+      // Add delay between requests if specified
+      if (delayMs > 0 && i < options.requestCount - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    const testResult: RateLimitTestResult = {
+      success: true,
+      testMode: 'real_webhook',
+      targetAccount: {
+        id: options.accountId,
+        name: options.accountName,
+        webhookSlug: options.webhookSlug,
+      },
+      requestsSent: options.requestCount,
+      requestsBlocked,
+      requestsAllowed,
+      requestsError,
+      blockRate: options.requestCount > 0 ? (requestsBlocked / options.requestCount) * 100 : 0,
+      averageResponseTime: options.requestCount > 0 ? totalResponseTime / options.requestCount : 0,
+      logs,
+      config,
+    };
+
+    this.logger.log(
+      `[RATE LIMIT TEST] Real webhook test complete: ${requestsAllowed} allowed, ${requestsBlocked} blocked, ${requestsError} errors ` +
+      `(${testResult.blockRate.toFixed(1)}% block rate)`,
+    );
+
+    return testResult;
+  }
+
+  /**
+   * Run rate limit test from admin panel (backward compatible)
+   */
+  async runTest(options: {
+    testType: 'per_ip' | 'per_account' | 'global';
+    requestCount: number;
+    delayMs?: number;
+    testIp?: string;
+    testAccount?: string;
+  }): Promise<RateLimitTestResult> {
+    return this.runSimulationTest(options);
   }
 
   /**
