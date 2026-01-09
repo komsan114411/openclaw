@@ -3,22 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, subscriptionsApi, paymentsApi, activityLogsApi } from '@/lib/api';
-import { LineAccount, QuotaInfo, Payment } from '@/types';
+import { lineAccountsApi, subscriptionsApi } from '@/lib/api';
+import { LineAccount, QuotaInfo } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { SectionHeader, StatCardMini } from '@/components/ui';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 
-interface ActivityLog {
-  _id: string;
-  action: string;
-  message: string;
-  createdAt: string;
-  entityType?: string;
-}
 
 interface Subscription {
   _id: string;
@@ -33,25 +26,20 @@ export default function UserDashboard() {
   const [lineAccounts, setLineAccounts] = useState<LineAccount[]>([]);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [accountsRes, quotaRes, paymentsRes, logsRes, subRes] = await Promise.all([
+        const [accountsRes, quotaRes, subRes] = await Promise.all([
           lineAccountsApi.getMyAccounts(),
           subscriptionsApi.getQuota(),
-          paymentsApi.getMy(),
-          activityLogsApi.getMy(5).catch(() => ({ data: { logs: [] } })),
           subscriptionsApi.getMy().catch(() => ({ data: { subscription: null } })),
         ]);
 
         setLineAccounts(accountsRes.data.accounts || []);
         setQuota(quotaRes.data.quota || null);
-        setRecentPayments(paymentsRes.data.payments?.slice(0, 5) || []);
-        setActivityLogs(logsRes.data.logs || []);
         setSubscription(subRes.data.subscription || null);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -64,7 +52,6 @@ export default function UserDashboard() {
   }, []);
 
   const totalMessages = lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0);
-  const pendingPayments = recentPayments.filter((p) => p.status === 'pending').length;
 
   // Calculate quota percentage
   const quotaPercentage = subscription
@@ -80,24 +67,6 @@ export default function UserDashboard() {
     });
   };
 
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('th-TH', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // Get action icon
-  const getActionIcon = (action: string) => {
-    if (action.includes('login')) return '🔑';
-    if (action.includes('payment')) return '💳';
-    if (action.includes('slip')) return '📄';
-    if (action.includes('package')) return '📦';
-    if (action.includes('account')) return '👤';
-    return '📋';
-  };
 
   if (isLoading) {
     return (
@@ -132,7 +101,7 @@ export default function UserDashboard() {
         />
 
         {/* QUICK STATS - Real Data Only */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mt-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mt-6">
           <StatCardMini
             icon="💬"
             value={lineAccounts.length}
@@ -140,14 +109,7 @@ export default function UserDashboard() {
             badgeText={lineAccounts.length > 0 ? 'ใช้งานอยู่' : undefined}
             badgeVariant="success"
           />
-          <StatCardMini
-            icon="📄"
-            value={pendingPayments}
-            label="สลิปรอตรวจ"
-            color={pendingPayments > 0 ? 'amber' : undefined}
-            badgeText={pendingPayments > 0 ? 'รอดำเนินการ' : undefined}
-            badgeVariant="warning"
-          />
+
           <StatCardMini
             icon="📊"
             value={subscription?.remainingQuota?.toLocaleString() || '0'}
@@ -311,97 +273,8 @@ export default function UserDashboard() {
             </Card>
           </div>
 
-          {/* RIGHT COLUMN - Activity & Payments */}
+          {/* RIGHT COLUMN - Quick Actions Only */}
           <div className="space-y-4 sm:space-y-6">
-
-            {/* Recent Payments */}
-            <Card className="bg-slate-950 border border-white/5" variant="glass">
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-white">การชำระเงินล่าสุด</h3>
-                  <Link href="/user/payments">
-                    <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
-                      ดูทั้งหมด →
-                    </Button>
-                  </Link>
-                </div>
-
-                {recentPayments.length > 0 ? (
-                  <div className="space-y-3">
-                    {recentPayments.slice(0, 4).map((payment) => (
-                      <div
-                        key={payment._id}
-                        className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5"
-                      >
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                          payment.status === 'verified' ? 'bg-emerald-500/10' :
-                          payment.status === 'pending' ? 'bg-amber-500/10' : 'bg-rose-500/10'
-                        )}>
-                          <span className="text-sm">
-                            {payment.status === 'verified' ? '✅' : payment.status === 'pending' ? '⏳' : '❌'}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">
-                            ฿{payment.amount?.toLocaleString()}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {formatDateTime(payment.createdAt)}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={payment.status === 'verified' ? 'success' : payment.status === 'pending' ? 'warning' : 'error'}
-                          size="sm"
-                        >
-                          {payment.status === 'verified' ? 'อนุมัติ' : payment.status === 'pending' ? 'รอตรวจ' : 'ปฏิเสธ'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-slate-400">ยังไม่มีรายการชำระเงิน</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card className="bg-slate-950 border border-white/5" variant="glass">
-              <div className="p-4 sm:p-6">
-                <h3 className="text-lg font-bold text-white mb-4">กิจกรรมล่าสุด</h3>
-
-                {activityLogs.length > 0 ? (
-                  <div className="space-y-3">
-                    {activityLogs.map((log) => (
-                      <div
-                        key={log._id}
-                        className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5"
-                      >
-                        <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm">{getActionIcon(log.action)}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white line-clamp-2">{log.message}</p>
-                          <p className="text-[10px] text-slate-500 mt-1">
-                            {formatDateTime(log.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center mx-auto mb-2">
-                      <span className="text-xl">📋</span>
-                    </div>
-                    <p className="text-sm text-slate-400">ยังไม่มีกิจกรรม</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-
             {/* Quick Actions */}
             <Card className="bg-gradient-to-br from-[#06C755]/10 to-slate-950 border border-[#06C755]/20" variant="glass">
               <div className="p-4 sm:p-6">
@@ -419,18 +292,38 @@ export default function UserDashboard() {
                       <span className="text-xs font-semibold text-slate-300">จัดการบัญชี</span>
                     </div>
                   </Link>
-                  <Link href="/user/payments" className="block">
+                  <Link href="/user/wallet" className="block">
                     <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/[0.06] transition-colors text-center">
-                      <span className="text-2xl block mb-2">💳</span>
-                      <span className="text-xs font-semibold text-slate-300">ประวัติชำระ</span>
+                      <span className="text-2xl block mb-2">💵</span>
+                      <span className="text-xs font-semibold text-slate-300">เติมเครดิต</span>
                     </div>
                   </Link>
-                  <Link href="/user/settings" className="block">
+                  <Link href="/user/templates" className="block">
                     <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/[0.06] transition-colors text-center">
-                      <span className="text-2xl block mb-2">⚙️</span>
-                      <span className="text-xs font-semibold text-slate-300">ตั้งค่า</span>
+                      <span className="text-2xl block mb-2">📝</span>
+                      <span className="text-xs font-semibold text-slate-300">เทมเพลต</span>
                     </div>
                   </Link>
+                </div>
+              </div>
+            </Card>
+
+            {/* Help Card */}
+            <Card className="bg-slate-950 border border-white/5" variant="glass">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-[#06C755]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-2xl">💡</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-white mb-1">ต้องการความช่วยเหลือ?</h4>
+                    <p className="text-xs text-slate-400 mb-3">ดูคู่มือการใช้งานหรือติดต่อทีมซัพพอร์ต</p>
+                    <Link href="/user/chat">
+                      <Button variant="outline" size="sm" className="text-xs">
+                        💬 แชทกับทีมงาน
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </Card>

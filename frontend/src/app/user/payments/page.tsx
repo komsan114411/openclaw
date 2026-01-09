@@ -3,30 +3,83 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { paymentsApi } from '@/lib/api';
+import { paymentsApi, walletApi } from '@/lib/api';
 import { Payment } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
+import { cn } from '@/lib/utils';
+
+interface WalletTransaction {
+  _id: string;
+  type: 'deposit' | 'purchase' | 'bonus' | 'refund' | 'adjustment';
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  status: 'pending' | 'completed' | 'rejected' | 'cancelled';
+  createdAt: string;
+  slipImage?: string;
+}
+
+interface UnifiedTransaction {
+  _id: string;
+  type: 'package' | 'deposit' | 'purchase' | 'bonus' | 'refund' | 'adjustment';
+  amount: number;
+  status: string;
+  description: string;
+  createdAt: string;
+  slipImageUrl?: string;
+  paymentType?: string;
+  source: 'payment' | 'wallet';
+}
 
 export default function UserPaymentsPage() {
-  // State
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [transactions, setTransactions] = useState<UnifiedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'deposit' | 'purchase'>('all');
 
-  // Fetch payment history - only show completed/approved payments
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const paymentsRes = await paymentsApi.getMy();
-      // Filter to show only successful payments (completed, approved, verified)
-      const successfulPayments = (paymentsRes.data.payments || []).filter(
-        (p: Payment) => ['completed', 'approved', 'verified'].includes(p.status)
+      const [paymentsRes, walletRes] = await Promise.all([
+        paymentsApi.getMy().catch(() => ({ data: { payments: [] } })),
+        walletApi.getTransactions(50).catch(() => ({ data: { transactions: [] } })),
+      ]);
+
+      // Convert payments to unified format
+      const packagePayments: UnifiedTransaction[] = (paymentsRes.data.payments || []).map((p: Payment) => ({
+        _id: p._id,
+        type: 'package' as const,
+        amount: p.amount,
+        status: p.status,
+        description: p.paymentType === 'usdt' ? 'ซื้อแพ็คเกจ (USDT)' : 'ซื้อแพ็คเกจ (โอนเงิน)',
+        createdAt: p.createdAt,
+        slipImageUrl: p.slipImageUrl,
+        paymentType: p.paymentType,
+        source: 'payment' as const,
+      }));
+
+      // Convert wallet transactions to unified format
+      const walletTransactions: UnifiedTransaction[] = (walletRes.data.transactions || walletRes.data || []).map((t: WalletTransaction) => ({
+        _id: t._id,
+        type: t.type,
+        amount: t.amount,
+        status: t.status,
+        description: t.description || getTypeLabel(t.type),
+        createdAt: t.createdAt,
+        slipImageUrl: t.slipImage,
+        source: 'wallet' as const,
+      }));
+
+      // Combine and sort by date (newest first)
+      const combined = [...packagePayments, ...walletTransactions].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      setPayments(successfulPayments);
+
+      setTransactions(combined);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('ไม่สามารถโหลดข้อมูลได้');
@@ -39,7 +92,30 @@ export default function UserPaymentsPage() {
     fetchData();
   }, [fetchData]);
 
-  // Format date
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      deposit: 'เติมเครดิต',
+      purchase: 'ซื้อแพ็คเกจ',
+      package: 'ซื้อแพ็คเกจ',
+      bonus: 'โบนัส',
+      refund: 'คืนเงิน',
+      adjustment: 'ปรับยอด',
+    };
+    return labels[type] || type;
+  };
+
+  const getTypeIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      deposit: '💵',
+      purchase: '🛒',
+      package: '📦',
+      bonus: '🎁',
+      refund: '↩️',
+      adjustment: '⚙️',
+    };
+    return icons[type] || '💰';
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('th-TH', {
       day: 'numeric',
@@ -50,20 +126,17 @@ export default function UserPaymentsPage() {
     });
   };
 
-  // Format currency
-  const formatAmount = (amount: number, type: string) => {
-    if (type === 'usdt') {
-      return `$${amount.toLocaleString()}`;
-    }
-    return `฿${amount.toLocaleString()}`;
+  const formatAmount = (amount: number, isPositive: boolean = true) => {
+    const prefix = isPositive ? '+' : '';
+    return `${prefix}฿${Math.abs(amount).toLocaleString()}`;
   };
 
-  // Status badge component - only for successful statuses
+  // Status badge component
   const StatusBadge = ({ status }: { status: string }) => {
     const config: Record<string, { label: string; className: string }> = {
-      completed: {
-        label: 'สำเร็จ',
-        className: 'bg-green-500/20 text-green-400 border-green-500/30',
+      pending: {
+        label: 'รอตรวจสอบ',
+        className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
       },
       verified: {
         label: 'สำเร็จ',
@@ -73,189 +146,202 @@ export default function UserPaymentsPage() {
         label: 'สำเร็จ',
         className: 'bg-green-500/20 text-green-400 border-green-500/30',
       },
+      completed: {
+        label: 'สำเร็จ',
+        className: 'bg-green-500/20 text-green-400 border-green-500/30',
+      },
+      rejected: {
+        label: 'ปฏิเสธ',
+        className: 'bg-red-500/20 text-red-400 border-red-500/30',
+      },
+      failed: {
+        label: 'ล้มเหลว',
+        className: 'bg-red-500/20 text-red-400 border-red-500/30',
+      },
+      cancelled: {
+        label: 'ยกเลิก',
+        className: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+      },
     };
 
-    const { label, className } = config[status] || { label: 'สำเร็จ', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
+    const { label, className } = config[status] || config.pending;
 
     return (
-      <span className={`px-3 py-1 text-xs font-semibold rounded-lg border ${className}`}>
+      <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border ${className}`}>
         {label}
       </span>
     );
   };
 
-  // Loading state
+  // Filter transactions
+  const filteredTransactions = transactions.filter((t) => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'deposit') return t.type === 'deposit' || t.type === 'bonus';
+    if (activeFilter === 'purchase') return t.type === 'package' || t.type === 'purchase';
+    return true;
+  });
+
+  // Calculate stats
+  const totalDeposits = transactions
+    .filter((t) => t.type === 'deposit' && (t.status === 'completed' || t.status === 'verified'))
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalPurchases = transactions
+    .filter((t) => (t.type === 'package' || t.type === 'purchase') && (t.status === 'completed' || t.status === 'verified' || t.status === 'approved'))
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const pendingCount = transactions.filter((t) => t.status === 'pending').length;
+
   if (isLoading) {
     return (
       <DashboardLayout>
-        <PageLoading message="กำลังโหลดประวัติการชำระเงิน..." />
+        <PageLoading message="กำลังโหลดประวัติธุรกรรม..." />
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-              ประวัติการชำระเงิน <span className="text-[#06C755]">(Payment History)</span>
+            <h1 className="text-2xl sm:text-3xl font-black text-white">
+              ประวัติ<span className="text-[#06C755]">ธุรกรรม</span>
             </h1>
+            <p className="text-sm text-slate-400 mt-1">รายการเติมเครดิตและซื้อแพ็คเกจ</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={fetchData}
               className="h-10 px-4 rounded-lg border-white/20"
             >
-              🔄 รีเฟรช
+              🔄
             </Button>
-            <Link href="/user/packages">
+            <Link href="/user/wallet">
               <Button
                 variant="primary"
                 className="h-10 px-4 rounded-lg bg-[#06C755] hover:bg-[#05a347]"
               >
-                💎 ซื้อแพ็คเกจ
+                💵 เติมเครดิต
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* Empty State */}
-        {payments.length === 0 ? (
+        {/* Stats Summary */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <Card variant="glass" className="p-4 border border-white/10 text-center">
+            <p className="text-[10px] text-slate-400 font-semibold mb-1">เติมสะสม</p>
+            <p className="text-lg sm:text-xl font-black text-emerald-400">฿{totalDeposits.toLocaleString()}</p>
+          </Card>
+          <Card variant="glass" className="p-4 border border-white/10 text-center">
+            <p className="text-[10px] text-slate-400 font-semibold mb-1">ใช้ไป</p>
+            <p className="text-lg sm:text-xl font-black text-rose-400">฿{totalPurchases.toLocaleString()}</p>
+          </Card>
+          <Card variant="glass" className="p-4 border border-white/10 text-center">
+            <p className="text-[10px] text-slate-400 font-semibold mb-1">รอดำเนินการ</p>
+            <p className="text-lg sm:text-xl font-black text-yellow-400">{pendingCount}</p>
+          </Card>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-6 p-1 bg-white/5 border border-white/10 rounded-xl w-fit">
+          {[
+            { key: 'all', label: 'ทั้งหมด' },
+            { key: 'deposit', label: '💵 เติมเครดิต' },
+            { key: 'purchase', label: '📦 ซื้อแพ็คเกจ' },
+          ].map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key as any)}
+              className={cn(
+                "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                activeFilter === filter.key
+                  ? "bg-[#06C755] text-white shadow-lg"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Transactions List */}
+        {filteredTransactions.length === 0 ? (
           <Card variant="glass" className="border border-white/10">
             <EmptyState
               icon="💸"
-              title="ยังไม่มีประวัติการชำระเงิน"
-              description="เมื่อคุณทำรายการซื้อแพ็คเกจ รายการจะปรากฏที่นี่"
+              title="ยังไม่มีรายการ"
+              description="เมื่อคุณทำรายการเติมเครดิตหรือซื้อแพ็คเกจ จะปรากฏที่นี่"
               variant="glass"
               action={
-                <Link href="/user/packages">
+                <Link href="/user/wallet">
                   <Button variant="primary" className="h-11 px-6 rounded-xl bg-[#06C755]">
-                    ไปหน้าแพ็คเกจ
+                    ไปหน้าเติมเครดิต
                   </Button>
                 </Link>
               }
             />
           </Card>
         ) : (
-          <>
-            {/* Desktop Table */}
-            <Card className="hidden md:block p-0 overflow-hidden rounded-xl border border-white/10" variant="glass">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-white/5 border-b border-white/10">
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        วันที่
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        แพ็คเกจ
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        จำนวนเงิน
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        สถานะ
-                      </th>
-                      <th className="px-6 py-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        สลิป
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {payments.map((payment) => (
-                      <tr key={payment._id} className="hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-white font-medium">
-                            {formatDate(payment.createdAt)}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-white font-medium">
-                            {payment.paymentType === 'usdt' ? 'USDT' : 'โอนเงิน'}
-                          </p>
-                          <p className="text-xs text-slate-500 font-mono">
-                            #{payment._id.slice(-8).toUpperCase()}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-lg font-black text-[#06C755]">
-                            {formatAmount(payment.amount, payment.paymentType)}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={payment.status} />
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {payment.slipImageUrl ? (
-                            <button
-                              onClick={() => setSelectedSlip(payment.slipImageUrl!)}
-                              className="px-3 py-1.5 text-xs font-semibold text-[#06C755] bg-[#06C755]/10 hover:bg-[#06C755]/20 rounded-lg border border-[#06C755]/30 transition-all"
-                            >
-                              📄 ดูสลิป
-                            </button>
-                          ) : (
-                            <span className="text-slate-500 text-xs">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+          <div className="space-y-3">
+            {filteredTransactions.map((tx) => {
+              const isPositive = tx.type === 'deposit' || tx.type === 'bonus' || tx.type === 'refund';
 
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-4">
-              {payments.map((payment) => (
+              return (
                 <Card
-                  key={payment._id}
+                  key={`${tx.source}-${tx._id}`}
                   variant="glass"
-                  className="p-4 border border-white/10 rounded-xl"
+                  className="p-4 border border-white/10 rounded-xl hover:bg-white/[0.02] transition-colors"
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-lg font-black text-[#06C755]">
-                        {formatAmount(payment.amount, payment.paymentType)}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {formatDate(payment.createdAt)}
-                      </p>
+                  <div className="flex items-center gap-4">
+                    {/* Icon */}
+                    <div className={cn(
+                      "w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0",
+                      isPositive ? "bg-emerald-500/10" : "bg-slate-500/10"
+                    )}>
+                      <span className="text-xl">{getTypeIcon(tx.type)}</span>
                     </div>
-                    <StatusBadge status={payment.status} />
-                  </div>
 
-                  <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                    <div>
-                      <p className="text-sm text-white font-medium">
-                        {payment.paymentType === 'usdt' ? 'USDT' : 'โอนเงิน'}
-                      </p>
-                      <p className="text-xs text-slate-500 font-mono">
-                        #{payment._id.slice(-8).toUpperCase()}
-                      </p>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-bold text-white truncate">{tx.description}</p>
+                        <StatusBadge status={tx.status} />
+                      </div>
+                      <p className="text-xs text-slate-500">{formatDate(tx.createdAt)}</p>
                     </div>
-                    {payment.slipImageUrl && (
-                      <button
-                        onClick={() => setSelectedSlip(payment.slipImageUrl!)}
-                        className="px-3 py-1.5 text-xs font-semibold text-[#06C755] bg-[#06C755]/10 hover:bg-[#06C755]/20 rounded-lg border border-[#06C755]/30 transition-all"
-                      >
-                        📄 ดูสลิป
-                      </button>
-                    )}
+
+                    {/* Amount & Actions */}
+                    <div className="text-right flex items-center gap-3">
+                      <p className={cn(
+                        "text-lg font-black",
+                        isPositive ? "text-emerald-400" : "text-white"
+                      )}>
+                        {formatAmount(tx.amount, isPositive)}
+                      </p>
+                      {tx.slipImageUrl && (
+                        <button
+                          onClick={() => setSelectedSlip(tx.slipImageUrl!)}
+                          className="p-2 text-slate-400 hover:text-[#06C755] hover:bg-[#06C755]/10 rounded-lg transition-colors"
+                          title="ดูสลิป"
+                        >
+                          📄
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </Card>
-              ))}
-            </div>
+              );
+            })}
 
             {/* Summary */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-slate-500">
-                แสดง {payments.length} รายการ
+            <div className="mt-4 text-center">
+              <p className="text-xs text-slate-500">
+                แสดง {filteredTransactions.length} รายการ
               </p>
             </div>
-          </>
+          </div>
         )}
       </div>
 
