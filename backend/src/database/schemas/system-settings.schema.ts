@@ -211,6 +211,30 @@ export class SystemSettings {
   @Prop({ default: 'Too many requests, please try again later' })
   webhookRateLimitMessage: string;
 
+  // ===============================
+  // Quota Reservation Cleanup Settings
+  // ===============================
+
+  /**
+   * Enable automatic cleanup of stale quota reservations
+   */
+  @Prop({ default: true })
+  quotaReservationCleanupEnabled: boolean;
+
+  /**
+   * Maximum age in minutes for quota reservations before cleanup
+   * Default: 3 minutes (recommended: 2-3 minutes)
+   */
+  @Prop({ default: 3 })
+  quotaReservationTimeoutMinutes: number;
+
+  /**
+   * How often to run the cleanup job in minutes
+   * Default: 1 minute
+   */
+  @Prop({ default: 1 })
+  quotaReservationCleanupIntervalMinutes: number;
+
   @Prop()
   updatedBy: string;
 }

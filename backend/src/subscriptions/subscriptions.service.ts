@@ -371,9 +371,11 @@ export class SubscriptionsService {
   /**
    * Reserve quota atomically to prevent race conditions
    * Uses findOneAndUpdate with conditions to ensure atomic check-and-reserve
+   * Now includes reservedAt timestamp for stale reservation cleanup
    */
   async reserveQuota(userId: string, amount = 1): Promise<string | null> {
     // Atomic operation: check quota availability and reserve in one operation
+    // Also set reservedAt timestamp for cleanup job to track stale reservations
     const result = await this.subscriptionModel.findOneAndUpdate(
       {
         userId,
@@ -384,6 +386,7 @@ export class SubscriptionsService {
       },
       {
         $inc: { slipsReserved: amount },
+        $set: { reservedAt: new Date() }, // Track when reservation was made
       },
       { new: true },
     );
@@ -399,6 +402,7 @@ export class SubscriptionsService {
 
   /**
    * Confirm reservation: move from reserved to used atomically
+   * Clears reservedAt when no more reservations remain
    */
   async confirmReservation(subscriptionId: string, amount = 1): Promise<boolean> {
     if (!this.isValidObjectId(subscriptionId)) {
@@ -407,17 +411,28 @@ export class SubscriptionsService {
     }
 
     // Atomic operation: decrement reserved and increment used
+    // Use aggregation pipeline to conditionally clear reservedAt when slipsReserved becomes 0
     const result = await this.subscriptionModel.findOneAndUpdate(
       {
         _id: subscriptionId,
         slipsReserved: { $gte: amount }, // Ensure we have enough reserved
       },
-      {
-        $inc: {
-          slipsReserved: -amount,
-          slipsUsed: amount,
+      [
+        {
+          $set: {
+            slipsReserved: { $subtract: ['$slipsReserved', amount] },
+            slipsUsed: { $add: ['$slipsUsed', amount] },
+            // Clear reservedAt if no more reservations remain
+            reservedAt: {
+              $cond: {
+                if: { $lte: [{ $subtract: ['$slipsReserved', amount] }, 0] },
+                then: null,
+                else: '$reservedAt',
+              },
+            },
+          },
         },
-      },
+      ],
       { new: true },
     );
 
@@ -432,6 +447,7 @@ export class SubscriptionsService {
 
   /**
    * Rollback reservation: release reserved quota atomically
+   * Clears reservedAt when no more reservations remain
    */
   async rollbackReservation(subscriptionId: string, amount = 1): Promise<boolean> {
     if (!this.isValidObjectId(subscriptionId)) {
@@ -440,14 +456,27 @@ export class SubscriptionsService {
     }
 
     // Atomic operation: decrement reserved
+    // Use aggregation pipeline to conditionally clear reservedAt when slipsReserved becomes 0
     const result = await this.subscriptionModel.findOneAndUpdate(
       {
         _id: subscriptionId,
         slipsReserved: { $gte: amount }, // Ensure we have enough reserved to rollback
       },
-      {
-        $inc: { slipsReserved: -amount },
-      },
+      [
+        {
+          $set: {
+            slipsReserved: { $subtract: ['$slipsReserved', amount] },
+            // Clear reservedAt if no more reservations remain
+            reservedAt: {
+              $cond: {
+                if: { $lte: [{ $subtract: ['$slipsReserved', amount] }, 0] },
+                then: null,
+                else: '$reservedAt',
+              },
+            },
+          },
+        },
+      ],
       { new: true },
     );
 
@@ -544,36 +573,60 @@ export class SubscriptionsService {
   }
 
   /**
-   * Cleanup stale reservations that have been pending too long (e.g., > 10 minutes)
+   * Cleanup stale reservations that have been pending too long
    * This handles cases where the process crashed before confirming/rolling back
+   * 
+   * @param maxAgeMinutes - Maximum age in minutes for reservations (default: 3 minutes)
+   * @returns Number of subscriptions that had their reservations cleaned up
    */
-  async cleanupStaleReservations(maxAgeMinutes = 10): Promise<number> {
-    // NOTE:
-    // We currently do NOT store a "reservedAt" timestamp, so we cannot reliably know the age
-    // of each reservation. To avoid accidentally releasing legitimate in-flight reservations,
-    // we keep this cleanup as a NO-OP unless maxAgeMinutes is explicitly set to 0.
-    //
-    // If you need real stale cleanup, add a reservation timestamp field (or a separate
-    // reservation collection) and filter by that timestamp.
-    if (maxAgeMinutes !== 0) {
-      this.logger.debug(
-        `cleanupStaleReservations skipped: no reservation timestamp available (maxAgeMinutes=${maxAgeMinutes})`,
+  async cleanupStaleReservations(maxAgeMinutes = 3): Promise<number> {
+    // Calculate the cutoff time
+    const cutoffTime = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
+
+    // Find and clean up stale reservations using reservedAt timestamp
+    const result = await this.subscriptionModel.updateMany(
+      {
+        slipsReserved: { $gt: 0 },
+        status: SubscriptionStatus.ACTIVE,
+        reservedAt: { $lt: cutoffTime }, // Only cleanup reservations older than cutoff
+      },
+      {
+        $set: { 
+          slipsReserved: 0,
+          reservedAt: null,
+        },
+      },
+    );
+
+    if (result.modifiedCount > 0) {
+      this.logger.warn(
+        `Cleaned up ${result.modifiedCount} stale reservations (older than ${maxAgeMinutes} minutes)`,
       );
-      return 0;
     }
 
+    return result.modifiedCount;
+  }
+
+  /**
+   * Force cleanup all reservations (emergency use only)
+   * Use with caution - this will release ALL pending reservations
+   */
+  async forceCleanupAllReservations(): Promise<number> {
     const result = await this.subscriptionModel.updateMany(
       {
         slipsReserved: { $gt: 0 },
         status: SubscriptionStatus.ACTIVE,
       },
       {
-        $set: { slipsReserved: 0 },
+        $set: { 
+          slipsReserved: 0,
+          reservedAt: null,
+        },
       },
     );
 
     if (result.modifiedCount > 0) {
-      this.logger.log(`Force-cleaned ${result.modifiedCount} reservations (maxAgeMinutes=0)`);
+      this.logger.warn(`Force-cleaned ALL ${result.modifiedCount} reservations`);
     }
 
     return result.modifiedCount;

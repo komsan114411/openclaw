@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { PaymentsService } from '../payments/payments.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { Session, SessionDocument } from '../database/schemas/session.schema';
 import { QuotaReservation, QuotaReservationDocument, QuotaReservationStatus } from '../database/schemas/quota-reservation.schema';
 import { RedisService } from '../redis/redis.service';
@@ -20,6 +21,8 @@ export class TasksService {
     private subscriptionsService: SubscriptionsService,
     @Inject(forwardRef(() => PaymentsService))
     private paymentsService: PaymentsService,
+    @Inject(forwardRef(() => SystemSettingsService))
+    private systemSettingsService: SystemSettingsService,
     private redisService: RedisService,
   ) {}
 
@@ -67,6 +70,42 @@ export class TasksService {
         return expiredCount;
       } catch (error) {
         this.logger.error('Failed to expire subscriptions:', error);
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Cleanup stale quota reservations every minute
+   * Uses configurable timeout from system settings (default: 3 minutes)
+   * This handles cases where slip verification process crashed or timed out
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleCleanupStaleReservations() {
+    await this.withTaskLock('cleanup_stale_reservations', async () => {
+      try {
+        // Get settings from database (with caching)
+        const settings = await this.systemSettingsService.getSettings();
+        
+        // Check if cleanup is enabled
+        if (!settings.quotaReservationCleanupEnabled) {
+          this.logger.debug('Stale reservation cleanup is disabled');
+          return 0;
+        }
+
+        // Get timeout from settings (default: 3 minutes)
+        const timeoutMinutes = settings.quotaReservationTimeoutMinutes || 3;
+        
+        // Cleanup stale reservations
+        const cleanedCount = await this.subscriptionsService.cleanupStaleReservations(timeoutMinutes);
+        
+        if (cleanedCount > 0) {
+          this.logger.log(`Cleaned up ${cleanedCount} stale reservations (timeout: ${timeoutMinutes} minutes)`);
+        }
+        
+        return cleanedCount;
+      } catch (error) {
+        this.logger.error('Failed to cleanup stale reservations:', error);
         throw error;
       }
     });
@@ -220,6 +259,7 @@ export class TasksService {
   async runCleanupNow(): Promise<{
     expiredSubscriptions: number;
     cleanedReservations: number;
+    staleReservations: number;
     expiredSessions: number;
     cancelledPayments: number;
   }> {
@@ -228,6 +268,7 @@ export class TasksService {
     const results = {
       expiredSubscriptions: 0,
       cleanedReservations: 0,
+      staleReservations: 0,
       expiredSessions: 0,
       cancelledPayments: 0,
     };
@@ -243,6 +284,15 @@ export class TasksService {
       results.cleanedReservations += await this.cleanupOrphanedQuotaReservations();
     } catch (error) {
       this.logger.error('Failed to cleanup reservations:', error);
+    }
+
+    try {
+      // Get timeout from settings
+      const settings = await this.systemSettingsService.getSettings();
+      const timeoutMinutes = settings.quotaReservationTimeoutMinutes || 3;
+      results.staleReservations = await this.subscriptionsService.cleanupStaleReservations(timeoutMinutes);
+    } catch (error) {
+      this.logger.error('Failed to cleanup stale reservations:', error);
     }
 
     try {
@@ -262,5 +312,14 @@ export class TasksService {
 
     this.logger.log('Manual cleanup complete:', results);
     return results;
+  }
+
+  /**
+   * Force cleanup all stale reservations (emergency use only)
+   * Use with caution - this will release ALL pending reservations
+   */
+  async forceCleanupAllReservations(): Promise<number> {
+    this.logger.warn('Force cleanup all reservations triggered');
+    return this.subscriptionsService.forceCleanupAllReservations();
   }
 }

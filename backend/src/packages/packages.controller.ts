@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PackagesService } from './packages.service';
@@ -21,6 +22,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { WalletService } from '../wallet/wallet.service';
+import { RedisService } from '../redis/redis.service';
 
 @ApiTags('Packages')
 @ApiBearerAuth()
@@ -29,6 +31,7 @@ export class PackagesController {
   constructor(
     private packagesService: PackagesService,
     private walletService: WalletService,
+    private redisService: RedisService,
   ) { }
 
   @Post()
@@ -101,6 +104,10 @@ export class PackagesController {
     };
   }
 
+  /**
+   * Purchase package with wallet credits
+   * Uses distributed lock to prevent race conditions when user clicks multiple times
+   */
   @Post(':id/purchase')
   @UseGuards(SessionAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -108,24 +115,44 @@ export class PackagesController {
   async purchaseWithCredits(@Param('id') id: string, @Request() req: any) {
     const userId = req.user.userId;
 
-    // Get package info
-    const pkg = await this.packagesService.findById(id);
-    if (!pkg) {
-      return { success: false, message: 'ไม่พบแพ็คเกจ' };
-    }
-    if (!pkg.isActive) {
-      return { success: false, message: 'แพ็คเกจนี้ปิดให้บริการแล้ว' };
+    // SECURITY: Use distributed lock to prevent race condition
+    // This ensures only one purchase request per user can be processed at a time
+    const lockKey = `purchase:${userId}`;
+    const lockToken = await this.redisService.acquireLock(lockKey, 30); // 30 second timeout
+
+    if (!lockToken) {
+      // Another purchase is already in progress for this user
+      throw new HttpException(
+        {
+          success: false,
+          message: 'มีรายการซื้อกำลังดำเนินการอยู่ กรุณารอสักครู่',
+        },
+        HttpStatus.CONFLICT,
+      );
     }
 
-    // Purchase with wallet credits
-    const result = await this.walletService.purchasePackage(
-      userId,
-      id,
-      pkg.name,
-      pkg.price,
-    );
+    try {
+      // Get package info
+      const pkg = await this.packagesService.findById(id);
+      if (!pkg) {
+        return { success: false, message: 'ไม่พบแพ็คเกจ' };
+      }
+      if (!pkg.isActive) {
+        return { success: false, message: 'แพ็คเกจนี้ปิดให้บริการแล้ว' };
+      }
 
-    return result;
+      // Purchase with wallet credits
+      const result = await this.walletService.purchasePackage(
+        userId,
+        id,
+        pkg.name,
+        pkg.price,
+      );
+
+      return result;
+    } finally {
+      // Always release the lock, even if an error occurred
+      await this.redisService.releaseLock(lockKey, lockToken);
+    }
   }
 }
-

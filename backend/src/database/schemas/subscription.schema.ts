@@ -35,6 +35,14 @@ export class Subscription {
   @Prop({ default: 0 })
   slipsReserved: number;
 
+  /**
+   * Timestamp when quota was last reserved.
+   * Used by cleanup job to release stale reservations.
+   * Updated every time slipsReserved is incremented.
+   */
+  @Prop()
+  reservedAt: Date;
+
   @Prop({ type: String, enum: SubscriptionStatus, default: SubscriptionStatus.ACTIVE })
   status: SubscriptionStatus;
 
@@ -53,3 +61,5 @@ SubscriptionSchema.index({ userId: 1, status: 1 });
 SubscriptionSchema.index({ endDate: 1 });
 // Index for fast lookup of processed payments
 SubscriptionSchema.index({ processedPaymentIds: 1 });
+// Index for cleanup job to find stale reservations
+SubscriptionSchema.index({ slipsReserved: 1, reservedAt: 1 });

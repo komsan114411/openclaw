@@ -647,14 +647,39 @@ export class LineWebhookController {
     }
   }
 
-  private timingSafeEqualBase64(a: string, b: string): boolean {
+  /**
+   * SECURITY: Timing-safe comparison for LINE signature verification
+   * Uses Node.js built-in crypto.timingSafeEqual to prevent timing attacks
+   * 
+   * @param signature - The signature from LINE webhook header (x-line-signature)
+   * @param expectedSignature - The computed HMAC-SHA256 signature
+   * @returns true if signatures match, false otherwise
+   */
+  private timingSafeEqualBase64(signature: string, expectedSignature: string): boolean {
     try {
-      if (!a || !b) return false;
-      const aBuf = Buffer.from(a, 'base64');
-      const bBuf = Buffer.from(b, 'base64');
-      if (aBuf.length !== bBuf.length) return false;
-      return crypto.timingSafeEqual(aBuf, bBuf);
-    } catch {
+      // Validate inputs
+      if (!signature || !expectedSignature) {
+        this.logger.warn('Signature verification failed: missing signature');
+        return false;
+      }
+
+      // Convert base64 strings to buffers
+      const signatureBuffer = Buffer.from(signature, 'base64');
+      const expectedSignatureBuffer = Buffer.from(expectedSignature, 'base64');
+
+      // SECURITY: Check length first (constant time)
+      // This is safe because length comparison doesn't leak timing information
+      if (signatureBuffer.length !== expectedSignatureBuffer.length) {
+        this.logger.warn('Signature verification failed: length mismatch');
+        return false;
+      }
+
+      // SECURITY: Use Node.js built-in crypto.timingSafeEqual
+      // This function is designed to prevent timing attacks by always taking
+      // the same amount of time regardless of where the difference is
+      return crypto.timingSafeEqual(signatureBuffer, expectedSignatureBuffer);
+    } catch (error) {
+      this.logger.error('Signature verification error:', error);
       return false;
     }
   }
