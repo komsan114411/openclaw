@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -19,7 +19,10 @@ interface RegisterForm {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { user, register: registerUser, isLoading, error, clearError } = useAuthStore();
+  const { user, isInitialized, register: registerUser, isLoading, error, clearError, checkAuth } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
+  const authCheckRef = useRef(false);
+  const redirectRef = useRef(false);
 
   const {
     register,
@@ -27,19 +30,46 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>();
 
+  // Handle hydration
   useEffect(() => {
-    if (user) {
-      if (user.forcePasswordChange) {
-        router.push('/change-password');
-      } else if (user.role === 'admin') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/user/dashboard');
-      }
+    setMounted(true);
+  }, []);
+
+  // Check auth on mount
+  useEffect(() => {
+    if (!mounted || authCheckRef.current) return;
+    
+    authCheckRef.current = true;
+    
+    if (!isInitialized) {
+      checkAuth();
     }
-  }, [user, router]);
+  }, [mounted, isInitialized, checkAuth]);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!mounted || !isInitialized || isLoading || redirectRef.current) return;
+    
+    if (user) {
+      redirectRef.current = true;
+      
+      const timer = setTimeout(() => {
+        if (user.forcePasswordChange) {
+          router.replace('/change-password');
+        } else if (user.role === 'admin') {
+          router.replace('/admin/dashboard');
+        } else {
+          router.replace('/user/dashboard');
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [mounted, user, isInitialized, isLoading, router]);
 
   const onSubmit = async (data: RegisterForm) => {
+    if (isLoading) return;
+    
     clearError();
     const success = await registerUser(data);
     if (success) {
@@ -49,6 +79,27 @@ export default function RegisterPage() {
       toast.error(latestError || 'สมัครสมาชิกไม่สำเร็จ');
     }
   };
+
+  // Show loading during hydration
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="h-16 w-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Show loading if checking auth or redirecting
+  if (!isInitialized || (user && !redirectRef.current)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="relative flex flex-col items-center">
+          <div className="h-16 w-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+          <p className="mt-4 text-slate-400 text-sm animate-pulse">กำลังตรวจสอบ...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden font-sans">
@@ -76,7 +127,8 @@ export default function RegisterPage() {
                 error={errors.username?.message}
                 autoComplete="username"
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl"
+                disabled={isLoading || isSubmitting}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
                 labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
               />
             </div>
@@ -93,7 +145,8 @@ export default function RegisterPage() {
                 error={errors.password?.message}
                 autoComplete="new-password"
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl"
+                disabled={isLoading || isSubmitting}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
                 labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
               />
             </div>
@@ -105,7 +158,8 @@ export default function RegisterPage() {
                 type="email"
                 {...register('email')}
                 autoComplete="email"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl"
+                disabled={isLoading || isSubmitting}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
                 labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
               />
             </div>
@@ -117,7 +171,8 @@ export default function RegisterPage() {
                 type="text"
                 {...register('fullName')}
                 autoComplete="name"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl"
+                disabled={isLoading || isSubmitting}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
                 labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
               />
             </div>
@@ -132,9 +187,10 @@ export default function RegisterPage() {
               type="submit"
               fullWidth
               size="lg"
-              className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl hover:scale-[1.02] transition-transform bg-gradient-to-r from-emerald-500 to-teal-600 border-none"
+              className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl hover:scale-[1.02] transition-transform bg-gradient-to-r from-emerald-500 to-teal-600 border-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               isLoading={isSubmitting || isLoading}
               loadingText="กำลังสร้างบัญชี..."
+              disabled={isSubmitting || isLoading}
             >
               ยืนยันการสมัคร
             </Button>
@@ -153,4 +209,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

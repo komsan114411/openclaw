@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -20,12 +20,17 @@ const MAX_LOGIN_ATTEMPTS = 5;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, isInitialized, login, isLoading, error, clearError, checkAuth } = useAuthStore();
+  const { user, isInitialized, login, isLoading, error, clearError, checkAuth, setInitialized } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  
+  // Refs to prevent duplicate operations
+  const authCheckRef = useRef(false);
+  const redirectRef = useRef(false);
 
   const {
     register,
@@ -35,91 +40,158 @@ export default function LoginPage() {
     setError: setFormError,
   } = useForm<LoginForm>({ mode: 'onBlur' });
 
+  // Handle hydration
   useEffect(() => {
-    const storedLockout = localStorage.getItem('login_lockout');
-    if (storedLockout) {
-      const lockoutEnd = parseInt(storedLockout, 10);
-      if (Date.now() < lockoutEnd) {
-        setIsLocked(true);
-        setLockoutTime(Math.ceil((lockoutEnd - Date.now()) / 1000));
-      } else {
-        localStorage.removeItem('login_lockout');
-        localStorage.removeItem('login_attempts');
-      }
-    }
-    const storedAttempts = localStorage.getItem('login_attempts');
-    if (storedAttempts) setLoginAttempts(parseInt(storedAttempts, 10));
+    setMounted(true);
   }, []);
 
+  // Load lockout state from localStorage
   useEffect(() => {
-    if (isLocked && lockoutTime > 0) {
-      const timer = setInterval(() => {
-        setLockoutTime((prev) => {
-          if (prev <= 1) {
-            setIsLocked(false);
+    if (!mounted) return;
+    
+    try {
+      const storedLockout = localStorage.getItem('login_lockout');
+      if (storedLockout) {
+        const lockoutEnd = parseInt(storedLockout, 10);
+        if (Date.now() < lockoutEnd) {
+          setIsLocked(true);
+          setLockoutTime(Math.ceil((lockoutEnd - Date.now()) / 1000));
+        } else {
+          localStorage.removeItem('login_lockout');
+          localStorage.removeItem('login_attempts');
+        }
+      }
+      const storedAttempts = localStorage.getItem('login_attempts');
+      if (storedAttempts) setLoginAttempts(parseInt(storedAttempts, 10));
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+  }, [mounted]);
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (!isLocked || lockoutTime <= 0) return;
+    
+    const timer = setInterval(() => {
+      setLockoutTime((prev) => {
+        if (prev <= 1) {
+          setIsLocked(false);
+          try {
             localStorage.removeItem('login_lockout');
             localStorage.removeItem('login_attempts');
-            setLoginAttempts(0);
-            return 0;
+          } catch (e) {
+            // Ignore localStorage errors
           }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
+          setLoginAttempts(0);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
   }, [isLocked, lockoutTime]);
 
-  // Check if already logged in on mount - only once
+  // Check auth status on mount - only once
   useEffect(() => {
-    // Only call checkAuth if not already initialized
-    if (!isInitialized) {
+    if (!mounted || authCheckRef.current) return;
+    
+    authCheckRef.current = true;
+    
+    // If already initialized, don't check again
+    if (isInitialized) return;
+    
+    // Check auth with a small delay to prevent race conditions
+    const timer = setTimeout(() => {
       checkAuth();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [mounted, isInitialized, checkAuth]);
 
+  // Redirect if already logged in
   useEffect(() => {
-    // Only redirect after initialization is complete and not loading
-    if (!isInitialized || isLoading) return;
-
+    if (!mounted || !isInitialized || isLoading || redirectRef.current) return;
+    
     if (user) {
-      if (user.forcePasswordChange) router.replace('/change-password');
-      else if (user.role === 'admin') router.replace('/admin/dashboard');
-      else router.replace('/user/dashboard');
+      redirectRef.current = true;
+      
+      // Small delay for smooth transition
+      const timer = setTimeout(() => {
+        if (user.forcePasswordChange) {
+          router.replace('/change-password');
+        } else if (user.role === 'admin') {
+          router.replace('/admin/dashboard');
+        } else {
+          router.replace('/user/dashboard');
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [user, isInitialized, isLoading, router]);
+  }, [mounted, user, isInitialized, isLoading, router]);
 
+  // Caps Lock detection
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     setCapsLockOn(e.getModifierState('CapsLock'));
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  }, [mounted, handleKeyDown]);
 
   const sanitizeInput = (value: string): string => value.trim().slice(0, MAX_USERNAME_LENGTH);
 
   const onSubmit = async (data: LoginForm) => {
-    if (isLocked) { toast.error('กรุณารอ ' + lockoutTime + ' วินาที'); return; }
+    if (isLocked) {
+      toast.error('กรุณารอ ' + lockoutTime + ' วินาที');
+      return;
+    }
+    
+    if (isLoading) {
+      return; // Prevent double submission
+    }
+    
     clearError();
     const sanitizedUsername = sanitizeInput(data.username);
     const sanitizedPassword = data.password.slice(0, MAX_PASSWORD_LENGTH);
-    if (!sanitizedUsername) { setFormError('username', { message: 'กรุณากรอกชื่อผู้ใช้' }); return; }
+    
+    if (!sanitizedUsername) {
+      setFormError('username', { message: 'กรุณากรอกชื่อผู้ใช้' });
+      return;
+    }
 
     const success = await login(sanitizedUsername, sanitizedPassword);
+    
     if (success) {
-      localStorage.removeItem('login_attempts');
-      localStorage.removeItem('login_lockout');
+      try {
+        localStorage.removeItem('login_attempts');
+        localStorage.removeItem('login_lockout');
+      } catch (e) {
+        // Ignore localStorage errors
+      }
       setLoginAttempts(0);
       toast.success('เข้าสู่ระบบสำเร็จ');
     } else {
       const newAttempts = loginAttempts + 1;
       setLoginAttempts(newAttempts);
-      localStorage.setItem('login_attempts', newAttempts.toString());
+      
+      try {
+        localStorage.setItem('login_attempts', newAttempts.toString());
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+      
       if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
         const lockoutEnd = Date.now() + 60000;
-        localStorage.setItem('login_lockout', lockoutEnd.toString());
+        try {
+          localStorage.setItem('login_lockout', lockoutEnd.toString());
+        } catch (e) {
+          // Ignore localStorage errors
+        }
         setIsLocked(true);
         setLockoutTime(60);
         toast.error('ล็อกอินผิดพลาดหลายครั้ง กรุณารอ 1 นาที');
@@ -133,6 +205,27 @@ export default function LoginPage() {
   };
 
   const remainingAttempts = MAX_LOGIN_ATTEMPTS - loginAttempts;
+
+  // Show loading state during hydration
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="h-16 w-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Show loading if checking auth or redirecting
+  if (!isInitialized || (user && !redirectRef.current)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="relative flex flex-col items-center">
+          <div className="h-16 w-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+          <p className="mt-4 text-slate-400 text-sm animate-pulse">กำลังตรวจสอบ...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">

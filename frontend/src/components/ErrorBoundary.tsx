@@ -11,29 +11,65 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  retryCount: number;
 }
+
+const MAX_AUTO_RETRY = 2;
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { 
+      hasError: false, 
+      error: null, 
+      errorInfo: null,
+      retryCount: 0
+    };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo });
-    // Log error to console in development
+    
+    // Log error to console
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
-    // TODO: Send error to logging service in production
-    // logErrorToService(error, errorInfo);
+    // Auto-retry for certain types of errors (network, chunk loading)
+    const isRetryableError = 
+      error.message.includes('Loading chunk') ||
+      error.message.includes('Network') ||
+      error.message.includes('fetch');
+    
+    if (isRetryableError && this.state.retryCount < MAX_AUTO_RETRY) {
+      setTimeout(() => {
+        this.setState(prev => ({
+          hasError: false,
+          error: null,
+          errorInfo: null,
+          retryCount: prev.retryCount + 1
+        }));
+      }, 1000 * (this.state.retryCount + 1)); // Exponential backoff
+    }
   }
 
   handleRetry = (): void => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+    this.setState({ 
+      hasError: false, 
+      error: null, 
+      errorInfo: null,
+      retryCount: 0
+    });
+  };
+
+  handleRefresh = (): void => {
+    window.location.reload();
+  };
+
+  handleGoHome = (): void => {
+    window.location.href = '/';
   };
 
   render(): ReactNode {
@@ -42,12 +78,14 @@ class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const isChunkError = this.state.error?.message.includes('Loading chunk');
+
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+          <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 text-center border border-white/10">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-xl shadow-rose-500/30">
               <svg
-                className="w-8 h-8 text-red-600"
+                className="w-10 h-10 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -61,41 +99,55 @@ class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              เกิดข้อผิดพลาด
+            <h2 className="text-2xl font-bold text-white mb-3">
+              {isChunkError ? 'มีการอัปเดตใหม่' : 'เกิดข้อผิดพลาด'}
             </h2>
             
-            <p className="text-gray-600 mb-6">
-              ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด กรุณาลองใหม่อีกครั้ง
+            <p className="text-slate-400 mb-8 text-sm">
+              {isChunkError 
+                ? 'กรุณารีเฟรชหน้าเว็บเพื่อโหลดเวอร์ชันล่าสุด'
+                : 'ขออภัย เกิดข้อผิดพลาดที่ไม่คาดคิด กรุณาลองใหม่อีกครั้ง'}
             </p>
 
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <div className="mb-6 p-4 bg-gray-100 rounded-lg text-left overflow-auto max-h-40">
-                <p className="text-sm font-mono text-red-600 break-all">
+              <div className="mb-6 p-4 bg-slate-800/50 rounded-xl text-left overflow-auto max-h-32 border border-white/5">
+                <p className="text-xs font-mono text-rose-400 break-all">
                   {this.state.error.toString()}
                 </p>
-                {this.state.errorInfo && (
-                  <pre className="text-xs text-gray-500 mt-2 whitespace-pre-wrap">
-                    {this.state.errorInfo.componentStack}
-                  </pre>
-                )}
               </div>
             )}
 
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={this.handleRetry}
-                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-              >
-                ลองใหม่
-              </button>
-              <button
-                onClick={() => window.location.href = '/'}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                กลับหน้าหลัก
-              </button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {isChunkError ? (
+                <button
+                  onClick={this.handleRefresh}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  รีเฟรชหน้าเว็บ
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={this.handleRetry}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/20"
+                  >
+                    ลองใหม่
+                  </button>
+                  <button
+                    onClick={this.handleGoHome}
+                    className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-all border border-white/10"
+                  >
+                    กลับหน้าหลัก
+                  </button>
+                </>
+              )}
             </div>
+
+            {this.state.retryCount > 0 && (
+              <p className="mt-4 text-xs text-slate-500">
+                พยายามโหลดใหม่อัตโนมัติ {this.state.retryCount}/{MAX_AUTO_RETRY} ครั้ง
+              </p>
+            )}
           </div>
         </div>
       );
@@ -127,4 +179,19 @@ export function useErrorHandler() {
   }, [error]);
 
   return { handleError, resetError };
+}
+
+// Wrapper component for async boundaries
+export function AsyncBoundary({ 
+  children, 
+  fallback 
+}: { 
+  children: ReactNode; 
+  fallback?: ReactNode;
+}) {
+  return (
+    <ErrorBoundary fallback={fallback}>
+      {children}
+    </ErrorBoundary>
+  );
 }
