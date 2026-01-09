@@ -240,3 +240,16 @@ export interface SlipTemplateListItem {
   description?: string;
   headerText?: string;
 }
+
+export interface WalletTransaction {
+  _id: string;
+  userId: string;
+  type: 'deposit' | 'purchase' | 'refund' | 'bonus' | 'adjustment' | 'subscription';
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  description: string;
+  status: 'pending' | 'completed' | 'rejected' | 'cancelled' | 'approved' | 'success' | 'failed';
+  createdAt: string;
+  metadata?: Record<string, any>;
+}

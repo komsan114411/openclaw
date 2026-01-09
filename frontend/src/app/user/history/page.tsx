@@ -18,7 +18,7 @@ export default function UserHistoryPage() {
     const [lineAccounts, setLineAccounts] = useState<LineAccount[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState<'all' | 'deposit' | 'withdrawal' | 'subscription'>('all');
+    const [filter, setFilter] = useState<'all' | 'deposit' | 'purchase' | 'bonus' | 'refund'>('all');
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -47,7 +47,9 @@ export default function UserHistoryPage() {
             t.type.toLowerCase().includes(search.toLowerCase());
 
         if (filter === 'all') return matchesSearch;
-        return matchesSearch && t.type === filter;
+        // Map UI filter to backend types if necessary
+        const targetType = filter === 'subscription' ? 'purchase' : filter;
+        return matchesSearch && t.type === targetType;
     });
 
     const getStatusBadge = (status: string) => {
@@ -69,8 +71,9 @@ export default function UserHistoryPage() {
     const getTransactionIcon = (type: string) => {
         switch (type.toLowerCase()) {
             case 'deposit': return <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500"><CreditCard className="w-5 h-5" /></div>;
-            case 'withdrawal': return <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500"><CreditCard className="w-5 h-5" /></div>;
+            case 'purchase':
             case 'subscription': return <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500"><CheckCircle2 className="w-5 h-5" /></div>;
+            case 'bonus': return <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500"><Zap className="w-5 h-5" /></div>;
             default: return <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center text-slate-500"><Clock className="w-5 h-5" /></div>;
         }
     };
@@ -109,7 +112,7 @@ export default function UserHistoryPage() {
                         />
                     </Card>
                     <div className="flex gap-2 p-1 bg-white/5 rounded-2xl border border-white/10">
-                        {(['all', 'deposit', 'subscription'] as const).map((f) => (
+                        {(['all', 'deposit', 'purchase'] as const).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
@@ -183,10 +186,10 @@ export default function UserHistoryPage() {
                                                     <span className={cn(
                                                         "text-[10px] font-black uppercase px-2 py-1 rounded-lg border",
                                                         t.type === 'deposit' ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/5" :
-                                                            t.type === 'subscription' ? "border-blue-500/20 text-blue-400 bg-blue-500/5" :
+                                                            (t.type === 'purchase' || t.type === 'subscription') ? "border-blue-500/20 text-blue-400 bg-blue-500/5" :
                                                                 "border-slate-500/20 text-slate-400 bg-slate-500/5"
                                                     )}>
-                                                        {t.type === 'deposit' ? 'เติมเงิน' : t.type === 'subscription' ? 'ซื้อแพ็คเกจ' : t.type}
+                                                        {t.type === 'deposit' ? 'เติมเงิน' : (t.type === 'purchase' || t.type === 'subscription') ? 'ซื้อแพ็คเกจ' : t.type}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-6 text-right">
