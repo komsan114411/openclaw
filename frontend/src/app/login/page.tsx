@@ -69,15 +69,16 @@ export default function LoginPage() {
     }
   }, [isLocked, lockoutTime]);
 
-  // Check if already logged in on mount
+  // Check if already logged in on mount - only once
   useEffect(() => {
     checkAuth();
-  }, [checkAuth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
   useEffect(() => {
     // Only redirect after initialization is complete
     if (!isInitialized) return;
-    
+
     if (user) {
       if (user.forcePasswordChange) router.replace('/change-password');
       else if (user.role === 'admin') router.replace('/admin/dashboard');
@@ -150,7 +151,7 @@ export default function LoginPage() {
               <div className="absolute -inset-2 bg-[#06C755]/20 rounded-full blur-xl" />
               <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#06C755] to-emerald-600 flex items-center justify-center shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
                 <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.59 7.58L10 14.17L7.41 11.59L6 13L10 17L18 9L16.59 7.58Z"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.59 7.58L10 14.17L7.41 11.59L6 13L10 17L18 9L16.59 7.58Z" />
                 </svg>
               </div>
             </div>

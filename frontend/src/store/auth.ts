@@ -107,19 +107,19 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => sessionStorage),
-      // Only persist user data, not loading states
+      // Only persist user data, NOT isInitialized (it's runtime state)
       partialize: (state) => ({
         user: state.user,
-        isInitialized: state.isInitialized,
       }),
-      // On rehydration, mark as needing verification
+      // On rehydration, always mark as initialized to prevent infinite loop
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // If we have a persisted user, we still need to verify with server
-          // but we can show the UI immediately
-          state.isInitialized = !!state.user;
+          // Always set initialized to true after rehydration
+          // checkAuth will NOT be called if isInitialized is true
+          state.isInitialized = true;
         }
       },
     }
   )
 );
+
