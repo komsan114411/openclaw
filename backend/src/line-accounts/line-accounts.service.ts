@@ -264,7 +264,16 @@ export class LineAccountsService {
       if (value !== undefined) {
         // For nested objects like slipTemplateIds, merge instead of replace
         if (key === 'slipTemplateIds' && typeof value === 'object' && value !== null) {
-          mergedSettings[key] = { ...(currentSettings[key] || {}), ...value };
+          // Filter out invalid template IDs (e.g., mock IDs starting with 'mock-')
+          const filteredIds: Record<string, string> = {};
+          for (const [type, templateId] of Object.entries(value as Record<string, string>)) {
+            if (templateId && !templateId.startsWith('mock-')) {
+              filteredIds[type] = templateId;
+            } else if (templateId && templateId.startsWith('mock-')) {
+              this.logger.warn(`[updateSettings] Ignoring mock template ID: ${templateId} for type ${type}`);
+            }
+          }
+          mergedSettings[key] = { ...(currentSettings[key] || {}), ...filteredIds };
         } else {
           mergedSettings[key] = value;
         }

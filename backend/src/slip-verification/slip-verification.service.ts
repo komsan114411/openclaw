@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import axios from 'axios';
 import * as FormData from 'form-data';
 import { SlipHistory, SlipHistoryDocument, SlipStatus } from '../database/schemas/slip-history.schema';
@@ -122,7 +122,7 @@ export class SlipVerificationService {
       date: slip.transactionDate ? this.formatDate(new Date(slip.transactionDate)) : '',
       time: slip.transactionDate ? this.formatTime(new Date(slip.transactionDate)) : '',
       isDuplicate: true,
-      originalDate: slip.createdAt ? this.formatDate(new Date(slip.createdAt)) : '',
+      originalDate: (slip as any).createdAt ? this.formatDate(new Date((slip as any).createdAt)) : '',
     };
   }
 
@@ -700,11 +700,16 @@ export class SlipVerificationService {
 
       // 1. Try user-selected template for this specific type
       if (selectedId) {
-        this.logger.log(`[TEMPLATE] Step 1: Looking for selected template ID: ${selectedId}`);
-        template = await this.slipTemplatesService.getById(selectedId).catch((e) => {
-          this.logger.warn(`[TEMPLATE] Failed to get template by ID ${selectedId}:`, e);
-          return null;
-        });
+        // Validate that selectedId is a valid ObjectId
+        if (!Types.ObjectId.isValid(selectedId)) {
+          this.logger.warn(`[TEMPLATE] Invalid template ID format: ${selectedId}, skipping`);
+        } else {
+          this.logger.log(`[TEMPLATE] Step 1: Looking for selected template ID: ${selectedId}`);
+          template = await this.slipTemplatesService.getById(selectedId).catch((e) => {
+            this.logger.warn(`[TEMPLATE] Failed to get template by ID ${selectedId}:`, e);
+            return null;
+          });
+        }
         // Verify template type matches
         if (template && (template as any).type !== templateType) {
           this.logger.warn(`[TEMPLATE] Selected template type mismatch: expected ${templateType}, got ${(template as any).type}`);
@@ -822,10 +827,10 @@ export class SlipVerificationService {
       };
     } else if (result.status === 'duplicate') {
       // Try to get original slip data from database if not provided by API
-      let duplicateData = result.data || {};
+      let duplicateData: Record<string, any> = result.data || {};
 
       // If we have transRef, try to get original slip data from slip_history
-      const transRef = duplicateData.transRef || result.transRef;
+      const transRef = duplicateData.transRef || (result as any).transRef;
       if (transRef && (!duplicateData.amount || !duplicateData.senderName)) {
         this.logger.log(`[DUPLICATE] Looking for original slip data with transRef: ${transRef}`);
         const originalSlip = await this.getOriginalSlipByTransRef(transRef);
@@ -1027,18 +1032,18 @@ export class SlipVerificationService {
     return `฿${num.toLocaleString('th-TH', { minimumFractionDigits: 0 })}`;
   }
 
-  private formatDate(isoDate: string): string {
+  private formatDate(isoDate: string | Date): string {
     try {
-      const date = new Date(isoDate);
+      const date = isoDate instanceof Date ? isoDate : new Date(isoDate);
       return date.toLocaleDateString('th-TH');
     } catch {
-      return isoDate || '-';
+      return typeof isoDate === 'string' ? isoDate : '-';
     }
   }
 
-  private formatTime(isoDate: string): string {
+  private formatTime(isoDate: string | Date): string {
     try {
-      const date = new Date(isoDate);
+      const date = isoDate instanceof Date ? isoDate : new Date(isoDate);
       return date.toLocaleTimeString('th-TH');
     } catch {
       return '-';

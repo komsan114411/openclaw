@@ -607,12 +607,19 @@ export class SlipTemplatesService implements OnModuleInit {
    * Generate Flex Message from template and slip data
    */
   generateFlexMessage(template: SlipTemplateDocument, slipData: SlipData): any {
+    this.logger.log(`[FLEX] Generating flex message from template: ${template.name} (type: ${template.type})`);
+    this.logger.log(`[FLEX] Template has flexTemplate: ${!!template.flexTemplate}, slipData keys: ${Object.keys(slipData).join(',')}`);
+    
     if (template.flexTemplate) {
+      this.logger.log(`[FLEX] Using custom flexTemplate`);
       return this.replaceVariables(template.flexTemplate, slipData);
     }
 
     // Generate default flex message
-    return this.generateDefaultFlexMessage(template, slipData);
+    this.logger.log(`[FLEX] Using generateDefaultFlexMessage`);
+    const result = this.generateDefaultFlexMessage(template, slipData);
+    this.logger.log(`[FLEX] Generated bubble type: ${result?.type}`);
+    return result;
   }
 
   /**

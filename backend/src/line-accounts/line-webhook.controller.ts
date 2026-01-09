@@ -259,17 +259,30 @@ export class LineWebhookController {
 
     // Helper to safely send message (handles reply token expiration and Flex fallback)
     const safeSendMessage = async (messages: any[], useReply = false) => {
+      // Log message details for debugging
+      this.logger.log(`[SLIP] safeSendMessage called: useReply=${useReply}, messageCount=${messages.length}`);
+      if (messages.length > 0) {
+        const firstMsg = messages[0];
+        this.logger.log(`[SLIP] First message type: ${firstMsg?.type}, altText: ${firstMsg?.altText || 'none'}`);
+        if (firstMsg?.type === 'flex') {
+          this.logger.log(`[SLIP] Flex message contents type: ${firstMsg?.contents?.type}`);
+        }
+      }
+
       const sendMessages = async (msgs: any[]) => {
         if (useReply && replyToken && !replyTokenUsed) {
+          this.logger.log(`[SLIP] Sending via reply token`);
           await this.lineAccountsService.sendReply(replyToken, msgs, accessToken);
           replyTokenUsed = true;
         } else {
+          this.logger.log(`[SLIP] Sending via push to ${lineUserId}`);
           await this.lineAccountsService.sendPush(lineUserId, msgs, accessToken);
         }
       };
 
       try {
         await sendMessages(messages);
+        this.logger.log(`[SLIP] Message sent successfully`);
       } catch (sendError: any) {
         this.logger.error('Failed to send LINE message:', sendError);
 
@@ -469,11 +482,18 @@ export class LineWebhookController {
 
         // ใช้ Slip Template สำหรับสลิปซ้ำ (ส่ง quota info ไปด้วย)
         try {
+          this.logger.log(`[SLIP] Formatting duplicate response, accountId=${accountId}`);
+          this.logger.log(`[SLIP] Account settings slipTemplateIds: ${JSON.stringify(account.settings?.slipTemplateIds || {})}`);
+          
           const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
             result,
             { account, quotaRemaining: newQuota.remainingQuota }
           );
+          
+          this.logger.log(`[SLIP] Duplicate response generated: type=${duplicateMsg?.type}, hasContents=${!!duplicateMsg?.contents}`);
+          
           if (!duplicateMsg) {
+            this.logger.warn('[SLIP] No duplicate message generated, using fallback');
             await safeSendMessage([{ type: 'text', text: '⚠️ สลิปนี้เคยถูกใช้แล้ว' }]);
           } else {
             await safeSendMessage([duplicateMsg]);
@@ -497,10 +517,15 @@ export class LineWebhookController {
 
       // Send result message (รวมบล็อกเตือนโควต้าถ้าเหลือน้อย)
       try {
+        this.logger.log(`[SLIP] Formatting response for status=${result.status}, accountId=${accountId}`);
+        this.logger.log(`[SLIP] Account settings slipTemplateIds: ${JSON.stringify(account.settings?.slipTemplateIds || {})}`);
+        
         const responseMessage = await this.slipVerificationService.formatSlipResponseWithConfig(
           result,
           { account, quotaRemaining }
         );
+
+        this.logger.log(`[SLIP] Response message generated: type=${responseMessage?.type}, hasContents=${!!responseMessage?.contents}`);
 
         // Ensure we have a valid message
         if (!responseMessage) {
