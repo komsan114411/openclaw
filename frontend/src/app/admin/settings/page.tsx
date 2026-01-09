@@ -30,6 +30,8 @@ interface SystemSettings {
   quotaLowWarningMessage?: string;
   botDisabledSendMessage?: boolean;
   botDisabledMessage?: string;
+  // Global Slip Verification (แอดมินเปิด/ปิดทั้งระบบ)
+  globalSlipVerificationEnabled?: boolean;
   slipDisabledSendMessage?: boolean;
   slipDisabledMessage?: string;
   aiDisabledSendMessage?: boolean;
@@ -113,7 +115,9 @@ export default function SettingsPage() {
     quotaLowWarningMessage: '',
     botDisabledSendMessage: false,
     botDisabledMessage: '',
-    slipDisabledSendMessage: false,
+    // Global Slip Verification (แอดมินเปิด/ปิดทั้งระบบ)
+    globalSlipVerificationEnabled: true,
+    slipDisabledSendMessage: true,
     slipDisabledMessage: '',
     aiDisabledSendMessage: false,
     aiDisabledMessage: '',
@@ -185,7 +189,8 @@ export default function SettingsPage() {
         quotaLowWarningMessage: data.quotaLowWarningMessage || '⚠️ โควต้าเหลือน้อยกว่า {threshold} สลิป กรุณาเติมแพ็คเกจ',
         botDisabledSendMessage: data.botDisabledSendMessage ?? false,
         botDisabledMessage: data.botDisabledMessage || '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
-        slipDisabledSendMessage: data.slipDisabledSendMessage ?? false,
+        globalSlipVerificationEnabled: data.globalSlipVerificationEnabled ?? true,
+        slipDisabledSendMessage: data.slipDisabledSendMessage ?? true,
         slipDisabledMessage: data.slipDisabledMessage || '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
         aiDisabledSendMessage: data.aiDisabledSendMessage ?? false,
         aiDisabledMessage: data.aiDisabledMessage || '🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว',
@@ -1533,10 +1538,26 @@ export default function SettingsPage() {
                                 </motion.div>
                               )}
                             </div>
-                            {/* Slip Disabled */}
+                            {/* Global Slip Verification - เปิด/ปิดทั้งระบบ */}
+                            <div className="flex flex-col gap-2 p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 group hover:bg-amber-500/20 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <span className="text-sm font-bold text-amber-400">เปิดระบบตรวจสอบสลิป (ทั้งระบบ)</span>
+                                  <p className="text-xs text-slate-400 mt-1">ปิดจะมีผลกับทุกบัญชี LINE</p>
+                                </div>
+                                <Switch
+                                  checked={messageSettings.globalSlipVerificationEnabled}
+                                  onChange={() => setMessageSettings({ ...messageSettings, globalSlipVerificationEnabled: !messageSettings.globalSlipVerificationEnabled })}
+                                />
+                              </div>
+                            </div>
+                            {/* Slip Disabled - ข้อความเมื่อปิด */}
                             <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold">ตรวจสอบสลิปปิดให้บริการ</span>
+                                <div>
+                                  <span className="text-sm font-bold">ส่งข้อความเมื่อปิดระบบ</span>
+                                  <p className="text-xs text-slate-400 mt-1">ส่งข้อความแจ้งเมื่อผู้ใช้ส่งรูปมาแต่ระบบปิดอยู่</p>
+                                </div>
                                 <Switch
                                   checked={messageSettings.slipDisabledSendMessage}
                                   onChange={() => setMessageSettings({ ...messageSettings, slipDisabledSendMessage: !messageSettings.slipDisabledSendMessage })}
@@ -1546,6 +1567,7 @@ export default function SettingsPage() {
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                   <input
                                     className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
+                                    placeholder="🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว"
                                     value={messageSettings.slipDisabledMessage}
                                     onChange={(e) => setMessageSettings({ ...messageSettings, slipDisabledMessage: e.target.value })}
                                   />

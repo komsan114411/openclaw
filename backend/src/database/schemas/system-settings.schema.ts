@@ -115,8 +115,12 @@ export class SystemSettings {
   @Prop({ default: '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล' })
   botDisabledMessage: string;
 
+  // Global Slip Verification Settings (แอดมินเปิด/ปิดทั้งระบบ)
+  @Prop({ default: true })
+  globalSlipVerificationEnabled: boolean;
+
   // Slip Verification Disabled Settings
-  @Prop({ default: false })
+  @Prop({ default: true })
   slipDisabledSendMessage: boolean;
 
   @Prop({ default: '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล' })

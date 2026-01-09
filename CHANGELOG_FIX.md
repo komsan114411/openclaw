@@ -1,70 +1,75 @@
 # สรุปการแก้ไข LINE Bot - ตรวจสอบสลิป
 
-## ปัญหาที่แก้ไข
+## การแก้ไขครั้งที่ 3 (ล่าสุด) - แยกการตั้งค่า 2 ระดับ
 
-### 1. บอทไม่ส่งเทมเพลตเมื่อส่งรูป
-**ปัญหาเดิม:** เมื่อส่งรูปให้บอท บางครั้งบอทไม่ตอบหรือไม่มีอะไรเกิดขึ้น
+### เพิ่มการตั้งค่าแยก 2 ระดับ
 
-**สาเหตุ:** เมื่อ `enableSlipVerification` ปิด โค้ดเดิมเรียก `formatBotDisabledResponse()` ซึ่งอาจ return `null` ถ้าตั้งค่า `sendMessageWhenBotDisabled = false` ทำให้บอทไม่ส่งข้อความใดๆ กลับไป
+#### 1. ระดับแอดมิน (ทั้งระบบ)
+- **เปิด/ปิดระบบตรวจสอบสลิป (ทั้งระบบ)** - `globalSlipVerificationEnabled`
+  - เมื่อปิดจะมีผลกับทุกบัญชี LINE
+  - ตั้งค่าได้จากหน้า Admin Settings > Communication
+- **ส่งข้อความเมื่อปิดระบบ** - `slipDisabledSendMessage`
+  - เลือกได้ว่าจะส่งข้อความแจ้งผู้ใช้หรือไม่
+- **ข้อความเมื่อปิดระบบ** - `slipDisabledMessage`
+  - กำหนดข้อความที่จะส่งเมื่อระบบปิด
 
-**การแก้ไข:**
-- สร้าง `formatSlipDisabledResponse()` แยกจาก `formatBotDisabledResponse()` 
-- ตั้งค่า default ให้ส่งข้อความตอบกลับเสมอ (`sendMessageWhenSlipDisabled = true`)
-- เพิ่ม fallback message กรณีไม่มี template
+#### 2. ระดับบัญชี LINE (แต่ละบัญชี)
+- **เปิด/ปิดระบบตรวจสอบสลิป** - `enableSlipVerification`
+  - เปิด/ปิดเฉพาะบัญชี LINE นี้
+  - แอดมินสามารถเข้าไปตั้งค่าของแต่ละบัญชีได้
+- **ส่งข้อความเมื่อปิดระบบ** - `sendMessageWhenSlipDisabled`
+  - เลือกได้ว่าจะส่งข้อความหรือไม่ (ค่าเริ่มต้น/ส่ง/ไม่ส่ง)
+- **ข้อความเมื่อปิดระบบ** - `customSlipDisabledMessage`
+  - กำหนดข้อความที่ต้องการส่งได้เอง
 
-### 2. ต้องการให้บอทตอบกลับทุกครั้งเมื่อส่งรูปมา
-**การแก้ไข:**
-- แก้ไข `line-webhook.controller.ts` ให้ส่งข้อความตอบกลับทุกครั้งเมื่อรับรูป
-- เพิ่ม fallback message: `🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว`
-
-### 3. การตรวจสอบสลิปซ้ำ
-**สถานะ:** ระบบมีการตรวจสอบสลิปซ้ำอยู่แล้วผ่าน Thunder API (status 409 = duplicate)
-
-**การทำงาน:**
-- เมื่อพบสลิปซ้ำ ระบบจะแสดง Slip Template สำหรับ `DUPLICATE`
-- แสดงข้อมูลสลิปเดิม (จำนวนเงิน, ผู้โอน, ผู้รับ, วันที่)
-- แสดงข้อความเตือน "⚠️ สลิปซ้ำ - สลิปนี้เคยถูกใช้แล้ว"
+### ลำดับการตรวจสอบ
+1. ตรวจสอบ **ระดับแอดมิน** (`globalSlipVerificationEnabled`) ก่อน
+2. ถ้าระดับแอดมินเปิด จึงตรวจสอบ **ระดับบัญชี LINE** (`enableSlipVerification`)
+3. ถ้าทั้ง 2 ระดับเปิด จึงจะตรวจสอบสลิป
+4. ถ้าอันใดอันหนึ่งปิด จะส่งข้อความแจ้งตามการตั้งค่า
 
 ---
 
 ## ไฟล์ที่แก้ไข
 
-### 1. `backend/src/database/schemas/system-response-template.schema.ts`
-- เพิ่ม `SLIP_DISABLED = 'slip_disabled'` ใน `SystemResponseType` enum
+### Backend
+1. `backend/src/database/schemas/system-settings.schema.ts`
+   - เพิ่ม `globalSlipVerificationEnabled` field
+   - เปลี่ยน default ของ `slipDisabledSendMessage` เป็น `true`
 
-### 2. `backend/src/system-response-templates/system-response-templates.service.ts`
-- เพิ่ม default template สำหรับ `SLIP_DISABLED`:
-  - ข้อความ: "🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล"
-  - รูปแบบ: Flex Message
-  - สี: #64748B (เทา)
+2. `backend/src/line-accounts/line-webhook.controller.ts`
+   - เพิ่มการ import `SystemSettingsService`
+   - แก้ไข `processEvent` ให้ตรวจสอบทั้ง 2 ระดับ
+   - เพิ่ม log ว่าปิดจากระดับไหน
 
-### 3. `backend/src/common/configurable-messages.service.ts`
-- สร้าง `formatSlipDisabledResponse()` ใหม่:
-  - ตรวจสอบการตั้งค่า `sendMessageWhenSlipDisabled` (default = true)
-  - ใช้ template `SystemResponseType.SLIP_DISABLED`
-  - มี fallback message กรณีไม่มี template
-
-### 4. `backend/src/line-accounts/line-webhook.controller.ts`
-- เปลี่ยนจาก `formatBotDisabledResponse()` เป็น `formatSlipDisabledResponse()`
-- เพิ่ม try-catch และ fallback message
-- ส่งข้อความตอบกลับทุกครั้งเมื่อรับรูป (ไม่ว่าจะมี template หรือไม่)
+### Frontend
+3. `frontend/src/app/admin/settings/page.tsx`
+   - เพิ่ม `globalSlipVerificationEnabled` ใน interface และ state
+   - เพิ่ม UI Switch สำหรับ "เปิดระบบตรวจสอบสลิป (ทั้งระบบ)"
+   - ปรับปรุง UI ให้แสดงคำอธิบายชัดเจน
 
 ---
 
-## การตั้งค่าเพิ่มเติม (ถ้าต้องการ)
+## วิธีใช้งาน
 
-### ปิดการส่งข้อความเมื่อระบบตรวจสอบสลิปปิด
-ตั้งค่าใน LINE Account Settings:
-```json
-{
-  "sendMessageWhenSlipDisabled": false
-}
-```
+### สำหรับแอดมิน (ปิดทั้งระบบ)
+1. ไปที่หน้า **Admin Settings**
+2. เลือกแท็บ **Communication**
+3. หาส่วน **เปิดระบบตรวจสอบสลิป (ทั้งระบบ)**
+4. ปิด Switch เพื่อปิดระบบทั้งหมด
+5. ตั้งค่าว่าจะส่งข้อความแจ้งหรือไม่
+6. คลิก **บันทึกการตั้งค่า**
 
-### กำหนด Template สำหรับสลิปซ้ำ
-ไปที่หน้า Slip Templates และเลือก template สำหรับ `DUPLICATE` type
+### สำหรับผู้ใช้/แอดมิน (ปิดเฉพาะบัญชี)
+1. ไปที่หน้า **บัญชี LINE**
+2. คลิก **ตั้งค่า** ของบัญชีที่ต้องการ
+3. ปิด Switch **เปิดระบบตรวจสอบสลิป**
+4. ตั้งค่าการส่งข้อความเมื่อปิดระบบ
+5. คลิก **บันทึกการตั้งค่า**
 
 ---
 
-## Commit Hash
-`7b0f5ff` - fix: บอทตอบกลับทุกครั้งเมื่อรับรูป และปรับปรุงการตรวจสอบสลิปซ้ำ
+## Commit History
+- `xxx` - feat: แยกการตั้งค่าระบบตรวจสอบสลิป 2 ระดับ (แอดมิน/บัญชี LINE)
+- `7f421b5` - feat: เพิ่ม UI ตั้งค่าการตอบกลับเมื่อปิดระบบตรวจสอบสลิป
+- `7b0f5ff` - fix: บอทตอบกลับทุกครั้งเมื่อรับรูป และปรับปรุงการตรวจสอบสลิปซ้ำ

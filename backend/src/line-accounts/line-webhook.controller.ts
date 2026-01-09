@@ -22,6 +22,7 @@ import { RedisService } from '../redis/redis.service';
 import { ConfigurableMessagesService } from '../common/configurable-messages.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { WebhookRateLimitGuard } from '../common/guards/webhook-rate-limit.guard';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @ApiTags('LINE Webhook')
 @Controller('webhook/line')
@@ -37,6 +38,7 @@ export class LineWebhookController {
     private redisService: RedisService,
     private configurableMessagesService: ConfigurableMessagesService,
     private websocketGateway: WebsocketGateway,
+    private systemSettingsService: SystemSettingsService,
   ) { }
 
   @Post(':slug')
@@ -221,10 +223,25 @@ export class LineWebhookController {
     // Handle different message types (bot is enabled at this point)
     if (message.type === 'image') {
       // Handle image - slip verification
-      if (account.settings?.enableSlipVerification) {
+      // ตรวจสอบการตั้งค่า 2 ระดับ:
+      // 1. ระดับแอดมิน (globalSlipVerificationEnabled) - ปิดทั้งระบบ
+      // 2. ระดับบัญชี LINE (enableSlipVerification) - ปิดเฉพาะบัญชีนี้
+      const systemSettings = await this.systemSettingsService.getSettings();
+      const globalEnabled = systemSettings?.globalSlipVerificationEnabled ?? true;
+      const accountEnabled = account.settings?.enableSlipVerification ?? true;
+      
+      // ตรวจสอบทั้ง 2 ระดับ - ถ้าอันใดอันหนึ่งปิด จะไม่ตรวจสอบสลิป
+      if (globalEnabled && accountEnabled) {
         await this.handleSlipVerification(account, event);
       } else {
-        // Send slip disabled message (ใช้ formatSlipDisabledResponse แทน formatBotDisabledResponse)
+        // Log ว่าปิดจากระดับไหน
+        if (!globalEnabled) {
+          this.logger.log(`[SLIP] Slip verification disabled globally by admin`);
+        } else {
+          this.logger.log(`[SLIP] Slip verification disabled for this LINE account`);
+        }
+        
+        // Send slip disabled message (ใช้ formatSlipDisabledResponse)
         const slipDisabledMsg = await this.configurableMessagesService.formatSlipDisabledResponse({ account });
         if (slipDisabledMsg) {
           try {
