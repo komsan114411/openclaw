@@ -20,48 +20,14 @@ async function bootstrap() {
     app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 
-    // Enable CORS with safe origin validation
-    // Note: Webhooks (LINE) and health checks don't send Origin headers
+    // Enable CORS - Allow all origins
     app.enableCors({
-      origin: (origin, callback) => {
-        // Allow requests without Origin header (LINE webhooks, health checks, server-to-server)
-        if (!origin) {
-          return callback(null, true);
-        }
-
-        // Validate origin format to prevent header injection
-        try {
-          const url = new URL(origin);
-          if (!['http:', 'https:'].includes(url.protocol)) {
-            return callback(new Error('Invalid origin protocol'), false);
-          }
-        } catch {
-          return callback(new Error('Invalid origin format'), false);
-        }
-
-        // Allow Railway domains (strict suffix match)
-        if (origin.endsWith('.railway.app') || origin === 'https://railway.app') {
-          return callback(null, true);
-        }
-
-        // Allow localhost for development
-        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-          return callback(null, true);
-        }
-
-        // Check custom CORS_ORIGINS env var (exact match only, no wildcards)
-        const allowed = (process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
-        if (allowed.includes(origin)) {
-          return callback(null, true);
-        }
-
-        // Reject unknown origins
-        logger.warn(`CORS rejected origin: ${origin}`);
-        return callback(new Error('Not allowed by CORS'), false);
-      },
+      origin: true, // Allow all origins
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
     });
 
     // Cookie parser
@@ -93,6 +59,7 @@ async function bootstrap() {
     logger.log(`🚀 Server running on port ${port}`);
     logger.log(`📚 Swagger docs at /api/docs`);
     logger.log(`🌐 Frontend served from /public`);
+    logger.log(`🌍 CORS enabled for all origins`);
   } catch (error) {
     logger.error(`❌ Failed to start server: ${error.message}`);
     process.exit(1);

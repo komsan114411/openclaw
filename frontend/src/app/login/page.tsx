@@ -71,20 +71,23 @@ export default function LoginPage() {
 
   // Check if already logged in on mount - only once
   useEffect(() => {
-    checkAuth();
+    // Only call checkAuth if not already initialized
+    if (!isInitialized) {
+      checkAuth();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount
 
   useEffect(() => {
-    // Only redirect after initialization is complete
-    if (!isInitialized) return;
+    // Only redirect after initialization is complete and not loading
+    if (!isInitialized || isLoading) return;
 
     if (user) {
       if (user.forcePasswordChange) router.replace('/change-password');
       else if (user.role === 'admin') router.replace('/admin/dashboard');
       else router.replace('/user/dashboard');
     }
-  }, [user, isInitialized, router]);
+  }, [user, isInitialized, isLoading, router]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     setCapsLockOn(e.getModifierState('CapsLock'));

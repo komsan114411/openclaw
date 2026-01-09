@@ -93,6 +93,10 @@ export const useAuthStore = create<AuthState>()(
         // 3. Check module-level flag for this session
         const state = get();
         if (state.isInitialized || state.isLoading || _authChecked) {
+          // If not initialized yet but already checked, still set initialized
+          if (!state.isInitialized && _authChecked) {
+            set({ isInitialized: true });
+          }
           return;
         }
 
@@ -106,7 +110,10 @@ export const useAuthStore = create<AuthState>()(
           } else {
             set({ user: null, isLoading: false, isInitialized: true });
           }
-        } catch (error) {
+        } catch (error: any) {
+          // Handle CORS errors and network errors gracefully
+          // Don't try to redirect or retry - just mark as initialized with no user
+          console.warn('Auth check failed:', error?.message || 'Unknown error');
           set({ user: null, isLoading: false, isInitialized: true });
         }
       },
