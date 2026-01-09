@@ -309,6 +309,7 @@ export class BlockchainVerificationService {
     /**
      * Verify TRC20 (TRON) transaction via TRONSCAN
      * @security Verifies contract address, recipient, and amount
+     * Returns detailed information for user feedback
      */
     private async verifyTRC20(
         txHash: string,
@@ -324,45 +325,75 @@ export class BlockchainVerificationService {
             const tx = response.data;
 
             if (!tx || !tx.contractData) {
-                return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรมนี้ หรือยังไม่ได้รับการยืนยัน' };
+                return { 
+                    verified: false, 
+                    status: 'not_found', 
+                    message: '❌ ไม่พบธุรกรรมนี้\n\nกรุณาตรวจสอบ:\n• Transaction Hash ถูกต้องหรือไม่\n• ธุรกรรมอาจยังไม่ได้รับการยืนยันบน Blockchain\n• ลองรอ 2-3 นาทีแล้วลองใหม่' 
+                };
             }
+
+            // Extract transaction details for detailed feedback
+            const fromAddress = tx.ownerAddress || '';
+            const toAddress = tx.contractData?.to_address || '';
+            const contractAddress = tx.contractData?.contract_address || '';
+            const rawAmount = tx.contractData?.amount || '0';
+            const actualAmount = parseFloat(rawAmount) / 1e6;
 
             // Check if transaction is confirmed
             if (!tx.confirmed) {
                 return { 
                     verified: false, 
-                    status: 'pending', 
-                    message: 'ธุรกรรมยังไม่ได้รับการยืนยัน กรุณารอสักครู่' 
+                    status: 'pending',
+                    actualAmount,
+                    fromAddress,
+                    toAddress,
+                    message: `⏳ ธุรกรรมยังรอการยืนยัน\n\nรายละเอียดธุรกรรม:\n• จำนวน: ${actualAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}\n\nกรุณารอ 1-2 นาทีแล้วลองใหม่` 
                 };
             }
 
-            // Verify USDT contract address (case-insensitive)
-            const contractAddress = tx.contractData?.contract_address || '';
+            // Verify USDT contract address
             if (contractAddress.toUpperCase() !== this.CONTRACTS.TRC20.toUpperCase()) {
                 this.logger.warn(`[TRC20] Contract mismatch! Got: ${contractAddress}, Expected: ${this.CONTRACTS.TRC20}`);
-                return { verified: false, status: 'wrong_token', message: 'ไม่ใช่ USDT TRC20' };
+                return { 
+                    verified: false, 
+                    status: 'wrong_token',
+                    actualAmount,
+                    fromAddress,
+                    toAddress,
+                    contractAddress,
+                    message: `❌ ไม่ใช่ USDT TRC20!\n\nรายละเอียดธุรกรรม:\n• Token ที่โอน: ${contractAddress}\n• USDT TRC20 ต้องเป็น: ${this.CONTRACTS.TRC20}\n\nกรุณาโอน USDT บนเครือข่าย TRC20 (TRON) เท่านั้น` 
+                };
             }
 
             // Verify recipient address
-            const toAddress = tx.contractData?.to_address || '';
             if (toAddress.toUpperCase() !== expectedWallet.toUpperCase()) {
                 this.logger.warn(`[TRC20] Wallet mismatch! Got: ${toAddress}, Expected: ${expectedWallet}`);
-                return { verified: false, status: 'wrong_recipient', message: 'กระเป๋าปลายทางไม่ตรง' };
-            }
-
-            // Calculate and verify amount (USDT has 6 decimals)
-            const rawAmount = tx.contractData?.amount || '0';
-            const actualAmount = parseFloat(rawAmount) / 1e6;
-
-            // Allow 1% tolerance for rounding
-            if (actualAmount < expectedAmount * 0.99) {
                 return { 
                     verified: false, 
-                    status: 'insufficient_amount', 
-                    actualAmount, 
-                    toAddress, 
-                    message: `ยอดไม่ตรง: ได้รับ ${actualAmount} USDT แต่คาดหวัง ${expectedAmount} USDT` 
+                    status: 'wrong_recipient',
+                    actualAmount,
+                    fromAddress,
+                    toAddress,
+                    expectedWallet,
+                    message: `❌ กระเป๋าปลายทางไม่ตรง!\n\nรายละเอียด:\n• คุณโอนไปที่: ${toAddress}\n• กระเป๋าระบบ: ${expectedWallet}\n\nกรุณาโอนไปยังกระเป๋าที่ระบบกำหนดเท่านั้น` 
                 };
+            }
+
+            // Check amount - if different, return with suggestion to use actual amount
+            if (Math.abs(actualAmount - expectedAmount) > 0.01) {
+                // Amount is different but transaction is valid
+                if (actualAmount < expectedAmount * 0.99) {
+                    return { 
+                        verified: false, 
+                        status: 'amount_mismatch',
+                        actualAmount,
+                        expectedAmount,
+                        fromAddress,
+                        toAddress,
+                        suggestedAmount: actualAmount,
+                        message: `⚠️ ยอดไม่ตรงกับที่กรอก!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n• ส่วนต่าง: ${(expectedAmount - actualAmount).toFixed(2)} USDT\n\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT แล้วลองใหม่` 
+                    };
+                }
             }
 
             this.logger.log(`[TRC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT`);
@@ -370,14 +401,15 @@ export class BlockchainVerificationService {
                 verified: true,
                 status: 'success',
                 actualAmount,
-                fromAddress: tx.ownerAddress,
+                expectedAmount,
+                fromAddress,
                 toAddress,
                 timestamp: tx.timestamp ? new Date(tx.timestamp) : new Date(),
-                message: 'ตรวจสอบสำเร็จ',
+                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${actualAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}`,
             };
         } catch (error: any) {
             this.logger.error(`[TRC20] Verification error: ${error.message}`);
-            return { verified: false, status: 'error', message: 'เกิดข้อผิดพลาดในการตรวจสอบ TRC20' };
+            return { verified: false, status: 'error', message: '❌ เกิดข้อผิดพลาดในการตรวจสอบ TRC20\n\nกรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ' };
         }
     }
 
@@ -385,6 +417,7 @@ export class BlockchainVerificationService {
      * Verify ERC20 (Ethereum) transaction via Etherscan V2 API
      * @security Verifies contract address, recipient, and amount
      * API Docs: https://docs.etherscan.io/api-reference/endpoint/tokentx
+     * Returns detailed information for user feedback
      */
     private async verifyERC20(
         txHash: string,
@@ -422,16 +455,24 @@ export class BlockchainVerificationService {
                 this.logger.error(`[ERC20] API Error: ${errorMsg}`);
 
                 if (errorMsg.includes('No transactions found')) {
-                    return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรม USDT มายังกระเป๋านี้' };
+                    return { 
+                        verified: false, 
+                        status: 'not_found', 
+                        message: `❌ ไม่พบธุรกรรม USDT มายังกระเป๋านี้\n\nกรุณาตรวจสอบ:\n• คุณโอนไปยังกระเป๋า: ${expectedWallet.slice(0, 10)}...${expectedWallet.slice(-6)} หรือไม่\n• โอนเป็น USDT ERC20 หรือไม่\n\nกรุณาโอน USDT ไปยังกระเป๋าที่ระบบกำหนด` 
+                    };
                 }
-                return { verified: false, status: 'error', message: `Etherscan: ${errorMsg}` };
+                return { verified: false, status: 'error', message: `❌ Etherscan Error: ${errorMsg}` };
             }
 
             const results = response.data?.result;
 
             if (!results || results.length === 0) {
                 this.logger.warn(`[ERC20] No USDT transfers found to wallet: ${expectedWallet}`);
-                return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรม USDT มายังกระเป๋านี้' };
+                return { 
+                    verified: false, 
+                    status: 'not_found', 
+                    message: `❌ ไม่พบธุรกรรม USDT มายังกระเป๋านี้\n\nกระเป๋าระบบ: ${expectedWallet}\n\nกรุณาตรวจสอบว่าคุณโอนไปยังกระเป๋านี้และเป็น USDT ERC20` 
+                };
             }
 
             // Find the transaction matching the txHash (case-insensitive)
@@ -440,10 +481,20 @@ export class BlockchainVerificationService {
 
             if (!tx) {
                 this.logger.warn(`[ERC20] TxHash ${txHash} not found in recent transfers`);
-                return { verified: false, status: 'not_found', message: 'ไม่พบธุรกรรมนี้ หรือยังไม่ได้รับการยืนยัน' };
+                return { 
+                    verified: false, 
+                    status: 'not_found', 
+                    message: `❌ ไม่พบธุรกรรมนี้\n\nกรุณาตรวจสอบ:\n• Transaction Hash ถูกต้องหรือไม่\n• ธุรกรรมอาจยังไม่ได้รับการยืนยัน\n• ลองรอ 2-3 นาทีแล้วลองใหม่` 
+                };
             }
 
             this.logger.log(`[ERC20] Transaction found: hash=${tx.hash}, to=${tx.to}, value=${tx.value}, token=${tx.tokenSymbol}`);
+
+            // Extract transaction details
+            const fromAddress = tx.from || '';
+            const toAddress = tx.to || '';
+            const actualAmount = parseFloat(tx.value) / 1e6;
+            const confirmations = parseInt(tx.confirmations || '0');
 
             // Verify USDT contract address
             if (tx.contractAddress?.toLowerCase() !== this.CONTRACTS.ERC20.toLowerCase()) {
@@ -451,41 +502,59 @@ export class BlockchainVerificationService {
                 return {
                     verified: false,
                     status: 'wrong_token',
-                    message: `ไม่ใช่ USDT ERC20 (Token: ${tx.tokenSymbol || 'Unknown'})`
+                    actualAmount,
+                    fromAddress,
+                    toAddress,
+                    contractAddress: tx.contractAddress,
+                    message: `❌ ไม่ใช่ USDT ERC20!\n\nรายละเอียดธุรกรรม:\n• Token ที่โอน: ${tx.tokenSymbol || 'Unknown'} (${tx.contractAddress})\n• USDT ERC20 ต้องเป็น: ${this.CONTRACTS.ERC20}\n\nกรุณาโอน USDT บนเครือข่าย ERC20 (Ethereum) เท่านั้น`
                 };
             }
 
             // Verify recipient address
-            const toAddress = tx.to?.toLowerCase();
-            if (toAddress !== expectedWallet.toLowerCase()) {
+            if (toAddress.toLowerCase() !== expectedWallet.toLowerCase()) {
                 this.logger.warn(`[ERC20] Wallet mismatch! Got: ${toAddress}, Expected: ${expectedWallet.toLowerCase()}`);
-                return { verified: false, status: 'wrong_recipient', message: 'กระเป๋าปลายทางไม่ตรง' };
+                return { 
+                    verified: false, 
+                    status: 'wrong_recipient',
+                    actualAmount,
+                    fromAddress,
+                    toAddress,
+                    expectedWallet,
+                    message: `❌ กระเป๋าปลายทางไม่ตรง!\n\nรายละเอียด:\n• คุณโอนไปที่: ${toAddress}\n• กระเป๋าระบบ: ${expectedWallet}\n\nกรุณาโอนไปยังกระเป๋าที่ระบบกำหนดเท่านั้น` 
+                };
             }
 
             // Check confirmations
-            const confirmations = parseInt(tx.confirmations || '0');
             if (confirmations < this.MIN_CONFIRMATIONS.ERC20) {
                 return {
                     verified: false,
                     status: 'pending',
+                    actualAmount,
+                    fromAddress,
+                    toAddress,
                     confirmations,
-                    message: `ธุรกรรมยังไม่ได้รับการยืนยันเพียงพอ (${confirmations}/${this.MIN_CONFIRMATIONS.ERC20})`
+                    message: `⏳ ธุรกรรมยังรอการยืนยัน\n\nรายละเอียดธุรกรรม:\n• จำนวน: ${actualAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}\n\nสถานะการยืนยัน: ${confirmations}/${this.MIN_CONFIRMATIONS.ERC20} blocks\n\nกรุณารอ 2-3 นาทีแล้วลองใหม่`
                 };
             }
 
-            // Calculate amount (USDT has 6 decimals)
-            const actualAmount = parseFloat(tx.value) / 1e6;
             this.logger.log(`[ERC20] Amount: ${actualAmount} USDT (expected: ${expectedAmount})`);
 
-            // Allow 1% tolerance
-            if (actualAmount < expectedAmount * 0.99) {
-                return {
-                    verified: false,
-                    status: 'insufficient_amount',
-                    actualAmount,
-                    toAddress: tx.to,
-                    message: `ยอดไม่ตรง: ได้รับ ${actualAmount} USDT แต่คาดหวัง ${expectedAmount} USDT`
-                };
+            // Check amount - if different, return with suggestion to use actual amount
+            if (Math.abs(actualAmount - expectedAmount) > 0.01) {
+                // Amount is different but transaction is valid
+                if (actualAmount < expectedAmount * 0.99) {
+                    return {
+                        verified: false,
+                        status: 'amount_mismatch',
+                        actualAmount,
+                        expectedAmount,
+                        fromAddress,
+                        toAddress,
+                        confirmations,
+                        suggestedAmount: actualAmount,
+                        message: `⚠️ ยอดไม่ตรงกับที่กรอก!\n\nรายละเอียด:\n• ยอดที่คุณกรอก: ${expectedAmount} USDT\n• ยอดจริงในรายการ: ${actualAmount} USDT\n• ส่วนต่าง: ${(expectedAmount - actualAmount).toFixed(2)} USDT\n\nกรุณาแก้ไขยอดเป็น ${actualAmount} USDT แล้วลองใหม่`
+                    };
+                }
             }
 
             this.logger.log(`[ERC20] ✅ Verification SUCCESS! Amount: ${actualAmount} USDT, Confirmations: ${confirmations}`);
@@ -493,11 +562,12 @@ export class BlockchainVerificationService {
                 verified: true,
                 status: 'success',
                 actualAmount,
-                fromAddress: tx.from,
-                toAddress: tx.to,
+                expectedAmount,
+                fromAddress,
+                toAddress,
                 timestamp: tx.timeStamp ? new Date(parseInt(tx.timeStamp) * 1000) : new Date(),
                 confirmations,
-                message: 'ตรวจสอบสำเร็จ',
+                message: `✅ ตรวจสอบสำเร็จ!\n\nรายละเอียด:\n• จำนวน: ${actualAmount} USDT\n• จาก: ${fromAddress.slice(0, 10)}...${fromAddress.slice(-6)}\n• ไปยัง: ${toAddress.slice(0, 10)}...${toAddress.slice(-6)}\n• Confirmations: ${confirmations} blocks`,
             };
         } catch (error: any) {
             this.logger.error(`[ERC20] Verification error: ${error.message}`);

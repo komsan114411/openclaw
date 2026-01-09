@@ -438,42 +438,41 @@ export class WalletService {
                 // Log the rejection but DO NOT save to database
                 this.logger.warn(`USDT verification failed: ${sanitizedTxHash}, status=${verificationResult.status}, message=${verificationResult.message}`);
                 
-                // Return appropriate error message based on status
-                let errorMsg = 'ไม่สามารถตรวจสอบธุรกรรมได้';
-                
-                switch (verificationResult.status) {
-                    case 'wrong_recipient':
-                        errorMsg = '❌ กระเป๋าปลายทางไม่ตรง! กรุณาโอนไปยังกระเป๋าที่ระบบกำหนดเท่านั้น';
-                        break;
-                    case 'wrong_token':
-                        errorMsg = `❌ ไม่ใช่ USDT ${network}! กรุณาโอน USDT บนเครือข่าย ${network} เท่านั้น`;
-                        break;
-                    case 'insufficient_amount':
-                        errorMsg = `❌ ยอดไม่ตรง! คุณกรอก ${usdtAmount} USDT แต่ได้รับ ${verificationResult.actualAmount || 0} USDT`;
-                        break;
-                    case 'not_found':
-                        errorMsg = '❌ ไม่พบธุรกรรมนี้ กรุณาตรวจสอบ Transaction Hash และลองใหม่หลังธุรกรรมได้รับการยืนยันบน Blockchain';
-                        break;
-                    case 'pending':
-                        errorMsg = '⏳ ธุรกรรมยังไม่ได้รับการยืนยันเพียงพอ กรุณารอ 5-10 นาทีแล้วลองใหม่';
-                        break;
-                    case 'no_api_key':
-                        errorMsg = '❌ ระบบยังไม่ได้ตั้งค่า API Key กรุณาติดต่อผู้ดูแลระบบ';
-                        break;
-                    case 'invalid_input':
-                        errorMsg = verificationResult.message || '❌ ข้อมูลไม่ถูกต้อง';
-                        break;
-                    case 'error':
-                    default:
-                        errorMsg = verificationResult.message || '❌ เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่อีกครั้ง';
-                        break;
-                }
-                
-                return {
+                // Use detailed message from verification service
+                // Include additional data for frontend to display
+                const responseData: any = {
                     success: false,
-                    message: errorMsg,
+                    message: verificationResult.message || 'ไม่สามารถตรวจสอบธุรกรรมได้',
                     status: verificationResult.status,
                 };
+                
+                // Include transaction details if available
+                if (verificationResult.actualAmount !== undefined) {
+                    responseData.actualAmount = verificationResult.actualAmount;
+                }
+                if (verificationResult.expectedAmount !== undefined) {
+                    responseData.expectedAmount = verificationResult.expectedAmount;
+                }
+                if (verificationResult.suggestedAmount !== undefined) {
+                    responseData.suggestedAmount = verificationResult.suggestedAmount;
+                }
+                if (verificationResult.fromAddress) {
+                    responseData.fromAddress = verificationResult.fromAddress;
+                }
+                if (verificationResult.toAddress) {
+                    responseData.toAddress = verificationResult.toAddress;
+                }
+                if (verificationResult.expectedWallet) {
+                    responseData.expectedWallet = verificationResult.expectedWallet;
+                }
+                if (verificationResult.confirmations !== undefined) {
+                    responseData.confirmations = verificationResult.confirmations;
+                }
+                if (verificationResult.contractAddress) {
+                    responseData.contractAddress = verificationResult.contractAddress;
+                }
+                
+                return responseData;
             }
 
             // === VERIFICATION SUCCESSFUL - SAVE TRANSACTION ===
