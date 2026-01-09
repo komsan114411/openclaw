@@ -226,7 +226,7 @@ export default function AdminDashboard() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">Thunder API</h2>
+                      <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">dooslip API</h2>
                       <p className="text-slate-400 font-bold text-[9px] md:text-xs tracking-[0.3em] uppercase opacity-40 mt-1 md:mt-2 text-gradient">ระบบตรวจสอบสลิป</p>
                     </div>
                   </div>
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                     {/* Meta Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
                       <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
-                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิต Thunder API</p>
+                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิต dooslip API</p>
                         <p className="text-2xl md:text-3xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
                       </div>
                       <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
@@ -329,7 +329,7 @@ export default function AdminDashboard() {
                     </div>
                     <p className="text-xl font-bold text-white mb-2">เชื่อมต่อบริการไม่สำเร็จ</p>
                     <p className="text-slate-500 font-medium text-center px-10 max-w-md">
-                      {thunderQuota?.error || 'ไม่สามารถเชื่อมต่อกับ Thunder API ได้ กรุณาตรวจสอบการตั้งค่าระบบ'}
+                      {thunderQuota?.error || 'ไม่สามารถเชื่อมต่อกับ Verify API ได้ กรุณาตรวจสอบการตั้งค่าระบบ'}
                     </p>
                     <Button variant="ghost" className="mt-6 text-emerald-400" onClick={fetchThunderQuota}>ลองอีกครั้ง</Button>
                   </div>

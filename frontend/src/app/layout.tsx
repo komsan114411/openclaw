@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/Toast';
 
-const prompt = Prompt({ 
+const prompt = Prompt({
   subsets: ['latin', 'thai'],
   weight: ['300', '400', '500', '600', '700'],
   display: 'swap',
@@ -15,13 +15,20 @@ const prompt = Prompt({
 
 export const metadata: Metadata = {
   title: {
-    default: 'ระบบจัดการ LINE OA',
-    template: '%s | ระบบจัดการ LINE OA',
+    default: 'dooslip.com | ระบบตรวจสอบสลิปอัตโนมัติ แม่นยำ 100%',
+    template: '%s | dooslip.com',
   },
-  description: 'ระบบจัดการ LINE Official Account แบบ Multi-Account พร้อมระบบตรวจสอบสลิปและ AI Chatbot',
-  keywords: ['LINE OA', 'LINE Official Account', 'ตรวจสอบสลิป', 'AI Chatbot', 'ระบบจัดการ'],
-  authors: [{ name: 'LINE OA Management Team' }],
+  description: 'dooslip.com ระบบตรวจสอบสลิปธนาคารอัตโนมัติ แม่นยำ 100% รองรับทุกธนาคารชั้นนำในไทย พร้อมระบบจัดการ LINE OA และการชำระเงินด้วย USDT (Crypto)',
+  keywords: ['dooslip', 'ตรวจสอบสลิป', 'Slip Verification API', 'USDT', 'Crypto Payment', 'LINE OA', 'จัดการสลิป'],
+  authors: [{ name: 'dooslip.com Team' }],
   robots: 'index, follow',
+  openGraph: {
+    title: 'dooslip.com | ระบบตรวจสอบสลิปอัตโนมัติ',
+    description: 'ตรวจสอบสลิปธนาคารอัตโนมัติ แม่นยำ 100% พร้อมรองรับ USDT',
+    type: 'website',
+    locale: 'th_TH',
+    siteName: 'dooslip.com',
+  },
 };
 
 export const viewport: Viewport = {
@@ -50,7 +57,7 @@ export default function RootLayout({
           <Providers>
             <ToastProvider>
               {children}
-              <Toaster 
+              <Toaster
                 position="top-right"
                 toastOptions={{
                   duration: 4000,

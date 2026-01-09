@@ -134,8 +134,8 @@ export default function SettingsPage() {
 
   // Preview Settings
   const [previewSettings, setPreviewSettings] = useState({
-    previewSenderName: 'นาย ธันเดอร์ มานะ',
-    previewReceiverName: 'นาย ธันเดอร์ มานะ',
+    previewSenderName: 'นาย ดูสลิป ยินดี',
+    previewReceiverName: 'นาย ดูสลิป ยินดี',
     previewSenderBankCode: '004',
     previewReceiverBankCode: '014',
     previewAmount: '1,000.00',
@@ -159,7 +159,7 @@ export default function SettingsPage() {
   const [selectedTestPreset, setSelectedTestPreset] = useState<'light' | 'medium' | 'heavy' | 'ddos_simulation'>('light');
   const [showRateLimitLogs, setShowRateLimitLogs] = useState(false);
   const [rateLimitTestMode, setRateLimitTestMode] = useState<'simulation' | 'real_webhook'>('real_webhook');
-  const [lineAccountsForTest, setLineAccountsForTest] = useState<{id: string; name: string; webhookSlug: string}[]>([]);
+  const [lineAccountsForTest, setLineAccountsForTest] = useState<{ id: string; name: string; webhookSlug: string }[]>([]);
   const [selectedAccountForTest, setSelectedAccountForTest] = useState<string>('random');
 
   const fetchSettings = useCallback(async () => {
@@ -205,8 +205,8 @@ export default function SettingsPage() {
         retryDelayMs: data.retryDelayMs || 1000,
       });
       setPreviewSettings({
-        previewSenderName: data.previewSenderName || 'นาย ธันเดอร์ มานะ',
-        previewReceiverName: data.previewReceiverName || 'นาย ธันเดอร์ มานะ',
+        previewSenderName: data.previewSenderName || 'นาย ดูสลิป ยินดี',
+        previewReceiverName: data.previewReceiverName || 'นาย ดูสลิป ยินดี',
         previewSenderBankCode: data.previewSenderBankCode || '004',
         previewReceiverBankCode: data.previewReceiverBankCode || '014',
         previewAmount: data.previewAmount || '1,000.00',
@@ -257,31 +257,31 @@ export default function SettingsPage() {
   const handleRunRateLimitTest = async () => {
     setRateLimitTestRunning(true);
     setRateLimitTestResult(null);
-    
+
     const modeText = rateLimitTestMode === 'real_webhook' ? 'Webhook จริง' : 'จำลอง';
     const accountId = selectedAccountForTest === 'random' ? undefined : selectedAccountForTest;
     const selectedAccount = lineAccountsForTest.find(a => a.id === accountId);
     const accountText = selectedAccount ? selectedAccount.name : 'สุ่ม';
-    
+
     const toastId = toast.loading(
-      rateLimitTestMode === 'real_webhook' 
+      rateLimitTestMode === 'real_webhook'
         ? `กำลังยิง ${selectedTestPreset} ไปที่ ${accountText}...`
         : `กำลังทดสอบ ${selectedTestPreset} (จำลอง)...`
     );
-    
+
     try {
       const response = await rateLimitApi.runQuickTest(
-        selectedTestPreset, 
+        selectedTestPreset,
         rateLimitTestMode,
         accountId
       );
       setRateLimitTestResult(response.data);
       toast.dismiss(toastId);
-      
+
       if (response.data.success) {
         const { requestsBlocked, requestsSent, blockRate, targetAccount, requestsError } = response.data;
         const targetName = targetAccount?.name || 'N/A';
-        
+
         if (requestsBlocked > 0) {
           toast.success(
             rateLimitTestMode === 'real_webhook'
@@ -296,7 +296,7 @@ export default function SettingsPage() {
       } else {
         toast.error(response.data.message || 'การทดสอบล้มเหลว');
       }
-      
+
       // Refresh stats after test
       await fetchRateLimitStats();
     } catch (error: any) {
@@ -368,7 +368,7 @@ export default function SettingsPage() {
       if (response.data.success) {
         toast.success(`เชื่อมต่อสำเร็จ! โควต้าคงเหลือ: ${response.data.remainingQuota?.toLocaleString() || 'N/A'}`);
       } else {
-        toast.error(response.data.message || 'เชื่อมต่อกับ Thunder API ไม่สำเร็จ');
+        toast.error(response.data.message || 'เชื่อมต่อกับ Verify API ไม่สำเร็จ');
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
@@ -541,7 +541,7 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">⚡</div>
                         <div>
-                          <h2 className="text-lg font-black text-white uppercase tracking-tight">Thunder API</h2>
+                          <h2 className="text-lg font-black text-white uppercase tracking-tight">dooslip API</h2>
                           <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">ตรวจสอบสลิป</p>
                         </div>
                       </div>
@@ -554,7 +554,7 @@ export default function SettingsPage() {
                       <Input
                         type={settings?.slipApiKey?.includes('....') ? 'text' : 'password'}
                         label="API Key"
-                        placeholder="ใส่ Thunder API Key..."
+                        placeholder="ใส่ Verify API Key..."
                         value={slipApiKey || settings?.slipApiKey || ''}
                         onChange={(e) => setSlipApiKey(e.target.value)}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono"
@@ -678,7 +678,7 @@ export default function SettingsPage() {
                       <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">ข้อมูลผู้โอน</p>
                       <Input
                         label="ชื่อผู้โอน"
-                        placeholder="นาย ธันเดอร์ มานะ"
+                        placeholder="นาย ดูสลิป ยินดี"
                         value={previewSettings.previewSenderName}
                         onChange={(e) => setPreviewSettings({ ...previewSettings, previewSenderName: e.target.value })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
@@ -731,7 +731,7 @@ export default function SettingsPage() {
                       <p className="text-xs font-black text-blue-400 uppercase tracking-[0.2em]">ข้อมูลผู้รับ</p>
                       <Input
                         label="ชื่อผู้รับ"
-                        placeholder="นาย ธันเดอร์ มานะ"
+                        placeholder="นาย ดูสลิป ยินดี"
                         value={previewSettings.previewReceiverName}
                         onChange={(e) => setPreviewSettings({ ...previewSettings, previewReceiverName: e.target.value })}
                         className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
@@ -1107,8 +1107,8 @@ export default function SettingsPage() {
                                 : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
                             )}
                           >
-                            {rateLimitTestRunning 
-                              ? 'กำลังทดสอบ...' 
+                            {rateLimitTestRunning
+                              ? 'กำลังทดสอบ...'
                               : rateLimitTestMode === 'real_webhook'
                                 ? '🚀 ยิง Webhook จริง!'
                                 : '🖥️ ทดสอบจำลอง'
@@ -1141,8 +1141,8 @@ export default function SettingsPage() {
                                 </span>
                                 <div>
                                   <p className="text-sm font-bold text-white">
-                                    {rateLimitTestResult.requestsBlocked > 0 
-                                      ? '🛡️ ระบบบล็อกทำงานปกติ!' 
+                                    {rateLimitTestResult.requestsBlocked > 0
+                                      ? '🛡️ ระบบบล็อกทำงานปกติ!'
                                       : rateLimitTestResult.requestsError > 0
                                         ? 'มี Error - ตรวจสอบ Webhook URL'
                                         : 'ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)'}

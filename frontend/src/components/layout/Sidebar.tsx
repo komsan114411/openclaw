@@ -368,9 +368,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </svg>
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight">LINE OA</h1>
+            <h1 className="text-lg font-bold tracking-tight">dooslip<span className="text-emerald-500">.com</span></h1>
             <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">
-              ระบบจัดการ
+              ระบบจัดการสลิป
             </p>
           </div>
         </div>

@@ -124,7 +124,7 @@ export default function LandingPage() {
               <Zap className="w-6 h-6 text-white fill-white/20" />
             </div>
             <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              THUNDER <span className="text-emerald-500">VERIFY</span>
+              dooslip<span className="text-emerald-500">.com</span>
             </span>
           </Link>
 
@@ -253,15 +253,15 @@ export default function LandingPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                เชื่อมต่อ API ง่ายๆ ภายใน 5 นาที
+                เชื่อมต่อ API ง่ายๆ ภายใน 5 นาที • รองรับ USDT
               </div>
 
               <h1 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tight mb-8">
-                ยกระดับการ <span className="text-emerald-500">จัดการสลิป</span> ให้เป็นเรื่องง่าย
+                ตรวจสอบสลิปอัตโนมัติ <br /> <span className="text-emerald-500">dooslip.com</span> รวดเร็ว แม่นยำ
               </h1>
 
               <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-xl mb-10">
-                ระบบตรวจสอบสลิปอัตโนมัติที่แม่นยำที่สุด รองรับการเชื่อมต่อกับ LINE OA และเว็บไซต์ของคุณอย่างสมบูรณ์แบบ เพิ่มความสะดวกให้ธุรกิจคุณวันนี้
+                ระบบตรวจสอบสลิปธนาคารที่แม่นยำที่สุด รองรับการเชื่อมต่อกับ LINE OA และ API พร้อมระบบเติมเงินผ่าน USDT (TRC20/ERC20) เพื่อความสะดวกสูงสุด
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
@@ -514,11 +514,11 @@ export default function LandingPage() {
                 <Zap className="w-5 h-5 text-white" />
               </div>
               <span className="text-lg font-black tracking-tighter">
-                THUNDER <span className="text-emerald-500">VERIFY</span>
+                dooslip<span className="text-emerald-500">.com</span>
               </span>
             </Link>
             <p className="text-slate-500 text-sm leading-relaxed mb-6">
-              เราคือผู้นำด้านระบบตรวจสอบสลิปอัตโนมัติ ช่วยลดข้อผิดพลาดและเพื่มประสิทธิภาพให้กับการจัดการทางการเงินในธุรกิจของคุณ
+              dooslip.com คือผู้นำด้านระบบตรวจสอบสลิปอัตโนมัติ รองรับการชำระเงินผ่านธนาคารไทยและ USDT เพื่อประสิทธิภาพสูงสุดในธุรกิจของคุณ
             </p>
           </div>
 
@@ -544,16 +544,15 @@ export default function LandingPage() {
 
           <div>
             <h5 className="font-bold mb-6">ช่องทางการติดต่อ</h5>
-            <ul className="space-y-4 text-sm text-slate-500">
-              <li className="flex gap-2"><span>Email:</span> <span className="text-slate-300">support@thunder-verify.com</span></li>
-              <li className="flex gap-2"><span>LINE:</span> <span className="text-slate-300">@thunderverify</span></li>
-              <li className="flex gap-2"><span>Phone:</span> <span className="text-slate-300">02-xxx-xxxx</span></li>
+            <ul className="space-y-4 text-sm font-medium">
+              <li className="flex gap-2"><span>Email:</span> <span className="text-slate-300">support@dooslip.com</span></li>
+              <li className="flex gap-2"><span>LINE:</span> <span className="text-slate-300">@dooslip</span></li>
             </ul>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-600 font-medium">
-          <p>© 2026 THUNDER VERIFY. All rights reserved.</p>
+          <p>© 2026 dooslip.com. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="#" className="hover:text-emerald-500">Facebook</Link>
             <Link href="#" className="hover:text-emerald-500">Twitter</Link>
