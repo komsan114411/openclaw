@@ -82,12 +82,12 @@ export default function UserPackagesPage() {
   const handlePurchase = async () => {
     if (!selectedPackage) return;
 
-    // Double-check balance is sufficient before purchase
-    const currentBalance = await fetchBalance();
-    if (currentBalance < selectedPackage.price) {
+    // Use current balance state (already fetched when modal opened)
+    // Don't re-fetch here to avoid race conditions
+    if (balance < selectedPackage.price) {
       setPurchaseResult({
         success: false,
-        message: `เครดิตไม่เพียงพอ (มี ฿${currentBalance} ต้องการ ฿${selectedPackage.price})`
+        message: `เครดิตไม่เพียงพอ (มี ฿${balance} ต้องการ ฿${selectedPackage.price})`
       });
       return;
     }
@@ -106,7 +106,13 @@ export default function UserPackagesPage() {
 
       if (data.success) {
         setPurchaseResult({ success: true, message: data.message || 'ซื้อแพ็คเกจสำเร็จ!' });
-        setBalance(data.balance ?? currentBalance - selectedPackage.price);
+        // ALWAYS use balance from API response - it's the source of truth
+        if (typeof data.balance === 'number') {
+          setBalance(data.balance);
+        } else {
+          // If API didn't return balance, fetch fresh balance
+          await fetchBalance();
+        }
         // Refresh wallet balance in global store
         useWalletStore.getState().refreshBalance();
         setTimeout(() => {
@@ -120,10 +126,13 @@ export default function UserPackagesPage() {
       }
     } catch (err: any) {
       setPurchaseResult({ success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' });
+      // Refresh balance on error
+      await fetchBalance();
     } finally {
       setIsPurchasing(false);
     }
   };
+
 
   const hasEnoughBalance = selectedPackage && !isLoadingBalance ? balance >= selectedPackage.price : true;
 
