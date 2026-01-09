@@ -80,9 +80,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
-        // If already checking, don't start another check
-        if (get().isLoading) return;
-        
+        // If already initialized or currently checking, don't start another check
+        const state = get();
+        if (state.isInitialized || state.isLoading) {
+          return;
+        }
+
         set({ isLoading: true });
         try {
           const response = await authApi.me();
@@ -96,15 +99,16 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+
       clearError: () => set({ error: null }),
-      
+
       setInitialized: () => set({ isInitialized: true }),
     }),
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => sessionStorage),
       // Only persist user data, not loading states
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         user: state.user,
         isInitialized: state.isInitialized,
       }),
