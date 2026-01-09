@@ -77,19 +77,22 @@ export default function LandingPage() {
       title: 'API ตรวจสอบสลิป',
       description: 'ระบบตรวจสอบสลิปอัตโนมัติ แม่นยำ 100% รองรับทุกธนาคารชั้นนำในไทย',
       icon: <CheckCircle2 className="w-6 h-6 text-emerald-400" />,
-      color: 'emerald'
+      color: 'emerald',
+      image: '/assets/slip_verification_illustration_1767975409375.png'
     },
     {
-      title: 'LINE OA Integration',
-      description: 'เชื่อมต่อกับ LINE Official Account ของคุณได้ง่ายๆ พร้อมระบบตอบกลับอัตโนมัติ',
-      icon: <MessageSquare className="w-6 h-6 text-cyan-400" />,
-      color: 'cyan'
+      title: 'USDT (Crypto) Payment',
+      description: 'รองรับการเติมเงินผ่าน USDT (TRC20/ERC20) สะดวก รวดเร็ว และเป็นสากล',
+      icon: <Zap className="w-6 h-6 text-cyan-400" />,
+      color: 'cyan',
+      image: '/assets/usdt_crypto_payment_illustration_1767975454809.png'
     },
     {
       title: 'Real-time Dashboard',
       description: 'ติดตามข้อมูลการทำธุรกรรมและสถิติต่างๆ ได้แบบเรียลไทม์ผ่านแดชบอร์ดที่สวยงาม',
       icon: <BarChart3 className="w-6 h-6 text-emerald-400" />,
-      color: 'emerald'
+      color: 'emerald',
+      image: '/assets/hero-mockup.png'
     }
   ];
 
@@ -366,8 +369,18 @@ export default function LandingPage() {
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
                 className="group relative h-full bg-[#111A15] border border-white/5 rounded-[2rem] p-8 hover:bg-[#16211C] hover:border-emerald-500/20 transition-all duration-300"
               >
+                {feature.image && (
+                  <div className="relative w-full h-40 mb-6 rounded-2xl overflow-hidden border border-white/5">
+                    <Image
+                      src={feature.image}
+                      alt={feature.title}
+                      fill
+                      className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  </div>
+                )}
                 <div className={cn(
-                  "w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110",
+                  "w-12 h-12 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110",
                   feature.color === 'emerald' ? "bg-emerald-500/10" : "bg-cyan-500/10"
                 )}>
                   {feature.icon}
@@ -383,6 +396,49 @@ export default function LandingPage() {
                 </div>
               </motion.div>
             ))}
+          </div>
+        </section>
+        {/* Supported Banks Section */}
+        <section className="py-24 px-4 relative overflow-hidden bg-white/[0.01]">
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="lg:w-1/2"
+            >
+              <h3 className="text-4xl md:text-5xl font-black mb-6 leading-tight text-white">
+                รองรับทุกธนาคาร <br /> <span className="text-emerald-500">ชั้นนำในไทย</span>
+              </h3>
+              <p className="text-slate-400 text-lg mb-8 leading-relaxed">
+                ไม่ว่าลูกค้าของคุณจะเป็นผู้ใช้ธนาคารไหน ระบบ dooslip.com ของเราพร้อมตรวจสอบความถูกต้องได้ทันที แม่นยำ 100% พร้อมเชื่อมต่อ API ได้ง่ายๆ
+              </p>
+              <div className="flex flex-wrap gap-4">
+                {['KBANK', 'SCB', 'BBL', 'KTB', 'BAY', 'GSB'].map(bank => (
+                  <div key={bank} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-black text-slate-500 tracking-wider">
+                    {bank}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="lg:w-1/2 relative"
+            >
+              <div className="relative aspect-square rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl shadow-emerald-500/10">
+                <Image
+                  src="/assets/thai_bank_logos_grid_1767975432323.png"
+                  alt="ธนาคารที่รองรับ"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="absolute -top-6 -right-6 w-32 h-32 bg-emerald-500/20 blur-[60px] rounded-full" />
+              <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-cyan-500/20 blur-[60px] rounded-full" />
+            </motion.div>
           </div>
         </section>
 
