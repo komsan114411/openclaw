@@ -345,10 +345,22 @@ export class WalletService {
         }
         
         const sanitizedTxHash = transactionHash.trim();
+        
+        // Validate length based on network (will be checked later, but do basic check here)
+        // ERC20/BEP20: 66 chars (0x + 64 hex), TRC20: 64 chars
+        if (sanitizedTxHash.length < 64 || sanitizedTxHash.length > 66) {
+            this.logger.warn(`Invalid txHash length: ${sanitizedTxHash.length}`);
+            return { 
+                success: false, 
+                message: `Transaction Hash ความยาวไม่ถูกต้อง (ต้องมี 64-66 ตัวอักษร, ปัจจุบัน: ${sanitizedTxHash.length})` 
+            };
+        }
+        
+        // Validate hex pattern
         const hexPattern = /^(0x)?[a-fA-F0-9]{64}$/;
         if (!hexPattern.test(sanitizedTxHash)) {
             this.logger.warn(`Invalid txHash format: ${sanitizedTxHash}`);
-            return { success: false, message: 'รูปแบบ Transaction Hash ไม่ถูกต้อง' };
+            return { success: false, message: 'รูปแบบ Transaction Hash ไม่ถูกต้อง (ต้องเป็นตัวเลขฐาน 16 เท่านั้น)' };
         }
         
         // === SECURITY: Distributed lock to prevent race conditions ===

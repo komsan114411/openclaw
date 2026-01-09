@@ -71,20 +71,39 @@ export class BlockchainVerificationService {
      */
     validateTxHash(txHash: string, network: 'TRC20' | 'ERC20' | 'BEP20'): { valid: boolean; message?: string } {
         if (!txHash || typeof txHash !== 'string') {
-            return { valid: false, message: 'Transaction Hash ไม่ถูกต้อง' };
+            return { valid: false, message: 'กรุณาระบุ Transaction Hash' };
         }
 
         const trimmed = txHash.trim();
         
-        // Check length limits
-        if (trimmed.length < 64 || trimmed.length > 66) {
-            return { valid: false, message: 'ความยาว Transaction Hash ไม่ถูกต้อง' };
+        // Network-specific length validation
+        if (network === 'TRC20') {
+            // TRC20: 64 hex characters (no 0x prefix)
+            if (trimmed.length !== 64) {
+                return { 
+                    valid: false, 
+                    message: `Transaction Hash ต้องมี 64 ตัวอักษร (ปัจจุบัน: ${trimmed.length} ตัวอักษร)` 
+                };
+            }
+        } else {
+            // ERC20/BEP20: 0x + 64 hex characters = 66 total
+            if (trimmed.length !== 66) {
+                return { 
+                    valid: false, 
+                    message: `Transaction Hash ต้องมี 66 ตัวอักษร รวม 0x (ปัจจุบัน: ${trimmed.length} ตัวอักษร)` 
+                };
+            }
+            
+            // Must start with 0x
+            if (!trimmed.startsWith('0x') && !trimmed.startsWith('0X')) {
+                return { valid: false, message: 'Transaction Hash ต้องขึ้นต้นด้วย 0x' };
+            }
         }
 
         // Check pattern based on network
         const pattern = this.TX_HASH_PATTERNS[network];
         if (!pattern.test(trimmed)) {
-            return { valid: false, message: `รูปแบบ Transaction Hash ไม่ถูกต้องสำหรับ ${network}` };
+            return { valid: false, message: `รูปแบบ Transaction Hash ไม่ถูกต้อง (ต้องเป็นตัวเลขฐาน 16 เท่านั้น)` };
         }
 
         return { valid: true };
