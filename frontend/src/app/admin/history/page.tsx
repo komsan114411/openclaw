@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoading } from '@/components/ui/Loading';
-import { cn } from '@/lib/utils';
+import { Search, RotateCcw, LayoutGrid, Settings, Users, CreditCard, Box, ShieldAlert, Cpu, UserCircle, Calendar, Hash, MessageSquare, AlertCircle } from 'lucide-react';
 
 export default function AdminHistoryPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -92,18 +92,18 @@ export default function AdminHistoryPage() {
 
   const getActionBadge = (action: string) => {
     const act = action.toLowerCase();
-    if (act.includes('create') || act.includes('add')) return <Badge variant="emerald" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">สร้าง</Badge>;
-    if (act.includes('update') || act.includes('edit')) return <Badge variant="indigo" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">แก้ไข</Badge>;
-    if (act.includes('delete') || act.includes('remove')) return <Badge variant="rose" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">ลบ</Badge>;
-    if (act.includes('auth') || act.includes('login')) return <Badge variant="purple" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">ยืนยันตัวตน</Badge>;
-    return <Badge variant="slate" className="px-2 py-0 border-none font-black text-[9px] uppercase tracking-wider">จัดการ</Badge>;
+    if (act.includes('create') || act.includes('add')) return <Badge variant="emerald" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">สร้าง</Badge>;
+    if (act.includes('update') || act.includes('edit')) return <Badge variant="indigo" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">แก้ไข</Badge>;
+    if (act.includes('delete') || act.includes('remove')) return <Badge variant="rose" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">ลบ</Badge>;
+    if (act.includes('auth') || act.includes('login')) return <Badge variant="purple" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">ยืนยันตัวตน</Badge>;
+    return <Badge variant="slate" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">จัดการ</Badge>;
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'system': return <span className="text-emerald-500">🤖</span>;
-      case 'admin': return <span className="text-amber-500">⚡</span>;
-      default: return <span className="text-slate-400">👤</span>;
+      case 'system': return <Cpu className="w-4 h-4 text-emerald-500" />;
+      case 'admin': return <ShieldAlert className="w-4 h-4 text-amber-500" />;
+      default: return <UserCircle className="w-4 h-4 text-slate-400" />;
     }
   };
 
@@ -114,7 +114,7 @@ export default function AdminHistoryPage() {
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
             <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
               ประวัติ<span className="text-[#06C755]">ระบบ</span>
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm">
@@ -127,13 +127,13 @@ export default function AdminHistoryPage() {
             onClick={fetchData}
             disabled={isLoading}
           >
-            {isLoading ? <span className="animate-spin mr-2">⏳</span> : '↺'} รีเฟรช
+            {isLoading ? <div className="animate-spin mr-2 h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full" /> : <RotateCcw className="w-4 h-4 mr-2" />} รีเฟรช
           </Button>
         </div>
 
         <div className="flex flex-col xl:flex-row gap-4 sm:gap-6">
           <Card variant="glass" className="flex-1 p-3 sm:p-4 rounded-2xl sm:rounded-3xl flex items-center gap-3 sm:gap-4 border-none shadow-premium-sm">
-            <div className="pl-2 sm:pl-4 text-lg sm:text-xl opacity-20">🔍</div>
+            <div className="pl-2 sm:pl-4 opacity-30"><Search className="w-5 h-5 text-white" /></div>
             <input
               className="bg-transparent border-none focus:ring-0 w-full text-sm sm:text-lg font-semibold placeholder:text-slate-500 text-white"
               placeholder="ค้นหาประวัติ..."
@@ -143,19 +143,19 @@ export default function AdminHistoryPage() {
           </Card>
           <div className="flex gap-1 sm:gap-2 p-2 bg-white/[0.02] border border-white/5 backdrop-blur-md rounded-2xl overflow-x-auto no-scrollbar">
             {[
-              { key: 'all', label: 'ทั้งหมด', icon: '📋' },
-              { key: 'system_config', label: 'ตั้งค่าระบบ', icon: '⚙️' },
-              { key: 'user_management', label: 'จัดการผู้ใช้', icon: '👥' },
-              { key: 'payment_approval', label: 'การชำระเงิน', icon: '💳' },
-              { key: 'system', label: 'ระบบ', icon: '🤖' },
-              { key: 'admin', label: 'แอดมิน', icon: '⚡' },
-              { key: 'user', label: 'ผู้ใช้', icon: '👤' },
+              { key: 'all', label: 'ทั้งหมด', icon: <LayoutGrid className="w-4 h-4" /> },
+              { key: 'system_config', label: 'ตั้งค่าระบบ', icon: <Settings className="w-4 h-4" /> },
+              { key: 'user_management', label: 'จัดการผู้ใช้', icon: <Users className="w-4 h-4" /> },
+              { key: 'payment_approval', label: 'การชำระเงิน', icon: <CreditCard className="w-4 h-4" /> },
+              { key: 'system', label: 'ระบบ', icon: <Cpu className="w-4 h-4" /> },
+              { key: 'admin', label: 'แอดมิน', icon: <ShieldAlert className="w-4 h-4" /> },
+              { key: 'user', label: 'ผู้ใช้', icon: <UserCircle className="w-4 h-4" /> },
             ].map((cat) => (
               <button
                 key={cat.key}
                 onClick={() => setSelectedCategory(cat.key)}
                 className={cn(
-                  "px-3 sm:px-5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5",
+                  "px-3 sm:px-5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-2",
                   selectedCategory === cat.key ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20" : "text-slate-500 hover:text-white hover:bg-white/5"
                 )}
               >
@@ -171,11 +171,11 @@ export default function AdminHistoryPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">วันที่และเวลา</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ดำเนินการ</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ประเภท</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">เป้าหมาย</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">รายละเอียด</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">วันที่และเวลา</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">ผู้ดำเนินการ</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">ประเภท</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">เป้าหมาย</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">รายละเอียด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -183,7 +183,7 @@ export default function AdminHistoryPage() {
                   <tr>
                     <td colSpan={5} className="px-10 py-32">
                       <div className="flex flex-col items-center gap-6 opacity-30">
-                        <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-12 h-12 border-4 border-[#06C755] border-t-transparent rounded-full animate-spin" />
                         <p className="text-sm font-semibold text-slate-400">กำลังโหลดข้อมูล...</p>
                       </div>
                     </td>
@@ -192,7 +192,9 @@ export default function AdminHistoryPage() {
                   <tr>
                     <td colSpan={5} className="px-10 py-32 text-center">
                       <div className="flex flex-col items-center gap-6 opacity-40">
-                        <div className="text-6xl">📜</div>
+                        <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center text-slate-500">
+                          <LayoutGrid className="w-10 h-10" />
+                        </div>
                         <p className="text-sm font-semibold text-slate-400">ไม่พบรายการที่ตรงกัน</p>
                       </div>
                     </td>
@@ -207,47 +209,58 @@ export default function AdminHistoryPage() {
                     >
                       <td className="px-10 py-8">
                         <div className="flex flex-col">
-                          <span className="text-xs font-black text-white">{new Date(log.createdAt).toLocaleDateString('th-TH')}</span>
-                          <span className="text-[10px] font-bold text-slate-600">{new Date(log.createdAt).toLocaleTimeString('th-TH')}</span>
+                          <span className="text-xs font-bold text-white flex items-center gap-2">
+                            <Calendar className="w-3 h-3 text-slate-500" />
+                            {new Date(log.createdAt).toLocaleDateString('th-TH')}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-600 ml-5">{new Date(log.createdAt).toLocaleTimeString('th-TH')}</span>
                         </div>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-sm shadow-inner group-hover:scale-110 transition-transform">
+                          <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
                             {getRoleIcon(log.actorRole)}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-white tracking-tight leading-none mb-1">
+                            <p className="text-sm font-bold text-white tracking-tight leading-none mb-1">
                               {log.actorRole === 'system'
                                 ? 'ระบบอัตโนมัติ'
                                 : userMap.get(log.actorUserId || '') || log.actorUserId || 'ผู้เยี่ยมชม'}
                             </p>
-                            <Badge variant="outline" className="text-[8px] px-1.5 py-0 border-white/10 text-slate-600 uppercase font-black tracking-widest">{log.actorRole}</Badge>
+                            <Badge variant="outline" className="text-[8px] px-1.5 py-0 border-white/10 text-slate-500 uppercase font-black tracking-widest">{log.actorRole}</Badge>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2 items-start">
                           {getActionBadge(log.action)}
-                          <span className="font-mono text-[9px] font-black text-slate-700 uppercase tracking-widest">{log.action}</span>
+                          <span className="font-mono text-[9px] font-black text-slate-600 uppercase tracking-widest">{log.action}</span>
                         </div>
                       </td>
                       <td className="px-10 py-8">
-                        <div className="p-3 bg-white/[0.02] rounded-[1.5rem] border border-white/5 group-hover:bg-white/[0.04] transition-colors">
-                          <p className="text-[10px] font-black text-white uppercase tracking-tight mb-1">{log.entityType || 'ภาพรวมระบบ'}</p>
-                          <p className="font-mono text-[9px] text-slate-600 truncate max-w-[120px]">{log.entityId || '---'}</p>
+                        <div className="flex items-center gap-2 p-2 bg-white/[0.02] rounded-xl border border-white/5 group-hover:bg-white/[0.04] transition-colors">
+                          <Box className="w-3 h-3 text-slate-500" />
+                          <div className="flex flex-col">
+                            <p className="text-[9px] font-black text-white uppercase tracking-tight">{log.entityType || 'GLOBAL'}</p>
+                            <p className="font-mono text-[8px] text-slate-600 truncate max-w-[100px]">{log.entityId || '---'}</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-10 py-8 max-w-md">
-                        <p className="text-xs font-bold text-slate-400 leading-relaxed group-hover:text-emerald-400 transition-colors">
-                          {log.message || <span className="italic opacity-30 text-[10px]">ไม่มีข้อมูลเพิ่มเติม</span>}
-                        </p>
-                        {log.subjectUserId && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Subject:</span>
-                            <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/10 uppercase tracking-widest">{userMap.get(log.subjectUserId) || log.subjectUserId}</span>
+                        <div className="flex items-start gap-2">
+                          <MessageSquare className="w-3 h-3 text-slate-600 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-slate-400 leading-relaxed group-hover:text-emerald-400 transition-colors">
+                              {log.message || <span className="italic opacity-30 text-[10px]">ไม่มีข้อมูลเพิ่มเติม</span>}
+                            </p>
+                            {log.subjectUserId && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Subject:</span>
+                                <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/10 uppercase tracking-widest">{userMap.get(log.subjectUserId) || log.subjectUserId}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </td>
                     </motion.tr>
                   ))
@@ -275,14 +288,14 @@ export default function AdminHistoryPage() {
                 <Card variant="glass" className="p-6 relative overflow-hidden group rounded-[2rem]">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-sm shadow-inner group-hover:scale-110 transition-transform">
+                      <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center hover:scale-110 transition-transform">
                         {getRoleIcon(log.actorRole)}
                       </div>
                       <div>
                         <p className="text-xs font-black text-white uppercase tracking-tight">
                           {log.actorRole === 'system' ? 'SYSTEM' : userMap.get(log.actorUserId || '') || 'Unknown'}
                         </p>
-                        <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{log.actorRole}</p>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{log.actorRole}</p>
                       </div>
                     </div>
                     {getActionBadge(log.action)}
@@ -291,7 +304,8 @@ export default function AdminHistoryPage() {
                     {log.message || log.action}
                   </p>
                   <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                    <span className="text-[9px] text-slate-700 font-black uppercase tracking-widest">
+                    <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest flex items-center gap-1">
+                      <Box className="w-3 h-3" />
                       {log.entityType || 'GLOBAL'}
                     </span>
                     <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
@@ -302,21 +316,6 @@ export default function AdminHistoryPage() {
               </motion.div>
             ))
           )}
-        </div>
-
-        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-6 opacity-40 hover:opacity-100 transition-opacity duration-700">
-          <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
-            <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">🏛️</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">บันทึกถาวร</p>
-          </div>
-          <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
-            <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">🔐</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">สำหรับผู้ดูแลระบบ</p>
-          </div>
-          <div className="p-6 bg-white/[0.02] rounded-[2.5rem] border border-white/5 flex items-center gap-4">
-            <div className="w-10 h-10 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center text-lg">⚛️</div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">ติดตามกิจกรรมเรียลไทม์</p>
-          </div>
         </div>
       </div>
     </DashboardLayout>
