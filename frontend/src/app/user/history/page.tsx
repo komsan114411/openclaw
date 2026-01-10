@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import Link from 'next/link';
 import { walletApi, lineAccountsApi } from '@/lib/api';
 import { WalletTransaction, LineAccount } from '@/types';
 import toast from 'react-hot-toast';
