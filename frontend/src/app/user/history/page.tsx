@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
-import { Search, Clock, CreditCard, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { Search, Clock, CreditCard, CheckCircle2, AlertCircle, Calendar, Zap } from 'lucide-react';
 
 export default function UserHistoryPage() {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
