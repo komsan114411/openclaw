@@ -351,47 +351,88 @@ export default function LandingPage() {
 
         {/* Features Section */}
         <section id="features" className="py-24 px-4 relative">
-          <div className="max-w-7xl mx-auto text-center mb-16">
-            <h2 className="text-accent-foreground text-sm font-bold tracking-widest uppercase mb-4">บริการระดับพรีเมียม</h2>
-            <h3 className="text-4xl md:text-5xl font-black mb-6">ฟีเจอร์เด่นที่ตอบโจทย์ <span className="text-emerald-500">ทุกธุรกิจ</span></h3>
-            <p className="text-slate-400 max-w-2xl mx-auto italic">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
+
+          <div className="max-w-7xl mx-auto text-center mb-16 relative z-10">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-accent-foreground text-sm font-bold tracking-widest uppercase mb-4"
+            >
+              บริการระดับพรีเมียม
+            </motion.h2>
+            <motion.h3
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-4xl md:text-5xl font-black mb-6"
+            >
+              ฟีเจอร์เด่นที่ตอบโจทย์ <span className="text-emerald-500">ทุกธุรกิจ</span>
+            </motion.h3>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-slate-400 max-w-2xl mx-auto italic"
+            >
               เราพัฒนาเทคโนโลยีที่ล้ำหน้าเพื่อให้ธรุกิจของคุณทำงานได้รวดเร็วและปลอดภัยยิ่งขึ้น
-            </p>
+            </motion.p>
           </div>
 
-          <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8">
-            {features.map((feature, idx) => (
+          <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-8 relative z-10">
+            {[
+              {
+                title: 'ความปลอดภัยสูงสุด',
+                description: 'ปกป้องข้อมูลธุรกรรมของคุณด้วยมาตรฐานความปลอดภัยระดับสากล',
+                image: '/assets/security_shield_3d_icon_1768071893253.png',
+                delay: 0
+              },
+              {
+                title: 'ประมวลผลรวดเร็ว',
+                description: 'ระบบทำงานด้วยความเร็วสูง รองรับ Transaction มหาศาลในเสี้ยววินาที',
+                image: '/assets/fast_speed_rocket_3d_icon_1768071908245.png',
+                delay: 0.1
+              },
+              {
+                title: 'วิเคราะห์ข้อมูลเชิงลึก',
+                description: 'ติดตามสถิติและรายงานผลประกอบการแบบ Real-time ผ่าน Dashboard',
+                image: '/assets/hero-mockup.png', // Fallback for analytics icon
+                delay: 0.2
+              }
+            ].map((feature, idx) => (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className="group relative h-full bg-[#111A15] border border-white/5 rounded-[2rem] p-8 hover:bg-[#16211C] hover:border-emerald-500/20 transition-all duration-300"
+                transition={{ duration: 0.5, delay: feature.delay }}
+                className="group relative h-full bg-[#111A15]/80 backdrop-blur-sm border border-white/5 rounded-[2rem] p-8 hover:bg-[#16211C] hover:border-emerald-500/20 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10"
               >
-                {feature.image && (
-                  <div className="relative w-full h-40 mb-6 rounded-2xl overflow-hidden border border-white/5">
+                <div className="relative w-full h-48 mb-6 rounded-2xl overflow-hidden border border-white/5 bg-gradient-to-br from-white/5 to-transparent">
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 4 + idx, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-full h-full relative"
+                  >
                     <Image
                       src={feature.image}
                       alt={feature.title}
                       fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="object-contain p-4 group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                     />
-                  </div>
-                )}
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110",
-                  feature.color === 'emerald' ? "bg-emerald-500/10" : "bg-cyan-500/10"
-                )}>
-                  {feature.icon}
+                  </motion.div>
                 </div>
+
                 <h4 className="text-xl font-bold mb-4 group-hover:text-emerald-400 transition-colors">{feature.title}</h4>
-                <p className="text-slate-500 text-sm leading-relaxed">
+                <p className="text-slate-500 text-sm leading-relaxed mb-6">
                   {feature.description}
                 </p>
-                <div className="mt-8 pt-6 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link href="/register" className="text-sm font-bold text-emerald-500 flex items-center gap-1">
-                    ทดลองใช้งานเลย <ChevronRight className="w-4 h-4" />
+                <div className="pt-6 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                  <Link href="/register" className="text-sm font-bold text-emerald-500 flex items-center gap-1 hover:gap-2 transition-all">
+                    เริ่มต้นใช้งาน <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
               </motion.div>
