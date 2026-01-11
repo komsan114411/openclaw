@@ -714,12 +714,19 @@ export class SlipVerificationService {
       const receiverBank = receiverCode ? await this.banksService.getByCode(receiverCode).catch(() => null) : null;
 
       // Use backend API endpoint for bank logos (LINE only accepts https:// URLs)
-      // Get the base URL from environment or construct based on request
-      const baseUrl = process.env.BACKEND_URL || 'https://test-api.line3.exgamer.site';
+      // Priority: 1. publicBaseUrl from DB settings, 2. BACKEND_URL env, 3. Default API URL
+      const baseUrl = settings?.publicBaseUrl || process.env.BACKEND_URL || 'https://api.dooslip.com';
+
+      // Only add logo URLs if we have valid bank codes
+      const senderLogoUrl = senderCode ? `${baseUrl}/api/bank-logo/${senderCode}` : '';
+      const receiverLogoUrl = receiverCode ? `${baseUrl}/api/bank-logo/${receiverCode}` : '';
+
+      this.logger.log(`[BANK LOGO] baseUrl=${baseUrl}, sender=${senderCode}, receiver=${receiverCode}`);
+
       return {
         ...data,
-        senderBankLogoUrl: senderCode ? `${baseUrl}/api/bank-logo/${senderCode}` : '',
-        receiverBankLogoUrl: receiverCode ? `${baseUrl}/api/bank-logo/${receiverCode}` : '',
+        senderBankLogoUrl: senderLogoUrl,
+        receiverBankLogoUrl: receiverLogoUrl,
       };
     };
 
