@@ -609,7 +609,7 @@ export class SlipTemplatesService implements OnModuleInit {
   generateFlexMessage(template: SlipTemplateDocument, slipData: SlipData): any {
     this.logger.log(`[FLEX] Generating flex message from template: ${template.name} (type: ${template.type})`);
     this.logger.log(`[FLEX] Template has flexTemplate: ${!!template.flexTemplate}, slipData keys: ${Object.keys(slipData).join(',')}`);
-    
+
     if (template.flexTemplate) {
       this.logger.log(`[FLEX] Using custom flexTemplate`);
       return this.replaceVariables(template.flexTemplate, slipData);
@@ -903,12 +903,13 @@ export class SlipTemplatesService implements OnModuleInit {
     const isNotFound = template.type === 'not_found';
     const hasNoData = !data.amountFormatted && !data.senderName && !data.receiverName;
 
-    if ((isDuplicate || isError || isNotFound) && hasNoData) {
+    // Only force generic message for error/not_found types when no data
+    // For duplicate, allow rendering the template structure even without data (using placeholders)
+    if ((isError || isNotFound) && hasNoData) {
       // Add descriptive message when no slip data is available
       const messageText = template.footerText || (
-        isDuplicate ? 'สลิปนี้เคยถูกใช้ตรวจสอบแล้ว ไม่สามารถใช้ซ้ำได้' :
-          isError ? 'เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง' :
-            'ไม่พบข้อมูลสลิปในระบบ กรุณาตรวจสอบสลิปอีกครั้ง'
+        isError ? 'เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง' :
+          'ไม่พบข้อมูลสลิปในระบบ กรุณาตรวจสอบสลิปอีกครั้ง'
       );
 
       contents.push({
@@ -916,14 +917,14 @@ export class SlipTemplatesService implements OnModuleInit {
         layout: 'vertical',
         margin: 'lg',
         paddingAll: '16px',
-        backgroundColor: isDuplicate ? '#FFF8E1' : isError ? '#FFEBEE' : '#F5F5F5',
+        backgroundColor: isError ? '#FFEBEE' : '#F5F5F5',
         cornerRadius: '12px',
         contents: [
           {
             type: 'text',
             text: messageText,
             size: 'sm',
-            color: isDuplicate ? '#F57C00' : isError ? '#C62828' : '#616161',
+            color: isError ? '#C62828' : '#616161',
             wrap: true,
             align: 'center',
           },
@@ -933,14 +934,15 @@ export class SlipTemplatesService implements OnModuleInit {
       // Skip amount/sender/receiver sections and go directly to footer
     }
 
-    if (template.showAmount && data.amountFormatted) {
+    // Amount Section
+    if (template.showAmount && (data.amountFormatted || isDuplicate)) {
       contents.push({
         type: 'box',
         layout: 'vertical',
         contents: [
           {
             type: 'text',
-            text: data.amountFormatted,
+            text: data.amountFormatted || '฿0.00',
             size: 'xxl',
             weight: 'bold',
             color: primaryColor,
@@ -950,8 +952,8 @@ export class SlipTemplatesService implements OnModuleInit {
             ? {
               type: 'text',
               text: [
-                template.showDate ? (data.date || '-') : null,
-                template.showTime ? (data.time || '-') : null,
+                template.showDate ? (data.date || isDuplicate ? (data.date || '-') : null) : null,
+                template.showTime ? (data.time || isDuplicate ? (data.time || '-') : null) : null,
               ].filter(Boolean).join(' • '),
               size: 'xs',
               color: '#888888',
@@ -993,18 +995,18 @@ export class SlipTemplatesService implements OnModuleInit {
     }
 
     // Sender info with bank logo
-    if (template.showSender && data.senderName) {
+    if (template.showSender && (data.senderName || isDuplicate)) {
       const senderAccountLines: string[] = [];
-      if ((template as any).showSenderAccount && data.senderAccount) {
-        senderAccountLines.push(data.senderAccount);
+      if ((template as any).showSenderAccount) {
+        senderAccountLines.push(data.senderAccount || (isDuplicate ? '-' : ''));
       }
       if ((template as any).showSenderNameEn && data.senderNameEn) {
         senderAccountLines.push(data.senderNameEn);
       }
       contents.push(this.createBankInfoBox(
         'ผู้โอน',
-        data.senderName,
-        senderAccountLines.join(' • ') || data.senderBank || '',
+        data.senderName || (isDuplicate ? '-' : ''),
+        senderAccountLines.join(' • ') || data.senderBank || (isDuplicate ? '-' : ''),
         data.senderBank || '',
         data.senderBankLogoUrl,
         template.showBankLogo,
@@ -1012,10 +1014,10 @@ export class SlipTemplatesService implements OnModuleInit {
     }
 
     // Receiver info with bank logo
-    if (template.showReceiver && data.receiverName) {
+    if (template.showReceiver && (data.receiverName || isDuplicate)) {
       const receiverAccountLines: string[] = [];
-      if ((template as any).showReceiverAccount && data.receiverAccount) {
-        receiverAccountLines.push(data.receiverAccount);
+      if ((template as any).showReceiverAccount) {
+        receiverAccountLines.push(data.receiverAccount || (isDuplicate ? '-' : ''));
       }
       if ((template as any).showReceiverNameEn && data.receiverNameEn) {
         receiverAccountLines.push(data.receiverNameEn);
@@ -1025,8 +1027,8 @@ export class SlipTemplatesService implements OnModuleInit {
       }
       contents.push(this.createBankInfoBox(
         'ผู้รับ',
-        data.receiverName,
-        receiverAccountLines.join(' • ') || data.receiverBank || '',
+        data.receiverName || (isDuplicate ? '-' : ''),
+        receiverAccountLines.join(' • ') || data.receiverBank || (isDuplicate ? '-' : ''),
         data.receiverBank || '',
         data.receiverBankLogoUrl,
         template.showBankLogo,
@@ -1034,13 +1036,13 @@ export class SlipTemplatesService implements OnModuleInit {
     }
 
     // Transaction reference
-    if (template.showTransRef && data.transRef) {
+    if (template.showTransRef && (data.transRef || isDuplicate)) {
       contents.push({
         type: 'box',
         layout: 'horizontal',
         contents: [
           { type: 'text', text: 'เลขอ้างอิง:', size: 'xs', color: '#888888', flex: 2 },
-          { type: 'text', text: data.transRef, size: 'xs', color: '#333333', flex: 4, align: 'end' },
+          { type: 'text', text: data.transRef || '-', size: 'xs', color: '#333333', flex: 4, align: 'end' },
         ],
         margin: 'md',
         paddingAll: '8px',
