@@ -457,9 +457,49 @@ export class SlipVerificationService {
         if (status === 400) {
           const message = data.message || '';
           if (message === 'duplicate_slip' || message.includes('duplicate')) {
+            // Thunder API returns full slip data even for duplicate slips
+            // Extract slip data from data.data
+            const slipData = data.data || {};
+            const senderAccount = slipData.sender?.account || {};
+            const receiverAccount = slipData.receiver?.account || {};
+            const senderBank = slipData.sender?.bank || {};
+            const receiverBank = slipData.receiver?.bank || {};
+
+            this.logger.log('[DUPLICATE] Thunder API 400 duplicate_slip detected');
+            this.logger.log(`[DUPLICATE] transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
+            this.logger.log(`[DUPLICATE] sender: ${senderAccount.name?.th}, receiver: ${receiverAccount.name?.th}`);
+
             return {
               status: 'duplicate',
-              message: 'สลิปนี้เคยถูกตรวจสอบแล้ว',
+              message: 'สลิปนี้เคยถูกใช้แล้ว',
+              data: {
+                transRef: slipData.transRef || '',
+                amount: parseFloat(slipData.amount?.amount || 0),
+                amountFormatted: slipData.amount?.amount ? this.formatAmount(slipData.amount.amount) : '',
+                date: slipData.date ? this.formatDate(slipData.date) : '',
+                time: slipData.date ? this.formatTime(slipData.date) : '',
+                senderName: senderAccount.name?.th || senderAccount.name?.en || '',
+                senderNameEn: senderAccount.name?.en || '',
+                senderBank: senderBank.short || senderBank.name || '',
+                senderBankCode: senderBank.short || senderBank.id || '',
+                senderBankId: senderBank.id || '',
+                senderAccount: senderAccount.bank?.account || '',
+                receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
+                receiverNameEn: receiverAccount.name?.en || '',
+                receiverBank: receiverBank.short || receiverBank.name || '',
+                receiverBankCode: receiverBank.short || receiverBank.id || '',
+                receiverBankId: receiverBank.id || '',
+                receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+                countryCode: slipData.countryCode || 'TH',
+                fee: slipData.fee || 0,
+                feeFormatted: this.formatAmount(slipData.fee ?? 0),
+                ref1: slipData.ref1 || '',
+                ref2: slipData.ref2 || '',
+                ref3: slipData.ref3 || '',
+                payload: slipData.payload || '',
+                isDuplicate: true,
+                rawData: slipData,
+              },
             };
           } else if (message === 'invalid_payload' || message.includes('invalid')) {
             return {
