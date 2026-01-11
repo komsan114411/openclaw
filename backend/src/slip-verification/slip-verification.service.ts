@@ -351,6 +351,16 @@ export class SlipVerificationService {
           },
         };
       } else if (data.status === 409) {
+        // ===========================================================
+        // DEBUG: Log full 409 response to understand API structure
+        // ===========================================================
+        try {
+          this.logger.warn(`[DUPLICATE] FULL 409 RESPONSE: ${JSON.stringify(data).substring(0, 2000)}`);
+        } catch (e) {
+          this.logger.warn(`[DUPLICATE] Could not stringify 409 response`);
+        }
+        // ===========================================================
+
         // Parse duplicate response data (Thunder API sends slip data even for duplicates)
         // CHECK: Data might be in data.data OR root data
         let slipData = data.data || {};
