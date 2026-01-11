@@ -35,6 +35,8 @@ interface SlipTemplate {
   showSenderAccount?: boolean;
   showReceiverAccount?: boolean;
   showReceiverProxy?: boolean;
+  // Enhanced styling
+  themePreset?: string;
   createdAt: string;
 }
 
@@ -557,13 +559,13 @@ function TemplatesContent() {
   const handleSelectTemplate = async (template: SlipTemplate) => {
     // Check if this is a mock template (ID starts with 'mock-')
     const isMockTemplate = template._id.startsWith('mock-');
-    
+
     // In preview mode or using mock data, just show toast
     if (!accountId || usingMockData || isMockTemplate) {
       toast.success(`เลือก "${template.name}" สำเร็จ (โหมดตัวอย่าง)`);
       // Update local state for visual feedback only
       setSelectedTemplateIds(prev => ({ ...prev, [template.type]: template._id }));
-      
+
       // Show warning if trying to use mock template with real account
       if (accountId && isMockTemplate) {
         toast.error('ไม่สามารถบันทึก Template ตัวอย่างได้ กรุณาสร้าง Template ใหม่หรือใช้ Global Template');
