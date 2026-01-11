@@ -12,6 +12,7 @@ import { Button, IconButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoading } from '@/components/ui/Loading';
 import { Search, RotateCcw, LayoutGrid, Settings, Users, CreditCard, Box, ShieldAlert, Cpu, UserCircle, Calendar, Hash, MessageSquare, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function AdminHistoryPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);

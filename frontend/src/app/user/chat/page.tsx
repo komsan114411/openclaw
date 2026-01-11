@@ -61,14 +61,18 @@ function UserChatContent() {
   const isInitialLoadRef = useRef<boolean>(true);
   const selectedUserRef = useRef<ChatUser | null>(null); // Track current user for socket
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const hasAutoSelectedRef = useRef(false); // Prevent infinite loop from router.replace
 
   // Update ref when selectedUser changes
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
 
-  // Fetch all LINE accounts on mount
+  // Fetch all LINE accounts on mount - run ONCE only
   useEffect(() => {
+    // Guard: prevent running if already auto-selected
+    if (hasAutoSelectedRef.current) return;
+
     const fetchAccounts = async () => {
       setLoadingAccounts(true);
       try {
@@ -76,11 +80,12 @@ function UserChatContent() {
         const accounts = res.data?.accounts || res.data || [];
         setAllAccounts(accounts);
 
-        // Auto-select first account if no accountId in URL
-        if (!accountIdFromUrl && accounts.length > 0) {
+        // Auto-select first account if no accountId in URL (only once)
+        if (!accountIdFromUrl && accounts.length > 0 && !hasAutoSelectedRef.current) {
+          hasAutoSelectedRef.current = true; // Mark as done BEFORE router call
           const firstAccountId = accounts[0]._id;
           setActiveAccountId(firstAccountId);
-          // Update URL silently
+          // Update URL silently - won't trigger re-run due to guard
           router.replace(`/user/chat?accountId=${firstAccountId}`);
         }
       } catch (err: any) {
@@ -91,7 +96,8 @@ function UserChatContent() {
       }
     };
     fetchAccounts();
-  }, [accountIdFromUrl, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount to prevent infinite loop
 
   // Handle account switch
   const handleAccountSwitch = (newAccountId: string) => {
