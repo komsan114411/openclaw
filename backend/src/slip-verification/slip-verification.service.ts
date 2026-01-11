@@ -378,16 +378,16 @@ export class SlipVerificationService {
             time: slipData.date ? this.formatTime(slipData.date) : '',
             senderName: senderAccount.name?.th || senderAccount.name?.en || '',
             senderNameEn: senderAccount.name?.en || '',
-            // Check if sender is PromptPay (has proxy but no bank)
-            senderBank: senderBank.short || senderBank.name || (senderAccount.proxy ? 'พร้อมเพย์' : ''),
-            senderBankCode: senderBank.short || senderBank.id || (senderAccount.proxy ? 'PROMPTPAY' : ''),
+            // PromptPay priority: if has proxy, use PROMPTPAY; otherwise use bank info
+            senderBank: senderAccount.proxy ? 'พร้อมเพย์' : (senderBank.short || senderBank.name || ''),
+            senderBankCode: senderAccount.proxy ? 'PROMPTPAY' : (senderBank.short || senderBank.id || ''),
             senderBankId: senderBank.id || '',
             senderAccount: senderAccount.bank?.account || senderAccount.proxy?.account || '',
             receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
             receiverNameEn: receiverAccount.name?.en || '',
-            // Check if receiver is PromptPay (has proxy but no bank)
-            receiverBank: receiverBank.short || receiverBank.name || (receiverAccount.proxy ? 'พร้อมเพย์' : ''),
-            receiverBankCode: receiverBank.short || receiverBank.id || (receiverAccount.proxy ? 'PROMPTPAY' : ''),
+            // PromptPay priority: if has proxy, use PROMPTPAY; otherwise use bank info  
+            receiverBank: receiverAccount.proxy ? 'พร้อมเพย์' : (receiverBank.short || receiverBank.name || ''),
+            receiverBankCode: receiverAccount.proxy ? 'PROMPTPAY' : (receiverBank.short || receiverBank.id || ''),
             receiverBankId: receiverBank.id || '',
             receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
             receiverProxyType: receiverAccount.proxy?.type || '',
