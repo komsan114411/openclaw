@@ -351,10 +351,39 @@ export class SlipVerificationService {
           },
         };
       } else if (data.status === 409) {
+        // Parse duplicate response data (Thunder API sends slip data even for duplicates)
+        const slipData = data.data || {};
+        const senderAccount = slipData.sender?.account || {};
+        const receiverAccount = slipData.receiver?.account || {};
+        const senderBank = slipData.sender?.bank || {};
+        const receiverBank = slipData.receiver?.bank || {};
+
+        this.logger.log(`[DUPLICATE] Thunder API 409 response - transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
+
         return {
           status: 'duplicate',
           message: 'สลิปนี้เคยถูกใช้แล้ว',
-          data: data.data,
+          data: {
+            transRef: slipData.transRef || '',
+            amount: parseFloat(slipData.amount?.amount || 0),
+            amountFormatted: slipData.amount?.amount ? this.formatAmount(slipData.amount.amount) : '',
+            date: slipData.date ? this.formatDate(slipData.date) : '',
+            time: slipData.date ? this.formatTime(slipData.date) : '',
+            senderName: senderAccount.name?.th || senderAccount.name?.en || '',
+            senderNameEn: senderAccount.name?.en || '',
+            senderBank: senderBank.short || senderBank.name || '',
+            senderBankCode: senderBank.short || senderBank.id || '',
+            senderBankId: senderBank.id || '',
+            senderAccount: senderAccount.bank?.account || '',
+            receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
+            receiverNameEn: receiverAccount.name?.en || '',
+            receiverBank: receiverBank.short || receiverBank.name || '',
+            receiverBankCode: receiverBank.short || receiverBank.id || '',
+            receiverBankId: receiverBank.id || '',
+            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+            isDuplicate: true,
+            rawData: slipData,
+          },
         };
       } else {
         return {
