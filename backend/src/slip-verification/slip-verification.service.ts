@@ -977,8 +977,12 @@ export class SlipVerificationService {
         return addWarningToFlexMessage(customTemplate);
       }
 
+      // IMPORTANT: Build slip data to add bank logo URLs (senderBankLogoUrl, receiverBankLogoUrl)
+      const enrichedDuplicateData = await buildSlipData(duplicateData);
+      this.logger.log(`[DUPLICATE] Enriched with logos: sender=${enrichedDuplicateData.senderBankLogoUrl}, receiver=${enrichedDuplicateData.receiverBankLogoUrl}`);
+
       // Try to use slip template with enriched duplicate data
-      const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, duplicateData);
+      const templated = await tryUseSlipTemplate(TemplateType.DUPLICATE, enrichedDuplicateData);
       if (templated) {
         this.logger.log('[DUPLICATE] Using slip template for duplicate');
         return templated;
