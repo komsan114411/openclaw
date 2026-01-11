@@ -7,24 +7,49 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 
 // Default Thai banks data
 const DEFAULT_BANKS = [
-  { code: 'KBANK', name: 'ธนาคารกสิกรไทย', shortName: 'กสิกร', color: '#138f2d' },
-  { code: 'SCB', name: 'ธนาคารไทยพาณิชย์', shortName: 'ไทยพาณิชย์', color: '#4e2e7f' },
-  { code: 'KTB', name: 'ธนาคารกรุงไทย', shortName: 'กรุงไทย', color: '#1ba5e0' },
-  { code: 'BBL', name: 'ธนาคารกรุงเทพ', shortName: 'กรุงเทพ', color: '#1e4598' },
-  { code: 'BAY', name: 'ธนาคารกรุงศรีอยุธยา', shortName: 'กรุงศรี', color: '#fec43b' },
-  { code: 'TMB', name: 'ธนาคารทหารไทยธนชาต', shortName: 'TTB', color: '#1279be' },
-  { code: 'GSB', name: 'ธนาคารออมสิน', shortName: 'ออมสิน', color: '#eb198d' },
-  { code: 'BAAC', name: 'ธนาคารเพื่อการเกษตรและสหกรณ์', shortName: 'ธ.ก.ส.', color: '#4b9b1d' },
-  { code: 'TBANK', name: 'ธนาคารธนชาต', shortName: 'ธนชาต', color: '#fc4f1f' },
-  { code: 'CIMB', name: 'ธนาคารซีไอเอ็มบี', shortName: 'CIMB', color: '#7e2f36' },
-  { code: 'UOB', name: 'ธนาคารยูโอบี', shortName: 'UOB', color: '#0b3979' },
-  { code: 'LHBANK', name: 'ธนาคารแลนด์แอนด์เฮ้าส์', shortName: 'LH Bank', color: '#6d6e71' },
-  { code: 'KKP', name: 'ธนาคารเกียรตินาคินภัทร', shortName: 'KKP', color: '#199cc5' },
-  { code: 'ICBC', name: 'ธนาคารไอซีบีซี', shortName: 'ICBC', color: '#c50f1c' },
-  { code: 'TISCO', name: 'ธนาคารทิสโก้', shortName: 'TISCO', color: '#12549f' },
-  { code: 'PROMPTPAY', name: 'พร้อมเพย์', shortName: 'PromptPay', color: '#1e4e8c' },
-  { code: 'TRUEMONEY', name: 'ทรูมันนี่', shortName: 'TrueMoney', color: '#ff6600' },
+  { code: 'KBANK', bankId: '004', name: 'ธนาคารกสิกรไทย', shortName: 'กสิกร', color: '#138f2d' },
+  { code: 'SCB', bankId: '014', name: 'ธนาคารไทยพาณิชย์', shortName: 'ไทยพาณิชย์', color: '#4e2e7f' },
+  { code: 'KTB', bankId: '006', name: 'ธนาคารกรุงไทย', shortName: 'กรุงไทย', color: '#1ba5e0' },
+  { code: 'BBL', bankId: '002', name: 'ธนาคารกรุงเทพ', shortName: 'กรุงเทพ', color: '#1e4598' },
+  { code: 'BAY', bankId: '025', name: 'ธนาคารกรุงศรีอยุธยา', shortName: 'กรุงศรี', color: '#fec43b' },
+  { code: 'TTB', bankId: '011', name: 'ธนาคารทหารไทยธนชาต', shortName: 'TTB', color: '#1279be' },
+  { code: 'GSB', bankId: '030', name: 'ธนาคารออมสิน', shortName: 'ออมสิน', color: '#eb198d' },
+  { code: 'BAAC', bankId: '034', name: 'ธนาคารเพื่อการเกษตรและสหกรณ์', shortName: 'ธ.ก.ส.', color: '#4b9b1d' },
+  { code: 'GHB', bankId: '033', name: 'ธนาคารอาคารสงเคราะห์', shortName: 'ธอส.', color: '#f58220' },
+  { code: 'CIMB', bankId: '022', name: 'ธนาคารซีไอเอ็มบีไทย', shortName: 'CIMB', color: '#7e2f36' },
+  { code: 'UOB', bankId: '024', name: 'ธนาคารยูโอบี', shortName: 'UOB', color: '#0b3979' },
+  { code: 'LHBANK', bankId: '073', name: 'ธนาคารแลนด์แอนด์เฮ้าส์', shortName: 'LH Bank', color: '#6d6e71' },
+  { code: 'KKP', bankId: '069', name: 'ธนาคารเกียรตินาคินภัทร', shortName: 'KKP', color: '#199cc5' },
+  { code: 'ICBC', bankId: '070', name: 'ธนาคารไอซีบีซี (ไทย)', shortName: 'ICBC', color: '#c50f1c' },
+  { code: 'TISCO', bankId: '067', name: 'ธนาคารทิสโก้', shortName: 'TISCO', color: '#12549f' },
+  { code: 'TCD', bankId: '071', name: 'ธนาคารไทยเครดิตเพื่อรายย่อย', shortName: 'TCD', color: '#00a859' },
+  { code: 'EXIM', bankId: '035', name: 'ธนาคารเพื่อการส่งออกและนำเข้า', shortName: 'EXIM', color: '#0066b3' },
+  { code: 'SME', bankId: '098', name: 'ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อม', shortName: 'SME', color: '#003c71' },
+  { code: 'PROMPTPAY', bankId: 'PROMPTPAY', name: 'พร้อมเพย์', shortName: 'พร้อมเพย์', color: '#1e4e8c' },
+  { code: 'TRUEMONEY', bankId: 'TRUEMONEY', name: 'ทรูมันนี่', shortName: 'TrueMoney', color: '#ff6600' },
 ];
+
+// Thunder API Bank ID to Database Code mapping
+const THUNDER_BANK_ID_MAP: Record<string, string> = {
+  '002': 'BBL',      // กรุงเทพ
+  '004': 'KBANK',    // กสิกรไทย  
+  '006': 'KTB',      // กรุงไทย
+  '011': 'TTB',      // ทหารไทยธนชาต
+  '014': 'SCB',      // ไทยพาณิชย์
+  '022': 'CIMB',     // ซีไอเอ็มบีไทย
+  '024': 'UOB',      // ยูโอบี
+  '025': 'BAY',      // กรุงศรีอยุธยา
+  '030': 'GSB',      // ออมสิน
+  '033': 'GHB',      // อาคารสงเคราะห์
+  '034': 'BAAC',     // ธ.ก.ส.
+  '035': 'EXIM',     // ธนาคารเพื่อการส่งออกและนำเข้า
+  '067': 'TISCO',    // ทิสโก้
+  '069': 'KKP',      // เกียรตินาคินภัทร
+  '070': 'ICBC',     // ไอซีบีซี
+  '071': 'TCD',      // ไทยเครดิตเพื่อรายย่อย
+  '073': 'LHBANK',   // แลนด์แอนด์เฮ้าส์
+  '098': 'SME',      // พัฒนาวิสาหกิจ
+};
 
 @Injectable()
 export class BanksService {
@@ -56,10 +81,28 @@ export class BanksService {
   }
 
   /**
-   * Get bank by code
+   * Get bank by code (supports both numeric Thunder ID and short code)
    */
   async getByCode(code: string): Promise<BankDocument | null> {
-    return this.bankModel.findOne({ code: code.toUpperCase() });
+    const normalizedCode = code.toUpperCase().trim();
+
+    // Check if input is a numeric Thunder API bank ID
+    const mappedCode = THUNDER_BANK_ID_MAP[normalizedCode] || normalizedCode;
+
+    // Try to find by code
+    let bank = await this.bankModel.findOne({ code: mappedCode.toUpperCase() });
+
+    // If not found and input looks like a short name, try to find by shortName
+    if (!bank) {
+      bank = await this.bankModel.findOne({
+        $or: [
+          { code: normalizedCode },
+          { shortName: { $regex: new RegExp(`^${normalizedCode}$`, 'i') } },
+        ]
+      });
+    }
+
+    return bank;
   }
 
   /**
@@ -288,9 +331,11 @@ export class BanksService {
    * Get bank logo
    */
   async getBankLogo(code: string): Promise<{ contentType: string; data: Buffer } | null> {
-    const bank = await this.bankModel.findOne({ code: code.toUpperCase() });
+    // Use getByCode to handle both numeric IDs and short codes
+    const bank = await this.getByCode(code);
 
     if (!bank) {
+      this.logger.warn(`[BANK LOGO] Bank not found for code: ${code}`);
       return null;
     }
 
