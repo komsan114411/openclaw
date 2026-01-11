@@ -350,35 +350,22 @@ export class SlipVerificationService {
             rawData: slipData,
           },
         };
-      } else if (data.status === 409) {
+      } else if (data.status === 400 && data.message === 'duplicate_slip') {
         // ===========================================================
-        // DEBUG: Log full 409 response to understand API structure
+        // Thunder API: Duplicate slip returns status 400 with message "duplicate_slip"
+        // and includes full slip data in data.data
         // ===========================================================
-        try {
-          this.logger.warn(`[DUPLICATE] FULL 409 RESPONSE: ${JSON.stringify(data).substring(0, 2000)}`);
-        } catch (e) {
-          this.logger.warn(`[DUPLICATE] Could not stringify 409 response`);
-        }
-        // ===========================================================
+        this.logger.log('[DUPLICATE] Thunder API detected duplicate slip (status 400, message: duplicate_slip)');
 
-        // Parse duplicate response data (Thunder API sends slip data even for duplicates)
-        // CHECK: Data might be in data.data OR root data
-        let slipData = data.data || {};
-
-        // Fallback: If data.data is empty/missing, try using the root object
-        if (!slipData.transRef && !slipData.amount) {
-          this.logger.warn('[DUPLICATE] data.data seems empty, trying root data object');
-          slipData = { ...data, ...slipData };
-        }
-
+        // Parse duplicate response data - Thunder API sends full slip data for duplicates
+        const slipData = data.data || {};
         const senderAccount = slipData.sender?.account || {};
         const receiverAccount = slipData.receiver?.account || {};
         const senderBank = slipData.sender?.bank || {};
         const receiverBank = slipData.receiver?.bank || {};
 
-        this.logger.log(`[DUPLICATE] Thunder API 409 response`);
-        this.logger.log(`[DUPLICATE] Keys: ${Object.keys(slipData).join(', ')}`);
         this.logger.log(`[DUPLICATE] transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
+        this.logger.log(`[DUPLICATE] sender: ${senderAccount.name?.th}, receiver: ${receiverAccount.name?.th}`);
 
         return {
           status: 'duplicate',
@@ -400,6 +387,39 @@ export class SlipVerificationService {
             receiverBank: receiverBank.short || receiverBank.name || '',
             receiverBankCode: receiverBank.short || receiverBank.id || '',
             receiverBankId: receiverBank.id || '',
+            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+            countryCode: slipData.countryCode || 'TH',
+            fee: slipData.fee || 0,
+            feeFormatted: this.formatAmount(slipData.fee ?? 0),
+            ref1: slipData.ref1 || '',
+            ref2: slipData.ref2 || '',
+            ref3: slipData.ref3 || '',
+            payload: slipData.payload || '',
+            isDuplicate: true,
+            rawData: slipData,
+          },
+        };
+      } else if (data.status === 409) {
+        // Legacy: Some systems might still use 409 for duplicates (fallback)
+        this.logger.warn('[DUPLICATE] Received 409 status (legacy) - parsing as duplicate');
+        const slipData = data.data || {};
+        const senderAccount = slipData.sender?.account || {};
+        const receiverAccount = slipData.receiver?.account || {};
+        const senderBank = slipData.sender?.bank || {};
+        const receiverBank = slipData.receiver?.bank || {};
+        return {
+          status: 'duplicate',
+          message: 'สลิปนี้เคยถูกใช้แล้ว',
+          data: {
+            transRef: slipData.transRef || '',
+            amount: parseFloat(slipData.amount?.amount || 0),
+            amountFormatted: slipData.amount?.amount ? this.formatAmount(slipData.amount.amount) : '',
+            date: slipData.date ? this.formatDate(slipData.date) : '',
+            time: slipData.date ? this.formatTime(slipData.date) : '',
+            senderName: senderAccount.name?.th || senderAccount.name?.en || '',
+            senderBank: senderBank.short || senderBank.name || '',
+            receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
+            receiverBank: receiverBank.short || receiverBank.name || '',
             receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
             isDuplicate: true,
             rawData: slipData,
