@@ -858,18 +858,33 @@ export class SlipVerificationService {
       // Try to get original slip data from database if not provided by API
       let duplicateData: Record<string, any> = result.data || {};
 
-      // If we have transRef, try to get original slip data from slip_history
+      this.logger.log(`[DUPLICATE] Initial data from API: transRef=${duplicateData.transRef}, amount=${duplicateData.amount}, amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}`);
+
+      // If we have transRef, ALWAYS try to enrich from slip_history (Thunder API may not send full data)
       const transRef = duplicateData.transRef || (result as any).transRef;
-      if (transRef && (!duplicateData.amount || !duplicateData.senderName)) {
+      const needsEnrichment = !duplicateData.amountFormatted || !duplicateData.senderName;
+
+      this.logger.log(`[DUPLICATE] transRef=${transRef}, needsEnrichment=${needsEnrichment}`);
+
+      if (transRef && needsEnrichment) {
         this.logger.log(`[DUPLICATE] Looking for original slip data with transRef: ${transRef}`);
         const originalSlip = await this.getOriginalSlipByTransRef(transRef);
         if (originalSlip) {
           this.logger.log(`[DUPLICATE] Found original slip data: amount=${originalSlip.amount}, sender=${originalSlip.senderName}`);
+          const historyData = this.buildSlipDataFromHistory(originalSlip);
+          // Merge history data with API data (API data takes precedence if present)
           duplicateData = {
-            ...this.buildSlipDataFromHistory(originalSlip),
+            ...historyData,
             ...duplicateData, // Keep any data from API response
+            // Ensure these fields are set from history if API didn't provide them
+            amountFormatted: duplicateData.amountFormatted || historyData.amountFormatted,
+            senderName: duplicateData.senderName || historyData.senderName,
+            receiverName: duplicateData.receiverName || historyData.receiverName,
             isDuplicate: true,
           };
+          this.logger.log(`[DUPLICATE] Enriched data: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}`);
+        } else {
+          this.logger.warn(`[DUPLICATE] No original slip found in slip_history for transRef: ${transRef}`);
         }
       }
 
