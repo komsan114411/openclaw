@@ -1207,8 +1207,13 @@ export class SlipTemplatesService implements OnModuleInit {
   ): any {
     const contents: any[] = [];
 
+    // Validate logo URL: LINE Flex only accepts https:// URLs with max 2000 chars
+    const isValidLogoUrl = logoUrl &&
+      logoUrl.startsWith('https://') &&
+      logoUrl.length <= 2000;
+
     // Bank logo or placeholder
-    if (showLogo && logoUrl) {
+    if (showLogo && isValidLogoUrl) {
       contents.push({
         type: 'box',
         layout: 'vertical',
