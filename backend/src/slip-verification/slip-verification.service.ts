@@ -713,10 +713,13 @@ export class SlipVerificationService {
       const senderBank = senderCode ? await this.banksService.getByCode(senderCode).catch(() => null) : null;
       const receiverBank = receiverCode ? await this.banksService.getByCode(receiverCode).catch(() => null) : null;
 
+      // Use backend API endpoint for bank logos (LINE only accepts https:// URLs)
+      // Get the base URL from environment or construct based on request
+      const baseUrl = process.env.BACKEND_URL || 'https://test-api.line3.exgamer.site';
       return {
         ...data,
-        senderBankLogoUrl: senderBank?.logoBase64 || senderBank?.logoUrl || '',
-        receiverBankLogoUrl: receiverBank?.logoBase64 || receiverBank?.logoUrl || '',
+        senderBankLogoUrl: senderCode ? `${baseUrl}/api/bank-logo/${senderCode}` : '',
+        receiverBankLogoUrl: receiverCode ? `${baseUrl}/api/bank-logo/${receiverCode}` : '',
       };
     };
 
@@ -1159,7 +1162,8 @@ export class SlipVerificationService {
   private formatDate(isoDate: string | Date): string {
     try {
       const date = isoDate instanceof Date ? isoDate : new Date(isoDate);
-      return date.toLocaleDateString('th-TH');
+      // Use Asia/Bangkok timezone explicitly to match Thai bank slips
+      return date.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
     } catch {
       return typeof isoDate === 'string' ? isoDate : '-';
     }
@@ -1168,7 +1172,8 @@ export class SlipVerificationService {
   private formatTime(isoDate: string | Date): string {
     try {
       const date = isoDate instanceof Date ? isoDate : new Date(isoDate);
-      return date.toLocaleTimeString('th-TH');
+      // Use Asia/Bangkok timezone explicitly to match Thai bank slips
+      return date.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' });
     } catch {
       return '-';
     }
