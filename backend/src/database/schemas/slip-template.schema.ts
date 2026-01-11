@@ -166,6 +166,108 @@ export class SlipTemplate {
   @Prop({ default: '12xxxx3456' })
   previewReceiverAccount?: string;
 
+  // ============================================
+  // Enhanced Styling Options (New)
+  // ============================================
+
+  // Theme Preset - quick selection for predefined styles
+  @Prop({
+    type: String,
+    enum: ['default', 'green', 'green-gradient', 'orange', 'pink', 'blue', 'purple', 'festive-cat', 'festive-flower', 'custom'],
+    default: 'default'
+  })
+  themePreset: string;
+
+  // Header Styling
+  @Prop()
+  headerBackgroundColor?: string;  // e.g., "#4ADE80"
+
+  @Prop()
+  headerBackgroundGradient?: string;  // e.g., "linear-gradient(135deg, #4ADE80, #22C55E)"
+
+  @Prop()
+  headerBackgroundImage?: string;  // URL to header background image
+
+  @Prop()
+  headerTextColor?: string;  // e.g., "#FFFFFF"
+
+  @Prop({
+    type: String,
+    enum: ['checkmark', 'warning', 'error', 'info', 'none'],
+    default: 'checkmark'
+  })
+  headerIcon: string;
+
+  @Prop()
+  headerIconUrl?: string;  // Custom icon URL
+
+  // Body Styling
+  @Prop({ default: '#FFFFFF' })
+  bodyBackgroundColor?: string;
+
+  @Prop()
+  bodyBackgroundImage?: string;  // URL for decorative background
+
+  @Prop({ default: 0.1 })
+  bodyBackgroundOpacity?: number;  // 0-1 for watermark effect
+
+  // Amount Styling
+  @Prop({ default: '#22C55E' })
+  amountColor?: string;
+
+  @Prop({ default: '32px' })
+  amountFontSize?: string;
+
+  // Sender/Receiver Card Styling
+  @Prop({ default: '#F5F5F5' })
+  cardBackgroundColor?: string;
+
+  @Prop({ default: '12px' })
+  cardBorderRadius?: string;
+
+  @Prop({ default: true })
+  showCardBorder: boolean;
+
+  @Prop({ default: '#E5E5E5' })
+  cardBorderColor?: string;
+
+  // Footer Branding
+  @Prop({ default: true })
+  showFooterBranding: boolean;
+
+  @Prop({ default: 'ตรวจสอบสลิปโดย' })
+  footerBrandingText?: string;
+
+  @Prop()
+  footerBrandingName?: string;  // e.g., "ธันเดอร์ โซลูชั่น"
+
+  @Prop()
+  footerBrandingLogo?: string;  // URL to branding logo
+
+  @Prop({ default: false })
+  showQrCode: boolean;
+
+  @Prop()
+  qrCodeContent?: string;  // Content for QR code
+
+  @Prop()
+  qrCodeLabel?: string;  // Label below QR code
+
+  // Layout Options
+  @Prop({
+    type: String,
+    enum: ['standard', 'compact', 'detailed'],
+    default: 'standard'
+  })
+  layoutStyle: string;
+
+  @Prop({ default: true })
+  showSlipImage: boolean;  // Show slip preview image in header
+
+  // Thumbnail/Preview
+  @Prop()
+  thumbnailUrl?: string;  // Thumbnail for template selection
+
   createdAt: Date;
   updatedAt: Date;
 }

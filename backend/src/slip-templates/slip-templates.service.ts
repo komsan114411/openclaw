@@ -48,6 +48,31 @@ export interface CreateTemplateDto {
   showSenderNameEn?: boolean;
   showReceiverNameEn?: boolean;
   showLocalAmount?: boolean;
+  // Enhanced styling fields
+  themePreset?: string;
+  headerBackgroundColor?: string;
+  headerBackgroundGradient?: string;
+  headerBackgroundImage?: string;
+  headerTextColor?: string;
+  headerIcon?: string;
+  headerIconUrl?: string;
+  bodyBackgroundColor?: string;
+  bodyBackgroundImage?: string;
+  amountColor?: string;
+  cardBackgroundColor?: string;
+  cardBorderRadius?: string;
+  showCardBorder?: boolean;
+  cardBorderColor?: string;
+  showFooterBranding?: boolean;
+  footerBrandingText?: string;
+  footerBrandingName?: string;
+  footerBrandingLogo?: string;
+  showQrCode?: boolean;
+  qrCodeContent?: string;
+  qrCodeLabel?: string;
+  layoutStyle?: string;
+  showSlipImage?: boolean;
+  thumbnailUrl?: string;
 }
 
 export interface SlipData {
@@ -97,6 +122,96 @@ export interface SlipData {
   // For error templates
   message?: string;
 }
+
+// ============================================
+// Theme Presets - Predefined beautiful styles
+// ============================================
+export const THEME_PRESETS = {
+  default: {
+    name: 'Default Green',
+    headerBackgroundColor: '#4ADE80',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#22C55E',
+    bodyBackgroundColor: '#FFFFFF',
+    cardBackgroundColor: '#F5F5F5',
+    cardBorderColor: '#E5E5E5',
+  },
+  green: {
+    name: 'Emerald',
+    headerBackgroundColor: '#10B981',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#059669',
+    bodyBackgroundColor: '#FFFFFF',
+    cardBackgroundColor: '#ECFDF5',
+    cardBorderColor: '#A7F3D0',
+  },
+  'green-gradient': {
+    name: 'Green Gradient',
+    headerBackgroundColor: '#22C55E',
+    headerBackgroundGradient: 'linear-gradient(135deg, #4ADE80, #22C55E)',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#16A34A',
+    bodyBackgroundColor: '#FFFFFF',
+    cardBackgroundColor: '#F0FDF4',
+    cardBorderColor: '#BBF7D0',
+  },
+  orange: {
+    name: 'Warm Orange',
+    headerBackgroundColor: '#F97316',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#EA580C',
+    bodyBackgroundColor: '#FFFBEB',
+    cardBackgroundColor: '#FEF3C7',
+    cardBorderColor: '#FDE68A',
+  },
+  pink: {
+    name: 'Sweet Pink',
+    headerBackgroundColor: '#EC4899',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#DB2777',
+    bodyBackgroundColor: '#FDF2F8',
+    cardBackgroundColor: '#FCE7F3',
+    cardBorderColor: '#FBCFE8',
+  },
+  blue: {
+    name: 'Ocean Blue',
+    headerBackgroundColor: '#3B82F6',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#2563EB',
+    bodyBackgroundColor: '#EFF6FF',
+    cardBackgroundColor: '#DBEAFE',
+    cardBorderColor: '#BFDBFE',
+  },
+  purple: {
+    name: 'Royal Purple',
+    headerBackgroundColor: '#8B5CF6',
+    headerTextColor: '#FFFFFF',
+    amountColor: '#7C3AED',
+    bodyBackgroundColor: '#F5F3FF',
+    cardBackgroundColor: '#EDE9FE',
+    cardBorderColor: '#DDD6FE',
+  },
+  duplicate: {
+    name: 'Duplicate Warning',
+    headerBackgroundColor: '#FFF3E0',
+    headerTextColor: '#FF6B00',
+    amountColor: '#FF6B00',
+    bodyBackgroundColor: '#FFFFFF',
+    cardBackgroundColor: '#FFF8E1',
+    cardBorderColor: '#FFE0B2',
+  },
+  error: {
+    name: 'Error Red',
+    headerBackgroundColor: '#FEE2E2',
+    headerTextColor: '#DC2626',
+    amountColor: '#DC2626',
+    bodyBackgroundColor: '#FFFFFF',
+    cardBackgroundColor: '#FEF2F2',
+    cardBorderColor: '#FECACA',
+  },
+} as const;
+
+export type ThemePresetKey = keyof typeof THEME_PRESETS;
 
 @Injectable()
 export class SlipTemplatesService implements OnModuleInit {
@@ -832,11 +947,33 @@ export class SlipTemplatesService implements OnModuleInit {
   }
 
   private generateDefaultFlexMessage(template: SlipTemplateDocument, data: SlipData): any {
-    const primaryColor = template.primaryColor || '#00C851';
+    // Get theme preset or use default based on template type
+    const themeKey = template.themePreset ||
+      (template.type === 'duplicate' ? 'duplicate' :
+        template.type === 'error' ? 'error' : 'default');
+    const theme = THEME_PRESETS[themeKey as keyof typeof THEME_PRESETS] || THEME_PRESETS.default;
+
+    // Apply template overrides over theme defaults
+    const headerBgColor = template.headerBackgroundColor || theme.headerBackgroundColor;
+    const headerTextColor = template.headerTextColor || theme.headerTextColor;
+    const amountColor = template.amountColor || template.primaryColor || theme.amountColor;
+    const bodyBgColor = template.bodyBackgroundColor || theme.bodyBackgroundColor;
+    const cardBgColor = template.cardBackgroundColor || theme.cardBackgroundColor;
+    const cardBorderColor = template.cardBorderColor || theme.cardBorderColor;
+
     const isDuplicate = data.isDuplicate || template.type === 'duplicate';
-    const headerBgColor = isDuplicate ? '#FFF3E0' : '#E8F5E9';
-    const headerIcon = isDuplicate ? '⚠️' : '✓';
-    const headerText = template.headerText || (isDuplicate ? 'สลิปนี้ถูกใช้งานไปแล้ว' : 'สลิปถูกต้อง');
+    const isError = template.type === 'error';
+
+    // Default header icons
+    const headerIcon = template.headerIcon === 'warning' ? '⚠️' :
+      template.headerIcon === 'error' ? '❌' :
+        template.headerIcon === 'info' ? 'ℹ️' :
+          isDuplicate ? '⚠️' : isError ? '❌' : '✓';
+
+    const headerText = template.headerText ||
+      (isDuplicate ? 'สลิปนี้ถูกใช้งานไปแล้ว' :
+        isError ? 'ตรวจสอบไม่สำเร็จ' : 'สลิปถูกต้อง');
+
     const contents: any[] = [];
 
     // Header with icon
@@ -851,7 +988,7 @@ export class SlipTemplatesService implements OnModuleInit {
             {
               type: 'text',
               text: headerIcon,
-              color: isDuplicate ? '#FF6B00' : '#FFFFFF',
+              color: headerTextColor,
               size: 'lg',
               weight: 'bold',
               align: 'center',
@@ -859,7 +996,7 @@ export class SlipTemplatesService implements OnModuleInit {
           ],
           width: '30px',
           height: '30px',
-          backgroundColor: isDuplicate ? '#FFE0B2' : primaryColor,
+          backgroundColor: amountColor,
           cornerRadius: '15px',
           justifyContent: 'center',
           alignItems: 'center',
@@ -869,7 +1006,7 @@ export class SlipTemplatesService implements OnModuleInit {
           text: headerText,
           weight: 'bold',
           size: 'lg',
-          color: isDuplicate ? '#FF6B00' : primaryColor,
+          color: amountColor,
           margin: 'md',
           flex: 1,
         },
@@ -887,7 +1024,7 @@ export class SlipTemplatesService implements OnModuleInit {
           ],
           width: '20px',
           height: '20px',
-          backgroundColor: isDuplicate ? '#FF6B00' : primaryColor,
+          backgroundColor: amountColor,
           cornerRadius: '10px',
           justifyContent: 'center',
           alignItems: 'center',
@@ -899,7 +1036,6 @@ export class SlipTemplatesService implements OnModuleInit {
     });
 
     // For duplicate/error/not_found templates without data, add descriptive message
-    const isError = template.type === 'error';
     const isNotFound = template.type === 'not_found';
     const hasNoData = !data.amountFormatted && !data.senderName && !data.receiverName;
 
@@ -945,7 +1081,7 @@ export class SlipTemplatesService implements OnModuleInit {
             text: data.amountFormatted || '฿0.00',
             size: 'xxl',
             weight: 'bold',
-            color: primaryColor,
+            color: amountColor,
             align: 'center',
           },
           (template.showDate || template.showTime)
