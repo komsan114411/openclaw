@@ -59,6 +59,16 @@ interface SlipTemplate {
   previewAmount?: string;
   previewSenderAccount?: string;
   previewReceiverAccount?: string;
+  // Enhanced styling
+  themePreset?: string;
+  headerBackgroundColor?: string;
+  headerTextColor?: string;
+  amountColor?: string;
+  bodyBackgroundColor?: string;
+  cardBackgroundColor?: string;
+  showFooterBranding?: boolean;
+  footerBrandingText?: string;
+  footerBrandingName?: string;
   createdAt: string;
 }
 
@@ -101,6 +111,8 @@ interface FormData {
   previewAmount: string;
   previewSenderAccount: string;
   previewReceiverAccount: string;
+  // Enhanced styling
+  themePreset: string;
 }
 
 interface FormErrors {
@@ -122,6 +134,17 @@ interface PreviewSettingsErrors {
   receiverName?: string;
   amount?: string;
 }
+
+// Theme Presets for beautiful slip templates
+const THEME_PRESETS = [
+  { value: 'default', label: 'Default Green', color: '#4ADE80', bgColor: 'bg-emerald-100', icon: '🟢' },
+  { value: 'green', label: 'Emerald', color: '#10B981', bgColor: 'bg-emerald-200', icon: '🌿' },
+  { value: 'green-gradient', label: 'Green Gradient', color: '#22C55E', bgColor: 'bg-gradient-to-r from-emerald-100 to-green-100', icon: '📊' },
+  { value: 'orange', label: 'Warm Orange', color: '#F97316', bgColor: 'bg-orange-100', icon: '🟠' },
+  { value: 'pink', label: 'Sweet Pink', color: '#EC4899', bgColor: 'bg-pink-100', icon: '🌸' },
+  { value: 'blue', label: 'Ocean Blue', color: '#3B82F6', bgColor: 'bg-blue-100', icon: '🔵' },
+  { value: 'purple', label: 'Royal Purple', color: '#8B5CF6', bgColor: 'bg-purple-100', icon: '💜' },
+] as const;
 
 // Thai localized type options
 const TYPE_OPTIONS = [
@@ -170,6 +193,8 @@ const DEFAULT_FORM_DATA: FormData = {
   previewAmount: '1,000.00',
   previewSenderAccount: '1234xxxx5678',
   previewReceiverAccount: '12xxxx3456',
+  // Enhanced styling
+  themePreset: 'default',
 };
 
 // Sample data for preview (Thai)
@@ -696,6 +721,8 @@ export default function AdminTemplatesPage() {
       previewAmount: template.previewAmount || '1,000.00',
       previewSenderAccount: template.previewSenderAccount || '1234xxxx5678',
       previewReceiverAccount: template.previewReceiverAccount || '12xxxx3456',
+      // Enhanced styling
+      themePreset: template.themePreset || 'default',
     });
     setFormErrors({});
     setActiveTab('basic');
