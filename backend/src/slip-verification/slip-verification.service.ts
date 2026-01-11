@@ -352,13 +352,23 @@ export class SlipVerificationService {
         };
       } else if (data.status === 409) {
         // Parse duplicate response data (Thunder API sends slip data even for duplicates)
-        const slipData = data.data || {};
+        // CHECK: Data might be in data.data OR root data
+        let slipData = data.data || {};
+
+        // Fallback: If data.data is empty/missing, try using the root object
+        if (!slipData.transRef && !slipData.amount) {
+          this.logger.warn('[DUPLICATE] data.data seems empty, trying root data object');
+          slipData = { ...data, ...slipData };
+        }
+
         const senderAccount = slipData.sender?.account || {};
         const receiverAccount = slipData.receiver?.account || {};
         const senderBank = slipData.sender?.bank || {};
         const receiverBank = slipData.receiver?.bank || {};
 
-        this.logger.log(`[DUPLICATE] Thunder API 409 response - transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
+        this.logger.log(`[DUPLICATE] Thunder API 409 response`);
+        this.logger.log(`[DUPLICATE] Keys: ${Object.keys(slipData).join(', ')}`);
+        this.logger.log(`[DUPLICATE] transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
 
         return {
           status: 'duplicate',
