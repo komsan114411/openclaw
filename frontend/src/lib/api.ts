@@ -31,6 +31,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized
       if (typeof window !== 'undefined') {
+        // Clear auth storage to prevent redirect loop (stale session in other tabs)
+        try {
+          sessionStorage.removeItem('auth-storage');
+        } catch (e) {
+          // Ignore storage errors
+        }
+
         const path = window.location.pathname;
         // Don't redirect if already on login page to avoid refresh loop
         if (!path.startsWith('/login') && !path.startsWith('/register')) {
