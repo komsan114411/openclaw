@@ -19,7 +19,7 @@ interface AuthState {
   lastChecked: number;
   login: (username: string, password: string) => Promise<boolean>;
   register: (data: { username: string; password: string; email?: string; fullName?: string }) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: (remote?: boolean) => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
   setInitialized: () => void;
