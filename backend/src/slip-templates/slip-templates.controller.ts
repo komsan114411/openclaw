@@ -23,7 +23,7 @@ import { TemplateType } from '../database/schemas/slip-template.schema';
 @Controller('slip-templates')
 @UseGuards(SessionAuthGuard)
 export class PublicSlipTemplatesController {
-  constructor(private readonly slipTemplatesService: SlipTemplatesService) {}
+  constructor(private readonly slipTemplatesService: SlipTemplatesService) { }
 
   /**
    * Get all active global templates (for users to select)
@@ -42,7 +42,7 @@ export class PublicSlipTemplatesController {
 @Controller('admin/slip-templates')
 @UseGuards(SessionAuthGuard, RolesGuard)
 export class AdminSlipTemplatesController {
-  constructor(private readonly slipTemplatesService: SlipTemplatesService) {}
+  constructor(private readonly slipTemplatesService: SlipTemplatesService) { }
 
   /**
    * Get all global templates including inactive (Admin only)
@@ -154,7 +154,7 @@ export class AdminSlipTemplatesController {
 @Controller('line-accounts')
 @UseGuards(SessionAuthGuard)
 export class SlipTemplatesController {
-  constructor(private readonly slipTemplatesService: SlipTemplatesService) {}
+  constructor(private readonly slipTemplatesService: SlipTemplatesService) { }
 
   /**
    * Get all templates for a LINE account
@@ -294,6 +294,35 @@ export class SlipTemplatesController {
     const template = await this.slipTemplatesService.getById(templateId);
     const preview = this.slipTemplatesService.preview(template);
     return { success: true, preview };
+  }
+
+  /**
+   * Select a global template for a LINE account
+   * Users can select which global template to use for each slip type
+   */
+  @Put(':accountId/slip-templates/select/:type/:templateId')
+  async selectGlobalTemplate(
+    @Param('accountId') accountId: string,
+    @Param('type') type: TemplateType,
+    @Param('templateId') templateId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
+    await this.slipTemplatesService.selectGlobalTemplateForAccount(accountId, type, templateId);
+    return { success: true, message: 'Template selected successfully' };
+  }
+
+  /**
+   * Get selected templates for a LINE account
+   */
+  @Get(':accountId/slip-templates/selected')
+  async getSelectedTemplates(
+    @Param('accountId') accountId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.slipTemplatesService.ensureAccountAccess(accountId, user);
+    const selectedTemplates = await this.slipTemplatesService.getSelectedTemplatesForAccount(accountId);
+    return { success: true, selectedTemplates };
   }
 
   /**

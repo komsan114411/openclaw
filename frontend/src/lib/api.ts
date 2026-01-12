@@ -31,7 +31,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        const path = window.location.pathname;
+        // Don't redirect if already on login page to avoid refresh loop
+        if (!path.startsWith('/login') && !path.startsWith('/register')) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
@@ -465,7 +469,7 @@ export const rateLimitApi = {
   // Get statistics
   getStats: (period?: number) =>
     api.get('/rate-limit/stats', { params: { period } }),
-  
+
   // Get logs with filtering
   getLogs: (params?: {
     limit?: number;
@@ -475,13 +479,13 @@ export const rateLimitApi = {
     accountSlug?: string;
     isTest?: boolean;
   }) => api.get('/rate-limit/logs', { params }),
-  
+
   // Get current in-memory metrics
   getMetrics: () => api.get('/rate-limit/metrics'),
-  
+
   // Get available LINE accounts for testing
   getAccounts: () => api.get('/rate-limit/accounts'),
-  
+
   // Run custom rate limit test (simulation)
   runTest: (data: {
     testType: 'per_ip' | 'per_account' | 'global';
@@ -490,22 +494,22 @@ export const rateLimitApi = {
     testIp?: string;
     testAccount?: string;
   }) => api.post('/rate-limit/test', data),
-  
+
   // Run real webhook test
   runWebhookTest: (data: {
     accountId?: string;
     requestCount: number;
     delayMs?: number;
   }) => api.post('/rate-limit/test/webhook', data),
-  
+
   // Run preset test (simulation or real webhook)
   runQuickTest: (preset: 'light' | 'medium' | 'heavy' | 'ddos_simulation', mode?: 'simulation' | 'real_webhook', accountId?: string) =>
     api.post('/rate-limit/test/quick', { preset, mode, accountId }),
-  
+
   // Get test history
   getTestHistory: (limit?: number) =>
     api.get('/rate-limit/test/history', { params: { limit } }),
-  
+
   // Clear test logs
   clearTestLogs: () => api.delete('/rate-limit/test/logs'),
 };
