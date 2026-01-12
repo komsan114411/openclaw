@@ -1501,4 +1501,43 @@ export class SlipTemplatesService implements OnModuleInit {
 
     return lines.join('\n');
   }
+
+  /**
+   * Select a global template for a LINE account (save preference)
+   */
+  async selectGlobalTemplateForAccount(
+    lineAccountId: string,
+    type: TemplateType,
+    templateId: string,
+  ): Promise<void> {
+    const template = await this.slipTemplateModel.findById(templateId);
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    if (template.type !== type) {
+      throw new BadRequestException(`Template type mismatch. Expected ${type}, got ${template.type}`);
+    }
+
+    // Verify account exists
+    const account = await this.lineAccountModel.findById(lineAccountId);
+    if (!account) {
+      throw new NotFoundException('LINE Account not found');
+    }
+
+    // Update setting using dot notation for the specific key in the Record
+    const updatePath = `settings.slipTemplateIds.${type}`;
+
+    await this.lineAccountModel.findByIdAndUpdate(lineAccountId, {
+      $set: { [updatePath]: templateId }
+    });
+  }
+
+  /**
+   * Get selected template IDs for a LINE account
+   */
+  async getSelectedTemplatesForAccount(lineAccountId: string): Promise<Record<string, string>> {
+    const account = await this.lineAccountModel.findById(lineAccountId).select('settings.slipTemplateIds').lean();
+    return account?.settings?.slipTemplateIds || {};
+  }
 }
