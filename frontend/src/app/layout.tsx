@@ -5,6 +5,7 @@ import { Providers } from './providers';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/Toast';
+import { AuthStateListener } from '@/components/AuthStateListener';
 
 const prompt = Prompt({
   subsets: ['latin', 'thai'],
@@ -56,6 +57,7 @@ export default function RootLayout({
         <ErrorBoundary>
           <Providers>
             <ToastProvider>
+              <AuthStateListener />
               {children}
               <Toaster
                 position="top-right"

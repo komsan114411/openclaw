@@ -32,6 +32,31 @@ let _authCheckInProgress = false;
 // Minimum time between auth checks (5 seconds)
 const AUTH_CHECK_COOLDOWN = 5000;
 
+// Broadcast Channel for cross-tab synchronization
+const authChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('auth_sync')
+  : null;
+
+if (authChannel) {
+  authChannel.onmessage = (event) => {
+    if (event.data.type === 'LOGOUT') {
+      // Another tab logged out
+      if (_authChecked) { // Only if we think we are logged in
+        useAuthStore.getState().logout(true); // true = silent/remote
+      }
+    } else if (event.data.type === 'LOGIN') {
+      // Another tab logged in
+      // Reload to sync cookies and session storage
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.reload();
+      } else {
+        // If on login page, re-check auth
+        useAuthStore.getState().checkAuth();
+      }
+    }
+  };
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -52,25 +77,29 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authApi.login(username, password);
           if (response.data.success) {
-            set({ 
-              user: response.data.user, 
-              isLoading: false, 
+            set({
+              user: response.data.user,
+              isLoading: false,
               isInitialized: true,
               lastChecked: Date.now()
             });
             _authChecked = true;
+
+            // Notify other tabs
+            authChannel?.postMessage({ type: 'LOGIN', userId: response.data.user.userId });
+
             return true;
           }
-          set({ 
-            error: response.data.message || 'Login failed', 
-            isLoading: false, 
-            isInitialized: true 
+          set({
+            error: response.data.message || 'Login failed',
+            isLoading: false,
+            isInitialized: true
           });
           return false;
         } catch (error: any) {
-          const errorMessage = error.response?.data?.message || 
-                              error.message || 
-                              'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+          const errorMessage = error.response?.data?.message ||
+            error.message ||
+            'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
           set({
             error: errorMessage,
             isLoading: false,
@@ -90,25 +119,29 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authApi.register(data);
           if (response.data.success) {
-            set({ 
-              user: response.data.user, 
-              isLoading: false, 
+            set({
+              user: response.data.user,
+              isLoading: false,
               isInitialized: true,
               lastChecked: Date.now()
             });
             _authChecked = true;
+
+            // Notify other tabs
+            authChannel?.postMessage({ type: 'LOGIN', userId: response.data.user.userId });
+
             return true;
           }
-          set({ 
-            error: response.data.message || 'Registration failed', 
-            isLoading: false, 
-            isInitialized: true 
+          set({
+            error: response.data.message || 'Registration failed',
+            isLoading: false,
+            isInitialized: true
           });
           return false;
         } catch (error: any) {
-          const errorMessage = error.response?.data?.message || 
-                              error.message || 
-                              'เกิดข้อผิดพลาดในการลงทะเบียน';
+          const errorMessage = error.response?.data?.message ||
+            error.message ||
+            'เกิดข้อผิดพลาดในการลงทะเบียน';
           set({
             error: errorMessage,
             isLoading: false,
@@ -118,20 +151,25 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: async () => {
-        set({ isLoading: true });
-        try {
-          await authApi.logout();
-        } catch (error) {
-          // Ignore logout errors - still clear local state
-          console.warn('Logout API error (ignored):', error);
+      logout: async (remote = false) => {
+        if (!remote) {
+          set({ isLoading: true });
+          try {
+            await authApi.logout();
+          } catch (error) {
+            // Ignore logout errors - still clear local state
+            console.warn('Logout API error (ignored):', error);
+          }
+          // Notify other tabs only if local logout
+          authChannel?.postMessage({ type: 'LOGOUT' });
         }
+
         _authChecked = false;
         _authCheckInProgress = false;
-        set({ 
-          user: null, 
-          isLoading: false, 
-          error: null, 
+        set({
+          user: null,
+          isLoading: false,
+          error: null,
           isInitialized: true,
           lastChecked: 0
         });
@@ -174,16 +212,16 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await authApi.me();
           if (response.data.success && response.data.user) {
-            set({ 
-              user: response.data.user, 
-              isLoading: false, 
+            set({
+              user: response.data.user,
+              isLoading: false,
               isInitialized: true,
               lastChecked: now
             });
           } else {
-            set({ 
-              user: null, 
-              isLoading: false, 
+            set({
+              user: null,
+              isLoading: false,
               isInitialized: true,
               lastChecked: now
             });
@@ -192,9 +230,9 @@ export const useAuthStore = create<AuthState>()(
           // Handle all errors gracefully - don't throw, don't retry
           // This includes CORS errors, network errors, 401s, etc.
           console.warn('Auth check failed (non-critical):', error?.message || 'Unknown error');
-          set({ 
-            user: null, 
-            isLoading: false, 
+          set({
+            user: null,
+            isLoading: false,
             isInitialized: true,
             lastChecked: now
           });
@@ -204,7 +242,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clearError: () => set({ error: null }),
-      
+
       setInitialized: () => {
         _authChecked = true;
         set({ isInitialized: true });
@@ -224,12 +262,12 @@ export const useAuthStore = create<AuthState>()(
           console.warn('Auth storage rehydration error:', error);
           return;
         }
-        
+
         if (state) {
           // ALWAYS set initialized after rehydration
           state.isInitialized = true;
           state.isLoading = false;
-          
+
           // If we had a valid session, mark as checked
           if (state.user) {
             _authChecked = true;
