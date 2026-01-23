@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Query,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChatbotService } from './chatbot.service';
@@ -20,6 +21,8 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 @Controller('chatbot')
 @UseGuards(SessionAuthGuard)
 export class ChatbotController {
+  private readonly logger = new Logger(ChatbotController.name);
+
   constructor(
     private chatbotService: ChatbotService,
     private systemSettingsService: SystemSettingsService,
@@ -51,16 +54,16 @@ export class ChatbotController {
     let keyToTest = body.apiKey;
 
     // If key is masked, placeholder, or empty, fetch DECRYPTED key from database
-    if (!keyToTest || 
-        keyToTest === 'use-saved' || 
-        keyToTest.includes('....') || 
-        keyToTest.includes('***') || 
+    if (!keyToTest ||
+        keyToTest === 'use-saved' ||
+        keyToTest.includes('....') ||
+        keyToTest.includes('***') ||
         keyToTest.length < 10) {
-      console.log('[test-connection] Fetching AI API key from database (decrypted)...');
+      this.logger.log('Fetching AI API key from database (decrypted)...');
       // Use getDecryptedSettings() to get the actual API key, not the masked version
       const settings = await this.systemSettingsService.getDecryptedSettings();
       keyToTest = settings?.aiApiKey || '';
-      console.log(`[test-connection] Got decrypted key from DB (length: ${keyToTest?.length || 0})`);
+      this.logger.log(`Got decrypted key from DB (length: ${keyToTest?.length || 0})`);
       
       if (!keyToTest) {
         return {

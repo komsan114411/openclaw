@@ -9,6 +9,7 @@ import { SlipTemplate, SlipTemplateDocument } from '../database/schemas/slip-tem
 import { CreateLineAccountDto } from './dto/create-line-account.dto';
 import { UpdateLineAccountDto } from './dto/update-line-account.dto';
 import { RedisService } from '../redis/redis.service';
+import { isValidObjectId } from '../common/utils/validation.util';
 
 @Injectable()
 export class LineAccountsService {
@@ -20,13 +21,6 @@ export class LineAccountsService {
     @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
     private redisService: RedisService,
   ) { }
-
-  /**
-   * Validate ObjectId format
-   */
-  private isValidObjectId(id: string): boolean {
-    return Types.ObjectId.isValid(id);
-  }
 
   /**
    * Generate unique webhook slug
@@ -41,7 +35,7 @@ export class LineAccountsService {
    * Returns true if template belongs to user or is a global template
    */
   async validateTemplateOwnership(templateId: string, userId: string): Promise<boolean> {
-    if (!templateId || !this.isValidObjectId(templateId)) {
+    if (!templateId || !isValidObjectId(templateId)) {
       return false;
     }
 

@@ -82,18 +82,19 @@ export default function UserPackagesPage() {
   const handlePurchase = async () => {
     if (!selectedPackage) return;
 
-    // Use current balance state (already fetched when modal opened)
-    // Don't re-fetch here to avoid race conditions
-    if (balance < selectedPackage.price) {
-      setPurchaseResult({
-        success: false,
-        message: `เครดิตไม่เพียงพอ (มี ฿${balance} ต้องการ ฿${selectedPackage.price})`
-      });
-      return;
-    }
-
     setIsPurchasing(true);
     setPurchaseResult(null);
+
+    // Fetch fresh balance before purchase to prevent race condition
+    const freshBalance = await fetchBalance();
+    if (freshBalance < selectedPackage.price) {
+      setPurchaseResult({
+        success: false,
+        message: `เครดิตไม่เพียงพอ (มี ฿${freshBalance.toLocaleString()} ต้องการ ฿${selectedPackage.price.toLocaleString()})`
+      });
+      setIsPurchasing(false);
+      return;
+    }
 
     try {
       const response = await fetch(`/api/packages/${selectedPackage._id}/purchase`, {
@@ -114,7 +115,7 @@ export default function UserPackagesPage() {
           await fetchBalance();
         }
         // Refresh wallet balance in global store
-        useWalletStore.getState().refreshBalance();
+        useWalletStore.getState().fetchBalance(true);
         setTimeout(() => {
           handleCloseModal();
           window.location.reload();

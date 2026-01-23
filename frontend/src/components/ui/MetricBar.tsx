@@ -1,11 +1,6 @@
 'use client';
 
-import { clsx, ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
 
 interface MetricBarProps {
   percentage: number; // 0-100

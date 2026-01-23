@@ -1,11 +1,6 @@
 'use client';
 
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
 
 interface SpinnerProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -166,8 +161,5 @@ export function PageLoading({ message = 'กำลังโหลดข้อม
     </div>
   );
 }
-
-// Alias for backward compatibility
-export const CardSkeleton = LoadingCard;
 
 export default Spinner;

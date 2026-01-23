@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
@@ -158,19 +159,37 @@ export class SlipTemplatesController {
 
   /**
    * Get all templates for a LINE account
+   * @param simplified - If true, return only basic fields (id, name, type, isDefault, description)
    */
   @Get(':accountId/slip-templates')
   async getTemplates(
     @Param('accountId') accountId: string,
+    @Query('simplified') simplified: string,
     @CurrentUser() user: AuthUser,
   ) {
     await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const templates = await this.slipTemplatesService.getByLineAccount(accountId);
+
+    // Return simplified list if requested
+    if (simplified === 'true') {
+      return {
+        success: true,
+        templates: templates.map((t) => ({
+          _id: t._id,
+          name: t.name,
+          type: t.type,
+          isDefault: t.isDefault,
+          description: t.description,
+        })),
+      };
+    }
+
     return { success: true, templates };
   }
 
   /**
-   * Get template list (simplified)
+   * @deprecated Use GET :accountId/slip-templates?simplified=true instead
+   * Get template list (simplified) - kept for backward compatibility
    */
   @Get(':accountId/slip-templates-list')
   async getTemplateList(

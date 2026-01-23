@@ -57,9 +57,16 @@ export class AuthService {
         this.logger.warn('═══════════════════════════════════════════════════');
         this.logger.warn('🔐 DEFAULT ADMIN CREATED');
         this.logger.warn('   Username: admin');
-        this.logger.warn('   Password: ' + randomPassword);
+        this.logger.warn('   Password: [HIDDEN - Check ADMIN_INITIAL_PASSWORD.txt]');
         this.logger.warn('   ⚠️ CHANGE PASSWORD IMMEDIATELY ON FIRST LOGIN');
         this.logger.warn('═══════════════════════════════════════════════════');
+
+        // Write password to secure file (should be deleted after first login)
+        const fs = require('fs');
+        const path = require('path');
+        const passwordFile = path.join(process.cwd(), 'ADMIN_INITIAL_PASSWORD.txt');
+        fs.writeFileSync(passwordFile, `Initial Admin Password: ${randomPassword}\n\nDELETE THIS FILE AFTER FIRST LOGIN!`, 'utf8');
+        this.logger.warn(`   📄 Password saved to: ${passwordFile}`);
       }
     } catch (error) {
       this.logger.error('Error creating default admin:', error);

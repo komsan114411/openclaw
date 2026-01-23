@@ -10,6 +10,7 @@ import {
   Inject,
   forwardRef,
   Optional,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InjectModel } from '@nestjs/mongoose';
@@ -30,6 +31,8 @@ import { BlockchainVerificationService } from '../wallet/blockchain-verification
 @ApiBearerAuth()
 @Controller('system-settings')
 export class SystemSettingsController {
+  private readonly logger = new Logger(SystemSettingsController.name);
+
   constructor(
     private settingsService: SystemSettingsService,
     private blockchainVerificationService: BlockchainVerificationService,
@@ -51,17 +54,35 @@ export class SystemSettingsController {
 
     // If key is masked or empty, fetch DECRYPTED key from database
     if (!keyToTest || keyToTest.includes('....') || keyToTest.includes('***') || keyToTest.length < 10) {
-      console.log(`[test-usdt-api] Fetching ${body.network} API key from database (decrypted)...`);
+      this.logger.log(`Fetching ${body.network} API key from database (decrypted)...`);
       // Use getDecryptedSettings() to get the actual API key, not the masked version
       const settings = await this.settingsService.getDecryptedSettings();
-      if (body.network === 'ERC20') {
-        keyToTest = settings?.etherscanApiKey || '';
-      } else if (body.network === 'BEP20') {
-        keyToTest = settings?.bscscanApiKey || '';
-      } else if (body.network === 'TRC20') {
-        keyToTest = settings?.tronscanApiKey || '';
+
+      if (!settings) {
+        return {
+          success: false,
+          status: 'error',
+          message: 'ไม่สามารถโหลดการตั้งค่าระบบได้',
+        };
       }
-      console.log(`[test-usdt-api] Got decrypted key from DB (length: ${keyToTest?.length || 0})`);
+
+      if (body.network === 'ERC20') {
+        keyToTest = settings.etherscanApiKey || '';
+      } else if (body.network === 'BEP20') {
+        keyToTest = settings.bscscanApiKey || '';
+      } else if (body.network === 'TRC20') {
+        keyToTest = settings.tronscanApiKey || '';
+      }
+
+      this.logger.log(`Got decrypted key from DB (length: ${keyToTest?.length || 0})`);
+
+      if (!keyToTest) {
+        return {
+          success: false,
+          status: 'error',
+          message: `ยังไม่ได้ตั้งค่า ${body.network} API Key กรุณาบันทึก API Key ก่อนทดสอบ`,
+        };
+      }
     }
 
     return this.blockchainVerificationService.testApiKey(body.network, keyToTest);

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Payment, PaymentDocument, PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
 import { PackagesService } from '../packages/packages.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
@@ -9,10 +9,13 @@ import { RedisService } from '../redis/redis.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { ActivityActorRole } from '../database/schemas/activity-log.schema';
 import { EventBusService, EventNames, PaymentCompletedEvent } from '../core/events';
+import { isValidObjectId } from '../common/utils/validation.util';
+import { createActivityLogger } from '../common/utils/activity-logger.util';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private logActivity!: ReturnType<typeof createActivityLogger>;
 
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
@@ -26,35 +29,9 @@ export class PaymentsService {
     @Inject(forwardRef(() => ActivityLogsService))
     private activityLogsService: ActivityLogsService,
     private eventBus: EventBusService,
-  ) { }
-
-  /**
-   * Safe activity logging - never fails the main transaction
-   */
-  private async logActivity(params: {
-    actorUserId?: string;
-    actorRole: ActivityActorRole;
-    subjectUserId?: string;
-    action: string;
-    entityId?: string;
-    message?: string;
-    metadata?: Record<string, any>;
-  }): Promise<void> {
-    try {
-      await this.activityLogsService.log({
-        ...params,
-        entityType: 'payment',
-      });
-    } catch (error) {
-      this.logger.error(`Failed to log activity: ${params.action}`, error);
-    }
-  }
-
-  /**
-   * Validate ObjectId format
-   */
-  private isValidObjectId(id: string): boolean {
-    return Types.ObjectId.isValid(id);
+  ) {
+    // Initialize after all dependencies are injected
+    this.logActivity = createActivityLogger(this.activityLogsService, this.logger, 'payment');
   }
 
   async createPayment(
@@ -65,7 +42,7 @@ export class PaymentsService {
     transactionHash?: string,
   ): Promise<PaymentDocument> {
     // Validate packageId
-    if (!this.isValidObjectId(packageId)) {
+    if (!isValidObjectId(packageId)) {
       throw new BadRequestException('Invalid package ID format');
     }
 
@@ -157,13 +134,13 @@ export class PaymentsService {
     paymentId?: string,
   ): Promise<PaymentDocument> {
     // Validate packageId
-    if (!this.isValidObjectId(packageId)) {
+    if (!isValidObjectId(packageId)) {
       throw new BadRequestException('Invalid package ID format');
     }
 
     // If user is re-uploading for an existing payment, update it atomically
     if (paymentId) {
-      if (!this.isValidObjectId(paymentId)) {
+      if (!isValidObjectId(paymentId)) {
         throw new BadRequestException('Invalid payment ID format');
       }
 
@@ -327,7 +304,7 @@ export class PaymentsService {
     message: string;
     verificationResult?: any;
   }> {
-    if (!this.isValidObjectId(paymentId)) {
+    if (!isValidObjectId(paymentId)) {
       return { success: false, message: 'Invalid payment ID format' };
     }
 
@@ -598,7 +575,7 @@ export class PaymentsService {
    * 4. Tracks subscription ID for audit trail
    */
   async approvePayment(paymentId: string, adminId: string): Promise<boolean> {
-    if (!this.isValidObjectId(paymentId)) {
+    if (!isValidObjectId(paymentId)) {
       throw new BadRequestException('Invalid payment ID format');
     }
 
@@ -733,7 +710,7 @@ export class PaymentsService {
   }
 
   async rejectPayment(paymentId: string, adminId: string, notes?: string): Promise<boolean> {
-    if (!this.isValidObjectId(paymentId)) {
+    if (!isValidObjectId(paymentId)) {
       throw new BadRequestException('Invalid payment ID format');
     }
 
@@ -813,7 +790,7 @@ export class PaymentsService {
   }
 
   async findById(id: string): Promise<PaymentDocument | null> {
-    if (!this.isValidObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return null;
     }
 

@@ -1,13 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { clsx, ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { Button } from './Button';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
 
 interface SectionHeaderProps {
   /** คำหัวข้อหลัก เช่น "แดชบอร์ด" */

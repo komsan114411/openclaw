@@ -9,20 +9,7 @@ import { useWalletStore } from '@/store/wallet';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
-
-interface BankAccount {
-  bankName: string;
-  accountNumber: string;
-  accountName: string;
-}
-
-interface UsdtSettings {
-  enabled: boolean;
-  network: string;
-  walletAddress: string;
-  qrCodeUrl?: string;
-  autoVerify: boolean;
-}
+import { BankAccount, UsdtSettings } from '@/types';
 
 type DepositMethod = 'bank' | 'usdt';
 

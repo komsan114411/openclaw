@@ -47,3 +47,6 @@ coverage/
 
 # TypeScript
 *.tsbuildinfo
+
+# Security - Initial admin password file
+ADMIN_INITIAL_PASSWORD.txt

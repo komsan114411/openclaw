@@ -2,12 +2,7 @@
 
 import { ReactNode } from 'react';
 import { Card } from './Card';
-import { clsx, ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
 
 interface StatCardMiniProps {
   icon: ReactNode;

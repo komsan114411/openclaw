@@ -8,10 +8,10 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
-import { Types } from 'mongoose';
 import { SlipVerificationService } from './slip-verification.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -24,6 +24,8 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 @Controller('slip-verification')
 @UseGuards(SessionAuthGuard)
 export class SlipVerificationController {
+  private readonly logger = new Logger(SlipVerificationController.name);
+
   constructor(
     private slipVerificationService: SlipVerificationService,
     private systemSettingsService: SystemSettingsService,
@@ -62,16 +64,16 @@ export class SlipVerificationController {
     let keyToTest = body.apiKey;
 
     // If key is masked, placeholder, or empty, fetch DECRYPTED key from database
-    if (!keyToTest || 
-        keyToTest === 'use-saved' || 
-        keyToTest.includes('....') || 
-        keyToTest.includes('***') || 
+    if (!keyToTest ||
+        keyToTest === 'use-saved' ||
+        keyToTest.includes('....') ||
+        keyToTest.includes('***') ||
         keyToTest.length < 10) {
-      console.log('[test-connection] Fetching Slip API key from database (decrypted)...');
+      this.logger.log('Fetching Slip API key from database (decrypted)...');
       // Use getDecryptedSettings() to get the actual API key, not the masked version
       const settings = await this.systemSettingsService.getDecryptedSettings();
       keyToTest = settings?.slipApiKey || '';
-      console.log(`[test-connection] Got decrypted key from DB (length: ${keyToTest?.length || 0})`);
+      this.logger.log(`Got decrypted key from DB (length: ${keyToTest?.length || 0})`);
       
       if (!keyToTest) {
         return {

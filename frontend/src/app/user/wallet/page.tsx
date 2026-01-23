@@ -12,48 +12,11 @@ import { Input } from '@/components/ui/Input';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
-
-interface WalletBalance {
-  balance: number;
-  totalDeposited: number;
-  totalSpent: number;
-}
-
-interface Transaction {
-  _id: string;
-  type: 'deposit' | 'purchase' | 'bonus' | 'refund' | 'adjustment';
-  amount: number;
-  balanceAfter: number;
-  description: string;
-  status: 'pending' | 'completed' | 'rejected' | 'cancelled';
-  createdAt: string;
-}
-
-interface BankAccount {
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  bankCode?: string;
-  bank?: {
-    code: string;
-    name: string;
-    nameTh?: string;
-    logoUrl?: string;
-    logoBase64?: string;
-  };
-}
-
-interface UsdtSettings {
-  enabled: boolean;
-  address: string;
-  network: string;
-  qrImage: string;
-  disabledMessage: string;
-}
+import { WalletBalance, WalletTransaction, BankAccount, UsdtSettings } from '@/types';
 
 export default function WalletPage() {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [usdtSettings, setUsdtSettings] = useState<UsdtSettings | null>(null);
 

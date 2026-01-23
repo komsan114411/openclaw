@@ -82,23 +82,23 @@ export class PackagesService {
     return pkg.save();
   }
 
-  async deactivate(id: string): Promise<void> {
+  async deactivate(id: string): Promise<PackageDocument> {
     const pkg = await this.packageModel.findById(id);
     if (!pkg) {
       throw new NotFoundException('Package not found');
     }
 
     pkg.isActive = false;
-    await pkg.save();
+    return pkg.save();
   }
 
-  async activate(id: string): Promise<void> {
+  async activate(id: string): Promise<PackageDocument> {
     const pkg = await this.packageModel.findById(id);
     if (!pkg) {
       throw new NotFoundException('Package not found');
     }
 
     pkg.isActive = true;
-    await pkg.save();
+    return pkg.save();
   }
 }

@@ -4,36 +4,13 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { paymentsApi, walletApi } from '@/lib/api';
-import { Payment } from '@/types';
+import { Payment, WalletTransaction, UnifiedTransaction } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
-
-interface WalletTransaction {
-  _id: string;
-  type: 'deposit' | 'purchase' | 'bonus' | 'refund' | 'adjustment';
-  amount: number;
-  balanceAfter: number;
-  description: string;
-  status: 'pending' | 'completed' | 'rejected' | 'cancelled';
-  createdAt: string;
-  slipImage?: string;
-}
-
-interface UnifiedTransaction {
-  _id: string;
-  type: 'package' | 'deposit' | 'purchase' | 'bonus' | 'refund' | 'adjustment';
-  amount: number;
-  status: string;
-  description: string;
-  createdAt: string;
-  slipImageUrl?: string;
-  paymentType?: string;
-  source: 'payment' | 'wallet';
-}
 
 export default function UserPaymentsPage() {
   const [transactions, setTransactions] = useState<UnifiedTransaction[]>([]);

@@ -9,38 +9,20 @@ import { Session, SessionDocument } from '../database/schemas/session.schema';
 import { RedisService } from '../redis/redis.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { ActivityActorRole } from '../database/schemas/activity-log.schema';
+import { createActivityLogger } from '../common/utils/activity-logger.util';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private readonly logActivity: ReturnType<typeof createActivityLogger>;
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     private redisService: RedisService,
     private activityLogsService: ActivityLogsService,
-  ) {}
-
-  /**
-   * Safe activity logging - never fails the main transaction
-   */
-  private async logActivity(params: {
-    actorUserId?: string;
-    actorRole: ActivityActorRole;
-    subjectUserId?: string;
-    action: string;
-    entityId?: string;
-    message?: string;
-    metadata?: Record<string, any>;
-  }): Promise<void> {
-    try {
-      await this.activityLogsService.log({
-        ...params,
-        entityType: 'user',
-      });
-    } catch (error) {
-      this.logger.error(`Failed to log activity: ${params.action}`, error);
-    }
+  ) {
+    this.logActivity = createActivityLogger(activityLogsService, this.logger, 'user');
   }
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {

@@ -243,13 +243,43 @@ export interface SlipTemplateListItem {
 
 export interface WalletTransaction {
   _id: string;
-  userId: string;
+  userId?: string;
   type: 'deposit' | 'purchase' | 'refund' | 'bonus' | 'adjustment' | 'subscription';
   amount: number;
-  balanceBefore: number;
+  balanceBefore?: number;
   balanceAfter: number;
   description: string;
   status: 'pending' | 'completed' | 'rejected' | 'cancelled' | 'approved' | 'success' | 'failed';
   createdAt: string;
+  slipImage?: string;
   metadata?: Record<string, any>;
+}
+
+export interface WalletBalance {
+  balance: number;
+  totalDeposited?: number;
+  totalSpent?: number;
+}
+
+export interface UsdtSettings {
+  enabled: boolean;
+  address?: string;
+  walletAddress?: string;  // Alias for address
+  network: string;
+  qrImage?: string;
+  qrCodeUrl?: string;  // Alias for qrImage
+  disabledMessage?: string;
+  autoVerify?: boolean;
+}
+
+export interface UnifiedTransaction {
+  _id: string;
+  type: 'package' | 'deposit' | 'purchase' | 'bonus' | 'refund' | 'adjustment';
+  amount: number;
+  status: string;
+  description: string;
+  createdAt: string;
+  slipImageUrl?: string;
+  paymentType?: string;
+  source: 'payment' | 'wallet';
 }

@@ -22,12 +22,10 @@ async function bootstrap() {
 
     // Enable CORS - Allow all origins
     app.enableCors({
-      origin: true, // Allow all origins
+      origin: true,
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-      preflightContinue: false,
-      optionsSuccessStatus: 204,
     });
 
     // Cookie parser

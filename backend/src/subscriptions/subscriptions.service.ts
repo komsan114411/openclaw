@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Subscription, SubscriptionDocument, SubscriptionStatus } from '../database/schemas/subscription.schema';
 import { PackagesService } from '../packages/packages.service';
+import { isValidObjectId } from '../common/utils/validation.util';
 
 export interface QuotaInfo {
   hasQuota: boolean;
@@ -36,19 +37,12 @@ export class SubscriptionsService {
     private packagesService: PackagesService,
   ) {}
 
-  /**
-   * Validate ObjectId format
-   */
-  private isValidObjectId(id: string): boolean {
-    return Types.ObjectId.isValid(id);
-  }
-
   async createSubscription(
     userId: string,
     packageId: string,
     paymentId?: string,
   ): Promise<SubscriptionDocument> {
-    if (!this.isValidObjectId(packageId)) {
+    if (!isValidObjectId(packageId)) {
       throw new BadRequestException('Invalid package ID format');
     }
 
@@ -92,7 +86,7 @@ export class SubscriptionsService {
       throw new BadRequestException('Payment ID is required for quota tracking');
     }
 
-    if (!this.isValidObjectId(packageId)) {
+    if (!isValidObjectId(packageId)) {
       throw new BadRequestException('Invalid package ID format');
     }
 
@@ -405,7 +399,7 @@ export class SubscriptionsService {
    * Clears reservedAt when no more reservations remain
    */
   async confirmReservation(subscriptionId: string, amount = 1): Promise<boolean> {
-    if (!this.isValidObjectId(subscriptionId)) {
+    if (!isValidObjectId(subscriptionId)) {
       this.logger.error(`Invalid subscription ID format: ${subscriptionId}`);
       return false;
     }
@@ -450,7 +444,7 @@ export class SubscriptionsService {
    * Clears reservedAt when no more reservations remain
    */
   async rollbackReservation(subscriptionId: string, amount = 1): Promise<boolean> {
-    if (!this.isValidObjectId(subscriptionId)) {
+    if (!isValidObjectId(subscriptionId)) {
       this.logger.error(`Invalid subscription ID format: ${subscriptionId}`);
       return false;
     }
