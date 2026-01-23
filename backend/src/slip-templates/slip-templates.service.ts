@@ -340,6 +340,8 @@ export class SlipTemplatesService implements OnModuleInit {
       delayWarningMinutes: dto.delayWarningMinutes ?? 5,
       isGlobal: dto.isGlobal ?? false,
       isSystemTemplate: dto.isSystemTemplate ?? false,
+      isActive: dto.isActive ?? true,
+      isDefault: dto.isDefault ?? false,
       // New enhanced fields
       showSenderAccount: dto.showSenderAccount ?? false,
       showReceiverAccount: dto.showReceiverAccount ?? false,
@@ -355,10 +357,12 @@ export class SlipTemplatesService implements OnModuleInit {
    * Create a global template (Admin only)
    */
   async createGlobalTemplate(dto: Omit<CreateTemplateDto, 'lineAccountId'>): Promise<SlipTemplateDocument> {
+    this.logger.log(`[TEMPLATE] Creating global template: name=${dto.name}, type=${dto.type}`);
     return this.create({
       ...dto,
       isGlobal: true,
       isSystemTemplate: true,
+      isActive: true,
     });
   }
 
@@ -998,14 +1002,14 @@ export class SlipTemplatesService implements OnModuleInit {
   }
 
   /**
-   * Repair global templates - restore isGlobal flag for templates that lost it
+   * Repair global templates - restore flags and ensure templates are properly configured
    * This fixes templates that were updated before the preserve-flags fix
    */
-  async repairGlobalTemplates(): Promise<{ repairedCount: number; totalGlobalCount: number; message: string }> {
+  async repairGlobalTemplates(): Promise<{ repairedCount: number; totalGlobalCount: number; message: string; details: string[] }> {
     this.logger.log('[REPAIR] Starting global templates repair...');
+    const details: string[] = [];
 
-    // Find templates that should be global (isSystemTemplate: true or isDefault: true)
-    // but have isGlobal: false or undefined
+    // Step 1: Fix templates that should be global but aren't
     const brokenTemplates = await this.slipTemplateModel.find({
       $and: [
         {
@@ -1025,16 +1029,17 @@ export class SlipTemplatesService implements OnModuleInit {
 
     let repairedCount = 0;
     for (const template of brokenTemplates) {
-      this.logger.log(`[REPAIR] Repairing template: ${template.name} (ID: ${template._id})`);
+      this.logger.log(`[REPAIR] Fixing isGlobal for template: ${template.name} (ID: ${template._id})`);
       await this.slipTemplateModel.findByIdAndUpdate(template._id, {
         isGlobal: true,
         isActive: true,
       });
+      details.push(`Fixed isGlobal for "${template.name}"`);
       repairedCount++;
     }
 
-    // Also ensure all templates without lineAccountId are marked as global
-    const orphanedTemplates = await this.slipTemplateModel.updateMany(
+    // Step 2: Fix templates without lineAccountId that aren't marked as global
+    const orphanedResult = await this.slipTemplateModel.updateMany(
       {
         lineAccountId: { $exists: false },
         isGlobal: { $ne: true },
@@ -1043,23 +1048,167 @@ export class SlipTemplatesService implements OnModuleInit {
         $set: { isGlobal: true, isActive: true },
       }
     );
+    if (orphanedResult.modifiedCount > 0) {
+      details.push(`Fixed ${orphanedResult.modifiedCount} orphaned templates`);
+      repairedCount += orphanedResult.modifiedCount;
+    }
 
-    const orphanedCount = orphanedTemplates.modifiedCount;
-    this.logger.log(`[REPAIR] Found ${orphanedCount} orphaned templates and marked them as global`);
+    // Step 3: Ensure all global templates are active
+    const inactiveResult = await this.slipTemplateModel.updateMany(
+      {
+        isGlobal: true,
+        isActive: { $ne: true },
+      },
+      {
+        $set: { isActive: true },
+      }
+    );
+    if (inactiveResult.modifiedCount > 0) {
+      details.push(`Activated ${inactiveResult.modifiedCount} inactive global templates`);
+      repairedCount += inactiveResult.modifiedCount;
+    }
+
+    // Step 4: Check if we have default templates for all types, create if missing
+    const requiredTypes = [TemplateType.SUCCESS, TemplateType.DUPLICATE, TemplateType.ERROR, TemplateType.NOT_FOUND];
+    for (const type of requiredTypes) {
+      const hasTemplate = await this.slipTemplateModel.findOne({
+        isGlobal: true,
+        type,
+        isActive: true,
+      });
+
+      if (!hasTemplate) {
+        this.logger.log(`[REPAIR] No template found for type ${type}, creating default...`);
+        details.push(`Created default template for type "${type}"`);
+      }
+    }
+
+    // Create default templates if missing
+    await this.createDefaultGlobalTemplates();
+
+    // Step 5: Set isDefault on first template of each type if none has isDefault
+    for (const type of requiredTypes) {
+      const hasDefault = await this.slipTemplateModel.findOne({
+        isGlobal: true,
+        type,
+        isDefault: true,
+        isActive: true,
+      });
+
+      if (!hasDefault) {
+        const firstTemplate = await this.slipTemplateModel.findOne({
+          isGlobal: true,
+          type,
+          isActive: true,
+        }).sort({ createdAt: 1 });
+
+        if (firstTemplate) {
+          await this.slipTemplateModel.findByIdAndUpdate(firstTemplate._id, {
+            isDefault: true,
+          });
+          details.push(`Set "${firstTemplate.name}" as default for type "${type}"`);
+          repairedCount++;
+        }
+      }
+    }
 
     // Get final count
     const totalGlobalCount = await this.slipTemplateModel.countDocuments({ isGlobal: true, isActive: true });
 
-    const message = repairedCount > 0 || orphanedCount > 0
-      ? `Repaired ${repairedCount + orphanedCount} templates. Total global templates: ${totalGlobalCount}`
-      : `No templates needed repair. Total global templates: ${totalGlobalCount}`;
+    const message = repairedCount > 0
+      ? `Repaired ${repairedCount} issues. Total global templates: ${totalGlobalCount}`
+      : `No issues found. Total global templates: ${totalGlobalCount}`;
 
     this.logger.log(`[REPAIR] ${message}`);
+    this.logger.log(`[REPAIR] Details: ${details.join('; ')}`);
 
     return {
-      repairedCount: repairedCount + orphanedCount,
+      repairedCount,
       totalGlobalCount,
       message,
+      details,
+    };
+  }
+
+  /**
+   * Debug: Get all templates with their flags for troubleshooting
+   */
+  async debugGetAllTemplates(): Promise<{
+    total: number;
+    globalActiveCount: number;
+    byType: Record<string, number>;
+    templates: Array<{
+      _id: string;
+      name: string;
+      type: string;
+      isGlobal: boolean;
+      isActive: boolean;
+      isDefault: boolean;
+      isSystemTemplate: boolean;
+      lineAccountId?: string;
+    }>;
+    issues: string[];
+  }> {
+    const allTemplates = await this.slipTemplateModel.find({}).lean();
+    const globalActiveTemplates = await this.slipTemplateModel.find({ isGlobal: true, isActive: true }).lean();
+
+    const byType: Record<string, number> = {
+      success: 0,
+      duplicate: 0,
+      error: 0,
+      not_found: 0,
+    };
+
+    const issues: string[] = [];
+    const templates = allTemplates.map((t: any) => {
+      // Count by type for global active templates
+      if (t.isGlobal && t.isActive) {
+        byType[t.type] = (byType[t.type] || 0) + 1;
+      }
+
+      // Check for issues
+      if (!t.isGlobal && !t.lineAccountId) {
+        issues.push(`Template "${t.name}" (${t._id}) has no lineAccountId and is not global`);
+      }
+      if (t.isGlobal && !t.isActive) {
+        issues.push(`Global template "${t.name}" (${t._id}) is not active`);
+      }
+      if (t.isDefault === undefined) {
+        issues.push(`Template "${t.name}" (${t._id}) has undefined isDefault`);
+      }
+
+      return {
+        _id: t._id.toString(),
+        name: t.name,
+        type: t.type,
+        isGlobal: t.isGlobal ?? false,
+        isActive: t.isActive ?? false,
+        isDefault: t.isDefault ?? false,
+        isSystemTemplate: t.isSystemTemplate ?? false,
+        lineAccountId: t.lineAccountId?.toString(),
+      };
+    });
+
+    // Check if we have all required types
+    const requiredTypes = ['success', 'duplicate', 'error', 'not_found'];
+    for (const type of requiredTypes) {
+      if (byType[type] === 0) {
+        issues.push(`No active global template for type: ${type}`);
+      }
+    }
+
+    this.logger.log(`[DEBUG] Total templates: ${allTemplates.length}, Global active: ${globalActiveTemplates.length}`);
+    this.logger.log(`[DEBUG] By type: ${JSON.stringify(byType)}`);
+    if (issues.length > 0) {
+      this.logger.warn(`[DEBUG] Issues found: ${issues.join('; ')}`);
+    }
+
+    return {
+      total: allTemplates.length,
+      globalActiveCount: globalActiveTemplates.length,
+      byType,
+      templates,
+      issues,
     };
   }
 

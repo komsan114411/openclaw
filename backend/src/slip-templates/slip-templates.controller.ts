@@ -157,6 +157,16 @@ export class AdminSlipTemplatesController {
     const result = await this.slipTemplatesService.repairGlobalTemplates();
     return { success: true, ...result };
   }
+
+  /**
+   * Debug: Get all templates with their flags for troubleshooting (Admin only)
+   */
+  @Get('global/debug')
+  @Roles(UserRole.ADMIN)
+  async debugTemplates() {
+    const result = await this.slipTemplatesService.debugGetAllTemplates();
+    return { success: true, ...result };
+  }
 }
 
 // ============================================
