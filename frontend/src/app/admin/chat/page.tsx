@@ -387,11 +387,11 @@ function AdminChatContent() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-black/40 p-2 rounded-full border border-white/5 backdrop-blur-md">
+          <div className="flex items-center gap-2 sm:gap-3 bg-black/40 p-1.5 sm:p-2 rounded-full border border-white/5 backdrop-blur-md">
             <Select
               value={selectedAccountId}
               onChange={(e) => handleSelectAccount(e.target.value)}
-              className="w-60 border-none shadow-none bg-transparent font-semibold text-xs focus:ring-0 cursor-pointer text-white rounded-full px-4"
+              className="w-[160px] sm:w-[200px] md:w-60 border-none shadow-none bg-transparent font-semibold text-[11px] sm:text-xs focus:ring-0 cursor-pointer text-white rounded-full px-3 sm:px-4"
             >
               <option value="" className="bg-slate-900">เลือกบัญชี LINE</option>
               {accounts.map((account) => {
@@ -432,10 +432,14 @@ function AdminChatContent() {
           </div>
 
         ) : (
-          <div className="flex-1 flex gap-6 min-h-0">
+          <div className="flex-1 flex gap-3 sm:gap-4 lg:gap-6 min-h-0">
 
-            {/* Personnel Manifest (User List) */}
-            <Card className="w-[380px] lg:w-[420px] flex flex-col p-0 bg-black/40 backdrop-blur-xl border-white/5 shadow-2xl rounded-2xl overflow-hidden" variant="glass">
+            {/* Personnel Manifest (User List) - Hidden on mobile when chat is open */}
+            <Card className={cn(
+              "flex flex-col p-0 bg-black/40 backdrop-blur-xl border-white/5 shadow-2xl rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300",
+              "w-full sm:w-[320px] md:w-[360px] lg:w-[400px] xl:w-[420px]",
+              selectedUser ? "hidden md:flex" : "flex"
+            )} variant="glass">
               <div className="p-4 sm:p-6 border-b border-white/5 bg-white/[0.02] space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -532,32 +536,44 @@ function AdminChatContent() {
             </Card>
 
             {/* Neural Interface (Chat Area) */}
-            <Card className="flex-1 flex flex-col p-0 bg-black/40 backdrop-blur-xl border-white/5 shadow-2xl rounded-2xl overflow-hidden" variant="glass">
+            <Card className={cn(
+              "flex-1 flex flex-col p-0 bg-black/40 backdrop-blur-xl border-white/5 shadow-2xl rounded-xl sm:rounded-2xl overflow-hidden",
+              selectedUser ? "flex" : "hidden md:flex"
+            )} variant="glass">
               {selectedUser ? (
                 <>
                   {/* Uplink Header */}
-                  <div className="p-4 sm:p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02] backdrop-blur-md">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 shadow-lg overflow-hidden flex items-center justify-center p-0.5">
-                        <div className="w-full h-full rounded-[0.6rem] overflow-hidden">
+                  <div className="p-3 sm:p-4 lg:p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02] backdrop-blur-md">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      {/* Back button for mobile */}
+                      <IconButton
+                        variant="ghost"
+                        size="md"
+                        className="md:hidden rounded-xl w-10 h-10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5"
+                        onClick={() => setSelectedUser(null)}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      </IconButton>
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 shadow-lg overflow-hidden flex items-center justify-center p-0.5 flex-shrink-0">
+                        <div className="w-full h-full rounded-md sm:rounded-[0.6rem] overflow-hidden">
                           {selectedUser.lineUserPicture ? (
                             <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-white/5 flex items-center justify-center font-black text-lg text-slate-500 italic uppercase">
+                            <div className="w-full h-full bg-white/5 flex items-center justify-center font-black text-base sm:text-lg text-slate-500 italic uppercase">
                               {selectedUser.lineUserName?.slice(0, 1)}
                             </div>
                           )}
                         </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <h2 className="text-lg sm:text-xl font-black text-white tracking-tight uppercase">{selectedUser.lineUserName}</h2>
-                          <div className="flex items-center gap-1.5 bg-[#06C755]/10 px-2 py-0.5 rounded-md border border-[#06C755]/20">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-1">
+                          <h2 className="text-sm sm:text-lg lg:text-xl font-black text-white tracking-tight uppercase truncate">{selectedUser.lineUserName}</h2>
+                          <div className="hidden sm:flex items-center gap-1.5 bg-[#06C755]/10 px-2 py-0.5 rounded-md border border-[#06C755]/20 flex-shrink-0">
                             <div className="w-1.5 h-1.5 rounded-full bg-[#06C755] animate-pulse" />
                             <span className="text-[9px] font-bold text-[#06C755] uppercase tracking-wider">ONLINE</span>
                           </div>
                         </div>
-                        <p className="text-[10px] font-mono font-medium text-slate-500 tracking-wider uppercase">ID: {selectedUser.lineUserId}</p>
+                        <p className="text-[9px] sm:text-[10px] font-mono font-medium text-slate-500 tracking-wider uppercase truncate">ID: {selectedUser.lineUserId}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -618,7 +634,7 @@ function AdminChatContent() {
                                 {/* Message Bubble - Different style for images */}
                                 {msg.messageType === 'image' && msg.messageId ? (
                                   <div className={cn(
-                                    "overflow-hidden rounded-2xl shadow-lg cursor-pointer group",
+                                    "overflow-hidden rounded-xl sm:rounded-2xl shadow-lg cursor-pointer group",
                                     msg.direction === 'out'
                                       ? "rounded-tr-md"
                                       : "rounded-tl-md"
@@ -626,7 +642,7 @@ function AdminChatContent() {
                                     <img
                                       src={chatMessagesApi.getImage(selectedAccountId, msg.messageId)}
                                       alt="sent image"
-                                      className="max-w-[240px] max-h-[320px] object-cover transition-transform duration-300 group-hover:scale-105"
+                                      className="max-w-[180px] sm:max-w-[240px] max-h-[240px] sm:max-h-[320px] object-cover transition-transform duration-300 group-hover:scale-105"
                                       onClick={() => window.open(chatMessagesApi.getImage(selectedAccountId, msg.messageId!), '_blank')}
                                       onLoad={() => {
                                         if (isAtBottomRef.current) scrollToBottom();
@@ -635,12 +651,12 @@ function AdminChatContent() {
                                   </div>
                                 ) : (
                                   <div className={cn(
-                                    "px-4 py-2.5 rounded-2xl shadow-md border max-w-[320px]",
+                                    "px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-md border max-w-[85%] sm:max-w-[320px]",
                                     msg.direction === 'out'
                                       ? "bg-[#06C755] text-white border-[#06C755]/50 rounded-tr-md"
                                       : "bg-white/[0.08] text-white border-white/10 rounded-tl-md backdrop-blur-sm"
                                   )}>
-                                    <p className="text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
+                                    <p className="text-xs sm:text-sm font-medium whitespace-pre-wrap break-words leading-relaxed">{msg.messageText}</p>
                                   </div>
                                 )}
                                 {/* Timestamp */}

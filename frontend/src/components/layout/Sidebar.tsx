@@ -354,7 +354,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-[85vw] xs:w-72 max-w-[288px] relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
+    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-[280px] xs:w-[300px] sm:w-72 max-w-[85vw] relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
       {/* Dynamic Background Effects */}
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[30%] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none" />
@@ -515,21 +515,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </AnimatePresence>
 
       {/* Mobile Bottom Navigation - Role-specific items */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 px-2 pb-safe">
-        <div className="flex items-center justify-around h-14 xs:h-16">
+      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 safe-area-bottom">
+        <div className="flex items-center justify-around h-16 xs:h-[4.5rem] px-1">
           {mobileNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={clsx(
-                'flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300',
+                'flex flex-col items-center justify-center flex-1 min-w-0 h-14 xs:h-16 rounded-xl transition-all duration-300 mx-0.5',
                 pathname === item.href || pathname.startsWith(item.href + '/')
                   ? 'text-[#06C755] bg-[#06C755]/10'
-                  : 'text-slate-500 hover:text-white hover:bg-white/5'
+                  : 'text-slate-500 hover:text-white hover:bg-white/5 active:bg-white/10'
               )}
             >
-              <span className="text-xl mb-0.5">{item.icon}</span>
-              <span className="text-[9px] font-semibold">{item.label}</span>
+              <span className="text-lg xs:text-xl mb-0.5">{item.icon}</span>
+              <span className="text-[10px] xs:text-[11px] font-semibold truncate max-w-full px-1">{item.label}</span>
             </Link>
           ))}
         </div>
