@@ -40,22 +40,28 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  @ApiResponse({ status: 403, description: 'Login is disabled by admin' })
+  @ApiResponse({ status: 403, description: 'Login is disabled by admin (for non-admin users)' })
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // Check if login is allowed
-    const settings = await this.systemSettingsService.getSettings();
-    if (settings?.allowLogin === false) {
-      throw new ForbiddenException(
-        settings.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ'
-      );
+    // First validate credentials to get user info
+    const result = await this.authService.login(loginDto);
+
+    // Check if login is disabled for non-admin users
+    // Admin can always login even when system is disabled
+    if (result.user.role !== UserRole.ADMIN) {
+      const settings = await this.systemSettingsService.getSettings();
+      if (settings?.allowLogin === false) {
+        // Cleanup the session that was just created
+        await this.authService.logout(result.sessionId);
+        throw new ForbiddenException(
+          settings.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ'
+        );
+      }
     }
 
-    const result = await this.authService.login(loginDto);
-    
     // Set session cookie
     res.cookie('session_id', result.sessionId, {
       httpOnly: true,
