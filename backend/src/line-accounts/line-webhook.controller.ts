@@ -206,7 +206,8 @@ export class LineWebhookController {
     }
 
     // Check if bot is enabled (ผู้ใช้เลือกได้ว่าจะส่งข้อความหรือไม่)
-    if (!account.settings?.enableBot) {
+    // ใช้ ?? true เพื่อให้ default เป็นเปิดใช้งาน (ตรงกับ schema)
+    if (!(account.settings?.enableBot ?? true)) {
       const disabledMsg = await this.configurableMessagesService.formatBotDisabledResponse({ account });
       if (disabledMsg) {
         try {

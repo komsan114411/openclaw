@@ -35,8 +35,9 @@ export class SystemSettingsService {
           // Control flags only - messages in SystemResponseTemplates
           quotaWarningThreshold: 10,
           quotaWarningEnabled: true,
+          globalSlipVerificationEnabled: true, // เปิดใช้งานระบบตรวจสอบสลิปเริ่มต้น
           botDisabledSendMessage: false,
-          slipDisabledSendMessage: false,
+          slipDisabledSendMessage: true, // ส่งข้อความเมื่อปิดสลิป
           aiDisabledSendMessage: false,
           duplicateRefundEnabled: true,
           showSlipProcessingMessage: true,

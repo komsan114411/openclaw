@@ -52,7 +52,7 @@ export class ConfigurableMessagesService {
   async shouldSendSlipDisabledMessage(context: MessageContext = {}): Promise<boolean> {
     const settings = await this.systemSettingsService.getSettings();
     const accountSettings = context.account?.settings;
-    return accountSettings?.sendMessageWhenSlipDisabled ?? settings?.slipDisabledSendMessage ?? false;
+    return accountSettings?.sendMessageWhenSlipDisabled ?? settings?.slipDisabledSendMessage ?? true;
   }
 
   /**

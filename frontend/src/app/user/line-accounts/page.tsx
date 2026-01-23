@@ -305,9 +305,9 @@ export default function UserLineAccountsPage() {
   });
 
   const [settingsData, setSettingsData] = useState({
-    enableBot: false,
+    enableBot: true,
     enableAi: false,
-    enableSlipVerification: false,
+    enableSlipVerification: true,
     aiSystemPrompt: '',
     aiTemperature: 0.7,
     aiFallbackMessage: 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
@@ -622,9 +622,9 @@ export default function UserLineAccountsPage() {
       return val ? 'true' : 'false';
     };
     setSettingsData({
-      enableBot: s.enableBot ?? false,
+      enableBot: s.enableBot ?? true,
       enableAi: s.enableAi ?? false,
-      enableSlipVerification: s.enableSlipVerification ?? false,
+      enableSlipVerification: s.enableSlipVerification ?? true,
       aiSystemPrompt: s.aiSystemPrompt || '',
       aiTemperature: s.aiTemperature ?? 0.7,
       aiFallbackMessage: s.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',

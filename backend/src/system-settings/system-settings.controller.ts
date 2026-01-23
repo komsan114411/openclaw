@@ -321,7 +321,7 @@ export class SystemSettingsController {
         quotaWarningEnabled: settings?.quotaWarningEnabled ?? true,
         quotaWarningThreshold: settings?.quotaWarningThreshold || 10,
         botDisabledSendMessage: settings?.botDisabledSendMessage ?? false,
-        slipDisabledSendMessage: settings?.slipDisabledSendMessage ?? false,
+        slipDisabledSendMessage: settings?.slipDisabledSendMessage ?? true,
         aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
         duplicateRefundEnabled: settings?.duplicateRefundEnabled ?? true,
         showSlipProcessingMessage: settings?.showSlipProcessingMessage ?? true,
