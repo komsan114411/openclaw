@@ -314,29 +314,17 @@ export class SystemSettingsController {
   async getMessageSettings() {
     const settings = await this.settingsService.getSettings();
 
+    // Control flags only - messages are now managed via SystemResponseTemplates
     return {
       success: true,
       messageSettings: {
-        quotaExceededMessage: settings?.quotaExceededMessage || '',
-        quotaExceededResponseType: settings?.quotaExceededResponseType || 'text',
         quotaWarningEnabled: settings?.quotaWarningEnabled ?? true,
         quotaWarningThreshold: settings?.quotaWarningThreshold || 10,
-        quotaLowWarningMessage: settings?.quotaLowWarningMessage || '',
         botDisabledSendMessage: settings?.botDisabledSendMessage ?? false,
-        botDisabledMessage: settings?.botDisabledMessage || '',
         slipDisabledSendMessage: settings?.slipDisabledSendMessage ?? false,
-        slipDisabledMessage: settings?.slipDisabledMessage || '',
         aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
-        aiDisabledMessage: settings?.aiDisabledMessage || '',
         duplicateRefundEnabled: settings?.duplicateRefundEnabled ?? true,
-        duplicateSlipMessage: settings?.duplicateSlipMessage || '',
-        slipErrorMessage: settings?.slipErrorMessage || '',
-        imageDownloadErrorMessage: settings?.imageDownloadErrorMessage || '',
-        invalidImageMessage: settings?.invalidImageMessage || '',
-        slipProcessingMessage: settings?.slipProcessingMessage || '',
         showSlipProcessingMessage: settings?.showSlipProcessingMessage ?? true,
-        maxRetryAttempts: settings?.maxRetryAttempts || 3,
-        retryDelayMs: settings?.retryDelayMs || 1000,
       },
     };
   }

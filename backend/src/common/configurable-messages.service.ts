@@ -20,153 +20,122 @@ export class ConfigurableMessagesService {
     private systemResponseTemplatesService: SystemResponseTemplatesService,
   ) {}
 
-  /**
-   * Get quota exceeded message with customization
-   */
-  async getQuotaExceededMessage(context: MessageContext = {}): Promise<string> {
-    const settings = await this.systemSettingsService.getSettings();
-    const accountMessage = context.account?.settings?.customQuotaExceededMessage;
-    
-    return accountMessage || settings?.quotaExceededMessage || 
-      '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ';
-  }
+  // ============================================
+  // Control flag methods (kept for checking when to send)
+  // ============================================
 
   /**
-   * Get quota low warning message
+   * Check if quota warning is enabled and threshold reached
    */
-  async getQuotaLowWarningMessage(context: MessageContext = {}): Promise<string | null> {
+  async shouldShowQuotaWarning(context: MessageContext = {}): Promise<boolean> {
     const settings = await this.systemSettingsService.getSettings();
-    
     if (!settings?.quotaWarningEnabled) {
-      return null;
+      return false;
     }
-
     const threshold = settings.quotaWarningThreshold || 10;
     const remaining = context.quotaRemaining || 0;
-
-    if (remaining > threshold) {
-      return null;
-    }
-
-    let message = settings.quotaLowWarningMessage || '⚠️ โควต้าเหลือน้อยกว่า {threshold} สลิป กรุณาเติมแพ็คเกจ';
-    message = message.replace('{threshold}', String(threshold));
-    message = message.replace('{remaining}', String(remaining));
-    
-    return message;
+    return remaining <= threshold;
   }
 
   /**
-   * Get bot disabled message (if should send)
+   * Check if bot disabled message should be sent
    */
-  async getBotDisabledMessage(context: MessageContext = {}): Promise<string | null> {
+  async shouldSendBotDisabledMessage(context: MessageContext = {}): Promise<boolean> {
     const settings = await this.systemSettingsService.getSettings();
     const accountSettings = context.account?.settings;
-    
-    // Check if we should send message
-    const shouldSend = accountSettings?.sendMessageWhenBotDisabled ?? settings?.botDisabledSendMessage ?? false;
-    
-    if (!shouldSend) {
-      return null;
-    }
-
-    return accountSettings?.customBotDisabledMessage || settings?.botDisabledMessage ||
-      '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล';
+    return accountSettings?.sendMessageWhenBotDisabled ?? settings?.botDisabledSendMessage ?? false;
   }
 
   /**
-   * Get slip verification disabled message (if should send)
+   * Check if slip disabled message should be sent
    */
-  async getSlipDisabledMessage(context: MessageContext = {}): Promise<string | null> {
+  async shouldSendSlipDisabledMessage(context: MessageContext = {}): Promise<boolean> {
     const settings = await this.systemSettingsService.getSettings();
     const accountSettings = context.account?.settings;
-    
-    // Check if we should send message
-    const shouldSend = accountSettings?.sendMessageWhenSlipDisabled ?? settings?.slipDisabledSendMessage ?? false;
-    
-    if (!shouldSend) {
-      return null;
-    }
-
-    return accountSettings?.customSlipDisabledMessage || settings?.slipDisabledMessage ||
-      '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล';
+    return accountSettings?.sendMessageWhenSlipDisabled ?? settings?.slipDisabledSendMessage ?? false;
   }
 
   /**
-   * Get AI disabled message (if should send)
+   * Check if AI disabled message should be sent
    */
-  async getAiDisabledMessage(context: MessageContext = {}): Promise<string | null> {
+  async shouldSendAiDisabledMessage(context: MessageContext = {}): Promise<boolean> {
     const settings = await this.systemSettingsService.getSettings();
     const accountSettings = context.account?.settings;
-    
-    // Check if we should send message
-    const shouldSend = accountSettings?.sendMessageWhenAiDisabled ?? settings?.aiDisabledSendMessage ?? false;
-    
-    if (!shouldSend) {
-      return null;
-    }
-
-    return accountSettings?.customAiDisabledMessage || settings?.aiDisabledMessage ||
-      '🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว';
+    return accountSettings?.sendMessageWhenAiDisabled ?? settings?.aiDisabledSendMessage ?? false;
   }
 
   /**
-   * Get duplicate slip message
+   * Check if processing message should be shown
    */
-  async getDuplicateSlipMessage(context: MessageContext = {}): Promise<string> {
-    const settings = await this.systemSettingsService.getSettings();
-    const accountMessage = context.account?.settings?.customDuplicateSlipMessage;
-    
-    return accountMessage || settings?.duplicateSlipMessage || 
-      '⚠️ สลิปนี้เคยถูกใช้แล้ว กรุณาใช้สลิปใหม่';
-  }
-
-  /**
-   * Get slip error message
-   */
-  async getSlipErrorMessage(context: MessageContext = {}): Promise<string> {
-    const settings = await this.systemSettingsService.getSettings();
-    const accountMessage = context.account?.settings?.customSlipErrorMessage;
-    
-    return accountMessage || settings?.slipErrorMessage || 
-      '❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง';
-  }
-
-  /**
-   * Get image download error message
-   */
-  async getImageDownloadErrorMessage(context: MessageContext = {}): Promise<string> {
-    const settings = await this.systemSettingsService.getSettings();
-    
-    return settings?.imageDownloadErrorMessage || 
-      '❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง';
-  }
-
-  /**
-   * Get invalid image message
-   */
-  async getInvalidImageMessage(context: MessageContext = {}): Promise<string> {
-    const settings = await this.systemSettingsService.getSettings();
-    
-    return settings?.invalidImageMessage || 
-      '❌ รูปภาพไม่ถูกต้องหรือไม่ใช่รูปสลิป กรุณาส่งรูปสลิปที่ชัดเจน';
-  }
-
-  /**
-   * Get slip processing message and whether to show it
-   */
-  async getSlipProcessingMessage(context: MessageContext = {}): Promise<{ show: boolean; message: string }> {
+  async shouldShowProcessingMessage(context: MessageContext = {}): Promise<boolean> {
     const settings = await this.systemSettingsService.getSettings();
     const accountSettings = context.account?.settings;
-    
-    // Per-account message overrides system default
-    const message = accountSettings?.slipImmediateMessage || settings?.slipProcessingMessage ||
-      'กำลังตรวจสอบสลิป กรุณารอสักครู่...';
-    
-    // Check if should show based on response mode
     const responseMode = accountSettings?.slipResponseMode || 'immediate';
-    const show = responseMode === 'immediate' && (settings?.showSlipProcessingMessage ?? true);
-    
-    return { show, message };
+    return responseMode === 'immediate' && (settings?.showSlipProcessingMessage ?? true);
+  }
+
+  // ============================================
+  // Legacy methods - delegate to templates
+  // These are kept for backward compatibility
+  // ============================================
+
+  /** @deprecated Use formatQuotaExhaustedResponse instead */
+  async getQuotaExceededMessage(context: MessageContext = {}): Promise<string> {
+    return '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ';
+  }
+
+  /** @deprecated Use formatQuotaLowResponse instead */
+  async getQuotaLowWarningMessage(context: MessageContext = {}): Promise<string | null> {
+    const shouldShow = await this.shouldShowQuotaWarning(context);
+    if (!shouldShow) return null;
+    return '⚠️ โควต้าเหลือน้อย กรุณาเติมแพ็คเกจ';
+  }
+
+  /** @deprecated Use formatBotDisabledResponse instead */
+  async getBotDisabledMessage(context: MessageContext = {}): Promise<string | null> {
+    const shouldSend = await this.shouldSendBotDisabledMessage(context);
+    if (!shouldSend) return null;
+    return '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล';
+  }
+
+  /** @deprecated Use formatSlipDisabledResponse instead */
+  async getSlipDisabledMessage(context: MessageContext = {}): Promise<string | null> {
+    const shouldSend = await this.shouldSendSlipDisabledMessage(context);
+    if (!shouldSend) return null;
+    return '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล';
+  }
+
+  /** @deprecated Messages now managed via SystemResponseTemplates */
+  async getAiDisabledMessage(context: MessageContext = {}): Promise<string | null> {
+    const shouldSend = await this.shouldSendAiDisabledMessage(context);
+    if (!shouldSend) return null;
+    return '🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว';
+  }
+
+  /** @deprecated Use SlipTemplates instead */
+  async getDuplicateSlipMessage(context: MessageContext = {}): Promise<string> {
+    return '⚠️ สลิปนี้เคยถูกใช้แล้ว กรุณาใช้สลิปใหม่';
+  }
+
+  /** @deprecated Use formatSystemErrorResponse instead */
+  async getSlipErrorMessage(context: MessageContext = {}): Promise<string> {
+    return '❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง';
+  }
+
+  /** @deprecated Use formatSlipNotFoundResponse instead */
+  async getImageDownloadErrorMessage(context: MessageContext = {}): Promise<string> {
+    return '❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง';
+  }
+
+  /** @deprecated Use formatSlipNotFoundResponse instead */
+  async getInvalidImageMessage(context: MessageContext = {}): Promise<string> {
+    return '❌ รูปภาพไม่ถูกต้องหรือไม่ใช่รูปสลิป กรุณาส่งรูปสลิปที่ชัดเจน';
+  }
+
+  /** @deprecated Use formatProcessingResponse instead */
+  async getSlipProcessingMessage(context: MessageContext = {}): Promise<{ show: boolean; message: string }> {
+    const show = await this.shouldShowProcessingMessage(context);
+    return { show, message: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...' };
   }
 
   /**

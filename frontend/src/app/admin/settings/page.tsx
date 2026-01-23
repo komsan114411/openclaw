@@ -14,7 +14,7 @@ import { PageLoading } from '@/components/ui/Loading';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
 
-type TabType = 'infrastructure' | 'communication' | 'financials' | 'access';
+type TabType = 'infrastructure' | 'financials' | 'access';
 
 interface SystemSettings {
   publicBaseUrl?: string;
@@ -23,28 +23,6 @@ interface SystemSettings {
   usdtEnabled?: boolean;
   usdtNetwork?: string;
   usdtWalletAddress?: string;
-  quotaExceededMessage?: string;
-  quotaExceededResponseType?: 'text' | 'flex';
-  quotaWarningEnabled?: boolean;
-  quotaWarningThreshold?: number;
-  quotaLowWarningMessage?: string;
-  botDisabledSendMessage?: boolean;
-  botDisabledMessage?: string;
-  // Global Slip Verification (แอดมินเปิด/ปิดทั้งระบบ)
-  globalSlipVerificationEnabled?: boolean;
-  slipDisabledSendMessage?: boolean;
-  slipDisabledMessage?: string;
-  aiDisabledSendMessage?: boolean;
-  aiDisabledMessage?: string;
-  duplicateRefundEnabled?: boolean;
-  duplicateSlipMessage?: string;
-  slipErrorMessage?: string;
-  imageDownloadErrorMessage?: string;
-  invalidImageMessage?: string;
-  slipProcessingMessage?: string;
-  showSlipProcessingMessage?: boolean;
-  maxRetryAttempts?: number;
-  retryDelayMs?: number;
   contactAdminLine?: string;
   contactAdminEmail?: string;
   bankAccounts?: BankAccountInfo[];
@@ -106,31 +84,6 @@ export default function SettingsPage() {
     tronscanApiKey: '',
   });
 
-  // Communication Settings
-  const [messageSettings, setMessageSettings] = useState({
-    quotaExceededMessage: '',
-    quotaExceededResponseType: 'text' as 'text' | 'flex',
-    quotaWarningEnabled: true,
-    quotaWarningThreshold: 10,
-    quotaLowWarningMessage: '',
-    botDisabledSendMessage: false,
-    botDisabledMessage: '',
-    // Global Slip Verification (แอดมินเปิด/ปิดทั้งระบบ)
-    globalSlipVerificationEnabled: true,
-    slipDisabledSendMessage: true,
-    slipDisabledMessage: '',
-    aiDisabledSendMessage: false,
-    aiDisabledMessage: '',
-    duplicateRefundEnabled: true,
-    duplicateSlipMessage: '',
-    slipErrorMessage: '',
-    imageDownloadErrorMessage: '',
-    invalidImageMessage: '',
-    slipProcessingMessage: '',
-    showSlipProcessingMessage: true,
-    maxRetryAttempts: 3,
-    retryDelayMs: 1000,
-  });
 
   // Preview Settings
   const [previewSettings, setPreviewSettings] = useState({
@@ -188,29 +141,6 @@ export default function SettingsPage() {
         etherscanApiKey: data.etherscanApiKey || '',
         bscscanApiKey: data.bscscanApiKey || '',
         tronscanApiKey: data.tronscanApiKey || '',
-      });
-      setMessageSettings({
-        quotaExceededMessage: data.quotaExceededMessage || '⚠️ โควต้าการตรวจสอบสลิปของร้านค้านี้หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ',
-        quotaExceededResponseType: data.quotaExceededResponseType || 'text',
-        quotaWarningEnabled: data.quotaWarningEnabled ?? true,
-        quotaWarningThreshold: data.quotaWarningThreshold || 10,
-        quotaLowWarningMessage: data.quotaLowWarningMessage || '⚠️ โควต้าเหลือน้อยกว่า {threshold} สลิป กรุณาเติมแพ็คเกจ',
-        botDisabledSendMessage: data.botDisabledSendMessage ?? false,
-        botDisabledMessage: data.botDisabledMessage || '🔴 ระบบบอทปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
-        globalSlipVerificationEnabled: data.globalSlipVerificationEnabled ?? true,
-        slipDisabledSendMessage: data.slipDisabledSendMessage ?? true,
-        slipDisabledMessage: data.slipDisabledMessage || '🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแล',
-        aiDisabledSendMessage: data.aiDisabledSendMessage ?? false,
-        aiDisabledMessage: data.aiDisabledMessage || '🔴 ระบบ AI ตอบกลับปิดให้บริการชั่วคราว',
-        duplicateRefundEnabled: data.duplicateRefundEnabled ?? true,
-        duplicateSlipMessage: data.duplicateSlipMessage || '⚠️ สลิปนี้เคยถูกใช้แล้ว กรุณาใช้สลิปใหม่',
-        slipErrorMessage: data.slipErrorMessage || '❌ เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง',
-        imageDownloadErrorMessage: data.imageDownloadErrorMessage || '❌ ไม่สามารถดาวน์โหลดรูปภาพได้ กรุณาลองส่งใหม่อีกครั้ง',
-        invalidImageMessage: data.invalidImageMessage || '❌ รูปภาพไม่ถูกต้องหรือไม่ใช่รูปสลิป กรุณาส่งรูปสลิปที่ชัดเจน',
-        slipProcessingMessage: data.slipProcessingMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
-        showSlipProcessingMessage: data.showSlipProcessingMessage ?? true,
-        maxRetryAttempts: data.maxRetryAttempts || 3,
-        retryDelayMs: data.retryDelayMs || 1000,
       });
       setPreviewSettings({
         previewSenderName: data.previewSenderName || 'นาย ดูสลิป ยินดี',
@@ -465,7 +395,6 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'infrastructure', name: 'โครงสร้างหลัก', icon: '⚡' },
-    { id: 'communication', name: 'การสื่อสาร', icon: '💬' },
     { id: 'financials', name: 'การเงิน', icon: '💳' },
     { id: 'access', name: 'การเข้าถึง', icon: '🔐' },
   ] as const;
@@ -1374,269 +1303,6 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </Card>
-              </motion.div>
-            )}
-
-            {activeTab === 'communication' && (
-              <motion.div
-                key="communication"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-8"
-              >
-                {/* Communication Policy Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                  <StatCard title="จำนวนลองซ้ำ" value={messageSettings.maxRetryAttempts} icon="🔄" color="blue" variant="glass" />
-                  <StatCard title="ระยะห่างลอง" value={`${messageSettings.retryDelayMs}ms`} icon="⏱️" color="indigo" variant="glass" />
-                  <StatCard title="เกณฑ์แจ้งเตือน" value={messageSettings.quotaWarningThreshold} icon="🔔" color="amber" variant="glass" />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Quota & เชื่อมต่อแล้ว Messages */}
-                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] space-y-8">
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">การจัดการโควต้า</h3>
-                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ข้อความเมื่อโควต้าหมดหรือเหลือน้อย</p>
-                    </div>
-
-                    <div className="space-y-6">
-                      <TextArea
-                        label="ข้อความเมื่อโควต้าหมด"
-                        value={messageSettings.quotaExceededMessage}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededMessage: e.target.value })}
-                        rows={2}
-                        className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
-                      />
-                      <Select
-                        label="รูปแบบการตอบกลับ"
-                        value={messageSettings.quotaExceededResponseType}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, quotaExceededResponseType: e.target.value as 'text' | 'flex' })}
-                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-black text-xs"
-                      >
-                        <option value="text">ข้อความธรรมดา</option>
-                        <option value="flex">Flex Message</option>
-                      </Select>
-
-                      <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-white uppercase tracking-tight text-xs">แจ้งเตือนโควต้าเหลือน้อย</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">เปิดใช้การแจ้งเตือนล่วงหน้า</p>
-                        </div>
-                        <Switch
-                          checked={messageSettings.quotaWarningEnabled}
-                          onChange={() => setMessageSettings({ ...messageSettings, quotaWarningEnabled: !messageSettings.quotaWarningEnabled })}
-                        />
-                      </div>
-
-                      {messageSettings.quotaWarningEnabled && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="space-y-6 pt-2"
-                        >
-                          <Input
-                            type="number"
-                            label="เกณฑ์แจ้งเตือน (จำนวนสลิป)"
-                            value={messageSettings.quotaWarningThreshold}
-                            onChange={(e) => setMessageSettings({ ...messageSettings, quotaWarningThreshold: parseInt(e.target.value) || 10 })}
-                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
-                          />
-                          <TextArea
-                            label="ข้อความแจ้งเตือน"
-                            value={messageSettings.quotaLowWarningMessage}
-                            onChange={(e) => setMessageSettings({ ...messageSettings, quotaLowWarningMessage: e.target.value })}
-                            hint="ใช้ {threshold} หรือ {remaining} เป็นตัวแปร"
-                            className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
-                          />
-                        </motion.div>
-                      )}
-                    </div>
-                  </Card>
-
-                  {/* Slip Verification Logic */}
-                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] space-y-8">
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mb-2">การตอบกลับสลิป</h3>
-                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ข้อความตอบกลับในสถานการณ์ต่างๆ</p>
-                    </div>
-
-                    <div className="space-y-6">
-                      <div className="p-6 bg-emerald-500/5 rounded-3xl border border-emerald-500/10 flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-white uppercase tracking-tight text-xs">แสดงข้อความกำลังตรวจสอบ</p>
-                          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">&quot;กำลังตรวจสอบสลิป...&quot;</p>
-                        </div>
-                        <Switch
-                          checked={messageSettings.showSlipProcessingMessage}
-                          onChange={() => setMessageSettings({ ...messageSettings, showSlipProcessingMessage: !messageSettings.showSlipProcessingMessage })}
-                        />
-                      </div>
-
-                      <Input
-                        label="ข้อความกำลังตรวจสอบ"
-                        value={messageSettings.slipProcessingMessage}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, slipProcessingMessage: e.target.value })}
-                        disabled={!messageSettings.showSlipProcessingMessage}
-                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
-                      />
-
-                      <div className="grid grid-cols-1 gap-6 pt-6 border-t border-white/5">
-                        <TextArea
-                          label="สลิปซ้ำ"
-                          value={messageSettings.duplicateSlipMessage}
-                          onChange={(e) => setMessageSettings({ ...messageSettings, duplicateSlipMessage: e.target.value })}
-                          rows={2}
-                          className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
-                        />
-                        <div className="flex items-center justify-between px-2">
-                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">คืนโควต้าเมื่อสลิปซ้ำ?</p>
-                          <Switch
-                            checked={messageSettings.duplicateRefundEnabled}
-                            onChange={() => setMessageSettings({ ...messageSettings, duplicateRefundEnabled: !messageSettings.duplicateRefundEnabled })}
-                          />
-                        </div>
-                      </div>
-
-                      <TextArea
-                        label="ข้อผิดพลาดตรวจสอบสลิป"
-                        value={messageSettings.slipErrorMessage}
-                        onChange={(e) => setMessageSettings({ ...messageSettings, slipErrorMessage: e.target.value })}
-                        rows={2}
-                        className="rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-xs p-5"
-                      />
-                    </div>
-                  </Card>
-
-                  {/* เชื่อมต่อแล้ว Status (Switches) */}
-                  <Card className="lg:col-span-2 p-10 bg-slate-900 border border-white/5 shadow-2xl rounded-[3rem]">
-                    <div className="flex items-center gap-6 mb-10">
-                      <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner">⚡</div>
-                      <div>
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">การลองใหม่อัตโนมัติ</h2>
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">ตั้งค่าการลองใหม่เมื่อเกิดข้อผิดพลาด</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-                      <div className="md:col-span-2 space-y-8">
-                        <div className="p-6 bg-white/5 rounded-3xl space-y-4">
-                          <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.2em]">ตั้งค่าการลองใหม่</p>
-                          <div className="grid grid-cols-2 gap-6">
-                            <Input
-                              type="number"
-                              label="จำนวนครั้งสูงสุด"
-                              value={messageSettings.maxRetryAttempts}
-                              onChange={(e) => setMessageSettings({ ...messageSettings, maxRetryAttempts: parseInt(e.target.value) || 3 })}
-                              className="bg-white/5 border-white/10 text-white"
-                            />
-                            <Input
-                              type="number"
-                              label="หน่วงเวลา (ms)"
-                              value={messageSettings.retryDelayMs}
-                              onChange={(e) => setMessageSettings({ ...messageSettings, retryDelayMs: parseInt(e.target.value) || 1000 })}
-                              className="bg-white/5 border-white/10 text-white"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="md:col-span-2 flex flex-col justify-between pt-2">
-                        <div className="space-y-4">
-                          <p className="text-xs font-black text-rose-400 uppercase tracking-[0.2em]">การแจ้งเตือนอัตโนมัติ</p>
-                          <div className="space-y-3">
-                            {/* Bot Disabled */}
-                            <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold">บอทปิดให้บริการ</span>
-                                <Switch
-                                  checked={messageSettings.botDisabledSendMessage}
-                                  onChange={() => setMessageSettings({ ...messageSettings, botDisabledSendMessage: !messageSettings.botDisabledSendMessage })}
-                                />
-                              </div>
-                              {messageSettings.botDisabledSendMessage && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                  <input
-                                    className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
-                                    value={messageSettings.botDisabledMessage}
-                                    onChange={(e) => setMessageSettings({ ...messageSettings, botDisabledMessage: e.target.value })}
-                                  />
-                                </motion.div>
-                              )}
-                            </div>
-                            {/* Global Slip Verification - เปิด/ปิดทั้งระบบ */}
-                            <div className="flex flex-col gap-2 p-4 bg-amber-500/10 rounded-2xl border border-amber-500/20 group hover:bg-amber-500/20 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <span className="text-sm font-bold text-amber-400">เปิดระบบตรวจสอบสลิป (ทั้งระบบ)</span>
-                                  <p className="text-xs text-slate-400 mt-1">ปิดจะมีผลกับทุกบัญชี LINE</p>
-                                </div>
-                                <Switch
-                                  checked={messageSettings.globalSlipVerificationEnabled}
-                                  onChange={() => setMessageSettings({ ...messageSettings, globalSlipVerificationEnabled: !messageSettings.globalSlipVerificationEnabled })}
-                                />
-                              </div>
-                            </div>
-                            {/* Slip Disabled - ข้อความเมื่อปิด */}
-                            <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <span className="text-sm font-bold">ส่งข้อความเมื่อปิดระบบ</span>
-                                  <p className="text-xs text-slate-400 mt-1">ส่งข้อความแจ้งเมื่อผู้ใช้ส่งรูปมาแต่ระบบปิดอยู่</p>
-                                </div>
-                                <Switch
-                                  checked={messageSettings.slipDisabledSendMessage}
-                                  onChange={() => setMessageSettings({ ...messageSettings, slipDisabledSendMessage: !messageSettings.slipDisabledSendMessage })}
-                                />
-                              </div>
-                              {messageSettings.slipDisabledSendMessage && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                  <input
-                                    className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
-                                    placeholder="🔴 ระบบตรวจสอบสลิปปิดให้บริการชั่วคราว"
-                                    value={messageSettings.slipDisabledMessage}
-                                    onChange={(e) => setMessageSettings({ ...messageSettings, slipDisabledMessage: e.target.value })}
-                                  />
-                                </motion.div>
-                              )}
-                            </div>
-                            {/* AI Disabled */}
-                            <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold">AI ตอบกลับปิดให้บริการ</span>
-                                <Switch
-                                  checked={messageSettings.aiDisabledSendMessage}
-                                  onChange={() => setMessageSettings({ ...messageSettings, aiDisabledSendMessage: !messageSettings.aiDisabledSendMessage })}
-                                />
-                              </div>
-                              {messageSettings.aiDisabledSendMessage && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                  <input
-                                    className="w-full bg-black/40 border-none rounded-xl px-4 py-2 text-xs font-medium text-emerald-400 placeholder:text-slate-600 outline-none"
-                                    value={messageSettings.aiDisabledMessage}
-                                    onChange={(e) => setMessageSettings({ ...messageSettings, aiDisabledMessage: e.target.value })}
-                                  />
-                                </motion.div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-12 pt-10 border-t border-white/5 flex justify-end">
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
-                        onClick={() => handleUpdate('messages', messageSettings)}
-                        isLoading={isSaving === 'messages'}
-                      >
-                        บันทึกการตั้งค่า
-                      </Button>
-                    </div>
-                  </Card>
-                </div>
               </motion.div>
             )}
 

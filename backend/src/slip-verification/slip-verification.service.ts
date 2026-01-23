@@ -1003,7 +1003,7 @@ export class SlipVerificationService {
 
       // Fallback: สร้าง flex message สำหรับสลิปซ้ำ (รวมบล็อกเตือน)
       const duplicateMessage = accountSettings.customDuplicateSlipMessage ||
-        settings?.duplicateSlipMessage || 'สลิปนี้เคยถูกใช้แล้ว';
+        'สลิปนี้เคยถูกใช้แล้ว';
 
       const bodyContents: any[] = [
         {
@@ -1072,7 +1072,7 @@ export class SlipVerificationService {
       if (templated) return templated;
 
       const errorMessage = accountSettings.customSlipErrorMessage ||
-        settings?.slipErrorMessage || result.message;
+        result.message;
       return {
         type: 'text',
         text: `❌ ${errorMessage}`,
