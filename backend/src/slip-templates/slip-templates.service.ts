@@ -997,6 +997,72 @@ export class SlipTemplatesService implements OnModuleInit {
     }
   }
 
+  /**
+   * Repair global templates - restore isGlobal flag for templates that lost it
+   * This fixes templates that were updated before the preserve-flags fix
+   */
+  async repairGlobalTemplates(): Promise<{ repairedCount: number; totalGlobalCount: number; message: string }> {
+    this.logger.log('[REPAIR] Starting global templates repair...');
+
+    // Find templates that should be global (isSystemTemplate: true or isDefault: true)
+    // but have isGlobal: false or undefined
+    const brokenTemplates = await this.slipTemplateModel.find({
+      $and: [
+        {
+          $or: [
+            { isSystemTemplate: true },
+            { isDefault: true, lineAccountId: { $exists: false } },
+          ],
+        },
+        {
+          $or: [
+            { isGlobal: false },
+            { isGlobal: { $exists: false } },
+          ],
+        },
+      ],
+    });
+
+    let repairedCount = 0;
+    for (const template of brokenTemplates) {
+      this.logger.log(`[REPAIR] Repairing template: ${template.name} (ID: ${template._id})`);
+      await this.slipTemplateModel.findByIdAndUpdate(template._id, {
+        isGlobal: true,
+        isActive: true,
+      });
+      repairedCount++;
+    }
+
+    // Also ensure all templates without lineAccountId are marked as global
+    const orphanedTemplates = await this.slipTemplateModel.updateMany(
+      {
+        lineAccountId: { $exists: false },
+        isGlobal: { $ne: true },
+      },
+      {
+        $set: { isGlobal: true, isActive: true },
+      }
+    );
+
+    const orphanedCount = orphanedTemplates.modifiedCount;
+    this.logger.log(`[REPAIR] Found ${orphanedCount} orphaned templates and marked them as global`);
+
+    // Get final count
+    const totalGlobalCount = await this.slipTemplateModel.countDocuments({ isGlobal: true, isActive: true });
+
+    const message = repairedCount > 0 || orphanedCount > 0
+      ? `Repaired ${repairedCount + orphanedCount} templates. Total global templates: ${totalGlobalCount}`
+      : `No templates needed repair. Total global templates: ${totalGlobalCount}`;
+
+    this.logger.log(`[REPAIR] ${message}`);
+
+    return {
+      repairedCount: repairedCount + orphanedCount,
+      totalGlobalCount,
+      message,
+    };
+  }
+
   private extractVariables(
     flexTemplate?: Record<string, any>,
     textTemplate?: string,

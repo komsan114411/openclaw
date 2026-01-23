@@ -147,6 +147,16 @@ export class AdminSlipTemplatesController {
     await this.slipTemplatesService.createDefaultGlobalTemplates(user.userId);
     return { success: true, message: 'Default global templates created' };
   }
+
+  /**
+   * Repair global templates - restore isGlobal flag for templates that lost it (Admin only)
+   */
+  @Post('global/repair')
+  @Roles(UserRole.ADMIN)
+  async repairGlobalTemplates() {
+    const result = await this.slipTemplatesService.repairGlobalTemplates();
+    return { success: true, ...result };
+  }
 }
 
 // ============================================
