@@ -39,6 +39,15 @@ interface SystemSettings {
   webhookRateLimitGlobalPerSecond?: number;
   webhookRateLimitGlobalPerMinute?: number;
   webhookRateLimitMessage?: string;
+  // System Control settings
+  globalSlipVerificationEnabled?: boolean;
+  slipDisabledSendMessage?: boolean;
+  botDisabledSendMessage?: boolean;
+  aiDisabledSendMessage?: boolean;
+  showSlipProcessingMessage?: boolean;
+  quotaWarningEnabled?: boolean;
+  quotaWarningThreshold?: number;
+  duplicateRefundEnabled?: boolean;
 }
 
 interface BankAccountInfo {
@@ -102,6 +111,18 @@ export default function SettingsPage() {
     loginDisabledMessage: 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
   });
 
+  // System Control Settings (ควบคุมการทำงานของระบบ)
+  const [systemControlSettings, setSystemControlSettings] = useState({
+    globalSlipVerificationEnabled: true,
+    slipDisabledSendMessage: true,
+    botDisabledSendMessage: false,
+    aiDisabledSendMessage: false,
+    showSlipProcessingMessage: true,
+    quotaWarningEnabled: true,
+    quotaWarningThreshold: 10,
+    duplicateRefundEnabled: true,
+  });
+
   // Rate Limiter Settings
   const [rateLimitSettings, setRateLimitSettings] = useState({
     webhookRateLimitEnabled: true,
@@ -162,6 +183,16 @@ export default function SettingsPage() {
         registrationDisabledMessage: data.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
         allowLogin: data.allowLogin ?? true,
         loginDisabledMessage: data.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+      });
+      setSystemControlSettings({
+        globalSlipVerificationEnabled: data.globalSlipVerificationEnabled ?? true,
+        slipDisabledSendMessage: data.slipDisabledSendMessage ?? true,
+        botDisabledSendMessage: data.botDisabledSendMessage ?? false,
+        aiDisabledSendMessage: data.aiDisabledSendMessage ?? false,
+        showSlipProcessingMessage: data.showSlipProcessingMessage ?? true,
+        quotaWarningEnabled: data.quotaWarningEnabled ?? true,
+        quotaWarningThreshold: data.quotaWarningThreshold ?? 10,
+        duplicateRefundEnabled: data.duplicateRefundEnabled ?? true,
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -454,6 +485,157 @@ export default function SettingsPage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6 md:space-y-8"
               >
+                {/* System Control - ควบคุมการทำงานของระบบ */}
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">⚙️</div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ควบคุมระบบ</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">เปิด/ปิด ฟีเจอร์หลักของระบบ</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Global Slip Verification - Main Toggle */}
+                    <div className={cn(
+                      "p-6 rounded-2xl border transition-all",
+                      systemControlSettings.globalSlipVerificationEnabled
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : "bg-rose-500/10 border-rose-500/30"
+                    )}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <span className="text-2xl">{systemControlSettings.globalSlipVerificationEnabled ? '✅' : '🔴'}</span>
+                          <div>
+                            <p className="font-bold text-white">ระบบตรวจสอบสลิป</p>
+                            <p className="text-xs text-slate-400">เปิด/ปิดระบบตรวจสอบสลิปทั้งระบบ</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={systemControlSettings.globalSlipVerificationEnabled}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            globalSlipVerificationEnabled: checked
+                          })}
+                        />
+                      </div>
+                      {!systemControlSettings.globalSlipVerificationEnabled && (
+                        <div className="mt-4 p-3 bg-rose-500/20 rounded-xl">
+                          <p className="text-xs text-rose-300">⚠️ ระบบตรวจสอบสลิปถูกปิด - ผู้ใช้ส่งสลิปมาจะไม่ได้รับการตรวจสอบ</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Send Message When Disabled */}
+                    <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5 space-y-4">
+                      <p className="text-sm font-bold text-white mb-4">ส่งข้อความแจ้งเมื่อปิดระบบ</p>
+
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-400">เมื่อปิดตรวจสอบสลิป</span>
+                        <Switch
+                          checked={systemControlSettings.slipDisabledSendMessage}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            slipDisabledSendMessage: checked
+                          })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-400">เมื่อปิดบอท</span>
+                        <Switch
+                          checked={systemControlSettings.botDisabledSendMessage}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            botDisabledSendMessage: checked
+                          })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-400">เมื่อปิด AI ตอบกลับ</span>
+                        <Switch
+                          checked={systemControlSettings.aiDisabledSendMessage}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            aiDisabledSendMessage: checked
+                          })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Processing & Quota Settings */}
+                    <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5 space-y-4">
+                      <p className="text-sm font-bold text-white mb-4">การแสดงผล</p>
+
+                      <div className="flex items-center justify-between py-2">
+                        <div>
+                          <span className="text-xs text-slate-400">แสดงข้อความ &quot;กำลังตรวจสอบ...&quot;</span>
+                        </div>
+                        <Switch
+                          checked={systemControlSettings.showSlipProcessingMessage}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            showSlipProcessingMessage: checked
+                          })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-400">คืนโควต้าเมื่อสลิปซ้ำ</span>
+                        <Switch
+                          checked={systemControlSettings.duplicateRefundEnabled}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            duplicateRefundEnabled: checked
+                          })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quota Warning */}
+                    <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5 space-y-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-bold text-white">แจ้งเตือนโควต้าใกล้หมด</p>
+                        <Switch
+                          checked={systemControlSettings.quotaWarningEnabled}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            quotaWarningEnabled: checked
+                          })}
+                        />
+                      </div>
+
+                      {systemControlSettings.quotaWarningEnabled && (
+                        <div className="pt-2">
+                          <label className="text-xs text-slate-400 block mb-2">เกณฑ์แจ้งเตือน (จำนวนสลิปที่เหลือ)</label>
+                          <Input
+                            type="number"
+                            value={systemControlSettings.quotaWarningThreshold}
+                            onChange={(e) => setSystemControlSettings({
+                              ...systemControlSettings,
+                              quotaWarningThreshold: parseInt(e.target.value) || 10
+                            })}
+                            className="h-12 rounded-xl bg-white/[0.03] border-white/10 text-white"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 pt-6 border-t border-white/5">
+                    <Button
+                      fullWidth
+                      size="lg"
+                      className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-emerald-500/10 shadow-xl"
+                      onClick={() => handleUpdate('system_control', systemControlSettings)}
+                      isLoading={isSaving === 'system_control'}
+                    >
+                      บันทึกการตั้งค่าควบคุมระบบ
+                    </Button>
+                  </div>
+                </Card>
+
                 {/* Webhook Configuration */}
                 <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
