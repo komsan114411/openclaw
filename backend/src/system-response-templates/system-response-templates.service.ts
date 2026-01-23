@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -205,7 +205,7 @@ const DEFAULT_TEMPLATES: Partial<SystemResponseTemplate>[] = [
 ];
 
 @Injectable()
-export class SystemResponseTemplatesService {
+export class SystemResponseTemplatesService implements OnModuleInit {
   private readonly logger = new Logger(SystemResponseTemplatesService.name);
   private readonly CACHE_PREFIX = 'system-response-template';
   private readonly CACHE_TTL = 300; // 5 minutes
@@ -214,8 +214,27 @@ export class SystemResponseTemplatesService {
     @InjectModel(SystemResponseTemplate.name)
     private templateModel: Model<SystemResponseTemplateDocument>,
     private redisService: RedisService,
-  ) {
-    this.ensureDefaultTemplates();
+  ) {}
+
+  /**
+   * Initialize default templates on module init
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      this.logger.log('[INIT] Starting system response templates initialization...');
+      await this.ensureDefaultTemplates();
+
+      // Verify templates were created
+      const count = await this.templateModel.countDocuments();
+      this.logger.log(`[INIT] System response templates count: ${count}`);
+
+      if (count === 0) {
+        this.logger.warn('[INIT] No system response templates found after initialization, retrying...');
+        await this.initializeDefaults();
+      }
+    } catch (error) {
+      this.logger.error('Failed to initialize default system response templates:', error);
+    }
   }
 
   private async ensureDefaultTemplates(): Promise<void> {
