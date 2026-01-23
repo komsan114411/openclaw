@@ -185,8 +185,7 @@ export interface SystemSettings {
   usdtWalletAddress: string;
   usdtQrImage: string;
   usdtDisabledMessage: string;
-  quotaExceededResponseType: string;
-  quotaExceededMessage: string;
+  // Control flags only - messages managed via SystemResponseTemplates
   quotaWarningThreshold: number;
   quotaWarningEnabled: boolean;
   duplicateRefundEnabled: boolean;
