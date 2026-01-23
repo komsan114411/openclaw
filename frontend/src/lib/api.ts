@@ -298,6 +298,14 @@ interface AddBankAccountData {
   accountName: string;
 }
 
+// Access Control data types
+interface AccessControlData {
+  allowRegistration?: boolean;
+  registrationDisabledMessage?: string;
+  allowLogin?: boolean;
+  loginDisabledMessage?: string;
+}
+
 // System Settings API
 export const systemSettingsApi = {
   get: () => api.get('/system-settings'),
@@ -311,6 +319,12 @@ export const systemSettingsApi = {
   getApiStatus: () => api.get('/system-settings/api-status'),
   getPaymentInfo: () => api.get('/system-settings/payment-info'),
   getPreviewConfig: () => api.get('/system-settings/preview-config'),
+  // Access Control (public - no auth required)
+  getAccessStatus: () => api.get('/system-settings/access-status'),
+  // Access Control (admin only)
+  getAccessControl: () => api.get('/system-settings/access-control'),
+  updateAccessControl: (data: AccessControlData) =>
+    api.put('/system-settings/access-control', data),
 };
 
 // Slip Verification API

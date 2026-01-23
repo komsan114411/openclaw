@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/store/auth';
+import { systemSettingsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +28,14 @@ export default function LoginPage() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
   const [mounted, setMounted] = useState(false);
+
+  // Access control state
+  const [accessStatus, setAccessStatus] = useState<{
+    allowLogin: boolean;
+    loginDisabledMessage: string;
+    allowRegistration: boolean;
+  } | null>(null);
+  const [accessLoading, setAccessLoading] = useState(true);
   
   // Refs to prevent duplicate operations
   const authCheckRef = useRef(false);
@@ -44,6 +53,33 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Check access status on mount
+  useEffect(() => {
+    if (!mounted) return;
+
+    const checkAccessStatus = async () => {
+      try {
+        const res = await systemSettingsApi.getAccessStatus();
+        setAccessStatus({
+          allowLogin: res.data.allowLogin,
+          loginDisabledMessage: res.data.loginDisabledMessage,
+          allowRegistration: res.data.allowRegistration,
+        });
+      } catch (error) {
+        // Default to allowing access if API fails
+        setAccessStatus({
+          allowLogin: true,
+          loginDisabledMessage: '',
+          allowRegistration: true,
+        });
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+
+    checkAccessStatus();
+  }, [mounted]);
 
   // Load lockout state from localStorage
   useEffect(() => {
@@ -215,8 +251,8 @@ export default function LoginPage() {
     );
   }
 
-  // Show loading if checking auth or redirecting
-  if (!isInitialized || (user && !redirectRef.current)) {
+  // Show loading if checking auth, access status, or redirecting
+  if (!isInitialized || accessLoading || (user && !redirectRef.current)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="relative flex flex-col items-center">
@@ -226,6 +262,9 @@ export default function LoginPage() {
       </div>
     );
   }
+
+  // Check if login is disabled
+  const loginDisabled = accessStatus && accessStatus.allowLogin === false;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
@@ -255,7 +294,20 @@ export default function LoginPage() {
             <p className="text-slate-400 mt-2 text-sm">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
           </div>
 
-          {isLocked && (
+          {/* Login Disabled by Admin */}
+          {loginDisabled && (
+            <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+              <div className="flex items-center justify-center gap-2 text-amber-400 mb-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="font-bold text-lg">ระบบปิดให้บริการชั่วคราว</span>
+              </div>
+              <p className="text-amber-300 text-sm">{accessStatus?.loginDisabledMessage}</p>
+            </div>
+          )}
+
+          {isLocked && !loginDisabled && (
             <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-center animate-pulse">
               <div className="flex items-center justify-center gap-2 text-rose-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -278,7 +330,7 @@ export default function LoginPage() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 </div>
-                <input type="text" placeholder="ระบุชื่อผู้ใช้" maxLength={MAX_USERNAME_LENGTH} disabled={isLocked || isSubmitting || isLoading} autoComplete="username" aria-label="ชื่อผู้ใช้"
+                <input type="text" placeholder="ระบุชื่อผู้ใช้" maxLength={MAX_USERNAME_LENGTH} disabled={loginDisabled || isLocked || isSubmitting || isLoading} autoComplete="username" aria-label="ชื่อผู้ใช้"
                   className="w-full h-12 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   {...register('username', { required: 'กรุณากรอกชื่อผู้ใช้', maxLength: { value: MAX_USERNAME_LENGTH, message: 'ไม่เกิน ' + MAX_USERNAME_LENGTH + ' ตัวอักษร' }, pattern: { value: /^[a-zA-Z0-9_]+$/, message: 'ใช้ได้เฉพาะ a-z, 0-9, _ เท่านั้น' } })} />
               </div>
@@ -291,7 +343,7 @@ export default function LoginPage() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
-                <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" maxLength={MAX_PASSWORD_LENGTH} disabled={isLocked || isSubmitting || isLoading} autoComplete="current-password" aria-label="รหัสผ่าน"
+                <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" maxLength={MAX_PASSWORD_LENGTH} disabled={loginDisabled || isLocked || isSubmitting || isLoading} autoComplete="current-password" aria-label="รหัสผ่าน"
                   className="w-full h-12 pl-12 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   {...register('password', { required: 'กรุณากรอกรหัสผ่าน', maxLength: { value: MAX_PASSWORD_LENGTH, message: 'รหัสผ่านยาวเกินไป' } })} />
                 <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-white transition-colors" aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} tabIndex={-1}>
@@ -311,7 +363,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <Button type="submit" fullWidth size="lg" className="h-14 rounded-xl font-bold text-sm shadow-lg shadow-[#06C755]/20 hover:shadow-[#06C755]/30 transition-all bg-gradient-to-r from-[#06C755] to-emerald-600 hover:from-[#05a347] hover:to-emerald-700 border-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLocked || isSubmitting || isLoading} isLoading={isSubmitting || isLoading} loadingText="กำลังเข้าสู่ระบบ...">
+            <Button type="submit" fullWidth size="lg" className="h-14 rounded-xl font-bold text-sm shadow-lg shadow-[#06C755]/20 hover:shadow-[#06C755]/30 transition-all bg-gradient-to-r from-[#06C755] to-emerald-600 hover:from-[#05a347] hover:to-emerald-700 border-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={loginDisabled || isLocked || isSubmitting || isLoading} isLoading={isSubmitting || isLoading} loadingText="กำลังเข้าสู่ระบบ...">
               <span className="flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
                 เข้าสู่ระบบ

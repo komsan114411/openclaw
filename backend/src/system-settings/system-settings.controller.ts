@@ -44,6 +44,66 @@ export class SystemSettingsController {
     private bankModel?: Model<Bank>,
   ) { }
 
+  // ===============================
+  // PUBLIC ENDPOINTS (No Auth Required)
+  // ===============================
+
+  @Get('access-status')
+  @ApiOperation({ summary: 'Get system access status (public - no auth required)' })
+  async getAccessStatus() {
+    const settings = await this.settingsService.getSettings();
+
+    return {
+      success: true,
+      allowRegistration: settings?.allowRegistration ?? true,
+      allowLogin: settings?.allowLogin ?? true,
+      registrationDisabledMessage: settings?.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+      loginDisabledMessage: settings?.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+    };
+  }
+
+  // ===============================
+  // ADMIN ENDPOINTS
+  // ===============================
+
+  @Get('access-control')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get access control settings (Admin only)' })
+  async getAccessControl() {
+    const settings = await this.settingsService.getSettings();
+
+    return {
+      success: true,
+      accessControl: {
+        allowRegistration: settings?.allowRegistration ?? true,
+        registrationDisabledMessage: settings?.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        allowLogin: settings?.allowLogin ?? true,
+        loginDisabledMessage: settings?.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+      },
+    };
+  }
+
+  @Put('access-control')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update access control settings (Admin only)' })
+  async updateAccessControl(
+    @Body() updates: {
+      allowRegistration?: boolean;
+      registrationDisabledMessage?: string;
+      allowLogin?: boolean;
+      loginDisabledMessage?: string;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(updates, user.userId);
+    return {
+      success,
+      message: success ? 'บันทึกการตั้งค่าการเข้าถึงสำเร็จ' : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
+
   @Post('test-usdt-api')
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

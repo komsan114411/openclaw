@@ -216,6 +216,34 @@ export class SystemSettings {
   webhookRateLimitMessage: string;
 
   // ===============================
+  // Access Control Settings
+  // ===============================
+
+  /**
+   * Allow new user registration
+   */
+  @Prop({ default: true })
+  allowRegistration: boolean;
+
+  /**
+   * Message shown when registration is disabled
+   */
+  @Prop({ default: 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ' })
+  registrationDisabledMessage: string;
+
+  /**
+   * Allow user login
+   */
+  @Prop({ default: true })
+  allowLogin: boolean;
+
+  /**
+   * Message shown when login is disabled
+   */
+  @Prop({ default: 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ' })
+  loginDisabledMessage: string;
+
+  // ===============================
   // Quota Reservation Cleanup Settings
   // ===============================
 

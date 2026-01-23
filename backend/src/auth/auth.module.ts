@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -13,6 +13,7 @@ import { UsersModule } from '../users/users.module';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Global()
 @Module({
@@ -38,6 +39,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       { name: Session.name, schema: SessionSchema },
     ]),
     UsersModule,
+    forwardRef(() => SystemSettingsModule),
   ],
   providers: [AuthService, JwtStrategy, LocalStrategy, SessionAuthGuard, RolesGuard, JwtAuthGuard],
   controllers: [AuthController],

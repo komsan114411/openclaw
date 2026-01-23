@@ -14,7 +14,7 @@ import { PageLoading } from '@/components/ui/Loading';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
 
-type TabType = 'infrastructure' | 'communication' | 'financials';
+type TabType = 'infrastructure' | 'communication' | 'financials' | 'access';
 
 interface SystemSettings {
   publicBaseUrl?: string;
@@ -141,6 +141,14 @@ export default function SettingsPage() {
     previewAmount: '1,000.00',
   });
 
+  // Access Control Settings
+  const [accessControlSettings, setAccessControlSettings] = useState({
+    allowRegistration: true,
+    registrationDisabledMessage: 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+    allowLogin: true,
+    loginDisabledMessage: 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+  });
+
   // Rate Limiter Settings
   const [rateLimitSettings, setRateLimitSettings] = useState({
     webhookRateLimitEnabled: true,
@@ -218,6 +226,12 @@ export default function SettingsPage() {
         webhookRateLimitGlobalPerSecond: data.webhookRateLimitGlobalPerSecond ?? 100,
         webhookRateLimitGlobalPerMinute: data.webhookRateLimitGlobalPerMinute ?? 1000,
         webhookRateLimitMessage: data.webhookRateLimitMessage || 'Too many requests, please try again later',
+      });
+      setAccessControlSettings({
+        allowRegistration: data.allowRegistration ?? true,
+        registrationDisabledMessage: data.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        allowLogin: data.allowLogin ?? true,
+        loginDisabledMessage: data.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -327,7 +341,18 @@ export default function SettingsPage() {
   const handleUpdate = async (section: string, payload: Record<string, unknown>) => {
     setIsSaving(section);
     try {
-      const response = await systemSettingsApi.updateSystemSettings(payload);
+      let response;
+      if (section === 'access') {
+        // Use dedicated access control endpoint
+        response = await systemSettingsApi.updateAccessControl(payload as {
+          allowRegistration?: boolean;
+          registrationDisabledMessage?: string;
+          allowLogin?: boolean;
+          loginDisabledMessage?: string;
+        });
+      } else {
+        response = await systemSettingsApi.updateSystemSettings(payload);
+      }
       if (response.data.success) {
         toast.success('บันทึกการตั้งค่าสำเร็จ');
         await fetchSettings();
@@ -442,6 +467,7 @@ export default function SettingsPage() {
     { id: 'infrastructure', name: 'โครงสร้างหลัก', icon: '⚡' },
     { id: 'communication', name: 'การสื่อสาร', icon: '💬' },
     { id: 'financials', name: 'การเงิน', icon: '💳' },
+    { id: 'access', name: 'การเข้าถึง', icon: '🔐' },
   ] as const;
 
   return (
@@ -1919,6 +1945,153 @@ export default function SettingsPage() {
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">อีเมลติดต่อ</p>
                       <p className="text-xl sm:text-2xl font-black text-white font-mono uppercase tracking-tight">{settings?.contactAdminEmail || 'ไม่ระบุ'}</p>
                     </div>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'access' && (
+              <motion.div
+                key="access"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-10"
+              >
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center text-2xl">🔐</div>
+                    <div>
+                      <h2 className="text-2xl font-black uppercase tracking-tight text-white">การควบคุมการเข้าถึง</h2>
+                      <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">เปิด/ปิด ระบบลงทะเบียน และเข้าสู่ระบบ</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Registration Control */}
+                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+                            <span className="text-xl">📝</span>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-white">อนุญาตให้สมัครสมาชิก</h3>
+                            <p className="text-xs text-slate-500">เปิดหรือปิดการรับสมาชิกใหม่</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={accessControlSettings.allowRegistration}
+                          onChange={(checked) => setAccessControlSettings({
+                            ...accessControlSettings,
+                            allowRegistration: checked
+                          })}
+                        />
+                      </div>
+                      {!accessControlSettings.allowRegistration && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                            ข้อความแจ้งเตือน (เมื่อปิดการสมัคร)
+                          </label>
+                          <input
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none focus:border-amber-500/50"
+                            value={accessControlSettings.registrationDisabledMessage}
+                            onChange={(e) => setAccessControlSettings({
+                              ...accessControlSettings,
+                              registrationDisabledMessage: e.target.value
+                            })}
+                            placeholder="ข้อความที่จะแสดงเมื่อปิดการสมัคร"
+                          />
+                        </motion.div>
+                      )}
+                    </div>
+
+                    {/* Login Control */}
+                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                            <span className="text-xl">🔑</span>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-white">อนุญาตให้เข้าสู่ระบบ</h3>
+                            <p className="text-xs text-slate-500">เปิดหรือปิดการเข้าสู่ระบบของผู้ใช้</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={accessControlSettings.allowLogin}
+                          onChange={(checked) => setAccessControlSettings({
+                            ...accessControlSettings,
+                            allowLogin: checked
+                          })}
+                        />
+                      </div>
+                      {!accessControlSettings.allowLogin && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                            ข้อความแจ้งเตือน (เมื่อปิดการเข้าสู่ระบบ)
+                          </label>
+                          <input
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none focus:border-amber-500/50"
+                            value={accessControlSettings.loginDisabledMessage}
+                            onChange={(e) => setAccessControlSettings({
+                              ...accessControlSettings,
+                              loginDisabledMessage: e.target.value
+                            })}
+                            placeholder="ข้อความที่จะแสดงเมื่อปิดการเข้าสู่ระบบ"
+                          />
+                        </motion.div>
+                      )}
+                      {!accessControlSettings.allowLogin && (
+                        <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                          <p className="text-xs text-rose-400 font-semibold flex items-center gap-2">
+                            <span>⚠️</span>
+                            <span>คำเตือน: การปิดระบบเข้าสู่ระบบจะทำให้ผู้ใช้ทุกคน (ยกเว้นแอดมิน) ไม่สามารถเข้าใช้งานได้</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Current Status */}
+                    <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/50 to-slate-800/50 border border-white/5">
+                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4">สถานะปัจจุบัน</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-3 h-3 rounded-full",
+                            accessControlSettings.allowRegistration ? "bg-emerald-500 shadow-emerald-500/50 shadow-lg" : "bg-rose-500 shadow-rose-500/50 shadow-lg"
+                          )} />
+                          <span className="text-sm text-slate-300">
+                            การสมัครสมาชิก: <span className={cn("font-bold", accessControlSettings.allowRegistration ? "text-emerald-400" : "text-rose-400")}>
+                              {accessControlSettings.allowRegistration ? 'เปิด' : 'ปิด'}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-3 h-3 rounded-full",
+                            accessControlSettings.allowLogin ? "bg-emerald-500 shadow-emerald-500/50 shadow-lg" : "bg-rose-500 shadow-rose-500/50 shadow-lg"
+                          )} />
+                          <span className="text-sm text-slate-300">
+                            การเข้าสู่ระบบ: <span className={cn("font-bold", accessControlSettings.allowLogin ? "text-emerald-400" : "text-rose-400")}>
+                              {accessControlSettings.allowLogin ? 'เปิด' : 'ปิด'}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-10 pt-8 border-t border-white/5 flex justify-end">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                      onClick={() => handleUpdate('access', accessControlSettings)}
+                      isLoading={isSaving === 'access'}
+                    >
+                      บันทึกการตั้งค่า
+                    </Button>
                   </div>
                 </Card>
               </motion.div>

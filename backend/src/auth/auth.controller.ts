@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -22,11 +23,15 @@ import { Roles } from './decorators/roles.decorator';
 import { AuthUser } from './auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private systemSettingsService: SystemSettingsService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -35,11 +40,20 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 403, description: 'Login is disabled by admin' })
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+    // Check if login is allowed
+    const settings = await this.systemSettingsService.getSettings();
+    if (settings?.allowLogin === false) {
+      throw new ForbiddenException(
+        settings.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ'
+      );
+    }
+
     const result = await this.authService.login(loginDto);
     
     // Set session cookie
@@ -65,11 +79,20 @@ export class AuthController {
   @RateLimit({ limit: 3, windowSeconds: 300, keyPrefix: 'auth:register' }) // 3 attempts per 5 minutes
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({ status: 201, description: 'Registration successful' })
+  @ApiResponse({ status: 403, description: 'Registration is disabled by admin' })
   @ApiResponse({ status: 429, description: 'Too many registration attempts' })
   async register(
     @Body() registerDto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+    // Check if registration is allowed
+    const settings = await this.systemSettingsService.getSettings();
+    if (settings?.allowRegistration === false) {
+      throw new ForbiddenException(
+        settings.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ'
+      );
+    }
+
     const result = await this.authService.register(registerDto);
 
     res.cookie('session_id', result.sessionId, {
