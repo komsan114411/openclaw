@@ -435,11 +435,36 @@ export const thunderApi = {
 };
 
 // System Response Template data types
+interface SystemResponseStyling {
+  primaryColor?: string;
+  textColor?: string;
+  backgroundColor?: string;
+  icon?: string;
+  showIcon?: boolean;
+  showContactButton?: boolean;
+  contactButtonText?: string;
+  contactButtonUrl?: string;
+  showRetryButton?: boolean;
+  retryButtonText?: string;
+}
+
 interface UpdateSystemResponseTemplateData {
+  name?: string;
+  description?: string;
+  responseFormat?: 'text' | 'flex';
+  textMessage?: string;
+  title?: string;
+  mainMessage?: string;
+  subMessage?: string;
+  customFlexTemplate?: Record<string, unknown>;
+  useCustomTemplate?: boolean;
+  styling?: SystemResponseStyling;
+  isActive?: boolean;
+  sortOrder?: number;
+  // Legacy fields for compatibility
   message?: string;
   altText?: string;
   flexJson?: string;
-  isActive?: boolean;
 }
 
 // System Response Templates API (Admin Only)
