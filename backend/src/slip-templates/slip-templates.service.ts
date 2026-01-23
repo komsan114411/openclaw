@@ -42,6 +42,8 @@ export interface CreateTemplateDto {
   delayWarningMinutes?: number;
   isGlobal?: boolean;
   isSystemTemplate?: boolean;
+  isActive?: boolean;
+  isDefault?: boolean;
   // New enhanced fields
   showSenderAccount?: boolean;
   showReceiverAccount?: boolean;
@@ -525,6 +527,7 @@ export class SlipTemplatesService implements OnModuleInit {
 
   /**
    * Update template
+   * IMPORTANT: Preserves isGlobal, isSystemTemplate, and isActive flags to prevent accidental data loss
    */
   async update(
     templateId: string,
@@ -535,18 +538,36 @@ export class SlipTemplatesService implements OnModuleInit {
       this.validateFooterLink(updates.footerLink);
     }
 
+    // Get existing template to preserve critical flags
+    const existingTemplate = await this.slipTemplateModel.findById(templateId);
+    if (!existingTemplate) {
+      throw new NotFoundException('Template not found');
+    }
+
+    // Preserve critical flags that should not be accidentally overwritten
+    const preservedFlags = {
+      isGlobal: existingTemplate.isGlobal,
+      isSystemTemplate: existingTemplate.isSystemTemplate,
+      isActive: updates.isActive !== undefined ? updates.isActive : existingTemplate.isActive,
+    };
+
+    this.logger.log(`[TEMPLATE UPDATE] Updating template ${templateId}, preserving flags: isGlobal=${preservedFlags.isGlobal}, isSystemTemplate=${preservedFlags.isSystemTemplate}, isActive=${preservedFlags.isActive}`);
+
     const template = await this.slipTemplateModel.findByIdAndUpdate(
       templateId,
       {
         ...updates,
+        ...preservedFlags,
         variables: this.extractVariables(updates.flexTemplate, updates.textTemplate),
       },
       { new: true },
     );
 
     if (!template) {
-      throw new NotFoundException('Template not found');
+      throw new NotFoundException('Template not found after update');
     }
+
+    this.logger.log(`[TEMPLATE UPDATE] Template ${template.name} updated successfully, isGlobal=${template.isGlobal}`);
 
     return template;
   }
