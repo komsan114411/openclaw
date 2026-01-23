@@ -332,13 +332,17 @@ export class LineAccountsService {
           timeout: 10000,
         },
       );
+      this.logger.debug('[sendReply] Message sent successfully');
     } catch (error) {
       const axiosError = error as AxiosError;
-      if (axiosError.response?.status === 400) {
-        // Reply token expired or invalid - this is normal for delayed responses
-        this.logger.debug('Reply token expired, message not sent');
-        return;
+      // Log detailed error for debugging
+      if (axiosError.response) {
+        this.logger.error(`[sendReply] LINE API error: status=${axiosError.response.status}, data=${JSON.stringify(axiosError.response.data)}`);
+        this.logger.error(`[sendReply] Failed message preview: ${JSON.stringify(messages).substring(0, 500)}`);
       }
+      // IMPORTANT: Always throw 400 errors so fallback logic can work
+      // 400 can be: reply token expired OR invalid Flex Message structure
+      // The caller (safeSendMessage) needs to know to try fallback
       this.logger.error('Error sending LINE reply:', axiosError.message);
       throw error;
     }

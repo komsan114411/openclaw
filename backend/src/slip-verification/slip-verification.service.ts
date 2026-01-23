@@ -874,15 +874,26 @@ export class SlipVerificationService {
       }
 
       this.logger.log(`[TEMPLATE] Using template: ${(template as any).name} (ID: ${(template as any)._id}, isGlobal: ${(template as any).isGlobal})`);
+      this.logger.log(`[TEMPLATE] Template config: headerText="${(template as any).headerText}", primaryColor="${(template as any).primaryColor}", showAmount=${(template as any).showAmount}`);
 
       const slipData = await buildSlipData(data);
+      this.logger.log(`[TEMPLATE] SlipData for render: amount=${slipData.amountFormatted}, sender=${slipData.senderName}, receiver=${slipData.receiverName}`);
+
       const bubble = this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
+
+      // Validate bubble structure
+      if (!bubble || !bubble.type || bubble.type !== 'bubble') {
+        this.logger.error(`[TEMPLATE] Invalid bubble structure: ${JSON.stringify(bubble)?.substring(0, 200)}`);
+        return null;
+      }
 
       const flexMsg = {
         type: 'flex',
         altText: templateType === TemplateType.DUPLICATE ? 'สลิปซ้ำ' : 'ผลการตรวจสอบสลิป',
         contents: bubble,
       };
+
+      this.logger.log(`[TEMPLATE] Generated flex message: altText="${flexMsg.altText}", bubbleType="${bubble.type}", hasBody=${!!bubble.body}`);
 
       // เพิ่มบล็อกเตือนโควต้าถ้าเหลือน้อย
       return addWarningToFlexMessage(flexMsg);

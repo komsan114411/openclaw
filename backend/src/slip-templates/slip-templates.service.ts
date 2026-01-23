@@ -819,6 +819,13 @@ export class SlipTemplatesService implements OnModuleInit {
     this.logger.log(`[FLEX] Generating flex message from template: ${template.name} (type: ${template.type})`);
     this.logger.log(`[FLEX] Template has flexTemplate: ${!!template.flexTemplate}, slipData keys: ${Object.keys(slipData).join(',')}`);
 
+    // Validate template has required fields
+    if (!template.name || template.name.match(/^[0-9]+$/)) {
+      this.logger.error(`[FLEX] Invalid template detected: name="${template.name}" - this appears to be corrupted, using fallback`);
+      // Return a simple default bubble instead of using corrupted template
+      return this.generateFallbackBubble(template.type, slipData);
+    }
+
     if (template.flexTemplate) {
       this.logger.log(`[FLEX] Using custom flexTemplate`);
       return this.replaceVariables(template.flexTemplate, slipData);
@@ -829,6 +836,72 @@ export class SlipTemplatesService implements OnModuleInit {
     const result = this.generateDefaultFlexMessage(template, slipData);
     this.logger.log(`[FLEX] Generated bubble type: ${result?.type}`);
     return result;
+  }
+
+  /**
+   * Generate fallback bubble when template is corrupted
+   */
+  private generateFallbackBubble(type: TemplateType, slipData: SlipData): any {
+    const configs = {
+      [TemplateType.SUCCESS]: { icon: '✅', text: 'ตรวจสอบสลิปสำเร็จ', color: '#00C851' },
+      [TemplateType.DUPLICATE]: { icon: '⚠️', text: 'สลิปนี้เคยถูกใช้แล้ว', color: '#FF8800' },
+      [TemplateType.ERROR]: { icon: '❌', text: 'ตรวจสอบไม่สำเร็จ', color: '#FF4444' },
+      [TemplateType.NOT_FOUND]: { icon: '🔍', text: 'ไม่พบข้อมูลสลิป', color: '#999999' },
+    };
+
+    const config = configs[type] || configs[TemplateType.ERROR];
+
+    const contents: any[] = [
+      {
+        type: 'text',
+        text: `${config.icon} ${config.text}`,
+        weight: 'bold',
+        size: 'lg',
+        color: config.color,
+      },
+    ];
+
+    // Add amount if available
+    if (slipData.amountFormatted) {
+      contents.push({
+        type: 'text',
+        text: `จำนวนเงิน: ${slipData.amountFormatted}`,
+        size: 'md',
+        color: '#333333',
+        margin: 'md',
+      });
+    }
+
+    // Add sender/receiver if available
+    if (slipData.senderName) {
+      contents.push({
+        type: 'text',
+        text: `ผู้โอน: ${slipData.senderName}`,
+        size: 'sm',
+        color: '#666666',
+        margin: 'sm',
+      });
+    }
+    if (slipData.receiverName) {
+      contents.push({
+        type: 'text',
+        text: `ผู้รับ: ${slipData.receiverName}`,
+        size: 'sm',
+        color: '#666666',
+        margin: 'sm',
+      });
+    }
+
+    return {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents,
+        paddingAll: '16px',
+        backgroundColor: '#FFFFFF',
+      },
+    };
   }
 
   /**
