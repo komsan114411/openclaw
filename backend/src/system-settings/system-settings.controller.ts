@@ -20,7 +20,7 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuthUser } from '../auth/auth.service';
+import { AuthUser, AuthService } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { HealthService } from '../health/health.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -36,6 +36,7 @@ export class SystemSettingsController {
   constructor(
     private settingsService: SystemSettingsService,
     private blockchainVerificationService: BlockchainVerificationService,
+    private authService: AuthService,
     @Optional() @Inject(forwardRef(() => HealthService))
     private healthService?: HealthService,
     @Optional() @Inject(forwardRef(() => TasksService))
@@ -98,6 +99,19 @@ export class SystemSettingsController {
     @CurrentUser() user: AuthUser,
   ) {
     const success = await this.settingsService.updateSettings(updates, user.userId);
+
+    // If login is being disabled, kick all non-admin users immediately
+    if (success && updates.allowLogin === false) {
+      const kickedCount = await this.authService.invalidateAllNonAdminSessions();
+      this.logger.log(`Login disabled - kicked ${kickedCount} non-admin sessions`);
+
+      return {
+        success,
+        message: `ปิดการเข้าสู่ระบบสำเร็จ ยกเลิก session ผู้ใช้ ${kickedCount} คน`,
+        kickedSessions: kickedCount,
+      };
+    }
+
     return {
       success,
       message: success ? 'บันทึกการตั้งค่าการเข้าถึงสำเร็จ' : 'ไม่สามารถบันทึกการตั้งค่าได้',

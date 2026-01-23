@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/store/auth';
@@ -21,6 +21,7 @@ const MAX_LOGIN_ATTEMPTS = 5;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isInitialized, login, isLoading, error, clearError, checkAuth, setInitialized } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
@@ -36,7 +37,10 @@ export default function LoginPage() {
     allowRegistration: boolean;
   } | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
-  
+
+  // Error message from URL (when user is kicked from system)
+  const kickedErrorMessage = searchParams.get('error');
+
   // Refs to prevent duplicate operations
   const authCheckRef = useRef(false);
   const redirectRef = useRef(false);
@@ -293,6 +297,19 @@ export default function LoginPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-white mt-6 tracking-tight">LINE OA <span className="text-[#06C755]">Management</span></h1>
             <p className="text-slate-400 mt-2 text-sm">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
           </div>
+
+          {/* Session kicked by admin (403 error) */}
+          {kickedErrorMessage && !loginDisabled && (
+            <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-center">
+              <div className="flex items-center justify-center gap-2 text-rose-400 mb-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+                <span className="font-bold text-lg">ถูกออกจากระบบ</span>
+              </div>
+              <p className="text-rose-300 text-sm">{decodeURIComponent(kickedErrorMessage)}</p>
+            </div>
+          )}
 
           {/* Login Disabled by Admin */}
           {loginDisabled && (

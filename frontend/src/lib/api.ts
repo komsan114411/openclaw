@@ -28,8 +28,10 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized
+    const status = error.response?.status;
+
+    // Handle 401 Unauthorized or 403 Forbidden (system access disabled)
+    if (status === 401 || status === 403) {
       if (typeof window !== 'undefined') {
         // Clear auth storage to prevent redirect loop (stale session in other tabs)
         try {
@@ -41,7 +43,13 @@ api.interceptors.response.use(
         const path = window.location.pathname;
         // Don't redirect if already on login page to avoid refresh loop
         if (!path.startsWith('/login') && !path.startsWith('/register')) {
-          window.location.href = '/login';
+          // For 403, include the error message as a query param
+          if (status === 403 && error.response?.data?.message) {
+            const message = encodeURIComponent(error.response.data.message);
+            window.location.href = `/login?error=${message}`;
+          } else {
+            window.location.href = '/login';
+          }
         }
       }
     }

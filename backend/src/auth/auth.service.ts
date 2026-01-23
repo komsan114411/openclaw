@@ -273,14 +273,47 @@ export class AuthService {
    */
   async invalidateUserSessions(userId: string): Promise<number> {
     const sessions = await this.sessionModel.find({ userId });
-    
+
     // Delete from Redis first
     for (const session of sessions) {
       await this.redisService.deleteSession(session.sessionId);
     }
-    
+
     // Then delete from database
     const result = await this.sessionModel.deleteMany({ userId });
+    return result.deletedCount;
+  }
+
+  /**
+   * Invalidate all non-admin sessions (e.g., when system access is disabled)
+   * This kicks all regular users from the system immediately
+   */
+  async invalidateAllNonAdminSessions(): Promise<number> {
+    this.logger.log('Invalidating all non-admin sessions...');
+
+    // Find all non-admin users
+    const nonAdminUsers = await this.userModel.find({ role: { $ne: UserRole.ADMIN } }).select('_id');
+    const userIds = nonAdminUsers.map(u => u._id.toString());
+
+    if (userIds.length === 0) {
+      this.logger.log('No non-admin users found');
+      return 0;
+    }
+
+    // Find all sessions for non-admin users
+    const sessions = await this.sessionModel.find({ userId: { $in: userIds } });
+
+    this.logger.log(`Found ${sessions.length} sessions to invalidate`);
+
+    // Delete from Redis first
+    for (const session of sessions) {
+      await this.redisService.deleteSession(session.sessionId);
+    }
+
+    // Then delete from database
+    const result = await this.sessionModel.deleteMany({ userId: { $in: userIds } });
+
+    this.logger.log(`Invalidated ${result.deletedCount} non-admin sessions`);
     return result.deletedCount;
   }
 }
