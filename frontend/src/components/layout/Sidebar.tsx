@@ -259,25 +259,6 @@ const USER_MENU_ITEMS: MenuItem[] = [
 ];
 
 // =============================================================================
-// MOBILE BOTTOM NAVIGATION ITEMS
-// =============================================================================
-const ADMIN_MOBILE_NAV = [
-  { href: '/admin/dashboard', icon: '🏠', label: 'หน้าแรก' },
-  { href: '/admin/chat', icon: '💬', label: 'แชท' },
-  { href: '/admin/users', icon: '👥', label: 'ผู้ใช้' },
-  { href: '/admin/payments', icon: '📄', label: 'สลิป' },
-  { href: '/admin/settings', icon: '⚙️', label: 'ตั้งค่า' },
-];
-
-const USER_MOBILE_NAV = [
-  { href: '/user/dashboard', icon: '🏠', label: 'หน้าแรก' },
-  { href: '/user/wallet', icon: '💰', label: 'เครดิต' },
-  { href: '/user/line-accounts', icon: '💼', label: 'บัญชี' },
-  { href: '/user/packages', icon: '📦', label: 'แพ็คเกจ' },
-  { href: '/user/chat', icon: '💬', label: 'แชท' },
-];
-
-// =============================================================================
 // SIDEBAR COMPONENT
 // =============================================================================
 interface SidebarProps {
@@ -292,7 +273,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // STRICT ROLE CHECK: Determine which menu to render based on user role
   const isAdmin = user?.role === 'admin';
   const menuItems = isAdmin ? ADMIN_MENU_ITEMS : USER_MENU_ITEMS;
-  const mobileNavItems = isAdmin ? ADMIN_MOBILE_NAV : USER_MOBILE_NAV;
 
   // Wallet balance from global store
   const { balance: walletBalance, fetchBalance } = useWalletStore();
@@ -514,26 +494,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Navigation - Role-specific items */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#0A0F0D]/95 backdrop-blur-xl border-t border-emerald-500/10 safe-area-bottom">
-        <div className="flex items-center justify-around h-16 xs:h-[4.5rem] px-1">
-          {mobileNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                'flex flex-col items-center justify-center flex-1 min-w-0 h-14 xs:h-16 rounded-xl transition-all duration-300 mx-0.5',
-                pathname === item.href || pathname.startsWith(item.href + '/')
-                  ? 'text-[#06C755] bg-[#06C755]/10'
-                  : 'text-slate-500 hover:text-white hover:bg-white/5 active:bg-white/10'
-              )}
-            >
-              <span className="text-lg xs:text-xl mb-0.5">{item.icon}</span>
-              <span className="text-[10px] xs:text-[11px] font-semibold truncate max-w-full px-1">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
     </>
   );
 }

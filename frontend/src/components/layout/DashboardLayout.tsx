@@ -138,7 +138,7 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
         {/* Mobile Header Spacer */}
         <div className="md:hidden h-16" />
 
-        <div className="container-responsive w-full animate-fade pb-20 md:pb-10">
+        <div className="container-responsive w-full animate-fade pb-10">
           {children}
         </div>
       </main>
