@@ -159,6 +159,17 @@ export class AdminSlipTemplatesController {
   }
 
   /**
+   * Reset global templates - delete all and recreate fresh defaults (Admin only)
+   * Use this when templates are corrupted beyond repair
+   */
+  @Post('global/reset')
+  @Roles(UserRole.ADMIN)
+  async resetGlobalTemplates() {
+    const result = await this.slipTemplatesService.resetGlobalTemplates();
+    return { success: true, ...result };
+  }
+
+  /**
    * Debug: Get all templates with their flags for troubleshooting (Admin only)
    */
   @Get('global/debug')

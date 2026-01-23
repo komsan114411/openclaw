@@ -788,6 +788,23 @@ export default function AdminTemplatesPage() {
     }
   };
 
+  const handleResetTemplates = async () => {
+    if (!confirm('คุณต้องการรีเซ็ตเทมเพลตทั้งหมดหรือไม่?\n\nการดำเนินการนี้จะลบเทมเพลตทั้งหมดและสร้างใหม่ทั้งหมด\nไม่สามารถยกเลิกได้')) {
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const response = await adminSlipTemplatesApi.reset();
+      toast.success(response.data.message || 'รีเซ็ตเทมเพลตสำเร็จ');
+      fetchData();
+    } catch (error) {
+      console.error('Error resetting templates:', error);
+      toast.error('ไม่สามารถรีเซ็ตเทมเพลตได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleInitSlipDefaults = async () => {
     setIsProcessing(true);
     try {
@@ -964,8 +981,8 @@ export default function AdminTemplatesPage() {
                   <Button variant="ghost" onClick={handleRepairTemplates} isLoading={isProcessing} className="flex-1 sm:flex-none text-amber-400 hover:text-amber-300" title="ซ่อมแซมเทมเพลตที่มีปัญหา">
                     🔧 ซ่อมแซม
                   </Button>
-                  <Button variant="outline" onClick={handleInitSlipDefaults} isLoading={isProcessing} className="flex-1 sm:flex-none">
-                    รีเซ็ตค่าเริ่มต้น
+                  <Button variant="ghost" onClick={handleResetTemplates} isLoading={isProcessing} className="flex-1 sm:flex-none text-red-400 hover:text-red-300" title="ลบเทมเพลตทั้งหมดและสร้างใหม่">
+                    🗑️ รีเซ็ตทั้งหมด
                   </Button>
                   <Button variant="primary" onClick={openSlipCreateModal} className="flex-1 sm:flex-none">
                     + สร้างเทมเพลต

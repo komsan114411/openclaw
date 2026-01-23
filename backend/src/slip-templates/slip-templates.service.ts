@@ -1002,12 +1002,117 @@ export class SlipTemplatesService implements OnModuleInit {
   }
 
   /**
+   * Reset global templates - delete ALL global templates and recreate fresh defaults
+   * Use this when templates are corrupted beyond repair
+   */
+  async resetGlobalTemplates(): Promise<{ deletedCount: number; createdCount: number; message: string }> {
+    this.logger.log('[RESET] Starting global templates reset...');
+
+    // Delete ALL global templates
+    const deleteResult = await this.slipTemplateModel.deleteMany({ isGlobal: true });
+    this.logger.log(`[RESET] Deleted ${deleteResult.deletedCount} global templates`);
+
+    // Also delete orphaned templates (no lineAccountId and not properly flagged)
+    const orphanedResult = await this.slipTemplateModel.deleteMany({
+      lineAccountId: { $exists: false },
+    });
+    this.logger.log(`[RESET] Deleted ${orphanedResult.deletedCount} orphaned templates`);
+
+    // Recreate default global templates
+    const defaults = [
+      {
+        name: '✅ สลิปถูกต้อง (Global)',
+        description: 'Template มาตรฐานสำหรับสลิปที่ตรวจสอบสำเร็จ',
+        type: TemplateType.SUCCESS,
+        isDefault: true,
+        headerText: '✅ ตรวจสอบสลิปสำเร็จ',
+        footerText: 'ขอบคุณที่ใช้บริการ',
+        primaryColor: '#00C851',
+        isGlobal: true,
+        isSystemTemplate: true,
+        isActive: true,
+      },
+      {
+        name: '⚠️ สลิปซ้ำ (Global)',
+        description: 'Template มาตรฐานสำหรับสลิปที่ถูกใช้แล้ว',
+        type: TemplateType.DUPLICATE,
+        isDefault: true,
+        headerText: '⚠️ พบสลิปซ้ำ',
+        footerText: 'สลิปนี้ถูกใช้ไปแล้ว กรุณาใช้สลิปใหม่',
+        primaryColor: '#FF8800',
+        isGlobal: true,
+        isSystemTemplate: true,
+        isActive: true,
+      },
+      {
+        name: '❌ ตรวจสอบไม่สำเร็จ (Global)',
+        description: 'Template มาตรฐานสำหรับสลิปที่ตรวจสอบไม่ผ่าน',
+        type: TemplateType.ERROR,
+        isDefault: true,
+        headerText: '❌ ตรวจสอบไม่สำเร็จ',
+        footerText: 'กรุณาลองใหม่อีกครั้ง หรือติดต่อผู้ดูแล',
+        primaryColor: '#FF4444',
+        isGlobal: true,
+        isSystemTemplate: true,
+        isActive: true,
+      },
+      {
+        name: '🔍 ไม่พบข้อมูล (Global)',
+        description: 'Template มาตรฐานสำหรับไม่พบข้อมูลสลิป',
+        type: TemplateType.NOT_FOUND,
+        isDefault: true,
+        headerText: '🔍 ไม่พบข้อมูลสลิป',
+        footerText: 'กรุณาตรวจสอบสลิปและลองใหม่อีกครั้ง',
+        primaryColor: '#999999',
+        isGlobal: true,
+        isSystemTemplate: true,
+        isActive: true,
+      },
+    ];
+
+    let createdCount = 0;
+    for (const def of defaults) {
+      await this.slipTemplateModel.create(def);
+      createdCount++;
+      this.logger.log(`[RESET] Created template: ${def.name}`);
+    }
+
+    const message = `Reset complete. Deleted ${deleteResult.deletedCount + orphanedResult.deletedCount} templates, created ${createdCount} new templates`;
+    this.logger.log(`[RESET] ${message}`);
+
+    return {
+      deletedCount: deleteResult.deletedCount + orphanedResult.deletedCount,
+      createdCount,
+      message,
+    };
+  }
+
+  /**
    * Repair global templates - restore flags and ensure templates are properly configured
    * This fixes templates that were updated before the preserve-flags fix
    */
   async repairGlobalTemplates(): Promise<{ repairedCount: number; totalGlobalCount: number; message: string; details: string[] }> {
     this.logger.log('[REPAIR] Starting global templates repair...');
     const details: string[] = [];
+
+    // Step 0: Delete templates with suspicious/invalid names (likely corrupted)
+    const suspiciousTemplates = await this.slipTemplateModel.find({
+      isGlobal: true,
+      $or: [
+        { name: { $regex: /^[0-9]+$/ } }, // Names that are just numbers
+        { name: { $exists: false } },
+        { name: '' },
+        { name: null },
+      ],
+    });
+
+    if (suspiciousTemplates.length > 0) {
+      for (const template of suspiciousTemplates) {
+        this.logger.warn(`[REPAIR] Deleting suspicious template: name="${template.name}", type=${template.type}, id=${template._id}`);
+        await this.slipTemplateModel.findByIdAndDelete(template._id);
+        details.push(`Deleted suspicious template: "${template.name}" (${template.type})`);
+      }
+    }
 
     // Step 1: Fix templates that should be global but aren't
     const brokenTemplates = await this.slipTemplateModel.find({
