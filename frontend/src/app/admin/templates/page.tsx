@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { api, banksApi, systemSettingsApi, systemResponseTemplatesApi } from '@/lib/api';
+import { api, banksApi, systemSettingsApi, systemResponseTemplatesApi, adminSlipTemplatesApi } from '@/lib/api';
 import { Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { Card, StatCard } from '@/components/ui/Card';
@@ -594,15 +594,21 @@ export default function AdminTemplatesPage() {
     setLoading(true);
     try {
       const [slipRes, systemRes, banksRes, previewConfigRes] = await Promise.all([
-        api.get('/admin/slip-templates/global'),
+        adminSlipTemplatesApi.getAll(),
         systemResponseTemplatesApi.getAll(),
         banksApi.getAll(),
         systemSettingsApi.getPreviewConfig()
       ]);
 
-      setSlipTemplates(slipRes.data.templates || []);
+      const loadedSlipTemplates = slipRes.data.templates || [];
+      setSlipTemplates(loadedSlipTemplates);
       setSystemTemplates(systemRes.data.data || []);
       setBanks(banksRes.data.banks || []);
+
+      // If no slip templates exist, show notification
+      if (loadedSlipTemplates.length === 0) {
+        toast('ไม่พบ Slip Templates กรุณากดปุ่ม "สร้าง Templates เริ่มต้น"', { icon: '⚠️' });
+      }
 
       const config = previewConfigRes.data.previewConfig;
       if (config) {
@@ -617,6 +623,7 @@ export default function AdminTemplatesPage() {
         setPreviewSettingsForm(loadedConfig);
       }
     } catch (err) {
+      console.error('Error fetching templates:', err);
       toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
@@ -721,16 +728,17 @@ export default function AdminTemplatesPage() {
     setIsProcessing(true);
     try {
       if (selectedSlipTemplate) {
-        await api.put(`/admin/slip-templates/global/${selectedSlipTemplate._id}`, slipFormData);
+        await adminSlipTemplatesApi.update(selectedSlipTemplate._id, slipFormData);
         toast.success('อัปเดตเทมเพลตสำเร็จ');
       } else {
-        await api.post('/admin/slip-templates/global', slipFormData);
+        await adminSlipTemplatesApi.create(slipFormData);
         toast.success('สร้างเทมเพลตสำเร็จ');
       }
       setShowSlipModal(false);
       fetchData();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
+      console.error('Error saving slip template:', error);
       toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsProcessing(false);
@@ -741,13 +749,14 @@ export default function AdminTemplatesPage() {
     if (!selectedSlipTemplate) return;
     setIsProcessing(true);
     try {
-      await api.delete(`/admin/slip-templates/global/${selectedSlipTemplate._id}`);
+      await adminSlipTemplatesApi.delete(selectedSlipTemplate._id);
       toast.success('ลบเทมเพลตสำเร็จ');
       setShowSlipDeleteConfirm(false);
       setSelectedSlipTemplate(null);
       fetchData();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
+      console.error('Error deleting slip template:', error);
       toast.error(err.response?.data?.message || 'ไม่สามารถลบได้');
     } finally {
       setIsProcessing(false);
@@ -756,10 +765,11 @@ export default function AdminTemplatesPage() {
 
   const handleSlipSetDefault = async (id: string) => {
     try {
-      await api.put(`/admin/slip-templates/global/${id}/default`);
+      await adminSlipTemplatesApi.setDefault(id);
       toast.success('ตั้งเป็นค่าเริ่มต้นสำเร็จ');
       fetchData();
-    } catch {
+    } catch (error) {
+      console.error('Error setting default:', error);
       toast.error('ไม่สามารถตั้งเป็นค่าเริ่มต้นได้');
     }
   };
@@ -767,10 +777,11 @@ export default function AdminTemplatesPage() {
   const handleInitSlipDefaults = async () => {
     setIsProcessing(true);
     try {
-      await api.post('/admin/slip-templates/global/init-defaults');
-      toast.success('สร้างเทมเพลตเริ่มต้นสำเร็จ');
+      const response = await adminSlipTemplatesApi.initDefaults();
+      toast.success(response.data.message || 'สร้างเทมเพลตเริ่มต้นสำเร็จ');
       fetchData();
-    } catch {
+    } catch (error) {
+      console.error('Error initializing defaults:', error);
       toast.error('ไม่สามารถสร้างเทมเพลตเริ่มต้นได้');
     } finally {
       setIsProcessing(false);

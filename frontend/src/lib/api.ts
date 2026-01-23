@@ -397,7 +397,7 @@ interface UpdateSlipTemplateData {
   isDefault?: boolean;
 }
 
-// Slip Templates API
+// Slip Templates API (User - per LINE account)
 export const slipTemplatesApi = {
   getAll: (accountId: string) =>
     api.get(`/line-accounts/${accountId}/slip-templates`),
@@ -424,6 +424,31 @@ export const slipTemplatesApi = {
     api.delete(`/line-accounts/${accountId}/slip-templates/${templateId}/safe-delete`, {
       data: { confirmationText },
     }),
+  // Select template for LINE account
+  selectTemplate: (accountId: string, type: string, templateId: string) =>
+    api.put(`/line-accounts/${accountId}/slip-templates/select/${type}/${templateId}`),
+  getSelectedTemplates: (accountId: string) =>
+    api.get(`/line-accounts/${accountId}/slip-templates/selected`),
+};
+
+// Admin Slip Templates API (Global templates management)
+export const adminSlipTemplatesApi = {
+  getAll: () => api.get('/admin/slip-templates/global'),
+  create: (data: CreateSlipTemplateData) => api.post('/admin/slip-templates/global', data),
+  update: (templateId: string, data: UpdateSlipTemplateData) =>
+    api.put(`/admin/slip-templates/global/${templateId}`, data),
+  delete: (templateId: string) => api.delete(`/admin/slip-templates/global/${templateId}`),
+  setDefault: (templateId: string) =>
+    api.put(`/admin/slip-templates/global/${templateId}/default`),
+  preview: (templateId: string) =>
+    api.get(`/admin/slip-templates/global/${templateId}/preview`),
+  checkUsage: (templateId: string) =>
+    api.get(`/admin/slip-templates/global/${templateId}/usage`),
+  safeDelete: (templateId: string, confirmationText?: string) =>
+    api.delete(`/admin/slip-templates/global/${templateId}/safe-delete`, {
+      data: { confirmationText },
+    }),
+  initDefaults: () => api.post('/admin/slip-templates/global/init-defaults'),
 };
 
 // Thunder API (Slip Verification Service)

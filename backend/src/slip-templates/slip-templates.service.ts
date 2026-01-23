@@ -227,7 +227,17 @@ export class SlipTemplatesService implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     try {
+      this.logger.log('[INIT] Starting global templates initialization...');
       await this.createDefaultGlobalTemplates();
+
+      // Verify templates were created
+      const count = await this.slipTemplateModel.countDocuments({ isGlobal: true, isActive: true });
+      this.logger.log(`[INIT] Global templates count: ${count}`);
+
+      if (count === 0) {
+        this.logger.warn('[INIT] No global templates found after initialization, retrying...');
+        await this.createDefaultGlobalTemplates();
+      }
     } catch (error) {
       this.logger.error('Failed to create default global templates:', error);
     }
@@ -352,22 +362,50 @@ export class SlipTemplatesService implements OnModuleInit {
 
   /**
    * Get all global templates
+   * Auto-creates default templates if none exist
    */
   async getGlobalTemplates(): Promise<SlipTemplateDocument[]> {
-    return this.slipTemplateModel
+    let templates = await this.slipTemplateModel
       .find({ isGlobal: true, isActive: true })
       .sort({ type: 1, isDefault: -1, createdAt: -1 })
       .exec();
+
+    // If no templates, create defaults
+    if (templates.length === 0) {
+      this.logger.log('[TEMPLATE] No global templates found, creating defaults...');
+      await this.createDefaultGlobalTemplates();
+      templates = await this.slipTemplateModel
+        .find({ isGlobal: true, isActive: true })
+        .sort({ type: 1, isDefault: -1, createdAt: -1 })
+        .exec();
+      this.logger.log(`[TEMPLATE] Created ${templates.length} default templates`);
+    }
+
+    return templates;
   }
 
   /**
    * Get all global templates (for admin management)
+   * Auto-creates default templates if none exist
    */
   async getAllGlobalTemplates(): Promise<SlipTemplateDocument[]> {
-    return this.slipTemplateModel
+    let templates = await this.slipTemplateModel
       .find({ isGlobal: true })
       .sort({ type: 1, isDefault: -1, createdAt: -1 })
       .exec();
+
+    // If no templates, create defaults
+    if (templates.length === 0) {
+      this.logger.log('[TEMPLATE] No global templates found (admin), creating defaults...');
+      await this.createDefaultGlobalTemplates();
+      templates = await this.slipTemplateModel
+        .find({ isGlobal: true })
+        .sort({ type: 1, isDefault: -1, createdAt: -1 })
+        .exec();
+      this.logger.log(`[TEMPLATE] Created ${templates.length} default templates`);
+    }
+
+    return templates;
   }
 
   /**
@@ -430,10 +468,11 @@ export class SlipTemplatesService implements OnModuleInit {
   /**
    * Get default global template for a type
    * Falls back to any global template of the same type if no default is found
+   * If no template exists, auto-creates default templates
    */
   async getGlobalDefaultTemplate(type: TemplateType): Promise<SlipTemplateDocument | null> {
     // First try to find a default template
-    const defaultTemplate = await this.slipTemplateModel.findOne({
+    let defaultTemplate = await this.slipTemplateModel.findOne({
       isGlobal: true,
       type,
       isDefault: true,
@@ -441,16 +480,46 @@ export class SlipTemplatesService implements OnModuleInit {
     });
 
     if (defaultTemplate) {
+      this.logger.log(`[TEMPLATE] Found default global template for ${type}: ${defaultTemplate.name}`);
       return defaultTemplate;
     }
 
     // Fallback: find any global template for this type
     this.logger.log(`[TEMPLATE] No default global template for ${type}, looking for any global template`);
-    return this.slipTemplateModel.findOne({
+    defaultTemplate = await this.slipTemplateModel.findOne({
       isGlobal: true,
       type,
       isActive: true,
-    }).sort({ createdAt: -1 }); // Use most recently created
+    }).sort({ createdAt: -1 });
+
+    if (defaultTemplate) {
+      this.logger.log(`[TEMPLATE] Found non-default global template for ${type}: ${defaultTemplate.name}`);
+      return defaultTemplate;
+    }
+
+    // No template found - try to create defaults
+    this.logger.warn(`[TEMPLATE] No global template found for ${type}, creating defaults...`);
+    try {
+      await this.createDefaultGlobalTemplates();
+
+      // Try to find again after creation
+      defaultTemplate = await this.slipTemplateModel.findOne({
+        isGlobal: true,
+        type,
+        isDefault: true,
+        isActive: true,
+      });
+
+      if (defaultTemplate) {
+        this.logger.log(`[TEMPLATE] Created and found template for ${type}: ${defaultTemplate.name}`);
+        return defaultTemplate;
+      }
+    } catch (error) {
+      this.logger.error(`[TEMPLATE] Failed to create default templates:`, error);
+    }
+
+    this.logger.error(`[TEMPLATE] Could not find or create template for ${type}`);
+    return null;
   }
 
 
