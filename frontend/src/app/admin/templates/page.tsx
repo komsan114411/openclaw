@@ -774,6 +774,20 @@ export default function AdminTemplatesPage() {
     }
   };
 
+  const handleRepairTemplates = async () => {
+    setIsProcessing(true);
+    try {
+      const response = await adminSlipTemplatesApi.repair();
+      toast.success(response.data.message || 'ซ่อมแซมเทมเพลตสำเร็จ');
+      fetchData();
+    } catch (error) {
+      console.error('Error repairing templates:', error);
+      toast.error('ไม่สามารถซ่อมแซมเทมเพลตได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleInitSlipDefaults = async () => {
     setIsProcessing(true);
     try {
@@ -947,6 +961,9 @@ export default function AdminTemplatesPage() {
             <div className="flex gap-3 w-full sm:w-auto">
               {categoryTab === 'slip' ? (
                 <>
+                  <Button variant="ghost" onClick={handleRepairTemplates} isLoading={isProcessing} className="flex-1 sm:flex-none text-amber-400 hover:text-amber-300" title="ซ่อมแซมเทมเพลตที่มีปัญหา">
+                    🔧 ซ่อมแซม
+                  </Button>
                   <Button variant="outline" onClick={handleInitSlipDefaults} isLoading={isProcessing} className="flex-1 sm:flex-none">
                     รีเซ็ตค่าเริ่มต้น
                   </Button>

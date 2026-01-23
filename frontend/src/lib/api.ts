@@ -448,6 +448,7 @@ export const adminSlipTemplatesApi = {
       data: { confirmationText },
     }),
   initDefaults: () => api.post('/admin/slip-templates/global/init-defaults'),
+  repair: () => api.post('/admin/slip-templates/global/repair'),
 };
 
 // Thunder API (Slip Verification Service)
