@@ -840,55 +840,177 @@ export class SlipTemplatesService implements OnModuleInit {
 
   /**
    * Generate fallback bubble when template is corrupted
+   * Uses the same professional design as the main template
    */
   private generateFallbackBubble(type: TemplateType, slipData: SlipData): any {
     const configs = {
-      [TemplateType.SUCCESS]: { icon: '✅', text: 'ตรวจสอบสลิปสำเร็จ', color: '#00C851' },
-      [TemplateType.DUPLICATE]: { icon: '⚠️', text: 'สลิปนี้เคยถูกใช้แล้ว', color: '#FF8800' },
-      [TemplateType.ERROR]: { icon: '❌', text: 'ตรวจสอบไม่สำเร็จ', color: '#FF4444' },
-      [TemplateType.NOT_FOUND]: { icon: '🔍', text: 'ไม่พบข้อมูลสลิป', color: '#999999' },
+      [TemplateType.SUCCESS]: { icon: '✓', text: 'ตรวจสอบสำเร็จ', subtext: 'ข้อมูลถูกต้อง', color: '#10B981', bg: '#ECFDF5' },
+      [TemplateType.DUPLICATE]: { icon: '!', text: 'สลิปซ้ำ', subtext: 'สลิปนี้เคยถูกใช้แล้ว', color: '#F59E0B', bg: '#FFFBEB' },
+      [TemplateType.ERROR]: { icon: '✕', text: 'ตรวจสอบไม่สำเร็จ', subtext: 'กรุณาลองใหม่อีกครั้ง', color: '#EF4444', bg: '#FEF2F2' },
+      [TemplateType.NOT_FOUND]: { icon: '?', text: 'ไม่พบข้อมูล', subtext: 'ไม่พบข้อมูลในระบบ', color: '#6B7280', bg: '#F9FAFB' },
     };
 
     const config = configs[type] || configs[TemplateType.ERROR];
 
-    const contents: any[] = [
-      {
-        type: 'text',
-        text: `${config.icon} ${config.text}`,
-        weight: 'bold',
-        size: 'lg',
-        color: config.color,
-      },
-    ];
+    const contents: any[] = [];
 
-    // Add amount if available
+    // Header
+    contents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: config.icon,
+              color: '#FFFFFF',
+              size: 'xl',
+              weight: 'bold',
+              align: 'center',
+            },
+          ],
+          width: '44px',
+          height: '44px',
+          backgroundColor: config.color,
+          cornerRadius: '22px',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: config.text,
+              weight: 'bold',
+              size: 'lg',
+              color: '#1F2937',
+            },
+            {
+              type: 'text',
+              text: config.subtext,
+              size: 'xs',
+              color: '#6B7280',
+              margin: 'xs',
+            },
+          ],
+          margin: 'lg',
+          flex: 1,
+        },
+      ],
+      paddingAll: '16px',
+      backgroundColor: config.bg,
+      cornerRadius: '16px',
+    });
+
+    // Amount
     if (slipData.amountFormatted) {
       contents.push({
-        type: 'text',
-        text: `จำนวนเงิน: ${slipData.amountFormatted}`,
-        size: 'md',
-        color: '#333333',
-        margin: 'md',
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: 'จำนวนเงิน',
+            size: 'xs',
+            color: '#9CA3AF',
+            align: 'center',
+          },
+          {
+            type: 'text',
+            text: slipData.amountFormatted,
+            size: '3xl',
+            weight: 'bold',
+            color: config.color,
+            align: 'center',
+            margin: 'sm',
+          },
+        ],
+        margin: 'xl',
       });
     }
 
-    // Add sender/receiver if available
+    // Sender
     if (slipData.senderName) {
       contents.push({
-        type: 'text',
-        text: `ผู้โอน: ${slipData.senderName}`,
-        size: 'sm',
-        color: '#666666',
-        margin: 'sm',
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '↑ ผู้โอน',
+            size: 'xs',
+            color: '#3B82F6',
+            weight: 'bold',
+          },
+          {
+            type: 'text',
+            text: slipData.senderName,
+            size: 'md',
+            color: '#1F2937',
+            weight: 'bold',
+            margin: 'sm',
+          },
+          slipData.senderBank ? {
+            type: 'text',
+            text: slipData.senderBank,
+            size: 'xs',
+            color: '#6B7280',
+            margin: 'xs',
+          } : null,
+        ].filter(Boolean),
+        margin: 'lg',
+        paddingAll: '16px',
+        backgroundColor: '#EFF6FF',
+        cornerRadius: '16px',
       });
     }
+
+    // Receiver
     if (slipData.receiverName) {
+      const receiverAccount = slipData.receiverAccount || slipData.receiverAccountNumber || '';
       contents.push({
-        type: 'text',
-        text: `ผู้รับ: ${slipData.receiverName}`,
-        size: 'sm',
-        color: '#666666',
-        margin: 'sm',
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '↓ ผู้รับ',
+            size: 'xs',
+            color: '#10B981',
+            weight: 'bold',
+          },
+          {
+            type: 'text',
+            text: slipData.receiverName,
+            size: 'md',
+            color: '#1F2937',
+            weight: 'bold',
+            margin: 'sm',
+          },
+          slipData.receiverBank ? {
+            type: 'text',
+            text: slipData.receiverBank,
+            size: 'xs',
+            color: '#6B7280',
+            margin: 'xs',
+          } : null,
+          receiverAccount ? {
+            type: 'text',
+            text: `เลขบัญชี: ${receiverAccount}`,
+            size: 'xs',
+            color: '#9CA3AF',
+            margin: 'xs',
+          } : null,
+        ].filter(Boolean),
+        margin: 'md',
+        paddingAll: '16px',
+        backgroundColor: '#ECFDF5',
+        cornerRadius: '16px',
       });
     }
 
@@ -898,7 +1020,7 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'box',
         layout: 'vertical',
         contents,
-        paddingAll: '16px',
+        paddingAll: '20px',
         backgroundColor: '#FFFFFF',
       },
     };
@@ -1436,236 +1558,217 @@ export class SlipTemplatesService implements OnModuleInit {
         template.type === 'error' ? 'error' : 'default');
     const theme = THEME_PRESETS[themeKey as keyof typeof THEME_PRESETS] || THEME_PRESETS.default;
 
-    // Apply template overrides over theme defaults
-    const headerBgColor = template.headerBackgroundColor || theme.headerBackgroundColor;
-    const headerTextColor = template.headerTextColor || theme.headerTextColor;
-    const amountColor = template.amountColor || template.primaryColor || theme.amountColor;
-    const bodyBgColor = template.bodyBackgroundColor || theme.bodyBackgroundColor;
-    const cardBgColor = template.cardBackgroundColor || theme.cardBackgroundColor;
-    const cardBorderColor = template.cardBorderColor || theme.cardBorderColor;
-
     const isDuplicate = data.isDuplicate || template.type === 'duplicate';
     const isError = template.type === 'error';
+    const isNotFound = template.type === 'not_found';
+    const isSuccess = template.type === 'success';
 
-    // Default header icons
-    const headerIcon = template.headerIcon === 'warning' ? '⚠️' :
-      template.headerIcon === 'error' ? '❌' :
-        template.headerIcon === 'info' ? 'ℹ️' :
-          isDuplicate ? '⚠️' : isError ? '❌' : '✓';
+    // Theme colors based on status
+    const statusColors = {
+      success: { primary: '#10B981', bg: '#ECFDF5', headerBg: '#10B981', icon: '✓' },
+      duplicate: { primary: '#F59E0B', bg: '#FFFBEB', headerBg: '#F59E0B', icon: '!' },
+      error: { primary: '#EF4444', bg: '#FEF2F2', headerBg: '#EF4444', icon: '✕' },
+      not_found: { primary: '#6B7280', bg: '#F9FAFB', headerBg: '#6B7280', icon: '?' },
+    };
 
+    const statusKey = isDuplicate ? 'duplicate' : isError ? 'error' : isNotFound ? 'not_found' : 'success';
+    const colors = statusColors[statusKey];
+
+    // Override with template settings
+    const primaryColor = template.primaryColor || colors.primary;
+    const headerBgColor = template.headerBackgroundColor || colors.headerBg;
+
+    // Header text
     const headerText = template.headerText ||
-      (isDuplicate ? 'สลิปนี้ถูกใช้งานไปแล้ว' :
-        isError ? 'ตรวจสอบไม่สำเร็จ' : 'สลิปถูกต้อง');
+      (isDuplicate ? 'สลิปซ้ำ' :
+        isError ? 'ตรวจสอบไม่สำเร็จ' :
+          isNotFound ? 'ไม่พบข้อมูล' : 'ตรวจสอบสำเร็จ');
 
     const contents: any[] = [];
 
-    // Header with icon
+    // ==================== PROFESSIONAL HEADER ====================
     contents.push({
       type: 'box',
       layout: 'horizontal',
       contents: [
+        // Status Icon Circle
         {
           type: 'box',
           layout: 'vertical',
           contents: [
             {
               type: 'text',
-              text: headerIcon,
-              color: headerTextColor,
-              size: 'lg',
+              text: colors.icon,
+              color: '#FFFFFF',
+              size: 'xl',
               weight: 'bold',
               align: 'center',
             },
           ],
-          width: '30px',
-          height: '30px',
-          backgroundColor: amountColor,
-          cornerRadius: '15px',
+          width: '44px',
+          height: '44px',
+          backgroundColor: primaryColor,
+          cornerRadius: '22px',
           justifyContent: 'center',
           alignItems: 'center',
         },
-        {
-          type: 'text',
-          text: headerText,
-          weight: 'bold',
-          size: 'lg',
-          color: amountColor,
-          margin: 'md',
-          flex: 1,
-        },
+        // Header Text
         {
           type: 'box',
           layout: 'vertical',
           contents: [
             {
               type: 'text',
-              text: isDuplicate ? '!' : '✓',
-              color: '#FFFFFF',
+              text: headerText,
+              weight: 'bold',
+              size: 'lg',
+              color: '#1F2937',
+            },
+            {
+              type: 'text',
+              text: isDuplicate ? 'สลิปนี้เคยถูกใช้แล้ว' :
+                isError ? 'กรุณาลองใหม่อีกครั้ง' :
+                  isNotFound ? 'ไม่พบข้อมูลในระบบ' : 'ข้อมูลถูกต้อง',
               size: 'xs',
-              align: 'center',
+              color: '#6B7280',
+              margin: 'xs',
             },
           ],
-          width: '20px',
-          height: '20px',
-          backgroundColor: amountColor,
-          cornerRadius: '10px',
-          justifyContent: 'center',
-          alignItems: 'center',
+          margin: 'lg',
+          flex: 1,
         },
       ],
-      backgroundColor: headerBgColor,
-      paddingAll: '12px',
-      cornerRadius: '12px',
+      paddingAll: '16px',
+      backgroundColor: colors.bg,
+      cornerRadius: '16px',
     });
 
-    // For duplicate/error/not_found templates without data, add descriptive message
-    const isNotFound = template.type === 'not_found';
+    // ==================== AMOUNT SECTION (Large Display) ====================
     const hasNoData = !data.amountFormatted && !data.senderName && !data.receiverName;
 
-    // Only force generic message for error/not_found types when no data
-    // For duplicate, allow rendering the template structure even without data (using placeholders)
-    if ((isError || isNotFound) && hasNoData) {
-      // Add descriptive message when no slip data is available
-      const messageText = template.footerText || (
-        isError ? 'เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่อีกครั้ง' :
-          'ไม่พบข้อมูลสลิปในระบบ กรุณาตรวจสอบสลิปอีกครั้ง'
-      );
-
+    if (!hasNoData && template.showAmount && data.amountFormatted) {
       contents.push({
         type: 'box',
         layout: 'vertical',
-        margin: 'lg',
-        paddingAll: '16px',
-        backgroundColor: isError ? '#FFEBEE' : '#F5F5F5',
-        cornerRadius: '12px',
         contents: [
           {
             type: 'text',
-            text: messageText,
-            size: 'sm',
-            color: isError ? '#C62828' : '#616161',
-            wrap: true,
+            text: 'จำนวนเงิน',
+            size: 'xs',
+            color: '#9CA3AF',
             align: 'center',
           },
-        ],
-      });
-
-      // Skip amount/sender/receiver sections and go directly to footer
-    }
-
-    // Amount Section
-    if (template.showAmount && (data.amountFormatted || isDuplicate)) {
-      contents.push({
-        type: 'box',
-        layout: 'vertical',
-        contents: [
           {
             type: 'text',
-            text: data.amountFormatted || '฿0.00',
-            size: 'xxl',
+            text: data.amountFormatted,
+            size: '3xl',
             weight: 'bold',
-            color: amountColor,
+            color: primaryColor,
             align: 'center',
+            margin: 'sm',
           },
-          (template.showDate || template.showTime)
+          // Date/Time under amount
+          (template.showDate || template.showTime) && (data.date || data.time)
             ? {
               type: 'text',
               text: [
-                template.showDate ? (data.date || isDuplicate ? (data.date || '-') : null) : null,
-                template.showTime ? (data.time || isDuplicate ? (data.time || '-') : null) : null,
-              ].filter(Boolean).join(' • '),
+                template.showDate && data.date ? data.date : null,
+                template.showTime && data.time ? data.time : null,
+              ].filter(Boolean).join(' • ') || '',
               size: 'xs',
-              color: '#888888',
+              color: '#9CA3AF',
               align: 'center',
-              margin: 'sm',
+              margin: 'md',
             }
-            : { type: 'text', text: ' ', size: 'xxs', color: '#FFFFFF' },
-        ],
-        margin: 'lg',
-        paddingAll: '10px',
+            : null,
+        ].filter(Boolean),
+        margin: 'xl',
+        paddingTop: '8px',
+        paddingBottom: '8px',
       });
     }
 
-    // Date/time row (when amount is hidden)
-    if (!template.showAmount && (template.showDate || template.showTime)) {
+    // ==================== SENDER CARD ====================
+    if (template.showSender && (data.senderName || isDuplicate)) {
+      const senderAccount = data.senderAccount || '';
+      const senderBankDisplay = (data as any).senderBankName || data.senderBank || '';
+
+      contents.push(this.createModernBankCard(
+        'sender',
+        'ผู้โอน',
+        data.senderName || '-',
+        senderBankDisplay,
+        senderAccount,
+        data.senderBankLogoUrl,
+        template.showBankLogo,
+        '#3B82F6', // Blue for sender
+      ));
+    }
+
+    // ==================== ARROW SEPARATOR ====================
+    if (template.showSender && template.showReceiver && (data.senderName || data.receiverName)) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '↓',
+            size: 'lg',
+            color: '#D1D5DB',
+            align: 'center',
+          },
+        ],
+        margin: 'sm',
+      });
+    }
+
+    // ==================== RECEIVER CARD ====================
+    if (template.showReceiver && (data.receiverName || isDuplicate)) {
+      // IMPORTANT: Use normalized receiverAccount field
+      const receiverAccount = data.receiverAccount || data.receiverAccountNumber || data.receiverProxyAccount || '';
+      const receiverBankDisplay = (data as any).receiverBankName || data.receiverBank || '';
+
+      this.logger.log(`[TEMPLATE] Receiver data: name=${data.receiverName}, bank=${receiverBankDisplay}, account=${receiverAccount}`);
+
+      contents.push(this.createModernBankCard(
+        'receiver',
+        'ผู้รับ',
+        data.receiverName || '-',
+        receiverBankDisplay,
+        receiverAccount,
+        data.receiverBankLogoUrl,
+        template.showBankLogo,
+        '#10B981', // Green for receiver
+      ));
+    }
+
+    // ==================== TRANSACTION REFERENCE ====================
+    if (template.showTransRef && data.transRef) {
       contents.push({
         type: 'box',
         layout: 'horizontal',
         contents: [
-          { type: 'text', text: 'วันที่/เวลา', size: 'xs', color: '#888888', flex: 2 },
           {
             type: 'text',
-            text: [
-              template.showDate ? (data.date || '-') : null,
-              template.showTime ? (data.time || '-') : null,
-            ].filter(Boolean).join(' • ') || '-',
+            text: 'เลขอ้างอิง',
             size: 'xs',
-            color: '#333333',
+            color: '#9CA3AF',
+            flex: 2,
+          },
+          {
+            type: 'text',
+            text: data.transRef,
+            size: 'xs',
+            color: '#4B5563',
             flex: 4,
             align: 'end',
             wrap: true,
           },
         ],
-        margin: 'md',
-        paddingAll: '8px',
-        backgroundColor: '#F5F5F5',
-        cornerRadius: '8px',
-      });
-    }
-
-    // Sender info with bank logo
-    if (template.showSender && (data.senderName || isDuplicate)) {
-      const senderAccountLines: string[] = [];
-      if ((template as any).showSenderAccount) {
-        senderAccountLines.push(data.senderAccount || (isDuplicate ? '-' : ''));
-      }
-      if ((template as any).showSenderNameEn && data.senderNameEn) {
-        senderAccountLines.push(data.senderNameEn);
-      }
-      contents.push(this.createBankInfoBox(
-        'ผู้โอน',
-        data.senderName || (isDuplicate ? '-' : ''),
-        senderAccountLines.join(' • ') || data.senderBank || (isDuplicate ? '-' : ''),
-        data.senderBank || '',
-        data.senderBankLogoUrl,
-        template.showBankLogo,
-      ));
-    }
-
-    // Receiver info with bank logo
-    if (template.showReceiver && (data.receiverName || isDuplicate)) {
-      const receiverAccountLines: string[] = [];
-      if ((template as any).showReceiverAccount) {
-        receiverAccountLines.push(data.receiverAccount || (isDuplicate ? '-' : ''));
-      }
-      if ((template as any).showReceiverNameEn && data.receiverNameEn) {
-        receiverAccountLines.push(data.receiverNameEn);
-      }
-      if (template.showReceiverProxy && data.receiverProxyType && data.receiverProxyAccount) {
-        receiverAccountLines.push(`${data.receiverProxyType}: ${data.receiverProxyAccount}`);
-      }
-      contents.push(this.createBankInfoBox(
-        'ผู้รับ',
-        data.receiverName || (isDuplicate ? '-' : ''),
-        receiverAccountLines.join(' • ') || data.receiverBank || (isDuplicate ? '-' : ''),
-        data.receiverBank || '',
-        data.receiverBankLogoUrl,
-        template.showBankLogo,
-      ));
-    }
-
-    // Transaction reference
-    if (template.showTransRef && (data.transRef || isDuplicate)) {
-      contents.push({
-        type: 'box',
-        layout: 'horizontal',
-        contents: [
-          { type: 'text', text: 'เลขอ้างอิง:', size: 'xs', color: '#888888', flex: 2 },
-          { type: 'text', text: data.transRef || '-', size: 'xs', color: '#333333', flex: 4, align: 'end' },
-        ],
-        margin: 'md',
-        paddingAll: '8px',
-        backgroundColor: '#F5F5F5',
+        margin: 'lg',
+        paddingAll: '12px',
+        backgroundColor: '#F9FAFB',
         cornerRadius: '8px',
       });
     }
@@ -1686,32 +1789,55 @@ export class SlipTemplatesService implements OnModuleInit {
     if (template.showReceiverBankId) extraRows.push(this.createInfoRow('ธนาคารผู้รับ (ID)', data.receiverBankId || '-'));
     if (template.showPayload) extraRows.push(this.createInfoRow('Payload', (data.payload || '').toString().slice(0, 32) + ((data.payload && data.payload.length > 32) ? '…' : '') || '-'));
 
+    // ==================== EXTRA DETAILS ====================
     if (extraRows.length > 0) {
       contents.push({
         type: 'box',
         layout: 'vertical',
         contents: [
-          { type: 'text', text: 'รายละเอียดเพิ่มเติม', size: 'xs', weight: 'bold', color: '#666666' },
-          { type: 'separator', margin: 'sm' },
+          {
+            type: 'text',
+            text: 'รายละเอียดเพิ่มเติม',
+            size: 'xs',
+            weight: 'bold',
+            color: '#6B7280',
+          },
+          {
+            type: 'separator',
+            margin: 'md',
+            color: '#E5E7EB',
+          },
           ...extraRows.map((r) => ({ ...r, margin: 'sm' })),
         ],
         margin: 'lg',
-        paddingAll: '12px',
-        backgroundColor: '#FAFAFA',
+        paddingAll: '16px',
+        backgroundColor: '#F9FAFB',
         cornerRadius: '12px',
       });
     }
 
-    // Duplicate warning with delay info
-    if (data.isDuplicate) {
+    // ==================== DUPLICATE WARNING BANNER ====================
+    if (data.isDuplicate && template.type === 'duplicate') {
       const warningContents: any[] = [
         {
-          type: 'text',
-          text: '⚠️ สลิปนี้ถูกใช้งานไปแล้ว',
-          size: 'sm',
-          color: '#FFFFFF',
-          weight: 'bold',
-          align: 'center',
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '⚠️',
+              size: 'lg',
+            },
+            {
+              type: 'text',
+              text: 'สลิปนี้เคยถูกใช้แล้ว',
+              size: 'sm',
+              color: '#92400E',
+              weight: 'bold',
+              margin: 'sm',
+              flex: 1,
+            },
+          ],
         },
       ];
 
@@ -1720,8 +1846,7 @@ export class SlipTemplatesService implements OnModuleInit {
           type: 'text',
           text: `ตรวจสอบช้า ${data.delayMinutes} นาที`,
           size: 'xs',
-          color: '#FFE0B2',
-          align: 'center',
+          color: '#B45309',
           margin: 'sm',
         });
       }
@@ -1729,10 +1854,9 @@ export class SlipTemplatesService implements OnModuleInit {
       if (data.originalDate) {
         warningContents.push({
           type: 'text',
-          text: `บันทึกเมื่อ ${data.originalDate}`,
+          text: `บันทึกครั้งแรก: ${data.originalDate}`,
           size: 'xxs',
-          color: '#FFE0B2',
-          align: 'center',
+          color: '#D97706',
           margin: 'xs',
         });
       }
@@ -1741,14 +1865,16 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'box',
         layout: 'vertical',
         contents: warningContents,
-        margin: 'md',
-        paddingAll: '12px',
-        backgroundColor: '#FF6B00',
-        cornerRadius: '8px',
+        margin: 'lg',
+        paddingAll: '14px',
+        backgroundColor: '#FEF3C7',
+        cornerRadius: '12px',
+        borderWidth: '1px',
+        borderColor: '#FCD34D',
       });
     }
 
-    // Footer with optional link
+    // ==================== FOOTER ====================
     if (template.footerText || template.footerLink) {
       const footerContents: any[] = [];
 
@@ -1756,63 +1882,235 @@ export class SlipTemplatesService implements OnModuleInit {
         footerContents.push({
           type: 'text',
           text: template.footerText,
-          size: 'xxs',
-          color: '#888888',
+          size: 'xs',
+          color: '#9CA3AF',
           wrap: true,
           align: 'center',
         });
       }
 
-      // SECURITY: Validate URI at render time to prevent invalid Flex Message
+      // SECURITY: Validate URI at render time
       if (template.footerLink && template.footerLinkText) {
         const trimmedLink = template.footerLink.trim();
-        // Only add action if URI is valid (starts with https:// or tel:)
         if (trimmedLink && (trimmedLink.startsWith('https://') || trimmedLink.startsWith('tel:'))) {
           footerContents.push({
-            type: 'text',
-            text: template.footerLinkText,
-            size: 'xxs',
-            color: '#0066CC',
-            align: 'center',
-            margin: template.footerText ? 'sm' : 'none',
-            action: {
-              type: 'uri',
-              uri: trimmedLink,
-            },
-          });
-        } else if (template.footerLinkText) {
-          // Show link text without action if URI is invalid
-          footerContents.push({
-            type: 'text',
-            text: template.footerLinkText,
-            size: 'xxs',
-            color: '#888888',
-            align: 'center',
-            margin: template.footerText ? 'sm' : 'none',
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: template.footerLinkText,
+                size: 'xs',
+                color: '#3B82F6',
+                align: 'center',
+                flex: 1,
+                action: {
+                  type: 'uri',
+                  uri: trimmedLink,
+                },
+              },
+            ],
+            margin: template.footerText ? 'md' : 'none',
+            paddingAll: '10px',
+            backgroundColor: '#EFF6FF',
+            cornerRadius: '8px',
           });
         }
       }
 
-      contents.push({
-        type: 'box',
-        layout: 'vertical',
-        contents: footerContents,
-        margin: 'lg',
-        paddingAll: '10px',
-        backgroundColor: '#F0F0F0',
-        cornerRadius: '8px',
-      });
+      if (footerContents.length > 0) {
+        contents.push({
+          type: 'box',
+          layout: 'vertical',
+          contents: footerContents,
+          margin: 'lg',
+          paddingAll: '12px',
+        });
+      }
     }
 
+    // ==================== RETURN BUBBLE ====================
     return {
       type: 'bubble',
       body: {
         type: 'box',
         layout: 'vertical',
         contents,
-        paddingAll: '16px',
+        paddingAll: '20px',
         backgroundColor: '#FFFFFF',
       },
+    };
+  }
+
+  /**
+   * Create a modern bank card with professional styling
+   */
+  private createModernBankCard(
+    type: 'sender' | 'receiver',
+    label: string,
+    name: string,
+    bankName: string,
+    accountNumber: string,
+    logoUrl?: string,
+    showLogo?: boolean,
+    accentColor?: string,
+  ): any {
+    const color = accentColor || (type === 'sender' ? '#3B82F6' : '#10B981');
+    const bgColor = type === 'sender' ? '#EFF6FF' : '#ECFDF5';
+    const iconEmoji = type === 'sender' ? '👤' : '👤';
+
+    // Validate logo URL
+    const isValidLogoUrl = logoUrl &&
+      logoUrl.startsWith('https://') &&
+      logoUrl.length <= 2000;
+
+    const cardContents: any[] = [];
+
+    // Top row: Label with icon
+    cardContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: type === 'sender' ? '↑' : '↓',
+              size: 'xs',
+              color: '#FFFFFF',
+              align: 'center',
+            },
+          ],
+          width: '20px',
+          height: '20px',
+          backgroundColor: color,
+          cornerRadius: '10px',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        {
+          type: 'text',
+          text: label,
+          size: 'xs',
+          color: color,
+          weight: 'bold',
+          margin: 'sm',
+        },
+      ],
+    });
+
+    // Main content row
+    const mainRowContents: any[] = [];
+
+    // Bank logo or placeholder
+    if (showLogo && isValidLogoUrl) {
+      mainRowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'sm',
+            aspectMode: 'cover',
+            aspectRatio: '1:1',
+          },
+        ],
+        width: '48px',
+        height: '48px',
+        cornerRadius: '12px',
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: '1px',
+        borderColor: '#E5E7EB',
+      });
+    } else {
+      // Placeholder with bank initials
+      const initials = bankName ? bankName.substring(0, 2) : '🏦';
+      mainRowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: initials,
+            size: 'md',
+            color: color,
+            weight: 'bold',
+            align: 'center',
+          },
+        ],
+        width: '48px',
+        height: '48px',
+        cornerRadius: '12px',
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: '1px',
+        borderColor: '#E5E7EB',
+      });
+    }
+
+    // Name and bank details
+    const detailsContents: any[] = [
+      {
+        type: 'text',
+        text: name || '-',
+        size: 'md',
+        color: '#1F2937',
+        weight: 'bold',
+        wrap: true,
+      },
+    ];
+
+    // Bank name
+    if (bankName) {
+      detailsContents.push({
+        type: 'text',
+        text: bankName,
+        size: 'xs',
+        color: '#6B7280',
+        margin: 'xs',
+      });
+    }
+
+    // Account number (IMPORTANT: Always show if available)
+    if (accountNumber) {
+      detailsContents.push({
+        type: 'text',
+        text: `เลขบัญชี: ${accountNumber}`,
+        size: 'xs',
+        color: '#9CA3AF',
+        margin: 'xs',
+      });
+    }
+
+    mainRowContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: detailsContents,
+      flex: 1,
+      margin: 'md',
+    });
+
+    cardContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: mainRowContents,
+      margin: 'md',
+    });
+
+    return {
+      type: 'box',
+      layout: 'vertical',
+      contents: cardContents,
+      margin: 'lg',
+      paddingAll: '16px',
+      backgroundColor: bgColor,
+      cornerRadius: '16px',
     };
   }
 

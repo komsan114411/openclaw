@@ -727,8 +727,25 @@ export class SlipVerificationService {
 
       this.logger.log(`[BANK LOGO] baseUrl=${baseUrl}, sender=${senderCode}, receiver=${receiverCode}`);
 
+      // IMPORTANT: Normalize receiver account fields for consistency
+      // Template uses receiverAccount, but API may provide receiverAccountNumber
+      const receiverAccountNormalized = data.receiverAccount || data.receiverAccountNumber || data.receiverProxyAccount || '';
+
+      // Get proper bank names from database if available
+      const senderBankName = senderBank?.nameTh || senderBank?.name || data.senderBank || '';
+      const receiverBankName = receiverBank?.nameTh || receiverBank?.name || data.receiverBank || '';
+
+      this.logger.log(`[SLIP DATA] Building slip data: senderBank=${senderBankName}, receiverBank=${receiverBankName}, receiverAccount=${receiverAccountNormalized}`);
+
       return {
         ...data,
+        // Ensure consistent field naming
+        receiverAccount: receiverAccountNormalized,
+        receiverAccountNumber: receiverAccountNormalized,
+        // Add proper bank names
+        senderBankName: senderBankName,
+        receiverBankName: receiverBankName,
+        // Bank logos
         senderBankLogoUrl: senderLogoUrl,
         receiverBankLogoUrl: receiverLogoUrl,
       };
