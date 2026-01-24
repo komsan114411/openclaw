@@ -14,7 +14,7 @@ import { PageLoading } from '@/components/ui/Loading';
 import { Modal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
 
-type TabType = 'infrastructure' | 'financials' | 'access';
+type TabType = 'infrastructure' | 'financials' | 'access' | 'branding';
 
 interface SystemSettings {
   publicBaseUrl?: string;
@@ -48,6 +48,16 @@ interface SystemSettings {
   quotaWarningEnabled?: boolean;
   quotaWarningThreshold?: number;
   duplicateRefundEnabled?: boolean;
+  // Slip Branding settings
+  slipBrandName?: string;
+  slipVerificationText?: string;
+  slipFooterMessage?: string;
+  slipShowPromptPayLogo?: boolean;
+  slipBrandLogoUrl?: string;
+  slipSuccessColor?: string;
+  slipDuplicateColor?: string;
+  slipErrorColor?: string;
+  slipAmountColor?: string;
 }
 
 interface BankAccountInfo {
@@ -133,6 +143,19 @@ export default function SettingsPage() {
     webhookRateLimitMessage: 'Too many requests, please try again later',
   });
 
+  // Slip Branding Settings
+  const [slipBrandingSettings, setSlipBrandingSettings] = useState({
+    slipBrandName: 'DooSlip',
+    slipVerificationText: 'สลิปจริง ตรวจสอบโดย DooSlip',
+    slipFooterMessage: 'ผู้ให้บริการเช็คสลิปอันดับ 1',
+    slipShowPromptPayLogo: true,
+    slipBrandLogoUrl: '',
+    slipSuccessColor: '#22C55E',
+    slipDuplicateColor: '#F59E0B',
+    slipErrorColor: '#EF4444',
+    slipAmountColor: '#1E3A5F',
+  });
+
   // Rate Limit Testing State
   const [rateLimitTestRunning, setRateLimitTestRunning] = useState(false);
   const [rateLimitTestResult, setRateLimitTestResult] = useState<any>(null);
@@ -193,6 +216,17 @@ export default function SettingsPage() {
         quotaWarningEnabled: data.quotaWarningEnabled ?? true,
         quotaWarningThreshold: data.quotaWarningThreshold ?? 10,
         duplicateRefundEnabled: data.duplicateRefundEnabled ?? true,
+      });
+      setSlipBrandingSettings({
+        slipBrandName: data.slipBrandName || 'DooSlip',
+        slipVerificationText: data.slipVerificationText || 'สลิปจริง ตรวจสอบโดย DooSlip',
+        slipFooterMessage: data.slipFooterMessage || 'ผู้ให้บริการเช็คสลิปอันดับ 1',
+        slipShowPromptPayLogo: data.slipShowPromptPayLogo ?? true,
+        slipBrandLogoUrl: data.slipBrandLogoUrl || '',
+        slipSuccessColor: data.slipSuccessColor || '#22C55E',
+        slipDuplicateColor: data.slipDuplicateColor || '#F59E0B',
+        slipErrorColor: data.slipErrorColor || '#EF4444',
+        slipAmountColor: data.slipAmountColor || '#1E3A5F',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -428,6 +462,7 @@ export default function SettingsPage() {
     { id: 'infrastructure', name: 'โครงสร้างหลัก', icon: '⚡' },
     { id: 'financials', name: 'การเงิน', icon: '💳' },
     { id: 'access', name: 'การเข้าถึง', icon: '🔐' },
+    { id: 'branding', name: 'รูปแบบสลิป', icon: '🎨' },
   ] as const;
 
   return (
@@ -1937,6 +1972,249 @@ export default function SettingsPage() {
                       className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
                       onClick={() => handleUpdate('access', accessControlSettings)}
                       isLoading={isSaving === 'access'}
+                    >
+                      บันทึกการตั้งค่า
+                    </Button>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'branding' && (
+              <motion.div
+                key="branding"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-10"
+              >
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-pink-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🎨</div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ข้อความใต้สลิป</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตั้งค่าข้อความแบรนด์และสีสลิป</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Brand Name & Verification Text */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          ชื่อแบรนด์
+                        </label>
+                        <Input
+                          value={slipBrandingSettings.slipBrandName}
+                          onChange={(e) => setSlipBrandingSettings({
+                            ...slipBrandingSettings,
+                            slipBrandName: e.target.value
+                          })}
+                          placeholder="DooSlip"
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                          hint="ชื่อที่แสดงใต้สลิป (เว้นว่างเพื่อไม่แสดง)"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          ข้อความตรวจสอบ
+                        </label>
+                        <Input
+                          value={slipBrandingSettings.slipVerificationText}
+                          onChange={(e) => setSlipBrandingSettings({
+                            ...slipBrandingSettings,
+                            slipVerificationText: e.target.value
+                          })}
+                          placeholder="สลิปจริง ตรวจสอบโดย DooSlip"
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                          hint="ข้อความหลักใต้สลิป (เว้นว่างเพื่อไม่แสดง)"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Footer Message */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        ข้อความท้าย
+                      </label>
+                      <Input
+                        value={slipBrandingSettings.slipFooterMessage}
+                        onChange={(e) => setSlipBrandingSettings({
+                          ...slipBrandingSettings,
+                          slipFooterMessage: e.target.value
+                        })}
+                        placeholder="ผู้ให้บริการเช็คสลิปอันดับ 1"
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        hint="ข้อความรองใต้สลิป (เว้นว่างเพื่อไม่แสดง)"
+                      />
+                    </div>
+
+                    {/* Brand Logo URL */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        URL โลโก้แบรนด์ (ไม่บังคับ)
+                      </label>
+                      <Input
+                        value={slipBrandingSettings.slipBrandLogoUrl}
+                        onChange={(e) => setSlipBrandingSettings({
+                          ...slipBrandingSettings,
+                          slipBrandLogoUrl: e.target.value
+                        })}
+                        placeholder="https://example.com/logo.png"
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono text-sm"
+                        hint="URL รูปภาพโลโก้ (ต้องขึ้นต้นด้วย https://)"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Colors Section */}
+                  <div className="mt-10 pt-8 border-t border-white/5">
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight mb-6">🎨 สีสลิป</h3>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          สีสำเร็จ
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={slipBrandingSettings.slipSuccessColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipSuccessColor: e.target.value
+                            })}
+                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                          />
+                          <Input
+                            value={slipBrandingSettings.slipSuccessColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipSuccessColor: e.target.value
+                            })}
+                            className="h-14 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          สีสลิปซ้ำ
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={slipBrandingSettings.slipDuplicateColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipDuplicateColor: e.target.value
+                            })}
+                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                          />
+                          <Input
+                            value={slipBrandingSettings.slipDuplicateColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipDuplicateColor: e.target.value
+                            })}
+                            className="h-14 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          สีผิดพลาด
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={slipBrandingSettings.slipErrorColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipErrorColor: e.target.value
+                            })}
+                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                          />
+                          <Input
+                            value={slipBrandingSettings.slipErrorColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipErrorColor: e.target.value
+                            })}
+                            className="h-14 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          สีจำนวนเงิน
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={slipBrandingSettings.slipAmountColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipAmountColor: e.target.value
+                            })}
+                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                          />
+                          <Input
+                            value={slipBrandingSettings.slipAmountColor}
+                            onChange={(e) => setSlipBrandingSettings({
+                              ...slipBrandingSettings,
+                              slipAmountColor: e.target.value
+                            })}
+                            className="h-14 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview Section */}
+                  <div className="mt-10 pt-8 border-t border-white/5">
+                    <h3 className="text-lg font-black text-white uppercase tracking-tight mb-6">👁️ ตัวอย่างข้อความใต้สลิป</h3>
+                    <div className="p-6 bg-white rounded-2xl">
+                      <div className="text-center space-y-1">
+                        <div className="border-t border-gray-200 pt-4">
+                          {slipBrandingSettings.slipVerificationText && (
+                            <p className="text-sm text-gray-600">{slipBrandingSettings.slipVerificationText}</p>
+                          )}
+                          {slipBrandingSettings.slipFooterMessage && (
+                            <p className="text-xs text-gray-400 mt-1">{slipBrandingSettings.slipFooterMessage}</p>
+                          )}
+                          {!slipBrandingSettings.slipVerificationText && !slipBrandingSettings.slipFooterMessage && (
+                            <p className="text-xs text-gray-400 italic">ไม่มีข้อความใต้สลิป</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="mt-10 pt-8 border-t border-white/5 flex justify-between items-center">
+                    <Button
+                      variant="ghost"
+                      className="text-slate-400 hover:text-white"
+                      onClick={() => setSlipBrandingSettings({
+                        slipBrandName: '',
+                        slipVerificationText: '',
+                        slipFooterMessage: '',
+                        slipShowPromptPayLogo: false,
+                        slipBrandLogoUrl: '',
+                        slipSuccessColor: '#22C55E',
+                        slipDuplicateColor: '#F59E0B',
+                        slipErrorColor: '#EF4444',
+                        slipAmountColor: '#1E3A5F',
+                      })}
+                    >
+                      ล้างข้อความทั้งหมด
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                      onClick={() => handleUpdate('branding', slipBrandingSettings)}
+                      isLoading={isSaving === 'branding'}
                     >
                       บันทึกการตั้งค่า
                     </Button>
