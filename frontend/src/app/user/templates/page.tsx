@@ -40,11 +40,10 @@ interface SlipTemplate {
   createdAt: string;
 }
 
+// Only show success and duplicate templates for users (error/not_found are system-managed)
 const TYPE_OPTIONS = [
   { value: 'success', label: 'ตรวจสอบสำเร็จ', icon: '✅', bgColor: 'bg-emerald-500/10', textColor: 'text-emerald-400' },
   { value: 'duplicate', label: 'สลิปซ้ำ', icon: '⚠️', bgColor: 'bg-amber-500/10', textColor: 'text-amber-400' },
-  { value: 'error', label: 'ผิดพลาด', icon: '❌', bgColor: 'bg-rose-500/10', textColor: 'text-rose-400' },
-  { value: 'not_found', label: 'ไม่พบข้อมูล', icon: '🔍', bgColor: 'bg-slate-500/10', textColor: 'text-slate-400' },
 ];
 
 // Sample data type
@@ -159,44 +158,6 @@ const MOCK_TEMPLATES: SlipTemplate[] = [
     showTime: true,
     showTransRef: true,
     showBankLogo: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: 'mock-error-1',
-    name: 'ข้อผิดพลาดระบบ',
-    description: 'แสดงเมื่อเกิดข้อผิดพลาดในการตรวจสอบ',
-    type: 'error',
-    isDefault: true,
-    isActive: true,
-    isGlobal: true,
-    primaryColor: '#ef4444',
-    headerText: 'เกิดข้อผิดพลาด',
-    footerText: 'กรุณาลองใหม่อีกครั้ง',
-    showAmount: false,
-    showSender: false,
-    showReceiver: false,
-    showDate: true,
-    showTime: true,
-    showTransRef: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: 'mock-not-found-1',
-    name: 'ไม่พบข้อมูลสลิป',
-    description: 'แสดงเมื่อไม่พบข้อมูลสลิปในระบบธนาคาร',
-    type: 'not_found',
-    isDefault: true,
-    isActive: true,
-    isGlobal: true,
-    primaryColor: '#64748b',
-    headerText: 'ไม่พบข้อมูลสลิปนี้',
-    footerText: 'กรุณาตรวจสอบสลิปอีกครั้ง',
-    showAmount: false,
-    showSender: false,
-    showReceiver: false,
-    showDate: false,
-    showTime: false,
-    showTransRef: true,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -587,14 +548,22 @@ function TemplatesContent() {
     }
   };
 
-  // Group templates by type
+  // Filter and group templates by type (only success and duplicate for users)
   const templatesByType = useMemo(() => {
-    return templates.reduce((acc, template) => {
-      if (!acc[template.type]) acc[template.type] = [];
-      acc[template.type].push(template);
-      return acc;
-    }, {} as Record<string, SlipTemplate[]>);
+    const allowedTypes = ['success', 'duplicate'];
+    return templates
+      .filter(t => allowedTypes.includes(t.type))
+      .reduce((acc, template) => {
+        if (!acc[template.type]) acc[template.type] = [];
+        acc[template.type].push(template);
+        return acc;
+      }, {} as Record<string, SlipTemplate[]>);
   }, [templates]);
+
+  // Count only filtered templates for display
+  const filteredTemplateCount = useMemo(() => {
+    return Object.values(templatesByType).reduce((sum, arr) => sum + arr.length, 0);
+  }, [templatesByType]);
 
   // Other LINE accounts (excluding current)
   const otherAccounts = allAccounts.filter(acc => acc._id !== accountId);
@@ -630,7 +599,7 @@ function TemplatesContent() {
             </div>
           </div>
           <Badge variant="indigo" className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1">
-            🎨 {templates.length} เทมเพลต
+            🎨 {filteredTemplateCount} เทมเพลต
           </Badge>
         </div>
 
@@ -806,7 +775,7 @@ function TemplatesContent() {
         })}
 
         {/* Empty State */}
-        {templates.length === 0 && (
+        {filteredTemplateCount === 0 && (
           <Card className="p-12">
             <EmptyState
               icon={
