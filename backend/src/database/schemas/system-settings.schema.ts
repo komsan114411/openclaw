@@ -233,6 +233,64 @@ export class SystemSettings {
   @Prop({ default: 1 })
   quotaReservationCleanupIntervalMinutes: number;
 
+  // ===============================
+  // Slip Branding Settings
+  // ===============================
+
+  /**
+   * Company/Brand name shown on slips
+   */
+  @Prop({ default: 'DooSlip' })
+  slipBrandName: string;
+
+  /**
+   * Verification text shown at bottom of slip
+   */
+  @Prop({ default: 'สลิปจริง ตรวจสอบโดย DooSlip' })
+  slipVerificationText: string;
+
+  /**
+   * Custom footer message
+   */
+  @Prop({ default: 'ผู้ให้บริการเช็คสลิปอันดับ 1' })
+  slipFooterMessage: string;
+
+  /**
+   * Show PromptPay logo at bottom
+   */
+  @Prop({ default: true })
+  slipShowPromptPayLogo: boolean;
+
+  /**
+   * Custom logo URL for slip branding
+   */
+  @Prop()
+  slipBrandLogoUrl: string;
+
+  /**
+   * Primary color for success slips (hex)
+   */
+  @Prop({ default: '#22C55E' })
+  slipSuccessColor: string;
+
+  /**
+   * Primary color for duplicate slips (hex)
+   */
+  @Prop({ default: '#F59E0B' })
+  slipDuplicateColor: string;
+
+  /**
+   * Primary color for error slips (hex)
+   */
+  @Prop({ default: '#EF4444' })
+  slipErrorColor: string;
+
+  /**
+   * Amount text color (hex)
+   */
+  @Prop({ default: '#1E3A5F' })
+  slipAmountColor: string;
+
   @Prop()
   updatedBy: string;
 }

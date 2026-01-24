@@ -8,6 +8,7 @@ import {
 } from '../database/schemas/slip-template.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { UserRole } from '../database/schemas/user.schema';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 export interface CreateTemplateDto {
   lineAccountId?: string;
@@ -222,6 +223,7 @@ export class SlipTemplatesService implements OnModuleInit {
   constructor(
     @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
+    private readonly systemSettingsService: SystemSettingsService,
   ) { }
 
   /**
@@ -815,7 +817,7 @@ export class SlipTemplatesService implements OnModuleInit {
   /**
    * Generate Flex Message from template and slip data
    */
-  generateFlexMessage(template: SlipTemplateDocument, slipData: SlipData): any {
+  async generateFlexMessage(template: SlipTemplateDocument, slipData: SlipData): Promise<any> {
     this.logger.log(`[FLEX] Generating flex message from template: ${template.name} (type: ${template.type})`);
     this.logger.log(`[FLEX] Template has flexTemplate: ${!!template.flexTemplate}, slipData keys: ${Object.keys(slipData).join(',')}`);
 
@@ -826,14 +828,28 @@ export class SlipTemplatesService implements OnModuleInit {
       return this.generateFallbackBubble(template.type, slipData);
     }
 
+    // Get branding settings
+    const settings = await this.systemSettingsService.getSettings();
+    const brandingSettings = {
+      brandName: settings?.slipBrandName || 'DooSlip',
+      verificationText: settings?.slipVerificationText || 'สลิปจริง ตรวจสอบโดย DooSlip',
+      footerMessage: settings?.slipFooterMessage || 'ผู้ให้บริการเช็คสลิปอันดับ 1',
+      showPromptPayLogo: settings?.slipShowPromptPayLogo ?? true,
+      brandLogoUrl: settings?.slipBrandLogoUrl,
+      amountColor: settings?.slipAmountColor || '#1E3A5F',
+      successColor: settings?.slipSuccessColor || '#22C55E',
+      duplicateColor: settings?.slipDuplicateColor || '#F59E0B',
+      errorColor: settings?.slipErrorColor || '#EF4444',
+    };
+
     if (template.flexTemplate) {
       this.logger.log(`[FLEX] Using custom flexTemplate`);
       return this.replaceVariables(template.flexTemplate, slipData);
     }
 
-    // Generate default flex message
-    this.logger.log(`[FLEX] Using generateDefaultFlexMessage`);
-    const result = this.generateDefaultFlexMessage(template, slipData);
+    // Generate default flex message with branding
+    this.logger.log(`[FLEX] Using generateDefaultFlexMessage with branding`);
+    const result = this.generateDefaultFlexMessage(template, slipData, brandingSettings);
     this.logger.log(`[FLEX] Generated bubble type: ${result?.type}`);
     return result;
   }
@@ -1041,7 +1057,7 @@ export class SlipTemplatesService implements OnModuleInit {
   /**
    * Preview template with sample data
    */
-  preview(template: SlipTemplateDocument): any {
+  async preview(template: SlipTemplateDocument): Promise<any> {
     const sampleData: SlipData = {
       amount: 1000,
       amountFormatted: '฿1,000.00',
@@ -1078,7 +1094,7 @@ export class SlipTemplatesService implements OnModuleInit {
     };
 
     return {
-      flex: this.generateFlexMessage(template, sampleData),
+      flex: await this.generateFlexMessage(template, sampleData),
       text: this.generateTextMessage(template, sampleData),
     };
   }
@@ -1551,7 +1567,21 @@ export class SlipTemplatesService implements OnModuleInit {
     });
   }
 
-  private generateDefaultFlexMessage(template: SlipTemplateDocument, data: SlipData): any {
+  private generateDefaultFlexMessage(
+    template: SlipTemplateDocument,
+    data: SlipData,
+    branding?: {
+      brandName: string;
+      verificationText: string;
+      footerMessage: string;
+      showPromptPayLogo: boolean;
+      brandLogoUrl?: string;
+      amountColor: string;
+      successColor: string;
+      duplicateColor: string;
+      errorColor: string;
+    }
+  ): any {
     // Get theme preset or use default based on template type
     const themeKey = template.themePreset ||
       (template.type === 'duplicate' ? 'duplicate' :
@@ -1563,11 +1593,11 @@ export class SlipTemplatesService implements OnModuleInit {
     const isNotFound = template.type === 'not_found';
     const isSuccess = template.type === 'success';
 
-    // Theme colors based on status
+    // Theme colors based on status - use branding colors if available
     const statusColors = {
-      success: { primary: '#10B981', bg: '#ECFDF5', headerBg: '#10B981', icon: '✓' },
-      duplicate: { primary: '#F59E0B', bg: '#FFFBEB', headerBg: '#F59E0B', icon: '!' },
-      error: { primary: '#EF4444', bg: '#FEF2F2', headerBg: '#EF4444', icon: '✕' },
+      success: { primary: branding?.successColor || '#22C55E', bg: '#ECFDF5', headerBg: branding?.successColor || '#22C55E', icon: '✓' },
+      duplicate: { primary: branding?.duplicateColor || '#F59E0B', bg: '#FFFBEB', headerBg: branding?.duplicateColor || '#F59E0B', icon: '!' },
+      error: { primary: branding?.errorColor || '#EF4444', bg: '#FEF2F2', headerBg: branding?.errorColor || '#EF4444', icon: '✕' },
       not_found: { primary: '#6B7280', bg: '#F9FAFB', headerBg: '#6B7280', icon: '?' },
     };
 
@@ -1577,12 +1607,13 @@ export class SlipTemplatesService implements OnModuleInit {
     // Override with template settings
     const primaryColor = template.primaryColor || colors.primary;
     const headerBgColor = template.headerBackgroundColor || colors.headerBg;
+    const amountTextColor = branding?.amountColor || '#1E3A5F';
 
     // Header text
     const headerText = template.headerText ||
       (isDuplicate ? 'สลิปซ้ำ' :
         isError ? 'ตรวจสอบไม่สำเร็จ' :
-          isNotFound ? 'ไม่พบข้อมูล' : 'ตรวจสอบสำเร็จ');
+          isNotFound ? 'ไม่พบข้อมูล' : 'สลิปถูกต้อง');
 
     const contents: any[] = [];
 
@@ -1653,38 +1684,30 @@ export class SlipTemplatesService implements OnModuleInit {
         contents: [
           {
             type: 'text',
-            text: 'จำนวนเงิน',
-            size: 'xs',
-            color: '#9CA3AF',
-            align: 'center',
-          },
-          {
-            type: 'text',
             text: data.amountFormatted,
             size: '3xl',
             weight: 'bold',
-            color: primaryColor,
+            color: amountTextColor,
             align: 'center',
-            margin: 'sm',
           },
-          // Date/Time under amount
+          // Date/Time under amount in Thai format
           (template.showDate || template.showTime) && (data.date || data.time)
             ? {
               type: 'text',
               text: [
                 template.showDate && data.date ? data.date : null,
                 template.showTime && data.time ? data.time : null,
-              ].filter(Boolean).join(' • ') || '',
-              size: 'xs',
-              color: '#9CA3AF',
+              ].filter(Boolean).join(', ') || '',
+              size: 'sm',
+              color: '#6B7280',
               align: 'center',
-              margin: 'md',
+              margin: 'sm',
             }
             : null,
         ].filter(Boolean),
         margin: 'xl',
-        paddingTop: '8px',
-        paddingBottom: '8px',
+        paddingTop: '12px',
+        paddingBottom: '12px',
       });
     }
 
@@ -1927,6 +1950,50 @@ export class SlipTemplatesService implements OnModuleInit {
           paddingAll: '12px',
         });
       }
+    }
+
+    // ==================== BRANDING FOOTER ====================
+    if (branding) {
+      const brandingContents: any[] = [];
+
+      // Separator line
+      brandingContents.push({
+        type: 'separator',
+        color: '#E5E7EB',
+      });
+
+      // Verification text with brand name
+      brandingContents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: branding.verificationText,
+            size: 'xs',
+            color: '#6B7280',
+            align: 'center',
+            wrap: true,
+          },
+          {
+            type: 'text',
+            text: branding.footerMessage,
+            size: 'xxs',
+            color: '#9CA3AF',
+            align: 'center',
+            margin: 'xs',
+          },
+        ],
+        margin: 'lg',
+        paddingTop: '8px',
+      });
+
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: brandingContents,
+        margin: 'xl',
+      });
     }
 
     // ==================== RETURN BUBBLE ====================

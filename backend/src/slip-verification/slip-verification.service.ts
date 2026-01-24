@@ -896,7 +896,7 @@ export class SlipVerificationService {
       const slipData = await buildSlipData(data);
       this.logger.log(`[TEMPLATE] SlipData for render: amount=${slipData.amountFormatted}, sender=${slipData.senderName}, receiver=${slipData.receiverName}`);
 
-      const bubble = this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
+      const bubble = await this.slipTemplatesService.generateFlexMessage(template as any, slipData as any);
 
       // Validate bubble structure
       if (!bubble || !bubble.type || bubble.type !== 'bubble') {

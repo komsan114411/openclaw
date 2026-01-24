@@ -4,6 +4,7 @@ import { SlipTemplatesController, AdminSlipTemplatesController, PublicSlipTempla
 import { SlipTemplatesService } from './slip-templates.service';
 import { SlipTemplate, SlipTemplateSchema } from '../database/schemas/slip-template.schema';
 import { LineAccount, LineAccountSchema } from '../database/schemas/line-account.schema';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { LineAccount, LineAccountSchema } from '../database/schemas/line-account
       { name: SlipTemplate.name, schema: SlipTemplateSchema },
       { name: LineAccount.name, schema: LineAccountSchema },
     ]),
+    SystemSettingsModule,
     // AuthModule is @Global() - no need to import explicitly
   ],
   controllers: [PublicSlipTemplatesController, SlipTemplatesController, AdminSlipTemplatesController],

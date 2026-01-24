@@ -134,7 +134,7 @@ export class AdminSlipTemplatesController {
   @Roles(UserRole.ADMIN)
   async previewGlobalTemplate(@Param('templateId') templateId: string) {
     const template = await this.slipTemplatesService.getById(templateId);
-    const preview = this.slipTemplatesService.preview(template);
+    const preview = await this.slipTemplatesService.preview(template);
     return { success: true, preview };
   }
 
@@ -342,7 +342,7 @@ export class SlipTemplatesController {
   ) {
     await this.slipTemplatesService.ensureAccountAccess(accountId, user);
     const template = await this.slipTemplatesService.getById(templateId);
-    const preview = this.slipTemplatesService.preview(template);
+    const preview = await this.slipTemplatesService.preview(template);
     return { success: true, preview };
   }
 
