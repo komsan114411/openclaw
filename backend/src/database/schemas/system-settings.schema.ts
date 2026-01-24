@@ -268,6 +268,24 @@ export class SystemSettings {
   slipBrandLogoUrl: string;
 
   /**
+   * Custom logo as base64 (uploaded)
+   */
+  @Prop()
+  slipBrandLogoBase64: string;
+
+  /**
+   * Button text for slip footer (optional)
+   */
+  @Prop()
+  slipBrandButtonText: string;
+
+  /**
+   * Button URL for slip footer (must be https:// or tel:)
+   */
+  @Prop()
+  slipBrandButtonUrl: string;
+
+  /**
    * Primary color for success slips (hex)
    */
   @Prop({ default: '#22C55E' })

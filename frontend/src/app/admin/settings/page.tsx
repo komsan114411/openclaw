@@ -54,6 +54,9 @@ interface SystemSettings {
   slipFooterMessage?: string;
   slipShowPromptPayLogo?: boolean;
   slipBrandLogoUrl?: string;
+  slipBrandLogoBase64?: string;
+  slipBrandButtonText?: string;
+  slipBrandButtonUrl?: string;
   slipSuccessColor?: string;
   slipDuplicateColor?: string;
   slipErrorColor?: string;
@@ -145,11 +148,14 @@ export default function SettingsPage() {
 
   // Slip Branding Settings
   const [slipBrandingSettings, setSlipBrandingSettings] = useState({
-    slipBrandName: 'DooSlip',
-    slipVerificationText: 'สลิปจริง ตรวจสอบโดย DooSlip',
-    slipFooterMessage: 'ผู้ให้บริการเช็คสลิปอันดับ 1',
-    slipShowPromptPayLogo: true,
+    slipBrandName: '',
+    slipVerificationText: '',
+    slipFooterMessage: '',
+    slipShowPromptPayLogo: false,
     slipBrandLogoUrl: '',
+    slipBrandLogoBase64: '',
+    slipBrandButtonText: '',
+    slipBrandButtonUrl: '',
     slipSuccessColor: '#22C55E',
     slipDuplicateColor: '#F59E0B',
     slipErrorColor: '#EF4444',
@@ -218,11 +224,15 @@ export default function SettingsPage() {
         duplicateRefundEnabled: data.duplicateRefundEnabled ?? true,
       });
       setSlipBrandingSettings({
-        slipBrandName: data.slipBrandName || 'DooSlip',
-        slipVerificationText: data.slipVerificationText || 'สลิปจริง ตรวจสอบโดย DooSlip',
-        slipFooterMessage: data.slipFooterMessage || 'ผู้ให้บริการเช็คสลิปอันดับ 1',
-        slipShowPromptPayLogo: data.slipShowPromptPayLogo ?? true,
+        // Use nullish coalescing - empty string is valid (means no text)
+        slipBrandName: data.slipBrandName ?? '',
+        slipVerificationText: data.slipVerificationText ?? '',
+        slipFooterMessage: data.slipFooterMessage ?? '',
+        slipShowPromptPayLogo: data.slipShowPromptPayLogo ?? false,
         slipBrandLogoUrl: data.slipBrandLogoUrl || '',
+        slipBrandLogoBase64: data.slipBrandLogoBase64 || '',
+        slipBrandButtonText: data.slipBrandButtonText || '',
+        slipBrandButtonUrl: data.slipBrandButtonUrl || '',
         slipSuccessColor: data.slipSuccessColor || '#22C55E',
         slipDuplicateColor: data.slipDuplicateColor || '#F59E0B',
         slipErrorColor: data.slipErrorColor || '#EF4444',
@@ -2049,21 +2059,102 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    {/* Brand Logo URL */}
+                    {/* Brand Logo Upload */}
                     <div>
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                        URL โลโก้แบรนด์ (ไม่บังคับ)
+                        โลโก้แบรนด์ (ไม่บังคับ)
                       </label>
-                      <Input
-                        value={slipBrandingSettings.slipBrandLogoUrl}
-                        onChange={(e) => setSlipBrandingSettings({
-                          ...slipBrandingSettings,
-                          slipBrandLogoUrl: e.target.value
-                        })}
-                        placeholder="https://example.com/logo.png"
-                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono text-sm"
-                        hint="URL รูปภาพโลโก้ (ต้องขึ้นต้นด้วย https://)"
-                      />
+                      <div className="flex items-center gap-4">
+                        {/* Preview */}
+                        <div className="w-20 h-20 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {slipBrandingSettings.slipBrandLogoBase64 ? (
+                            <img
+                              src={slipBrandingSettings.slipBrandLogoBase64}
+                              alt="Logo"
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <span className="text-2xl text-slate-500">🖼️</span>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 500 * 1024) {
+                                  toast.error('ไฟล์ต้องมีขนาดไม่เกิน 500KB');
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  setSlipBrandingSettings({
+                                    ...slipBrandingSettings,
+                                    slipBrandLogoBase64: event.target?.result as string,
+                                  });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            id="logo-upload"
+                          />
+                          <label
+                            htmlFor="logo-upload"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer transition-colors text-sm text-white"
+                          >
+                            📤 อัปโหลดโลโก้
+                          </label>
+                          {slipBrandingSettings.slipBrandLogoBase64 && (
+                            <button
+                              onClick={() => setSlipBrandingSettings({
+                                ...slipBrandingSettings,
+                                slipBrandLogoBase64: '',
+                              })}
+                              className="ml-2 text-xs text-rose-400 hover:text-rose-300"
+                            >
+                              ลบโลโก้
+                            </button>
+                          )}
+                          <p className="text-[10px] text-slate-500">PNG, JPG, WEBP (ไม่เกิน 500KB)</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Button Settings */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          ข้อความปุ่ม (ไม่บังคับ)
+                        </label>
+                        <Input
+                          value={slipBrandingSettings.slipBrandButtonText}
+                          onChange={(e) => setSlipBrandingSettings({
+                            ...slipBrandingSettings,
+                            slipBrandButtonText: e.target.value
+                          })}
+                          placeholder="ติดต่อเรา"
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                          hint="ข้อความที่แสดงบนปุ่ม"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                          ลิงก์ปุ่ม
+                        </label>
+                        <Input
+                          value={slipBrandingSettings.slipBrandButtonUrl}
+                          onChange={(e) => setSlipBrandingSettings({
+                            ...slipBrandingSettings,
+                            slipBrandButtonUrl: e.target.value
+                          })}
+                          placeholder="https://line.me/ti/p/@yourlineid หรือ tel:021234567"
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono text-sm"
+                          hint="ต้องขึ้นต้นด้วย https:// หรือ tel:"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -2174,7 +2265,7 @@ export default function SettingsPage() {
                   <div className="mt-10 pt-8 border-t border-white/5">
                     <h3 className="text-lg font-black text-white uppercase tracking-tight mb-6">👁️ ตัวอย่างข้อความใต้สลิป</h3>
                     <div className="p-6 bg-white rounded-2xl">
-                      <div className="text-center space-y-1">
+                      <div className="text-center space-y-2">
                         <div className="border-t border-gray-200 pt-4">
                           {slipBrandingSettings.slipVerificationText && (
                             <p className="text-sm text-gray-600">{slipBrandingSettings.slipVerificationText}</p>
@@ -2182,7 +2273,17 @@ export default function SettingsPage() {
                           {slipBrandingSettings.slipFooterMessage && (
                             <p className="text-xs text-gray-400 mt-1">{slipBrandingSettings.slipFooterMessage}</p>
                           )}
-                          {!slipBrandingSettings.slipVerificationText && !slipBrandingSettings.slipFooterMessage && (
+                          {slipBrandingSettings.slipBrandButtonText && slipBrandingSettings.slipBrandButtonUrl && (
+                            <div className="mt-3">
+                              <span
+                                className="inline-block px-4 py-2 text-white text-sm font-semibold rounded-lg"
+                                style={{ backgroundColor: slipBrandingSettings.slipSuccessColor }}
+                              >
+                                {slipBrandingSettings.slipBrandButtonText}
+                              </span>
+                            </div>
+                          )}
+                          {!slipBrandingSettings.slipVerificationText && !slipBrandingSettings.slipFooterMessage && !slipBrandingSettings.slipBrandButtonText && (
                             <p className="text-xs text-gray-400 italic">ไม่มีข้อความใต้สลิป</p>
                           )}
                         </div>
@@ -2201,6 +2302,9 @@ export default function SettingsPage() {
                         slipFooterMessage: '',
                         slipShowPromptPayLogo: false,
                         slipBrandLogoUrl: '',
+                        slipBrandLogoBase64: '',
+                        slipBrandButtonText: '',
+                        slipBrandButtonUrl: '',
                         slipSuccessColor: '#22C55E',
                         slipDuplicateColor: '#F59E0B',
                         slipErrorColor: '#EF4444',

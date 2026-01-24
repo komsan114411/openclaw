@@ -828,14 +828,18 @@ export class SlipTemplatesService implements OnModuleInit {
       return this.generateFallbackBubble(template.type, slipData);
     }
 
-    // Get branding settings
+    // Get branding settings - respect empty values (don't fallback if explicitly cleared)
     const settings = await this.systemSettingsService.getSettings();
     const brandingSettings = {
-      brandName: settings?.slipBrandName || 'DooSlip',
-      verificationText: settings?.slipVerificationText || 'สลิปจริง ตรวจสอบโดย DooSlip',
-      footerMessage: settings?.slipFooterMessage || 'ผู้ให้บริการเช็คสลิปอันดับ 1',
-      showPromptPayLogo: settings?.slipShowPromptPayLogo ?? true,
-      brandLogoUrl: settings?.slipBrandLogoUrl,
+      // Use nullish coalescing for undefined only, empty string means "no text"
+      brandName: settings?.slipBrandName ?? '',
+      verificationText: settings?.slipVerificationText ?? '',
+      footerMessage: settings?.slipFooterMessage ?? '',
+      showPromptPayLogo: settings?.slipShowPromptPayLogo ?? false,
+      brandLogoUrl: settings?.slipBrandLogoUrl || '',
+      brandLogoBase64: settings?.slipBrandLogoBase64 || '',
+      buttonText: settings?.slipBrandButtonText || '',
+      buttonUrl: settings?.slipBrandButtonUrl || '',
       amountColor: settings?.slipAmountColor || '#1E3A5F',
       successColor: settings?.slipSuccessColor || '#22C55E',
       duplicateColor: settings?.slipDuplicateColor || '#F59E0B',
@@ -1590,6 +1594,9 @@ export class SlipTemplatesService implements OnModuleInit {
       footerMessage: string;
       showPromptPayLogo: boolean;
       brandLogoUrl?: string;
+      brandLogoBase64?: string;
+      buttonText?: string;
+      buttonUrl?: string;
       amountColor: string;
       successColor: string;
       duplicateColor: string;
@@ -1940,7 +1947,14 @@ export class SlipTemplatesService implements OnModuleInit {
     }
 
     // ==================== BRANDING FOOTER ====================
-    if (branding) {
+    // Only show branding if there's any content to display
+    const hasBrandingContent = branding && (
+      branding.verificationText ||
+      branding.footerMessage ||
+      (branding.buttonText && branding.buttonUrl)
+    );
+
+    if (hasBrandingContent) {
       const brandingContents: any[] = [];
 
       // Separator line
@@ -1949,31 +1963,67 @@ export class SlipTemplatesService implements OnModuleInit {
         color: '#E5E7EB',
       });
 
-      // Verification text with brand name
-      brandingContents.push({
-        type: 'box',
-        layout: 'vertical',
-        contents: [
-          {
-            type: 'text',
-            text: branding.verificationText,
-            size: 'xs',
-            color: '#6B7280',
-            align: 'center',
-            wrap: true,
-          },
-          {
-            type: 'text',
-            text: branding.footerMessage,
-            size: 'xxs',
-            color: '#9CA3AF',
-            align: 'center',
-            margin: 'xs',
-          },
-        ],
-        margin: 'lg',
-        paddingTop: '8px',
-      });
+      // Text contents (only if there's text)
+      const textContents: any[] = [];
+
+      if (branding.verificationText) {
+        textContents.push({
+          type: 'text',
+          text: branding.verificationText,
+          size: 'xs',
+          color: '#6B7280',
+          align: 'center',
+          wrap: true,
+        });
+      }
+
+      if (branding.footerMessage) {
+        textContents.push({
+          type: 'text',
+          text: branding.footerMessage,
+          size: 'xxs',
+          color: '#9CA3AF',
+          align: 'center',
+          margin: branding.verificationText ? 'xs' : 'none',
+        });
+      }
+
+      if (textContents.length > 0) {
+        brandingContents.push({
+          type: 'box',
+          layout: 'vertical',
+          contents: textContents,
+          margin: 'lg',
+          paddingTop: '8px',
+        });
+      }
+
+      // Button (only if both text and URL are provided)
+      if (branding.buttonText && branding.buttonUrl) {
+        const trimmedUrl = branding.buttonUrl.trim();
+        // SECURITY: Only allow https:// and tel: protocols
+        if (trimmedUrl.startsWith('https://') || trimmedUrl.startsWith('tel:')) {
+          brandingContents.push({
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'button',
+                action: {
+                  type: 'uri',
+                  label: branding.buttonText,
+                  uri: trimmedUrl,
+                },
+                style: 'primary',
+                color: primaryColor,
+                height: 'sm',
+              },
+            ],
+            margin: 'md',
+            paddingTop: '4px',
+          });
+        }
+      }
 
       contents.push({
         type: 'box',
