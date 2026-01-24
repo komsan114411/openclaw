@@ -856,7 +856,7 @@ export class SlipTemplatesService implements OnModuleInit {
 
   /**
    * Generate fallback bubble when template is corrupted
-   * Uses the same professional design as the main template
+   * Uses compact design matching the main template
    */
   private generateFallbackBubble(type: TemplateType, slipData: SlipData): any {
     const configs = {
@@ -870,7 +870,7 @@ export class SlipTemplatesService implements OnModuleInit {
 
     const contents: any[] = [];
 
-    // Header
+    // Header (compact)
     contents.push({
       type: 'box',
       layout: 'horizontal',
@@ -883,15 +883,15 @@ export class SlipTemplatesService implements OnModuleInit {
               type: 'text',
               text: config.icon,
               color: '#FFFFFF',
-              size: 'xl',
+              size: 'lg',
               weight: 'bold',
               align: 'center',
             },
           ],
-          width: '44px',
-          height: '44px',
+          width: '36px',
+          height: '36px',
           backgroundColor: config.color,
-          cornerRadius: '22px',
+          cornerRadius: '18px',
           justifyContent: 'center',
           alignItems: 'center',
         },
@@ -903,27 +903,27 @@ export class SlipTemplatesService implements OnModuleInit {
               type: 'text',
               text: config.text,
               weight: 'bold',
-              size: 'lg',
+              size: 'md',
               color: '#1F2937',
             },
             {
               type: 'text',
               text: config.subtext,
-              size: 'xs',
+              size: 'xxs',
               color: '#6B7280',
               margin: 'xs',
             },
           ],
-          margin: 'lg',
+          margin: 'md',
           flex: 1,
         },
       ],
-      paddingAll: '16px',
+      paddingAll: '12px',
       backgroundColor: config.bg,
-      cornerRadius: '16px',
+      cornerRadius: '12px',
     });
 
-    // Amount
+    // Amount (compact)
     if (slipData.amountFormatted) {
       contents.push({
         type: 'box',
@@ -931,26 +931,20 @@ export class SlipTemplatesService implements OnModuleInit {
         contents: [
           {
             type: 'text',
-            text: 'จำนวนเงิน',
-            size: 'xs',
-            color: '#9CA3AF',
-            align: 'center',
-          },
-          {
-            type: 'text',
             text: slipData.amountFormatted,
-            size: '3xl',
+            size: 'xxl',
             weight: 'bold',
             color: config.color,
             align: 'center',
-            margin: 'sm',
           },
         ],
-        margin: 'xl',
+        margin: 'md',
+        paddingTop: '4px',
+        paddingBottom: '4px',
       });
     }
 
-    // Sender
+    // Sender (compact)
     if (slipData.senderName) {
       contents.push({
         type: 'box',
@@ -959,34 +953,54 @@ export class SlipTemplatesService implements OnModuleInit {
           {
             type: 'text',
             text: '↑ ผู้โอน',
-            size: 'xs',
+            size: 'xxs',
             color: '#3B82F6',
             weight: 'bold',
           },
           {
             type: 'text',
             text: slipData.senderName,
-            size: 'md',
+            size: 'sm',
             color: '#1F2937',
             weight: 'bold',
-            margin: 'sm',
+            margin: 'xs',
           },
           slipData.senderBank ? {
             type: 'text',
             text: slipData.senderBank,
-            size: 'xs',
+            size: 'xxs',
             color: '#6B7280',
             margin: 'xs',
           } : null,
         ].filter(Boolean),
-        margin: 'lg',
-        paddingAll: '16px',
+        margin: 'sm',
+        paddingAll: '10px',
         backgroundColor: '#EFF6FF',
-        cornerRadius: '16px',
+        cornerRadius: '10px',
       });
     }
 
-    // Receiver
+    // Arrow separator
+    if (slipData.senderName && slipData.receiverName) {
+      contents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '↓',
+            size: 'sm',
+            color: '#D1D5DB',
+            align: 'center',
+          },
+        ],
+        margin: 'xs',
+        paddingTop: '2px',
+        paddingBottom: '2px',
+      });
+    }
+
+    // Receiver (compact)
     if (slipData.receiverName) {
       const receiverAccount = slipData.receiverAccount || slipData.receiverAccountNumber || '';
       contents.push({
@@ -996,37 +1010,37 @@ export class SlipTemplatesService implements OnModuleInit {
           {
             type: 'text',
             text: '↓ ผู้รับ',
-            size: 'xs',
+            size: 'xxs',
             color: '#10B981',
             weight: 'bold',
           },
           {
             type: 'text',
             text: slipData.receiverName,
-            size: 'md',
+            size: 'sm',
             color: '#1F2937',
             weight: 'bold',
-            margin: 'sm',
+            margin: 'xs',
           },
           slipData.receiverBank ? {
             type: 'text',
             text: slipData.receiverBank,
-            size: 'xs',
+            size: 'xxs',
             color: '#6B7280',
             margin: 'xs',
           } : null,
           receiverAccount ? {
             type: 'text',
             text: `เลขบัญชี: ${receiverAccount}`,
-            size: 'xs',
+            size: 'xxs',
             color: '#9CA3AF',
             margin: 'xs',
           } : null,
         ].filter(Boolean),
-        margin: 'md',
-        paddingAll: '16px',
+        margin: 'xs',
+        paddingAll: '10px',
         backgroundColor: '#ECFDF5',
-        cornerRadius: '16px',
+        cornerRadius: '10px',
       });
     }
 
@@ -1036,7 +1050,7 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'box',
         layout: 'vertical',
         contents,
-        paddingAll: '20px',
+        paddingAll: '14px',
         backgroundColor: '#FFFFFF',
       },
     };
@@ -1617,12 +1631,12 @@ export class SlipTemplatesService implements OnModuleInit {
 
     const contents: any[] = [];
 
-    // ==================== PROFESSIONAL HEADER ====================
+    // ==================== COMPACT HEADER ====================
     contents.push({
       type: 'box',
       layout: 'horizontal',
       contents: [
-        // Status Icon Circle
+        // Status Icon Circle (smaller)
         {
           type: 'box',
           layout: 'vertical',
@@ -1631,15 +1645,15 @@ export class SlipTemplatesService implements OnModuleInit {
               type: 'text',
               text: colors.icon,
               color: '#FFFFFF',
-              size: 'xl',
+              size: 'lg',
               weight: 'bold',
               align: 'center',
             },
           ],
-          width: '44px',
-          height: '44px',
+          width: '36px',
+          height: '36px',
           backgroundColor: primaryColor,
-          cornerRadius: '22px',
+          cornerRadius: '18px',
           justifyContent: 'center',
           alignItems: 'center',
         },
@@ -1652,7 +1666,7 @@ export class SlipTemplatesService implements OnModuleInit {
               type: 'text',
               text: headerText,
               weight: 'bold',
-              size: 'lg',
+              size: 'md',
               color: '#1F2937',
             },
             {
@@ -1660,21 +1674,21 @@ export class SlipTemplatesService implements OnModuleInit {
               text: isDuplicate ? 'สลิปนี้เคยถูกใช้แล้ว' :
                 isError ? 'กรุณาลองใหม่อีกครั้ง' :
                   isNotFound ? 'ไม่พบข้อมูลในระบบ' : 'ข้อมูลถูกต้อง',
-              size: 'xs',
+              size: 'xxs',
               color: '#6B7280',
               margin: 'xs',
             },
           ],
-          margin: 'lg',
+          margin: 'md',
           flex: 1,
         },
       ],
-      paddingAll: '16px',
+      paddingAll: '12px',
       backgroundColor: colors.bg,
-      cornerRadius: '16px',
+      cornerRadius: '12px',
     });
 
-    // ==================== AMOUNT SECTION (Large Display) ====================
+    // ==================== AMOUNT SECTION (Compact) ====================
     const hasNoData = !data.amountFormatted && !data.senderName && !data.receiverName;
 
     if (!hasNoData && template.showAmount && data.amountFormatted) {
@@ -1685,12 +1699,12 @@ export class SlipTemplatesService implements OnModuleInit {
           {
             type: 'text',
             text: data.amountFormatted,
-            size: '3xl',
+            size: 'xxl',
             weight: 'bold',
             color: amountTextColor,
             align: 'center',
           },
-          // Date/Time under amount in Thai format
+          // Date/Time under amount
           (template.showDate || template.showTime) && (data.date || data.time)
             ? {
               type: 'text',
@@ -1698,16 +1712,16 @@ export class SlipTemplatesService implements OnModuleInit {
                 template.showDate && data.date ? data.date : null,
                 template.showTime && data.time ? data.time : null,
               ].filter(Boolean).join(', ') || '',
-              size: 'sm',
+              size: 'xs',
               color: '#6B7280',
               align: 'center',
-              margin: 'sm',
+              margin: 'xs',
             }
             : null,
         ].filter(Boolean),
-        margin: 'xl',
-        paddingTop: '12px',
-        paddingBottom: '12px',
+        margin: 'md',
+        paddingTop: '4px',
+        paddingBottom: '4px',
       });
     }
 
@@ -1716,7 +1730,7 @@ export class SlipTemplatesService implements OnModuleInit {
       const senderAccount = data.senderAccount || '';
       const senderBankDisplay = (data as any).senderBankName || data.senderBank || '';
 
-      contents.push(this.createModernBankCard(
+      contents.push(this.createCompactBankCard(
         'sender',
         'ผู้โอน',
         data.senderName || '-',
@@ -1724,11 +1738,11 @@ export class SlipTemplatesService implements OnModuleInit {
         senderAccount,
         data.senderBankLogoUrl,
         template.showBankLogo,
-        '#3B82F6', // Blue for sender
+        '#3B82F6',
       ));
     }
 
-    // ==================== ARROW SEPARATOR ====================
+    // ==================== ARROW SEPARATOR (smaller) ====================
     if (template.showSender && template.showReceiver && (data.senderName || data.receiverName)) {
       contents.push({
         type: 'box',
@@ -1737,24 +1751,25 @@ export class SlipTemplatesService implements OnModuleInit {
           {
             type: 'text',
             text: '↓',
-            size: 'lg',
+            size: 'sm',
             color: '#D1D5DB',
             align: 'center',
           },
         ],
-        margin: 'sm',
+        margin: 'xs',
+        paddingTop: '2px',
+        paddingBottom: '2px',
       });
     }
 
     // ==================== RECEIVER CARD ====================
     if (template.showReceiver && (data.receiverName || isDuplicate)) {
-      // IMPORTANT: Use normalized receiverAccount field
       const receiverAccount = data.receiverAccount || data.receiverAccountNumber || data.receiverProxyAccount || '';
       const receiverBankDisplay = (data as any).receiverBankName || data.receiverBank || '';
 
       this.logger.log(`[TEMPLATE] Receiver data: name=${data.receiverName}, bank=${receiverBankDisplay}, account=${receiverAccount}`);
 
-      contents.push(this.createModernBankCard(
+      contents.push(this.createCompactBankCard(
         'receiver',
         'ผู้รับ',
         data.receiverName || '-',
@@ -1762,7 +1777,7 @@ export class SlipTemplatesService implements OnModuleInit {
         receiverAccount,
         data.receiverBankLogoUrl,
         template.showBankLogo,
-        '#10B981', // Green for receiver
+        '#10B981',
       ));
     }
 
@@ -1774,93 +1789,65 @@ export class SlipTemplatesService implements OnModuleInit {
         contents: [
           {
             type: 'text',
-            text: 'เลขอ้างอิง',
-            size: 'xs',
+            text: 'Ref:',
+            size: 'xxs',
             color: '#9CA3AF',
-            flex: 2,
+            flex: 1,
           },
           {
             type: 'text',
             text: data.transRef,
-            size: 'xs',
-            color: '#4B5563',
-            flex: 4,
+            size: 'xxs',
+            color: '#6B7280',
+            flex: 5,
             align: 'end',
-            wrap: true,
           },
         ],
-        margin: 'lg',
-        paddingAll: '12px',
+        margin: 'md',
+        paddingAll: '8px',
         backgroundColor: '#F9FAFB',
-        cornerRadius: '8px',
+        cornerRadius: '6px',
       });
     }
 
     // Extended fields
     const extraRows: any[] = [];
     if ((template as any).showLocalAmount && data.localAmountFormatted) {
-      extraRows.push(this.createInfoRow('จำนวนเงิน (สกุลท้องถิ่น)', `${data.localAmountFormatted} ${data.localCurrency || ''}`));
+      extraRows.push(this.createCompactInfoRow('สกุลท้องถิ่น', `${data.localAmountFormatted} ${data.localCurrency || ''}`));
     }
-    if (template.showCountryCode) extraRows.push(this.createInfoRow('ประเทศ', data.countryCode || '-'));
-    if (template.showFee) extraRows.push(this.createInfoRow('ค่าธรรมเนียม', data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-')));
+    if (template.showCountryCode) extraRows.push(this.createCompactInfoRow('ประเทศ', data.countryCode || '-'));
+    if (template.showFee) extraRows.push(this.createCompactInfoRow('ค่าธรรมเนียม', data.feeFormatted || (data.fee !== undefined ? String(data.fee) : '-')));
     if (template.showRefs) {
-      if (data.ref1) extraRows.push(this.createInfoRow('Ref1', data.ref1));
-      if (data.ref2) extraRows.push(this.createInfoRow('Ref2', data.ref2));
-      if (data.ref3) extraRows.push(this.createInfoRow('Ref3', data.ref3));
+      if (data.ref1) extraRows.push(this.createCompactInfoRow('Ref1', data.ref1));
+      if (data.ref2) extraRows.push(this.createCompactInfoRow('Ref2', data.ref2));
+      if (data.ref3) extraRows.push(this.createCompactInfoRow('Ref3', data.ref3));
     }
-    if (template.showSenderBankId) extraRows.push(this.createInfoRow('ธนาคารผู้โอน (ID)', data.senderBankId || '-'));
-    if (template.showReceiverBankId) extraRows.push(this.createInfoRow('ธนาคารผู้รับ (ID)', data.receiverBankId || '-'));
-    if (template.showPayload) extraRows.push(this.createInfoRow('Payload', (data.payload || '').toString().slice(0, 32) + ((data.payload && data.payload.length > 32) ? '…' : '') || '-'));
+    if (template.showSenderBankId) extraRows.push(this.createCompactInfoRow('ธ.ผู้โอน', data.senderBankId || '-'));
+    if (template.showReceiverBankId) extraRows.push(this.createCompactInfoRow('ธ.ผู้รับ', data.receiverBankId || '-'));
+    if (template.showPayload) extraRows.push(this.createCompactInfoRow('Payload', (data.payload || '').toString().slice(0, 20) + ((data.payload && data.payload.length > 20) ? '…' : '') || '-'));
 
-    // ==================== EXTRA DETAILS ====================
+    // ==================== EXTRA DETAILS (Compact) ====================
     if (extraRows.length > 0) {
       contents.push({
         type: 'box',
         layout: 'vertical',
-        contents: [
-          {
-            type: 'text',
-            text: 'รายละเอียดเพิ่มเติม',
-            size: 'xs',
-            weight: 'bold',
-            color: '#6B7280',
-          },
-          {
-            type: 'separator',
-            margin: 'md',
-            color: '#E5E7EB',
-          },
-          ...extraRows.map((r) => ({ ...r, margin: 'sm' })),
-        ],
-        margin: 'lg',
-        paddingAll: '16px',
+        contents: extraRows,
+        margin: 'md',
+        paddingAll: '8px',
         backgroundColor: '#F9FAFB',
-        cornerRadius: '12px',
+        cornerRadius: '8px',
       });
     }
 
-    // ==================== DUPLICATE WARNING BANNER ====================
+    // ==================== DUPLICATE WARNING (Compact) ====================
     if (data.isDuplicate && template.type === 'duplicate') {
       const warningContents: any[] = [
         {
-          type: 'box',
-          layout: 'horizontal',
-          contents: [
-            {
-              type: 'text',
-              text: '⚠️',
-              size: 'lg',
-            },
-            {
-              type: 'text',
-              text: 'สลิปนี้เคยถูกใช้แล้ว',
-              size: 'sm',
-              color: '#92400E',
-              weight: 'bold',
-              margin: 'sm',
-              flex: 1,
-            },
-          ],
+          type: 'text',
+          text: '⚠️ สลิปนี้เคยถูกใช้แล้ว',
+          size: 'xs',
+          color: '#92400E',
+          weight: 'bold',
         },
       ];
 
@@ -1868,9 +1855,9 @@ export class SlipTemplatesService implements OnModuleInit {
         warningContents.push({
           type: 'text',
           text: `ตรวจสอบช้า ${data.delayMinutes} นาที`,
-          size: 'xs',
+          size: 'xxs',
           color: '#B45309',
-          margin: 'sm',
+          margin: 'xs',
         });
       }
 
@@ -1888,10 +1875,10 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'box',
         layout: 'vertical',
         contents: warningContents,
-        margin: 'lg',
-        paddingAll: '14px',
+        margin: 'md',
+        paddingAll: '10px',
         backgroundColor: '#FEF3C7',
-        cornerRadius: '12px',
+        cornerRadius: '8px',
         borderWidth: '1px',
         borderColor: '#FCD34D',
       });
@@ -1946,8 +1933,8 @@ export class SlipTemplatesService implements OnModuleInit {
           type: 'box',
           layout: 'vertical',
           contents: footerContents,
-          margin: 'lg',
-          paddingAll: '12px',
+          margin: 'md',
+          paddingAll: '8px',
         });
       }
     }
@@ -1992,7 +1979,7 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'box',
         layout: 'vertical',
         contents: brandingContents,
-        margin: 'xl',
+        margin: 'lg',
       });
     }
 
@@ -2003,7 +1990,7 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'box',
         layout: 'vertical',
         contents,
-        paddingAll: '20px',
+        paddingAll: '14px',
         backgroundColor: '#FFFFFF',
       },
     };
@@ -2271,6 +2258,192 @@ export class SlipTemplatesService implements OnModuleInit {
         { type: 'text', text: label, size: 'sm', color: '#666666', flex: 2 },
         { type: 'text', text: value || '-', size: 'sm', color: '#333333', flex: 3, wrap: true },
       ],
+    };
+  }
+
+  /**
+   * Create a compact info row for extra details
+   */
+  private createCompactInfoRow(label: string, value: string): any {
+    return {
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        { type: 'text', text: label, size: 'xxs', color: '#9CA3AF', flex: 2 },
+        { type: 'text', text: value || '-', size: 'xxs', color: '#6B7280', flex: 3, wrap: true, align: 'end' },
+      ],
+      margin: 'xs',
+    };
+  }
+
+  /**
+   * Create a compact bank card with reduced padding
+   */
+  private createCompactBankCard(
+    type: 'sender' | 'receiver',
+    label: string,
+    name: string,
+    bankName: string,
+    accountNumber: string,
+    logoUrl?: string,
+    showLogo?: boolean,
+    accentColor?: string,
+  ): any {
+    const color = accentColor || (type === 'sender' ? '#3B82F6' : '#10B981');
+    const bgColor = type === 'sender' ? '#EFF6FF' : '#ECFDF5';
+
+    // Validate logo URL
+    const isValidLogoUrl = logoUrl &&
+      logoUrl.startsWith('https://') &&
+      logoUrl.length <= 2000;
+
+    const cardContents: any[] = [];
+
+    // Top row: Label with smaller icon
+    cardContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: type === 'sender' ? '↑' : '↓',
+              size: 'xxs',
+              color: '#FFFFFF',
+              align: 'center',
+            },
+          ],
+          width: '16px',
+          height: '16px',
+          backgroundColor: color,
+          cornerRadius: '8px',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        {
+          type: 'text',
+          text: label,
+          size: 'xxs',
+          color: color,
+          weight: 'bold',
+          margin: 'sm',
+        },
+      ],
+    });
+
+    // Main content row
+    const mainRowContents: any[] = [];
+
+    // Bank logo or placeholder (smaller)
+    if (showLogo && isValidLogoUrl) {
+      mainRowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'image',
+            url: logoUrl,
+            size: 'xxs',
+            aspectMode: 'cover',
+            aspectRatio: '1:1',
+          },
+        ],
+        width: '36px',
+        height: '36px',
+        cornerRadius: '8px',
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: '1px',
+        borderColor: '#E5E7EB',
+      });
+    } else {
+      // Placeholder with bank initials
+      const initials = bankName ? bankName.substring(0, 2) : '🏦';
+      mainRowContents.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: initials,
+            size: 'xs',
+            color: color,
+            weight: 'bold',
+            align: 'center',
+          },
+        ],
+        width: '36px',
+        height: '36px',
+        cornerRadius: '8px',
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: '1px',
+        borderColor: '#E5E7EB',
+      });
+    }
+
+    // Name and bank details (compact)
+    const detailsContents: any[] = [
+      {
+        type: 'text',
+        text: name || '-',
+        size: 'sm',
+        color: '#1F2937',
+        weight: 'bold',
+        wrap: true,
+      },
+    ];
+
+    // Bank name
+    if (bankName) {
+      detailsContents.push({
+        type: 'text',
+        text: bankName,
+        size: 'xxs',
+        color: '#6B7280',
+        margin: 'xs',
+      });
+    }
+
+    // Account number
+    if (accountNumber) {
+      detailsContents.push({
+        type: 'text',
+        text: `เลขบัญชี: ${accountNumber}`,
+        size: 'xxs',
+        color: '#9CA3AF',
+        margin: 'xs',
+      });
+    }
+
+    mainRowContents.push({
+      type: 'box',
+      layout: 'vertical',
+      contents: detailsContents,
+      flex: 1,
+      margin: 'sm',
+    });
+
+    cardContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: mainRowContents,
+      margin: 'sm',
+    });
+
+    return {
+      type: 'box',
+      layout: 'vertical',
+      contents: cardContents,
+      margin: 'sm',
+      paddingAll: '10px',
+      backgroundColor: bgColor,
+      cornerRadius: '10px',
     };
   }
 
