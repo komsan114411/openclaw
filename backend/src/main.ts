@@ -2,8 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import * as cookieParser from 'cookie-parser';
 import * as bodyParser from 'body-parser';
+import * as crypto from 'crypto';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -19,17 +21,30 @@ async function bootstrap() {
     app.use(bodyParser.json({ limit: '10mb' }));
     app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
+    // Correlation ID middleware for request tracking
+    app.use((req: any, res: any, next: any) => {
+      req.id = req.headers['x-request-id'] || crypto.randomUUID();
+      res.setHeader('x-request-id', req.id);
+      next();
+    });
 
-    // Enable CORS - Allow all origins
+    // Enable CORS with configurable origins
+    const corsOrigins = process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+      : true; // Allow all in development
+
     app.enableCors({
-      origin: true,
+      origin: corsOrigins,
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Request-Id'],
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     });
 
     // Cookie parser
     app.use(cookieParser());
+
+    // Global exception filter for structured error handling
+    app.useGlobalFilters(new GlobalExceptionFilter());
 
     // Global validation pipe
     app.setGlobalPrefix('api');

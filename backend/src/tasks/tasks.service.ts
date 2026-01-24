@@ -210,7 +210,10 @@ export class TasksService {
   /**
    * Log system health status every 30 minutes
    */
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  /**
+   * Health check every 5 minutes (more frequent for better monitoring)
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleHealthCheck() {
     const memoryUsage = process.memoryUsage();
     const heapUsed = Math.round(memoryUsage.heapUsed / 1024 / 1024);
@@ -218,9 +221,38 @@ export class TasksService {
     const rss = Math.round(memoryUsage.rss / 1024 / 1024);
     const uptime = Math.floor(process.uptime());
 
+    // Get Redis status and cache stats
+    const redisStatus = this.redisService.getStatus();
+    const cacheStats = this.redisService.getCacheStats();
+
+    // Check for warning conditions
+    const warnings: string[] = [];
+    const heapUsagePercent = (heapUsed / heapTotal) * 100;
+
+    if (heapUsagePercent > 85) {
+      warnings.push(`HIGH_MEMORY: ${heapUsagePercent.toFixed(1)}%`);
+    }
+    if (!redisStatus.connected) {
+      warnings.push(`REDIS_DOWN: ${redisStatus.downSince ? Math.round((Date.now() - redisStatus.downSince) / 1000) + 's' : 'unknown'}`);
+    }
+    if (cacheStats.utilizationPercent > 80) {
+      warnings.push(`CACHE_HIGH: ${cacheStats.utilizationPercent}%`);
+    }
+
+    const status = warnings.length > 0 ? 'WARNING' : 'OK';
+    const warningStr = warnings.length > 0 ? ` | Warnings: ${warnings.join(', ')}` : '';
+
     this.logger.log(
-      `System health: OK | Memory: ${heapUsed}/${heapTotal}MB heap, ${rss}MB RSS | Uptime: ${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+      `[HEALTH] ${status} | Memory: ${heapUsed}/${heapTotal}MB (${heapUsagePercent.toFixed(1)}%) | ` +
+      `RSS: ${rss}MB | Redis: ${redisStatus.connected ? 'OK' : 'DOWN'} | ` +
+      `Cache: ${cacheStats.cacheSize}/${cacheStats.maxCacheSize} | ` +
+      `Uptime: ${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m${warningStr}`,
     );
+
+    // Log warning separately for alerting systems
+    if (warnings.length > 0) {
+      this.logger.warn(`[HEALTH WARNING] ${warnings.join(' | ')}`);
+    }
   }
 
   /**

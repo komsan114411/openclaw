@@ -14,35 +14,134 @@ export interface RateLimitResult {
   retryAfter: number;
 }
 
+/**
+ * LRU Cache Entry
+ */
+interface CacheEntry {
+  value: string;
+  expiry?: number;
+  accessTime: number;
+}
+
+/**
+ * Configuration for memory cache bounds
+ */
+const MEMORY_CACHE_CONFIG = {
+  MAX_CACHE_ENTRIES: 10000,      // Max entries in cache
+  MAX_RATE_LIMIT_ENTRIES: 5000,  // Max rate limit tracking entries
+  MAX_SLIDING_LOG_ENTRIES: 5000, // Max sliding window logs
+  CLEANUP_INTERVAL_MS: 30000,    // Cleanup every 30 seconds
+  STRICT_MODE_ON_REDIS_DOWN: true, // Reject requests when Redis is down (safer)
+};
+
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
-  private memoryCache: Map<string, { value: string; expiry?: number }> = new Map();
+
+  // Bounded LRU-style cache
+  private memoryCache: Map<string, CacheEntry> = new Map();
   private memoryRateLimits: Map<string, { count: number; resetAt: number }> = new Map();
   private memorySlidingLogs: Map<string, number[]> = new Map();
 
+  // Track Redis downtime for alerting
+  private redisDownSince: number | null = null;
+  private redisDownAlerted: boolean = false;
+
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis | null) {
-    // Cleanup expired memory cache entries periodically
-    setInterval(() => this.cleanupMemoryCache(), 60000); // Every minute
+    // Cleanup expired memory cache entries periodically (more frequent)
+    setInterval(() => this.cleanupMemoryCache(), MEMORY_CACHE_CONFIG.CLEANUP_INTERVAL_MS);
+
+    // Log cache stats every 5 minutes
+    setInterval(() => this.logCacheStats(), 300000);
+  }
+
+  /**
+   * Log cache statistics for monitoring
+   */
+  private logCacheStats(): void {
+    const stats = {
+      cacheSize: this.memoryCache.size,
+      rateLimitSize: this.memoryRateLimits.size,
+      slidingLogSize: this.memorySlidingLogs.size,
+      redisConnected: this.isRedisAvailable(),
+      redisDownSince: this.redisDownSince,
+    };
+    this.logger.log(`[CACHE STATS] ${JSON.stringify(stats)}`);
   }
 
   private isRedisAvailable(): boolean {
-    return this.redis !== null && this.redis.status === 'ready';
-  }
+    const available = this.redis !== null && this.redis.status === 'ready';
 
-  private cleanupMemoryCache(): void {
-    const now = Date.now();
-    for (const [key, value] of this.memoryCache.entries()) {
-      if (value.expiry && now > value.expiry) {
-        this.memoryCache.delete(key);
+    // Track Redis downtime
+    if (!available && this.redisDownSince === null) {
+      this.redisDownSince = Date.now();
+      this.logger.warn('[REDIS] Redis connection lost - using memory fallback');
+    } else if (available && this.redisDownSince !== null) {
+      const downtime = Date.now() - this.redisDownSince;
+      this.logger.log(`[REDIS] Redis connection restored after ${downtime}ms`);
+      this.redisDownSince = null;
+      this.redisDownAlerted = false;
+    }
+
+    // Alert if Redis down for more than 1 minute
+    if (!available && this.redisDownSince && !this.redisDownAlerted) {
+      const downtime = Date.now() - this.redisDownSince;
+      if (downtime > 60000) {
+        this.logger.error(`[REDIS ALERT] Redis has been down for ${Math.round(downtime / 1000)}s!`);
+        this.redisDownAlerted = true;
       }
     }
+
+    return available;
+  }
+
+  /**
+   * Cleanup expired entries and enforce LRU eviction when over capacity
+   */
+  private cleanupMemoryCache(): void {
+    const now = Date.now();
+    let expiredCount = 0;
+    let evictedCount = 0;
+
+    // 1. Remove expired cache entries
+    for (const [key, entry] of this.memoryCache.entries()) {
+      if (entry.expiry && now > entry.expiry) {
+        this.memoryCache.delete(key);
+        expiredCount++;
+      }
+    }
+
+    // 2. LRU eviction if over capacity
+    if (this.memoryCache.size > MEMORY_CACHE_CONFIG.MAX_CACHE_ENTRIES) {
+      const entriesToEvict = this.memoryCache.size - MEMORY_CACHE_CONFIG.MAX_CACHE_ENTRIES + 100; // Evict 100 extra for buffer
+      const sortedEntries = Array.from(this.memoryCache.entries())
+        .sort((a, b) => a[1].accessTime - b[1].accessTime);
+
+      for (let i = 0; i < entriesToEvict && i < sortedEntries.length; i++) {
+        this.memoryCache.delete(sortedEntries[i][0]);
+        evictedCount++;
+      }
+    }
+
+    // 3. Cleanup rate limit entries
     for (const [key, value] of this.memoryRateLimits.entries()) {
       if (now > value.resetAt) {
         this.memoryRateLimits.delete(key);
       }
     }
-    // Cleanup sliding window logs (remove entries older than 2 minutes)
+
+    // 4. LRU eviction for rate limits
+    if (this.memoryRateLimits.size > MEMORY_CACHE_CONFIG.MAX_RATE_LIMIT_ENTRIES) {
+      const entriesToEvict = this.memoryRateLimits.size - MEMORY_CACHE_CONFIG.MAX_RATE_LIMIT_ENTRIES;
+      let evicted = 0;
+      for (const key of this.memoryRateLimits.keys()) {
+        if (evicted >= entriesToEvict) break;
+        this.memoryRateLimits.delete(key);
+        evicted++;
+      }
+    }
+
+    // 5. Cleanup sliding window logs (remove entries older than 2 minutes)
     const twoMinutesAgo = now - 120000;
     for (const [key, log] of this.memorySlidingLogs.entries()) {
       // Remove all expired entries
@@ -53,6 +152,22 @@ export class RedisService {
       if (log.length === 0) {
         this.memorySlidingLogs.delete(key);
       }
+    }
+
+    // 6. LRU eviction for sliding logs
+    if (this.memorySlidingLogs.size > MEMORY_CACHE_CONFIG.MAX_SLIDING_LOG_ENTRIES) {
+      const entriesToEvict = this.memorySlidingLogs.size - MEMORY_CACHE_CONFIG.MAX_SLIDING_LOG_ENTRIES;
+      let evicted = 0;
+      for (const key of this.memorySlidingLogs.keys()) {
+        if (evicted >= entriesToEvict) break;
+        this.memorySlidingLogs.delete(key);
+        evicted++;
+      }
+    }
+
+    // Log cleanup stats if significant
+    if (expiredCount > 10 || evictedCount > 0) {
+      this.logger.debug(`[CACHE CLEANUP] Expired: ${expiredCount}, Evicted: ${evictedCount}, Remaining: ${this.memoryCache.size}`);
     }
   }
 
@@ -65,14 +180,16 @@ export class RedisService {
         this.logger.warn(`Redis get failed, using memory cache: ${error}`);
       }
     }
-    
-    // Fallback to memory cache
+
+    // Fallback to memory cache with LRU tracking
     const cached = this.memoryCache.get(key);
     if (cached) {
       if (cached.expiry && Date.now() > cached.expiry) {
         this.memoryCache.delete(key);
         return null;
       }
+      // Update access time for LRU
+      cached.accessTime = Date.now();
       return cached.value;
     }
     return null;
@@ -91,11 +208,13 @@ export class RedisService {
         this.logger.warn(`Redis set failed, using memory cache: ${error}`);
       }
     }
-    
-    // Fallback to memory cache
+
+    // Fallback to memory cache with LRU tracking
+    const now = Date.now();
     this.memoryCache.set(key, {
       value,
-      expiry: ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined,
+      expiry: ttlSeconds ? now + ttlSeconds * 1000 : undefined,
+      accessTime: now,
     });
   }
 
@@ -366,9 +485,11 @@ export class RedisService {
       return null; // Lock is held
     }
     
+    const now = Date.now();
     this.memoryCache.set(lockKey, {
       value: lockToken,
-      expiry: Date.now() + ttlSeconds * 1000,
+      expiry: now + ttlSeconds * 1000,
+      accessTime: now,
     });
     return lockToken;
   }
@@ -441,9 +562,14 @@ export class RedisService {
     }
     
     // Fallback to memory
+    const now = Date.now();
     const existing = this.memoryCache.get(key);
     const newValue = (parseInt(existing?.value || '0', 10) || 0) + 1;
-    this.memoryCache.set(key, { value: newValue.toString(), expiry: existing?.expiry });
+    this.memoryCache.set(key, {
+      value: newValue.toString(),
+      expiry: existing?.expiry,
+      accessTime: now,
+    });
     return newValue;
   }
 
@@ -458,11 +584,16 @@ export class RedisService {
         this.logger.warn(`Redis decr failed: ${error}`);
       }
     }
-    
+
     // Fallback to memory
+    const now = Date.now();
     const existing = this.memoryCache.get(key);
     const newValue = (parseInt(existing?.value || '0', 10) || 0) - 1;
-    this.memoryCache.set(key, { value: newValue.toString(), expiry: existing?.expiry });
+    this.memoryCache.set(key, {
+      value: newValue.toString(),
+      expiry: existing?.expiry,
+      accessTime: now,
+    });
     return newValue;
   }
 
@@ -505,10 +636,61 @@ export class RedisService {
   /**
    * Get Redis connection status info
    */
-  getStatus(): { connected: boolean; mode: 'redis' | 'memory' } {
+  getStatus(): { connected: boolean; mode: 'redis' | 'memory'; downSince: number | null } {
     return {
       connected: this.isRedisAvailable(),
       mode: this.isRedisAvailable() ? 'redis' : 'memory',
+      downSince: this.redisDownSince,
+    };
+  }
+
+  /**
+   * Strict rate limiting - rejects requests when Redis is unavailable
+   * Use for critical endpoints that should fail-safe (e.g., webhooks)
+   */
+  async strictRateLimit(
+    key: string,
+    limit: number,
+    windowSeconds: number,
+    rejectOnRedisDown: boolean = true,
+  ): Promise<RateLimitResult> {
+    // If Redis is down and strict mode is enabled, reject new requests
+    if (!this.isRedisAvailable() && rejectOnRedisDown) {
+      this.logger.warn(`[STRICT RATE LIMIT] Rejecting request - Redis unavailable: ${key}`);
+      return {
+        allowed: false,
+        current: limit,
+        limit,
+        remaining: 0,
+        resetAt: Date.now() + 60000, // Retry after 1 minute
+        retryAfter: 60,
+      };
+    }
+
+    // Normal rate limiting
+    return this.rateLimitWithInfo(key, limit, windowSeconds);
+  }
+
+  /**
+   * Get memory cache stats for monitoring
+   */
+  getCacheStats(): {
+    cacheSize: number;
+    rateLimitSize: number;
+    slidingLogSize: number;
+    maxCacheSize: number;
+    maxRateLimitSize: number;
+    utilizationPercent: number;
+  } {
+    const cacheSize = this.memoryCache.size;
+    const maxCacheSize = MEMORY_CACHE_CONFIG.MAX_CACHE_ENTRIES;
+    return {
+      cacheSize,
+      rateLimitSize: this.memoryRateLimits.size,
+      slidingLogSize: this.memorySlidingLogs.size,
+      maxCacheSize,
+      maxRateLimitSize: MEMORY_CACHE_CONFIG.MAX_RATE_LIMIT_ENTRIES,
+      utilizationPercent: Math.round((cacheSize / maxCacheSize) * 100),
     };
   }
 }

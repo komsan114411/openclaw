@@ -51,7 +51,7 @@ import { RateLimitModule } from './common/rate-limit.module';
       exclude: ['/api*', '/webhook*', '/socket.io*'],
     }),
 
-    // Database
+    // Database with optimized connection pooling for high concurrency
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
@@ -60,15 +60,25 @@ import { RateLimitModule } from './common/rate-limit.module';
           console.error('❌ MONGODB_URI not set! App will fail to start.');
           throw new Error('MONGODB_URI environment variable is required');
         }
-        console.log('🔌 Connecting to MongoDB...');
+        console.log('🔌 Connecting to MongoDB with optimized pooling...');
         return {
           uri,
           dbName: configService.get<string>('MONGODB_DATABASE', 'lineoa_system'),
+          // Retry configuration
           retryAttempts: 5,
           retryDelay: 2000,
+          // Connection pool settings for high concurrency
+          minPoolSize: parseInt(configService.get('MONGODB_MIN_POOL_SIZE', '10'), 10),
+          maxPoolSize: parseInt(configService.get('MONGODB_MAX_POOL_SIZE', '100'), 10),
+          maxIdleTimeMS: 60000, // Close idle connections after 1 minute
+          waitQueueTimeoutMS: 10000, // Fail fast if waiting >10s for connection
+          // Timeout settings
           serverSelectionTimeoutMS: 30000,
           connectTimeoutMS: 30000,
           socketTimeoutMS: 45000,
+          // Performance settings
+          maxConnecting: 10, // Max concurrent connection attempts
+          compressors: ['zlib'], // Enable compression
         };
       },
       inject: [ConfigService],
