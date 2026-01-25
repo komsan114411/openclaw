@@ -14,6 +14,15 @@ export interface QuotaInfo {
   activeSubscriptions: number;
 }
 
+export interface AiQuotaInfo {
+  hasQuota: boolean;
+  remainingQuota: number;
+  totalQuota: number;
+  usedQuota: number;
+  reservedQuota: number;
+  activeSubscriptions: number;
+}
+
 // Detailed status for different scenarios
 export type QuotaStatus = 
   | 'has_quota'           // Has active subscription with remaining quota
@@ -64,6 +73,9 @@ export class SubscriptionsService {
       slipsQuota: pkg.slipQuota,
       slipsUsed: 0,
       slipsReserved: 0,
+      aiQuota: pkg.aiQuota || 0,
+      aiUsed: 0,
+      aiReserved: 0,
       status: SubscriptionStatus.ACTIVE,
     });
 
@@ -126,6 +138,7 @@ export class SubscriptionsService {
         {
           $set: {
             slipsQuota: { $add: ['$slipsQuota', pkg.slipQuota] },
+            aiQuota: { $add: [{ $ifNull: ['$aiQuota', 0] }, pkg.aiQuota || 0] },
             endDate: {
               $dateAdd: {
                 startDate: '$endDate',
@@ -149,7 +162,7 @@ export class SubscriptionsService {
 
     if (result) {
       this.logger.log(
-        `Added ${pkg.slipQuota} quota and ${pkg.durationDays} days to subscription ${result._id} for user ${userId} (payment: ${paymentId})`,
+        `Added ${pkg.slipQuota} slip quota, ${pkg.aiQuota || 0} AI quota, and ${pkg.durationDays} days to subscription ${result._id} for user ${userId} (payment: ${paymentId})`,
       );
       return {
         success: true,
@@ -235,6 +248,9 @@ export class SubscriptionsService {
       slipsQuota: pkg.slipQuota,
       slipsUsed: 0,
       slipsReserved: 0,
+      aiQuota: pkg.aiQuota || 0,
+      aiUsed: 0,
+      aiReserved: 0,
       status: SubscriptionStatus.ACTIVE,
       processedPaymentIds: [paymentId], // Track this payment immediately
     });
@@ -659,5 +675,219 @@ export class SubscriptionsService {
       totalQuotaUsed: stats.totalUsed,
       totalQuotaRemaining: stats.totalQuota - stats.totalUsed - stats.totalReserved,
     };
+  }
+
+  // ============================================
+  // AI Quota Methods
+  // ============================================
+
+  /**
+   * Check AI quota for a user
+   */
+  async checkAiQuota(userId: string): Promise<AiQuotaInfo> {
+    const activeSubscriptions = await this.subscriptionModel.find({
+      userId,
+      status: SubscriptionStatus.ACTIVE,
+      endDate: { $gt: new Date() },
+    });
+
+    if (activeSubscriptions.length === 0) {
+      return {
+        hasQuota: false,
+        remainingQuota: 0,
+        totalQuota: 0,
+        usedQuota: 0,
+        reservedQuota: 0,
+        activeSubscriptions: 0,
+      };
+    }
+
+    const totalQuota = activeSubscriptions.reduce((sum, sub) => sum + (sub.aiQuota || 0), 0);
+    const usedQuota = activeSubscriptions.reduce((sum, sub) => sum + (sub.aiUsed || 0), 0);
+    const reservedQuota = activeSubscriptions.reduce((sum, sub) => sum + (sub.aiReserved || 0), 0);
+    const remainingQuota = totalQuota - usedQuota - reservedQuota;
+
+    return {
+      hasQuota: remainingQuota > 0,
+      remainingQuota,
+      totalQuota,
+      usedQuota,
+      reservedQuota,
+      activeSubscriptions: activeSubscriptions.length,
+    };
+  }
+
+  /**
+   * Reserve AI quota atomically to prevent race conditions
+   */
+  async reserveAiQuota(userId: string, amount = 1): Promise<string | null> {
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        userId,
+        status: SubscriptionStatus.ACTIVE,
+        endDate: { $gt: new Date() },
+        // Ensure there's enough AI quota: used + reserved + amount <= total
+        $expr: { $lte: [{ $add: [{ $ifNull: ['$aiUsed', 0] }, { $ifNull: ['$aiReserved', 0] }, amount] }, { $ifNull: ['$aiQuota', 0] }] },
+      },
+      {
+        $inc: { aiReserved: amount },
+        $set: { aiReservedAt: new Date() },
+      },
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.warn(`Failed to reserve AI quota for user ${userId}: insufficient quota or no active subscription`);
+      return null;
+    }
+
+    this.logger.log(`Reserved ${amount} AI quota for user ${userId}, subscription ${result._id}`);
+    return result._id.toString();
+  }
+
+  /**
+   * Confirm AI reservation: move from reserved to used atomically
+   */
+  async confirmAiReservation(subscriptionId: string, amount = 1): Promise<boolean> {
+    if (!isValidObjectId(subscriptionId)) {
+      this.logger.error(`Invalid subscription ID format: ${subscriptionId}`);
+      return false;
+    }
+
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        _id: subscriptionId,
+        aiReserved: { $gte: amount },
+      },
+      [
+        {
+          $set: {
+            aiReserved: { $subtract: [{ $ifNull: ['$aiReserved', 0] }, amount] },
+            aiUsed: { $add: [{ $ifNull: ['$aiUsed', 0] }, amount] },
+            aiReservedAt: {
+              $cond: {
+                if: { $lte: [{ $subtract: [{ $ifNull: ['$aiReserved', 0] }, amount] }, 0] },
+                then: null,
+                else: '$aiReservedAt',
+              },
+            },
+          },
+        },
+      ],
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.error(`Failed to confirm AI reservation for subscription ${subscriptionId}`);
+      return false;
+    }
+
+    this.logger.log(`Confirmed AI reservation: ${amount} quota for subscription ${subscriptionId}`);
+    return true;
+  }
+
+  /**
+   * Rollback AI reservation: release reserved AI quota atomically
+   */
+  async rollbackAiReservation(subscriptionId: string, amount = 1): Promise<boolean> {
+    if (!isValidObjectId(subscriptionId)) {
+      this.logger.error(`Invalid subscription ID format: ${subscriptionId}`);
+      return false;
+    }
+
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      {
+        _id: subscriptionId,
+        aiReserved: { $gte: amount },
+      },
+      [
+        {
+          $set: {
+            aiReserved: { $subtract: [{ $ifNull: ['$aiReserved', 0] }, amount] },
+            aiReservedAt: {
+              $cond: {
+                if: { $lte: [{ $subtract: [{ $ifNull: ['$aiReserved', 0] }, amount] }, 0] },
+                then: null,
+                else: '$aiReservedAt',
+              },
+            },
+          },
+        },
+      ],
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.warn(`Failed to rollback AI reservation for subscription ${subscriptionId}: may already be rolled back`);
+      return false;
+    }
+
+    this.logger.log(`Rolled back AI reservation: ${amount} quota for subscription ${subscriptionId}`);
+    return true;
+  }
+
+  /**
+   * Cleanup stale AI reservations that have been pending too long
+   */
+  async cleanupStaleAiReservations(maxAgeMinutes = 3): Promise<number> {
+    const cutoffTime = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
+
+    const result = await this.subscriptionModel.updateMany(
+      {
+        aiReserved: { $gt: 0 },
+        status: SubscriptionStatus.ACTIVE,
+        aiReservedAt: { $lt: cutoffTime },
+      },
+      {
+        $set: {
+          aiReserved: 0,
+          aiReservedAt: null,
+        },
+      },
+    );
+
+    if (result.modifiedCount > 0) {
+      this.logger.warn(
+        `Cleaned up ${result.modifiedCount} stale AI reservations (older than ${maxAgeMinutes} minutes)`,
+      );
+    }
+
+    return result.modifiedCount;
+  }
+
+  /**
+   * Add AI quota to existing subscription (when payment approved)
+   */
+  async addAiQuotaToExisting(
+    userId: string,
+    quota: number,
+    paymentId?: string,
+  ): Promise<{ success: boolean; subscriptionId: string }> {
+    // Find active subscription
+    const subscription = await this.subscriptionModel.findOne({
+      userId,
+      status: SubscriptionStatus.ACTIVE,
+      endDate: { $gt: new Date() },
+    });
+
+    if (!subscription) {
+      this.logger.warn(`No active subscription found for user ${userId} to add AI quota`);
+      return { success: false, subscriptionId: '' };
+    }
+
+    // Atomic update to add AI quota
+    const result = await this.subscriptionModel.findOneAndUpdate(
+      { _id: subscription._id },
+      { $inc: { aiQuota: quota } },
+      { new: true },
+    );
+
+    if (!result) {
+      this.logger.error(`Failed to add AI quota to subscription ${subscription._id}`);
+      return { success: false, subscriptionId: '' };
+    }
+
+    this.logger.log(`Added ${quota} AI quota to subscription ${subscription._id} for user ${userId}`);
+    return { success: true, subscriptionId: subscription._id.toString() };
   }
 }

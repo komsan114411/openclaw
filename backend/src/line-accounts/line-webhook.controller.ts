@@ -16,6 +16,7 @@ import axios from 'axios';
 import { LineAccountsService } from './line-accounts.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
+import { AiQuotaService } from '../chatbot/ai-quota.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { RedisService } from '../redis/redis.service';
@@ -34,6 +35,7 @@ export class LineWebhookController {
     private lineAccountsService: LineAccountsService,
     private slipVerificationService: SlipVerificationService,
     private chatbotService: ChatbotService,
+    private aiQuotaService: AiQuotaService,
     private subscriptionsService: SubscriptionsService,
     private redisService: RedisService,
     private configurableMessagesService: ConfigurableMessagesService,
@@ -276,10 +278,22 @@ export class LineWebhookController {
         }
       }
     } else if (message.type === 'text') {
-      // Handle AI response if enabled
-      if (account.settings?.enableAi) {
+      // ตรวจสอบการตั้งค่า AI 2 ระดับ:
+      // 1. ระดับแอดมิน (globalAiEnabled) - ปิด AI ทั้งระบบ
+      // 2. ระดับบัญชี LINE (enableAi) - ปิด AI เฉพาะบัญชีนี้
+      const systemSettings = await this.systemSettingsService.getSettings();
+      const globalAiEnabled = systemSettings?.globalAiEnabled ?? true;
+      const accountAiEnabled = account.settings?.enableAi ?? false;
+
+      if (globalAiEnabled && accountAiEnabled) {
         await this.handleAIResponse(account, event);
       } else {
+        // Log ว่าปิดจากระดับไหน
+        if (!globalAiEnabled) {
+          this.logger.log(`[AI] AI disabled globally by admin`);
+        } else {
+          this.logger.log(`[AI] AI disabled for this LINE account`);
+        }
         // Send AI disabled message if configured
         const aiDisabledMessage = await this.configurableMessagesService.getAiDisabledMessage({ account });
         if (aiDisabledMessage) {
@@ -678,6 +692,11 @@ export class LineWebhookController {
     const lineUserId = source.userId;
     const accessToken = account.accessToken;
     const accountId = account._id.toString();
+    const ownerId = account.ownerId;
+    const messageId = message.id;
+
+    let subscriptionId: string | null = null;
+    let reservationId: string | null = null;
 
     // Get retry settings
     const retrySettings = await this.configurableMessagesService.getRetrySettings();
@@ -705,17 +724,66 @@ export class LineWebhookController {
     };
 
     try {
-      // Get AI response with retry
+      // ============================================
+      // 1. Check AI quota before processing
+      // ============================================
+      const aiQuotaInfo = await this.subscriptionsService.checkAiQuota(ownerId);
+      this.logger.log(`[AI] Quota check for ${ownerId}: hasQuota=${aiQuotaInfo.hasQuota}, remaining=${aiQuotaInfo.remainingQuota}`);
+
+      if (!aiQuotaInfo.hasQuota) {
+        this.logger.log(`[AI] No AI quota - sending quota exhausted message`);
+        const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
+        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        return;
+      }
+
+      // ============================================
+      // 2. Reserve AI quota (atomic operation)
+      // ============================================
+      subscriptionId = await this.subscriptionsService.reserveAiQuota(ownerId, 1);
+      if (!subscriptionId) {
+        this.logger.log(`[AI] AI quota reservation failed`);
+        const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
+        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        return;
+      }
+      this.logger.log(`[AI] AI quota reserved, subscriptionId=${subscriptionId}`);
+
+      // ============================================
+      // 3. Create reservation record
+      // ============================================
+      const reservation = await this.aiQuotaService.createReservation({
+        ownerId,
+        subscriptionId,
+        lineAccountId: accountId,
+        lineUserId,
+        messageId,
+        amount: 1,
+      });
+      reservationId = reservation._id.toString();
+      this.logger.log(`[AI] Reservation created, reservationId=${reservationId}`);
+
+      // ============================================
+      // 4. Get AI response with retry (with account-specific model)
+      // ============================================
       const response = await retryWithBackoff(
         () => this.chatbotService.getResponse(
           message.text,
           lineUserId,
           accountId,
           account.settings?.aiSystemPrompt,
+          account.settings?.aiModel,  // Pass account-specific model
         ),
         retrySettings.maxAttempts,
         retrySettings.delayMs,
       );
+
+      // ============================================
+      // 5. Confirm AI quota
+      // ============================================
+      await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
+      await this.aiQuotaService.confirmReservation(reservationId);
+      this.logger.log(`[AI] AI quota confirmed for ${ownerId}`);
 
       // Save outgoing message
       await this.lineAccountsService.saveChatMessage(
@@ -751,6 +819,21 @@ export class LineWebhookController {
       await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
     } catch (error) {
       this.logger.error('AI response error:', error);
+
+      // ============================================
+      // Rollback AI quota on error
+      // ============================================
+      if (subscriptionId) {
+        await this.subscriptionsService.rollbackAiReservation(subscriptionId, 1).catch((e) => {
+          this.logger.error('Failed to rollback AI quota:', e);
+        });
+      }
+      if (reservationId) {
+        await this.aiQuotaService.rollbackReservation(reservationId, 'exception').catch((e) => {
+          this.logger.error('Failed to rollback AI reservation:', e);
+        });
+      }
+
       const fallbackMessage = account.settings?.aiFallbackMessage || 'ขอบคุณสำหรับข้อความของคุณ';
       try {
         await this.lineAccountsService.sendPush(

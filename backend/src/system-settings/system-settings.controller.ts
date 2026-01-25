@@ -416,4 +416,70 @@ export class SystemSettingsController {
       },
     };
   }
+
+  // ===============================
+  // AI SETTINGS ENDPOINTS
+  // ===============================
+
+  @Get('ai-settings')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get AI settings (Admin only)' })
+  async getAiSettings() {
+    const settings = await this.settingsService.getSettings();
+
+    return {
+      success: true,
+      aiSettings: {
+        globalAiEnabled: settings?.globalAiEnabled ?? true,
+        allowedAiModels: settings?.allowedAiModels || ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
+        aiModel: settings?.aiModel || 'gpt-4-mini',
+        aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
+      },
+    };
+  }
+
+  @Put('ai-settings')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update AI settings (Admin only)' })
+  async updateAiSettings(
+    @Body() updates: {
+      globalAiEnabled?: boolean;
+      allowedAiModels?: string[];
+      aiModel?: string;
+      aiDisabledSendMessage?: boolean;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(updates, user.userId);
+
+    return {
+      success,
+      message: success ? 'บันทึกการตั้งค่า AI สำเร็จ' : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
+
+  @Put('ai-toggle')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Toggle global AI (Admin only)' })
+  async toggleGlobalAi(
+    @Body() body: { enabled: boolean },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(
+      { globalAiEnabled: body.enabled },
+      user.userId,
+    );
+
+    return {
+      success,
+      message: success
+        ? body.enabled
+          ? 'เปิดใช้งาน AI ทั้งระบบแล้ว'
+          : 'ปิดใช้งาน AI ทั้งระบบแล้ว'
+        : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
 }

@@ -42,6 +42,16 @@ export class SubscriptionsController {
     };
   }
 
+  @Get('ai-quota')
+  @ApiOperation({ summary: 'Get current user AI quota' })
+  async getAiQuota(@CurrentUser() user: AuthUser) {
+    const aiQuota = await this.subscriptionsService.checkAiQuota(user.userId);
+    return {
+      success: true,
+      aiQuota,
+    };
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get user subscriptions' })
   async getUserSubscriptions(@CurrentUser() user: AuthUser) {

@@ -366,6 +366,30 @@ export class ConfigurableMessagesService {
   }
 
   /**
+   * Format AI quota exhausted response
+   * ส่งข้อความตอบกลับเมื่อ AI quota หมด
+   */
+  async formatAiQuotaExhaustedResponse(context: MessageContext = {}): Promise<any> {
+    // ตรวจสอบว่ามี custom message จาก account settings หรือไม่
+    const accountSettings = context.account?.settings;
+    const customMessage = accountSettings?.customAiDisabledMessage;
+    if (customMessage && customMessage.trim()) {
+      return this.formatTextMessage(customMessage);
+    }
+
+    try {
+      const response = await this.systemResponseTemplatesService.getResponse(
+        SystemResponseType.QUOTA_EXHAUSTED,
+        { remaining: '0', type: 'AI' }
+      );
+      return response.type === 'flex' ? response.message : { type: 'text', text: response.message };
+    } catch (error) {
+      this.logger.error('Error getting AI quota exhausted response:', error);
+      return this.formatTextMessage('⚠️ โควต้า AI หมดแล้ว กรุณาติดต่อผู้ดูแลหรือเติมแพ็คเกจ');
+    }
+  }
+
+  /**
    * Format slip verification disabled response
    * ส่งข้อความตอบกลับเมื่อระบบตรวจสอบสลิปปิดอยู่
    * ต่างจาก formatBotDisabledResponse ตรงที่จะส่งข้อความเสมอเมื่อรับรูปมา

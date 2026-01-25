@@ -32,6 +32,10 @@ export class LineAccountSettings {
   @Prop({ default: 'ขอบคุณสำหรับข้อความของคุณ' })
   aiFallbackMessage: string;
 
+  // AI Model สำหรับบัญชีนี้ (null/undefined = ใช้ค่าจากระบบ)
+  @Prop()
+  aiModel: string;
+
   @Prop({ default: 'immediate' })
   slipResponseMode: string;
 

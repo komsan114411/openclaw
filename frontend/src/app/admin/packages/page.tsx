@@ -32,6 +32,7 @@ export default function AdminPackagesPage() {
     price: 0,
     priceUsdt: 0,
     slipQuota: 0,
+    aiQuota: 0,
     durationDays: 30,
     description: '',
     features: '',
@@ -61,6 +62,7 @@ export default function AdminPackagesPage() {
       price: 0,
       priceUsdt: 0,
       slipQuota: 0,
+      aiQuota: 0,
       durationDays: 30,
       description: '',
       features: '',
@@ -124,6 +126,7 @@ export default function AdminPackagesPage() {
       price: pkg.price,
       priceUsdt: pkg.priceUsdt || 0,
       slipQuota: pkg.slipQuota,
+      aiQuota: pkg.aiQuota || 0,
       durationDays: pkg.durationDays,
       description: pkg.description || '',
       features: pkg.features?.join('\n') || '',
@@ -291,8 +294,8 @@ export default function AdminPackagesPage() {
                       </div>
                       <div className="h-10 w-[1px] bg-white/5 mx-6" />
                       <div className="text-center">
-                        <p className="text-[9px] font-semibold text-slate-500 mb-2">ราคาต่อสลิป</p>
-                        <p className="text-lg font-bold text-emerald-400 leading-none tracking-tight">฿{(pkg.price / pkg.slipQuota).toFixed(2)}</p>
+                        <p className="text-[9px] font-semibold text-slate-500 mb-2">โควต้า AI</p>
+                        <p className="text-lg font-bold text-indigo-400 leading-none tracking-tight">{(pkg.aiQuota || 0).toLocaleString()}<span className="text-sm ml-1 opacity-40">ครั้ง</span></p>
                       </div>
                     </div>
 
@@ -396,6 +399,17 @@ export default function AdminPackagesPage() {
                   className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
                 <Input
+                  label="โควต้า AI"
+                  type="number"
+                  value={formData.aiQuota}
+                  onChange={(e) => setFormData({ ...formData, aiQuota: Number(e.target.value) })}
+                  min={0}
+                  hint="จำนวนครั้งที่ใช้ AI ตอบกลับ"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-5">
+                <Input
                   label="ระยะเวลา (วัน)"
                   type="number"
                   value={formData.durationDays}
@@ -405,6 +419,7 @@ export default function AdminPackagesPage() {
                   required
                   className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
+                <div></div>
               </div>
               <Input
                 label="ลำดับการแสดงผล"

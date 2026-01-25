@@ -17,6 +17,9 @@ export class Package {
   @Prop({ required: true })
   slipQuota: number;
 
+  @Prop({ default: 0 })
+  aiQuota: number;  // จำนวน AI quota ที่ได้รับ
+
   @Prop({ required: true })
   durationDays: number;
 

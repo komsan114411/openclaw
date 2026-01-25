@@ -107,6 +107,14 @@ export class SystemSettings {
   @Prop({ default: true })
   globalSlipVerificationEnabled: boolean;
 
+  // Global AI Settings (แอดมินเปิด/ปิด AI ทั้งระบบ)
+  @Prop({ default: true })
+  globalAiEnabled: boolean;
+
+  // Default AI Models ที่อนุญาต
+  @Prop({ type: [String], default: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'] })
+  allowedAiModels: string[];
+
   // Slip Verification Disabled Settings (control flag only - message in SystemResponseTemplates)
   @Prop({ default: true })
   slipDisabledSendMessage: boolean;

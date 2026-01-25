@@ -43,6 +43,26 @@ export class Subscription {
   @Prop()
   reservedAt: Date;
 
+  // ============================================
+  // AI Quota (แยกจาก slip quota)
+  // ============================================
+
+  @Prop({ required: true, default: 0 })
+  aiQuota: number;
+
+  @Prop({ default: 0 })
+  aiUsed: number;
+
+  @Prop({ default: 0 })
+  aiReserved: number;
+
+  /**
+   * Timestamp when AI quota was last reserved.
+   * Used by cleanup job to release stale AI reservations.
+   */
+  @Prop()
+  aiReservedAt: Date;
+
   @Prop({ type: String, enum: SubscriptionStatus, default: SubscriptionStatus.ACTIVE })
   status: SubscriptionStatus;
 
@@ -63,3 +83,5 @@ SubscriptionSchema.index({ endDate: 1 });
 SubscriptionSchema.index({ processedPaymentIds: 1 });
 // Index for cleanup job to find stale reservations
 SubscriptionSchema.index({ slipsReserved: 1, reservedAt: 1 });
+// Index for AI quota cleanup job
+SubscriptionSchema.index({ aiReserved: 1, aiReservedAt: 1 });

@@ -52,6 +52,7 @@ export class ChatbotService {
     userId: string,
     lineAccountId: string,
     systemPrompt?: string,
+    accountModel?: string,  // AI Model สำหรับบัญชีนี้
   ): Promise<string> {
     // Input validation
     if (!message || message.trim().length === 0) {
@@ -69,7 +70,8 @@ export class ChatbotService {
       }
 
       const settings = await this.systemSettingsService.getSettings();
-      const model = settings?.aiModel || 'gpt-3.5-turbo';
+      // Use account-specific model if provided, otherwise use system default
+      const model = accountModel || settings?.aiModel || 'gpt-3.5-turbo';
       const defaultPrompt =
         systemPrompt ||
         'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น';

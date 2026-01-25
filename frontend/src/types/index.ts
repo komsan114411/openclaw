@@ -66,6 +66,7 @@ export interface LineAccountSettings {
   aiSystemPrompt?: string;
   aiTemperature?: number;
   aiFallbackMessage?: string;
+  aiModel?: string;  // AI Model สำหรับบัญชีนี้ (null = ใช้ค่าจากระบบ)
   slipResponseMode?: string;
   slipImmediateMessage?: string;
   slipTemplateId?: string;
@@ -93,6 +94,7 @@ export interface Package {
   price: number;
   priceUsdt?: number;
   slipQuota: number;
+  aiQuota?: number;  // AI quota ที่ได้รับ
   durationDays: number;
   description?: string;
   features: string[];
@@ -160,6 +162,11 @@ export interface QuotaInfo {
   usedQuota: number;
   reservedQuota: number;
   activeSubscriptions: number;
+  // AI Quota
+  aiHasQuota?: boolean;
+  aiRemainingQuota?: number;
+  aiTotalQuota?: number;
+  aiUsedQuota?: number;
 }
 
 export interface ChatMessage {
@@ -198,6 +205,10 @@ export interface SystemSettings {
   previewSenderBankCode?: string;
   previewReceiverBankCode?: string;
   previewAmount?: string;
+  // Global AI Settings
+  globalAiEnabled?: boolean;
+  allowedAiModels?: string[];
+  aiDisabledSendMessage?: boolean;
 }
 
 export interface BankAccount {
