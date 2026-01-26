@@ -136,6 +136,13 @@ export default function SettingsPage() {
     duplicateRefundEnabled: true,
   });
 
+  // Global AI Settings
+  const [globalAiSettings, setGlobalAiSettings] = useState({
+    globalAiEnabled: true,
+    allowedAiModels: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'] as string[],
+    defaultAiModel: 'gpt-4o-mini',
+  });
+
   // Rate Limiter Settings
   const [rateLimitSettings, setRateLimitSettings] = useState({
     webhookRateLimitEnabled: true,
@@ -337,11 +344,25 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchAiSettings = useCallback(async () => {
+    try {
+      const res = await systemSettingsApi.getAiSettings();
+      setGlobalAiSettings({
+        globalAiEnabled: res.data.globalAiEnabled ?? true,
+        allowedAiModels: res.data.allowedAiModels || ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
+        defaultAiModel: res.data.aiSettings?.aiModel || 'gpt-4o-mini',
+      });
+    } catch (error) {
+      console.error('Error fetching AI settings:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSettings();
     fetchBanks();
     fetchRateLimitStats();
-  }, [fetchSettings, fetchBanks, fetchRateLimitStats]);
+    fetchAiSettings();
+  }, [fetchSettings, fetchBanks, fetchRateLimitStats, fetchAiSettings]);
 
   const handleUpdate = async (section: string, payload: Record<string, unknown>) => {
     setIsSaving(section);
@@ -354,6 +375,12 @@ export default function SettingsPage() {
           registrationDisabledMessage?: string;
           allowLogin?: boolean;
           loginDisabledMessage?: string;
+        });
+      } else if (section === 'ai_settings') {
+        // Use dedicated AI settings endpoint
+        response = await systemSettingsApi.updateAiSettings(payload as {
+          globalAiEnabled?: boolean;
+          allowedAiModels?: string[];
         });
       } else {
         response = await systemSettingsApi.updateSystemSettings(payload);
@@ -677,6 +704,130 @@ export default function SettingsPage() {
                       isLoading={isSaving === 'system_control'}
                     >
                       บันทึกการตั้งค่าควบคุมระบบ
+                    </Button>
+                  </div>
+                </Card>
+
+                {/* Global AI Settings */}
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🤖</div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ระบบ AI Chatbot</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ควบคุมการทำงานของ AI ทั้งระบบ</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Global AI Toggle */}
+                    <div className="flex items-center justify-between p-5 rounded-2xl bg-gradient-to-r from-violet-500/10 to-violet-500/5 border border-violet-500/20">
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all",
+                          globalAiSettings.globalAiEnabled
+                            ? "bg-violet-500 shadow-violet-500/30 shadow-lg"
+                            : "bg-slate-700"
+                        )}>
+                          {globalAiSettings.globalAiEnabled ? '✓' : '✕'}
+                        </div>
+                        <div>
+                          <p className="font-bold text-white text-sm">เปิดใช้งาน AI ทั้งระบบ</p>
+                          <p className="text-slate-500 text-xs">เมื่อปิด บอท AI จะไม่ตอบกลับผู้ใช้ทุกบัญชี</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={globalAiSettings.globalAiEnabled}
+                        onChange={(checked) => setGlobalAiSettings({
+                          ...globalAiSettings,
+                          globalAiEnabled: checked
+                        })}
+                      />
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-slate-400">สถานะ AI:</span>
+                      <Badge
+                        variant={globalAiSettings.globalAiEnabled ? "emerald" : "outline"}
+                        size="sm"
+                        className="font-black uppercase tracking-widest text-[9px]"
+                      >
+                        {globalAiSettings.globalAiEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}
+                      </Badge>
+                    </div>
+
+                    {/* Allowed Models */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-3 uppercase tracking-widest">
+                        AI Models ที่อนุญาต
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'].map((model) => (
+                          <button
+                            key={model}
+                            type="button"
+                            onClick={() => {
+                              const currentModels = globalAiSettings.allowedAiModels;
+                              if (currentModels.includes(model)) {
+                                // Remove model (but keep at least one)
+                                if (currentModels.length > 1) {
+                                  setGlobalAiSettings({
+                                    ...globalAiSettings,
+                                    allowedAiModels: currentModels.filter(m => m !== model)
+                                  });
+                                }
+                              } else {
+                                // Add model
+                                setGlobalAiSettings({
+                                  ...globalAiSettings,
+                                  allowedAiModels: [...currentModels, model]
+                                });
+                              }
+                            }}
+                            className={cn(
+                              "p-3 rounded-xl text-xs font-bold transition-all border",
+                              globalAiSettings.allowedAiModels.includes(model)
+                                ? "bg-violet-500/20 border-violet-500 text-violet-300"
+                                : "bg-white/5 border-white/10 text-slate-400 hover:border-white/30"
+                            )}
+                          >
+                            {model}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        คลิกเพื่อเปิด/ปิดการใช้งาน Model (ต้องเลือกอย่างน้อย 1 Model)
+                      </p>
+                    </div>
+
+                    {/* Warning when AI is disabled */}
+                    {!globalAiSettings.globalAiEnabled && (
+                      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                        <div className="flex items-start gap-3">
+                          <span className="text-amber-400 text-lg">⚠️</span>
+                          <div>
+                            <p className="text-sm font-bold text-amber-300">AI ถูกปิดใช้งานทั้งระบบ</p>
+                            <p className="text-xs text-amber-200/70 mt-1">
+                              บอท AI จะไม่ตอบกลับผู้ใช้ในทุกบัญชี LINE แม้ว่าผู้ใช้จะเปิดใช้งาน AI ในการตั้งค่าบัญชีก็ตาม
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-8 pt-6 border-t border-white/5">
+                    <Button
+                      fullWidth
+                      size="lg"
+                      className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-violet-500/10 shadow-xl"
+                      onClick={() => handleUpdate('ai_settings', {
+                        globalAiEnabled: globalAiSettings.globalAiEnabled,
+                        allowedAiModels: globalAiSettings.allowedAiModels,
+                      })}
+                      isLoading={isSaving === 'ai_settings'}
+                    >
+                      บันทึกการตั้งค่า AI
                     </Button>
                   </div>
                 </Card>
