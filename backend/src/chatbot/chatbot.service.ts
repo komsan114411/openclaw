@@ -18,7 +18,8 @@ export class ChatbotService {
    * Get OpenAI client, recreating if API key has changed
    */
   private async getOpenAIClient(): Promise<OpenAI | null> {
-    const settings = await this.systemSettingsService.getSettings();
+    // IMPORTANT: Use getDecryptedSettings to get the actual API key, not the masked version
+    const settings = await this.systemSettingsService.getDecryptedSettings();
     const apiKey = settings?.aiApiKey;
 
     if (!apiKey) {
