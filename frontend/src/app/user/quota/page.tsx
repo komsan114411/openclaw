@@ -12,8 +12,18 @@ import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 
+interface AiQuotaInfo {
+  hasQuota: boolean;
+  remainingQuota: number;
+  totalQuota: number;
+  usedQuota: number;
+  reservedQuota: number;
+  activeSubscriptions: number;
+}
+
 export default function UserQuotaPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [aiQuota, setAiQuota] = useState<AiQuotaInfo | null>(null);
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +31,13 @@ export default function UserQuotaPage() {
   const fetchData = useCallback(async () => {
     setError(null);
     try {
-      const [subRes, accountsRes] = await Promise.all([
+      const [subRes, aiQuotaRes, accountsRes] = await Promise.all([
         subscriptionsApi.getMy(),
+        subscriptionsApi.getAiQuota().catch(() => ({ data: { aiQuota: null } })),
         lineAccountsApi.getMyAccounts(),
       ]);
       setSubscription(subRes.data.subscription);
+      setAiQuota(aiQuotaRes.data.aiQuota || null);
       setAccounts(accountsRes.data.accounts || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -48,6 +60,11 @@ export default function UserQuotaPage() {
   const getQuotaPercentage = () => {
     if (!subscription || !subscription.quota) return 0;
     return Math.round(((subscription.remainingQuota || 0) / subscription.quota) * 100);
+  };
+
+  const getAiQuotaPercentage = () => {
+    if (!aiQuota || !aiQuota.totalQuota) return 0;
+    return Math.round((aiQuota.remainingQuota / aiQuota.totalQuota) * 100);
   };
 
   const getQuotaColor = () => {
@@ -126,26 +143,43 @@ export default function UserQuotaPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6">
           <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-[#06C755]/20 transition-all">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-xl sm:text-2xl">💬</span>
+                <span className="text-xl sm:text-2xl">📄</span>
               </div>
+              {getQuotaPercentage() < 20 && subscription && (
+                <Badge variant="error" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ใกล้หมด</Badge>
+              )}
             </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าคงเหลือ</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าสลิป</p>
             <p className="text-xl sm:text-2xl font-black text-white">{(subscription?.remainingQuota || 0).toLocaleString()}</p>
           </Card>
+
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl sm:text-2xl">🧠</span>
+              </div>
+              {aiQuota && aiQuota.totalQuota > 0 && getAiQuotaPercentage() < 20 && (
+                <Badge variant="error" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ใกล้หมด</Badge>
+              )}
+            </div>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้า AI</p>
+            <p className="text-xl sm:text-2xl font-black text-white">{(aiQuota?.remainingQuota || 0).toLocaleString()}</p>
+          </Card>
+
           <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-xl sm:text-2xl">📄</span>
+                <span className="text-xl sm:text-2xl">✅</span>
               </div>
-              <Badge variant="warning" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ต้องดำเนินการ</Badge>
             </div>
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">สลิปที่ตรวจสอบ</p>
             <p className="text-xl sm:text-2xl font-black text-white">{getTotalSlipsVerified().toLocaleString()}</p>
           </Card>
+
           <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
@@ -155,9 +189,10 @@ export default function UserQuotaPage() {
             <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ข้อความทั้งหมด</p>
             <p className="text-xl sm:text-2xl font-black text-white">{getTotalMessages().toLocaleString()}</p>
           </Card>
-          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+
+          <Card variant="glass" className="p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-white/5 hover:border-indigo-500/20 transition-all">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-xl sm:text-2xl">⏰</span>
               </div>
             </div>
@@ -189,16 +224,17 @@ export default function UserQuotaPage() {
           {subscription ? (
             <Card className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-4 sm:p-6 mt-4 sm:mt-6" variant="glass">
               <div className="relative z-10 space-y-6 sm:space-y-8">
+                {/* Slip Quota Section */}
                 <div>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-0 mb-4">
                     <div>
-                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าคงเหลือ</p>
+                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">📄 โควต้าสลิปคงเหลือ</p>
                       <p className="text-xl sm:text-2xl font-black text-white">
                         {(subscription.remainingQuota || 0).toLocaleString()}
                       </p>
                     </div>
                     <div className="text-left sm:text-right">
-                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าทั้งหมด</p>
+                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าสลิปทั้งหมด</p>
                       <p className="text-sm sm:text-base font-black text-slate-300">{(subscription.quota || 0).toLocaleString()} หน่วย</p>
                     </div>
                   </div>
@@ -215,8 +251,52 @@ export default function UserQuotaPage() {
                         <div className="absolute top-0 right-0 h-full w-16 sm:w-24 bg-gradient-to-r from-transparent to-white/20" />
                       </div>
                     </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[9px] text-slate-500">0%</span>
+                      <span className={cn("text-[9px] font-bold", getQuotaPercentage() > 50 ? 'text-[#06C755]' : getQuotaPercentage() > 20 ? 'text-amber-500' : 'text-rose-500')}>
+                        {getQuotaPercentage()}%
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {/* AI Quota Section */}
+                {aiQuota && aiQuota.totalQuota > 0 && (
+                  <div className="pt-4 border-t border-white/5">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-0 mb-4">
+                      <div>
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">🧠 โควต้า AI คงเหลือ</p>
+                        <p className="text-xl sm:text-2xl font-black text-white">
+                          {(aiQuota.remainingQuota || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้า AI ทั้งหมด</p>
+                        <p className="text-sm sm:text-base font-black text-slate-300">{(aiQuota.totalQuota || 0).toLocaleString()} หน่วย</p>
+                      </div>
+                    </div>
+
+                    <div className="relative pt-2">
+                      <div className="h-3 sm:h-4 bg-white/[0.02] border border-white/5 rounded-full overflow-hidden shadow-lg">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000 ease-out relative",
+                            getAiQuotaPercentage() > 50 ? 'bg-violet-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : getAiQuotaPercentage() > 20 ? 'bg-amber-500' : 'bg-rose-500'
+                          )}
+                          style={{ width: `${Math.max(getAiQuotaPercentage(), 2)}%` }}
+                        >
+                          <div className="absolute top-0 right-0 h-full w-16 sm:w-24 bg-gradient-to-r from-transparent to-white/20" />
+                        </div>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[9px] text-slate-500">0%</span>
+                        <span className={cn("text-[9px] font-bold", getAiQuotaPercentage() > 50 ? 'text-violet-400' : getAiQuotaPercentage() > 20 ? 'text-amber-500' : 'text-rose-500')}>
+                          {getAiQuotaPercentage()}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                   <div className="p-4 sm:p-6 lg:p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl sm:rounded-2xl border border-white/5 transition-all duration-500 text-center">
@@ -245,20 +325,42 @@ export default function UserQuotaPage() {
                   </div>
                 </div>
 
-                {getQuotaPercentage() < 20 && (
-                  <div className="p-4 sm:p-6 lg:p-8 bg-rose-500/5 border border-rose-500/20 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 text-2xl sm:text-3xl flex-shrink-0">
-                      ⚠️
-                    </div>
-                    <div className="flex-1 text-center sm:text-left">
-                      <p className="font-black text-white text-base sm:text-lg mb-1">โควต้าใกล้หมด</p>
-                      <p className="text-xs sm:text-sm font-semibold text-rose-400/80">กรุณาเติมเงินเพื่อใช้งานต่อ</p>
-                    </div>
-                    <Link href="/user/packages" className="w-full sm:w-auto">
-                      <Button variant="primary" className="w-full sm:w-auto h-11 sm:h-14 px-6 sm:px-10 rounded-xl sm:rounded-2xl bg-rose-500 hover:bg-rose-400 shadow-lg shadow-rose-500/20 font-semibold text-xs sm:text-sm transition-all">
-                        💎 เติมเงินตอนนี้
-                      </Button>
-                    </Link>
+                {/* Low Quota Warnings */}
+                {(getQuotaPercentage() < 20 || (aiQuota && aiQuota.totalQuota > 0 && getAiQuotaPercentage() < 20)) && (
+                  <div className="space-y-3">
+                    {getQuotaPercentage() < 20 && (
+                      <div className="p-4 sm:p-6 bg-rose-500/5 border border-rose-500/20 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-rose-500/10 flex items-center justify-center text-2xl flex-shrink-0">
+                          📄
+                        </div>
+                        <div className="flex-1 text-center sm:text-left">
+                          <p className="font-black text-white text-sm sm:text-base mb-1">โควต้าสลิปใกล้หมด</p>
+                          <p className="text-xs font-semibold text-rose-400/80">เหลือ {subscription.remainingQuota?.toLocaleString()} ครั้ง ({getQuotaPercentage()}%)</p>
+                        </div>
+                        <Link href="/user/packages" className="w-full sm:w-auto">
+                          <Button variant="primary" className="w-full sm:w-auto h-10 sm:h-12 px-5 sm:px-8 rounded-xl bg-rose-500 hover:bg-rose-400 shadow-lg shadow-rose-500/20 font-semibold text-xs sm:text-sm transition-all">
+                            💎 เติมโควต้า
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+
+                    {aiQuota && aiQuota.totalQuota > 0 && getAiQuotaPercentage() < 20 && (
+                      <div className="p-4 sm:p-6 bg-violet-500/5 border border-violet-500/20 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-violet-500/10 flex items-center justify-center text-2xl flex-shrink-0">
+                          🧠
+                        </div>
+                        <div className="flex-1 text-center sm:text-left">
+                          <p className="font-black text-white text-sm sm:text-base mb-1">โควต้า AI ใกล้หมด</p>
+                          <p className="text-xs font-semibold text-violet-400/80">เหลือ {aiQuota.remainingQuota?.toLocaleString()} ครั้ง ({getAiQuotaPercentage()}%)</p>
+                        </div>
+                        <Link href="/user/packages" className="w-full sm:w-auto">
+                          <Button variant="primary" className="w-full sm:w-auto h-10 sm:h-12 px-5 sm:px-8 rounded-xl bg-violet-500 hover:bg-violet-400 shadow-lg shadow-violet-500/20 font-semibold text-xs sm:text-sm transition-all">
+                            💎 เติมโควต้า
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

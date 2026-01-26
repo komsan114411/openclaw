@@ -197,6 +197,7 @@ export const packagesApi = {
 export const subscriptionsApi = {
   getMy: () => api.get('/subscriptions/my'),
   getQuota: () => api.get('/subscriptions/quota'),
+  getAiQuota: () => api.get('/subscriptions/ai-quota'),
   getAll: () => api.get('/subscriptions'),
   grant: (userId: string, packageId: string) =>
     api.post('/subscriptions/grant', { userId, packageId }),

@@ -22,9 +22,19 @@ interface Subscription {
   status: string;
 }
 
+interface AiQuotaInfo {
+  hasQuota: boolean;
+  remainingQuota: number;
+  totalQuota: number;
+  usedQuota: number;
+  reservedQuota: number;
+  activeSubscriptions: number;
+}
+
 export default function UserDashboard() {
   const [lineAccounts, setLineAccounts] = useState<LineAccount[]>([]);
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
+  const [aiQuota, setAiQuota] = useState<AiQuotaInfo | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -32,14 +42,16 @@ export default function UserDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [accountsRes, quotaRes, subRes] = await Promise.all([
+        const [accountsRes, quotaRes, aiQuotaRes, subRes] = await Promise.all([
           lineAccountsApi.getMyAccounts(),
           subscriptionsApi.getQuota(),
+          subscriptionsApi.getAiQuota().catch(() => ({ data: { aiQuota: null } })),
           subscriptionsApi.getMy().catch(() => ({ data: { subscription: null } })),
         ]);
 
         setLineAccounts(accountsRes.data.accounts || []);
         setQuota(quotaRes.data.quota || null);
+        setAiQuota(aiQuotaRes.data.aiQuota || null);
         setSubscription(subRes.data.subscription || null);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -53,9 +65,14 @@ export default function UserDashboard() {
 
   const totalMessages = lineAccounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0);
 
-  // Calculate quota percentage
+  // Calculate quota percentage (slip)
   const quotaPercentage = subscription
     ? Math.round(((subscription.remainingQuota ?? 0) / (subscription.quota ?? 1)) * 100)
+    : 0;
+
+  // Calculate AI quota percentage
+  const aiQuotaPercentage = aiQuota && aiQuota.totalQuota > 0
+    ? Math.round((aiQuota.remainingQuota / aiQuota.totalQuota) * 100)
     : 0;
 
   // Format date helper
@@ -76,9 +93,48 @@ export default function UserDashboard() {
     );
   }
 
+  // Check for low quota warnings
+  const showSlipWarning = quotaPercentage < 20 && subscription;
+  const showAiWarning = aiQuota && aiQuota.totalQuota > 0 && aiQuotaPercentage < 20;
+
   return (
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10 max-w-7xl mx-auto px-4 sm:px-6">
+        {/* LOW QUOTA WARNINGS */}
+        {(showSlipWarning || showAiWarning) && (
+          <div className="mb-6 space-y-3">
+            {showSlipWarning && (
+              <div className="bg-gradient-to-r from-rose-500/10 to-rose-500/5 border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center text-2xl flex-shrink-0">📄</div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-rose-400">โควต้าสลิปใกล้หมด!</p>
+                  <p className="text-xs text-rose-300/70">เหลือเพียง {subscription?.remainingQuota?.toLocaleString() || 0} ครั้ง ({quotaPercentage}%) กรุณาเติมโควต้าเพื่อใช้งานต่อ</p>
+                </div>
+                <Link href="/user/packages">
+                  <Button variant="outline" size="sm" className="border-rose-500/30 text-rose-400 hover:bg-rose-500/10 whitespace-nowrap">
+                    เติมโควต้า
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+            {showAiWarning && (
+              <div className="bg-gradient-to-r from-violet-500/10 to-violet-500/5 border border-violet-500/30 rounded-2xl p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-violet-500 flex items-center justify-center text-2xl flex-shrink-0">🧠</div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-violet-400">โควต้า AI ใกล้หมด!</p>
+                  <p className="text-xs text-violet-300/70">เหลือเพียง {aiQuota?.remainingQuota?.toLocaleString() || 0} ครั้ง ({aiQuotaPercentage}%) กรุณาเติมโควต้าเพื่อใช้ AI ต่อ</p>
+                </div>
+                <Link href="/user/packages">
+                  <Button variant="outline" size="sm" className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10 whitespace-nowrap">
+                    เติมโควต้า
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* PAGE HEADER */}
         <SectionHeader
           title="แดชบอร์ด"
@@ -101,7 +157,7 @@ export default function UserDashboard() {
         />
 
         {/* QUICK STATS - Real Data Only */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mt-6">
           <StatCardMini
             icon="💬"
             value={lineAccounts.length}
@@ -111,11 +167,23 @@ export default function UserDashboard() {
           />
 
           <StatCardMini
-            icon="📊"
+            icon="📄"
             value={subscription?.remainingQuota?.toLocaleString() || '0'}
-            label="โควต้าคงเหลือ"
+            label="โควต้าสลิป"
             color="emerald"
+            badgeText={quotaPercentage < 20 && subscription ? 'ใกล้หมด' : undefined}
+            badgeVariant="warning"
           />
+
+          <StatCardMini
+            icon="🧠"
+            value={aiQuota?.remainingQuota?.toLocaleString() || '0'}
+            label="โควต้า AI"
+            color="violet"
+            badgeText={aiQuotaPercentage < 20 && aiQuota && aiQuota.totalQuota > 0 ? 'ใกล้หมด' : undefined}
+            badgeVariant="warning"
+          />
+
           <StatCardMini
             icon="👥"
             value={totalMessages > 0 ? totalMessages.toLocaleString() : '0'}
@@ -149,11 +217,11 @@ export default function UserDashboard() {
                     </div>
                   </div>
 
-                  {/* Quota Progress */}
+                  {/* Slip Quota Progress */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-end">
                       <div>
-                        <span className="text-xs font-semibold text-slate-400">โควต้าคงเหลือ</span>
+                        <span className="text-xs font-semibold text-slate-400">📄 โควต้าสลิปคงเหลือ</span>
                         <p className="text-3xl sm:text-4xl font-black text-white">
                           {subscription.remainingQuota?.toLocaleString() || 0}
                           <span className="text-lg sm:text-xl text-slate-500 font-semibold ml-2">
@@ -180,9 +248,42 @@ export default function UserDashboard() {
                     </div>
                   </div>
 
+                  {/* AI Quota Progress */}
+                  {aiQuota && aiQuota.totalQuota > 0 && (
+                    <div className="space-y-3 mt-4 pt-4 border-t border-white/5">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <span className="text-xs font-semibold text-slate-400">🧠 โควต้า AI คงเหลือ</span>
+                          <p className="text-2xl sm:text-3xl font-black text-white">
+                            {aiQuota.remainingQuota?.toLocaleString() || 0}
+                            <span className="text-base sm:text-lg text-slate-500 font-semibold ml-2">
+                              / {aiQuota.totalQuota?.toLocaleString() || 0}
+                            </span>
+                          </p>
+                        </div>
+                        <span className={cn(
+                          "text-sm font-black",
+                          aiQuotaPercentage > 50 ? 'text-violet-400' : aiQuotaPercentage > 20 ? 'text-amber-500' : 'text-rose-500'
+                        )}>
+                          {aiQuotaPercentage}%
+                        </span>
+                      </div>
+
+                      <div className="h-3 bg-white/[0.03] rounded-full overflow-hidden border border-white/5">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000",
+                            aiQuotaPercentage > 50 ? 'bg-violet-500' : aiQuotaPercentage > 20 ? 'bg-amber-500' : 'bg-rose-500'
+                          )}
+                          style={{ width: `${aiQuotaPercentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Expiry & Actions */}
                   <div className="mt-6 pt-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                       <div>
                         <span className="text-[10px] font-semibold text-slate-400">หมดอายุ</span>
                         <p className="text-sm font-bold text-white">
@@ -192,7 +293,13 @@ export default function UserDashboard() {
                       {quotaPercentage < 20 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
                           <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                          <span className="text-[10px] font-semibold text-rose-400">โควต้าใกล้หมด</span>
+                          <span className="text-[10px] font-semibold text-rose-400">สลิปใกล้หมด</span>
+                        </div>
+                      )}
+                      {aiQuota && aiQuota.totalQuota > 0 && aiQuotaPercentage < 20 && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                          <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                          <span className="text-[10px] font-semibold text-violet-400">AI ใกล้หมด</span>
                         </div>
                       )}
                     </div>
