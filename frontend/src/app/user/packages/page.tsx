@@ -218,27 +218,55 @@ export default function UserPackagesPage() {
                 </div>
 
                 {/* Quota */}
-                <div className="bg-white/5 rounded-lg p-2 mb-3 flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[#06C755]/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-[#06C755] text-sm">📄</span>
-                  </div>
-                  <div>
-                    <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
-                    <p className="text-[10px] text-slate-400">สลิป</p>
+                <div className="bg-white/5 rounded-lg p-3 mb-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Slip Quota */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-amber-400 text-sm">📄</span>
+                      </div>
+                      <div>
+                        <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400">สลิป</p>
+                      </div>
+                    </div>
+                    {/* AI Quota */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-violet-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-violet-400 text-sm">🤖</span>
+                      </div>
+                      <div>
+                        <p className="text-lg font-black text-violet-300 leading-none">{(pkg.aiQuota || 0).toLocaleString()}</p>
+                        <p className="text-[10px] text-slate-400">AI ตอบกลับ</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Features */}
                 <ul className="space-y-1 mb-3 flex-1">
-                  <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                    <span className="text-[#06C755] text-[10px]">✓</span> ตรวจสลิปแบบเรียลไทม์
-                  </li>
-                  <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                    <span className="text-[#06C755] text-[10px]">✓</span> รองรับทุกธนาคาร
-                  </li>
-                  <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                    <span className="text-[#06C755] text-[10px]">✓</span> แจ้งเตือนอัตโนมัติ
-                  </li>
+                  {/* Package Features from API */}
+                  {pkg.features && pkg.features.length > 0 ? (
+                    pkg.features.map((feature, i) => (
+                      <li key={i} className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="text-[#06C755] text-[10px]">✓</span> {feature}
+                      </li>
+                    ))
+                  ) : (
+                    <>
+                      <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="text-[#06C755] text-[10px]">✓</span> ตรวจสลิปแบบเรียลไทม์
+                      </li>
+                      <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                        <span className="text-[#06C755] text-[10px]">✓</span> รองรับทุกธนาคาร
+                      </li>
+                      {(pkg.aiQuota || 0) > 0 && (
+                        <li className="flex items-center gap-1.5 text-xs text-slate-300">
+                          <span className="text-violet-400 text-[10px]">✓</span> AI ตอบกลับอัตโนมัติ
+                        </li>
+                      )}
+                    </>
+                  )}
                 </ul>
 
                 {/* Buy Button */}
@@ -274,10 +302,20 @@ export default function UserPackagesPage() {
           <div className="space-y-4">
             {/* Package Info */}
             <div className="bg-[#06C755]/10 rounded-lg p-4 border border-[#06C755]/20">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start">
                 <div>
                   <p className="text-lg font-bold text-white">{selectedPackage.name}</p>
-                  <p className="text-xs text-slate-400">{selectedPackage.slipQuota.toLocaleString()} สลิป / {selectedPackage.durationDays} วัน</p>
+                  <p className="text-xs text-slate-400 mb-2">{selectedPackage.durationDays} วัน</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded-full">
+                      📄 {selectedPackage.slipQuota.toLocaleString()} สลิป
+                    </span>
+                    {(selectedPackage.aiQuota || 0) > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-violet-500/20 text-violet-300 px-2 py-1 rounded-full">
+                        🤖 {(selectedPackage.aiQuota || 0).toLocaleString()} AI
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <p className="text-2xl font-black text-[#06C755]">฿{selectedPackage.price.toLocaleString()}</p>
               </div>

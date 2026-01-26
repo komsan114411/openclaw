@@ -23,6 +23,12 @@ export class CreatePackageDto {
   @Min(0)
   slipQuota: number;
 
+  @ApiPropertyOptional({ example: 50, description: 'AI quota for chatbot responses' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  aiQuota?: number;
+
   @ApiProperty({ example: 30 })
   @IsNumber()
   @Min(1)
