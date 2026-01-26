@@ -311,6 +311,7 @@ export default function UserLineAccountsPage() {
     aiSystemPrompt: '',
     aiTemperature: 0.7,
     aiFallbackMessage: 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+    aiModel: '' as string,  // AI Model สำหรับบัญชีนี้
     slipImmediateMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
     // Custom messages per account
     customQuotaExceededMessage: '',
@@ -327,12 +328,27 @@ export default function UserLineAccountsPage() {
     sendProcessingMessage: true, // ส่งข้อความ "กำลังประมวลผล" หรือไม่
   });
 
+  // AI Settings from system
+  const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
+  const [allowedAiModels, setAllowedAiModels] = useState<string[]>([]);
+
+  const fetchAiSettings = async () => {
+    try {
+      const res = await systemSettingsApi.getAiSettings();
+      setGlobalAiEnabled(res.data.globalAiEnabled ?? true);
+      setAllowedAiModels(res.data.allowedAiModels || ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini']);
+    } catch {
+      setAllowedAiModels(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini']);
+    }
+  };
+
   useEffect(() => {
     fetchAccounts();
     fetchPublicBaseUrl();
     fetchTemplates();
     fetchBanks();
     fetchPreviewConfig();
+    fetchAiSettings();
   }, []);
 
   // Auto-check all connections when accounts are loaded
@@ -628,6 +644,7 @@ export default function UserLineAccountsPage() {
       aiSystemPrompt: s.aiSystemPrompt || '',
       aiTemperature: s.aiTemperature ?? 0.7,
       aiFallbackMessage: s.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+      aiModel: s.aiModel || '',
       slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
       customQuotaExceededMessage: s.customQuotaExceededMessage || '',
       customBotDisabledMessage: s.customBotDisabledMessage || '',
@@ -1259,6 +1276,62 @@ export default function UserLineAccountsPage() {
         size="lg"
       >
         <div className="space-y-12 pb-6">
+          {/* Global AI Warning */}
+          {!globalAiEnabled && (
+            <div className="bg-rose-500/20 border border-rose-500/30 rounded-2xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center text-white text-lg flex-shrink-0">⚠️</div>
+                <div>
+                  <p className="text-sm font-bold text-rose-400">AI ถูกปิดทั้งระบบ</p>
+                  <p className="text-xs text-rose-300/70">แม้เปิด AI สำหรับบัญชีนี้ ระบบจะไม่ทำงานจนกว่า Admin จะเปิด Global AI</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Feature Toggles Section */}
+          <div className="space-y-6">
+            <h3 className="text-sm font-bold text-white flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/10">
+                <Bot className="w-5 h-5" />
+              </div>
+              เปิด/ปิด ฟีเจอร์
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Bot Toggle */}
+              <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableBot ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableBot ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400")}>🤖</div>
+                <div className="space-y-1">
+                  <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">Bot</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">ระบบตอบกลับ</p>
+                </div>
+                <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
+              </div>
+
+              {/* Slip Toggle */}
+              <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableSlipVerification ? "bg-amber-500/10 border-amber-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableSlipVerification ? "bg-amber-500 text-white" : "bg-slate-700 text-slate-400")}>📄</div>
+                <div className="space-y-1">
+                  <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">Slip</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">ตรวจสอบสลิป</p>
+                </div>
+                <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
+              </div>
+
+              {/* AI Toggle */}
+              <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableAi ? "bg-indigo-500/10 border-indigo-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableAi ? "bg-indigo-500 text-white" : "bg-slate-700 text-slate-400")}>🧠</div>
+                <div className="space-y-1">
+                  <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">AI</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">สมองกล AI</p>
+                </div>
+                <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
+              </div>
+            </div>
+          </div>
+
+          {/* AI Chatbot Settings */}
           <div className="space-y-6">
             <h3 className="text-sm font-bold text-white flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
@@ -1267,7 +1340,23 @@ export default function UserLineAccountsPage() {
               ตั้งค่า AI Chatbot
             </h3>
 
-            <div className="bg-white/[0.02] p-8 rounded-[2.5rem] border border-white/5 space-y-8 shadow-inner">
+            <div className="bg-white/[0.02] p-6 sm:p-8 rounded-[2.5rem] border border-white/5 space-y-6 sm:space-y-8 shadow-inner">
+              {/* AI Model Selection */}
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-400 ml-1">เลือก AI Model</label>
+                <select
+                  value={settingsData.aiModel}
+                  onChange={(e) => setSettingsData({ ...settingsData, aiModel: e.target.value })}
+                  className="w-full h-12 sm:h-14 px-4 bg-slate-950/50 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                >
+                  <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                  {allowedAiModels.map((model) => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
+                <p className="text-[9px] text-slate-500 ml-1">เลือก model ที่ต้องการใช้สำหรับบัญชีนี้ หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้นของระบบ</p>
+              </div>
+
               <div className="space-y-3">
                 <label className="text-xs font-semibold text-slate-400 ml-1">System Prompt (คำสั่งเริ่มต้นให้ AI)</label>
                 <Textarea
@@ -1278,7 +1367,7 @@ export default function UserLineAccountsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
                 <div className="space-y-5">
                   <div className="flex justify-between items-center px-1">
                     <label className="text-xs font-semibold text-slate-400">Temperature (ความคิดสร้างสรรค์)</label>
@@ -1303,7 +1392,7 @@ export default function UserLineAccountsPage() {
                   <Input
                     value={settingsData.aiFallbackMessage}
                     onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
-                    className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-white font-bold"
+                    className="bg-slate-950/50 border-white/10 h-12 sm:h-14 rounded-2xl text-white font-bold"
                   />
                 </div>
               </div>

@@ -332,6 +332,12 @@ export const systemSettingsApi = {
   getAccessControl: () => api.get('/system-settings/access-control'),
   updateAccessControl: (data: AccessControlData) =>
     api.put('/system-settings/access-control', data),
+  // AI Settings (admin only)
+  getAiSettings: () => api.get('/system-settings/ai-settings'),
+  updateAiSettings: (data: { globalAiEnabled?: boolean; allowedAiModels?: string[] }) =>
+    api.put('/system-settings/ai-settings', data),
+  toggleGlobalAi: (enabled: boolean) =>
+    api.put('/system-settings/ai-toggle', { enabled }),
 };
 
 // Slip Verification API

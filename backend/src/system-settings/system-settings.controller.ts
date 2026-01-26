@@ -422,20 +422,34 @@ export class SystemSettingsController {
   // ===============================
 
   @Get('ai-settings')
-  @UseGuards(SessionAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get AI settings (Admin only)' })
-  async getAiSettings() {
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Get AI settings (for authenticated users)' })
+  async getAiSettings(@CurrentUser() user: AuthUser) {
     const settings = await this.settingsService.getSettings();
 
+    // Base info for all users
+    const baseInfo = {
+      globalAiEnabled: settings?.globalAiEnabled ?? true,
+      allowedAiModels: settings?.allowedAiModels || ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
+    };
+
+    // Admin-only info
+    if (user.role === UserRole.ADMIN) {
+      return {
+        success: true,
+        ...baseInfo,
+        aiSettings: {
+          ...baseInfo,
+          aiModel: settings?.aiModel || 'gpt-4-mini',
+          aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
+        },
+      };
+    }
+
+    // User gets limited info
     return {
       success: true,
-      aiSettings: {
-        globalAiEnabled: settings?.globalAiEnabled ?? true,
-        allowedAiModels: settings?.allowedAiModels || ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
-        aiModel: settings?.aiModel || 'gpt-4-mini',
-        aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
-      },
+      ...baseInfo,
     };
   }
 

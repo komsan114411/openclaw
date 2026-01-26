@@ -87,6 +87,7 @@ export default function AdminLineAccountsPage() {
     aiSystemPrompt: '',
     aiTemperature: 0.7,
     aiFallbackMessage: 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+    aiModel: '' as string,  // AI Model สำหรับบัญชีนี้
     slipImmediateMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
     customQuotaExceededMessage: '',
     customBotDisabledMessage: '',
@@ -100,6 +101,10 @@ export default function AdminLineAccountsPage() {
     sendMessageWhenAiDisabled: 'default' as string,
   });
 
+  // AI Settings from system
+  const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
+  const [allowedAiModels, setAllowedAiModels] = useState<string[]>([]);
+
   const processingIdsRef = useRef<Set<string>>(new Set());
 
   const fetchPublicBaseUrl = async () => {
@@ -108,6 +113,16 @@ export default function AdminLineAccountsPage() {
       setPublicBaseUrl(res.data.publicBaseUrl || '');
     } catch {
       setPublicBaseUrl('');
+    }
+  };
+
+  const fetchAiSettings = async () => {
+    try {
+      const res = await systemSettingsApi.getAiSettings();
+      setGlobalAiEnabled(res.data.globalAiEnabled ?? true);
+      setAllowedAiModels(res.data.allowedAiModels || ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini']);
+    } catch {
+      setAllowedAiModels(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini']);
     }
   };
 
@@ -148,6 +163,7 @@ export default function AdminLineAccountsPage() {
   useEffect(() => {
     fetchData();
     fetchPublicBaseUrl();
+    fetchAiSettings();
   }, [fetchData]);
 
   // Check connection for a single account
@@ -299,6 +315,7 @@ export default function AdminLineAccountsPage() {
       aiSystemPrompt: s.aiSystemPrompt || '',
       aiTemperature: s.aiTemperature ?? 0.7,
       aiFallbackMessage: s.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+      aiModel: s.aiModel || '',
       slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
       customQuotaExceededMessage: s.customQuotaExceededMessage || '',
       customBotDisabledMessage: s.customBotDisabledMessage || '',
@@ -764,7 +781,36 @@ export default function AdminLineAccountsPage() {
                   <Badge className="bg-white/10 text-white border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg">GEN-2 AI</Badge>
                 </div>
 
+                {/* Global AI Status Warning */}
+                {!globalAiEnabled && (
+                  <div className="bg-rose-500/20 border border-rose-500/30 rounded-2xl p-4 mb-4 relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center text-white text-lg">⚠️</div>
+                      <div>
+                        <p className="text-sm font-bold text-rose-400">AI ถูกปิดทั้งระบบ</p>
+                        <p className="text-xs text-rose-300/70">แม้เปิด AI สำหรับบัญชีนี้ ระบบจะไม่ทำงานจนกว่า Admin จะเปิด Global AI</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-6 relative z-10">
+                  {/* AI Model Selection */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">เลือก AI Model</label>
+                    <Select
+                      value={settingsData.aiModel}
+                      onChange={(e) => setSettingsData({ ...settingsData, aiModel: e.target.value })}
+                      className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-bold"
+                    >
+                      <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                      {allowedAiModels.map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </Select>
+                    <p className="text-[9px] text-white/30 px-4">เลือก model ที่ต้องการใช้สำหรับบัญชีนี้ หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้นของระบบ</p>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ระบุกระบวนการทำงานของ AI (คำสั่งพื้นฐาน)</label>
                     <Textarea variant="glass" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบทบาท, เงื่อนไข และพฤติกรรมของ AI..." rows={6} className="bg-white/5 border-white/10 text-white p-8 rounded-[2rem] font-medium leading-relaxed" />
