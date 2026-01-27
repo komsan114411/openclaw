@@ -1951,6 +1951,7 @@ export class SlipTemplatesService implements OnModuleInit {
     const hasBrandingContent = branding && (
       branding.verificationText ||
       branding.footerMessage ||
+      branding.brandLogoUrl ||
       (branding.buttonText && branding.buttonUrl)
     );
 
@@ -1962,6 +1963,31 @@ export class SlipTemplatesService implements OnModuleInit {
         type: 'separator',
         color: '#E5E7EB',
       });
+
+      // Brand Logo (LINE Flex Message only supports HTTPS URLs, not base64)
+      const brandLogoSrc = branding.brandLogoUrl;
+      const isValidBrandLogo = brandLogoSrc &&
+        brandLogoSrc.startsWith('https://') &&
+        brandLogoSrc.length <= 2000;
+
+      if (isValidBrandLogo) {
+        brandingContents.push({
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'image',
+              url: brandLogoSrc,
+              size: 'md',
+              aspectMode: 'fit',
+              aspectRatio: '3:1',
+            },
+          ],
+          margin: 'lg',
+          paddingTop: '8px',
+          alignItems: 'center',
+        });
+      }
 
       // Text contents (only if there's text)
       const textContents: any[] = [];

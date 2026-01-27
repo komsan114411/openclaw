@@ -2261,10 +2261,32 @@ export default function SettingsPage() {
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
                         โลโก้แบรนด์ (ไม่บังคับ)
                       </label>
+                      {/* URL Input for LINE compatibility */}
+                      <div className="mb-4">
+                        <Input
+                          value={slipBrandingSettings.slipBrandLogoUrl}
+                          onChange={(e) => setSlipBrandingSettings({
+                            ...slipBrandingSettings,
+                            slipBrandLogoUrl: e.target.value
+                          })}
+                          placeholder="https://example.com/logo.png"
+                          className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                          hint="URL ของโลโก้ (ต้องเป็น HTTPS) - ใช้สำหรับแสดงใน LINE"
+                        />
+                      </div>
                       <div className="flex items-center gap-4">
                         {/* Preview */}
                         <div className="w-20 h-20 rounded-xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {slipBrandingSettings.slipBrandLogoBase64 ? (
+                          {slipBrandingSettings.slipBrandLogoUrl ? (
+                            <img
+                              src={slipBrandingSettings.slipBrandLogoUrl}
+                              alt="Logo"
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : slipBrandingSettings.slipBrandLogoBase64 ? (
                             <img
                               src={slipBrandingSettings.slipBrandLogoBase64}
                               alt="Logo"
@@ -2302,7 +2324,7 @@ export default function SettingsPage() {
                             htmlFor="logo-upload"
                             className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer transition-colors text-sm text-white"
                           >
-                            📤 อัปโหลดโลโก้
+                            📤 อัปโหลดโลโก้ (สำหรับตัวอย่าง)
                           </label>
                           {slipBrandingSettings.slipBrandLogoBase64 && (
                             <button
@@ -2316,6 +2338,7 @@ export default function SettingsPage() {
                             </button>
                           )}
                           <p className="text-[10px] text-slate-500">PNG, JPG, WEBP (ไม่เกิน 500KB)</p>
+                          <p className="text-[10px] text-amber-400">⚠️ LINE ต้องใช้ URL (HTTPS) เท่านั้น - อัปโหลดใช้แค่ดูตัวอย่าง</p>
                         </div>
                       </div>
                     </div>

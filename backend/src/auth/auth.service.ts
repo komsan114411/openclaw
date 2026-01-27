@@ -88,10 +88,31 @@ export class AuthService {
     sessionId: string;
     user: AuthUser;
   }> {
-    const user = await this.validateUser(loginDto.username, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid username or password');
+    // Check if user exists first (without other conditions)
+    const userExists = await this.userModel.findOne({ username: loginDto.username });
+
+    if (!userExists) {
+      throw new UnauthorizedException('ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบชื่อผู้ใช้หรือสมัครสมาชิกใหม่');
     }
+
+    // Check if user is blocked
+    if (userExists.isBlocked) {
+      const reason = userExists.blockedReason || 'ไม่ระบุเหตุผล';
+      throw new UnauthorizedException(`บัญชีของคุณถูกระงับการใช้งาน เหตุผล: ${reason} กรุณาติดต่อผู้ดูแลระบบ`);
+    }
+
+    // Check if user is inactive
+    if (!userExists.isActive) {
+      throw new UnauthorizedException('บัญชีของคุณถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบเพื่อเปิดใช้งานอีกครั้ง');
+    }
+
+    // Validate password
+    const isPasswordValid = await bcrypt.compare(loginDto.password, userExists.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง');
+    }
+
+    const user = userExists;
 
     // Update last login
     await this.userModel.updateOne({ _id: user._id }, { lastLogin: new Date() });
@@ -143,24 +164,68 @@ export class AuthService {
     sessionId: string;
     user: AuthUser;
   }> {
-    const existing = await this.userModel.findOne({ username: registerDto.username });
-    if (existing) {
-      throw new BadRequestException('Username already exists');
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(registerDto.username)) {
+      throw new BadRequestException('ชื่อผู้ใช้ต้องประกอบด้วยตัวอักษรภาษาอังกฤษ ตัวเลข หรือ _ เท่านั้น');
+    }
+
+    if (registerDto.username.length < 3) {
+      throw new BadRequestException('ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร');
+    }
+
+    if (registerDto.username.length > 30) {
+      throw new BadRequestException('ชื่อผู้ใช้ต้องไม่เกิน 30 ตัวอักษร');
+    }
+
+    // Check if username already exists
+    const existingUsername = await this.userModel.findOne({ username: registerDto.username });
+    if (existingUsername) {
+      throw new BadRequestException(`ชื่อผู้ใช้ "${registerDto.username}" ถูกใช้งานแล้ว กรุณาเลือกชื่อผู้ใช้อื่น`);
+    }
+
+    // Check if email already exists (if provided)
+    if (registerDto.email) {
+      const existingEmail = await this.userModel.findOne({ email: registerDto.email });
+      if (existingEmail) {
+        throw new BadRequestException(`อีเมล "${registerDto.email}" ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่นหรือเข้าสู่ระบบด้วยบัญชีที่มีอยู่`);
+      }
+    }
+
+    // Validate password strength
+    if (registerDto.password.length < 6) {
+      throw new BadRequestException('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
-    const created = await this.userModel.create({
-      username: registerDto.username,
-      password: hashedPassword,
-      role: UserRole.USER,
-      email: registerDto.email,
-      fullName: registerDto.fullName,
-      forcePasswordChange: false,
-      isActive: true,
-    });
 
-    // Auto-login after registration
-    return this.login({ username: created.username, password: registerDto.password });
+    try {
+      const created = await this.userModel.create({
+        username: registerDto.username,
+        password: hashedPassword,
+        role: UserRole.USER,
+        email: registerDto.email,
+        fullName: registerDto.fullName,
+        forcePasswordChange: false,
+        isActive: true,
+      });
+
+      // Auto-login after registration
+      return this.login({ username: created.username, password: registerDto.password });
+    } catch (error: any) {
+      // Handle MongoDB duplicate key error
+      if (error.code === 11000) {
+        if (error.keyPattern?.username) {
+          throw new BadRequestException(`ชื่อผู้ใช้ "${registerDto.username}" ถูกใช้งานแล้ว กรุณาเลือกชื่อผู้ใช้อื่น`);
+        }
+        if (error.keyPattern?.email) {
+          throw new BadRequestException(`อีเมล "${registerDto.email}" ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่น`);
+        }
+        throw new BadRequestException('ข้อมูลซ้ำกับที่มีอยู่ในระบบ กรุณาตรวจสอบและลองใหม่');
+      }
+      this.logger.error('Registration error:', error);
+      throw new BadRequestException('เกิดข้อผิดพลาดในการสมัครสมาชิก กรุณาลองใหม่อีกครั้ง');
+    }
   }
 
   async logout(sessionId: string): Promise<void> {

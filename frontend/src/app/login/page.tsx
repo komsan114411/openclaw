@@ -340,6 +340,32 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Error Alert Box */}
+          {error && !isLocked && (
+            <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-rose-400 font-bold text-sm mb-1">เข้าสู่ระบบไม่สำเร็จ</h4>
+                  <p className="text-rose-300 text-sm">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearError}
+                  className="text-rose-400 hover:text-rose-300 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" autoComplete="off">
             <div className="space-y-1">
               <label className="text-slate-300 text-xs font-semibold uppercase tracking-wider block mb-2">ชื่อผู้ใช้</label>
