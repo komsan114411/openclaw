@@ -78,15 +78,34 @@ export class LineWebhookController {
         return { success: false };
       }
 
-      // Update webhook timestamp
-      await this.lineAccountsService.updateWebhookTimestamp(account._id.toString());
+      // Update webhook timestamp (don't await to avoid blocking)
+      this.lineAccountsService.updateWebhookTimestamp(account._id.toString()).catch((e) => {
+        this.logger.warn('Failed to update webhook timestamp:', e);
+      });
 
-      // Process events
+      // IMPORTANT: Process events asynchronously to avoid LINE webhook timeout
+      // LINE expects a response within 30 seconds, but slip verification can take longer
+      // Process in background and return immediately
       const events = body.events || [];
-      for (const event of events) {
-        await this.processEvent(account, event);
+      const eventCount = events.length;
+
+      if (eventCount > 0) {
+        this.logger.log(`[WEBHOOK] Processing ${eventCount} events in background for account ${account._id}`);
+
+        // Fire and forget - process events in background
+        setImmediate(async () => {
+          for (const event of events) {
+            try {
+              await this.processEvent(account, event);
+            } catch (err) {
+              this.logger.error(`[WEBHOOK] Background event processing error for ${event?.message?.id || 'unknown'}:`, err);
+            }
+          }
+          this.logger.log(`[WEBHOOK] Background processing completed for ${eventCount} events`);
+        });
       }
 
+      // Return immediately to LINE to prevent timeout
       return { success: true };
     } catch (error) {
       this.logger.error('Webhook error:', error);
