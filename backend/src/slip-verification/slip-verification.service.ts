@@ -373,11 +373,12 @@ export class SlipVerificationService {
             receiverBankCode: receiverPaymentType.bankCode,
             receiverBankId: receiverBank.id || '',
             receiverBankName: receiverBank.name || '',
-            receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
-            receiverAccountNumber: receiverAccount.bank?.account || '',
+            // IMPORTANT: Include proxy account for TrueMoney/PromptPay (phone number display)
+            receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
+            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
             receiverAccountType: receiverAccount.bank?.type || '',
             receiverProxyType: receiverAccount.proxy?.type || '',
-            receiverProxyAccount: receiverAccount.proxy?.account || '',
+            receiverProxyAccount: receiverAccount.proxy?.account || receiverAccount.proxy || '',
             countryCode: slipData.countryCode || '',
             fee: slipData.fee ?? 0,
             feeFormatted: this.formatAmount(slipData.fee ?? 0),
@@ -404,6 +405,9 @@ export class SlipVerificationService {
 
         this.logger.log(`[DUPLICATE] transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
         this.logger.log(`[DUPLICATE] sender: ${senderAccount.name?.th}, receiver: ${receiverAccount.name?.th}`);
+        // Debug: Log full receiver structure to understand TrueMoney format
+        this.logger.log(`[DUPLICATE] receiverAccount structure: ${JSON.stringify(receiverAccount)}`);
+        this.logger.log(`[DUPLICATE] receiverBank structure: ${JSON.stringify(receiverBank)}`);
 
         // Helper function to detect payment type from proxy or bank info
         const detectPaymentType = (account: any, bank: any): { bankName: string; bankCode: string } => {
@@ -463,9 +467,11 @@ export class SlipVerificationService {
             receiverBank: receiverPaymentType.bankName,
             receiverBankCode: receiverPaymentType.bankCode,
             receiverBankId: receiverBank.id || '',
-            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+            // IMPORTANT: Set both receiverAccount and receiverAccountNumber for template compatibility
+            receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
+            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
             receiverProxyType: receiverAccount.proxy?.type || '',
-            receiverProxyAccount: receiverAccount.proxy?.account || '',
+            receiverProxyAccount: receiverAccount.proxy?.account || receiverAccount.proxy || '',
             countryCode: slipData.countryCode || 'TH',
             fee: slipData.fee || 0,
             feeFormatted: this.formatAmount(slipData.fee ?? 0),
@@ -536,7 +542,10 @@ export class SlipVerificationService {
             receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
             receiverBank: receiverPaymentType.bankName,
             receiverBankCode: receiverPaymentType.bankCode,
-            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+            // IMPORTANT: Include proxy account for TrueMoney/PromptPay (phone number display)
+            receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
+            receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
+            receiverProxyAccount: receiverAccount.proxy?.account || receiverAccount.proxy || '',
             isDuplicate: true,
             rawData: slipData,
           },
@@ -641,8 +650,11 @@ export class SlipVerificationService {
                 receiverBank: receiverPaymentType.bankName,
                 receiverBankCode: receiverPaymentType.bankCode,
                 receiverBankId: receiverBank.id || '',
-                receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+                // IMPORTANT: Include proxy account for TrueMoney/PromptPay (phone number display)
+                receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
+                receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
                 receiverProxyType: receiverAccount.proxy?.type || '',
+                receiverProxyAccount: receiverAccount.proxy?.account || receiverAccount.proxy || '',
                 countryCode: slipData.countryCode || 'TH',
                 fee: slipData.fee || 0,
                 feeFormatted: this.formatAmount(slipData.fee ?? 0),
