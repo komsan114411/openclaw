@@ -442,6 +442,7 @@ export class SystemSettingsController {
           ...baseInfo,
           aiModel: settings?.aiModel || 'gpt-4-mini',
           aiDisabledSendMessage: settings?.aiDisabledSendMessage ?? false,
+          aiQuotaExhaustedSendMessage: settings?.aiQuotaExhaustedSendMessage ?? true,
         },
       };
     }
@@ -463,6 +464,7 @@ export class SystemSettingsController {
       allowedAiModels?: string[];
       aiModel?: string;
       aiDisabledSendMessage?: boolean;
+      aiQuotaExhaustedSendMessage?: boolean;
     },
     @CurrentUser() user: AuthUser,
   ) {

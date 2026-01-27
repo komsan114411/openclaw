@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { packagesApi, walletApi } from '@/lib/api';
+import { packagesApi, walletApi, paymentsApi } from '@/lib/api';
 import { useWalletStore } from '@/store/wallet';
 import { Package } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +25,15 @@ export default function UserPackagesPage() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [purchaseResult, setPurchaseResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Purchase eligibility
+  const [eligibility, setEligibility] = useState<{
+    canPurchase: boolean;
+    purchaseCount: number;
+    maxPurchases: number | null;
+    remainingPurchases: number | null;
+  } | null>(null);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
 
   // ===== FETCH DATA =====
   const fetchBalance = async () => {
@@ -64,12 +73,20 @@ export default function UserPackagesPage() {
   const handleBuyClick = async (pkg: Package) => {
     setSelectedPackage(pkg);
     setPurchaseResult(null);
+    setEligibility(null);
     setIsLoadingBalance(true);
+    setIsCheckingEligibility(true);
     setShowModal(true);
 
-    // Fetch fresh balance when opening modal
-    await fetchBalance();
+    // Fetch fresh balance and check eligibility when opening modal
+    const [_, eligibilityRes] = await Promise.all([
+      fetchBalance(),
+      paymentsApi.checkEligibility(pkg._id).catch(() => ({ data: { canPurchase: true, purchaseCount: 0, maxPurchases: null, remainingPurchases: null } })),
+    ]);
+
+    setEligibility(eligibilityRes.data);
     setIsLoadingBalance(false);
+    setIsCheckingEligibility(false);
   };
 
   const handleCloseModal = () => {
@@ -77,6 +94,7 @@ export default function UserPackagesPage() {
     setShowModal(false);
     setSelectedPackage(null);
     setPurchaseResult(null);
+    setEligibility(null);
   };
 
   const handlePurchase = async () => {
@@ -136,6 +154,8 @@ export default function UserPackagesPage() {
 
 
   const hasEnoughBalance = selectedPackage && !isLoadingBalance ? balance >= selectedPackage.price : true;
+  const canPurchase = eligibility?.canPurchase ?? true;
+  const isEligibilityLoading = isCheckingEligibility || isLoadingBalance;
 
   // ===== LOADING =====
   if (isLoading) {
@@ -204,6 +224,15 @@ export default function UserPackagesPage() {
                   <div className="absolute -top-2 left-1/2 -translate-x-1/2">
                     <span className="px-3 py-0.5 bg-[#06C755] text-white text-[10px] font-bold rounded-full">
                       แนะนำ
+                    </span>
+                  </div>
+                )}
+
+                {/* Purchase Limit Badge */}
+                {pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0 && (
+                  <div className="absolute -top-2 right-2">
+                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[9px] font-bold rounded-full border border-amber-500/30">
+                      จำกัด {pkg.maxPurchasesPerUser} ครั้ง
                     </span>
                   </div>
                 )}
@@ -359,8 +388,51 @@ export default function UserPackagesPage() {
               </div>
             )}
 
+            {/* Purchase Limit Info */}
+            {!isEligibilityLoading && eligibility?.maxPurchases && (
+              <div className={cn(
+                "rounded-lg p-3 border",
+                eligibility.canPurchase
+                  ? "bg-amber-500/10 border-amber-500/20"
+                  : "bg-rose-500/10 border-rose-500/20"
+              )}>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{eligibility.canPurchase ? '📋' : '🚫'}</span>
+                  <div>
+                    <p className={cn(
+                      "text-sm font-bold",
+                      eligibility.canPurchase ? "text-amber-300" : "text-rose-300"
+                    )}>
+                      {eligibility.canPurchase
+                        ? `ซื้อได้อีก ${eligibility.remainingPurchases} ครั้ง`
+                        : `ซื้อครบ ${eligibility.maxPurchases} ครั้งแล้ว`
+                      }
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      คุณซื้อแพ็คเกจนี้ไปแล้ว {eligibility.purchaseCount}/{eligibility.maxPurchases} ครั้ง
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Purchase Limit Exceeded Warning */}
+            {!isEligibilityLoading && !canPurchase && (
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">🚫</span>
+                  <div>
+                    <p className="text-rose-300 font-bold mb-1">ไม่สามารถซื้อได้</p>
+                    <p className="text-rose-300/80 text-sm">
+                      คุณได้ซื้อแพ็คเกจนี้ครบจำนวนครั้งที่กำหนดแล้ว ({eligibility?.maxPurchases} ครั้ง)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Insufficient Balance Warning */}
-            {!isLoadingBalance && !hasEnoughBalance && (
+            {!isLoadingBalance && !hasEnoughBalance && canPurchase && (
               <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">⚠️</span>
@@ -409,10 +481,10 @@ export default function UserPackagesPage() {
                 variant="primary"
                 fullWidth
                 onClick={handlePurchase}
-                disabled={isPurchasing || isLoadingBalance || !hasEnoughBalance || purchaseResult?.success}
+                disabled={isPurchasing || isEligibilityLoading || !hasEnoughBalance || !canPurchase || purchaseResult?.success}
                 className={cn(
                   "h-10",
-                  hasEnoughBalance && !isLoadingBalance ? "bg-[#06C755] hover:bg-[#05a347]" : "bg-slate-600"
+                  hasEnoughBalance && canPurchase && !isEligibilityLoading ? "bg-[#06C755] hover:bg-[#05a347]" : "bg-slate-600"
                 )}
               >
                 {isPurchasing ? (
@@ -420,8 +492,10 @@ export default function UserPackagesPage() {
                     <span className="animate-spin">⏳</span>
                     กำลังซื้อ...
                   </span>
-                ) : isLoadingBalance ? (
+                ) : isEligibilityLoading ? (
                   'กำลังตรวจสอบ...'
+                ) : !canPurchase ? (
+                  '🚫 ซื้อครบแล้ว'
                 ) : hasEnoughBalance ? (
                   '✅ ยืนยันซื้อ'
                 ) : (

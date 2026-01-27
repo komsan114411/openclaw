@@ -61,4 +61,12 @@ export class UpdatePackageDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({
+    description: 'จำนวนครั้งที่ซื้อได้ต่อผู้ใช้ (null หรือ 0 = ไม่จำกัด)'
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maxPurchasesPerUser?: number;
 }

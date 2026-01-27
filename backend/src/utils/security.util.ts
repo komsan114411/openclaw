@@ -1,18 +1,31 @@
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class SecurityUtil {
+    private readonly logger = new Logger(SecurityUtil.name);
     private readonly algorithm = 'aes-256-gcm';
-    // Use a fixed key derived from app secret or a secure env var in production.
-    // For this context, we'll derive it from a default or env.
     private readonly secretKey: Buffer;
 
     constructor() {
-        const secret = process.env.APP_SECRET || 'default-secure-key-32-chars-long!!';
-        // Ensure key is 32 bytes
-        this.secretKey = crypto.scryptSync(secret, 'salt', 32);
+        const secret = process.env.APP_SECRET;
+
+        // CRITICAL: Require APP_SECRET in production
+        if (!secret) {
+            if (process.env.NODE_ENV === 'production') {
+                this.logger.error('❌ CRITICAL: APP_SECRET environment variable is required in production!');
+                throw new Error('APP_SECRET is required in production');
+            }
+            // Development fallback with warning
+            this.logger.warn('⚠️ WARNING: Using development encryption key. Set APP_SECRET for production!');
+            // Use a deterministic dev key (NOT for production)
+            this.secretKey = crypto.scryptSync('dev-only-insecure-key-change-me!', 'dev-salt', 32);
+        } else {
+            // Use proper key derivation with unique salt per-app
+            const salt = crypto.createHash('sha256').update(secret + '-salt').digest();
+            this.secretKey = crypto.scryptSync(secret, salt, 32);
+        }
     }
 
     encrypt(text: string): string {

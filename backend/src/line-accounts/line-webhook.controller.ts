@@ -731,9 +731,16 @@ export class LineWebhookController {
       this.logger.log(`[AI] Quota check for ${ownerId}: hasQuota=${aiQuotaInfo.hasQuota}, remaining=${aiQuotaInfo.remainingQuota}`);
 
       if (!aiQuotaInfo.hasQuota) {
-        this.logger.log(`[AI] No AI quota - sending quota exhausted message`);
-        const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
-        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        this.logger.log(`[AI] No AI quota`);
+        // ตรวจสอบว่าต้องส่งข้อความแจ้งเตือนหรือไม่
+        const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
+        if (shouldSendQuotaMsg) {
+          this.logger.log(`[AI] Sending quota exhausted message`);
+          const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
+          await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        } else {
+          this.logger.log(`[AI] Quota exhausted message disabled by settings`);
+        }
         return;
       }
 
@@ -743,8 +750,12 @@ export class LineWebhookController {
       subscriptionId = await this.subscriptionsService.reserveAiQuota(ownerId, 1);
       if (!subscriptionId) {
         this.logger.log(`[AI] AI quota reservation failed`);
-        const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
-        await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        // ตรวจสอบว่าต้องส่งข้อความแจ้งเตือนหรือไม่
+        const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
+        if (shouldSendQuotaMsg) {
+          const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
+          await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+        }
         return;
       }
       this.logger.log(`[AI] AI quota reserved, subscriptionId=${subscriptionId}`);

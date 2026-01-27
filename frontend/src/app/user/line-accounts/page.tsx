@@ -325,6 +325,7 @@ export default function UserLineAccountsPage() {
     sendMessageWhenBotDisabled: 'default' as string,
     sendMessageWhenSlipDisabled: 'default' as string,
     sendMessageWhenAiDisabled: 'default' as string,
+    sendMessageWhenAiQuotaExhausted: 'default' as string,
     sendProcessingMessage: true, // ส่งข้อความ "กำลังประมวลผล" หรือไม่
   });
 
@@ -656,6 +657,7 @@ export default function UserLineAccountsPage() {
       sendMessageWhenBotDisabled: boolToString(s.sendMessageWhenBotDisabled),
       sendMessageWhenSlipDisabled: boolToString(s.sendMessageWhenSlipDisabled),
       sendMessageWhenAiDisabled: boolToString(s.sendMessageWhenAiDisabled),
+      sendMessageWhenAiQuotaExhausted: boolToString(s.sendMessageWhenAiQuotaExhausted),
       sendProcessingMessage: s.sendProcessingMessage ?? true,
     });
     setShowSettingsModal(true);
@@ -674,6 +676,7 @@ export default function UserLineAccountsPage() {
         sendMessageWhenBotDisabled: stringToBool(settingsData.sendMessageWhenBotDisabled),
         sendMessageWhenSlipDisabled: stringToBool(settingsData.sendMessageWhenSlipDisabled),
         sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
+        sendMessageWhenAiQuotaExhausted: stringToBool(settingsData.sendMessageWhenAiQuotaExhausted),
         sendProcessingMessage: settingsData.sendProcessingMessage,
       };
       await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
@@ -1434,6 +1437,66 @@ export default function UserLineAccountsPage() {
                     className="bg-slate-950/50 border-white/10 h-12 sm:h-14 rounded-2xl text-white font-bold"
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Message Settings */}
+          <div className="space-y-6">
+            <h3 className="text-sm font-bold text-white flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              ตั้งค่าข้อความ AI
+            </h3>
+            <div className={cn(
+              "bg-white/[0.02] p-6 sm:p-8 rounded-[2.5rem] border border-white/5 space-y-6 shadow-inner",
+              !globalAiEnabled && "opacity-50 pointer-events-none"
+            )}>
+              {/* Send message when AI is disabled */}
+              <div className="p-5 bg-violet-500/[0.02] rounded-[1.5rem] border border-violet-400/10 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-white">ส่งข้อความเมื่อ AI ปิด</p>
+                  <p className="text-xs text-slate-400">แจ้งลูกค้าเมื่อส่งข้อความมาแต่ AI ปิดอยู่</p>
+                </div>
+                <Select
+                  value={settingsData.sendMessageWhenAiDisabled}
+                  onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenAiDisabled: e.target.value })}
+                  className="w-32 bg-slate-950/50 border-white/10 h-10 rounded-xl text-white text-xs"
+                >
+                  <option value="default">ค่าเริ่มต้น</option>
+                  <option value="true">ส่ง</option>
+                  <option value="false">ไม่ส่ง</option>
+                </Select>
+              </div>
+
+              {/* Custom AI disabled message */}
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-400 ml-1">ข้อความเมื่อ AI ปิด (ถ้าไม่กรอกจะใช้ค่าเริ่มต้น)</label>
+                <Input
+                  placeholder="🤖 ระบบ AI ปิดให้บริการชั่วคราว"
+                  value={settingsData.customAiDisabledMessage}
+                  onChange={(e) => setSettingsData({ ...settingsData, customAiDisabledMessage: e.target.value })}
+                  disabled={settingsData.sendMessageWhenAiDisabled === 'false'}
+                  className="bg-slate-950/50 border-white/10 h-14 rounded-2xl text-white font-bold"
+                />
+              </div>
+
+              {/* Send message when AI quota exhausted */}
+              <div className="p-5 bg-amber-500/[0.02] rounded-[1.5rem] border border-amber-400/10 flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-white">ส่งข้อความเมื่อโควต้า AI หมด</p>
+                  <p className="text-xs text-slate-400">แจ้งลูกค้าเมื่อโควต้า AI หมดแล้ว</p>
+                </div>
+                <Select
+                  value={settingsData.sendMessageWhenAiQuotaExhausted}
+                  onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenAiQuotaExhausted: e.target.value })}
+                  className="w-32 bg-slate-950/50 border-white/10 h-10 rounded-xl text-white text-xs"
+                >
+                  <option value="default">ค่าเริ่มต้น</option>
+                  <option value="true">ส่ง</option>
+                  <option value="false">ไม่ส่ง</option>
+                </Select>
               </div>
             </div>
           </div>

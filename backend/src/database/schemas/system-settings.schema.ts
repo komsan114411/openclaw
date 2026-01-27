@@ -123,6 +123,10 @@ export class SystemSettings {
   @Prop({ default: false })
   aiDisabledSendMessage: boolean;
 
+  // AI Quota Exhausted Settings - ส่งข้อความเมื่อ AI quota หมด
+  @Prop({ default: true })
+  aiQuotaExhaustedSendMessage: boolean;
+
   // Duplicate Settings (control flag only - message in SlipTemplates)
   @Prop({ default: true })
   duplicateRefundEnabled: boolean;

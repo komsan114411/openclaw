@@ -148,7 +148,7 @@ export class AuthService {
       throw new BadRequestException('Username already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const hashedPassword = await bcrypt.hash(registerDto.password, 12);
     const created = await this.userModel.create({
       username: registerDto.username,
       password: hashedPassword,
@@ -238,7 +238,7 @@ export class AuthService {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
     await this.userModel.updateOne(
       { _id: userId },
       {

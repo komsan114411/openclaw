@@ -44,6 +44,7 @@ interface SystemSettings {
   slipDisabledSendMessage?: boolean;
   botDisabledSendMessage?: boolean;
   aiDisabledSendMessage?: boolean;
+  aiQuotaExhaustedSendMessage?: boolean;
   showSlipProcessingMessage?: boolean;
   quotaWarningEnabled?: boolean;
   quotaWarningThreshold?: number;
@@ -130,6 +131,7 @@ export default function SettingsPage() {
     slipDisabledSendMessage: true,
     botDisabledSendMessage: false,
     aiDisabledSendMessage: false,
+    aiQuotaExhaustedSendMessage: true,
     showSlipProcessingMessage: true,
     quotaWarningEnabled: true,
     quotaWarningThreshold: 10,
@@ -225,6 +227,7 @@ export default function SettingsPage() {
         slipDisabledSendMessage: data.slipDisabledSendMessage ?? true,
         botDisabledSendMessage: data.botDisabledSendMessage ?? false,
         aiDisabledSendMessage: data.aiDisabledSendMessage ?? false,
+        aiQuotaExhaustedSendMessage: data.aiQuotaExhaustedSendMessage ?? true,
         showSlipProcessingMessage: data.showSlipProcessingMessage ?? true,
         quotaWarningEnabled: data.quotaWarningEnabled ?? true,
         quotaWarningThreshold: data.quotaWarningThreshold ?? 10,
@@ -804,7 +807,7 @@ export default function SettingsPage() {
                     <div className="p-5 bg-white/[0.02] rounded-2xl border border-white/5">
                       <p className="text-sm font-bold text-white mb-4">การแจ้งเตือน</p>
 
-                      <div className="flex items-center justify-between py-3">
+                      <div className="flex items-center justify-between py-3 border-b border-white/5">
                         <div>
                           <p className="text-xs text-slate-300">ส่งข้อความเมื่อปิด AI</p>
                           <p className="text-[10px] text-slate-500 mt-0.5">แจ้งผู้ใช้ว่า AI ไม่พร้อมใช้งาน</p>
@@ -814,6 +817,20 @@ export default function SettingsPage() {
                           onChange={(checked) => setSystemControlSettings({
                             ...systemControlSettings,
                             aiDisabledSendMessage: checked
+                          })}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between py-3">
+                        <div>
+                          <p className="text-xs text-slate-300">ส่งข้อความเมื่อ AI quota หมด</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">แจ้งผู้ใช้เมื่อโควต้า AI หมด</p>
+                        </div>
+                        <Switch
+                          checked={systemControlSettings.aiQuotaExhaustedSendMessage}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            aiQuotaExhaustedSendMessage: checked
                           })}
                         />
                       </div>
@@ -851,6 +868,7 @@ export default function SettingsPage() {
                           globalAiEnabled: globalAiSettings.globalAiEnabled,
                           allowedAiModels: globalAiSettings.allowedAiModels,
                           aiDisabledSendMessage: systemControlSettings.aiDisabledSendMessage,
+                          aiQuotaExhaustedSendMessage: systemControlSettings.aiQuotaExhaustedSendMessage,
                         });
                       }}
                       isLoading={isSaving === 'ai_settings'}

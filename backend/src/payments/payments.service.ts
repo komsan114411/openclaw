@@ -34,6 +34,46 @@ export class PaymentsService {
     this.logActivity = createActivityLogger(this.activityLogsService, this.logger, 'payment');
   }
 
+  /**
+   * Count how many times a user has successfully purchased a specific package
+   * Only counts VERIFIED payments
+   */
+  async countUserPurchases(userId: string, packageId: string): Promise<number> {
+    return this.paymentModel.countDocuments({
+      userId,
+      packageId,
+      status: PaymentStatus.VERIFIED,
+    });
+  }
+
+  /**
+   * Check if user can purchase a package based on maxPurchasesPerUser limit
+   */
+  async canUserPurchase(userId: string, packageId: string): Promise<{
+    canPurchase: boolean;
+    purchaseCount: number;
+    maxPurchases: number | null;
+    remainingPurchases: number | null;
+  }> {
+    const pkg = await this.packagesService.findById(packageId);
+    if (!pkg) {
+      return { canPurchase: false, purchaseCount: 0, maxPurchases: null, remainingPurchases: null };
+    }
+
+    const maxPurchases = pkg.maxPurchasesPerUser;
+
+    // null or 0 means unlimited
+    if (!maxPurchases || maxPurchases <= 0) {
+      return { canPurchase: true, purchaseCount: 0, maxPurchases: null, remainingPurchases: null };
+    }
+
+    const purchaseCount = await this.countUserPurchases(userId, packageId);
+    const canPurchase = purchaseCount < maxPurchases;
+    const remainingPurchases = Math.max(0, maxPurchases - purchaseCount);
+
+    return { canPurchase, purchaseCount, maxPurchases, remainingPurchases };
+  }
+
   async createPayment(
     userId: string,
     packageId: string,
@@ -49,6 +89,14 @@ export class PaymentsService {
     const pkg = await this.packagesService.findById(packageId);
     if (!pkg) {
       throw new NotFoundException('Package not found');
+    }
+
+    // Check purchase limit
+    const purchaseCheck = await this.canUserPurchase(userId, packageId);
+    if (!purchaseCheck.canPurchase) {
+      throw new BadRequestException(
+        `คุณได้ซื้อแพ็คเกจนี้ครบ ${purchaseCheck.maxPurchases} ครั้งแล้ว ไม่สามารถซื้อเพิ่มได้`
+      );
     }
 
     // Validate USDT payment has transaction hash
@@ -242,7 +290,15 @@ export class PaymentsService {
         return existingUpdated;
       }
 
-      // No existing pending payment, create new one
+      // No existing pending payment - check purchase limit before creating new one
+      const purchaseCheck = await this.canUserPurchase(userId, packageId);
+      if (!purchaseCheck.canPurchase) {
+        throw new BadRequestException(
+          `คุณได้ซื้อแพ็คเกจนี้ครบ ${purchaseCheck.maxPurchases} ครั้งแล้ว ไม่สามารถซื้อเพิ่มได้`
+        );
+      }
+
+      // Create new payment
       const payment = new this.paymentModel({
         userId,
         packageId,
@@ -353,7 +409,12 @@ export class PaymentsService {
       if (result.status === 'success' && result.data) {
         // Check for duplicate transRef before processing
         if (result.data.transRef) {
-          const duplicateCheck = await this.checkDuplicateSlip(result.data.transRef);
+          const duplicateCheck = await this.checkDuplicateSlip(
+            result.data.transRef,
+            payment.userId.toString(), // Exclude current user's own pending payments
+          );
+
+          // Block if already verified by someone
           if (duplicateCheck.isDuplicate) {
             payment.verificationResult = { duplicate: true, transRef: result.data.transRef };
             payment.adminNotes = 'สลิปซ้ำ: เลขอ้างอิงนี้เคยถูกใช้แล้ว';
@@ -361,6 +422,17 @@ export class PaymentsService {
             return {
               success: false,
               message: 'สลิปนี้เคยถูกใช้แล้ว',
+            };
+          }
+
+          // Also block if another user has pending payment with same slip
+          if (duplicateCheck.hasPendingFromOthers) {
+            payment.verificationResult = { duplicate: true, transRef: result.data.transRef, pendingConflict: true };
+            payment.adminNotes = 'สลิปซ้ำ: มีผู้ใช้รายอื่นกำลังใช้สลิปนี้';
+            await payment.save();
+            return {
+              success: false,
+              message: 'สลิปนี้กำลังถูกใช้โดยผู้อื่น กรุณาใช้สลิปอื่น',
             };
           }
         }
@@ -405,7 +477,8 @@ export class PaymentsService {
 
         // All checks passed - auto approve
         if (accountMatched && amountMatched) {
-          // BULLETPROOF: Use atomic operation with quotaGranted check
+          // BULLETPROOF: Set quotaGranted=true ATOMICALLY with status change
+          // This prevents race conditions where event is published but quotaGranted not set
           const updateResult = await this.paymentModel.findOneAndUpdate(
             {
               _id: paymentId,
@@ -418,6 +491,7 @@ export class PaymentsService {
               adminNotes: 'ระบบอนุมัติอัตโนมัติ: ตรวจสอบสลิปสำเร็จ',
               verificationResult: payment.verificationResult,
               transRef: payment.transRef,
+              quotaGranted: true, // Set atomically with status change
             },
             { new: true },
           );
@@ -434,11 +508,6 @@ export class PaymentsService {
                 packageId: payment.packageId.toString(),
                 paymentMethod: 'bank_transfer',
                 transactionRef: payment.transRef,
-              });
-
-              // Mark quota as granted
-              await this.paymentModel.findByIdAndUpdate(paymentId, {
-                quotaGranted: true,
               });
 
               this.logger.log(
@@ -460,10 +529,11 @@ export class PaymentsService {
                 },
               });
             } catch (error) {
-              // Rollback payment status if event publishing fails
+              // Rollback payment status AND quotaGranted if event publishing fails
               this.logger.error(`Failed to publish event for payment ${paymentId}:`, error);
               await this.paymentModel.findByIdAndUpdate(paymentId, {
                 status: PaymentStatus.PENDING,
+                quotaGranted: false, // Reset quotaGranted on rollback
                 adminNotes: 'ระบบอนุมัติแต่ publish event ไม่สำเร็จ รอตรวจสอบ',
               });
               return {
@@ -579,7 +649,7 @@ export class PaymentsService {
       throw new BadRequestException('Invalid payment ID format');
     }
 
-    // STEP 1: Atomically claim the payment for approval
+    // STEP 1: Atomically claim the payment AND set quotaGranted=true
     // This prevents race conditions where two admins try to approve simultaneously
     const payment = await this.paymentModel.findOneAndUpdate(
       {
@@ -592,6 +662,7 @@ export class PaymentsService {
         adminId,
         verifiedAt: new Date(),
         adminNotes: `อนุมัติโดย Admin: ${adminId}`,
+        quotaGranted: true, // Set atomically with status change
       },
       { new: true },
     );
@@ -632,11 +703,7 @@ export class PaymentsService {
         transactionRef: payment.transRef,
       });
 
-      // STEP 3: Mark quota as granted (event handlers may take time, but we mark intent)
-      await this.paymentModel.findByIdAndUpdate(paymentId, {
-        quotaGranted: true,
-        adminNotes: `อนุมัติโดย Admin: ${adminId}`,
-      });
+      // quotaGranted already set atomically in STEP 1
 
       this.logger.log(
         `Admin ${adminId} approved payment ${paymentId}, published PaymentCompletedEvent`,
@@ -659,13 +726,14 @@ export class PaymentsService {
 
       return true;
     } catch (error: any) {
-      // ROLLBACK: Revert payment status since event publishing failed
+      // ROLLBACK: Revert payment status AND quotaGranted since event publishing failed
       this.logger.error(`Failed to publish event for payment ${paymentId}:`, error);
 
       await this.paymentModel.findByIdAndUpdate(paymentId, {
         status: PaymentStatus.PENDING,
         adminId: undefined,
         verifiedAt: undefined,
+        quotaGranted: false, // Reset quotaGranted on rollback
         adminNotes: `อนุมัติโดย Admin แต่ publish event ไม่สำเร็จ: ${error.message}`,
       });
 
@@ -825,24 +893,35 @@ export class PaymentsService {
     }));
   }
 
-  async checkDuplicateSlip(transRef: string): Promise<{
+  async checkDuplicateSlip(transRef: string, excludeUserId?: string): Promise<{
     isDuplicate: boolean;
     duplicateCount: number;
+    hasPendingFromOthers: boolean;
   }> {
     if (!transRef) {
-      return { isDuplicate: false, duplicateCount: 0 };
+      return { isDuplicate: false, duplicateCount: 0, hasPendingFromOthers: false };
     }
 
-    // Only VERIFIED should be treated as "already used".
-    // PENDING may happen during re-upload or concurrent verification attempts.
-    const count = await this.paymentModel.countDocuments({
+    // Check for VERIFIED duplicates (definitely used)
+    const verifiedCount = await this.paymentModel.countDocuments({
       transRef,
       status: PaymentStatus.VERIFIED,
     });
 
+    // Also check for PENDING from OTHER users (potential fraud)
+    const pendingFromOthersQuery: any = {
+      transRef,
+      status: PaymentStatus.PENDING,
+    };
+    if (excludeUserId) {
+      pendingFromOthersQuery.userId = { $ne: excludeUserId };
+    }
+    const pendingFromOthers = await this.paymentModel.countDocuments(pendingFromOthersQuery);
+
     return {
-      isDuplicate: count > 0,
-      duplicateCount: count,
+      isDuplicate: verifiedCount > 0,
+      duplicateCount: verifiedCount,
+      hasPendingFromOthers: pendingFromOthers > 0,
     };
   }
 

@@ -85,6 +85,7 @@ export interface LineAccountSettings {
   sendMessageWhenBotDisabled?: boolean | null;
   sendMessageWhenSlipDisabled?: boolean | null;
   sendMessageWhenAiDisabled?: boolean | null;
+  sendMessageWhenAiQuotaExhausted?: boolean | null;
   sendProcessingMessage?: boolean;
 }
 
@@ -101,6 +102,7 @@ export interface Package {
   isFreeStarter: boolean;
   isActive: boolean;
   sortOrder: number;
+  maxPurchasesPerUser?: number | null; // จำนวนครั้งที่ซื้อได้ต่อผู้ใช้ (null/0 = ไม่จำกัด)
 }
 
 export interface Subscription {

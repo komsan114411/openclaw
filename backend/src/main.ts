@@ -6,6 +6,7 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import * as cookieParser from 'cookie-parser';
 import * as bodyParser from 'body-parser';
 import * as crypto from 'crypto';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -16,6 +17,13 @@ async function bootstrap() {
       // Required for LINE signature verification (use req.rawBody)
       rawBody: true,
     });
+
+    // Security headers
+    app.use(helmet({
+      contentSecurityPolicy: false, // Disable CSP for API
+      crossOriginEmbedderPolicy: false, // Allow embedding
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }));
 
     // Increase body size limit for base64 image uploads (10MB)
     app.use(bodyParser.json({ limit: '10mb' }));

@@ -23,6 +23,11 @@ export class Package {
   @Prop({ required: true })
   durationDays: number;
 
+  // จำนวนครั้งที่ซื้อได้ต่อผู้ใช้ (null หรือ 0 = ไม่จำกัด)
+  // เช่น 1 = โปรโมชั่นสมัครใหม่ ซื้อได้ครั้งเดียว
+  @Prop({ default: null })
+  maxPurchasesPerUser: number;
+
   @Prop()
   description: string;
 

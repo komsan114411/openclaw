@@ -65,6 +65,15 @@ export class ConfigurableMessagesService {
   }
 
   /**
+   * Check if AI quota exhausted message should be sent
+   */
+  async shouldSendAiQuotaExhaustedMessage(context: MessageContext = {}): Promise<boolean> {
+    const settings = await this.systemSettingsService.getSettings();
+    const accountSettings = context.account?.settings;
+    return accountSettings?.sendMessageWhenAiQuotaExhausted ?? settings?.aiQuotaExhaustedSendMessage ?? true;
+  }
+
+  /**
    * Check if processing message should be shown
    */
   async shouldShowProcessingMessage(context: MessageContext = {}): Promise<boolean> {

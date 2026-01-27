@@ -224,6 +224,8 @@ export const paymentsApi = {
   approve: (id: string) => api.post(`/payments/${id}/approve`),
   reject: (id: string, notes?: string) =>
     api.post(`/payments/${id}/reject`, { notes }),
+  checkEligibility: (packageId: string) =>
+    api.get(`/payments/check-eligibility/${packageId}`),
 };
 
 // Bank data types

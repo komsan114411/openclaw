@@ -37,6 +37,7 @@ export default function AdminPackagesPage() {
     description: '',
     features: '',
     sortOrder: 0,
+    maxPurchasesPerUser: null as number | null, // null = ไม่จำกัด
   });
 
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function AdminPackagesPage() {
       description: '',
       features: '',
       sortOrder: 0,
+      maxPurchasesPerUser: null,
     });
     setEditPackage(null);
     setFormErrors({});
@@ -131,6 +133,7 @@ export default function AdminPackagesPage() {
       description: pkg.description || '',
       features: pkg.features?.join('\n') || '',
       sortOrder: pkg.sortOrder || 0,
+      maxPurchasesPerUser: pkg.maxPurchasesPerUser ?? null,
     });
     setFormErrors({});
     setShowModal(true);
@@ -264,11 +267,18 @@ export default function AdminPackagesPage() {
                           {pkg.durationDays} วัน
                         </p>
                       </div>
-                      <div className={cn(
-                        "px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] font-semibold border border-white/5 shadow-lg",
-                        pkg.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/20"
-                      )}>
-                        {pkg.isActive ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
+                      <div className="flex flex-col gap-2 items-end">
+                        <div className={cn(
+                          "px-3 sm:px-4 py-1.5 rounded-full text-[8px] sm:text-[9px] font-semibold border border-white/5 shadow-lg",
+                          pkg.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/20"
+                        )}>
+                          {pkg.isActive ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
+                        </div>
+                        {pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0 && (
+                          <div className="px-3 py-1 rounded-full text-[8px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            จำกัด {pkg.maxPurchasesPerUser} ครั้ง/ผู้ใช้
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -421,15 +431,30 @@ export default function AdminPackagesPage() {
                 />
                 <div></div>
               </div>
-              <Input
-                label="ลำดับการแสดงผล"
-                type="number"
-                value={formData.sortOrder}
-                onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
-                min={0}
-                hint="ลำดับการเรียงแพ็คเกจในรายการ (0 = แสดงก่อน)"
-                className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
-              />
+              <div className="grid grid-cols-2 gap-5">
+                <Input
+                  label="ลำดับการแสดงผล"
+                  type="number"
+                  value={formData.sortOrder}
+                  onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
+                  min={0}
+                  hint="0 = แสดงก่อน"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
+                />
+                <Input
+                  label="จำกัดซื้อต่อผู้ใช้"
+                  type="number"
+                  value={formData.maxPurchasesPerUser ?? ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    maxPurchasesPerUser: e.target.value === '' ? null : Number(e.target.value)
+                  })}
+                  min={0}
+                  placeholder="ไม่จำกัด"
+                  hint="เว้นว่างหรือ 0 = ไม่จำกัด"
+                  className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
+                />
+              </div>
             </div>
 
             <div className="space-y-8">

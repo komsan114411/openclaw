@@ -20,6 +20,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
+import { CreatePaymentDto, SubmitSlipDto, SubmitUsdtDto, RejectPaymentDto, PaymentTypeDto } from './dto/create-payment.dto';
 
 @ApiTags('Payments')
 @ApiBearerAuth()
@@ -32,9 +33,9 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Create payment record' })
   async createPayment(
     @CurrentUser() user: AuthUser,
-    @Body() body: { packageId: string; paymentType: string; amount: number },
+    @Body() body: CreatePaymentDto,
   ) {
-    const paymentType = body.paymentType === 'usdt' ? PaymentType.USDT : PaymentType.BANK_TRANSFER;
+    const paymentType = body.paymentType === PaymentTypeDto.USDT ? PaymentType.USDT : PaymentType.BANK_TRANSFER;
     const payment = await this.paymentsService.createPayment(
       user.userId,
       body.packageId,
@@ -55,18 +56,38 @@ export class PaymentsController {
   async submitSlipPayment(
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { packageId: string; paymentId?: string },
+    @Body() body: SubmitSlipDto,
     @Req() req: any,
   ) {
     if (!file) {
       return { success: false, message: 'กรุณาอัปโหลดรูปสลิป' };
     }
 
-    // Basic file validation
-    const maxBytes = 10 * 1024 * 1024; // 10MB
+    // Enhanced file validation with magic byte checking
+    const maxBytes = 5 * 1024 * 1024; // 5MB (reduced from 10MB for slip images)
     const size = file.size ?? file.buffer?.length ?? 0;
+
+    // Basic MIME type check
     if (!file.mimetype?.startsWith('image/') || size <= 0 || size > maxBytes) {
-      return { success: false, message: 'ไฟล์สลิปไม่ถูกต้อง (รองรับรูปภาพและต้องไม่เกิน 10MB)' };
+      return { success: false, message: 'ไฟล์สลิปไม่ถูกต้อง (รองรับรูปภาพและต้องไม่เกิน 5MB)' };
+    }
+
+    // Magic byte validation to prevent MIME type spoofing
+    const buffer = file.buffer;
+    if (!buffer || buffer.length < 4) {
+      return { success: false, message: 'ไฟล์สลิปไม่ถูกต้อง' };
+    }
+
+    // Check file signatures (magic bytes)
+    const isJPEG = buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+    const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+    const isGIF = buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46;
+    const isWEBP = buffer.length >= 12 &&
+      buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+      buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+
+    if (!isJPEG && !isPNG && !isGIF && !isWEBP) {
+      return { success: false, message: 'รองรับเฉพาะไฟล์รูปภาพ JPEG, PNG, GIF, WEBP เท่านั้น' };
     }
 
     // If paymentId is provided, update the existing payment (no new row)
@@ -94,7 +115,7 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Submit USDT payment' })
   async submitUsdtPayment(
     @CurrentUser() user: AuthUser,
-    @Body() body: { packageId: string; transactionHash: string },
+    @Body() body: SubmitUsdtDto,
   ) {
     const payment = await this.paymentsService.createPayment(
       user.userId,
@@ -130,6 +151,19 @@ export class PaymentsController {
     return {
       success: true,
       payments,
+    };
+  }
+
+  @Get('check-eligibility/:packageId')
+  @ApiOperation({ summary: 'Check if user can purchase a package' })
+  async checkPurchaseEligibility(
+    @Param('packageId') packageId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const result = await this.paymentsService.canUserPurchase(user.userId, packageId);
+    return {
+      success: true,
+      ...result,
     };
   }
 
@@ -177,7 +211,7 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Reject payment (Admin only)' })
   async reject(
     @Param('id') id: string,
-    @Body() body: { notes?: string },
+    @Body() body: RejectPaymentDto,
     @CurrentUser() user: AuthUser,
   ) {
     const success = await this.paymentsService.rejectPayment(

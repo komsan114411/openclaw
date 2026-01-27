@@ -31,7 +31,8 @@ export class UsersService {
       throw new BadRequestException('Username already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    // Use 12 rounds for consistent security across all password hashing
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
     
     const user = new this.userModel({
       ...createUserDto,

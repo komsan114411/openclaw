@@ -94,7 +94,11 @@ export class LineAccountSettings {
   // ส่งข้อความเมื่อ AI ปิด
   @Prop({ type: Boolean, default: null })
   sendMessageWhenAiDisabled: boolean;
-  
+
+  // ส่งข้อความเมื่อ AI quota หมด
+  @Prop({ type: Boolean, default: null })
+  sendMessageWhenAiQuotaExhausted: boolean;
+
   // ส่งข้อความ "กำลังประมวลผล" ก่อนตรวจสลิป (ผู้ใช้เลือกได้)
   // true = ส่งก่อนแล้วค่อยส่งผล, false = ตรวจสอบแล้วส่งผลทีเดียว
   @Prop({ type: Boolean, default: true })

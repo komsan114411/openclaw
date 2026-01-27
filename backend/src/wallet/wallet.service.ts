@@ -334,9 +334,26 @@ export class WalletService {
             return { success: false, message: 'จำนวนเงินไม่ถูกต้อง' };
         }
 
-        if (usdtAmount > 1000000) {
+        // Minimum amount check (prevent micro-transactions)
+        const minAmount = 1; // Minimum 1 USDT
+        if (usdtAmount < minAmount) {
+            this.logger.warn(`Amount below minimum: ${usdtAmount}`);
+            return { success: false, message: `จำนวนเงินต่ำกว่าขั้นต่ำ (${minAmount} USDT)` };
+        }
+
+        // Maximum amount check
+        const maxAmount = 100000; // 100k USDT max
+        if (usdtAmount > maxAmount) {
             this.logger.warn(`Amount exceeds limit: ${usdtAmount}`);
-            return { success: false, message: 'จำนวนเงินเกินขีดจำกัด' };
+            return { success: false, message: `จำนวนเงินเกินขีดจำกัด (สูงสุด ${maxAmount.toLocaleString()} USDT)` };
+        }
+
+        // Validate decimal precision (USDT has 6 decimals max)
+        const decimalStr = usdtAmount.toString();
+        const decimalPart = decimalStr.split('.')[1];
+        if (decimalPart && decimalPart.length > 6) {
+            this.logger.warn(`Too many decimal places: ${usdtAmount}`);
+            return { success: false, message: 'จำนวนทศนิยมเกินขีดจำกัด (สูงสุด 6 ตำแหน่ง)' };
         }
 
         // Validate and sanitize transaction hash
