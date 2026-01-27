@@ -800,6 +800,25 @@ export default function SettingsPage() {
                       </p>
                     </div>
 
+                    {/* AI Message Settings */}
+                    <div className="p-5 bg-white/[0.02] rounded-2xl border border-white/5">
+                      <p className="text-sm font-bold text-white mb-4">การแจ้งเตือน</p>
+
+                      <div className="flex items-center justify-between py-3">
+                        <div>
+                          <p className="text-xs text-slate-300">ส่งข้อความเมื่อปิด AI</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">แจ้งผู้ใช้ว่า AI ไม่พร้อมใช้งาน</p>
+                        </div>
+                        <Switch
+                          checked={systemControlSettings.aiDisabledSendMessage}
+                          onChange={(checked) => setSystemControlSettings({
+                            ...systemControlSettings,
+                            aiDisabledSendMessage: checked
+                          })}
+                        />
+                      </div>
+                    </div>
+
                     {/* Warning when AI is disabled */}
                     {!globalAiSettings.globalAiEnabled && (
                       <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
@@ -810,6 +829,11 @@ export default function SettingsPage() {
                             <p className="text-xs text-amber-200/70 mt-1">
                               บอท AI จะไม่ตอบกลับผู้ใช้ในทุกบัญชี LINE แม้ว่าผู้ใช้จะเปิดใช้งาน AI ในการตั้งค่าบัญชีก็ตาม
                             </p>
+                            {systemControlSettings.aiDisabledSendMessage && (
+                              <p className="text-xs text-amber-200/70 mt-1">
+                                📢 ระบบจะส่งข้อความแจ้งผู้ใช้เมื่อ AI ถูกปิด
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -821,10 +845,14 @@ export default function SettingsPage() {
                       fullWidth
                       size="lg"
                       className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] shadow-violet-500/10 shadow-xl"
-                      onClick={() => handleUpdate('ai_settings', {
-                        globalAiEnabled: globalAiSettings.globalAiEnabled,
-                        allowedAiModels: globalAiSettings.allowedAiModels,
-                      })}
+                      onClick={() => {
+                        // Save both AI settings and the message setting
+                        handleUpdate('ai_settings', {
+                          globalAiEnabled: globalAiSettings.globalAiEnabled,
+                          allowedAiModels: globalAiSettings.allowedAiModels,
+                          aiDisabledSendMessage: systemControlSettings.aiDisabledSendMessage,
+                        });
+                      }}
                       isLoading={isSaving === 'ai_settings'}
                     >
                       บันทึกการตั้งค่า AI

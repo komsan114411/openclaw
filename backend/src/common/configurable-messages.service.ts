@@ -266,11 +266,18 @@ export class ConfigurableMessagesService {
   async formatProcessingResponse(context: MessageContext = {}): Promise<any> {
     // ตรวจสอบว่าผู้ใช้ต้องการให้ส่งหรือไม่
     const accountSettings = context.account?.settings;
-    
+    const systemSettings = await this.systemSettingsService.getSettings();
+
+    // ตรวจสอบการตั้งค่าระดับระบบก่อน (Admin)
+    const systemShowProcessing = systemSettings?.showSlipProcessingMessage ?? true;
+    if (!systemShowProcessing) {
+      return null;
+    }
+
     // ใช้ค่า sendProcessingMessage ถ้ามี หรือดูจาก slipResponseMode
     const sendProcessing = accountSettings?.sendProcessingMessage;
     const responseMode = accountSettings?.slipResponseMode || 'immediate';
-    
+
     // ถ้าผู้ใช้ตั้งค่าไว้ชัดเจนว่าไม่ส่ง หรือโหมดเป็น direct = ไม่ต้องส่ง
     if (sendProcessing === false || responseMode === 'direct') {
       return null;
