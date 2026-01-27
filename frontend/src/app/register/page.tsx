@@ -102,9 +102,22 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterForm) => {
     if (isLoading) return;
-    
+
     clearError();
-    const success = await registerUser(data);
+
+    // Clean up empty optional fields to avoid validation errors
+    const cleanData: RegisterForm = {
+      username: data.username,
+      password: data.password,
+    };
+    if (data.email && data.email.trim()) {
+      cleanData.email = data.email.trim();
+    }
+    if (data.fullName && data.fullName.trim()) {
+      cleanData.fullName = data.fullName.trim();
+    }
+
+    const success = await registerUser(cleanData);
     if (success) {
       toast.success('สมัครสมาชิกสำเร็จ');
     } else {
