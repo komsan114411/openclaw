@@ -67,12 +67,37 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private getKey(request: any, prefix?: string): string {
-    // Use user ID if authenticated, otherwise use IP
+    // Use user ID if authenticated, otherwise use real client IP
     const userId = request.user?.userId;
-    const ip = request.ip || request.connection?.remoteAddress || 'unknown';
+    const ip = this.getClientIp(request);
     const identifier = userId || ip;
     const path = request.route?.path || request.url;
-    
+
     return `${prefix || 'api'}:${path}:${identifier}`;
+  }
+
+  /**
+   * Get real client IP from headers (supports proxies like Railway, Cloudflare)
+   */
+  private getClientIp(request: any): string {
+    // Check X-Forwarded-For header (most common proxy header)
+    const forwardedFor = request.headers?.['x-forwarded-for'];
+    if (forwardedFor) {
+      // X-Forwarded-For can contain multiple IPs: client, proxy1, proxy2
+      // The first one is the real client IP
+      const ips = forwardedFor.split(',').map((ip: string) => ip.trim());
+      if (ips[0]) return ips[0];
+    }
+
+    // Check X-Real-IP header (Nginx/Railway)
+    const realIp = request.headers?.['x-real-ip'];
+    if (realIp) return realIp;
+
+    // Check CF-Connecting-IP header (Cloudflare)
+    const cfIp = request.headers?.['cf-connecting-ip'];
+    if (cfIp) return cfIp;
+
+    // Fallback to request.ip or connection remote address
+    return request.ip || request.connection?.remoteAddress || 'unknown';
   }
 }

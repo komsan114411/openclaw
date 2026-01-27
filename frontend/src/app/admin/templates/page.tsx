@@ -69,6 +69,7 @@ interface SlipTemplate {
   showFooterBranding?: boolean;
   footerBrandingText?: string;
   footerBrandingName?: string;
+  footerBrandingLogo?: string;
   createdAt: string;
 }
 
@@ -141,6 +142,10 @@ interface SlipFormData {
   previewSenderAccount: string;
   previewReceiverAccount: string;
   themePreset: string;
+  showFooterBranding: boolean;
+  footerBrandingText: string;
+  footerBrandingName: string;
+  footerBrandingLogo: string;
 }
 
 interface SystemFormData {
@@ -231,6 +236,10 @@ const DEFAULT_SLIP_FORM_DATA: SlipFormData = {
   previewSenderAccount: '1234xxxx5678',
   previewReceiverAccount: '12xxxx3456',
   themePreset: 'default',
+  showFooterBranding: true,
+  footerBrandingText: 'ตรวจสอบโดย',
+  footerBrandingName: '',
+  footerBrandingLogo: '',
 };
 
 const DEFAULT_SYSTEM_FORM_DATA: SystemFormData = {
@@ -482,6 +491,28 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
             <p className="text-[8px] sm:text-[9px] text-slate-400 text-center leading-tight">{config.footerText}</p>
           </div>
         )}
+        {config.showFooterBranding && (config.footerBrandingLogo || config.footerBrandingName) && (
+          <div className="pt-2 sm:pt-3 mt-1 border-t border-slate-100">
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+              {config.footerBrandingText && (
+                <span className="text-[8px] sm:text-[9px] text-slate-400">{config.footerBrandingText}</span>
+              )}
+              {config.footerBrandingLogo && (
+                <img
+                  src={config.footerBrandingLogo}
+                  alt="Brand Logo"
+                  className="h-4 sm:h-5 w-auto object-contain"
+                />
+              )}
+              {config.footerBrandingName && !config.footerBrandingLogo && (
+                <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600">{config.footerBrandingName}</span>
+              )}
+              {config.footerBrandingName && config.footerBrandingLogo && (
+                <span className="text-[8px] sm:text-[9px] font-medium text-slate-500">{config.footerBrandingName}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <div className="mt-3 sm:mt-4 flex justify-center">
         <p className="text-[8px] sm:text-[9px] text-white/20 font-medium">LINE OA System</p>
@@ -707,6 +738,10 @@ export default function AdminTemplatesPage() {
       previewSenderAccount: template.previewSenderAccount || '1234xxxx5678',
       previewReceiverAccount: template.previewReceiverAccount || '12xxxx3456',
       themePreset: template.themePreset || 'default',
+      showFooterBranding: template.showFooterBranding ?? true,
+      footerBrandingText: template.footerBrandingText || 'ตรวจสอบโดย',
+      footerBrandingName: template.footerBrandingName || '',
+      footerBrandingLogo: template.footerBrandingLogo || '',
     });
     setSlipFormErrors({});
     setSlipActiveTab('basic');
@@ -1328,6 +1363,85 @@ export default function AdminTemplatesPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <Input label="ข้อความหัวเรื่อง" value={slipFormData.headerText} onChange={(e) => updateSlipField('headerText', e.target.value)} placeholder="เช่น ตรวจสอบสำเร็จ" />
                     <Input label="ข้อความท้าย" value={slipFormData.footerText} onChange={(e) => updateSlipField('footerText', e.target.value)} placeholder="เช่น ขอบคุณที่ใช้บริการ" />
+                  </div>
+                  {/* Brand Logo Section */}
+                  <div className="mt-4 p-4 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base">🏷️</span>
+                      <p className="text-xs sm:text-sm font-semibold text-slate-700">โลโก้แบรนด์</p>
+                      <span className="text-[10px] px-2 py-0.5 bg-slate-200 text-slate-500 rounded-full">ไม่บังคับ</span>
+                    </div>
+                    <Toggle
+                      label="แสดงโลโก้แบรนด์ในสลิป"
+                      checked={slipFormData.showFooterBranding}
+                      onChange={() => updateSlipField('showFooterBranding', !slipFormData.showFooterBranding)}
+                    />
+                    {slipFormData.showFooterBranding && (
+                      <div className="mt-3 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Input
+                            label="ข้อความนำหน้า"
+                            value={slipFormData.footerBrandingText}
+                            onChange={(e) => updateSlipField('footerBrandingText', e.target.value)}
+                            placeholder="เช่น ตรวจสอบโดย"
+                            className="text-sm"
+                          />
+                          <Input
+                            label="ชื่อแบรนด์"
+                            value={slipFormData.footerBrandingName}
+                            onChange={(e) => updateSlipField('footerBrandingName', e.target.value)}
+                            placeholder="เช่น ร้านค้าของคุณ"
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-2">โลโก้แบรนด์ (URL)</label>
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              {slipFormData.footerBrandingLogo ? (
+                                <div className="relative group flex-shrink-0">
+                                  <div className="w-14 h-14 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+                                    <img
+                                      src={slipFormData.footerBrandingLogo}
+                                      alt="Brand Logo"
+                                      className="w-10 h-10 object-contain"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSlipField('footerBrandingLogo', '')}
+                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="w-14 h-14 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-lg text-slate-400">🖼️</span>
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                <Input
+                                  value={slipFormData.footerBrandingLogo}
+                                  onChange={(e) => updateSlipField('footerBrandingLogo', e.target.value)}
+                                  placeholder="https://example.com/logo.png"
+                                  className="text-sm"
+                                />
+                              </div>
+                            </div>
+                            <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200">
+                              <p className="text-[10px] text-amber-700 leading-relaxed">
+                                <strong>หมายเหตุ:</strong> LINE รองรับเฉพาะ URL ที่ขึ้นต้นด้วย <code className="bg-amber-100 px-1 rounded">https://</code><br/>
+                                แนะนำใช้ Imgur, Cloudinary หรือ CDN สำหรับอัปโหลดภาพ
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

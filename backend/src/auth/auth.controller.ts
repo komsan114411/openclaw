@@ -36,7 +36,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 5, windowSeconds: 60, keyPrefix: 'auth:login' }) // 5 attempts per minute
+  @RateLimit({ limit: 15, windowSeconds: 60, keyPrefix: 'auth:login' }) // 15 attempts per minute (allows multiple users behind same IP)
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -82,7 +82,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RateLimitGuard)
-  @RateLimit({ limit: 3, windowSeconds: 300, keyPrefix: 'auth:register' }) // 3 attempts per 5 minutes
+  @RateLimit({ limit: 10, windowSeconds: 300, keyPrefix: 'auth:register' }) // 10 attempts per 5 minutes
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({ status: 201, description: 'Registration successful' })
   @ApiResponse({ status: 403, description: 'Registration is disabled by admin' })

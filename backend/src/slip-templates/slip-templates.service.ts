@@ -2033,6 +2033,79 @@ export class SlipTemplatesService implements OnModuleInit {
       });
     }
 
+    // ==================== TEMPLATE FOOTER BRANDING (Logo) ====================
+    if (template.showFooterBranding && (template.footerBrandingLogo || template.footerBrandingName)) {
+      const templateBrandingContents: any[] = [];
+
+      // Build horizontal content with optional text and logo
+      const brandingRowContents: any[] = [];
+
+      // Add prefix text (e.g., "ตรวจสอบโดย")
+      if (template.footerBrandingText) {
+        brandingRowContents.push({
+          type: 'text',
+          text: template.footerBrandingText,
+          size: 'xxs',
+          color: '#9CA3AF',
+          flex: 0,
+        });
+      }
+
+      // Add logo if available and valid (must be HTTPS URL)
+      const isValidLogoUrl = template.footerBrandingLogo &&
+        template.footerBrandingLogo.startsWith('https://') &&
+        template.footerBrandingLogo.length <= 2000;
+
+      if (isValidLogoUrl) {
+        brandingRowContents.push({
+          type: 'image',
+          url: template.footerBrandingLogo,
+          size: 'xxs',
+          aspectMode: 'fit',
+          aspectRatio: '3:1',
+          flex: 0,
+        });
+      }
+
+      // Add brand name (show smaller if logo exists)
+      if (template.footerBrandingName) {
+        brandingRowContents.push({
+          type: 'text',
+          text: template.footerBrandingName,
+          size: isValidLogoUrl ? 'xxs' : 'xs',
+          color: isValidLogoUrl ? '#9CA3AF' : '#6B7280',
+          weight: isValidLogoUrl ? 'regular' : 'bold',
+          flex: 0,
+        });
+      }
+
+      if (brandingRowContents.length > 0) {
+        templateBrandingContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          contents: brandingRowContents,
+          justifyContent: 'center',
+          alignItems: 'center',
+          spacing: 'sm',
+          margin: 'md',
+          paddingTop: '8px',
+        });
+
+        contents.push({
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'separator',
+              color: '#F3F4F6',
+            },
+            ...templateBrandingContents,
+          ],
+          margin: 'md',
+        });
+      }
+    }
+
     // ==================== RETURN BUBBLE ====================
     return {
       type: 'bubble',
