@@ -32,7 +32,7 @@ const DEFAULT_BANKS = [
 // Thunder API Bank ID to Database Code mapping
 const THUNDER_BANK_ID_MAP: Record<string, string> = {
   '002': 'BBL',      // กรุงเทพ
-  '004': 'KBANK',    // กสิกรไทย  
+  '004': 'KBANK',    // กสิกรไทย
   '006': 'KTB',      // กรุงไทย
   '011': 'TTB',      // ทหารไทยธนชาต
   '014': 'SCB',      // ไทยพาณิชย์
@@ -49,6 +49,24 @@ const THUNDER_BANK_ID_MAP: Record<string, string> = {
   '071': 'TCD',      // ไทยเครดิตเพื่อรายย่อย
   '073': 'LHBANK',   // แลนด์แอนด์เฮ้าส์
   '098': 'SME',      // พัฒนาวิสาหกิจ
+  // TrueMoney Wallet mappings (various codes Thunder API might return)
+  'TMN': 'TRUEMONEY',
+  'TRUEMONEY': 'TRUEMONEY',
+  'TRUEMONEYWALLET': 'TRUEMONEY',
+  'TRUEWALLET': 'TRUEMONEY',
+  'WALLET': 'TRUEMONEY',
+  'EWALLET': 'TRUEMONEY',
+  'EWALLETID': 'TRUEMONEY',
+  'TMW': 'TRUEMONEY',
+  // PromptPay mappings
+  'PROMPTPAY': 'PROMPTPAY',
+  'PPAY': 'PROMPTPAY',
+  'PP': 'PROMPTPAY',
+  'MOBILE': 'PROMPTPAY',
+  'NATID': 'PROMPTPAY',
+  'พร้อมเพย์': 'PROMPTPAY',
+  'ทรูมันนี่': 'TRUEMONEY',
+  'ทรูมันนี่วอลเล็ท': 'TRUEMONEY',
 };
 
 @Injectable()

@@ -305,6 +305,36 @@ export class SlipVerificationService {
         const senderBank = slipData.sender?.bank || {};
         const receiverBank = slipData.receiver?.bank || {};
 
+        // Helper function to detect payment type from proxy or bank info
+        const detectPaymentType = (account: any, bank: any): { bankName: string; bankCode: string } => {
+          const proxyType = account.proxy?.type?.toUpperCase() || '';
+          const bankName = bank.name?.toLowerCase() || '';
+          const bankShort = bank.short?.toUpperCase() || '';
+
+          // TrueMoney Wallet detection
+          if (proxyType === 'EWALLETID' ||
+              bankName.includes('truemoney') ||
+              bankName.includes('ทรูมันนี่') ||
+              bankShort === 'TMN' ||
+              bankShort === 'TRUEMONEY') {
+            return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
+          }
+
+          // PromptPay detection - check if has proxy (MOBILE, NATID, etc.)
+          if (account.proxy && (proxyType === 'MOBILE' || proxyType === 'NATID' || proxyType === 'BILLERID')) {
+            return { bankName: 'พร้อมเพย์', bankCode: 'PROMPTPAY' };
+          }
+
+          // Default: use bank info
+          return {
+            bankName: bank.short || bank.name || '',
+            bankCode: bank.short || bank.id || ''
+          };
+        };
+
+        const senderPaymentType = detectPaymentType(senderAccount, senderBank);
+        const receiverPaymentType = detectPaymentType(receiverAccount, receiverBank);
+
         return {
           status: 'success',
           message: 'ตรวจสอบสลิปสำเร็จ',
@@ -321,18 +351,20 @@ export class SlipVerificationService {
             // Sender info with both Thai and English names
             senderName: senderAccount.name?.th || senderAccount.name?.en || '',
             senderNameEn: senderAccount.name?.en || '',
-            senderBank: senderBank.short || senderBank.name || '',
-            // Prefer short code (e.g. KBANK) for mapping to our `banks.code`
-            senderBankCode: senderBank.short || senderBank.id || '',
+            senderBank: senderPaymentType.bankName,
+            // Use detected payment type code for proper logo mapping
+            senderBankCode: senderPaymentType.bankCode,
             senderBankId: senderBank.id || '',
             senderBankName: senderBank.name || '',
-            senderAccount: senderAccount.bank?.account || '',
+            senderAccount: senderAccount.bank?.account || senderAccount.proxy?.account || '',
             senderAccountType: senderAccount.bank?.type || '',
+            senderProxyType: senderAccount.proxy?.type || '',
+            senderProxyAccount: senderAccount.proxy?.account || '',
             // Receiver info with both Thai and English names
             receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
             receiverNameEn: receiverAccount.name?.en || '',
-            receiverBank: receiverBank.short || receiverBank.name || '',
-            receiverBankCode: receiverBank.short || receiverBank.id || '',
+            receiverBank: receiverPaymentType.bankName,
+            receiverBankCode: receiverPaymentType.bankCode,
             receiverBankId: receiverBank.id || '',
             receiverBankName: receiverBank.name || '',
             receiverAccount: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
@@ -367,6 +399,36 @@ export class SlipVerificationService {
         this.logger.log(`[DUPLICATE] transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
         this.logger.log(`[DUPLICATE] sender: ${senderAccount.name?.th}, receiver: ${receiverAccount.name?.th}`);
 
+        // Helper function to detect payment type from proxy or bank info
+        const detectPaymentType = (account: any, bank: any): { bankName: string; bankCode: string } => {
+          const proxyType = account.proxy?.type?.toUpperCase() || '';
+          const bankName = bank.name?.toLowerCase() || '';
+          const bankShort = bank.short?.toUpperCase() || '';
+
+          // TrueMoney Wallet detection
+          if (proxyType === 'EWALLETID' ||
+              bankName.includes('truemoney') ||
+              bankName.includes('ทรูมันนี่') ||
+              bankShort === 'TMN' ||
+              bankShort === 'TRUEMONEY') {
+            return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
+          }
+
+          // PromptPay detection - check if has proxy (MOBILE, NATID, etc.)
+          if (account.proxy && (proxyType === 'MOBILE' || proxyType === 'NATID' || proxyType === 'BILLERID')) {
+            return { bankName: 'พร้อมเพย์', bankCode: 'PROMPTPAY' };
+          }
+
+          // Default: use bank info
+          return {
+            bankName: bank.short || bank.name || '',
+            bankCode: bank.short || bank.id || ''
+          };
+        };
+
+        const senderPaymentType = detectPaymentType(senderAccount, senderBank);
+        const receiverPaymentType = detectPaymentType(receiverAccount, receiverBank);
+
         return {
           status: 'duplicate',
           message: 'สลิปนี้เคยถูกใช้แล้ว',
@@ -378,16 +440,16 @@ export class SlipVerificationService {
             time: slipData.date ? this.formatTime(slipData.date) : '',
             senderName: senderAccount.name?.th || senderAccount.name?.en || '',
             senderNameEn: senderAccount.name?.en || '',
-            // PromptPay priority: if has proxy, use PROMPTPAY; otherwise use bank info
-            senderBank: senderAccount.proxy ? 'พร้อมเพย์' : (senderBank.short || senderBank.name || ''),
-            senderBankCode: senderAccount.proxy ? 'PROMPTPAY' : (senderBank.short || senderBank.id || ''),
+            senderBank: senderPaymentType.bankName,
+            senderBankCode: senderPaymentType.bankCode,
             senderBankId: senderBank.id || '',
             senderAccount: senderAccount.bank?.account || senderAccount.proxy?.account || '',
+            senderProxyType: senderAccount.proxy?.type || '',
+            senderProxyAccount: senderAccount.proxy?.account || '',
             receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
             receiverNameEn: receiverAccount.name?.en || '',
-            // PromptPay priority: if has proxy, use PROMPTPAY; otherwise use bank info  
-            receiverBank: receiverAccount.proxy ? 'พร้อมเพย์' : (receiverBank.short || receiverBank.name || ''),
-            receiverBankCode: receiverAccount.proxy ? 'PROMPTPAY' : (receiverBank.short || receiverBank.id || ''),
+            receiverBank: receiverPaymentType.bankName,
+            receiverBankCode: receiverPaymentType.bankCode,
             receiverBankId: receiverBank.id || '',
             receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
             receiverProxyType: receiverAccount.proxy?.type || '',
@@ -411,6 +473,36 @@ export class SlipVerificationService {
         const receiverAccount = slipData.receiver?.account || {};
         const senderBank = slipData.sender?.bank || {};
         const receiverBank = slipData.receiver?.bank || {};
+
+        // Helper function to detect payment type from proxy or bank info
+        const detectPaymentType = (account: any, bank: any): { bankName: string; bankCode: string } => {
+          const proxyType = account.proxy?.type?.toUpperCase() || '';
+          const bankName = bank.name?.toLowerCase() || '';
+          const bankShort = bank.short?.toUpperCase() || '';
+
+          // TrueMoney Wallet detection
+          if (proxyType === 'EWALLETID' ||
+              bankName.includes('truemoney') ||
+              bankName.includes('ทรูมันนี่') ||
+              bankShort === 'TMN' ||
+              bankShort === 'TRUEMONEY') {
+            return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
+          }
+
+          // PromptPay detection
+          if (account.proxy && (proxyType === 'MOBILE' || proxyType === 'NATID' || proxyType === 'BILLERID')) {
+            return { bankName: 'พร้อมเพย์', bankCode: 'PROMPTPAY' };
+          }
+
+          return {
+            bankName: bank.short || bank.name || '',
+            bankCode: bank.short || bank.id || ''
+          };
+        };
+
+        const senderPaymentType = detectPaymentType(senderAccount, senderBank);
+        const receiverPaymentType = detectPaymentType(receiverAccount, receiverBank);
+
         return {
           status: 'duplicate',
           message: 'สลิปนี้เคยถูกใช้แล้ว',
@@ -421,9 +513,11 @@ export class SlipVerificationService {
             date: slipData.date ? this.formatDate(slipData.date) : '',
             time: slipData.date ? this.formatTime(slipData.date) : '',
             senderName: senderAccount.name?.th || senderAccount.name?.en || '',
-            senderBank: senderBank.short || senderBank.name || '',
+            senderBank: senderPaymentType.bankName,
+            senderBankCode: senderPaymentType.bankCode,
             receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
-            receiverBank: receiverBank.short || receiverBank.name || '',
+            receiverBank: receiverPaymentType.bankName,
+            receiverBankCode: receiverPaymentType.bankCode,
             receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
             isDuplicate: true,
             rawData: slipData,
@@ -473,6 +567,35 @@ export class SlipVerificationService {
             this.logger.log(`[DUPLICATE] transRef: ${slipData.transRef}, amount: ${slipData.amount?.amount}`);
             this.logger.log(`[DUPLICATE] sender: ${senderAccount.name?.th}, receiver: ${receiverAccount.name?.th}`);
 
+            // Helper function to detect payment type from proxy or bank info
+            const detectPaymentType = (account: any, bank: any): { bankName: string; bankCode: string } => {
+              const proxyType = account.proxy?.type?.toUpperCase() || '';
+              const bankName = bank.name?.toLowerCase() || '';
+              const bankShort = bank.short?.toUpperCase() || '';
+
+              // TrueMoney Wallet detection
+              if (proxyType === 'EWALLETID' ||
+                  bankName.includes('truemoney') ||
+                  bankName.includes('ทรูมันนี่') ||
+                  bankShort === 'TMN' ||
+                  bankShort === 'TRUEMONEY') {
+                return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
+              }
+
+              // PromptPay detection
+              if (account.proxy && (proxyType === 'MOBILE' || proxyType === 'NATID' || proxyType === 'BILLERID')) {
+                return { bankName: 'พร้อมเพย์', bankCode: 'PROMPTPAY' };
+              }
+
+              return {
+                bankName: bank.short || bank.name || '',
+                bankCode: bank.short || bank.id || ''
+              };
+            };
+
+            const senderPaymentType = detectPaymentType(senderAccount, senderBank);
+            const receiverPaymentType = detectPaymentType(receiverAccount, receiverBank);
+
             return {
               status: 'duplicate',
               message: 'สลิปนี้เคยถูกใช้แล้ว',
@@ -484,16 +607,18 @@ export class SlipVerificationService {
                 time: slipData.date ? this.formatTime(slipData.date) : '',
                 senderName: senderAccount.name?.th || senderAccount.name?.en || '',
                 senderNameEn: senderAccount.name?.en || '',
-                senderBank: senderBank.short || senderBank.name || '',
-                senderBankCode: senderBank.short || senderBank.id || '',
+                senderBank: senderPaymentType.bankName,
+                senderBankCode: senderPaymentType.bankCode,
                 senderBankId: senderBank.id || '',
-                senderAccount: senderAccount.bank?.account || '',
+                senderAccount: senderAccount.bank?.account || senderAccount.proxy?.account || '',
+                senderProxyType: senderAccount.proxy?.type || '',
                 receiverName: receiverAccount.name?.th || receiverAccount.name?.en || '',
                 receiverNameEn: receiverAccount.name?.en || '',
-                receiverBank: receiverBank.short || receiverBank.name || '',
-                receiverBankCode: receiverBank.short || receiverBank.id || '',
+                receiverBank: receiverPaymentType.bankName,
+                receiverBankCode: receiverPaymentType.bankCode,
                 receiverBankId: receiverBank.id || '',
                 receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || '',
+                receiverProxyType: receiverAccount.proxy?.type || '',
                 countryCode: slipData.countryCode || 'TH',
                 fee: slipData.fee || 0,
                 feeFormatted: this.formatAmount(slipData.fee ?? 0),
