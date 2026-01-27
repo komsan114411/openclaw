@@ -310,13 +310,19 @@ export class SlipVerificationService {
           const proxyType = account.proxy?.type?.toUpperCase() || '';
           const bankName = bank.name?.toLowerCase() || '';
           const bankShort = bank.short?.toUpperCase() || '';
+          // Also check account name for TrueMoney detection (Thunder API returns "TrueMoney W" in account name)
+          const accountNameTh = (account.name?.th || '').toLowerCase();
+          const accountNameEn = (account.name?.en || '').toLowerCase();
 
-          // TrueMoney Wallet detection
+          // TrueMoney Wallet detection - check bank info AND account name
           if (proxyType === 'EWALLETID' ||
               bankName.includes('truemoney') ||
               bankName.includes('ทรูมันนี่') ||
               bankShort === 'TMN' ||
-              bankShort === 'TRUEMONEY') {
+              bankShort === 'TRUEMONEY' ||
+              accountNameTh.includes('truemoney') ||
+              accountNameTh.includes('ทรูมันนี่') ||
+              accountNameEn.includes('truemoney')) {
             return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
           }
 
@@ -404,13 +410,19 @@ export class SlipVerificationService {
           const proxyType = account.proxy?.type?.toUpperCase() || '';
           const bankName = bank.name?.toLowerCase() || '';
           const bankShort = bank.short?.toUpperCase() || '';
+          // Also check account name for TrueMoney detection (Thunder API returns "TrueMoney W" in account name)
+          const accountNameTh = (account.name?.th || '').toLowerCase();
+          const accountNameEn = (account.name?.en || '').toLowerCase();
 
-          // TrueMoney Wallet detection
+          // TrueMoney Wallet detection - check bank info AND account name
           if (proxyType === 'EWALLETID' ||
               bankName.includes('truemoney') ||
               bankName.includes('ทรูมันนี่') ||
               bankShort === 'TMN' ||
-              bankShort === 'TRUEMONEY') {
+              bankShort === 'TRUEMONEY' ||
+              accountNameTh.includes('truemoney') ||
+              accountNameTh.includes('ทรูมันนี่') ||
+              accountNameEn.includes('truemoney')) {
             return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
           }
 
@@ -479,13 +491,19 @@ export class SlipVerificationService {
           const proxyType = account.proxy?.type?.toUpperCase() || '';
           const bankName = bank.name?.toLowerCase() || '';
           const bankShort = bank.short?.toUpperCase() || '';
+          // Also check account name for TrueMoney detection (Thunder API returns "TrueMoney W" in account name)
+          const accountNameTh = (account.name?.th || '').toLowerCase();
+          const accountNameEn = (account.name?.en || '').toLowerCase();
 
-          // TrueMoney Wallet detection
+          // TrueMoney Wallet detection - check bank info AND account name
           if (proxyType === 'EWALLETID' ||
               bankName.includes('truemoney') ||
               bankName.includes('ทรูมันนี่') ||
               bankShort === 'TMN' ||
-              bankShort === 'TRUEMONEY') {
+              bankShort === 'TRUEMONEY' ||
+              accountNameTh.includes('truemoney') ||
+              accountNameTh.includes('ทรูมันนี่') ||
+              accountNameEn.includes('truemoney')) {
             return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
           }
 
@@ -572,13 +590,19 @@ export class SlipVerificationService {
               const proxyType = account.proxy?.type?.toUpperCase() || '';
               const bankName = bank.name?.toLowerCase() || '';
               const bankShort = bank.short?.toUpperCase() || '';
+              // Also check account name for TrueMoney detection (Thunder API returns "TrueMoney W" in account name)
+              const accountNameTh = (account.name?.th || '').toLowerCase();
+              const accountNameEn = (account.name?.en || '').toLowerCase();
 
-              // TrueMoney Wallet detection
+              // TrueMoney Wallet detection - check bank info AND account name
               if (proxyType === 'EWALLETID' ||
                   bankName.includes('truemoney') ||
                   bankName.includes('ทรูมันนี่') ||
                   bankShort === 'TMN' ||
-                  bankShort === 'TRUEMONEY') {
+                  bankShort === 'TRUEMONEY' ||
+                  accountNameTh.includes('truemoney') ||
+                  accountNameTh.includes('ทรูมันนี่') ||
+                  accountNameEn.includes('truemoney')) {
                 return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
               }
 

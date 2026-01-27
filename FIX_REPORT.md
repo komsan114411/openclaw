@@ -1,89 +1,60 @@
-[Nest] 1  - 01/27/2026, 5:22:00 AM   ERROR [RedisService] [REDIS ALERT] Redis has been down for 60s!
-  "ip": "100.64.0.5"
-[Nest] 1  - 01/27/2026, 5:23:38 AM    WARN [GlobalExceptionFilter] [9015dae7-8070-4904-92a8-5aa7b01a0593] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:23:38 AM    WARN [GlobalExceptionFilter] Object:
-}
-{
-  "correlationId": "9015dae7-8070-4904-92a8-5aa7b01a0593",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "path": "/api/auth/register",
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-}
-[Nest] 1  - 01/27/2026, 5:23:47 AM    WARN [GlobalExceptionFilter] [658d4aa7-1d4e-45f7-8dea-7ac1c02f033d] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:23:47 AM    WARN [GlobalExceptionFilter] Object:
-{
-  "correlationId": "658d4aa7-1d4e-45f7-8dea-7ac1c02f033d",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "path": "/api/auth/register",
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-  "ip": "100.64.0.5"
-  "status": 400,
-  "path": "/api/auth/register",
-  "method": "POST",
-  "errorCode": "HTTP_400",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-  "path": "/api/auth/register",
-  "ip": "100.64.0.5"
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-}
-[Nest] 1  - 01/27/2026, 5:24:10 AM    WARN [GlobalExceptionFilter] [69867cf1-ea3f-4f7f-98d3-230966acfd78] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] [e86c5658-512e-4445-95a6-151876bb7043] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:24:10 AM    WARN [GlobalExceptionFilter] Object:
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] Object:
-{
-{
-  "correlationId": "e86c5658-512e-4445-95a6-151876bb7043",
-  "correlationId": "69867cf1-ea3f-4f7f-98d3-230966acfd78",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "ip": "100.64.0.5"
-}
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] [c2ebe0dc-6f51-4873-90ef-79d451480fea] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] Object:
-{
-  "correlationId": "c2ebe0dc-6f51-4873-90ef-79d451480fea",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "path": "/api/auth/register",
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-  "ip": "100.64.0.5"
-}
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] [dcdfcf47-c0a7-44f3-af09-ba1d04579968] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] Object:
-{
-  "correlationId": "dcdfcf47-c0a7-44f3-af09-ba1d04579968",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "path": "/api/auth/register",
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-  "ip": "100.64.0.5"
-}
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] [7c85dfcd-70dd-4dd1-a2e5-556d50dff733] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] Object:
-{
-  "correlationId": "7c85dfcd-70dd-4dd1-a2e5-556d50dff733",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "path": "/api/auth/register",
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-  "ip": "100.64.0.5"
-}
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] [da8ee644-9c86-4445-97c3-e416f8bde92f] POST /api/auth/register - 400 HTTP_400: Username already exists
-[Nest] 1  - 01/27/2026, 5:24:11 AM    WARN [GlobalExceptionFilter] Object:
-{
-  "correlationId": "da8ee644-9c86-4445-97c3-e416f8bde92f",
-  "status": 400,
-  "errorCode": "HTTP_400",
-  "path": "/api/auth/register",
-  "method": "POST",
-  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-  "ip": "100.64.0.5"
-}
+01-27T06:23:10.499608887Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Template config: headerText="🔍 ไม่พบข้อมูลสลิป", primaryColor="#999999", showAmount=true[39m
+2026-01-27T06:23:10.499616726Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[BANK LOGO] baseUrl=https://dooslip.com, sender=, receiver=[39m
+2026-01-27T06:23:11.796327482Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP DATA] Building slip data: senderBank=, receiverBank=, receiverAccount=[39m
+2026-01-27T06:23:11.796337016Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] SlipData for render: amount=undefined, sender=undefined, receiver=undefined[39m
+2026-01-27T06:23:11.796346840Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Generating flex message from template: 🔍 ไม่พบข้อมูล (Global) (type: not_found)[39m
+2026-01-27T06:23:11.796355425Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Template has flexTemplate: false, slipData keys: message,receiverAccount,receiverAccountNumber,senderBankName,receiverBankName,senderBankLogoUrl,receiverBankLogoUrl[39m
+2026-01-27T06:23:11.796369287Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Using generateDefaultFlexMessage with branding[39m
+2026-01-27T06:23:11.796381997Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Generated bubble type: bubble[39m
+2026-01-27T06:23:11.796393571Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Generated flex message: altText="ผลการตรวจสอบสลิป", bubbleType="bubble", hasBody=true[39m
+2026-01-27T06:23:11.796402953Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Response message generated: type=flex, hasContents=true[39m
+2026-01-27T06:23:11.796411510Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] safeSendMessage called: useReply=false, messageCount=1[39m
+2026-01-27T06:23:12.913803423Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] First message type: flex, altText: ผลการตรวจสอบสลิป[39m
+2026-01-27T06:23:12.913809728Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Flex message contents type: bubble[39m
+2026-01-27T06:23:12.913816402Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:05 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Sending via push to Ufa2a1a54e9992ba0bf880c5b61904b49[39m
+2026-01-27T06:23:12.913823724Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:06 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Message sent successfully via push[39m
+2026-01-27T06:23:43.730075421Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:35 AM [32m    LOG[39m [38;5;3m[SubscriptionsService] [39m[32mReserved 1 quota for user 694878b5cc5f791ec987bbe5, subscription 695d47eec1e5fb2c212005d1[39m
+2026-01-27T06:23:43.730098452Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:35 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Reservation created, starting Thunder API verification...[39m
+2026-01-27T06:23:43.730150896Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:35 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Starting image download...[39m
+2026-01-27T06:23:43.730157328Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:35 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Image downloaded, size=150341 bytes[39m
+2026-01-27T06:23:43.730163685Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:35 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Image validation passed[39m
+2026-01-27T06:23:45.963935301Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[DUPLICATE] transRef: 016027040151APM18192, amount: 100[39m
+2026-01-27T06:23:45.963943850Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[DUPLICATE] sender: น.ส. นงนภัส ว, receiver: TrueMoney W[39m
+2026-01-27T06:23:45.963950049Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32mSlip verification result: status=duplicate, transRef=016027040151APM18192[39m
+2026-01-27T06:23:45.963956115Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32mSlip verification completed: status=duplicate, message=สลิปนี้เคยถูกใช้แล้ว[39m
+2026-01-27T06:23:45.963962273Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SubscriptionsService] [39m[32mRolled back reservation: 1 quota for subscription 695d47eec1e5fb2c212005d1[39m
+2026-01-27T06:23:45.963968857Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Formatting duplicate response, accountId=695a88e69bd426864996f2b9[39m
+2026-01-27T06:23:45.963975643Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Account settings slipTemplateIds: {}[39m
+2026-01-27T06:23:45.963983072Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP RESPONSE] formatSlipResponseWithConfig called: status=duplicate, message=สลิปนี้เคยถูกใช้แล้ว, hasData=true[39m
+2026-01-27T06:23:45.963989437Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP RESPONSE] Account: id=695a88e69bd426864996f2b9, name=test1[39m
+2026-01-27T06:23:47.211381717Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP RESPONSE] Template settings: slipTemplateIds={}, slipTemplateId=6973fa227f4c8e42371b2066[39m
+2026-01-27T06:23:47.211391373Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP RESPONSE] Settings keys: enableBot,enableAi,enableSlipVerification,aiResponseMode,aiImmediateMessage,aiSystemPrompt,aiTemperature,aiFallbackMessage,aiModel,slipResponseMode,slipImmediateMessage,slipTemplateId,autoReplyEnabled,webhookEnabled,customQuotaExceededMessage,customBotDisabledMessage,customSlipDisabledMessage,customAiDisabledMessage,customDuplicateSlipMessage,customSlipErrorMessage,customSlipSuccessMessage,sendMessageWhenBotDisabled,sendMessageWhenSlipDisabled,sendMessageWhenAiDisabled,sendMessageWhenAiQuotaExhausted,sendProcessingMessage[39m
+2026-01-27T06:23:47.211399847Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[DUPLICATE] Initial data from API: transRef=016027040151APM18192, amount=100, amountFormatted=฿100, senderName=น.ส. นงนภัส ว[39m
+2026-01-27T06:23:47.211407385Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[DUPLICATE] transRef=016027040151APM18192, needsEnrichment=false[39m
+2026-01-27T06:23:47.211416409Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[BANK LOGO] baseUrl=https://dooslip.com, sender=KBANK, receiver=[39m
+2026-01-27T06:23:47.211425719Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP DATA] Building slip data: senderBank=ธนาคารกสิกรไทย, receiverBank=, receiverAccount=[39m
+2026-01-27T06:23:47.211433762Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[DUPLICATE] Enriched with logos: sender=https://dooslip.com/api/bank-logo/KBANK, receiver=[39m
+2026-01-27T06:23:48.733816795Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Looking for template: type=duplicate, lineAccountId=695a88e69bd426864996f2b9[39m
+2026-01-27T06:23:48.733825101Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] idsByType={}, selectedId=none[39m
+2026-01-27T06:23:48.733849359Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Step 2: Looking for account default template[39m
+2026-01-27T06:23:48.733857811Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Step 3: Looking for global default template[39m
+2026-01-27T06:23:48.733865119Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[TEMPLATE] Found default global template for duplicate: ⚠️ สลิปซ้ำ (Global)[39m
+2026-01-27T06:23:48.733872857Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] ✓ Found global default template: ⚠️ สลิปซ้ำ (Global)[39m
+2026-01-27T06:23:48.733880352Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Using template: ⚠️ สลิปซ้ำ (Global) (ID: 6975646e2b749b1355eff6c7, isGlobal: true)[39m
+2026-01-27T06:23:48.733888376Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Template config: headerText="พบสลิปซ้ำ", primaryColor="#FF8800", showAmount=true[39m
+2026-01-27T06:23:48.733901220Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[BANK LOGO] baseUrl=https://dooslip.com, sender=KBANK, receiver=[39m
+2026-01-27T06:23:49.930052150Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[SLIP DATA] Building slip data: senderBank=ธนาคารกสิกรไทย, receiverBank=, receiverAccount=[39m
+2026-01-27T06:23:49.930058100Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] SlipData for render: amount=฿100, sender=น.ส. นงนภัส ว, receiver=TrueMoney W[39m
+2026-01-27T06:23:49.930063688Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Generating flex message from template: ⚠️ สลิปซ้ำ (Global) (type: duplicate)[39m
+2026-01-27T06:23:49.930069918Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Template has flexTemplate: false, slipData keys: transRef,amount,amountFormatted,date,time,senderName,senderNameEn,senderBank,senderBankCode,senderBankId,senderAccount,senderProxyType,receiverName,receiverNameEn,receiverBank,receiverBankCode,receiverBankId,receiverAccountNumber,receiverProxyType,countryCode,fee,feeFormatted,ref1,ref2,ref3,payload,isDuplicate,rawData,receiverAccount,senderBankName,receiverBankName,senderBankLogoUrl,receiverBankLogoUrl[39m
+2026-01-27T06:23:49.930075283Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Using generateDefaultFlexMessage with branding[39m
+2026-01-27T06:23:49.930080526Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[TEMPLATE] Receiver data: name=TrueMoney W, bank=, account=[39m
+2026-01-27T06:23:49.930085933Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[FLEX] Generated bubble type: bubble[39m
+2026-01-27T06:23:49.930092315Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[TEMPLATE] Generated flex message: altText="สลิปซ้ำ", bubbleType="bubble", hasBody=true[39m
+2026-01-27T06:23:51.605840507Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[SlipVerificationService] [39m[32m[DUPLICATE] Using slip template for duplicate[39m
+2026-01-27T06:23:51.605847648Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Duplicate response generated: type=flex, hasContents=true[39m
+2026-01-27T06:23:51.605855072Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] safeSendMessage called: useReply=false, messageCount=1[39m
+2026-01-27T06:23:51.605863904Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] First message type: flex, altText: สลิปซ้ำ[39m
+2026-01-27T06:23:51.605871346Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Flex message contents type: bubble[39m
+2026-01-27T06:23:51.605878828Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Sending via push to Ufa2a1a54e9992ba0bf880c5b61904b49[39m
+2026-01-27T06:23:51.605887908Z [inf]  [32m[Nest] 1  - [39m01/27/2026, 6:23:36 AM [32m    LOG[39m [38;5;3m[LineWebhookController] [39m[32m[SLIP] Message sent successfully via push[39m
