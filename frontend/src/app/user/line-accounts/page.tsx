@@ -1320,13 +1320,34 @@ export default function UserLineAccountsPage() {
               </div>
 
               {/* AI Toggle */}
-              <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableAi ? "bg-indigo-500/10 border-indigo-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
-                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableAi ? "bg-indigo-500 text-white" : "bg-slate-700 text-slate-400")}>🧠</div>
+              <div className={cn(
+                "p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2 relative",
+                !globalAiEnabled ? "bg-rose-500/5 border-rose-500/20 opacity-60" :
+                settingsData.enableAi ? "bg-indigo-500/10 border-indigo-500/30" : "bg-white/[0.02] border-white/5 opacity-60"
+              )}>
+                {!globalAiEnabled && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[8px] font-bold rounded-full">
+                      ปิดโดย Admin
+                    </span>
+                  </div>
+                )}
+                <div className={cn(
+                  "w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl",
+                  !globalAiEnabled ? "bg-rose-500/20 text-rose-400" :
+                  settingsData.enableAi ? "bg-indigo-500 text-white" : "bg-slate-700 text-slate-400"
+                )}>🧠</div>
                 <div className="space-y-1">
                   <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">AI</p>
-                  <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">สมองกล AI</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">
+                    {!globalAiEnabled ? "ถูกปิดโดยผู้ดูแล" : "สมองกล AI"}
+                  </p>
                 </div>
-                <Switch checked={settingsData.enableAi} onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })} />
+                <Switch
+                  checked={settingsData.enableAi}
+                  onChange={(checked) => setSettingsData({ ...settingsData, enableAi: checked })}
+                  disabled={!globalAiEnabled}
+                />
               </div>
             </div>
           </div>
@@ -1340,7 +1361,25 @@ export default function UserLineAccountsPage() {
               ตั้งค่า AI Chatbot
             </h3>
 
-            <div className="bg-white/[0.02] p-6 sm:p-8 rounded-[2.5rem] border border-white/5 space-y-6 sm:space-y-8 shadow-inner">
+            {/* Admin Disabled Warning */}
+            {!globalAiEnabled && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                <div className="flex items-start gap-3">
+                  <span className="text-rose-400 text-lg">🚫</span>
+                  <div>
+                    <p className="text-sm font-bold text-rose-300">ระบบ AI ถูกปิดโดยผู้ดูแลระบบ</p>
+                    <p className="text-xs text-rose-200/70 mt-1">
+                      ขณะนี้ฟังก์ชัน AI Chatbot ถูกปิดใช้งานทั้งระบบ การตั้งค่าด้านล่างจะไม่มีผลจนกว่าผู้ดูแลจะเปิดใช้งาน
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className={cn(
+              "bg-white/[0.02] p-6 sm:p-8 rounded-[2.5rem] border border-white/5 space-y-6 sm:space-y-8 shadow-inner",
+              !globalAiEnabled && "opacity-50 pointer-events-none"
+            )}>
               {/* AI Model Selection */}
               <div className="space-y-3">
                 <label className="text-xs font-semibold text-slate-400 ml-1">เลือก AI Model</label>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, subscriptionsApi } from '@/lib/api';
+import { lineAccountsApi, subscriptionsApi, systemSettingsApi } from '@/lib/api';
 import { LineAccount, QuotaInfo } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -36,23 +36,26 @@ export default function UserDashboard() {
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [aiQuota, setAiQuota] = useState<AiQuotaInfo | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [accountsRes, quotaRes, aiQuotaRes, subRes] = await Promise.all([
+        const [accountsRes, quotaRes, aiQuotaRes, subRes, aiSettingsRes] = await Promise.all([
           lineAccountsApi.getMyAccounts(),
           subscriptionsApi.getQuota(),
           subscriptionsApi.getAiQuota().catch(() => ({ data: { aiQuota: null } })),
           subscriptionsApi.getMy().catch(() => ({ data: { subscription: null } })),
+          systemSettingsApi.getAiSettings().catch(() => ({ data: { globalAiEnabled: true } })),
         ]);
 
         setLineAccounts(accountsRes.data.accounts || []);
         setQuota(quotaRes.data.quota || null);
         setAiQuota(aiQuotaRes.data.aiQuota || null);
         setSubscription(subRes.data.subscription || null);
+        setGlobalAiEnabled(aiSettingsRes.data.globalAiEnabled ?? true);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -96,10 +99,24 @@ export default function UserDashboard() {
   // Check for low quota warnings
   const showSlipWarning = quotaPercentage < 20 && subscription;
   const showAiWarning = aiQuota && aiQuota.totalQuota > 0 && aiQuotaPercentage < 20;
+  const showAiDisabledWarning = !globalAiEnabled;
 
   return (
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10 max-w-7xl mx-auto px-4 sm:px-6">
+        {/* AI DISABLED BY ADMIN WARNING */}
+        {showAiDisabledWarning && (
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-slate-500/10 to-slate-500/5 border border-slate-500/30 rounded-2xl p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-slate-600 flex items-center justify-center text-2xl flex-shrink-0">🚫</div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-300">ระบบ AI ถูกปิดชั่วคราว</p>
+                <p className="text-xs text-slate-400">ผู้ดูแลระบบปิดการใช้งาน AI Chatbot ชั่วคราว ฟังก์ชัน AI จะไม่ทำงานจนกว่าจะเปิดใช้งานอีกครั้ง</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* LOW QUOTA WARNINGS */}
         {(showSlipWarning || showAiWarning) && (
           <div className="mb-6 space-y-3">
