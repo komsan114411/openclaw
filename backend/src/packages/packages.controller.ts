@@ -12,6 +12,8 @@ import {
   HttpCode,
   HttpStatus,
   HttpException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PackagesService } from './packages.service';
@@ -23,6 +25,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { WalletService } from '../wallet/wallet.service';
 import { RedisService } from '../redis/redis.service';
+import { PaymentsService } from '../payments/payments.service';
 
 @ApiTags('Packages')
 @ApiBearerAuth()
@@ -32,6 +35,8 @@ export class PackagesController {
     private packagesService: PackagesService,
     private walletService: WalletService,
     private redisService: RedisService,
+    @Inject(forwardRef(() => PaymentsService))
+    private paymentsService: PaymentsService,
   ) { }
 
   @Post()
@@ -139,6 +144,16 @@ export class PackagesController {
       }
       if (!pkg.isActive) {
         return { success: false, message: 'แพ็คเกจนี้ปิดให้บริการแล้ว' };
+      }
+
+      // SECURITY: Check purchase limit (maxPurchasesPerUser)
+      // This prevents users from buying limited packages (e.g., promotions) more than allowed
+      const purchaseCheck = await this.paymentsService.canUserPurchase(userId, id);
+      if (!purchaseCheck.canPurchase) {
+        return {
+          success: false,
+          message: `คุณได้ซื้อแพ็คเกจนี้ครบ ${purchaseCheck.maxPurchases} ครั้งแล้ว ไม่สามารถซื้อเพิ่มได้`,
+        };
       }
 
       // Purchase with wallet credits

@@ -397,14 +397,6 @@ export default function LoginPage() {
               {capsLockOn && <p className="text-amber-400 text-xs mt-1 animate-pulse">⚠️ Caps Lock เปิดอยู่</p>}
             </div>
 
-            {error && !isLocked && (
-              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </div>
-                <p className="text-rose-400 text-sm">{error}</p>
-              </div>
-            )}
 
             <Button type="submit" fullWidth size="lg" className="h-14 rounded-xl font-bold text-sm shadow-lg shadow-[#06C755]/20 hover:shadow-[#06C755]/30 transition-all bg-gradient-to-r from-[#06C755] to-emerald-600 hover:from-[#05a347] hover:to-emerald-700 border-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLocked || isSubmitting || isLoading} isLoading={isSubmitting || isLoading} loadingText="กำลังเข้าสู่ระบบ...">
               <span className="flex items-center justify-center gap-2">

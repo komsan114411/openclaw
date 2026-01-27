@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException, 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Payment, PaymentDocument, PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
+import { CreditTransaction, CreditTransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/credit-transaction.schema';
 import { PackagesService } from '../packages/packages.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
@@ -19,6 +20,7 @@ export class PaymentsService {
 
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
+    @InjectModel(CreditTransaction.name) private creditTransactionModel: Model<CreditTransactionDocument>,
     @Inject(forwardRef(() => PackagesService))
     private packagesService: PackagesService,
     @Inject(forwardRef(() => SystemSettingsService))
@@ -36,14 +38,28 @@ export class PaymentsService {
 
   /**
    * Count how many times a user has successfully purchased a specific package
-   * Only counts VERIFIED payments
+   * Counts BOTH:
+   * 1. VERIFIED payments (slip/USDT payments)
+   * 2. COMPLETED wallet transactions (wallet credit purchases)
+   * This prevents users from bypassing purchase limits by using different payment methods
    */
   async countUserPurchases(userId: string, packageId: string): Promise<number> {
-    return this.paymentModel.countDocuments({
+    // Count verified payments (slip/USDT)
+    const paymentCount = await this.paymentModel.countDocuments({
       userId,
       packageId,
       status: PaymentStatus.VERIFIED,
     });
+
+    // Count completed wallet purchase transactions
+    const walletPurchaseCount = await this.creditTransactionModel.countDocuments({
+      userId,
+      packageId,
+      type: TransactionType.PURCHASE,
+      status: TransactionStatus.COMPLETED,
+    });
+
+    return paymentCount + walletPurchaseCount;
   }
 
   /**
