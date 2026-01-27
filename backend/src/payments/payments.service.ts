@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Payment, PaymentDocument, PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
 import { CreditTransaction, CreditTransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/credit-transaction.schema';
 import { PackagesService } from '../packages/packages.service';
@@ -44,20 +44,29 @@ export class PaymentsService {
    * This prevents users from bypassing purchase limits by using different payment methods
    */
   async countUserPurchases(userId: string, packageId: string): Promise<number> {
+    // Convert string IDs to ObjectId for proper matching
+    // Schema stores userId and packageId as Types.ObjectId, so string comparison won't work
+    const userObjectId = new Types.ObjectId(userId);
+    const packageObjectId = new Types.ObjectId(packageId);
+
     // Count verified payments (slip/USDT)
     const paymentCount = await this.paymentModel.countDocuments({
-      userId,
-      packageId,
+      userId: userObjectId,
+      packageId: packageObjectId,
       status: PaymentStatus.VERIFIED,
     });
 
     // Count completed wallet purchase transactions
     const walletPurchaseCount = await this.creditTransactionModel.countDocuments({
-      userId,
-      packageId,
+      userId: userObjectId,
+      packageId: packageObjectId,
       type: TransactionType.PURCHASE,
       status: TransactionStatus.COMPLETED,
     });
+
+    this.logger.debug(
+      `[PURCHASE LIMIT] User ${userId}, Package ${packageId}: paymentCount=${paymentCount}, walletPurchaseCount=${walletPurchaseCount}, total=${paymentCount + walletPurchaseCount}`
+    );
 
     return paymentCount + walletPurchaseCount;
   }
@@ -73,6 +82,7 @@ export class PaymentsService {
   }> {
     const pkg = await this.packagesService.findById(packageId);
     if (!pkg) {
+      this.logger.warn(`[PURCHASE LIMIT] Package not found: ${packageId}`);
       return { canPurchase: false, purchaseCount: 0, maxPurchases: null, remainingPurchases: null };
     }
 
@@ -80,12 +90,17 @@ export class PaymentsService {
 
     // null or 0 means unlimited
     if (!maxPurchases || maxPurchases <= 0) {
+      this.logger.debug(`[PURCHASE LIMIT] Package ${packageId} has no limit (maxPurchasesPerUser=${maxPurchases})`);
       return { canPurchase: true, purchaseCount: 0, maxPurchases: null, remainingPurchases: null };
     }
 
     const purchaseCount = await this.countUserPurchases(userId, packageId);
     const canPurchase = purchaseCount < maxPurchases;
     const remainingPurchases = Math.max(0, maxPurchases - purchaseCount);
+
+    this.logger.log(
+      `[PURCHASE LIMIT CHECK] User ${userId}, Package ${packageId}: purchaseCount=${purchaseCount}, maxPurchases=${maxPurchases}, canPurchase=${canPurchase}`
+    );
 
     return { canPurchase, purchaseCount, maxPurchases, remainingPurchases };
   }

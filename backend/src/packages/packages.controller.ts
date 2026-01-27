@@ -14,6 +14,7 @@ import {
   HttpException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PackagesService } from './packages.service';
@@ -31,6 +32,8 @@ import { PaymentsService } from '../payments/payments.service';
 @ApiBearerAuth()
 @Controller('packages')
 export class PackagesController {
+  private readonly logger = new Logger(PackagesController.name);
+
   constructor(
     private packagesService: PackagesService,
     private walletService: WalletService,
@@ -120,6 +123,8 @@ export class PackagesController {
   async purchaseWithCredits(@Param('id') id: string, @Request() req: any) {
     const userId = req.user.userId;
 
+    this.logger.log(`[PURCHASE REQUEST] User ${userId} attempting to purchase package ${id}`);
+
     // SECURITY: Use distributed lock to prevent race condition
     // This ensures only one purchase request per user can be processed at a time
     const lockKey = `purchase:${userId}`;
@@ -127,6 +132,7 @@ export class PackagesController {
 
     if (!lockToken) {
       // Another purchase is already in progress for this user
+      this.logger.warn(`[PURCHASE BLOCKED] User ${userId} - another purchase in progress`);
       throw new HttpException(
         {
           success: false,
@@ -140,16 +146,31 @@ export class PackagesController {
       // Get package info
       const pkg = await this.packagesService.findById(id);
       if (!pkg) {
+        this.logger.warn(`[PURCHASE FAILED] Package not found: ${id}`);
         return { success: false, message: 'ไม่พบแพ็คเกจ' };
       }
       if (!pkg.isActive) {
+        this.logger.warn(`[PURCHASE FAILED] Package inactive: ${id}`);
         return { success: false, message: 'แพ็คเกจนี้ปิดให้บริการแล้ว' };
       }
+
+      this.logger.log(`[PURCHASE] Package ${id} maxPurchasesPerUser=${pkg.maxPurchasesPerUser}`);
 
       // SECURITY: Check purchase limit (maxPurchasesPerUser)
       // This prevents users from buying limited packages (e.g., promotions) more than allowed
       const purchaseCheck = await this.paymentsService.canUserPurchase(userId, id);
+
+      this.logger.log(
+        `[PURCHASE LIMIT RESULT] User ${userId}, Package ${id}: ` +
+        `canPurchase=${purchaseCheck.canPurchase}, count=${purchaseCheck.purchaseCount}, ` +
+        `max=${purchaseCheck.maxPurchases}, remaining=${purchaseCheck.remainingPurchases}`
+      );
+
       if (!purchaseCheck.canPurchase) {
+        this.logger.warn(
+          `[PURCHASE BLOCKED BY LIMIT] User ${userId} reached limit for package ${id} ` +
+          `(${purchaseCheck.purchaseCount}/${purchaseCheck.maxPurchases})`
+        );
         return {
           success: false,
           message: `คุณได้ซื้อแพ็คเกจนี้ครบ ${purchaseCheck.maxPurchases} ครั้งแล้ว ไม่สามารถซื้อเพิ่มได้`,
@@ -163,6 +184,8 @@ export class PackagesController {
         pkg.name,
         pkg.price,
       );
+
+      this.logger.log(`[PURCHASE RESULT] User ${userId}, Package ${id}: success=${result.success}`);
 
       return result;
     } finally {
