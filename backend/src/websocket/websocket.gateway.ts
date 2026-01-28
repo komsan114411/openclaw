@@ -36,6 +36,11 @@ import { AuthService } from '../auth/auth.service';
         return callback(null, true);
       }
 
+      // Allow production domains
+      if (requestOrigin === 'https://dooslip.com' || requestOrigin.endsWith('.dooslip.com')) {
+        return callback(null, true);
+      }
+
       // Allow localhost for development
       if (requestOrigin.startsWith('http://localhost:') || requestOrigin.startsWith('http://127.0.0.1:')) {
         return callback(null, true);

@@ -57,6 +57,11 @@ export function FloatingContactButton() {
     return null;
   }
 
+  // Don't render on chat page (conflicts with send button on mobile)
+  if (pathname?.startsWith('/user/chat')) {
+    return null;
+  }
+
   // Don't render if not enabled or no settings
   if (!settings || !settings.enabled) {
     return null;
