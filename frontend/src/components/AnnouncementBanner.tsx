@@ -24,8 +24,9 @@ interface Announcement {
   targetPages?: string[];
 }
 
-const STORAGE_KEY_PREFIX = 'announcement_dismissed_';
-const SESSION_KEY_PREFIX = 'announcement_session_';
+// Storage keys - ใช้แยกตาม browser ของแต่ละ user
+const DISMISS_7DAYS_KEY = 'ann_dismiss_7d_';  // localStorage - ปิด 7 วัน
+const DISMISS_SESSION_KEY = 'ann_dismiss_s_';  // sessionStorage - ปิดชั่วคราว
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function AnnouncementBanner() {
@@ -34,82 +35,141 @@ export function AnnouncementBanner() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [showPopup, setShowPopup] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Check page type
+  // Check page type - แสดงเฉพาะหน้า user (หลังล็อกอิน)
   const isAdminPage = pathname?.startsWith('/admin');
   const isUserPage = pathname?.startsWith('/user');
   const isAuthPage = pathname?.startsWith('/auth') || pathname?.startsWith('/login') || pathname?.startsWith('/register');
-
-  // Only show on user pages (after login)
   const shouldShowAnnouncements = isUserPage && !isAdminPage && !isAuthPage;
 
+  // Set client flag
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // ตรวจสอบว่าประกาศถูกปิดหรือยัง (ตรวจสอบจาก browser ของ user คนนั้น)
   const isDismissed = useCallback((announcementId: string): boolean => {
     if (typeof window === 'undefined') return false;
 
-    const dismissedUntil = localStorage.getItem(`${STORAGE_KEY_PREFIX}${announcementId}`);
-    if (dismissedUntil) {
-      const dismissedTime = parseInt(dismissedUntil, 10);
-      if (Date.now() < dismissedTime) return true;
-      localStorage.removeItem(`${STORAGE_KEY_PREFIX}${announcementId}`);
+    try {
+      // ตรวจสอบ localStorage - ปิด 7 วัน
+      const dismissedUntil = localStorage.getItem(`${DISMISS_7DAYS_KEY}${announcementId}`);
+      if (dismissedUntil) {
+        const expireTime = parseInt(dismissedUntil, 10);
+        if (!isNaN(expireTime) && Date.now() < expireTime) {
+          return true; // ยังไม่หมดอายุ
+        }
+        // หมดอายุแล้ว ลบออก
+        localStorage.removeItem(`${DISMISS_7DAYS_KEY}${announcementId}`);
+      }
+
+      // ตรวจสอบ sessionStorage - ปิดชั่วคราว (session นี้เท่านั้น)
+      const sessionDismissed = sessionStorage.getItem(`${DISMISS_SESSION_KEY}${announcementId}`);
+      if (sessionDismissed === 'true') {
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking dismiss status:', error);
+      return false;
     }
-
-    const sessionDismissed = sessionStorage.getItem(`${SESSION_KEY_PREFIX}${announcementId}`);
-    if (sessionDismissed) return true;
-
-    return false;
   }, []);
 
+  // Fetch announcements จาก API
   useEffect(() => {
-    if (!shouldShowAnnouncements || !isClient) return;
+    if (!shouldShowAnnouncements || !isClient) {
+      setIsLoading(false);
+      return;
+    }
 
     const fetchAnnouncements = async () => {
+      setIsLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const response = await fetch(`${apiUrl}/announcements/active?page=user`);
+        const response = await fetch(`${apiUrl}/announcements/active?page=user`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
 
-        if (data.success && data.announcements?.length > 0) {
-          const filtered = data.announcements.filter((a: Announcement) => !isDismissed(a._id));
-          setAnnouncements(filtered);
+        if (data.success && Array.isArray(data.announcements) && data.announcements.length > 0) {
+          // กรองประกาศที่ถูกปิดแล้ว (ตรวจสอบจาก browser ของ user)
+          const visibleAnnouncements = data.announcements.filter(
+            (a: Announcement) => !isDismissed(a._id)
+          );
 
-          const hasPopup = filtered.some((a: Announcement) => a.displayType === 'popup');
+          setAnnouncements(visibleAnnouncements);
+
+          // แสดง popup ถ้ามี
+          const hasPopup = visibleAnnouncements.some(
+            (a: Announcement) => a.displayType === 'popup'
+          );
           if (hasPopup) {
             setTimeout(() => setShowPopup(true), 500);
           }
 
-          filtered.forEach((a: Announcement) => {
-            fetch(`${apiUrl}/announcements/${a._id}/view`, { method: 'POST' }).catch(() => {});
+          // Track view สำหรับแต่ละประกาศ (เพื่อสถิติเท่านั้น ไม่ส่งผลต่อการแสดงผล)
+          visibleAnnouncements.forEach((a: Announcement) => {
+            fetch(`${apiUrl}/announcements/${a._id}/view`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            }).catch(() => {});
           });
+        } else {
+          setAnnouncements([]);
         }
       } catch (error) {
         console.error('Failed to fetch announcements:', error);
+        setAnnouncements([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchAnnouncements();
   }, [pathname, shouldShowAnnouncements, isClient, isDismissed]);
 
+  // Handle dismiss - บันทึกไว้ที่ browser ของ user เท่านั้น
   const handleDismiss = useCallback((announcement: Announcement, forSevenDays = false) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    fetch(`${apiUrl}/announcements/${announcement._id}/dismiss`, { method: 'POST' }).catch(() => {});
+    try {
+      if (forSevenDays) {
+        // ปิด 7 วัน - บันทึกใน localStorage
+        const expireTime = Date.now() + SEVEN_DAYS_MS;
+        localStorage.setItem(`${DISMISS_7DAYS_KEY}${announcement._id}`, String(expireTime));
+      } else {
+        // ปิดชั่วคราว - บันทึกใน sessionStorage (จะหายเมื่อปิด browser)
+        sessionStorage.setItem(`${DISMISS_SESSION_KEY}${announcement._id}`, 'true');
+      }
 
-    if (forSevenDays) {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}${announcement._id}`, String(Date.now() + SEVEN_DAYS_MS));
-    } else {
-      sessionStorage.setItem(`${SESSION_KEY_PREFIX}${announcement._id}`, 'true');
-    }
+      // Track dismiss count สำหรับสถิติ (ไม่ส่งผลต่อการแสดงผลของ user อื่น)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      fetch(`${apiUrl}/announcements/${announcement._id}/dismiss`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => {});
 
-    setAnnouncements(prev => prev.filter(a => a._id !== announcement._id));
+      // ลบออกจาก state เพื่อซ่อนทันที
+      setAnnouncements(prev => prev.filter(a => a._id !== announcement._id));
 
-    if (announcement.displayType === 'popup') {
-      setShowPopup(false);
+      if (announcement.displayType === 'popup') {
+        setShowPopup(false);
+      }
+    } catch (error) {
+      console.error('Error dismissing announcement:', error);
     }
   }, []);
 
+  // Handle link click
   const handleLinkClick = useCallback((url: string) => {
     if (url.startsWith('http')) {
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -118,23 +178,33 @@ export function AnnouncementBanner() {
     }
   }, []);
 
+  // Navigation
   const nextBanner = useCallback(() => {
     const banners = announcements.filter(a => a.displayType === 'banner');
-    setCurrentBannerIndex(prev => (prev + 1) % banners.length);
+    if (banners.length > 1) {
+      setCurrentBannerIndex(prev => (prev + 1) % banners.length);
+    }
   }, [announcements]);
 
   const prevBanner = useCallback(() => {
     const banners = announcements.filter(a => a.displayType === 'banner');
-    setCurrentBannerIndex(prev => (prev - 1 + banners.length) % banners.length);
+    if (banners.length > 1) {
+      setCurrentBannerIndex(prev => (prev - 1 + banners.length) % banners.length);
+    }
   }, [announcements]);
 
-  if (!shouldShowAnnouncements || !isClient || announcements.length === 0) {
+  // Don't render if not applicable
+  if (!shouldShowAnnouncements || !isClient || isLoading) {
+    return null;
+  }
+
+  if (announcements.length === 0) {
     return null;
   }
 
   const bannerAnnouncements = announcements.filter(a => a.displayType === 'banner');
   const popupAnnouncement = announcements.find(a => a.displayType === 'popup');
-  const currentBanner = bannerAnnouncements[currentBannerIndex];
+  const currentBanner = bannerAnnouncements[currentBannerIndex] || bannerAnnouncements[0];
 
   return (
     <>
@@ -154,7 +224,7 @@ export function AnnouncementBanner() {
                 className="relative w-full"
                 style={{ backgroundColor: currentBanner.backgroundColor || '#06C755' }}
               >
-                {/* Image Container - Responsive sizing */}
+                {/* Image Container */}
                 <div className="relative w-full flex items-center justify-center">
                   <img
                     src={currentBanner.imageBase64 || currentBanner.imageUrl}
@@ -167,7 +237,7 @@ export function AnnouncementBanner() {
                   />
                 </div>
 
-                {/* Content Bar at Bottom */}
+                {/* Content Bar */}
                 <div
                   className="w-full px-4 py-3"
                   style={{
@@ -176,7 +246,6 @@ export function AnnouncementBanner() {
                   }}
                 >
                   <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-                    {/* Title & Message */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
                         <Bell className="w-4 h-4" />
@@ -193,7 +262,6 @@ export function AnnouncementBanner() {
                       </div>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {currentBanner.linkUrl && (
                         <button
@@ -228,7 +296,7 @@ export function AnnouncementBanner() {
                     </div>
                   </div>
 
-                  {/* Navigation Dots */}
+                  {/* Navigation */}
                   {bannerAnnouncements.length > 1 && (
                     <div className="flex items-center justify-center gap-2 mt-3">
                       <button
@@ -321,7 +389,6 @@ export function AnnouncementBanner() {
                     </div>
                   </div>
 
-                  {/* Navigation Dots for Text Banner */}
                   {bannerAnnouncements.length > 1 && (
                     <div className="flex items-center justify-center gap-2 mt-3">
                       <button
@@ -376,7 +443,7 @@ export function AnnouncementBanner() {
               className="relative w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Image - Full display without cropping */}
+              {/* Image */}
               {(popupAnnouncement.imageBase64 || popupAnnouncement.imageUrl) && (
                 <div
                   className="relative w-full flex items-center justify-center"
