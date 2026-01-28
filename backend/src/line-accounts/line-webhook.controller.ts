@@ -692,13 +692,10 @@ export class LineWebhookController {
       }
 
       // ส่งข้อความข้อผิดพลาดระบบ (ใช้ template ใหม่)
+      // ใช้ Reply ก่อน (ฟรี) ถ้าไม่ได้ใช้ไปแล้ว, fallback เป็น Push
       try {
         const errorMsg = await this.configurableMessagesService.formatSystemErrorResponse({ account });
-        await this.lineAccountsService.sendPush(
-          lineUserId,
-          [errorMsg],
-          accessToken,
-        );
+        await safeSendMessage([errorMsg]);
       } catch (sendError) {
         this.logger.error('Failed to send error message:', sendError);
       }
@@ -708,7 +705,7 @@ export class LineWebhookController {
   }
 
   private async handleAIResponse(account: any, event: any): Promise<void> {
-    const { source, message } = event;
+    const { source, replyToken, message } = event;
     const lineUserId = source.userId;
     const accessToken = account.accessToken;
     const accountId = account._id.toString();
@@ -717,6 +714,31 @@ export class LineWebhookController {
 
     let subscriptionId: string | null = null;
     let reservationId: string | null = null;
+    let replyTokenUsed = false;
+
+    // Helper to send message - uses Reply first (FREE), falls back to Push
+    const safeSendAIMessage = async (messages: any[]) => {
+      try {
+        // Try Reply first (FREE and unlimited)
+        if (replyToken && !replyTokenUsed) {
+          this.logger.log(`[AI] Sending via reply token`);
+          await this.lineAccountsService.sendReply(replyToken, messages, accessToken);
+          replyTokenUsed = true;
+          return;
+        }
+        // Fallback to Push
+        this.logger.log(`[AI] Sending via push to ${lineUserId}`);
+        await this.lineAccountsService.sendPush(lineUserId, messages, accessToken);
+      } catch (error: any) {
+        // If Reply failed (token expired), try Push
+        if (!replyTokenUsed) {
+          this.logger.warn(`[AI] Reply failed, trying push...`);
+          await this.lineAccountsService.sendPush(lineUserId, messages, accessToken);
+        } else {
+          throw error;
+        }
+      }
+    };
 
     // Get retry settings
     const retrySettings = await this.configurableMessagesService.getRetrySettings();
@@ -757,7 +779,7 @@ export class LineWebhookController {
         if (shouldSendQuotaMsg) {
           this.logger.log(`[AI] Sending quota exhausted message`);
           const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
-          await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+          await safeSendAIMessage([quotaMsg]);
         } else {
           this.logger.log(`[AI] Quota exhausted message disabled by settings`);
         }
@@ -774,7 +796,7 @@ export class LineWebhookController {
         const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
         if (shouldSendQuotaMsg) {
           const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
-          await this.lineAccountsService.sendPush(lineUserId, [quotaMsg], accessToken);
+          await safeSendAIMessage([quotaMsg]);
         }
         return;
       }
@@ -839,12 +861,8 @@ export class LineWebhookController {
       this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', outMessageData);
       this.websocketGateway.broadcastToAdmins('message_received', outMessageData);
 
-      // Send response
-      await this.lineAccountsService.sendPush(
-        lineUserId,
-        [{ type: 'text', text: response }],
-        accessToken,
-      );
+      // Send response (uses Reply first - FREE, falls back to Push)
+      await safeSendAIMessage([{ type: 'text', text: response }]);
 
       // Increment AI response count
       await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
@@ -867,11 +885,7 @@ export class LineWebhookController {
 
       const fallbackMessage = account.settings?.aiFallbackMessage || 'ขอบคุณสำหรับข้อความของคุณ';
       try {
-        await this.lineAccountsService.sendPush(
-          lineUserId,
-          [{ type: 'text', text: fallbackMessage }],
-          accessToken,
-        );
+        await safeSendAIMessage([{ type: 'text', text: fallbackMessage }]);
       } catch (sendError) {
         this.logger.error('Failed to send AI fallback message:', sendError);
       }
