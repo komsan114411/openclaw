@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import { Building2, Palette } from 'lucide-react';
 
 interface SlipTemplate {
   _id: string;
@@ -296,7 +297,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
                   {receiverLogo ? (
                     <img src={receiverLogo} alt={receiverBank?.name || 'Bank'} className="w-5 h-5 object-contain" />
                   ) : (
-                    <span className="text-[9px]">🏦</span>
+                    <Building2 className="w-4 h-4 text-slate-400" />
                   )}
                 </div>
               )}
@@ -779,8 +780,8 @@ function TemplatesContent() {
           <Card className="p-12">
             <EmptyState
               icon={
-                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center text-4xl">
-                  🎨
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center">
+                  <Palette className="w-10 h-10 text-slate-400" />
                 </div>
               }
               title="ยังไม่มี Template"

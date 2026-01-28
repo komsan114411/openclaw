@@ -11,6 +11,18 @@ import { Modal } from '@/components/ui/Modal';
 import { Card } from '@/components/ui/Card';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import {
+  Wallet,
+  Gem,
+  FileText,
+  Bot,
+  Ban,
+  AlertTriangle,
+  Check,
+  X,
+  ClipboardList,
+  Loader2,
+} from 'lucide-react';
 
 export default function UserPackagesPage() {
   // ===== STATE =====
@@ -198,8 +210,8 @@ export default function UserPackagesPage() {
               <p className="text-lg font-black text-emerald-400">฿{balance.toLocaleString()}</p>
             </div>
             <Link href="/user/wallet">
-              <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600 h-10">
-                💰 เติมเครดิต
+              <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600 h-10 gap-2">
+                <Wallet className="w-4 h-4" /> เติมเครดิต
               </Button>
             </Link>
           </div>
@@ -252,7 +264,7 @@ export default function UserPackagesPage() {
                     {/* Slip Quota */}
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-amber-400 text-sm">📄</span>
+                        <FileText className="w-4 h-4 text-amber-400" />
                       </div>
                       <div>
                         <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
@@ -262,7 +274,7 @@ export default function UserPackagesPage() {
                     {/* AI Quota */}
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-violet-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-violet-400 text-sm">🤖</span>
+                        <Bot className="w-4 h-4 text-violet-400" />
                       </div>
                       <div>
                         <p className="text-lg font-black text-violet-300 leading-none">{(pkg.aiQuota || 0).toLocaleString()}</p>
@@ -322,7 +334,7 @@ export default function UserPackagesPage() {
                       : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
                   )}
                 >
-                  {index === 1 ? '💎 ซื้อเลย' : 'ซื้อ'}
+  {index === 1 ? <><Gem className="w-4 h-4 mr-1" /> ซื้อเลย</> : 'ซื้อ'}
                 </Button>
               </Card>
             );
@@ -349,11 +361,11 @@ export default function UserPackagesPage() {
                   <p className="text-xs text-slate-400 mb-2">{selectedPackage.durationDays} วัน</p>
                   <div className="flex flex-wrap gap-2">
                     <span className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded-full">
-                      📄 {selectedPackage.slipQuota.toLocaleString()} สลิป
+                      <FileText className="w-3 h-3" /> {selectedPackage.slipQuota.toLocaleString()} สลิป
                     </span>
                     {(selectedPackage.aiQuota || 0) > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs bg-violet-500/20 text-violet-300 px-2 py-1 rounded-full">
-                        🤖 {(selectedPackage.aiQuota || 0).toLocaleString()} AI
+                        <Bot className="w-3 h-3" /> {(selectedPackage.aiQuota || 0).toLocaleString()} AI
                       </span>
                     )}
                   </div>
@@ -416,7 +428,7 @@ export default function UserPackagesPage() {
                   : "bg-rose-500/10 border-rose-500/20"
               )}>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{eligibility.canPurchase ? '📋' : '🚫'}</span>
+                  {eligibility.canPurchase ? <ClipboardList className="w-5 h-5 text-amber-400" /> : <Ban className="w-5 h-5 text-rose-400" />}
                   <div>
                     <p className={cn(
                       "text-sm font-bold",
@@ -439,7 +451,7 @@ export default function UserPackagesPage() {
             {!isEligibilityLoading && !canPurchase && (
               <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">🚫</span>
+                  <Ban className="w-6 h-6 text-rose-400 flex-shrink-0" />
                   <div>
                     <p className="text-rose-300 font-bold mb-1">ไม่สามารถซื้อได้</p>
                     <p className="text-rose-300/80 text-sm">
@@ -454,15 +466,15 @@ export default function UserPackagesPage() {
             {!isLoadingBalance && !hasEnoughBalance && canPurchase && (
               <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">⚠️</span>
+                  <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
                   <div>
                     <p className="text-rose-300 font-bold mb-1">เครดิตไม่เพียงพอ</p>
                     <p className="text-rose-300/80 text-sm mb-3">
                       ต้องการอีก <span className="font-bold">฿{(selectedPackage.price - balance).toLocaleString()}</span> กรุณาเติมเครดิตก่อนซื้อแพ็คเกจ
                     </p>
                     <Link href="/user/wallet">
-                      <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600">
-                        💰 เติมเครดิตที่นี่
+                      <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600 gap-2">
+                        <Wallet className="w-4 h-4" /> เติมเครดิตที่นี่
                       </Button>
                     </Link>
                   </div>
@@ -479,7 +491,7 @@ export default function UserPackagesPage() {
                   : "bg-rose-500/10 border-rose-500/20 text-rose-300"
               )}>
                 <div className="flex items-center gap-2">
-                  <span>{purchaseResult.success ? '✅' : '❌'}</span>
+                  {purchaseResult.success ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
                   <span className="font-medium">{purchaseResult.message}</span>
                 </div>
               </div>
@@ -508,15 +520,15 @@ export default function UserPackagesPage() {
               >
                 {isPurchasing ? (
                   <span className="flex items-center gap-2">
-                    <span className="animate-spin">⏳</span>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     กำลังซื้อ...
                   </span>
                 ) : isEligibilityLoading ? (
                   'กำลังตรวจสอบ...'
                 ) : !canPurchase ? (
-                  '🚫 ซื้อครบแล้ว'
+                  <><Ban className="w-4 h-4 mr-1" /> ซื้อครบแล้ว</>
                 ) : hasEnoughBalance ? (
-                  '✅ ยืนยันซื้อ'
+                  <><Check className="w-4 h-4 mr-1" /> ยืนยันซื้อ</>
                 ) : (
                   'เครดิตไม่พอ'
                 )}

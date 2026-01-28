@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { BankAccount, UsdtSettings } from '@/types';
+import { AlertTriangle } from 'lucide-react';
 
 type DepositMethod = 'bank' | 'usdt';
 
@@ -387,7 +388,7 @@ export default function DepositPage() {
 
         <Card className="mt-6 border border-yellow-500/20 bg-yellow-500/5" variant="glass">
           <div className="p-4 flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
+            <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
             <div>
               <p className="font-semibold text-yellow-400">หมายเหตุ</p>
               <ul className="text-sm text-slate-300 mt-2 space-y-1">

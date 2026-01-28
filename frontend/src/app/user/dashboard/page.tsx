@@ -11,6 +11,16 @@ import { Badge } from '@/components/ui/Badge';
 import { SectionHeader, StatCardMini } from '@/components/ui';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import {
+  MessageSquare,
+  FileText,
+  Brain,
+  Users,
+  Package,
+  Ban,
+  AlertTriangle,
+  Plus,
+} from 'lucide-react';
 
 
 interface Subscription {
@@ -108,7 +118,9 @@ export default function UserDashboard() {
         {showAiDisabledWarning && (
           <div className="mb-6">
             <div className="bg-gradient-to-r from-slate-500/10 to-slate-500/5 border border-slate-500/30 rounded-2xl p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-slate-600 flex items-center justify-center text-2xl flex-shrink-0">🚫</div>
+              <div className="w-12 h-12 rounded-xl bg-slate-600 flex items-center justify-center flex-shrink-0">
+                <Ban className="w-6 h-6 text-white" />
+              </div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-slate-300">ระบบ AI ถูกปิดชั่วคราว</p>
                 <p className="text-xs text-slate-400">ผู้ดูแลระบบปิดการใช้งาน AI Chatbot ชั่วคราว ฟังก์ชัน AI จะไม่ทำงานจนกว่าจะเปิดใช้งานอีกครั้ง</p>
@@ -122,7 +134,9 @@ export default function UserDashboard() {
           <div className="mb-6 space-y-3">
             {showSlipWarning && (
               <div className="bg-gradient-to-r from-rose-500/10 to-rose-500/5 border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center text-2xl flex-shrink-0">📄</div>
+                <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-rose-400">โควต้าสลิปใกล้หมด!</p>
                   <p className="text-xs text-rose-300/70">เหลือเพียง {subscription?.remainingQuota?.toLocaleString() || 0} ครั้ง ({quotaPercentage}%) กรุณาเติมโควต้าเพื่อใช้งานต่อ</p>
@@ -137,7 +151,9 @@ export default function UserDashboard() {
 
             {showAiWarning && (
               <div className="bg-gradient-to-r from-violet-500/10 to-violet-500/5 border border-violet-500/30 rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-violet-500 flex items-center justify-center text-2xl flex-shrink-0">🧠</div>
+                <div className="w-12 h-12 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0">
+                  <Brain className="w-6 h-6 text-white" />
+                </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-violet-400">โควต้า AI ใกล้หมด!</p>
                   <p className="text-xs text-violet-300/70">เหลือเพียง {aiQuota?.remainingQuota?.toLocaleString() || 0} ครั้ง ({aiQuotaPercentage}%) กรุณาเติมโควต้าเพื่อใช้ AI ต่อ</p>
@@ -160,13 +176,13 @@ export default function UserDashboard() {
           actions={
             <>
               <Link href="/user/line-accounts" className="flex-1 sm:flex-none">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto">
-                  ➕ เพิ่มบัญชี LINE
+                <Button variant="primary" size="lg" className="w-full sm:w-auto gap-2">
+                  <Plus className="w-4 h-4" /> เพิ่มบัญชี LINE
                 </Button>
               </Link>
               <Link href="/user/packages" className="flex-1 sm:flex-none">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  📦 ซื้อแพ็คเกจ
+                <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2">
+                  <Package className="w-4 h-4" /> ซื้อแพ็คเกจ
                 </Button>
               </Link>
             </>
@@ -176,7 +192,7 @@ export default function UserDashboard() {
         {/* QUICK STATS - Real Data Only */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mt-6">
           <StatCardMini
-            icon="💬"
+            icon={<MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />}
             value={lineAccounts.length}
             label="บัญชี LINE"
             badgeText={lineAccounts.length > 0 ? 'ใช้งานอยู่' : undefined}
@@ -184,7 +200,7 @@ export default function UserDashboard() {
           />
 
           <StatCardMini
-            icon="📄"
+            icon={<FileText className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />}
             value={subscription?.remainingQuota?.toLocaleString() || '0'}
             label="โควต้าสลิป"
             color="emerald"
@@ -193,7 +209,7 @@ export default function UserDashboard() {
           />
 
           <StatCardMini
-            icon="🧠"
+            icon={<Brain className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />}
             value={aiQuota?.remainingQuota?.toLocaleString() || '0'}
             label="โควต้า AI"
             color="violet"
@@ -202,7 +218,7 @@ export default function UserDashboard() {
           />
 
           <StatCardMini
-            icon="👥"
+            icon={<Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />}
             value={totalMessages > 0 ? totalMessages.toLocaleString() : '0'}
             label="ข้อความทั้งหมด"
             color="blue"
@@ -235,7 +251,9 @@ export default function UserDashboard() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-end">
                       <div>
-                        <span className="text-xs font-semibold text-slate-400">📄 โควต้าสลิปคงเหลือ</span>
+                        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                          <FileText className="w-3 h-3" /> โควต้าสลิปคงเหลือ
+                        </span>
                         <p className="text-3xl sm:text-4xl font-black text-white">
                           {subscription.remainingQuota?.toLocaleString() || 0}
                           <span className="text-lg sm:text-xl text-slate-500 font-semibold ml-2">
@@ -267,7 +285,9 @@ export default function UserDashboard() {
                     <div className="space-y-3 mt-4 pt-4 border-t border-white/5">
                       <div className="flex justify-between items-end">
                         <div>
-                          <span className="text-xs font-semibold text-slate-400">🧠 โควต้า AI คงเหลือ</span>
+                          <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                            <Brain className="w-3 h-3" /> โควต้า AI คงเหลือ
+                          </span>
                           <p className="text-2xl sm:text-3xl font-black text-white">
                             {aiQuota.remainingQuota?.toLocaleString() || 0}
                             <span className="text-base sm:text-lg text-slate-500 font-semibold ml-2">
@@ -330,7 +350,7 @@ export default function UserDashboard() {
               <Card className="bg-slate-950 border border-white/10 overflow-hidden" variant="glass">
                 <div className="p-6 sm:p-8 text-center">
                   <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">📦</span>
+                    <Package className="w-8 h-8 text-slate-400" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2">ยังไม่มีแพ็คเกจ</h3>
                   <p className="text-sm text-slate-400 mb-6">เลือกแพ็คเกจที่เหมาะกับการใช้งานของคุณ</p>
@@ -363,7 +383,7 @@ export default function UserDashboard() {
                         className="flex items-center gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/5 hover:bg-white/[0.04] transition-colors"
                       >
                         <div className="w-10 h-10 bg-[#06C755]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <span className="text-lg">💬</span>
+                          <MessageSquare className="w-5 h-5 text-[#06C755]" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-white truncate">{account.accountName}</p>
@@ -380,7 +400,7 @@ export default function UserDashboard() {
                 ) : (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-3">
-                      <span className="text-2xl">💬</span>
+                      <MessageSquare className="w-6 h-6 text-slate-400" />
                     </div>
                     <p className="text-sm text-slate-400 mb-4">ยังไม่มีบัญชี LINE OA</p>
                     <Link href="/user/line-accounts/new">

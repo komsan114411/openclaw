@@ -29,6 +29,12 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Building2,
+  Users,
+  AlertTriangle,
+  FileText,
+  Brain,
+  Ban,
 } from 'lucide-react';
 
 // Extended SlipTemplate interface for preview
@@ -227,7 +233,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
                   {receiverLogo ? (
                     <img src={receiverLogo} alt={receiverBank?.name || 'Bank'} className="w-4 h-4 object-contain" />
                   ) : (
-                    <span className="text-[8px]">🏦</span>
+                    <Building2 className="w-3 h-3 text-slate-400" />
                   )}
                 </div>
               )}
@@ -799,7 +805,7 @@ export default function UserLineAccountsPage() {
                 </div>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center flex-shrink-0 ml-2">
-                <span className="text-xl sm:text-2xl">👥</span>
+                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#06C755]" />
               </div>
             </div>
           </Card>
@@ -831,7 +837,7 @@ export default function UserLineAccountsPage() {
             </div>
           ) : accounts.length === 0 ? (
             <EmptyState
-              icon={<div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center text-4xl shadow-inner">💬</div>}
+              icon={<div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center shadow-inner"><MessageSquare className="w-10 h-10 text-slate-400" /></div>}
               title="ยังไม่มีบัญชี LINE OA"
               description="เริ่มต้นใช้งานโดยการเชื่อมต่อบัญชี LINE OA ของคุณเพื่อเปิดใช้งานระบบตอบกลับอัตโนมัติ"
               action={
@@ -1540,7 +1546,7 @@ export default function UserLineAccountsPage() {
           {!globalAiEnabled && (
             <div className="bg-rose-500/20 border border-rose-500/30 rounded-2xl p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center text-white text-lg flex-shrink-0">⚠️</div>
+                <div className="w-10 h-10 rounded-xl bg-rose-500 flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-5 h-5 text-white" /></div>
                 <div>
                   <p className="text-sm font-bold text-rose-400">AI ถูกปิดทั้งระบบ</p>
                   <p className="text-xs text-rose-300/70">แม้เปิด AI สำหรับบัญชีนี้ ระบบจะไม่ทำงานจนกว่า Admin จะเปิด Global AI</p>
@@ -1561,7 +1567,7 @@ export default function UserLineAccountsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Bot Toggle */}
               <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableBot ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
-                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableBot ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400")}>🤖</div>
+                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center", settingsData.enableBot ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400")}><Bot className="w-5 h-5 sm:w-6 sm:h-6" /></div>
                 <div className="space-y-1">
                   <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">Bot</p>
                   <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">ระบบตอบกลับ</p>
@@ -1571,7 +1577,7 @@ export default function UserLineAccountsPage() {
 
               {/* Slip Toggle */}
               <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableSlipVerification ? "bg-amber-500/10 border-amber-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
-                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableSlipVerification ? "bg-amber-500 text-white" : "bg-slate-700 text-slate-400")}>📄</div>
+                <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center", settingsData.enableSlipVerification ? "bg-amber-500 text-white" : "bg-slate-700 text-slate-400")}><FileText className="w-5 h-5 sm:w-6 sm:h-6" /></div>
                 <div className="space-y-1">
                   <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">Slip</p>
                   <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">ตรวจสอบสลิป</p>
@@ -1593,10 +1599,10 @@ export default function UserLineAccountsPage() {
                   </div>
                 )}
                 <div className={cn(
-                  "w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl",
+                  "w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center",
                   !globalAiEnabled ? "bg-rose-500/20 text-rose-400" :
                   settingsData.enableAi ? "bg-indigo-500 text-white" : "bg-slate-700 text-slate-400"
-                )}>🧠</div>
+                )}><Brain className="w-5 h-5 sm:w-6 sm:h-6" /></div>
                 <div className="space-y-1">
                   <p className="font-bold text-[10px] sm:text-xs uppercase tracking-widest text-white">AI</p>
                   <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium">
@@ -1625,7 +1631,7 @@ export default function UserLineAccountsPage() {
             {!globalAiEnabled && (
               <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
                 <div className="flex items-start gap-3">
-                  <span className="text-rose-400 text-lg">🚫</span>
+                  <Ban className="w-5 h-5 text-rose-400 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-bold text-rose-300">ระบบ AI ถูกปิดโดยผู้ดูแลระบบ</p>
                     <p className="text-xs text-rose-200/70 mt-1">

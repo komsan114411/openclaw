@@ -11,6 +11,16 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import {
+  Banknote,
+  Package,
+  Gift,
+  Undo2,
+  Settings,
+  Wallet,
+  FileText,
+  RefreshCw,
+} from 'lucide-react';
 
 export default function UserPaymentsPage() {
   const [transactions, setTransactions] = useState<UnifiedTransaction[]>([]);
@@ -82,15 +92,23 @@ export default function UserPaymentsPage() {
   };
 
   const getTypeIcon = (type: string) => {
-    const icons: Record<string, string> = {
-      deposit: '💵',
-      purchase: '🛒',
-      package: '📦',
-      bonus: '🎁',
-      refund: '↩️',
-      adjustment: '⚙️',
-    };
-    return icons[type] || '💰';
+    const iconClass = "w-4 h-4 sm:w-5 sm:h-5";
+    switch (type) {
+      case 'deposit':
+        return <Banknote className={cn(iconClass, "text-emerald-400")} />;
+      case 'purchase':
+        return <Package className={cn(iconClass, "text-blue-400")} />;
+      case 'package':
+        return <Package className={cn(iconClass, "text-blue-400")} />;
+      case 'bonus':
+        return <Gift className={cn(iconClass, "text-amber-400")} />;
+      case 'refund':
+        return <Undo2 className={cn(iconClass, "text-violet-400")} />;
+      case 'adjustment':
+        return <Settings className={cn(iconClass, "text-slate-400")} />;
+      default:
+        return <Wallet className={cn(iconClass, "text-emerald-400")} />;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -192,14 +210,14 @@ export default function UserPaymentsPage() {
               onClick={fetchData}
               className="h-10 px-4 rounded-lg border-white/20"
             >
-              🔄
+              <RefreshCw className="w-4 h-4" />
             </Button>
             <Link href="/user/wallet">
               <Button
                 variant="primary"
-                className="h-10 px-4 rounded-lg bg-[#06C755] hover:bg-[#05a347]"
+                className="h-10 px-4 rounded-lg bg-[#06C755] hover:bg-[#05a347] gap-2"
               >
-                💵 เติมเครดิต
+                <Banknote className="w-4 h-4" /> เติมเครดิต
               </Button>
             </Link>
           </div>
@@ -224,21 +242,21 @@ export default function UserPaymentsPage() {
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-6 p-1 bg-white/5 border border-white/10 rounded-xl w-fit">
           {[
-            { key: 'all', label: 'ทั้งหมด' },
-            { key: 'deposit', label: '💵 เติมเครดิต' },
-            { key: 'purchase', label: '📦 ซื้อแพ็คเกจ' },
+            { key: 'all', label: 'ทั้งหมด', icon: null },
+            { key: 'deposit', label: 'เติมเครดิต', icon: <Banknote className="w-3 h-3" /> },
+            { key: 'purchase', label: 'ซื้อแพ็คเกจ', icon: <Package className="w-3 h-3" /> },
           ].map((filter) => (
             <button
               key={filter.key}
               onClick={() => setActiveFilter(filter.key as any)}
               className={cn(
-                "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
                 activeFilter === filter.key
                   ? "bg-[#06C755] text-white shadow-lg"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              {filter.label}
+              {filter.icon} {filter.label}
             </button>
           ))}
         </div>
@@ -277,7 +295,7 @@ export default function UserPaymentsPage() {
                       "w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0",
                       isPositive ? "bg-emerald-500/10" : "bg-slate-500/10"
                     )}>
-                      <span className="text-xl">{getTypeIcon(tx.type)}</span>
+                      {getTypeIcon(tx.type)}
                     </div>
 
                     {/* Info */}
@@ -303,7 +321,7 @@ export default function UserPaymentsPage() {
                           className="p-2 text-slate-400 hover:text-[#06C755] hover:bg-[#06C755]/10 rounded-lg transition-colors"
                           title="ดูสลิป"
                         >
-                          📄
+                          <FileText className="w-4 h-4" />
                         </button>
                       )}
                     </div>

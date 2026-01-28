@@ -13,6 +13,24 @@ import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
 import { WalletBalance, WalletTransaction, BankAccount, UsdtSettings } from '@/types';
+import {
+  Building2,
+  Gem,
+  X,
+  Loader2,
+  Camera,
+  Check,
+  Copy,
+  AlertTriangle,
+  Coins,
+  Wallet,
+  ClipboardList,
+  Banknote,
+  ShoppingCart,
+  Gift,
+  Undo2,
+  Settings,
+} from 'lucide-react';
 
 export default function WalletPage() {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -189,14 +207,21 @@ export default function WalletPage() {
   };
 
   const getTypeIcon = (type: string) => {
-    const icons: Record<string, string> = {
-      deposit: '💵',
-      purchase: '🛒',
-      bonus: '🎁',
-      refund: '↩️',
-      adjustment: '⚙️',
-    };
-    return icons[type] || '💰';
+    const iconClass = "w-4 h-4 sm:w-5 sm:h-5";
+    switch (type) {
+      case 'deposit':
+        return <Banknote className={cn(iconClass, "text-emerald-400")} />;
+      case 'purchase':
+        return <ShoppingCart className={cn(iconClass, "text-blue-400")} />;
+      case 'bonus':
+        return <Gift className={cn(iconClass, "text-amber-400")} />;
+      case 'refund':
+        return <Undo2 className={cn(iconClass, "text-violet-400")} />;
+      case 'adjustment':
+        return <Settings className={cn(iconClass, "text-slate-400")} />;
+      default:
+        return <Wallet className={cn(iconClass, "text-emerald-400")} />;
+    }
   };
 
   const getTypeLabel = (type: string) => {
@@ -246,7 +271,7 @@ export default function WalletPage() {
           </div>
           <Link href="/user/packages">
             <Button variant="primary" size="sm" className="bg-[#06C755] hover:bg-[#05a347] h-9 sm:h-10 px-4">
-              💎 ซื้อแพ็คเกจ
+              <Gem className="w-4 h-4" /> ซื้อแพ็คเกจ
             </Button>
           </Link>
         </div>
@@ -296,7 +321,7 @@ export default function WalletPage() {
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              🏦 <span className="hidden xs:inline">โอนเงิน</span>ธนาคาร
+              <Building2 className="w-4 h-4" /> <span className="hidden xs:inline">โอนเงิน</span>ธนาคาร
             </button>
             <button
               onClick={() => setActiveTab('crypto')}
@@ -307,7 +332,7 @@ export default function WalletPage() {
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              💎 USDT
+              <Gem className="w-4 h-4" /> USDT
             </button>
           </div>
         </div>
@@ -315,7 +340,7 @@ export default function WalletPage() {
         {error && (
           <Card className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-3" variant="glass">
             <div className="flex items-center gap-2 text-sm">
-              <span>❌</span>
+              <X className="w-4 h-4 text-rose-400" />
               <span>{error}</span>
               <Button variant="ghost" size="sm" onClick={fetchData} className="ml-auto text-xs">ลองใหม่</Button>
             </div>
@@ -348,8 +373,8 @@ export default function WalletPage() {
                               className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain bg-white p-1 flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center text-lg flex-shrink-0">
-                              🏦
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                              <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -371,7 +396,7 @@ export default function WalletPage() {
                                 : "bg-white/10 text-white hover:bg-emerald-500"
                             )}
                           >
-                            {copiedAccount === account.accountNumber ? '✓' : '📋'}
+                            {copiedAccount === account.accountNumber ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
@@ -413,12 +438,12 @@ export default function WalletPage() {
                 >
                   {isDepositing ? (
                     <div className="text-center">
-                      <div className="text-3xl mb-2 animate-spin">⏳</div>
+                      <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mx-auto mb-2" />
                       <p className="text-slate-400 text-sm">กำลังตรวจสอบ...</p>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <div className="text-3xl mb-2">📷</div>
+                      <Camera className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                       <p className="text-emerald-400 font-bold text-sm">คลิกเพื่ออัปโหลดสลิป</p>
                       <p className="text-[10px] text-slate-400 mt-1">JPG, PNG (สูงสุด 5MB)</p>
                     </div>
@@ -433,7 +458,7 @@ export default function WalletPage() {
                       : "bg-rose-500/10 border-rose-500/20 text-rose-300"
                   )}>
                     <div className="flex items-center gap-2">
-                      <span>{depositResult.success ? '✅' : '❌'}</span>
+                      {depositResult.success ? <Check className="w-5 h-5" /> : <X className="w-5 h-5" />}
                       <span className="font-medium">{depositResult.message}</span>
                     </div>
                   </div>
@@ -461,7 +486,7 @@ export default function WalletPage() {
               <div className="p-4 sm:p-5 flex flex-col items-center text-center">
                 {!usdtSettings?.enabled ? (
                   <div className="py-8">
-                    <div className="text-4xl mb-4">⚠️</div>
+                    <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
                     <h3 className="text-lg font-bold text-white mb-2">ปิดปรับปรุงชั่วคราว</h3>
                     <p className="text-slate-400 text-sm">{usdtSettings?.disabledMessage || 'งดรับชำระด้วย USDT ชั่วคราว'}</p>
                   </div>
@@ -476,8 +501,8 @@ export default function WalletPage() {
                         <img src={usdtSettings.qrImage} alt="USDT QR Code" className="w-full h-full object-contain" />
                       </div>
                     ) : (
-                      <div className="w-40 h-40 sm:w-48 sm:h-48 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-4xl mt-4">
-                        🪙
+                      <div className="w-40 h-40 sm:w-48 sm:h-48 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center mt-4">
+                        <Coins className="w-16 h-16 text-amber-400" />
                       </div>
                     )}
 
@@ -489,7 +514,7 @@ export default function WalletPage() {
                         onClick={() => handleCopyAccount(usdtSettings?.address || '')}
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded-lg transition-colors"
                       >
-                        {copiedAccount === usdtSettings?.address ? '✅' : '📋'}
+                        {copiedAccount === usdtSettings?.address ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
                       </button>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-2">*ตรวจสอบ Network ให้ถูกต้อง ({usdtSettings?.network})</p>
@@ -541,7 +566,7 @@ export default function WalletPage() {
                     />
                     {thbCredits !== null && (
                       <div className="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                        <span className="text-emerald-400">💰</span>
+                        <Wallet className="w-4 h-4 text-emerald-400" />
                         <div>
                           <p className="text-[10px] text-slate-400">เครดิตที่จะได้รับ</p>
                           <p className="text-base font-bold text-emerald-400">{thbCredits.toLocaleString()} บาท</p>
@@ -605,7 +630,7 @@ export default function WalletPage() {
                       "w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0",
                       tx.amount > 0 ? "bg-emerald-500/10" : "bg-rose-500/10"
                     )}>
-                      <span className="text-base sm:text-lg">{getTypeIcon(tx.type)}</span>
+                      {getTypeIcon(tx.type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -628,7 +653,7 @@ export default function WalletPage() {
             ) : (
               <div className="text-center py-8">
                 <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <span className="text-2xl">📋</span>
+                  <ClipboardList className="w-6 h-6 text-slate-400" />
                 </div>
                 <p className="text-slate-400 text-sm">ยังไม่มีประวัติธุรกรรม</p>
               </div>
