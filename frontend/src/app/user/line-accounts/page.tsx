@@ -301,7 +301,12 @@ export default function UserLineAccountsPage() {
     channelSecret: '',
     accessToken: '',
     description: '',
-    slipTemplateId: '' as string,
+    slipTemplateIds: {
+      success: '',
+      duplicate: '',
+      error: '',
+      not_found: '',
+    } as Record<string, string>,
   });
 
   const [settingsData, setSettingsData] = useState({
@@ -560,7 +565,12 @@ export default function UserLineAccountsPage() {
       channelSecret: '',
       accessToken: '',
       description: '',
-      slipTemplateId: '',
+      slipTemplateIds: {
+        success: '',
+        duplicate: '',
+        error: '',
+        not_found: '',
+      },
     });
     setEditAccount(null);
   };
@@ -568,10 +578,23 @@ export default function UserLineAccountsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Filter out empty template IDs
+      const filteredTemplateIds: Record<string, string> = {};
+      for (const [type, id] of Object.entries(formData.slipTemplateIds)) {
+        if (id && id.trim()) {
+          filteredTemplateIds[type] = id;
+        }
+      }
+
       const dataToSubmit = {
-        ...formData,
-        slipTemplateId: formData.slipTemplateId || undefined,
+        accountName: formData.accountName,
+        channelId: formData.channelId,
+        channelSecret: formData.channelSecret,
+        accessToken: formData.accessToken,
+        description: formData.description,
+        slipTemplateIds: Object.keys(filteredTemplateIds).length > 0 ? filteredTemplateIds : undefined,
       };
+
       if (editAccount) {
         await lineAccountsApi.update(editAccount._id, dataToSubmit);
         toast.success('อัปเดตบัญชีสำเร็จ');
@@ -590,13 +613,19 @@ export default function UserLineAccountsPage() {
 
   const handleEdit = (account: LineAccount) => {
     setEditAccount(account);
+    const existingTemplateIds = account.settings?.slipTemplateIds || {};
     setFormData({
       accountName: account.accountName,
       channelId: account.channelId,
       channelSecret: account.channelSecret,
       accessToken: account.accessToken,
       description: account.description || '',
-      slipTemplateId: account.settings?.slipTemplateId || '',
+      slipTemplateIds: {
+        success: existingTemplateIds.success || '',
+        duplicate: existingTemplateIds.duplicate || '',
+        error: existingTemplateIds.error || '',
+        not_found: existingTemplateIds.not_found || '',
+      },
     });
     setShowModal(true);
   };
@@ -1094,80 +1123,168 @@ export default function UserLineAccountsPage() {
               </Button>
             </div>
 
-            {/* Slip Template Selection */}
-            <div className="space-y-3">
-              <label className="text-xs font-semibold text-slate-400 ml-1 flex items-center gap-2">
-                รูปแบบสลิป (Template)
-                <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ)</span>
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.slipTemplateId}
-                  onChange={(e) => setFormData({ ...formData, slipTemplateId: e.target.value })}
-                  className="w-full h-14 px-4 pr-10 bg-slate-800 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755]/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white [&>optgroup]:bg-slate-700 [&>optgroup]:text-slate-300 [&>optgroup]:font-semibold"
-                >
-                  <option value="" className="bg-slate-800 text-white">ใช้ค่าเริ่มต้นของระบบ</option>
-                  {templates.filter(t => t.type === 'success').length > 0 && (
-                    <optgroup label="✅ เทมเพลตสลิปถูกต้อง" className="bg-slate-700 text-emerald-400">
+            {/* Slip Template Selection - Per Type */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-400 ml-1">
+                  รูปแบบสลิป (Template)
+                </label>
+                <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ - กำหนดได้ตามประเภทผลลัพธ์)</span>
+              </div>
+
+              {/* Template Type Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Success Template */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-emerald-400 ml-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3 h-3" />
+                    สลิปถูกต้อง
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.slipTemplateIds.success || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        slipTemplateIds: { ...formData.slipTemplateIds, success: e.target.value }
+                      })}
+                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-emerald-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
+                    >
+                      <option value="">ค่าเริ่มต้น</option>
                       {templates.filter(t => t.type === 'success').map((t) => (
-                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
-                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        <option key={t._id} value={t._id}>
+                          {t.isGlobal ? '🌐 ' : ''}{t.name}
                         </option>
                       ))}
-                    </optgroup>
-                  )}
-                  {templates.filter(t => t.type === 'duplicate').length > 0 && (
-                    <optgroup label="⚠️ เทมเพลตสลิปซ้ำ" className="bg-slate-700 text-amber-400">
+                    </select>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-emerald-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Duplicate Template */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-amber-400 ml-1 flex items-center gap-1.5">
+                    <HelpCircle className="w-3 h-3" />
+                    สลิปซ้ำ
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.slipTemplateIds.duplicate || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        slipTemplateIds: { ...formData.slipTemplateIds, duplicate: e.target.value }
+                      })}
+                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-amber-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
+                    >
+                      <option value="">ค่าเริ่มต้น</option>
                       {templates.filter(t => t.type === 'duplicate').map((t) => (
-                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
-                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        <option key={t._id} value={t._id}>
+                          {t.isGlobal ? '🌐 ' : ''}{t.name}
                         </option>
                       ))}
-                    </optgroup>
-                  )}
-                  {templates.filter(t => t.type === 'error').length > 0 && (
-                    <optgroup label="❌ เทมเพลตสลิปผิดพลาด" className="bg-slate-700 text-red-400">
+                    </select>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-amber-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Error Template */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-red-400 ml-1 flex items-center gap-1.5">
+                    <XCircle className="w-3 h-3" />
+                    สลิปผิดพลาด
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.slipTemplateIds.error || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        slipTemplateIds: { ...formData.slipTemplateIds, error: e.target.value }
+                      })}
+                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-red-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-red-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
+                    >
+                      <option value="">ค่าเริ่มต้น</option>
                       {templates.filter(t => t.type === 'error').map((t) => (
-                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
-                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        <option key={t._id} value={t._id}>
+                          {t.isGlobal ? '🌐 ' : ''}{t.name}
                         </option>
                       ))}
-                    </optgroup>
-                  )}
-                  {templates.filter(t => t.type === 'not_found').length > 0 && (
-                    <optgroup label="🔍 เทมเพลตไม่พบสลิป" className="bg-slate-700 text-slate-400">
+                    </select>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-red-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Not Found Template */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-slate-400 ml-1 flex items-center gap-1.5">
+                    <HelpCircle className="w-3 h-3" />
+                    ไม่พบสลิป
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.slipTemplateIds.not_found || ''}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        slipTemplateIds: { ...formData.slipTemplateIds, not_found: e.target.value }
+                      })}
+                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-slate-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
+                    >
+                      <option value="">ค่าเริ่มต้น</option>
                       {templates.filter(t => t.type === 'not_found').map((t) => (
-                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
-                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        <option key={t._id} value={t._id}>
+                          {t.isGlobal ? '🌐 ' : ''}{t.name}
                         </option>
                       ))}
-                    </optgroup>
-                  )}
-                </select>
-                {/* Custom dropdown arrow */}
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                    </select>
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-slate-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
               </div>
-              {formData.slipTemplateId && (
-                <div className="flex items-center gap-2 p-3 bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl">
-                  <span className="text-[#06C755]">✓</span>
-                  <span className="text-sm text-[#06C755] font-medium">
-                    {templates.find(t => t._id === formData.slipTemplateId)?.name || 'เทมเพลตที่เลือก'}
-                  </span>
-                  <span className="text-xs text-slate-500 ml-auto">
-                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'success' && '(สลิปถูกต้อง)'}
-                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'duplicate' && '(สลิปซ้ำ)'}
-                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'error' && '(สลิปผิดพลาด)'}
-                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'not_found' && '(ไม่พบสลิป)'}
-                  </span>
+
+              {/* Selected Templates Summary */}
+              {Object.values(formData.slipTemplateIds).some(id => id) && (
+                <div className="flex flex-wrap gap-2 p-3 bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl">
+                  <span className="text-[#06C755] text-xs font-medium">เทมเพลตที่เลือก:</span>
+                  {formData.slipTemplateIds.success && (
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
+                      ✓ {templates.find(t => t._id === formData.slipTemplateIds.success)?.name}
+                    </span>
+                  )}
+                  {formData.slipTemplateIds.duplicate && (
+                    <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-lg">
+                      ! {templates.find(t => t._id === formData.slipTemplateIds.duplicate)?.name}
+                    </span>
+                  )}
+                  {formData.slipTemplateIds.error && (
+                    <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded-lg">
+                      ✕ {templates.find(t => t._id === formData.slipTemplateIds.error)?.name}
+                    </span>
+                  )}
+                  {formData.slipTemplateIds.not_found && (
+                    <span className="text-[10px] px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded-lg">
+                      ? {templates.find(t => t._id === formData.slipTemplateIds.not_found)?.name}
+                    </span>
+                  )}
                 </div>
               )}
-              {!formData.slipTemplateId && templates.length > 0 && (
+
+              {!Object.values(formData.slipTemplateIds).some(id => id) && templates.length > 0 && (
                 <p className="text-xs text-slate-500 ml-1">
-                  💡 เลือกเทมเพลตเพื่อกำหนดรูปแบบการแสดงผลสลิป หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้น
+                  💡 เลือกเทมเพลตแต่ละประเภทเพื่อกำหนดรูปแบบการแสดงผล หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้น
                 </p>
               )}
             </div>
@@ -1233,74 +1350,103 @@ export default function UserLineAccountsPage() {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-white">ตัวอย่างสลิป</h4>
-                  <p className="text-[10px] text-slate-400">รูปแบบการแสดงผลเมื่อตรวจสอบสำเร็จ</p>
+                  <p className="text-[10px] text-slate-400">รูปแบบการแสดงผลตามประเภทผลลัพธ์</p>
                 </div>
               </div>
 
-              {/* Preview Container */}
-              <div className="bg-gradient-to-b from-white/[0.02] to-white/[0.05] rounded-2xl p-6 border border-white/5">
+              {/* Preview Container - Grid of previews */}
+              <div className="bg-gradient-to-b from-white/[0.02] to-white/[0.05] rounded-2xl p-4 border border-white/5">
                 {(() => {
                   // Find sender and receiver banks from API data using configurable sample data
                   const senderBank = banks.find(b => b.code === sampleData.sender.bankId) || null;
                   const receiverBank = banks.find(b => b.code === sampleData.receiver.bankId) || null;
 
-                  if (formData.slipTemplateId) {
-                    const selectedTemplate = templates.find(t => t._id === formData.slipTemplateId);
-                    if (selectedTemplate) {
-                      // Create preview template with defaults for missing fields
-                      const previewTemplate: SlipTemplateForPreview = {
-                        _id: selectedTemplate._id,
-                        name: selectedTemplate.name,
-                        type: selectedTemplate.type || 'success',
-                        primaryColor: selectedTemplate.type === 'duplicate' ? '#f59e0b' :
-                          selectedTemplate.type === 'error' ? '#ef4444' :
-                            selectedTemplate.type === 'not_found' ? '#64748b' : '#10b981',
-                        headerText: selectedTemplate.headerText,
-                        footerText: 'ขอบคุณที่ใช้บริการ',
-                        showAmount: true,
-                        showSender: true,
-                        showReceiver: true,
-                        showDate: true,
-                        showTime: true,
-                        showTransRef: true,
-                        showBankLogo: true,
-                        showFee: true,
-                        showSenderAccount: true,
-                        showReceiverAccount: true,
-                      };
-                      return (
-                        <div className="transform hover:scale-105 transition-transform duration-500">
-                          <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
-                        </div>
-                      );
-                    }
-                    return null;
+                  // Check if any template is selected
+                  const hasSelectedTemplates = Object.values(formData.slipTemplateIds).some(id => id);
+
+                  if (hasSelectedTemplates) {
+                    // Show grid of selected templates
+                    const selectedTypes = Object.entries(formData.slipTemplateIds)
+                      .filter(([, id]) => id)
+                      .map(([type, id]) => {
+                        const template = templates.find(t => t._id === id);
+                        return template ? { type, template } : null;
+                      })
+                      .filter(Boolean);
+
+                    return (
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedTypes.map(item => {
+                          if (!item) return null;
+                          const { type, template } = item;
+                          const previewTemplate: SlipTemplateForPreview = {
+                            _id: template._id,
+                            name: template.name,
+                            type: template.type || 'success',
+                            primaryColor: template.type === 'duplicate' ? '#f59e0b' :
+                              template.type === 'error' ? '#ef4444' :
+                                template.type === 'not_found' ? '#64748b' : '#10b981',
+                            headerText: template.headerText,
+                            footerText: 'ขอบคุณที่ใช้บริการ',
+                            showAmount: true,
+                            showSender: true,
+                            showReceiver: true,
+                            showDate: true,
+                            showTime: true,
+                            showTransRef: true,
+                            showBankLogo: true,
+                            showFee: true,
+                            showSenderAccount: true,
+                            showReceiverAccount: true,
+                          };
+                          return (
+                            <div key={type} className="space-y-1">
+                              <p className={cn(
+                                "text-[8px] font-semibold text-center",
+                                type === 'success' && 'text-emerald-400',
+                                type === 'duplicate' && 'text-amber-400',
+                                type === 'error' && 'text-red-400',
+                                type === 'not_found' && 'text-slate-400'
+                              )}>
+                                {type === 'success' && '✓ สลิปถูกต้อง'}
+                                {type === 'duplicate' && '! สลิปซ้ำ'}
+                                {type === 'error' && '✕ ผิดพลาด'}
+                                {type === 'not_found' && '? ไม่พบ'}
+                              </p>
+                              <div className="transform hover:scale-105 transition-transform duration-300 scale-90">
+                                <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
 
-                  // Show default preview or placeholder
+                  // Show default preview
                   return (
                     <div className="space-y-4">
                       <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
                       <p className="text-[10px] text-slate-500 text-center">
-                        กรุณาเลือกรูปแบบสลิปเพื่อดูตัวอย่าง
+                        เลือกเทมเพลตเพื่อดูตัวอย่างการแสดงผล
                       </p>
                     </div>
                   );
                 })()}
               </div>
 
-              {/* Selected Template Info */}
-              {formData.slipTemplateId && (
+              {/* Selected Templates Count */}
+              {Object.values(formData.slipTemplateIds).some(id => id) && (
                 <div className="bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl p-3">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-lg bg-[#06C755] flex items-center justify-center text-white text-xs font-bold">
-                      ✓
+                      {Object.values(formData.slipTemplateIds).filter(id => id).length}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-[#06C755] truncate">
-                        {templates.find(t => t._id === formData.slipTemplateId)?.name}
+                      <p className="text-xs font-semibold text-[#06C755]">
+                        เทมเพลตที่กำหนด
                       </p>
-                      <p className="text-[9px] text-slate-400">เลือกใช้งานเทมเพลตนี้</p>
+                      <p className="text-[9px] text-slate-400">ประเภทที่ไม่ได้กำหนดจะใช้ค่าเริ่มต้น</p>
                     </div>
                   </div>
                 </div>

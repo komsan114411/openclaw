@@ -72,22 +72,6 @@ export class LineAccountsService {
       throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว');
     }
 
-    // Validate template ownership and get template type if provided
-    let templateType: string | null = null;
-    if (dto.slipTemplateId) {
-      const template = await this.slipTemplateModel.findById(dto.slipTemplateId).select({ ownerId: 1, isGlobal: 1, type: 1 }).lean().exec();
-      if (!template) {
-        throw new ForbiddenException('เทมเพลตนี้ไม่มีอยู่ในระบบ');
-      }
-      // Check ownership: must be owner OR template is global
-      const isOwner = template.ownerId?.toString() === ownerId;
-      const isGlobal = template.isGlobal === true;
-      if (!isOwner && !isGlobal) {
-        throw new ForbiddenException('เทมเพลตนี้ไม่ใช่ของคุณหรือไม่มีอยู่ในระบบ');
-      }
-      templateType = template.type || 'success';
-    }
-
     // Generate unique webhook slug
     let webhookSlug = this.generateWebhookSlug();
 
@@ -101,16 +85,46 @@ export class LineAccountsService {
       }
     }
 
-    // Extract slipTemplateId from dto and put it in settings
-    const { slipTemplateId, ...restDto } = dto;
+    // Extract template fields from dto
+    const { slipTemplateId, slipTemplateIds, ...restDto } = dto;
 
     // Build settings with proper slipTemplateIds structure
     const settings: any = {};
-    if (slipTemplateId && templateType) {
-      // Store in both legacy field and new per-type field for compatibility
-      settings.slipTemplateId = slipTemplateId;
-      settings.slipTemplateIds = { [templateType]: slipTemplateId };
-      this.logger.log(`[CREATE] Storing template ${slipTemplateId} for type ${templateType}`);
+    const validatedTemplateIds: Record<string, string> = {};
+
+    // Handle new slipTemplateIds format (preferred)
+    if (slipTemplateIds && typeof slipTemplateIds === 'object') {
+      for (const [type, templateId] of Object.entries(slipTemplateIds)) {
+        if (templateId && typeof templateId === 'string' && templateId.trim()) {
+          // Validate template ownership
+          const isValid = await this.validateTemplateOwnership(templateId, ownerId);
+          if (isValid) {
+            validatedTemplateIds[type] = templateId;
+            this.logger.log(`[CREATE] Validated template ${templateId} for type ${type}`);
+          } else {
+            this.logger.warn(`[CREATE] Template ${templateId} for type ${type} is not owned by user or doesn't exist`);
+          }
+        }
+      }
+    }
+
+    // Handle legacy slipTemplateId (backward compatibility)
+    if (slipTemplateId && !Object.keys(validatedTemplateIds).length) {
+      const template = await this.slipTemplateModel.findById(slipTemplateId).select({ ownerId: 1, isGlobal: 1, type: 1 }).lean().exec();
+      if (template) {
+        const isOwner = template.ownerId?.toString() === ownerId;
+        const isGlobal = template.isGlobal === true;
+        if (isOwner || isGlobal) {
+          const templateType = template.type || 'success';
+          validatedTemplateIds[templateType] = slipTemplateId;
+          settings.slipTemplateId = slipTemplateId; // Keep legacy field
+          this.logger.log(`[CREATE] Legacy: Storing template ${slipTemplateId} for type ${templateType}`);
+        }
+      }
+    }
+
+    if (Object.keys(validatedTemplateIds).length > 0) {
+      settings.slipTemplateIds = validatedTemplateIds;
     }
 
     const account = new this.lineAccountModel({
@@ -230,10 +244,40 @@ export class LineAccountsService {
       throw new NotFoundException('LINE account not found');
     }
 
-    // Validate template ownership and update settings if slipTemplateId is provided
-    if (dto.slipTemplateId !== undefined) {
-      const userIdToCheck = ownerId || account.ownerId;
+    const userIdToCheck = ownerId || account.ownerId;
+    const currentSettings = (account.settings as any) || {};
 
+    // Handle new slipTemplateIds format (preferred)
+    if (dto.slipTemplateIds !== undefined) {
+      const validatedTemplateIds: Record<string, string> = {};
+
+      if (dto.slipTemplateIds && typeof dto.slipTemplateIds === 'object') {
+        for (const [type, templateId] of Object.entries(dto.slipTemplateIds)) {
+          if (templateId && typeof templateId === 'string' && templateId.trim()) {
+            // Validate template ownership
+            const isValid = await this.validateTemplateOwnership(templateId, userIdToCheck);
+            if (isValid) {
+              validatedTemplateIds[type] = templateId;
+              this.logger.log(`[UPDATE] Validated template ${templateId} for type ${type}`);
+            } else {
+              this.logger.warn(`[UPDATE] Template ${templateId} for type ${type} is not owned by user or doesn't exist`);
+            }
+          }
+          // If templateId is empty/null, it means user wants to clear that type (don't add to validatedTemplateIds)
+        }
+      }
+
+      // Update settings with new template IDs (replace, not merge)
+      account.settings = {
+        ...currentSettings,
+        slipTemplateIds: validatedTemplateIds,
+        slipTemplateId: '', // Clear legacy field when using new format
+      };
+
+      this.logger.log(`[UPDATE] Updated slipTemplateIds: ${JSON.stringify(validatedTemplateIds)}`);
+    }
+    // Handle legacy slipTemplateId (backward compatibility)
+    else if (dto.slipTemplateId !== undefined) {
       if (dto.slipTemplateId) {
         // Get the template to find its type
         const template = await this.slipTemplateModel.findById(dto.slipTemplateId)
@@ -251,9 +295,6 @@ export class LineAccountsService {
         }
 
         const templateType = template.type || 'success';
-
-        // Get current settings
-        const currentSettings = (account.settings as any) || {};
         const currentTemplateIds = currentSettings.slipTemplateIds || {};
 
         // Update both legacy field and new per-type field
@@ -266,10 +307,9 @@ export class LineAccountsService {
           },
         };
 
-        this.logger.log(`[UPDATE] Storing template ${dto.slipTemplateId} for type ${templateType}`);
+        this.logger.log(`[UPDATE] Legacy: Storing template ${dto.slipTemplateId} for type ${templateType}`);
       } else {
         // If null/empty is passed, clear the template selection
-        const currentSettings = (account.settings as any) || {};
         account.settings = {
           ...currentSettings,
           slipTemplateId: '',
@@ -279,8 +319,8 @@ export class LineAccountsService {
       }
     }
 
-    // Remove slipTemplateId from dto before assigning (it's handled in settings)
-    const { slipTemplateId, ...restDto } = dto;
+    // Remove template fields from dto before assigning (they're handled in settings)
+    const { slipTemplateId, slipTemplateIds, ...restDto } = dto;
     Object.assign(account, restDto);
 
     // Mark settings as modified for Mongoose to detect nested changes

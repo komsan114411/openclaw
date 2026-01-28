@@ -1,5 +1,7 @@
-import { IsString, IsOptional, IsBoolean, IsMongoId } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsMongoId, IsObject, ValidateNested } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { SlipTemplateIdsDto } from './create-line-account.dto';
 
 export class UpdateLineAccountDto {
   @ApiPropertyOptional()
@@ -27,8 +29,15 @@ export class UpdateLineAccountDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'ID of slip template to use (null = system default)' })
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'Legacy: ID of slip template to use (deprecated, use slipTemplateIds)' })
   @IsOptional()
   @IsMongoId()
   slipTemplateId?: string;
+
+  @ApiPropertyOptional({ description: 'Template IDs per slip result type' })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SlipTemplateIdsDto)
+  slipTemplateIds?: SlipTemplateIdsDto;
 }

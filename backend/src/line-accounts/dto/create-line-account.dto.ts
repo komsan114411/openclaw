@@ -1,5 +1,28 @@
-import { IsString, IsNotEmpty, IsOptional, IsMongoId } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsMongoId, IsObject, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+export class SlipTemplateIdsDto {
+  @ApiPropertyOptional({ description: 'Template ID for success slips' })
+  @IsOptional()
+  @IsMongoId()
+  success?: string;
+
+  @ApiPropertyOptional({ description: 'Template ID for duplicate slips' })
+  @IsOptional()
+  @IsMongoId()
+  duplicate?: string;
+
+  @ApiPropertyOptional({ description: 'Template ID for error slips' })
+  @IsOptional()
+  @IsMongoId()
+  error?: string;
+
+  @ApiPropertyOptional({ description: 'Template ID for not found slips' })
+  @IsOptional()
+  @IsMongoId()
+  not_found?: string;
+}
 
 export class CreateLineAccountDto {
   @ApiProperty({ example: 'My LINE OA' })
@@ -27,8 +50,15 @@ export class CreateLineAccountDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'ID of slip template to use (null = system default)' })
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'Legacy: ID of slip template to use (deprecated, use slipTemplateIds)' })
   @IsOptional()
   @IsMongoId()
   slipTemplateId?: string;
+
+  @ApiPropertyOptional({ description: 'Template IDs per slip result type' })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SlipTemplateIdsDto)
+  slipTemplateIds?: SlipTemplateIdsDto;
 }
