@@ -231,13 +231,14 @@ export class SlipMateProvider implements SlipVerificationProvider {
 
     // ===== BAD REQUEST (HTTP 400 or statusCode 400) =====
     if (httpStatus === 400 || statusCode === 400) {
-      // Invalid QR or payload
+      // Invalid QR or payload - shouldFailover=true to try Thunder (may be TrueMoney Wallet)
       if (typeof message === 'string' && (message.toLowerCase().includes('qr') || message.toLowerCase().includes('invalid'))) {
+        this.logger.log('[SLIPMATE] QR/Invalid error - will try failover to Thunder for TrueMoney Wallet');
         return {
           status: 'error',
           provider: SlipProvider.SLIPMATE,
-          message: 'ไม่สามารถอ่าน QR Code จากสลิปได้ กรุณาถ่ายรูปให้ชัดเจน',
-          shouldFailover: false,
+          message: 'ไม่สามารถอ่าน QR Code จากสลิปได้',
+          shouldFailover: true, // Enable failover to Thunder for TrueMoney Wallet support
         };
       }
 
@@ -245,17 +246,19 @@ export class SlipMateProvider implements SlipVerificationProvider {
         status: 'error',
         provider: SlipProvider.SLIPMATE,
         message: message || 'รูปแบบสลิปไม่ถูกต้อง',
-        shouldFailover: false,
+        shouldFailover: true, // Enable failover
       };
     }
 
     // ===== NOT FOUND (HTTP 404 or statusCode 404) =====
+    // shouldFailover=true to try Thunder (may be TrueMoney Wallet that SlipMate doesn't support)
     if (httpStatus === 404 || statusCode === 404) {
+      this.logger.log('[SLIPMATE] Not found - will try failover to Thunder for TrueMoney Wallet');
       return {
-        status: 'not_found',
+        status: 'error', // Change to error so manager will try failover
         provider: SlipProvider.SLIPMATE,
-        message: 'ไม่พบข้อมูลสลิปในระบบธนาคาร',
-        shouldFailover: false,
+        message: 'ไม่พบข้อมูลสลิป',
+        shouldFailover: true, // Enable failover to Thunder
       };
     }
 

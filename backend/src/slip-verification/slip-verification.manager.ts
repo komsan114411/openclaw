@@ -300,7 +300,12 @@ export class SlipVerificationManager {
 
   /**
    * Get failover order from settings
-   * ใช้ slipApiProvider เป็นหลัก และ slipApiProviderSecondary เมื่อเปิด failover
+   * ใช้ slipApiProvider เป็นหลัก
+   *
+   * SMART FAILOVER:
+   * - ถ้า primary เป็น SlipMate → เพิ่ม Thunder ไว้สำรองเสมอ (เพราะ SlipMate ไม่รองรับ TrueMoney Wallet)
+   * - ถ้า primary เป็น Thunder → ไม่ต้องเพิ่ม SlipMate (เพราะ Thunder รองรับทุกอย่าง)
+   * - ถ้าเปิด failover → เพิ่ม provider อื่นๆ ทั้งหมด
    */
   private getFailoverOrder(settings: any): SlipProvider[] {
     const order: SlipProvider[] = [];
@@ -309,6 +314,16 @@ export class SlipVerificationManager {
     const primary = (settings.slipApiProvider || 'thunder') as SlipProvider;
     if (this.providers.has(primary)) {
       order.push(primary);
+    }
+
+    // SMART FAILOVER: ถ้า primary เป็น SlipMate ให้เพิ่ม Thunder เสมอ
+    // เพราะ SlipMate ไม่รองรับ TrueMoney Wallet แต่ Thunder รองรับ
+    if (primary === SlipProvider.SLIPMATE) {
+      const thunderApiKey = settings.slipApiKeyThunder || settings.slipApiKey;
+      if (thunderApiKey && !order.includes(SlipProvider.THUNDER)) {
+        order.push(SlipProvider.THUNDER);
+        this.logger.log('[MANAGER] Added Thunder as fallback for TrueMoney Wallet support');
+      }
     }
 
     // Secondary provider - เพิ่มเมื่อ failover เปิดและมี provider สำรอง
