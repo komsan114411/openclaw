@@ -1125,168 +1125,202 @@ export default function UserLineAccountsPage() {
 
             {/* Slip Template Selection - Per Type */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-slate-400 ml-1">
-                  รูปแบบสลิป (Template)
-                </label>
-                <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ - กำหนดได้ตามประเภทผลลัพธ์)</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-white">
+                    รูปแบบสลิป (Template)
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-normal px-2 py-0.5 bg-slate-800 rounded-full">ไม่บังคับ</span>
+                </div>
+                {templates.length > 0 && (
+                  <span className="text-[10px] text-slate-500">
+                    🌐 = เทมเพลตจากระบบ
+                  </span>
+                )}
               </div>
 
-              {/* Template Type Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Template Type Cards */}
+              <div className="space-y-3">
                 {/* Success Template */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-emerald-400 ml-1 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3 h-3" />
-                    สลิปถูกต้อง
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.slipTemplateIds.success || ''}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        slipTemplateIds: { ...formData.slipTemplateIds, success: e.target.value }
-                      })}
-                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-emerald-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
-                    >
-                      <option value="">ค่าเริ่มต้น</option>
-                      {templates.filter(t => t.type === 'success').map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.isGlobal ? '🌐 ' : ''}{t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-emerald-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-semibold text-emerald-400 flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                      สลิปถูกต้อง (Success)
+                    </label>
+                    {formData.slipTemplateIds.success && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          slipTemplateIds: { ...formData.slipTemplateIds, success: '' }
+                        })}
+                        className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        ล้าง
+                      </button>
+                    )}
                   </div>
+                  <select
+                    value={formData.slipTemplateIds.success || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      slipTemplateIds: { ...formData.slipTemplateIds, success: e.target.value }
+                    })}
+                    className="w-full h-12 px-4 bg-slate-900/50 border border-emerald-500/30 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white [&>option]:py-2"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2310b981'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+                  >
+                    <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                    {templates.filter(t => t.type === 'success').map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {templates.filter(t => t.type === 'success').length === 0 && (
+                    <p className="text-[10px] text-slate-500 mt-2">ยังไม่มีเทมเพลตประเภทนี้</p>
+                  )}
                 </div>
 
                 {/* Duplicate Template */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-amber-400 ml-1 flex items-center gap-1.5">
-                    <HelpCircle className="w-3 h-3" />
-                    สลิปซ้ำ
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.slipTemplateIds.duplicate || ''}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        slipTemplateIds: { ...formData.slipTemplateIds, duplicate: e.target.value }
-                      })}
-                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-amber-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
-                    >
-                      <option value="">ค่าเริ่มต้น</option>
-                      {templates.filter(t => t.type === 'duplicate').map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.isGlobal ? '🌐 ' : ''}{t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-amber-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-semibold text-amber-400 flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <HelpCircle className="w-3.5 h-3.5" />
+                      </div>
+                      สลิปซ้ำ (Duplicate)
+                    </label>
+                    {formData.slipTemplateIds.duplicate && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          slipTemplateIds: { ...formData.slipTemplateIds, duplicate: '' }
+                        })}
+                        className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        ล้าง
+                      </button>
+                    )}
                   </div>
+                  <select
+                    value={formData.slipTemplateIds.duplicate || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      slipTemplateIds: { ...formData.slipTemplateIds, duplicate: e.target.value }
+                    })}
+                    className="w-full h-12 px-4 bg-slate-900/50 border border-amber-500/30 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white [&>option]:py-2"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23f59e0b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+                  >
+                    <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                    {templates.filter(t => t.type === 'duplicate').map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {templates.filter(t => t.type === 'duplicate').length === 0 && (
+                    <p className="text-[10px] text-slate-500 mt-2">ยังไม่มีเทมเพลตประเภทนี้</p>
+                  )}
                 </div>
 
                 {/* Error Template */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-red-400 ml-1 flex items-center gap-1.5">
-                    <XCircle className="w-3 h-3" />
-                    สลิปผิดพลาด
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.slipTemplateIds.error || ''}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        slipTemplateIds: { ...formData.slipTemplateIds, error: e.target.value }
-                      })}
-                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-red-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-red-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
-                    >
-                      <option value="">ค่าเริ่มต้น</option>
-                      {templates.filter(t => t.type === 'error').map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.isGlobal ? '🌐 ' : ''}{t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-red-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-semibold text-red-400 flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-red-500/20 flex items-center justify-center">
+                        <XCircle className="w-3.5 h-3.5" />
+                      </div>
+                      สลิปผิดพลาด (Error)
+                    </label>
+                    {formData.slipTemplateIds.error && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          slipTemplateIds: { ...formData.slipTemplateIds, error: '' }
+                        })}
+                        className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        ล้าง
+                      </button>
+                    )}
                   </div>
+                  <select
+                    value={formData.slipTemplateIds.error || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      slipTemplateIds: { ...formData.slipTemplateIds, error: e.target.value }
+                    })}
+                    className="w-full h-12 px-4 bg-slate-900/50 border border-red-500/30 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white [&>option]:py-2"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ef4444'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+                  >
+                    <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                    {templates.filter(t => t.type === 'error').map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {templates.filter(t => t.type === 'error').length === 0 && (
+                    <p className="text-[10px] text-slate-500 mt-2">ยังไม่มีเทมเพลตประเภทนี้</p>
+                  )}
                 </div>
 
                 {/* Not Found Template */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-slate-400 ml-1 flex items-center gap-1.5">
-                    <HelpCircle className="w-3 h-3" />
-                    ไม่พบสลิป
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.slipTemplateIds.not_found || ''}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        slipTemplateIds: { ...formData.slipTemplateIds, not_found: e.target.value }
-                      })}
-                      className="w-full h-11 px-3 pr-8 bg-slate-800 border border-slate-500/20 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white"
-                    >
-                      <option value="">ค่าเริ่มต้น</option>
-                      {templates.filter(t => t.type === 'not_found').map((t) => (
-                        <option key={t._id} value={t._id}>
-                          {t.isGlobal ? '🌐 ' : ''}{t.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-slate-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                <div className="p-4 bg-slate-500/5 border border-slate-500/20 rounded-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-slate-500/20 flex items-center justify-center">
+                        <HelpCircle className="w-3.5 h-3.5" />
+                      </div>
+                      ไม่พบสลิป (Not Found)
+                    </label>
+                    {formData.slipTemplateIds.not_found && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          slipTemplateIds: { ...formData.slipTemplateIds, not_found: '' }
+                        })}
+                        className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                      >
+                        ล้าง
+                      </button>
+                    )}
                   </div>
+                  <select
+                    value={formData.slipTemplateIds.not_found || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      slipTemplateIds: { ...formData.slipTemplateIds, not_found: e.target.value }
+                    })}
+                    className="w-full h-12 px-4 bg-slate-900/50 border border-slate-500/30 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white [&>option]:py-2"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px' }}
+                  >
+                    <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                    {templates.filter(t => t.type === 'not_found').map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {templates.filter(t => t.type === 'not_found').length === 0 && (
+                    <p className="text-[10px] text-slate-500 mt-2">ยังไม่มีเทมเพลตประเภทนี้</p>
+                  )}
                 </div>
               </div>
 
-              {/* Selected Templates Summary */}
-              {Object.values(formData.slipTemplateIds).some(id => id) && (
-                <div className="flex flex-wrap gap-2 p-3 bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl">
-                  <span className="text-[#06C755] text-xs font-medium">เทมเพลตที่เลือก:</span>
-                  {formData.slipTemplateIds.success && (
-                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
-                      ✓ {templates.find(t => t._id === formData.slipTemplateIds.success)?.name}
-                    </span>
-                  )}
-                  {formData.slipTemplateIds.duplicate && (
-                    <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-lg">
-                      ! {templates.find(t => t._id === formData.slipTemplateIds.duplicate)?.name}
-                    </span>
-                  )}
-                  {formData.slipTemplateIds.error && (
-                    <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 rounded-lg">
-                      ✕ {templates.find(t => t._id === formData.slipTemplateIds.error)?.name}
-                    </span>
-                  )}
-                  {formData.slipTemplateIds.not_found && (
-                    <span className="text-[10px] px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded-lg">
-                      ? {templates.find(t => t._id === formData.slipTemplateIds.not_found)?.name}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {!Object.values(formData.slipTemplateIds).some(id => id) && templates.length > 0 && (
-                <p className="text-xs text-slate-500 ml-1">
-                  💡 เลือกเทมเพลตแต่ละประเภทเพื่อกำหนดรูปแบบการแสดงผล หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้น
+              {/* Info Note */}
+              <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                <span className="text-blue-400 text-sm">💡</span>
+                <p className="text-xs text-blue-300/80">
+                  เลือกเทมเพลตแต่ละประเภทเพื่อกำหนดรูปแบบการแสดงผล ประเภทที่ไม่เลือกจะใช้เทมเพลตเริ่มต้นของระบบ
                 </p>
-              )}
+              </div>
             </div>
 
             <Input
@@ -1342,20 +1376,20 @@ export default function UserLineAccountsPage() {
 
           {/* Right Column - Preview (2/5 width on desktop) */}
           <div className="lg:col-span-2">
-            <div className="sticky top-0 space-y-4">
+            <div className="sticky top-4 space-y-4">
               {/* Preview Header */}
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-[#06C755]/10 flex items-center justify-center">
-                  <FileCheck className="w-4 h-4 text-[#06C755]" />
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#06C755]/10 flex items-center justify-center border border-[#06C755]/20">
+                  <FileCheck className="w-5 h-5 text-[#06C755]" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-white">ตัวอย่างสลิป</h4>
-                  <p className="text-[10px] text-slate-400">รูปแบบการแสดงผลตามประเภทผลลัพธ์</p>
+                  <p className="text-[11px] text-slate-400">Preview การแสดงผลที่ผู้ใช้จะเห็น</p>
                 </div>
               </div>
 
-              {/* Preview Container - Grid of previews */}
-              <div className="bg-gradient-to-b from-white/[0.02] to-white/[0.05] rounded-2xl p-4 border border-white/5">
+              {/* Preview Container */}
+              <div className="bg-gradient-to-b from-slate-800/50 to-slate-900/50 rounded-2xl p-5 border border-white/10">
                 {(() => {
                   // Find sender and receiver banks from API data using configurable sample data
                   const senderBank = banks.find(b => b.code === sampleData.sender.bankId) || null;
@@ -1365,60 +1399,65 @@ export default function UserLineAccountsPage() {
                   const hasSelectedTemplates = Object.values(formData.slipTemplateIds).some(id => id);
 
                   if (hasSelectedTemplates) {
-                    // Show grid of selected templates
-                    const selectedTypes = Object.entries(formData.slipTemplateIds)
-                      .filter(([, id]) => id)
-                      .map(([type, id]) => {
-                        const template = templates.find(t => t._id === id);
-                        return template ? { type, template } : null;
-                      })
-                      .filter(Boolean);
+                    // Show only the first selected template as main preview
+                    const selectedEntry = Object.entries(formData.slipTemplateIds).find(([, id]) => id);
+                    if (!selectedEntry) return null;
+
+                    const [type, id] = selectedEntry;
+                    const template = templates.find(t => t._id === id);
+                    if (!template) return null;
+
+                    const previewTemplate: SlipTemplateForPreview = {
+                      _id: template._id,
+                      name: template.name,
+                      type: template.type || 'success',
+                      primaryColor: template.type === 'duplicate' ? '#f59e0b' :
+                        template.type === 'error' ? '#ef4444' :
+                          template.type === 'not_found' ? '#64748b' : '#10b981',
+                      headerText: template.headerText,
+                      footerText: 'ขอบคุณที่ใช้บริการ',
+                      showAmount: true,
+                      showSender: true,
+                      showReceiver: true,
+                      showDate: true,
+                      showTime: true,
+                      showTransRef: true,
+                      showBankLogo: true,
+                      showFee: true,
+                      showSenderAccount: true,
+                      showReceiverAccount: true,
+                    };
 
                     return (
-                      <div className="grid grid-cols-2 gap-3">
-                        {selectedTypes.map(item => {
-                          if (!item) return null;
-                          const { type, template } = item;
-                          const previewTemplate: SlipTemplateForPreview = {
-                            _id: template._id,
-                            name: template.name,
-                            type: template.type || 'success',
-                            primaryColor: template.type === 'duplicate' ? '#f59e0b' :
-                              template.type === 'error' ? '#ef4444' :
-                                template.type === 'not_found' ? '#64748b' : '#10b981',
-                            headerText: template.headerText,
-                            footerText: 'ขอบคุณที่ใช้บริการ',
-                            showAmount: true,
-                            showSender: true,
-                            showReceiver: true,
-                            showDate: true,
-                            showTime: true,
-                            showTransRef: true,
-                            showBankLogo: true,
-                            showFee: true,
-                            showSenderAccount: true,
-                            showReceiverAccount: true,
-                          };
-                          return (
-                            <div key={type} className="space-y-1">
-                              <p className={cn(
-                                "text-[8px] font-semibold text-center",
-                                type === 'success' && 'text-emerald-400',
-                                type === 'duplicate' && 'text-amber-400',
-                                type === 'error' && 'text-red-400',
-                                type === 'not_found' && 'text-slate-400'
-                              )}>
-                                {type === 'success' && '✓ สลิปถูกต้อง'}
-                                {type === 'duplicate' && '! สลิปซ้ำ'}
-                                {type === 'error' && '✕ ผิดพลาด'}
-                                {type === 'not_found' && '? ไม่พบ'}
-                              </p>
-                              <div className="transform hover:scale-105 transition-transform duration-300 scale-90">
-                                <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div className="space-y-4">
+                        {/* Preview Label */}
+                        <div className={cn(
+                          "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold",
+                          type === 'success' && 'bg-emerald-500/20 text-emerald-400',
+                          type === 'duplicate' && 'bg-amber-500/20 text-amber-400',
+                          type === 'error' && 'bg-red-500/20 text-red-400',
+                          type === 'not_found' && 'bg-slate-500/20 text-slate-400'
+                        )}>
+                          {type === 'success' && <><CheckCircle2 className="w-3.5 h-3.5" /> สลิปถูกต้อง</>}
+                          {type === 'duplicate' && <><HelpCircle className="w-3.5 h-3.5" /> สลิปซ้ำ</>}
+                          {type === 'error' && <><XCircle className="w-3.5 h-3.5" /> ผิดพลาด</>}
+                          {type === 'not_found' && <><HelpCircle className="w-3.5 h-3.5" /> ไม่พบสลิป</>}
+                        </div>
+
+                        {/* Main Preview */}
+                        <div className="flex justify-center">
+                          <div className="transform hover:scale-[1.02] transition-transform duration-300">
+                            <SlipPreview template={previewTemplate} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
+                          </div>
+                        </div>
+
+                        {/* Template Name */}
+                        <div className="text-center">
+                          <p className="text-xs text-white font-medium">{template.name}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {template.isGlobal ? '🌐 เทมเพลตจากระบบ' : '📄 เทมเพลตของคุณ'}
+                          </p>
+                        </div>
                       </div>
                     );
                   }
@@ -1426,28 +1465,53 @@ export default function UserLineAccountsPage() {
                   // Show default preview
                   return (
                     <div className="space-y-4">
-                      <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
-                      <p className="text-[10px] text-slate-500 text-center">
-                        เลือกเทมเพลตเพื่อดูตัวอย่างการแสดงผล
-                      </p>
+                      <div className="flex justify-center">
+                        <SlipPreview template={DEFAULT_PREVIEW_TEMPLATE} senderBank={senderBank} receiverBank={receiverBank} sampleData={sampleData} />
+                      </div>
+                      <div className="text-center space-y-1">
+                        <p className="text-xs text-slate-400">ค่าเริ่มต้นของระบบ</p>
+                        <p className="text-[10px] text-slate-500">
+                          เลือกเทมเพลตด้านซ้ายเพื่อดูตัวอย่าง
+                        </p>
+                      </div>
                     </div>
                   );
                 })()}
               </div>
 
-              {/* Selected Templates Count */}
+              {/* Selected Templates Summary */}
               {Object.values(formData.slipTemplateIds).some(id => id) && (
-                <div className="bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-[#06C755] flex items-center justify-center text-white text-xs font-bold">
-                      {Object.values(formData.slipTemplateIds).filter(id => id).length}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-[#06C755]">
-                        เทมเพลตที่กำหนด
-                      </p>
-                      <p className="text-[9px] text-slate-400">ประเภทที่ไม่ได้กำหนดจะใช้ค่าเริ่มต้น</p>
-                    </div>
+                <div className="bg-slate-800/50 border border-white/10 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-white mb-3">เทมเพลตที่กำหนด</p>
+                  <div className="space-y-2">
+                    {formData.slipTemplateIds.success && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                        <span className="text-slate-400">สลิปถูกต้อง:</span>
+                        <span className="text-white truncate">{templates.find(t => t._id === formData.slipTemplateIds.success)?.name}</span>
+                      </div>
+                    )}
+                    {formData.slipTemplateIds.duplicate && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                        <span className="text-slate-400">สลิปซ้ำ:</span>
+                        <span className="text-white truncate">{templates.find(t => t._id === formData.slipTemplateIds.duplicate)?.name}</span>
+                      </div>
+                    )}
+                    {formData.slipTemplateIds.error && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                        <span className="text-slate-400">ผิดพลาด:</span>
+                        <span className="text-white truncate">{templates.find(t => t._id === formData.slipTemplateIds.error)?.name}</span>
+                      </div>
+                    )}
+                    {formData.slipTemplateIds.not_found && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                        <span className="text-slate-400">ไม่พบสลิป:</span>
+                        <span className="text-white truncate">{templates.find(t => t._id === formData.slipTemplateIds.not_found)?.name}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
