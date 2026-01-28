@@ -139,7 +139,13 @@ export class SlipVerificationManager {
         const providerDuration = Date.now() - providerStartTime;
 
         if (error instanceof ProviderUnavailableError) {
-          this.logger.debug(`[MANAGER] ${providerName} unavailable: ${error.reason} [${providerDuration}ms]`);
+          // Log as WARN for quota/auth issues so admin can see
+          const isQuotaOrAuth = ['Insufficient credits', 'Invalid API key', 'Forbidden'].includes(error.reason);
+          if (isQuotaOrAuth) {
+            this.logger.warn(`[MANAGER] ⚠️ ${providerName} UNAVAILABLE: ${error.reason} - กรุณาตรวจสอบโควต้าหรือ API Key`);
+          } else {
+            this.logger.debug(`[MANAGER] ${providerName} unavailable: ${error.reason} [${providerDuration}ms]`);
+          }
           continue;
         }
 
@@ -151,7 +157,7 @@ export class SlipVerificationManager {
 
     // All providers failed
     const totalDuration = Date.now() - startTime;
-    this.logger.warn(`[MANAGER] All providers failed [${totalDuration}ms]: ${attemptedProviders.join(', ')}`);
+    this.logger.warn(`[MANAGER] ❌ All providers failed [${totalDuration}ms]: ${attemptedProviders.join(', ')}`);
 
     // Track stats
     this.lastVerificationStats = {
@@ -161,11 +167,11 @@ export class SlipVerificationManager {
       failoverUsed: attemptedProviders.length > 1,
     };
 
-    // Return generic error (don't expose which providers failed)
+    // Return user-friendly error (don't expose which providers failed)
     return {
       status: 'error',
       provider: SlipProvider.THUNDER, // Don't expose actual provider
-      message: 'ไม่สามารถตรวจสอบสลิปได้ กรุณาลองใหม่อีกครั้ง',
+      message: lastResult?.message || 'ไม่สามารถตรวจสอบสลิปได้ กรุณาลองใหม่อีกครั้ง',
     };
   }
 
@@ -302,10 +308,11 @@ export class SlipVerificationManager {
    * Get failover order from settings
    * ใช้ slipApiProvider เป็นหลัก
    *
-   * SMART FAILOVER:
-   * - ถ้า primary เป็น SlipMate → เพิ่ม Thunder ไว้สำรองเสมอ (เพราะ SlipMate ไม่รองรับ TrueMoney Wallet)
-   * - ถ้า primary เป็น Thunder → ไม่ต้องเพิ่ม SlipMate (เพราะ Thunder รองรับทุกอย่าง)
-   * - ถ้าเปิด failover → เพิ่ม provider อื่นๆ ทั้งหมด
+   * SMART FAILOVER (เปิดใช้งานเสมอ):
+   * - เพิ่ม provider ทั้งหมดที่มี API key ใน failover order
+   * - ถ้า provider หนึ่งหมดโควต้า/หมดอายุ จะ failover ไปอีก provider อัตโนมัติ
+   * - ถ้า primary เป็น SlipMate → Thunder รองรับ TrueMoney Wallet
+   * - ถ้า primary เป็น Thunder และหมดโควต้า → SlipMate รองรับสลิปธนาคาร
    */
   private getFailoverOrder(settings: any): SlipProvider[] {
     const order: SlipProvider[] = [];
@@ -316,33 +323,23 @@ export class SlipVerificationManager {
       order.push(primary);
     }
 
-    // SMART FAILOVER: ถ้า primary เป็น SlipMate ให้เพิ่ม Thunder เสมอ
-    // เพราะ SlipMate ไม่รองรับ TrueMoney Wallet แต่ Thunder รองรับ
-    if (primary === SlipProvider.SLIPMATE) {
-      const thunderApiKey = settings.slipApiKeyThunder || settings.slipApiKey;
-      if (thunderApiKey && !order.includes(SlipProvider.THUNDER)) {
-        order.push(SlipProvider.THUNDER);
-        this.logger.log('[MANAGER] Added Thunder as fallback for TrueMoney Wallet support');
-      }
+    // SMART FAILOVER: เพิ่ม provider ทั้งหมดที่มี API key เป็น fallback
+    // เพื่อรองรับกรณี:
+    // 1. SlipMate ไม่รองรับ TrueMoney Wallet → failover to Thunder
+    // 2. Thunder หมดโควต้า/หมดอายุ → failover to SlipMate (สำหรับสลิปธนาคาร)
+    const thunderApiKey = settings.slipApiKeyThunder || settings.slipApiKey;
+    const slipmateApiKey = settings.slipApiKeySlipMate || settings.slipApiKeySecondary;
+
+    // เพิ่ม Thunder ถ้ายังไม่มีและมี API key
+    if (thunderApiKey && !order.includes(SlipProvider.THUNDER)) {
+      order.push(SlipProvider.THUNDER);
+      this.logger.debug('[MANAGER] Added Thunder as fallback');
     }
 
-    // Secondary provider - เพิ่มเมื่อ failover เปิดและมี provider สำรอง
-    if (settings.slipApiFallbackEnabled) {
-      // ถ้ามี slipApiProviderSecondary ให้ใช้
-      if (settings.slipApiProviderSecondary) {
-        const secondary = settings.slipApiProviderSecondary as SlipProvider;
-        if (this.providers.has(secondary) && !order.includes(secondary)) {
-          order.push(secondary);
-        }
-      } else {
-        // ถ้าไม่มี secondary แต่เปิด failover ให้เพิ่ม provider อื่นที่ไม่ใช่ primary
-        const allProviders = Array.from(this.providers.keys());
-        for (const p of allProviders) {
-          if (!order.includes(p)) {
-            order.push(p);
-          }
-        }
-      }
+    // เพิ่ม SlipMate ถ้ายังไม่มีและมี API key
+    if (slipmateApiKey && !order.includes(SlipProvider.SLIPMATE)) {
+      order.push(SlipProvider.SLIPMATE);
+      this.logger.debug('[MANAGER] Added SlipMate as fallback');
     }
 
     // Default: at least Thunder
@@ -350,7 +347,7 @@ export class SlipVerificationManager {
       order.push(SlipProvider.THUNDER);
     }
 
-    this.logger.debug(`[MANAGER] Provider order: ${order.join(' → ')} (failover=${settings.slipApiFallbackEnabled})`);
+    this.logger.log(`[MANAGER] Smart failover order: ${order.join(' → ')}`);
     return order;
   }
 
