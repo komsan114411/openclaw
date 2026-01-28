@@ -99,7 +99,7 @@ export class ThunderProvider implements SlipVerificationProvider {
 
       return this.normalizeResponse(response.data, endpoint);
     } catch (error: any) {
-      return this.handleError(error);
+      return this.handleError(error, endpoint);
     }
   }
 
@@ -316,7 +316,9 @@ export class ThunderProvider implements SlipVerificationProvider {
     };
   }
 
-  private handleError(error: any): NormalizedVerificationResult {
+  private handleError(error: any, endpoint: string = '/v1/verify'): NormalizedVerificationResult {
+    const isTrueWallet = endpoint.includes('truewallet');
+
     // Check if should failover
     if (shouldTriggerFailover(error)) {
       const status = error.response?.status;
@@ -351,11 +353,12 @@ export class ThunderProvider implements SlipVerificationProvider {
         // Duplicate slip
         if (message === 'duplicate_slip' || message.includes('duplicate')) {
           const slipData = data.data || {};
+          this.logger.log(`[THUNDER] Duplicate via handleError, isTrueWallet=${isTrueWallet}, data=${JSON.stringify(slipData).substring(0, 300)}`);
           return {
             status: 'duplicate',
             provider: SlipProvider.THUNDER,
             message: 'สลิปนี้เคยถูกใช้แล้ว',
-            data: this.extractSlipData(slipData),
+            data: this.extractSlipData(slipData, isTrueWallet),
             shouldFailover: false,
           };
         }
